@@ -1,0 +1,945 @@
+/* =============================================
+   DATE SELECTOR MODAL - ESTILOS MODERNOS
+   ============================================= */
+
+/* ===== VARIABLES ESPECÍFICAS PARA EL SELECTOR DE FECHAS ===== */
+:root {
+  /* Date Selector Colors */
+  --date-primary: var(--cta-bg, #0D7FF3);
+  --date-primary-hover: var(--cta-hover-bg, #0B6BCF);
+  --date-primary-light: rgba(13, 127, 243, 0.1);
+  
+  --date-surface: var(--card-bg, #ffffff);
+  --date-surface-alt: #f8fafc;
+  --date-surface-hover: #f1f5f9;
+  
+  --date-border: var(--border-color, rgba(0, 0, 0, 0.1));
+  --date-border-light: #f1f5f9;
+  --date-border-hover: #cbd5e1;
+  
+  --date-text-primary: var(--heading, #1e293b);
+  --date-text-secondary: var(--text-color, #64748b);
+  
+  --date-success: #10b981;
+  --date-warning: #f59e0b;
+  --date-error: #ef4444;
+  --date-info: #0284c7;
+  
+  /* Modal específicos */
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+  --modal-backdrop-blur: 8px;
+  --modal-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  
+  /* Animaciones */
+  --date-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Mode Variables */
+body.dark-mode {
+  --date-surface: var(--card-bg, #1e293b);
+  --date-surface-alt: #334155;
+  --date-surface-hover: #475569;
+  
+  --date-border: var(--border-color, #475569);
+  --date-border-light: #334155;
+  --date-border-hover: #64748b;
+  
+  --date-text-primary: var(--heading, #f1f5f9);
+  --date-text-secondary: var(--text-color, #94a3b8);
+  
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+  --modal-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== CONTAINER PRINCIPAL DEL TRIGGER ===== */
+.date-selector-trigger-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+/* ===== BOTÓN PRINCIPAL PARA ABRIR MODAL ===== */
+.date-selector-btn {
+  background: var(--date-surface);
+  border: 2px solid var(--date-border);
+  border-radius: var(--radius-lg, 16px);
+  padding: 0;
+  cursor: pointer;
+  transition: var(--date-transition);
+  width: 100%;
+  min-height: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.date-selector-btn:hover {
+  border-color: var(--date-primary);
+  box-shadow: 0 8px 25px rgba(13, 127, 243, 0.15);
+  transform: translateY(-2px);
+}
+
+.date-selector-btn:active {
+  transform: translateY(0);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  gap: 16px;
+  width: 100%;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--date-primary), var(--date-primary-hover));
+  border-radius: 12px;
+  color: white;
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: var(--date-transition);
+}
+
+.date-selector-btn:hover .btn-icon {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.3);
+}
+
+.btn-text {
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+}
+
+.btn-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--date-text-primary);
+  margin-bottom: 4px;
+}
+
+.btn-subtitle {
+  display: block;
+  font-size: 14px;
+  color: var(--date-text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.btn-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--date-text-secondary);
+  transition: var(--date-transition);
+  flex-shrink: 0;
+}
+
+.date-selector-btn:hover .btn-arrow {
+  color: var(--date-primary);
+  transform: translateX(4px);
+}
+
+/* ===== BADGES DE RESUMEN ===== */
+.date-summary-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeInUp 0.4s ease;
+}
+
+.date-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: var(--date-transition);
+}
+
+.date-badge i {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.date-badge-primary {
+  background: var(--date-primary-light);
+  color: var(--date-primary);
+  border-color: rgba(13, 127, 243, 0.2);
+}
+
+.date-badge-comparison {
+  background: rgba(139, 69, 255, 0.1);
+  color: #8b45ff;
+  border-color: rgba(139, 69, 255, 0.2);
+}
+
+/* ===== MODAL OVERLAY ===== */
+.date-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-overlay);
+  backdrop-filter: blur(var(--modal-backdrop-blur));
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.date-modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ===== MODAL PRINCIPAL ===== */
+.date-modal {
+  background: var(--date-surface);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--modal-shadow);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  transform: scale(0.9) translateY(20px);
+  transition: var(--date-transition);
+  overflow: hidden;
+  border: 1px solid var(--date-border);
+}
+
+.date-modal.show {
+  transform: scale(1) translateY(0);
+}
+
+/* ===== HEADER DEL MODAL ===== */
+.date-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--date-border);
+  background: var(--date-surface-alt);
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--date-text-primary);
+  margin: 0;
+}
+
+.modal-title i {
+  color: var(--date-primary);
+  font-size: 18px;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--date-text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--date-transition);
+}
+
+.modal-close-btn:hover {
+  background: var(--date-surface-hover);
+  color: var(--date-error);
+}
+
+/* ===== BODY DEL MODAL ===== */
+.date-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ===== CONTENEDOR DEL SELECTOR ===== */
+.date-selector-container {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 32px;
+  margin: 0;
+  box-shadow: none;
+}
+
+/* ===== SECCIONES PRINCIPALES ===== */
+.date-period-section,
+.date-comparison-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--date-border-light);
+}
+
+.date-period-section:last-child,
+.date-comparison-section:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* ===== HEADERS DE PERÍODOS ===== */
+.period-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--date-border-light);
+}
+
+.period-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--date-text-primary);
+}
+
+.period-title i {
+  color: var(--date-primary);
+  font-size: 14px;
+}
+
+.period-preview {
+  font-size: 13px;
+  color: var(--date-text-secondary);
+  font-weight: 500;
+  padding: 4px 12px;
+  background: var(--date-surface-alt);
+  border-radius: 16px;
+  border: 1px solid var(--date-border-light);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+
+/* ===== INPUTS DE FECHA ===== */
+.date-inputs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.date-input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--date-text-primary);
+}
+
+.date-input {
+  padding: 12px 16px;
+  border: 1px solid var(--date-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--date-surface);
+  color: var(--date-text-primary);
+  transition: var(--date-transition);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--date-primary);
+  box-shadow: 0 0 0 3px var(--date-primary-light);
+}
+
+/* ===== PRESETS RÁPIDOS ===== */
+.date-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--date-border-light);
+}
+
+.presets-label {
+  font-size: 13px;
+  color: var(--date-text-secondary);
+  font-weight: 500;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.preset-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--date-border);
+  border-radius: 6px;
+  background: var(--date-surface);
+  color: var(--date-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--date-transition);
+  white-space: nowrap;
+}
+
+.preset-btn:hover {
+  background: var(--date-surface-hover);
+  border-color: var(--date-border-hover);
+  color: var(--date-text-primary);
+}
+
+.preset-btn:active,
+.preset-btn.active {
+  background: var(--date-primary);
+  border-color: var(--date-primary);
+  color: white;
+  transform: scale(0.95);
+}
+
+/* ===== OPCIONES DE COMPARACIÓN ===== */
+.comparison-options {
+  margin-bottom: 16px;
+  margin-top:16px;
+}
+
+.comparison-mode-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.comparison-mode-group input[type="radio"] {
+  display: none;
+}
+
+.comparison-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--date-border);
+  border-radius: 8px;
+  background: var(--date-surface);
+  color: var(--date-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--date-transition);
+  text-align: center;
+  min-height: 48px;
+}
+
+.comparison-mode-btn:hover {
+  border-color: var(--date-border-hover);
+  background: var(--date-surface-hover);
+  color: var(--date-text-primary);
+}
+
+.comparison-mode-group input[type="radio"]:checked + .comparison-mode-btn {
+  border-color: var(--date-primary);
+  background: var(--date-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(13, 127, 243, 0.2);
+}
+
+.comparison-mode-btn i {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.comparison-mode-btn span {
+  white-space: nowrap;
+}
+
+/* ===== FECHAS DE COMPARACIÓN PERSONALIZADA ===== */
+.custom-comparison-dates {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--date-surface-alt);
+  border: 1px solid var(--date-border-light);
+  border-radius: 8px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== SECCIÓN DE INFORMACIÓN ===== */
+.date-info-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--date-border-light);
+}
+
+.date-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--date-primary-light);
+  border: 1px solid rgba(13, 127, 243, 0.2);
+  border-radius: 8px;
+  color: var(--date-primary);
+  margin-bottom:5px;
+}
+
+.date-info-card i {
+  color: var(--date-primary);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.info-content strong {
+  font-weight: 600;
+}
+
+/* ===== FOOTER DEL MODAL ===== */
+.date-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 32px;
+  border-top: 1px solid var(--date-border);
+  background: var(--date-surface-alt);
+}
+
+.btn-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--date-transition);
+  min-width: 100px;
+  justify-content: center;
+}
+
+.btn-modal i {
+  font-size: 12px;
+}
+
+.btn-modal-secondary {
+  background: transparent;
+  color: var(--date-text-secondary);
+  border: 1px solid var(--date-border);
+}
+
+.btn-modal-secondary:hover {
+  background: var(--date-surface-hover);
+  color: var(--date-text-primary);
+}
+
+.btn-modal-primary {
+  background: var(--date-primary);
+  color: white;
+  border: 1px solid var(--date-primary);
+}
+
+.btn-modal-primary:hover {
+  background: var(--date-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.3);
+}
+
+.btn-modal:active {
+  transform: translateY(0);
+}
+
+/* ===== TOAST DE ERROR ===== */
+.date-error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--date-error);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10000;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: var(--date-transition);
+}
+
+.date-error-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.date-error-toast i {
+  font-size: 16px;
+}
+
+/* ===== ANIMACIONES ===== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .date-modal-overlay {
+    padding: 16px;
+  }
+  
+  .date-modal {
+    max-height: 95vh;
+  }
+  
+  .date-modal-header {
+    padding: 20px 24px;
+  }
+  
+  .modal-title {
+    font-size: 18px;
+  }
+  
+  .date-selector-container {
+    padding: 24px 20px;
+  }
+  
+  .date-inputs-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .comparison-mode-group {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .comparison-mode-btn {
+    justify-content: flex-start;
+    padding: 12px 16px;
+  }
+  
+  .date-presets {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .preset-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .period-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .period-preview {
+    max-width: 100%;
+  }
+  
+  .date-modal-footer {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .btn-modal {
+    width: 100%;
+  }
+  
+  .btn-content {
+    padding: 16px 20px;
+  }
+  
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+  
+  .btn-title {
+    font-size: 15px;
+  }
+  
+  .btn-subtitle {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .date-modal-overlay {
+    padding: 12px;
+  }
+  
+  .date-modal-header {
+    padding: 16px 20px;
+  }
+  
+  .modal-title {
+    font-size: 16px;
+  }
+  
+  .date-selector-container {
+    padding: 20px 16px;
+  }
+  
+  .date-modal-footer {
+    padding: 12px 16px;
+  }
+  
+  .btn-content {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .btn-title {
+    font-size: 14px;
+  }
+  
+  .btn-subtitle {
+    font-size: 12px;
+  }
+  
+  .date-error-toast {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    font-size: 13px;
+  }
+}
+
+/* ===== ESTADOS DE VALIDACIÓN ===== */
+.date-input.error {
+  border-color: var(--date-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.date-input.error:focus {
+  border-color: var(--date-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* ===== ACCESIBILIDAD ===== */
+.date-input:focus-visible,
+.preset-btn:focus-visible,
+.comparison-mode-btn:focus-visible,
+.btn-modal:focus-visible,
+.date-selector-btn:focus-visible {
+  outline: 2px solid var(--date-primary);
+  outline-offset: 2px;
+}
+
+/* ===== MODO OSCURO ESPECÍFICO ===== */
+body.dark-mode .date-info-card {
+  background: rgba(13, 127, 243, 0.1);
+  border-color: rgba(13, 127, 243, 0.2);
+  color: var(--date-text-primary);
+}
+
+body.dark-mode .date-info-card i {
+  color: var(--date-primary);
+}
+
+body.dark-mode .date-error-toast {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== TRANSICIONES SUAVES ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--date-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--date-border);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--date-border-hover);
+}
+
+/* ===== PREVENIR SCROLL DEL BODY CUANDO EL MODAL ESTÁ ABIERTO ===== */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* ===== ESTADOS DE CARGA ===== */
+.date-selector-container.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.date-selector-container.loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--date-surface);
+  opacity: 0.8;
+  z-index: 10;
+  border-radius: 12px;
+}
+
+.date-selector-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 3px solid var(--date-border);
+  border-top: 3px solid var(--date-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 11;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== ESPACIADO PARA EL BANNER DE PERÍODO SELECCIONADO ===== */
+
+/* Banner que muestra "Previous Period: fechas" */
+.period-preview,
+.comparison-period-info,
+.selected-period-banner,
+.period-info-banner {
+  margin-top: 20px !important;    /* Más espacio arriba */
+  margin-bottom: 20px !important; /* Más espacio abajo */
+}
+
+/* Si el banner está dentro de period-header */
+.period-header .period-preview {
+  margin-top: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Para el elemento específico que muestra las fechas de comparación */
+#comparisonPeriodPreview {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+  background: var(--date-surface-alt);
+  border: 1px solid var(--date-border-light);
+  border-radius: 8px;
+  color: var(--date-text-secondary);
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Si es un elemento con clase period-info */
+.period-info,
+.comparison-info,
+.date-period-info {
+  margin-top: 20px !important;
+  margin-bottom: 20px !important;
+}
+
+/* Para cualquier elemento que contenga "Previous Period" en el texto */
+[data-period-info],
+.period-display,
+.selected-comparison-display {
+  margin-top: 20px !important;
+  margin-bottom: 20px !important;
+}
+
+/* Responsive: ajustar en móvil */
+@media (max-width: 768px) {
+  .period-preview,
+  .comparison-period-info,
+  .selected-period-banner,
+  .period-info-banner,
+  #comparisonPeriodPreview {
+    margin-top: 16px !important;
+    margin-bottom: 16px !important;
+  }
+}
+
+/* Si necesitas aún más espacio, usa esta versión más espaciosa */
+.period-banner-extra-space {
+  margin-top: 32px !important;
+  margin-bottom: 32px !important;
+}
+
+/* Alternativa: Si el banner tiene una clase específica que no conozco */
+.comparison-section .period-preview,
+.date-comparison-section .period-preview {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+}

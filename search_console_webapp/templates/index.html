@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Search Console Data</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='modulos-especificos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='serp-modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
+  
+  <!-- ✅ NUEVO: Agregar estilos del selector de fechas -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='date-selector.css') }}">
+  <!-- ✅ NUEVO: Agregar estilos del modo de análisis -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='analysis-mode-styles.css') }}">
+</head>
+<body>
+
+  <nav class="navbar" id="navbar">
+    <div class="navbar-container">
+      <div class="navbar-brand">
+        <div class="brand-logo">
+          <i class="fas fa-chart-line"></i>
+        </div>
+      </div>
+
+      <button class="navbar-toggle" id="navbarToggle" aria-label="Open navigation menu">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <div class="navbar-menu" id="navbarMenu">
+        <div class="navbar-actions">
+          <button type="button" class="navbar-btn login-btn" id="loginBtn">
+            <i class="fas fa-sign-in-alt"></i>
+            <span class="btn-text">Login</span>
+          </button>
+
+          <button type="button" class="navbar-btn logout-btn" id="logoutBtn" style="display: none;">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="btn-text">Logout</span>
+          </button>
+
+          <button type="button" class="navbar-btn toggle-mode" id="toggleModeBtn" aria-pressed="false" aria-label="Activar modo oscuro">
+            <i class="fas fa-moon" id="themeIcon"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div id="stickyActions" class="sticky-actions" style="display: none;">
+    <div class="sticky-actions-container">
+      <button type="button" id="stickyDownloadBtn" class="sticky-btn sticky-btn-download">
+        <i class="fas fa-download"></i>
+        <span class="sticky-btn-text">Excel</span>
+        <span class="sticky-btn-spinner" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i>
+        </span>
+      </button>
+      
+      <button type="button" id="stickyAIBtn" class="sticky-btn sticky-btn-ai">
+        <i class="fas fa-robot"></i>
+        <span class="sticky-btn-text">AI Analysis</span>
+        <span class="sticky-btn-spinner" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <form id="urlForm" class="search-form">
+      
+      <div class="form-header">
+        <h1>Search Results Performance</h1>
+        <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
+      </div> 
+
+      <div class="form-row">
+        <div class="form-group form-group-half">
+          <label for="siteUrlSelect">Select Domain</label>
+          <select id="siteUrlSelect" name="site_url" required>
+            <option value="" disabled selected>Loading properties...</option>
+          </select>
+        </div>
+        
+        <div class="form-group form-group-half">
+          <label for="countrySelect">
+            Country
+            <span class="country-info-icon" id="countryInfoIcon">
+              <i class="fas fa-info-circle"></i>
+            </span>
+          </label>
+          <select id="countrySelect" name="country">
+            <option value="" disabled selected>Select a domain first</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group form-group-large">
+          <label for="urlsInput">
+            URL(s)
+            <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon" title="Click para más información"></i>
+          </label>
+          <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
+        </div>
+        
+        <div class="form-group form-group-small">
+          <label for="matchTypeGroup">Match Type</label>
+          <div class="match-type-group" id="matchTypeGroup">
+            <input type="radio" id="matchContains" name="match_type" value="contains" checked>
+            <label for="matchContains" class="match-type-btn">Contains</label>
+            
+            <input type="radio" id="matchEquals" name="match_type" value="equals">
+            <label for="matchEquals" class="match-type-btn">Equals</label>
+            
+            <input type="radio" id="matchNotContains" name="match_type" value="notContains">
+            <label for="matchNotContains" class="match-type-btn">Not Contains</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ ACTUALIZADO: Selector de fechas ahora es un modal elegante -->
+      <div class="form-row">
+        <div class="form-group form-group-full">
+          <!-- ✅ IMPORTANTE: El contenido será reemplazado por el botón modal y selector de fechas -->
+          <div id="monthChips" role="group" aria-labelledby="monthChipsLabel"></div>
+        </div>
+      </div>
+
+      <div class="form-row form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-search"></i>
+          Analyze Performance
+        </button>
+        <button type="button" id="clearUrlsBtn" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          Clear URLs
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Resto del HTML permanece igual... -->
+  <div id="loader" style="display:none; text-align:center; margin:20px;" role="status" aria-live="polite">
+    <div class="spinner"></div>
+    <p>Processing data for specific periods...</p>
+  </div>
+
+  <section id="insightsSection" class="glass-effect" style="display:none;">
+    <h2 id="insightsTitle">Performance Overview</h2>
+    <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
+    <div id="summaryDisclaimer" class="summary-disclaimer"></div>
+  </section>
+
+  <!-- Resto de secciones sin cambios... -->
+  <section id="performanceSection" class="glass-effect" style="display:none;">
+    <h2 id="performanceTitle">Selected Periods Performance</h2>
+    <div id="summaryBlock" class="summary-block">
+      <!-- Cards permanecen igual -->
+      <div class="summary-card" id="summaryClicks">
+        <div class="card-icon"><i class="fas fa-mouse-pointer"></i></div>
+        <strong>Clicks</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryImpressions">
+        <div class="card-icon"><i class="fas fa-eye"></i></div>
+        <strong>Impressions</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryCTR">
+        <div class="card-icon"><i class="fas fa-percentage"></i></div>
+        <strong>Average CTR</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryPosition">
+        <div class="card-icon"><i class="fas fa-location-arrow"></i></div>
+        <strong>Average Position</strong>
+        <div class="summary-content"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="keywordsSection" class="glass-effect" style="display:none;">
+    <h2 id="keywordsTitle">Keyword Performance</h2> 
+    <div class="keywords-overview-subtitle">Performance comparison between selected periods</div>
+    <div id="keyword-overview" class="overview-cards"></div>
+    <div id="keyword-category-cards" class="category-cards"></div>
+    <div id="keywordComparisonBlock" class="table-responsive-container">
+      <table id="keywordComparisonTable" class="display" style="width:100%;">
+        <thead>
+          <tr>
+            <th>View SERP</th>
+            <th>Keyword</th>
+            <th>Clicks P1</th>
+            <th>Clicks P2</th>
+            <th>&Delta;Clicks (%)</th>
+            <th>Impresiones P1</th>
+            <th>Impresiones P2</th>
+            <th>&Delta;Imp. (%)</th>
+            <th>CTR P1 (%)</th>
+            <th>CTR P2 (%)</th>
+            <th>&Delta;CTR (%)</th>
+            <th>Pos P1</th>
+            <th>Pos P2</th>
+            <th>&Delta;Pos</th>
+          </tr>
+        </thead>
+        <tbody id="keywordComparisonTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="aiOverviewSection" class="glass-effect" style="display:none;">
+    <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
+    <div id="aiAnalysisMessage" class="ai-analysis-message"></div>
+    <div id="aiOverviewResultsContainer" class="ai-overview-results-container"></div>
+  </section>
+
+  <section id="resultsSection" class="glass-effect" style="display:none;">
+  <h2 id="resultsTitle">Results by URL</h2>
+  <div id="resultsBlock" class="table-responsive-container">
+    <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Clicks P1</th>
+          <th>Clicks P2</th>
+          <th>ΔClicks (%)</th>
+          <th>Impressions P1</th>
+          <th>Impressions P2</th>
+          <th>ΔImp. (%)</th>
+          <th>CTR P1 (%)</th>
+          <th>CTR P2 (%)</th>
+          <th>ΔCTR (%)</th>
+          <th>Pos P1</th>
+          <th>Pos P2</th>
+          <th>ΔPos</th>
+        </tr>
+      </thead>
+      <tbody id="tableBodyResults"></tbody>
+    </table>
+  </div>
+</section>
+
+  <!-- Modales permanecen igual -->
+  <div id="serpModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-search"></i> 
+          SERP Analysis: <span id="serpKeyword"></span>
+        </h3>
+        <span class="close-btn">&times;</span>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="progressModal" class="modal">
+    <div class="modal-dialog">
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressBubble" class="progress-bubble"></div>
+        <div class="milestone-container">
+          <span class="milestone" data-index="1"></span>
+          <span class="milestone" data-index="2"></span>
+          <span class="milestone" data-index="3"></span>
+          <span class="milestone" data-index="4"></span>
+          <span class="milestone" data-index="5"></span>
+          <span class="milestone" data-index="6"></span>
+          <span class="milestone" data-index="7"></span>
+          <span class="milestone" data-index="8"></span>
+          <span class="milestone" data-index="9"></span>
+        </div>
+        <div id="progressSubtext" class="progress-subtext">
+          Processing Search Console data with specific dates...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+  <!-- ✅ NUEVO: Importar el selector de fechas antes de app.js -->
+  <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+  <script type="module" src="js/ui-table-enhancements.js"></script>
+
+</body>
+</html>

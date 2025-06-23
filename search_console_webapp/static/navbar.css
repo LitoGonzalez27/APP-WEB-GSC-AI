@@ -1,0 +1,409 @@
+/* static/navbar.css - SIMPLIFICADO PARA USAR CON UTILS.JS */
+
+/* ================================
+   NAVBAR RESPONSIVE 
+   ================================ */
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.95));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.navbar.scrolled {
+  background: var(--glass-bg-scrolled, rgba(255, 255, 255, 0.98));
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+/* ================================
+   LOGO/BRAND 
+   ================================ */
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-color, #333);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.navbar-brand:hover {
+  transform: translateY(-1px);
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand-logo i {
+  font-size: 1.5rem;
+  color: var(--primary-color, #4472C4);
+  transition: transform 0.3s ease;
+}
+
+.navbar-brand:hover .brand-logo i {
+  transform: scale(1.1);
+}
+
+.brand-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-color, #333);
+  background: linear-gradient(135deg, var(--primary-color, #4472C4), var(--secondary-color, #AEC6CF));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ================================
+   MENU HAMBURGUESA (MÓVIL)
+   ================================ */
+
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  width: 30px;
+  height: 30px;
+  justify-content: space-between;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.navbar-toggle:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.hamburger-line {
+  width: 100%;
+  height: 3px;
+  background: var(--text-color, #333);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.navbar-toggle.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.navbar-toggle.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar-toggle.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* ================================
+   MENÚ PRINCIPAL
+   ================================ */
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ================================
+   BOTONES DEL NAVBAR
+   ================================ */
+
+.navbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--button-bg, rgba(255, 255, 255, 0.1));
+  color: var(--text-color, #333);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  text-decoration: none;
+  min-height: 36px;
+}
+
+.navbar-btn:hover {
+  background: var(--button-hover-bg, rgba(0, 0, 0, 0.1));
+  transform: translateY(-1px);
+}
+
+.navbar-btn:active {
+  transform: translateY(0);
+}
+
+.navbar-btn i {
+  transition: transform 0.3s ease;
+}
+
+.navbar-btn:hover i {
+  transform: scale(1.1);
+}
+
+/* Botón Login */
+.login-btn {
+  background: var(--primary-color, #4472C4);
+  color: white;
+}
+
+.login-btn:hover {
+  background: var(--primary-hover, #365ba3);
+  box-shadow: 0 2px 8px rgba(68, 114, 196, 0.3);
+}
+
+/* Botón Logout */
+.logout-btn {
+  background: var(--error-color, #dc3545);
+  color: white;
+}
+
+.logout-btn:hover {
+  background: var(--error-hover, #c82333);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Toggle modo oscuro */
+
+
+
+
+.toggle-mode {
+  
+  background: var(--button-bg, rgba(255, 255, 255, 0.1));
+  color: var(--text-color, #333);
+display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  text-decoration: none;
+  min-height: 36px;
+}
+
+.toggle-mode i {
+  font-size: 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+.toggle-mode:hover i {
+  transform: scale(1.2);
+}
+
+/* ================================
+   RESPONSIVE - MÓVIL
+   ================================ */
+
+@media (max-width: 768px) {
+  .navbar-toggle {
+    display: flex;
+  }
+
+  .navbar-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--glass-bg, rgba(255, 255, 255, 0.95));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  .navbar-menu.active {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .navbar-actions {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .navbar-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+  }
+
+  .btn-text {
+    display: inline;
+  }
+
+  /* En móvil, mostrar texto para el toggle */
+  .toggle-mode .btn-text {
+    display: inline;
+    margin-left: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-container {
+    padding: 0 0.5rem;
+  }
+
+  .brand-text {
+    font-size: 1.1rem;
+  }
+
+  .navbar-btn {
+    font-size: 0.85rem;
+  }
+}
+
+/* ================================
+   AJUSTES PARA BODY
+   ================================ */
+
+/* Ajustar el body para dar espacio al navbar fijo */
+body {
+  padding-top: 60px;
+}
+
+/* ================================
+   DARK MODE - COMPATIBLE CON UTILS.JS
+   ================================ */
+
+/* ✅ Usar body.dark-mode para ser compatible con utils.js */
+body.dark-mode .navbar {
+  background: rgb(22 28 34);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .navbar.scrolled {
+  background: rgba(20, 20, 20, 0.98);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .navbar-brand,
+body.dark-mode .brand-text {
+  color: #ffffff;
+}
+
+body.dark-mode .hamburger-line {
+  background: #ffffff;
+}
+
+
+body.dark-mode .navbar-menu {
+  background: rgba(30, 30, 30, 0.95);
+  border-top-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ================================
+   ESTADOS DE CARGA Y EFECTOS
+   ================================ */
+
+.navbar-btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.navbar-btn.loading i {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ================================
+   ANIMACIONES DE ENTRADA
+   ================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.navbar-menu.active .navbar-btn {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.navbar-menu.active .navbar-btn:nth-child(1) { animation-delay: 0.1s; }
+.navbar-menu.active .navbar-btn:nth-child(2) { animation-delay: 0.2s; }
+.navbar-menu.active .navbar-btn:nth-child(3) { animation-delay: 0.3s; }
+
+/* ================================
+   ACCESIBILIDAD
+   ================================ */
+
+.navbar-btn:focus,
+.navbar-toggle:focus {
+  outline: 2px solid var(--primary-color, #4472C4);
+  outline-offset: 2px;
+}
+
+/* Reducir animaciones para usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .navbar-btn,
+  .navbar-toggle,
+  .navbar-menu,
+  .hamburger-line,
+  .brand-logo i {
+    transition: none;
+    animation: none;
+  }
+  
+  .navbar-btn:hover,
+  .navbar-toggle:hover {
+    transform: none;
+  }
+}

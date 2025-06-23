@@ -1,0 +1,41 @@
+# requirements.txt - ACTUALIZADO para Python 3.13
+
+# Flask y extensiones
+Flask==3.0.3
+python-dotenv==1.0.1
+
+# Google APIs (actualizadas)
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+google-api-python-client==2.147.0
+
+# Procesamiento de datos (COMPATIBLE con Python 3.13)
+pandas==2.2.3
+openpyxl==3.1.5
+
+# SERP API
+google-search-results==2.4.2
+
+# HTTP requests
+requests==2.32.3
+
+# Logging y utilidades (CORREGIDO - logging es parte de stdlib)
+# logging==0.4.9.6  # REMOVIDO - no es necesario
+
+# Para screenshots (actualizado)
+playwright==1.48.0
+
+# Seguridad adicional
+cryptography==43.0.1
+
+# Para manejo de fechas
+python-dateutil==2.9.0
+
+# Cache y sesiones
+Flask-Session==0.8.0
+redis==5.1.1
+
+# Dependencias adicionales útiles
+numpy==2.1.3
+urllib3==2.2.3

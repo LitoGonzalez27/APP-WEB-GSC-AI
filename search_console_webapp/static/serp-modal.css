@@ -1,0 +1,764 @@
+/*=============================================
+  SERP MODAL - ESTILOS MEJORADOS CON DARK MODE
+  Compatible con el sistema de variables de base-y-componentes.css
+=============================================*/
+
+/*=============================================
+  1. TABS DE NAVEGACIÓN MEJORADOS
+=============================================*/
+.serp-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--body-bg);
+  padding: 0 4px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.serp-tab {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-color);
+  opacity: 0.7;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  position: relative;
+  margin-bottom: -1px;
+}
+
+.serp-tab:hover {
+  color: var(--heading);
+  background: var(--even-row-bg);
+  opacity: 1;
+}
+
+.serp-tab.active {
+  color: var(--cta-bg);
+  background: var(--card-bg);
+  opacity: 1;
+  font-weight: 600;
+  border-bottom: 2px solid var(--cta-bg);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-content {
+  background: var(--card-bg);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  overflow: hidden;
+}
+
+/*=============================================
+  2. ELEMENTOS DE INFORMACIÓN MEJORADOS
+=============================================*/
+.domain-info {
+  margin: var(--spacing-xs) 0;
+  padding: 10px 20px;
+  background: var(--even-row-bg);
+  color: var(--text-color);
+  font-size: 0.95em;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--cta-bg);
+}
+
+.position-highlight {
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  margin: 10px 0;
+  font-size: 1.05em;
+  font-weight: 500;
+  border: 1px solid;
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.position-highlight::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.position-highlight.success {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.position-highlight.success::before {
+  background: var(--success-color);
+}
+
+.position-highlight.warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+.position-highlight.warning::before {
+  background: var(--warning-color);
+}
+
+/*=============================================
+  3. VISTA PREVIA DE RESULTADOS MEJORADA
+=============================================*/
+.result-preview {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: var(--radius-sm);
+  margin: 10px 0;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--info-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
+  transition: all var(--transition-base);
+}
+
+.result-preview:hover {
+  box-shadow: 0 4px 12px var(--shadow-color);
+  transform: translateY(-1px);
+}
+
+.result-preview h5 {
+  margin-bottom: 8px;
+}
+
+.result-preview h5 a {
+  color: var(--cta-bg);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.1em;
+  transition: color var(--transition-fast);
+  line-height: 1.3;
+}
+
+.result-preview h5 a:hover {
+  text-decoration: underline;
+  color: var(--cta-hover-bg);
+}
+
+.result-preview cite {
+  color: var(--success-color);
+  font-style: normal;
+  font-size: 0.9em;
+  word-break: break-all;
+  display: block;
+  margin: 8px 0;
+  font-weight: 500;
+}
+
+.result-preview p {
+  font-size: 0.95em;
+  color: var(--text-color);
+  margin-top: 12px;
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
+/*=============================================
+  4. LISTAS DE RESULTADOS MEJORADAS
+=============================================*/
+.serp-list,
+.serp-list-ads {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.serp-list li,
+.serp-list-ads li {
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.serp-list li:hover {
+  background: var(--even-row-bg);
+  border-color: var(--cta-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.serp-list li strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.serp-list li strong a {
+  color: var(--cta-bg);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05em;
+  line-height: 1.3;
+}
+
+.serp-list li strong a:hover {
+  text-decoration: underline;
+  color: var(--cta-hover-bg);
+}
+
+.serp-list li cite {
+  color: var(--success-color);
+  font-size: 0.9em;
+  font-style: normal;
+  font-weight: 500;
+  word-break: break-all;
+  display: block;
+  margin: 2px 0 2px 0;
+}
+
+.serp-list li small {
+  font-size: 0.9em;
+  color: var(--text-color);
+  opacity: 0.8;
+  line-height: 1.4;
+  display: block;
+  margin: 0;
+}
+
+/* Resultado destacado mejorado */
+.highlighted-result {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%) !important;
+  border: 2px solid var(--success-color) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.highlighted-result::before {
+  content: '👑 TU RESULTADO';
+  position: absolute;
+  top: -1px;
+  right: 16px;
+  background: linear-gradient(135deg, var(--success-color), #388e3c);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 0 0 12px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  z-index: 10;
+}
+
+.highlighted-result:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.2) !important;
+}
+
+.serp-tabs{margin-top:25px;}
+
+#quick-view{padding:25px;}
+
+/*=============================================
+  5. BADGES Y ETIQUETAS MEJORADOS
+=============================================*/
+.match-badge,
+.position-badge,
+.ad-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.75em;
+  font-weight: 600;
+  margin-right: 8px;
+  margin-bottom: 4px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-fast);
+}
+
+.match-badge.own-site-badge {
+  background: linear-gradient(135deg, var(--success-color), #388e3c);
+  color: white;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+}
+
+.position-badge {
+  background: var(--text-color);
+  color: var(--card-bg);
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.ad-badge {
+  background: linear-gradient(135deg, var(--warning-color), #e8a441);
+  color: white;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+}
+
+/*=============================================
+  6. CONTROLES Y SCREENSHOT MEJORADOS
+=============================================*/
+.screenshot-loading {
+  text-align: center;
+  padding: 60px 30px;
+  color: var(--text-color);
+  background: var(--even-row-bg);
+  border-radius: var(--radius-sm);
+  margin: 20px 0;
+}
+
+.screenshot-loading i {
+  font-size: 2rem;
+  color: var(--cta-bg);
+  margin-bottom: 16px;
+  display: block;
+  animation: spin 1s linear infinite;
+}
+
+.screenshot-controls {
+  margin-bottom: 16px;
+  text-align: right;
+  padding: 15px 20px;
+}
+
+.screenshot-controls .btn {
+  margin-left: 12px;
+  padding: 8px 16px;
+  font-size: 0.9em;
+}
+
+.serp-screenshot {
+  display: none;
+  cursor: zoom-in;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 16px var(--shadow-color);
+  transition: transform var(--transition-fast) ease;
+  margin: 0 auto;
+}
+
+.serp-screenshot.visible {
+  display: block;
+}
+
+.serp-screenshot.zoomed {
+  cursor: zoom-out;
+  max-width: none;
+  width: auto;
+  box-shadow: 0 8px 32px var(--shadow-color);
+}
+
+.serp-summary {
+  padding: 24px;
+  background: var(--even-row-bg);
+  margin: 0 0 20px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.serp-summary h4 {
+  color: var(--heading);
+  margin-bottom: 12px;
+  font-size: 1.1em;
+}
+
+.serp-list {
+  margin-top: 20px;
+  padding: 0 20px 20px;
+}
+
+.serp-results-container h5 {
+  font-size: 16px;
+  color: var(--heading);
+  margin-bottom: 16px;
+  padding: 0 20px;
+  font-weight: 600;
+}
+
+/* Container de vista de screenshot mejorado */
+.screenshot-view-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: var(--even-row-bg);
+  min-height: 300px;
+  margin: 20px;
+  border-radius: var(--radius-sm);
+  border: 2px dashed var(--border-color);
+  transition: all var(--transition-base);
+}
+
+.screenshot-info{padding:25px;}
+
+.screenshot-view-container:hover {
+  border-color: var(--cta-bg);
+  background: var(--card-bg);
+}
+
+.screenshot-info {
+  text-align: center;
+  color: var(--text-color);
+}
+
+.screenshot-info i {
+  opacity: 0.7;
+}
+
+.screenshot-info h5 {
+  color: var(--heading);
+  margin-bottom: 8px;
+  font-size: 1.1em;
+}
+
+.screenshot-info p {
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-bottom: 20px;
+}
+
+.load-screenshot {
+  background: var(--cta-bg);
+  color: var(--cta-text);
+  padding: 12px 24px;
+  border: 1px solid var(--cta-bg);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 16px;
+}
+
+.load-screenshot:hover {
+  background: var(--cta-hover-bg);
+  border-color: var(--cta-hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 95, 43, 0.3);
+}
+
+/*=============================================
+  7. ALERTAS MEJORADAS
+=============================================*/
+.alert {
+  padding: 16px 20px;
+  margin: 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert i {
+  font-size: 1.2em;
+  flex-shrink: 0;
+}
+
+.alert-danger {
+  color: var(--error-color);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--error-color);
+}
+
+.alert-info {
+  color: var(--info-color);
+  background: rgba(25, 160, 212, 0.1);
+  border-color: var(--info-color);
+}
+
+.alert-success {
+  color: var(--success-color);
+  background: rgba(76, 175, 80, 0.1);
+  border-color: var(--success-color);
+}
+
+.alert-warning {
+  color: var(--warning-color);
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--warning-color);
+}
+
+/*=============================================
+  8. ELEMENTOS ESPECÍFICOS DE SERP MEJORADOS
+=============================================*/
+.serp-icon {
+  font-size: 18px;
+  transition: all var(--transition-fast);
+  color: var(--cta-bg);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.serp-icon:hover {
+  transform: scale(1.2);
+  color: var(--cta-hover-bg);
+  background: var(--even-row-bg);
+}
+
+/* Modal body específico para SERP */
+#serpModal .modal-body {
+  background: var(--body-bg);
+  color: var(--text-color);
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(90vh - 100px);
+  padding: 15px;
+}
+
+#serpModal .modal-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px var(--shadow-color);
+}
+
+#serpModal .modal-header {
+  background: var(--even-row-bg);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 20px 24px;
+}
+
+#serpModal .modal-header h3 {
+  color: var(--heading);
+  margin: 0;
+  font-size: 1.3em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#serpModal .modal-header h3 i {
+  color: var(--cta-bg);
+  font-size: 1.1em;
+}
+
+#serpModal .close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-color);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+#serpModal .close-btn:hover {
+  color: var(--error-color);
+  background: var(--even-row-bg);
+  transform: scale(1.1);
+}
+
+/*=============================================
+  9. UTILIDADES MEJORADAS
+=============================================*/
+.text-muted {
+  color: var(--text-color) !important;
+  opacity: 0.6;
+}
+
+.text-small {
+  font-size: 0.85em;
+}
+
+.text-bold {
+  font-weight: 600;
+}
+
+/*=============================================
+  10. COMPATIBILIDAD CON DATATABLES MEJORADA
+=============================================*/
+.dataTables_wrapper {
+  margin: 20px;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+table.dataTable {
+  background: var(--card-bg);
+  color: var(--text-color);
+}
+
+table.dataTable thead th {
+  background: var(--even-row-bg);
+  font-weight: 600;
+  color: var(--heading);
+  border-bottom: 2px solid var(--border-color);
+  padding: 12px 16px;
+}
+
+table.dataTable tbody td {
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 16px;
+}
+
+table.dataTable tbody tr:hover {
+  background: var(--even-row-bg);
+}
+
+table.dataTable tbody tr:hover td {
+  background: transparent;
+}
+
+/*=============================================
+  11. ANIMACIONES Y TRANSICIONES
+=============================================*/
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.serp-list li {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.serp-list li:nth-child(1) { animation-delay: 0.1s; }
+.serp-list li:nth-child(2) { animation-delay: 0.2s; }
+.serp-list li:nth-child(3) { animation-delay: 0.3s; }
+.serp-list li:nth-child(4) { animation-delay: 0.4s; }
+.serp-list li:nth-child(5) { animation-delay: 0.5s; }
+
+/*=============================================
+  12. RESPONSIVE DESIGN
+=============================================*/
+@media (max-width: 768px) {
+  .serp-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .serp-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .serp-tab {
+    padding: 10px 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .tab-content {
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  }
+  
+  .screenshot-view-container {
+    margin: 12px;
+    min-height: 250px;
+  }
+  
+  .screenshot-info i {
+    font-size: 2.5rem;
+  }
+  
+  .serp-list,
+  .screenshot-controls {
+    padding: 0 12px 12px;
+  }
+  
+  .serp-results-container h5 {
+    padding: 0 12px;
+    font-size: 15px;
+  }
+  
+  .result-preview,
+  .alert {
+    margin: 12px;
+  }
+  
+  
+  #serpModal .modal-header {
+    padding: 16px 20px;
+  }
+  
+  #serpModal .modal-header h3 {
+    font-size: 1.2em;
+  }
+  
+  .highlighted-result::before {
+    font-size: 10px;
+    padding: 3px 8px;
+    right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .serp-tab {
+    padding: 8px 12px;
+    font-size: 0.9em;
+  }
+  
+  .screenshot-view-container {
+    margin: 8px;
+    min-height: 200px;
+  }
+  
+  .screenshot-info h5 {
+    font-size: 1em;
+  }
+  
+  .load-screenshot {
+    padding: 10px 20px;
+    font-size: 0.9em;
+  }
+  
+  .serp-list li {
+    padding: 12px 16px;
+  }
+  
+  .result-preview {
+    padding: 16px;
+  }
+  
+  .alert {
+    padding: 12px 16px;
+    margin: 8px;
+  }
+}
+
+/*=============================================
+  13. ACCESIBILIDAD
+=============================================*/
+.serp-tab:focus,
+.load-screenshot:focus,
+.serp-icon:focus {
+  outline: 2px solid var(--cta-bg);
+  outline-offset: 2px;
+}
+
+/* Reducir animaciones para usuarios que prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .serp-list li,
+  .serp-tab,
+  .load-screenshot,
+  .serp-icon,
+  .result-preview {
+    animation: none;
+    transition: none;
+  }
+  
+  .serp-list li:hover,
+  .result-preview:hover,
+  .highlighted-result:hover {
+    transform: none;
+  }
+}

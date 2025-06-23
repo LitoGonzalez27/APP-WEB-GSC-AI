@@ -1,0 +1,598 @@
+/*=============================================
+  OVERRIDE COMPLETO PARA DATATABLES CDN
+  Este CSS sobrescribe los estilos de jQuery DataTables CDN
+  Usar especificidad alta para ganar a los estilos externos
+=============================================*/
+
+/*=============================================
+  1. RESET COMPLETO DE ESTILOS DATATABLES CDN
+=============================================*/
+
+/* Reset de wrapper principal */
+div.dataTables_wrapper div.dataTables_length,
+div.dataTables_wrapper div.dataTables_filter,
+div.dataTables_wrapper div.dataTables_info,
+div.dataTables_wrapper div.dataTables_paginate {
+  font-family: 'Jost', sans-serif !important;
+  color: var(--text-color) !important;
+}
+
+/* Reset de tabla principal */
+table.dataTable.no-footer {
+  border-bottom: 1px solid var(--border-color) !important;
+  font-family: 'Jost', sans-serif !important;
+}
+
+table.dataTable {
+  font-family: 'Jost', sans-serif !important;
+  font-size: 0.9rem !important;
+  clear: both !important;
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+  max-width: none !important;
+  border-collapse: collapse !important;
+}
+
+/*=============================================
+  2. OVERRIDE DEL FILTRO/BUSCADOR
+=============================================*/
+
+/* Container del filtro */
+div.dataTables_wrapper div.dataTables_filter {
+  text-align: right !important;
+  float: right !important;
+  position: relative !important;
+  padding: 16px 20px 0 !important;
+  background: rgba(248, 250, 252, 0.5) !important;
+  margin: 0 !important;
+}
+
+/* Label del filtro */
+div.dataTables_wrapper div.dataTables_filter label {
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  text-align: left !important;
+  color: var(--heading) !important;
+  font-family: 'Jost', sans-serif !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  position: relative !important;
+}
+
+/* Input del filtro - Override completo */
+div.dataTables_wrapper div.dataTables_filter input {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 8px 35px 8px 12px !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  font-size: 14px !important;
+  font-family: 'Jost', sans-serif !important;
+  transition: all var(--transition-fast) !important;
+  min-width: 200px !important;
+  margin-left: 8px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-right: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Focus del input */
+div.dataTables_wrapper div.dataTables_filter input:focus {
+  border-color: var(--cta-bg) !important;
+  box-shadow: 0 0 0 3px rgba(13, 127, 243, 0.1) !important;
+  outline: none !important;
+}
+
+/* Icono de búsqueda */
+div.dataTables_wrapper div.dataTables_filter label::after {
+  content: '\f002' !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: var(--text-color) !important;
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+  font-size: 14px !important;
+}
+
+/*=============================================
+  3. OVERRIDE COMPLETO DE HEADERS
+=============================================*/
+
+/* Headers principales - Override de DataTables */
+table.dataTable thead th,
+table.dataTable thead td {
+  padding: 16px 12px !important;
+  border-bottom: 2px solid var(--border-color) !important;
+  background-color: var(--even-row-bg) !important;
+  background: var(--even-row-bg) !important;
+  font-weight: 600 !important;
+  color: var(--heading) !important;
+  font-size: 0.85rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  white-space: nowrap !important;
+  font-family: 'Jost', sans-serif !important;
+  vertical-align: middle !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+}
+
+/* Excepciones específicas para columnas izquierda */
+table.dataTable#keywordComparisonTable thead th:nth-child(1),
+table.dataTable#resultsTable thead th:nth-child(1) {
+  text-align: center !important; /* SERP icon centrado */
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+  padding: 16px 8px !important;
+}
+
+table.dataTable#keywordComparisonTable thead th:nth-child(2) {
+  text-align: left !important; /* Keywords a la izquierda */
+  padding-left: 16px !important;
+  min-width: 200px !important;
+}
+
+/*=============================================
+  4. OVERRIDE COMPLETO DE CELDAS
+=============================================*/
+
+/* Celdas del cuerpo - Override de DataTables */
+table.dataTable tbody th,
+table.dataTable tbody td {
+  padding: 14px 12px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  background-color: transparent !important;
+  background: transparent !important;
+  color: var(--text-color) !important;
+  font-family: 'Jost', sans-serif !important;
+  vertical-align: middle !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+}
+
+/* Excepciones para columnas específicas */
+table.dataTable#keywordComparisonTable tbody td:nth-child(1),
+table.dataTable#resultsTable tbody td:nth-child(1) {
+  text-align: center !important; /* SERP icons centrados */
+  padding: 14px 8px !important;
+}
+
+table.dataTable#keywordComparisonTable tbody td:nth-child(2) {
+  text-align: left !important; /* Keywords a la izquierda */
+  padding-left: 16px !important;
+  max-width: 350px !important; /* ✅ NUEVO: Ancho máximo para la celda */
+  word-break: break-all !important; /* ✅ NUEVO: Romper palabras largas */
+  white-space: normal !important; /* ✅ NUEVO: Permitir que el texto fluya en múltiples líneas */
+}
+
+/* ✅ NUEVO: Regla específica para la columna de URLs en la tabla de resultados */
+table.dataTable#resultsTable tbody td:nth-child(1) {
+  text-align: left !important; /* Alinear URLs a la izquierda */
+  padding-left: 16px !important;
+  max-width: 450px !important; /* Ancho máximo para evitar desbordamiento */
+  word-break: break-all !important; /* Romper URLs largas si es necesario */
+  white-space: normal !important; /* Permitir que la URL se muestre en varias líneas */
+}
+
+/* Filas hover - Override */
+table.dataTable tbody tr:hover td,
+table.dataTable tbody tr:hover th {
+  background-color: var(--even-row-bg) !important;
+  background: var(--even-row-bg) !important;
+}
+
+/*=============================================
+  5. OVERRIDE DE ORDENACIÓN
+=============================================*/
+
+/* Headers ordenables - Override de DataTables */
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc,
+table.dataTable thead th.sorting_asc_disabled,
+table.dataTable thead th.sorting_desc_disabled {
+  cursor: pointer !important;
+  position: relative !important;
+  padding-right: 24px !important;
+  background-color: var(--even-row-bg) !important;
+  background: var(--even-row-bg) !important;
+}
+
+/* Excepción para columna SERP */
+table.dataTable#keywordComparisonTable thead th.sorting:nth-child(1),
+table.dataTable#keywordComparisonTable thead th.sorting_asc:nth-child(1),
+table.dataTable#keywordComparisonTable thead th.sorting_desc:nth-child(1),
+table.dataTable#resultsTable thead th.sorting:nth-child(1),
+table.dataTable#resultsTable thead th.sorting_asc:nth-child(1),
+table.dataTable#resultsTable thead th.sorting_desc:nth-child(1) {
+  padding-right: 8px !important;
+}
+
+/* Indicadores de ordenación - Override */
+table.dataTable thead th.sorting:after,
+table.dataTable thead th.sorting_asc:after,
+table.dataTable thead th.sorting_desc:after {
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  font-size: 12px !important;
+  opacity: 0.3 !important;
+  color: var(--text-color) !important;
+}
+
+table.dataTable thead th.sorting:hover:after,
+table.dataTable thead th.sorting_asc:hover:after,
+table.dataTable thead th.sorting_desc:hover:after {
+  opacity: 1 !important;
+}
+
+/*=============================================
+  6. OVERRIDE DE ICONOS SERP
+=============================================*/
+
+/* Iconos SERP - Especificidad máxima */
+table.dataTable#keywordComparisonTable tbody td:nth-child(1) .serp-icon,
+table.dataTable#resultsTable tbody td:nth-child(1) .serp-icon,
+.serp-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background-color: var(--cta-bg) !important;
+  background: var(--cta-bg) !important;
+  color: white !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  font-size: 14px !important;
+  border: 2px solid transparent !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  position: relative !important;
+  z-index: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Hover de iconos SERP */
+table.dataTable#keywordComparisonTable tbody td:nth-child(1) .serp-icon:hover,
+table.dataTable#resultsTable tbody td:nth-child(1) .serp-icon:hover,
+.serp-icon:hover {
+  background-color: var(--cta-hover-bg) !important;
+  background: var(--cta-hover-bg) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Contenido del icono */
+.serp-icon::before {
+  content: '\f002' !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  font-size: 14px !important;
+  color: inherit !important;
+}
+
+/* Ocultar cualquier <i> dentro */
+.serp-icon i {
+  display: none !important;
+}
+
+/*=============================================
+  7. OVERRIDE DE PAGINACIÓN
+=============================================*/
+
+/* Contenedor de paginación */
+div.dataTables_wrapper div.dataTables_paginate {
+  text-align: right !important;
+  padding: 16px 20px !important;
+  background: rgba(248, 250, 252, 0.3) !important;
+  margin: 0 !important;
+}
+
+/* Botones de paginación */
+div.dataTables_wrapper div.dataTables_paginate a.paginate_button {
+  display: inline-block !important;
+  padding: 8px 12px !important;
+  margin: 0 2px !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--card-bg) !important;
+  background: var(--card-bg) !important;
+  color: var(--text-color) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  font-size: 0.85rem !important;
+  text-decoration: none !important;
+  font-family: 'Jost', sans-serif !important;
+}
+
+/* Hover de botones */
+div.dataTables_wrapper div.dataTables_paginate a.paginate_button:hover {
+  background-color: var(--even-row-bg) !important;
+  background: var(--even-row-bg) !important;
+  border-color: var(--cta-bg) !important;
+  color: var(--cta-bg) !important;
+  transform: translateY(-1px) !important;
+  text-decoration: none !important;
+}
+
+/* Botón actual */
+div.dataTables_wrapper div.dataTables_paginate a.paginate_button.current {
+  background-color: var(--cta-bg) !important;
+  background: var(--cta-bg) !important;
+  color: var(--cta-text) !important;
+  border-color: var(--cta-bg) !important;
+  box-shadow: 0 2px 8px rgba(13, 127, 243, 0.3) !important;
+}
+
+/*=============================================
+  8. OVERRIDE DE INFO
+=============================================*/
+
+/* Información de registros */
+div.dataTables_wrapper div.dataTables_info {
+  color: var(--text-color) !important;
+  opacity: 0.7 !important;
+  font-size: 0.9rem !important;
+  font-family: 'Jost', sans-serif !important;
+  padding: 16px 20px !important;
+  background: rgba(248, 250, 252, 0.3) !important;
+  margin: 0 !important;
+}
+
+/*=============================================
+  9. OVERRIDE DE LENGTH (MOSTRAR REGISTROS)
+=============================================*/
+
+/* Container del selector de longitud */
+div.dataTables_wrapper div.dataTables_length {
+  float: left !important;
+  padding: 16px 20px 0 !important;
+  background: rgba(248, 250, 252, 0.5) !important;
+  margin: 0 !important;
+  font-family: 'Jost', sans-serif !important;
+}
+
+/* Label del selector */
+div.dataTables_wrapper div.dataTables_length label {
+  font-weight: 500 !important;
+  color: var(--heading) !important;
+  font-family: 'Jost', sans-serif !important;
+  margin: 0 !important;
+}
+
+/* Select del selector */
+div.dataTables_wrapper div.dataTables_length select {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  background-color: var(--input-bg) !important;
+  background: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  font-size: 14px !important;
+  font-family: 'Jost', sans-serif !important;
+  transition: all var(--transition-fast) !important;
+  margin: 0 5px !important;
+}
+
+/*=============================================
+  10. CLASES ESPECÍFICAS DEL PROYECTO
+=============================================*/
+
+/* Keywords cell */
+table.dataTable .kw-cell {
+  font-weight: 500 !important;
+  color: var(--heading) !important;
+  max-width: 200px !important;
+  word-break: break-word !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+  font-family: 'Jost', sans-serif !important;
+}
+
+/* URL cells */
+table.dataTable .scrollable-url-cell {
+  max-width: 300px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--success-color) !important;
+  font-family: 'Jost', sans-serif !important;
+  font-size: 0.85rem !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: all var(--transition-base) !important;
+  text-align: left !important;
+  font-weight: 400 !important;
+}
+
+/* Cambios positivos/negativos */
+table.dataTable .positive-change {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: #059669 !important;
+  padding: 4px 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+  white-space: nowrap !important;
+}
+
+table.dataTable .negative-change {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #DC2626 !important;
+  padding: 4px 8px !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  white-space: nowrap !important;
+}
+
+/*=============================================
+  11. DARK MODE OVERRIDE
+=============================================*/
+
+body.dark-mode div.dataTables_wrapper div.dataTables_filter,
+body.dark-mode div.dataTables_wrapper div.dataTables_length {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-mode div.dataTables_wrapper div.dataTables_info,
+body.dark-mode div.dataTables_wrapper div.dataTables_paginate {
+  background: rgba(255, 255, 255, 0.01) !important;
+}
+
+/*=============================================
+  12. RESPONSIVE OVERRIDE
+=============================================*/
+
+@media (max-width: 768px) {
+  /* Filtro en móvil */
+  div.dataTables_wrapper div.dataTables_filter {
+    float: none !important;
+    text-align: left !important;
+    padding: 12px 16px 6px !important;
+  }
+  
+  div.dataTables_wrapper div.dataTables_filter input {
+    min-width: 150px !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 8px !important;
+  }
+  
+  /* Length en móvil */
+  div.dataTables_wrapper div.dataTables_length {
+    float: none !important;
+    padding: 12px 16px 6px !important;
+  }
+  
+  /* Headers más pequeños */
+  table.dataTable thead th,
+  table.dataTable thead td {
+    padding: 10px 8px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  table.dataTable#keywordComparisonTable thead th:nth-child(1),
+  table.dataTable#resultsTable thead th:nth-child(1) {
+    width: 50px !important;
+    padding: 10px 4px !important;
+  }
+  
+  /* Celdas más compactas */
+  table.dataTable tbody th,
+  table.dataTable tbody td {
+    padding: 10px 8px !important;
+    font-size: 0.85rem !important;
+  }
+  
+  table.dataTable#keywordComparisonTable tbody td:nth-child(1),
+  table.dataTable#resultsTable tbody td:nth-child(1) {
+    padding: 10px 4px !important;
+  }
+  
+  /* Lupas más pequeñas */
+  .serp-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  table.dataTable thead th,
+  table.dataTable thead td {
+    padding: 8px 6px !important;
+    font-size: 0.7rem !important;
+  }
+  
+  table.dataTable#keywordComparisonTable thead th:nth-child(1),
+  table.dataTable#resultsTable thead th:nth-child(1) {
+    width: 45px !important;
+    padding: 8px 2px !important;
+  }
+  
+  table.dataTable tbody th,
+  table.dataTable tbody td {
+    padding: 8px 6px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .serp-icon {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 10px !important;
+  }
+}
+
+/* =============================
+   1. KEYWORDS: PREVENIR DESBORDES
+   ============================= */
+
+/* Refuerzo para la celda de keywords (segunda columna) */
+table.dataTable#keywordComparisonTable tbody td:nth-child(2),
+table.dataTable#keywordComparisonTable .kw-cell {
+  text-align: left !important;
+  padding-left: 16px !important;
+  max-width: 350px !important;
+  min-width: 120px !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  line-height: 1.4 !important;
+}
+
+/* =============================
+   2. URLs: SIEMPRE A LA IZQUIERDA
+   ============================= */
+
+/* Refuerzo para la celda de URLs en la tabla de resultados */
+table.dataTable#resultsTable tbody td:nth-child(1),
+table.dataTable#resultsTable .scrollable-url-cell {
+  text-align: left !important;
+  padding-left: 16px !important;
+  max-width: 650px !important;
+  min-width: 500px !important;
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  font-family: 'Jost', sans-serif !important;
+  font-size: 0.85rem !important;
+  position: relative !important;
+  transition: all var(--transition-base) !important;
+  font-weight: 400 !important;
+}
