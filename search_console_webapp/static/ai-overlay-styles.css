@@ -1,0 +1,570 @@
+/*=============================================
+  AI OVERLAY ANALYSIS STYLES
+  Estilos específicos para el análisis IA con overlay y progreso
+=============================================*/
+
+/* ========================================
+   AI OVERVIEW SECTION CON OVERLAY
+   ======================================== */
+
+#aiOverviewSection {
+  padding: 40px 32px;
+  position: relative;
+  min-height: 500px;
+}
+
+/* Contenedor principal del contenido IA */
+.ai-content-wrapper {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estado blurreado inicial */
+.ai-content-wrapper.blurred {
+  filter: blur(6px);
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Estado activo (sin blur) */
+.ai-content-wrapper.active {
+  filter: none;
+  opacity: 1;
+  pointer-events: auto;
+  user-select: auto;
+}
+
+/* ========================================
+   OVERLAY CON BOTÓN EJECUTAR
+   ======================================== */
+
+.ai-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(7px);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .ai-overlay {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.ai-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+}
+
+/* Contenido del overlay */
+.ai-overlay-content {
+  text-align: center;
+  padding: 2rem;
+  max-width: 400px;
+}
+
+.ai-overlay-icon {
+  font-size: 3rem;
+  color: #667eea;
+  margin-bottom: 1rem;
+  display: block;
+  animation: float 3s ease-in-out infinite;
+}
+
+.ai-overlay-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.ai-overlay-subtitle {
+  font-size: 1rem;
+  color: var(--text-color);
+  opacity: 0.8;
+  margin-bottom: 2rem;
+  line-height: 1.4;
+}
+
+/* ========================================
+   BOTÓN EJECUTAR ANÁLISIS IA
+   ======================================== */
+
+.btn-execute-ai {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+  justify-content: center;
+}
+
+.btn-execute-ai::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-execute-ai:hover::before {
+  left: 100%;
+}
+
+.btn-execute-ai:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, #7684ea 0%, #8659b2 100%);
+}
+
+.btn-execute-ai:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-execute-ai:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  background: linear-gradient(135deg, #cccccc 0%, #999999 100%);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-execute-ai i {
+  font-size: 18px;
+  transition: transform 0.3s ease;
+}
+
+.btn-execute-ai:hover:not(:disabled) i {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* ========================================
+   BARRA DE PROGRESO MODERNA
+   ======================================== */
+
+.ai-progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(7px);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+body.dark-mode .ai-progress-overlay {
+  background: rgba(18, 18, 18, 0.95);
+}
+
+.ai-progress-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ai-progress-container {
+  width: 100%;
+  max-width: 500px;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.ai-progress-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin-bottom: 0.5rem;
+}
+
+.ai-progress-subtitle {
+  font-size: 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-bottom: 2rem;
+}
+
+/* Barra de progreso circular */
+.ai-progress-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 2rem;
+}
+
+.ai-progress-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ai-progress-circle .progress-bg {
+  fill: none;
+  stroke: rgba(102, 126, 234, 0.1);
+  stroke-width: 8;
+}
+
+body.dark-mode .ai-progress-circle .progress-bg {
+  stroke: rgba(102, 126, 234, 0.2);
+}
+
+.ai-progress-circle .progress-bar {
+  fill: none;
+  stroke: url(#gradient);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 283;
+  stroke-dashoffset: 283;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.ai-progress-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+/* Texto de estado del progreso */
+.ai-progress-status {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.ai-progress-details {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-bottom: 1.5rem;
+}
+
+/* Indicador de pasos */
+.ai-progress-steps {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.ai-progress-step {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+}
+
+.ai-progress-step.active {
+  background: #667eea;
+  transform: scale(1.2);
+}
+
+.ai-progress-step.completed {
+  background: #4caf50;
+}
+
+/* ========================================
+   DATOS PLACEHOLDER (DEMO)
+   ======================================== */
+
+.ai-placeholder-data {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.ai-placeholder-summary {
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.ai-placeholder-summary h3 {
+  text-align: center;
+  color: var(--heading);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.ai-placeholder-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ai-placeholder-metric {
+  text-align: center;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+body.dark-mode .ai-placeholder-metric {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ai-placeholder-metric-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--cta-bg);
+  margin-bottom: 0.5rem;
+}
+
+.ai-placeholder-metric-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Tabla placeholder */
+.ai-placeholder-table {
+  background: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.ai-placeholder-table-header {
+  background: rgba(102, 126, 234, 0.1);
+  padding: 1rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--heading);
+}
+
+body.dark-mode .ai-placeholder-table-header {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.ai-placeholder-rows {
+  padding: 1rem;
+}
+
+.ai-placeholder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ai-placeholder-row:last-child {
+  border-bottom: none;
+}
+
+.ai-placeholder-keyword {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.ai-placeholder-status {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ai-placeholder-status.positive {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.ai-placeholder-status.negative {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.ai-placeholder-status.neutral {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+/* ========================================
+   ANIMACIONES
+   ======================================== */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.ai-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 2s infinite;
+}
+
+body.dark-mode .ai-shimmer::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 768px) {
+  #aiOverviewSection {
+    padding: 30px 20px;
+  }
+  
+  .ai-overlay-content {
+    padding: 1.5rem;
+  }
+  
+  .ai-overlay-icon {
+    font-size: 2.5rem;
+  }
+  
+  .ai-overlay-title {
+    font-size: 1.3rem;
+  }
+  
+  .btn-execute-ai {
+    padding: 14px 28px;
+    font-size: 15px;
+    min-width: 180px;
+  }
+  
+  .ai-progress-container {
+    padding: 2rem 1.5rem;
+  }
+  
+  .ai-progress-circle {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .ai-placeholder-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.8rem;
+  }
+  
+  .ai-placeholder-metric {
+    padding: 1rem;
+  }
+  
+  .ai-placeholder-metric-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-overlay-content {
+    padding: 1rem;
+  }
+  
+  .ai-overlay-title {
+    font-size: 1.2rem;
+  }
+  
+  .ai-overlay-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .btn-execute-ai {
+    padding: 12px 24px;
+    font-size: 14px;
+    min-width: 160px;
+  }
+  
+  .ai-progress-circle {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .ai-progress-percentage {
+    font-size: 1.2rem;
+  }
+  
+  .ai-placeholder-metrics {
+    grid-template-columns: 1fr;
+  }
+  
+  .ai-placeholder-row {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+}
+
+/* ========================================
+   GRADIENTES PARA SVG
+   ======================================== */
+
+.ai-gradient-def {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+} 

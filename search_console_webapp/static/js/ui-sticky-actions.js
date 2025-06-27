@@ -25,7 +25,7 @@ export function initStickyActions() {
 
     // Tooltips para móvil
     elems.stickyDownloadBtn.setAttribute('data-tooltip', 'Descargar Excel');
-    elems.stickyAIBtn.setAttribute('data-tooltip', 'Análisis IA');
+    elems.stickyAIBtn.setAttribute('data-tooltip', 'Execute AI Analysis');
 
     console.log('✅ Botones sticky inicializados correctamente');
 }
@@ -71,18 +71,10 @@ export function updateStickyData(keywordData, siteUrl) {
     currentKeywordData = keywordData;
     currentSiteUrl = siteUrl;
     
-    // Actualizar estado del botón de IA según disponibilidad de datos
+    // Actualizar estado del botón de IA - siempre habilitado para navegación
     if (elems.stickyAIBtn) {
-        const hasKeywordData = keywordData && Array.isArray(keywordData) && keywordData.length > 0;
-        elems.stickyAIBtn.disabled = !hasKeywordData || !siteUrl;
-        
-        if (!hasKeywordData) {
-            elems.stickyAIBtn.title = 'No hay datos de keywords para analizar';
-        } else if (!siteUrl) {
-            elems.stickyAIBtn.title = 'Selecciona un dominio primero';
-        } else {
-            elems.stickyAIBtn.title = 'Analizar impacto de AI Overview';
-        }
+        elems.stickyAIBtn.disabled = false;
+        elems.stickyAIBtn.title = 'Navigate to AI Overview Analysis section';
     }
 }
 
@@ -204,46 +196,13 @@ async function handleStickyExcelDownload() {
 }
 
 /**
- * Maneja el click en el botón de análisis IA
+ * Maneja el click en el botón de análisis IA - Navega a la sección
  */
-async function handleStickyAIAnalysis() {
-    console.log('🤖 Iniciando análisis IA desde botón sticky');
+function handleStickyAIAnalysis() {
+    console.log('🤖 Navegando a sección AI Overview desde botón sticky');
     
-    if (!currentKeywordData || !currentSiteUrl) {
-        alert('No hay datos de keywords para analizar. Ejecuta primero una consulta.');
-        return;
-    }
-
-    if (!Array.isArray(currentKeywordData) || currentKeywordData.length === 0) {
-        alert('No hay keywords disponibles para el análisis de IA.');
-        return;
-    }
-
-    // Cambiar estado del botón a loading
-    setStickyButtonLoading(elems.stickyAIBtn, true);
-
-    try {
-        // Llamar a la función de análisis IA existente
-        const { runAIOverviewAnalysis } = await import('./ui-ai-overview.js');
-        
-        if (typeof runAIOverviewAnalysis === 'function') {
-            await runAIOverviewAnalysis(currentKeywordData, currentSiteUrl);
-            
-            // Scroll suave a la sección de IA Overview
-            scrollToAISection();
-            
-            // Mostrar éxito temporal
-            showStickySuccess(elems.stickyAIBtn, 'Completado!');
-        } else {
-            throw new Error('Función de análisis IA no disponible');
-        }
-
-    } catch (error) {
-        console.error('Error en análisis IA:', error);
-        alert('Error al ejecutar el análisis de IA: ' + error.message);
-    } finally {
-        setStickyButtonLoading(elems.stickyAIBtn, false);
-    }
+    // Scroll suave a la sección de IA Overview
+    scrollToAISection();
 }
 
 /**
@@ -251,7 +210,12 @@ async function handleStickyAIAnalysis() {
  */
 function scrollToAISection() {
     const aiSection = document.getElementById('aiOverviewSection');
-    if (aiSection && aiSection.style.display !== 'none') {
+    if (aiSection) {
+        // Asegurar que la sección sea visible antes del scroll
+        if (aiSection.style.display === 'none') {
+            aiSection.style.display = 'block';
+        }
+        
         aiSection.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start',
@@ -260,7 +224,7 @@ function scrollToAISection() {
         
         console.log('📍 Navegando a sección AI Overview');
     } else {
-        console.warn('Sección AI Overview no visible o no encontrada');
+        console.warn('Sección AI Overview no encontrada');
     }
 }
 

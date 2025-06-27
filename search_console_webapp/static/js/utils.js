@@ -70,9 +70,13 @@ export function initTheme() {
     updateThemeIcon(true);
   }
 
-  // Event listener para el botón de tema
-  if (elems.toggleBtn) {
-    elems.toggleBtn.addEventListener('click', toggleTheme);
+  // ✅ CORREGIDO: No agregar event listener aquí, dejar que navbar lo maneje
+  // Solo verificar que el navbar esté configurado
+  console.log('🎨 Sistema de tema inicializado, esperando navbar...');
+  
+  // Integración con el nuevo navbar si existe
+  if (window.navbarToggleTheme) {
+    console.log('🔗 Navbar integrado con sistema de tema');
   }
 }
 
@@ -90,29 +94,46 @@ export function toggleTheme() {
   console.log('Theme changed to:', isDark ? 'dark' : 'light');
 }
 
-// ✅ NUEVA FUNCIÓN PARA ACTUALIZAR ICONO
+// ✅ FUNCIÓN PARA ACTUALIZAR ICONO (COMPATIBLE CON NAVBAR)
 export function updateThemeIcon(isDark = null) {
-  if (!elems.themeIcon) return;
-  
   // Si no se especifica, detectar del DOM
   if (isDark === null) {
     isDark = document.body.classList.contains('dark-mode');
   }
   
-  // Animación de cambio de icono
-  elems.themeIcon.style.transform = 'scale(0)';
+  // ✅ CORREGIDO: Obtener iconos directamente del DOM en lugar de usar elems cache
+  const themeIcon = document.getElementById('themeIcon');
+  const mobileThemeIcon = document.getElementById('mobileThemeIcon');
+  const toggleBtn = document.getElementById('toggleModeBtn');
+  const mobileThemeText = document.getElementById('mobileThemeText');
   
-  setTimeout(() => {
-    if (isDark) {
-      elems.themeIcon.className = 'fas fa-sun';
-      elems.toggleBtn.setAttribute('aria-label', 'Activar modo claro');
-    } else {
-      elems.themeIcon.className = 'fas fa-moon';
-      elems.toggleBtn.setAttribute('aria-label', 'Activar modo oscuro');
-    }
-    
-    elems.themeIcon.style.transform = 'scale(1)';
-  }, 150);
+  const iconClass = isDark ? 'fa-sun' : 'fa-moon';
+  const themeText = isDark ? 'Modo Claro' : 'Modo Oscuro';
+  
+  // Actualizar icono desktop con animación
+  if (themeIcon) {
+    themeIcon.style.transform = 'scale(0)';
+    setTimeout(() => {
+      themeIcon.className = `fas ${iconClass}`;
+      themeIcon.style.transform = 'scale(1)';
+    }, 150);
+  }
+  
+  // Actualizar icono móvil
+  if (mobileThemeIcon) {
+    mobileThemeIcon.className = `fas ${iconClass}`;
+  }
+  
+  // Actualizar texto móvil
+  if (mobileThemeText) {
+    mobileThemeText.textContent = themeText;
+  }
+  
+  // Actualizar aria-label
+  if (toggleBtn) {
+    toggleBtn.setAttribute('aria-label', `Cambiar a ${themeText.toLowerCase()}`);
+    toggleBtn.setAttribute('aria-pressed', isDark.toString());
+  }
 }
 
 // ✅ FUNCIÓN PARA CAMBIAR TEMA PROGRAMÁTICAMENTE

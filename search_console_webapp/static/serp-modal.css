@@ -61,23 +61,29 @@
   padding: 10px 20px;
   background: var(--even-row-bg);
   color: var(--text-color);
-  font-size: 0.95em;
+  font-size: 0.9em;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   border-left: 4px solid var(--cta-bg);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .position-highlight {
   padding: 16px 20px;
   border-radius: var(--radius-sm);
   margin: 10px 0;
-  font-size: 1.05em;
+  font-size: 1em;
   font-weight: 500;
   border: 1px solid;
   transition: all var(--transition-base);
   display: flex;
   align-items: center;
   gap: 12px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .position-highlight::before {
@@ -135,7 +141,7 @@
   color: var(--cta-bg);
   text-decoration: none;
   font-weight: 600;
-  font-size: 1.1em;
+  font-size: 1.05em;
   transition: color var(--transition-fast);
   line-height: 1.3;
 }
@@ -148,7 +154,7 @@
 .result-preview cite {
   color: var(--success-color);
   font-style: normal;
-  font-size: 0.9em;
+  font-size: 0.85em;
   word-break: break-all;
   display: block;
   margin: 8px 0;
@@ -156,7 +162,7 @@
 }
 
 .result-preview p {
-  font-size: 0.95em;
+  font-size: 0.9em;
   color: var(--text-color);
   margin-top: 12px;
   opacity: 0.8;
@@ -192,16 +198,16 @@
 }
 
 .serp-list li strong {
+  color: var(--heading);
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-size: 0.95em;
 }
 
 .serp-list li strong a {
   color: var(--cta-bg);
   text-decoration: none;
-  font-weight: 600;
-  font-size: 1.05em;
-  line-height: 1.3;
+  transition: color var(--transition-fast);
 }
 
 .serp-list li strong a:hover {
@@ -211,29 +217,25 @@
 
 .serp-list li cite {
   color: var(--success-color);
-  font-size: 0.9em;
   font-style: normal;
-  font-weight: 500;
+  font-size: 0.8em;
   word-break: break-all;
   display: block;
-  margin: 2px 0 2px 0;
+  margin: 4px 0;
 }
 
 .serp-list li small {
-  font-size: 0.9em;
   color: var(--text-color);
-  opacity: 0.8;
+  opacity: 0.7;
   line-height: 1.4;
-  display: block;
-  margin: 0;
+  font-size: 0.8em;
 }
 
-/* Resultado destacado mejorado */
+/* Resultado resaltado (el del usuario) */
 .highlighted-result {
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%) !important;
   border: 2px solid var(--success-color) !important;
+  background: rgba(76, 175, 80, 0.05) !important;
   position: relative;
-  overflow: hidden;
 }
 
 .highlighted-result::before {
@@ -245,7 +247,7 @@
   color: white;
   padding: 4px 12px;
   border-radius: 0 0 12px 12px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
@@ -271,7 +273,7 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 16px;
-  font-size: 0.75em;
+  font-size: 0.7em;
   font-weight: 600;
   margin-right: 8px;
   margin-bottom: 4px;
@@ -332,7 +334,7 @@
 .screenshot-controls .btn {
   margin-left: 12px;
   padding: 8px 16px;
-  font-size: 0.9em;
+  font-size: 0.85em;
 }
 
 .serp-screenshot {
@@ -358,7 +360,7 @@
 }
 
 .serp-summary {
-  padding: 24px;
+  padding: 20px;
   background: var(--even-row-bg);
   margin: 0 0 20px 0;
   border-radius: var(--radius-sm);
@@ -368,7 +370,7 @@
 .serp-summary h4 {
   color: var(--heading);
   margin-bottom: 12px;
-  font-size: 1.1em;
+  font-size: 1.05em;
 }
 
 .serp-list {
@@ -377,7 +379,7 @@
 }
 
 .serp-results-container h5 {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--heading);
   margin-bottom: 16px;
   padding: 0 20px;
@@ -417,13 +419,14 @@
 .screenshot-info h5 {
   color: var(--heading);
   margin-bottom: 8px;
-  font-size: 1.1em;
+  font-size: 1.05em;
 }
 
 .screenshot-info p {
   color: var(--text-color);
   opacity: 0.7;
   margin-bottom: 20px;
+  font-size: 0.9em;
 }
 
 .load-screenshot {
@@ -433,9 +436,14 @@
   border: 1px solid var(--cta-bg);
   border-radius: var(--radius-sm);
   font-weight: 500;
+  font-size: 0.9em;
   cursor: pointer;
   transition: all var(--transition-fast);
   margin-top: 16px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .load-screenshot:hover {
@@ -638,8 +646,273 @@ table.dataTable tbody tr:hover td {
 .serp-list li:nth-child(5) { animation-delay: 0.5s; }
 
 /*=============================================
-  12. RESPONSIVE DESIGN
+  12. RESPONSIVE DESIGN MEJORADO
 =============================================*/
+
+/* TABLET (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .serp-summary {
+    padding: 18px;
+    margin: 0 0 16px 0;
+  }
+  
+  .serp-summary h4 {
+    font-size: 1em;
+  }
+  
+  .domain-info {
+    font-size: 0.85em;
+  }
+  
+  .position-highlight {
+    padding: 12px 16px;
+    font-size: 0.9em;
+  }
+  
+  .result-preview {
+    padding: 16px;
+  }
+  
+  .result-preview h5 a {
+    font-size: 1em;
+  }
+  
+  .result-preview cite {
+    font-size: 0.8em;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  #serpModal .modal-body {
+    padding: 12px;
+  }
+  
+  .serp-list {
+    padding: 0 16px 16px;
+  }
+  
+  .load-screenshot {
+    padding: 10px 20px;
+    font-size: 0.85em;
+  }
+}
+
+/* MOBILE LARGE (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .serp-summary {
+    padding: 16px;
+    margin: 0 0 12px 0;
+  }
+  
+  .serp-summary h4 {
+    font-size: 0.95em;
+    line-height: 1.3;
+  }
+  
+  .domain-info {
+    font-size: 0.8em;
+  }
+  
+  .domain-info small {
+    font-size: 0.75em;
+    line-height: 1.2;
+  }
+  
+  .position-highlight {
+    padding: 10px 14px;
+    margin: 8px 0;
+    font-size: 0.85em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .position-highlight strong {
+    font-size: 0.9em;
+  }
+  
+  .result-preview {
+    padding: 14px;
+    margin: 8px 0;
+  }
+  
+  .result-preview h5 {
+    margin-bottom: 6px;
+  }
+  
+  .result-preview h5 a {
+    font-size: 0.9em;
+    line-height: 1.2;
+  }
+  
+  .result-preview cite {
+    font-size: 0.75em;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+  }
+  
+  .result-preview p {
+    font-size: 0.8em;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  
+  .load-screenshot {
+    padding: 10px 18px;
+    font-size: 0.85em;
+    width: auto;
+    min-width: 140px;
+  }
+}
+
+/* MOBILE SMALL (hasta 480px) */
+@media (max-width: 480px) {
+  .serp-summary {
+    padding: 12px;
+    margin: 0 0 10px 0;
+    border-radius: 8px;
+  }
+  
+  .serp-summary h4 {
+    font-size: 0.9em;
+    margin-bottom: 6px;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  
+  .domain-info {
+    margin-bottom: 8px;
+    font-size: 0.75em;
+  }
+  
+  .domain-info small {
+    font-size: 0.7em;
+    line-height: 1.2;
+  }
+  
+  .position-highlight {
+    padding: 8px 12px;
+    margin: 6px 0;
+    font-size: 0.8em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+  }
+  
+  .position-highlight i {
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+  
+  .position-highlight strong {
+    display: inline;
+    word-break: break-word;
+    font-size: 0.85em;
+  }
+  
+  .result-preview {
+    padding: 10px;
+    margin: 6px 0;
+    border-radius: 8px;
+  }
+  
+  .result-preview h5 {
+    margin-bottom: 4px;
+  }
+  
+  .result-preview h5 a {
+    font-size: 0.85em;
+    line-height: 1.2;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .result-preview cite {
+    font-size: 0.7em;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    margin: 4px 0;
+    line-height: 1.2;
+  }
+  
+  .result-preview p {
+    font-size: 0.75em;
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+  
+  #serpModal .modal-body {
+    padding: 8px;
+  }
+  
+  .serp-list {
+    padding: 0 8px 8px;
+  }
+  
+  .serp-results-container h5 {
+    padding: 0 8px;
+    font-size: 13px;
+  }
+  
+  .load-screenshot {
+    padding: 8px 16px;
+    font-size: 0.8em;
+    width: 100%;
+    max-width: 200px;
+    margin: 16px auto 0;
+  }
+  
+  .screenshot-info {
+    padding: 16px;
+  }
+  
+  .screenshot-info h5 {
+    font-size: 0.95em;
+  }
+  
+  .screenshot-info p {
+    font-size: 0.8em;
+  }
+}
+
+/* Responsive para pantallas muy pequeñas (320px) */
+@media (max-width: 320px) {
+  .serp-summary {
+    padding: 10px;
+  }
+  
+  .serp-summary h4 {
+    font-size: 0.85em;
+  }
+  
+  .position-highlight {
+    padding: 6px 10px;
+    font-size: 0.75em;
+  }
+  
+  .result-preview {
+    padding: 8px;
+  }
+  
+  .result-preview h5 a {
+    font-size: 0.8em;
+  }
+  
+  .result-preview cite {
+    font-size: 0.65em;
+  }
+  
+  .load-screenshot {
+    padding: 8px 14px;
+    font-size: 0.75em;
+    min-width: auto;
+  }
+  
+  .screenshot-info {
+    padding: 12px;
+  }
+}
+
+/* ESTILOS COMUNES PARA TODOS LOS BREAKPOINTS MÓVILES */
 @media (max-width: 768px) {
   .serp-tabs {
     overflow-x: auto;
@@ -655,6 +928,7 @@ table.dataTable tbody tr:hover td {
     padding: 10px 16px;
     white-space: nowrap;
     flex-shrink: 0;
+    font-size: 0.85em;
   }
   
   .tab-content {
@@ -663,75 +937,51 @@ table.dataTable tbody tr:hover td {
   
   .screenshot-view-container {
     margin: 12px;
-    min-height: 250px;
+    min-height: 220px;
   }
   
   .screenshot-info i {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
   
-  .serp-list,
-  .screenshot-controls {
-    padding: 0 12px 12px;
-  }
-  
-  .serp-results-container h5 {
-    padding: 0 12px;
-    font-size: 15px;
-  }
-  
-  .result-preview,
   .alert {
     margin: 12px;
+    font-size: 0.85em;
   }
-  
   
   #serpModal .modal-header {
     padding: 16px 20px;
   }
   
   #serpModal .modal-header h3 {
-    font-size: 1.2em;
+    font-size: 1.1em;
   }
   
   .highlighted-result::before {
-    font-size: 10px;
+    font-size: 9px;
     padding: 3px 8px;
     right: 12px;
   }
-}
-
-@media (max-width: 480px) {
-  .serp-tab {
-    padding: 8px 12px;
-    font-size: 0.9em;
-  }
   
-  .screenshot-view-container {
-    margin: 8px;
-    min-height: 200px;
-  }
-  
-  .screenshot-info h5 {
-    font-size: 1em;
+  /* Asegurar que los textos largos no se desborden */
+  .domain-info strong,
+  .position-highlight,
+  .result-preview cite {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
   
   .load-screenshot {
-    padding: 10px 20px;
+    min-height: 44px;
+    border-radius: 6px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    touch-action: manipulation;
+  }
+  
+  .load-screenshot i {
     font-size: 0.9em;
-  }
-  
-  .serp-list li {
-    padding: 12px 16px;
-  }
-  
-  .result-preview {
-    padding: 16px;
-  }
-  
-  .alert {
-    padding: 12px 16px;
-    margin: 8px;
   }
 }
 

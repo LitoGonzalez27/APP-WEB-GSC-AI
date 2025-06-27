@@ -240,6 +240,12 @@ export async function handleFormSubmit(e) {
 
     const keywordData = data.keyword_comparison_data || [];
     updateStickyData(keywordData, siteUrlForAI);
+    
+    // ✅ NUEVO: Actualizar datos del overlay AI
+    if (window.updateAIOverlayData) {
+      window.updateAIOverlayData(keywordData, siteUrlForAI);
+    }
+    
     showStickyActions();
 
   } catch (err) {

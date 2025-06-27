@@ -636,90 +636,214 @@ body.dark-mode {
   }
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
+/* ===== RESPONSIVE DESIGN MEJORADO ===== */
+
+/* ===== TABLET (769px - 1024px) ===== */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .date-modal {
+    max-width: 85vw;
+    max-height: 85vh;
+  }
+
+  .date-modal-header {
+    padding: 22px 26px;
+  }
+
+  .modal-title {
+    font-size: 1.4rem;
+  }
+
+  .date-selector-container {
+    padding: 22px 26px;
+  }
+
+  .comparison-mode-group {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .comparison-mode-btn {
+    padding: 14px 18px;
+    font-size: 0.9rem;
+  }
+
+  .date-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .preset-btn {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+
+  .btn-content {
+    padding: 18px 22px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+}
+
+/* ===== MOBILE (hasta 768px) ===== */
 @media (max-width: 768px) {
   .date-modal-overlay {
     padding: 16px;
+    align-items: flex-start;
+    padding-top: 40px;
   }
   
   .date-modal {
-    max-height: 95vh;
+    max-height: calc(100vh - 60px);
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: var(--radius-lg);
   }
   
   .date-modal-header {
-    padding: 20px 24px;
+    padding: 20px;
+    border-bottom: 1px solid var(--date-border);
+    position: sticky;
+    top: 0;
+    background: var(--date-surface);
+    z-index: 10;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
   
   .modal-title {
-    font-size: 18px;
+    font-size: 1.25rem;
+    line-height: 1.2;
+  }
+
+  .date-modal-body {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   
   .date-selector-container {
-    padding: 24px 20px;
+    padding: 20px;
+  }
+
+  .date-period-section {
+    margin-bottom: 24px;
+  }
+
+  .period-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .period-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .period-preview {
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--date-surface-alt);
+    border: 1px solid var(--date-border-light);
+    width: 100%;
+    text-align: center;
   }
   
   .date-inputs-row {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 16px;
+  }
+
+  .date-input-group {
+    width: 100%;
+  }
+
+  .date-input {
+    padding: 14px 16px;
+    font-size: 16px; /* Evitar zoom en iOS */
+    border-radius: 12px;
+    width: 100%;
   }
   
   .comparison-mode-group {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 10px;
   }
   
   .comparison-mode-btn {
     justify-content: flex-start;
-    padding: 12px 16px;
+    padding: 16px 18px;
+    font-size: 0.95rem;
+    border-radius: 12px;
+    text-align: left;
+  }
+
+  .comparison-mode-btn i {
+    font-size: 1.1rem;
+    margin-right: 12px;
   }
   
   .date-presets {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
     align-items: stretch;
-    gap: 8px;
   }
   
   .preset-btn {
     width: 100%;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    border-radius: 12px;
     justify-content: center;
   }
   
-  .period-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .period-preview {
-    max-width: 100%;
-  }
-  
   .date-modal-footer {
-    padding: 16px 20px;
+    padding: 20px;
+    gap: 12px;
+    border-top: 1px solid var(--date-border);
     flex-direction: column;
-    gap: 8px;
+    position: sticky;
+    bottom: 0;
+    background: var(--date-surface);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   }
   
   .btn-modal {
     width: 100%;
+    padding: 16px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    min-height: 52px;
+    border-radius: 12px;
   }
   
   .btn-content {
-    padding: 16px 20px;
+    padding: 18px 20px;
+    gap: 12px;
   }
   
   .btn-icon {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     font-size: 18px;
   }
   
   .btn-title {
-    font-size: 15px;
+    font-size: 1rem;
+    font-weight: 600;
   }
   
   .btn-subtitle {
-    font-size: 13px;
+    font-size: 0.85rem;
+    line-height: 1.3;
   }
 }
 

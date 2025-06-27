@@ -21,7 +21,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost&display=swap');
 
 /*=============================================
-  2. VARIABLES CSS (THEMING)
+  2. VARIABLES CSS (THEMING + RESPONSIVE)
 =============================================*/
 :root {
   /* Colores base */
@@ -65,15 +65,19 @@
   --warning-color: #FFB347;
   --info-color: #19A0D4;
 
-  /* Spacing */
-  --spacing-xs: 5px;
-  --spacing-sm: 10px;
-  --spacing-md: 20px;
-  --spacing-lg: 30px;
-  --spacing-xl: 40px;
+  /* Spacing Responsive */
+  --spacing-xs: clamp(4px, 1vw, 8px);
+  --spacing-sm: clamp(8px, 2vw, 16px);
+  --spacing-md: clamp(16px, 3vw, 24px);
+  --spacing-lg: clamp(24px, 4vw, 40px);
+  --spacing-xl: clamp(32px, 5vw, 60px);
+
+  /* Container Responsive */
+  --container-padding: clamp(20px, 4vw, 60px);
+  --container-max-width: 1600px;
 
   /* Border radius */
-  --radius-sm: 12px;
+  --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-full: 50%;
@@ -82,6 +86,22 @@
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
   --transition-slow: 0.4s ease;
+
+  /* Breakpoints como variables */
+  --bp-mobile: 480px;
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-large: 1200px;
+  --bp-xlarge: 1400px;
+
+  /* Typography Responsive */
+  --font-size-xs: clamp(0.75rem, 2.5vw, 0.875rem);
+  --font-size-sm: clamp(0.875rem, 2.5vw, 1rem);
+  --font-size-base: clamp(1rem, 2.5vw, 1.125rem);
+  --font-size-lg: clamp(1.125rem, 3vw, 1.25rem);
+  --font-size-xl: clamp(1.25rem, 4vw, 1.5rem);
+  --font-size-2xl: clamp(1.5rem, 5vw, 2rem);
+  --font-size-3xl: clamp(2rem, 6vw, 2.5rem);
 }
 
 /* Dark mode */
@@ -94,9 +114,15 @@ body.dark-mode {
   --input-text:    #C9D1D9;
   --input-focus-bg:#282E35;
   --placeholder:   rgba(201, 209, 217, 0.5);
-  --even-row-bg:   rgba(255, 255, 255, 0.04);
   --border-color:  rgba(255,255,255,0.12);
+
+  /* Tablas */
+  --even-row-bg:   rgba(255, 255, 255, 0.04);
+
+  /* Bordes */
   --toggle-mode-border-color: rgba(255,255,255,0.15);
+
+  /* Chips */
   --chip-default-bg: #e4e4e4;
   --chip-default-text: black;
   --spinner-track-color: rgba(255,255,255,0.12);
@@ -104,23 +130,25 @@ body.dark-mode {
 }
 
 /*=============================================
-  3. RESET Y BASE
+  3. RESET Y BASE RESPONSIVE
 =============================================*/
 *, *::before, *::after {
   box-sizing: border-box;
   padding: 0;
 }
 
-/* Actualizar el body para centrado */
+/* Body responsive mejorado */
 body {
   font-family: 'Jost', sans-serif;
   min-height: 100vh;
-  padding: 100px 60px !important; 
-  max-width: 1600px;
+  padding: 100px var(--container-padding) var(--spacing-lg);
+  max-width: var(--container-max-width);
   background: var(--body-bg);
   color: var(--text-color);
   transition: background var(--transition-base), color var(--transition-base);
   margin: 0 auto;
+  font-size: var(--font-size-base);
+  line-height: 1.6;
 }
 
 body.modal-open {
@@ -128,40 +156,59 @@ body.modal-open {
 }
 
 /*=============================================
-  4. TIPOGRAFÍA
+  4. TIPOGRAFÍA RESPONSIVE
 =============================================*/
-/* Actualizar los títulos */
 h1, h2 {
   color: var(--heading);
   margin-bottom: var(--spacing-xl);
+  line-height: 1.2;
 }
 
 h1 {
-  text-align: left; /* Cambiar de center a left */
+  text-align: left;
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
 }
 
 h2 {
-  text-align: center; /* Mantener centrado para las secciones */
+  text-align: center;
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
 }
 
 h3 {
   color: var(--heading);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+}
+
+h4 {
+  color: var(--heading);
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+}
+
+p {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
 }
 
 /*=============================================
-  5. COMPONENTES REUTILIZABLES
+  5. COMPONENTES REUTILIZABLES RESPONSIVE
 =============================================*/
 
-/* Mantener glass-effect solo para secciones de resultados */
+/* Glass effect responsive */
 .glass-effect,
 .dataTables_wrapper,
 .chart-card,
 .summary-card,
 .category-card {
   background: var(--card-bg);
-  padding: var(--spacing-md) 45px;
+  padding: var(--spacing-md) var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
+  border-radius: var(--radius-lg);
   transition: background var(--transition-base), border-color var(--transition-base);
+  box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 /* Spinners genéricos */
@@ -173,8 +220,8 @@ h3 {
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
+  width: clamp(40px, 8vw, 60px);
+  height: clamp(40px, 8vw, 60px);
   margin: var(--spacing-lg) auto;
   border: 6px solid var(--spinner-track-color);
   border-top-color: var(--cta-bg);
@@ -322,7 +369,7 @@ select:focus:not(.search-form select) {
 
 .btn-consultar:hover,
 #downloadExcelBtn:hover {
-  background: var(--cta-hover-bg);
+  background: var(--cta-hover);
   transform: translateY(-1px);
 }
 
@@ -702,20 +749,128 @@ tr:hover td {
 .mb-4 { margin-bottom: var(--spacing-xl); }
 
 /*=============================================
-  13. MEDIA QUERIES (GENERALES)
+  13. MEDIA QUERIES RESPONSIVE COMPLETOS
 =============================================*/
-@media (max-width: 768px) {
+
+/* ===== MOBILE SMALL (hasta 480px) ===== */
+@media (max-width: 480px) {
   body {
-    padding: 25px 0; /* Actualizar padding */
+    padding: 80px 16px 16px;
+    font-size: 14px;
   }
 
-  h1, h2 {
-    margin-bottom: 25px;
+  h1 {
+    font-size: 1.75rem !important;
+    margin-bottom: 16px;
+  }
+
+  h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    font-size: 1.25rem !important;
+  }
+
+  .glass-effect,
+  .dataTables_wrapper,
+  .chart-card,
+  .summary-card,
+  .category-card {
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .spinner {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .progress-subtext {
+    font-size: 0.8rem;
+    max-width: 95%;
+  }
+}
+
+/* ===== MOBILE LARGE (481px - 768px) ===== */
+@media (min-width: 481px) and (max-width: 768px) {
+  body {
+    padding: 90px 24px 24px;
+  }
+
+  h1 {
+    font-size: 2rem !important;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 1.75rem !important;
+    margin-bottom: 20px;
+  }
+
+  .glass-effect,
+  .dataTables_wrapper,
+  .chart-card,
+  .summary-card,
+  .category-card {
+    padding: 20px !important;
+    margin-bottom: 20px !important;
   }
 
   .progress-subtext {
     font-size: 0.9rem;
     max-width: 90%;
+  }
+}
+
+/* ===== TABLET (769px - 1024px) ===== */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body {
+    padding: 100px 40px 30px;
+  }
+
+  .glass-effect,
+  .dataTables_wrapper,
+  .chart-card,
+  .summary-card,
+  .category-card {
+    padding: 24px 32px !important;
+  }
+}
+
+/* ===== DESKTOP SMALL (1025px - 1200px) ===== */
+@media (min-width: 1025px) and (max-width: 1200px) {
+  body {
+    padding: 100px 50px 40px;
+  }
+}
+
+/* ===== DESKTOP LARGE (1201px+) ===== */
+@media (min-width: 1201px) {
+  body {
+    padding: 100px 60px 50px;
+  }
+}
+
+/* ===== UTILIDADES RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+  
+  .show-desktop {
+    display: block !important;
   }
 }
 
@@ -726,7 +881,7 @@ tr:hover td {
 /* Contenedor principal de la página */
 .page-container {
   max-width: 1600px;
-  margin: 0 auto;
+  margin: 40px auto;
 }
 
 /* Header de la página */
@@ -1099,7 +1254,7 @@ body.dark-mode .match-type-group input[type="radio"]:checked + .match-type-btn {
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 0 16px;
+    padding: 0px;
   }
 
   /* Ajustes para el nuevo header del formulario en móvil */
@@ -1353,7 +1508,7 @@ body.dark-mode .match-type-group input[type="radio"]:checked + .match-type-btn {
 
 @media (max-width: 768px) {
   .page-container {
-    padding: 0 16px;
+    padding: 0px;
   }
   
   .form-header h1 {

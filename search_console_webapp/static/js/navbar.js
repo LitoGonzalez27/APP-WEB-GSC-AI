@@ -1,22 +1,41 @@
-// static/js/navbar.js - SIMPLIFICADO (sin control de tema)
+// static/js/navbar.js - NAVBAR MODERNO REDISEÑADO
 
 class Navbar {
     constructor() {
+        // Elementos principales
         this.navbar = document.getElementById('navbar');
         this.navbarToggle = document.getElementById('navbarToggle');
         this.navbarMenu = document.getElementById('navbarMenu');
+        this.navbarOverlay = document.getElementById('navbarOverlay');
+        this.mobileMenuClose = document.getElementById('mobileMenuClose');
+        
+        // Botones de autenticación desktop
         this.loginBtn = document.getElementById('loginBtn');
         this.logoutBtn = document.getElementById('logoutBtn');
-        this.toggleModeBtn = document.getElementById('toggleModeBtn');
-        this.themeIcon = document.getElementById('themeIcon');
         
-        // ✅ Estado real de autenticación
+        // Botones de autenticación móvil
+        this.mobileLoginBtn = document.getElementById('mobileLoginBtn');
+        this.mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+        
+        // Botones de tema
+        this.toggleModeBtn = document.getElementById('toggleModeBtn');
+        this.mobileToggleModeBtn = document.getElementById('mobileToggleModeBtn');
+        this.themeIcon = document.getElementById('themeIcon');
+        this.mobileThemeIcon = document.getElementById('mobileThemeIcon');
+        this.mobileThemeText = document.getElementById('mobileThemeText');
+        
+        // Elementos de usuario
+        this.userInfo = document.getElementById('userInfo');
+        this.userName = document.getElementById('userName');
+        this.mobileUserInfo = document.getElementById('mobileUserInfo');
+        this.mobileUserName = document.getElementById('mobileUserName');
+        this.mobileUserEmail = document.getElementById('mobileUserEmail');
+        
+        // Estado de la aplicación
         this.isLoggedIn = false;
         this.currentUser = null;
-        
-        // ✅ Estado de scroll y overlay
         this.isScrolled = false;
-        this.overlay = null;
+        this.isMobileMenuOpen = false;
         
         this.init();
     }
@@ -24,18 +43,19 @@ class Navbar {
     init() {
         this.setupEventListeners();
         this.handleResponsive();
-        this.createOverlay();
-        
-        // ✅ Verificar estado de autenticación al cargar
         this.checkAuthStatus();
         this.handleAuthRedirect();
-        
-        // ✅ NUEVO: Escuchar cambios de tema desde utils.js
         this.listenToThemeChanges();
+        
+        // Sincronizar estado inicial del tema
+        this.syncThemeState();
+        
+        // Integrar con el sistema de tema existente
+        this.integrateWithThemeSystem();
     }
 
     setupEventListeners() {
-        // Toggle del menú hamburguesa
+        // Toggle del menú móvil
         if (this.navbarToggle) {
             this.navbarToggle.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -43,63 +63,154 @@ class Navbar {
             });
         }
 
-        // ✅ Botones de login/logout reales
+        // Cerrar menú móvil
+        if (this.mobileMenuClose) {
+            this.mobileMenuClose.addEventListener('click', () => {
+                this.closeMobileMenu();
+            });
+        }
+
+        // Overlay para cerrar menú
+        if (this.navbarOverlay) {
+            this.navbarOverlay.addEventListener('click', () => {
+                this.closeMobileMenu();
+            });
+        }
+
+        // Botones de login desktop y móvil
         if (this.loginBtn) {
             this.loginBtn.addEventListener('click', () => this.handleLogin());
         }
+        if (this.mobileLoginBtn) {
+            this.mobileLoginBtn.addEventListener('click', () => this.handleLogin());
+        }
 
+        // Botones de logout desktop y móvil
         if (this.logoutBtn) {
             this.logoutBtn.addEventListener('click', () => this.handleLogout());
         }
+        if (this.mobileLogoutBtn) {
+            this.mobileLogoutBtn.addEventListener('click', () => this.handleLogout());
+        }
 
-        // ✅ ELIMINADO: Ya no manejamos el tema aquí
-        // El botón de tema se maneja desde utils.js
+        // Botones de tema desktop y móvil
+        if (this.toggleModeBtn) {
+            this.toggleModeBtn.addEventListener('click', () => this.handleThemeToggle());
+        }
+        if (this.mobileToggleModeBtn) {
+            this.mobileToggleModeBtn.addEventListener('click', () => this.handleThemeToggle());
+        }
 
-        // ✅ Cerrar menú al hacer click fuera
+        // Cerrar menú móvil al hacer click en enlaces internos
         document.addEventListener('click', (e) => {
-            if (!this.navbar.contains(e.target) && this.navbarMenu.classList.contains('active')) {
+            if (this.isMobileMenuOpen && !this.navbarMenu.contains(e.target) && !this.navbarToggle.contains(e.target)) {
                 this.closeMobileMenu();
             }
         });
 
-        // ✅ Efecto scroll
+        // Efecto scroll
         window.addEventListener('scroll', () => this.handleScroll(), { passive: true });
 
         // Cerrar menú al redimensionar ventana
         window.addEventListener('resize', () => {
-            if (window.innerWidth > 768) {
+            if (window.innerWidth > 968 && this.isMobileMenuOpen) {
                 this.closeMobileMenu();
             }
         });
 
-        // ✅ Manejo de teclas (Escape para cerrar menú)
+        // Manejo de teclas
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.navbarMenu.classList.contains('active')) {
+            if (e.key === 'Escape' && this.isMobileMenuOpen) {
                 this.closeMobileMenu();
             }
         });
     }
 
-    // ✅ NUEVO: Escuchar cambios de tema desde el sistema centralizado
+    // Escuchar cambios de tema desde el sistema centralizado
     listenToThemeChanges() {
         window.addEventListener('themeChanged', (event) => {
             const { isDark } = event.detail;
-            console.log('Navbar detectó cambio de tema:', isDark ? 'oscuro' : 'claro');
-            
-            // Aquí podríamos añadir lógica específica del navbar si fuera necesaria
-            // Por ejemplo, cambiar animaciones o comportamientos específicos
+            this.updateThemeIcons(isDark);
         });
     }
 
-    // ✅ Crear overlay para móvil
-    createOverlay() {
-        this.overlay = document.createElement('div');
-        this.overlay.className = 'navbar-overlay';
-        this.overlay.addEventListener('click', () => this.closeMobileMenu());
-        document.body.appendChild(this.overlay);
+    // Sincronizar estado inicial del tema
+    syncThemeState() {
+        const isDark = document.body.classList.contains('dark-mode');
+        this.updateThemeIcons(isDark);
     }
 
-    // ✅ Efecto scroll para el navbar
+    // Actualizar iconos y texto del tema
+    updateThemeIcons(isDark) {
+        const iconClass = isDark ? 'fa-sun' : 'fa-moon';
+        const themeText = isDark ? 'Modo Claro' : 'Modo Oscuro';
+
+        // Actualizar iconos
+        if (this.themeIcon) {
+            this.themeIcon.className = `fas ${iconClass}`;
+        }
+        if (this.mobileThemeIcon) {
+            this.mobileThemeIcon.className = `fas ${iconClass}`;
+        }
+
+        // Actualizar texto móvil
+        if (this.mobileThemeText) {
+            this.mobileThemeText.textContent = themeText;
+        }
+
+        // Actualizar aria-label
+        if (this.toggleModeBtn) {
+            this.toggleModeBtn.setAttribute('aria-label', `Cambiar a ${themeText.toLowerCase()}`);
+            this.toggleModeBtn.setAttribute('aria-pressed', isDark.toString());
+        }
+    }
+
+    // Integrar con el sistema de tema existente
+    integrateWithThemeSystem() {
+        // Hacer disponible la función de toggle para utils.js
+        window.navbarToggleTheme = () => {
+            this.handleThemeToggle();
+        };
+        
+        // ✅ CORREGIDO: Usar la lógica unificada de storage
+        const savedTheme = localStorage.getItem('darkMode') === 'true';
+        if (savedTheme) {
+            document.body.classList.add('dark-mode');
+            this.updateThemeIcons(true);
+        }
+        
+        console.log('🔗 Navbar integrado con sistema de tema, tema guardado:', savedTheme);
+    }
+
+    // Manejar toggle de tema
+    handleThemeToggle() {
+        console.log('🎨 handleThemeToggle llamado desde navbar');
+        
+        // Usar lógica directa sin imports dinámicos para mejor compatibilidad
+        const isDark = document.body.classList.toggle('dark-mode');
+        
+        // Actualizar iconos en ambos botones
+        this.updateThemeIcons(isDark);
+        
+        // Guardar preferencia
+        localStorage.setItem('darkMode', isDark.toString());
+        
+        // ✅ NUEVO: También actualizar la función de utils.js si está disponible
+        if (window.themeUtils && window.themeUtils.storage) {
+            window.themeUtils.storage.darkMode = isDark;
+        }
+        
+        // Disparar evento personalizado para que otros componentes escuchen
+        window.dispatchEvent(new CustomEvent('themeChanged', { 
+            detail: { isDark } 
+        }));
+        
+        console.log('🎨 Tema cambiado a:', isDark ? 'oscuro' : 'claro', 'localStorage:', localStorage.getItem('darkMode'));
+    }
+
+
+
+    // Efecto scroll para el navbar
     handleScroll() {
         const scrolled = window.scrollY > 20;
         
@@ -114,7 +225,54 @@ class Navbar {
         }
     }
 
-    // ✅ Verificar estado de autenticación real
+    // Toggle del menú móvil
+    toggleMobileMenu() {
+        this.isMobileMenuOpen = !this.isMobileMenuOpen;
+        
+        if (this.isMobileMenuOpen) {
+            this.openMobileMenu();
+        } else {
+            this.closeMobileMenu();
+        }
+    }
+
+    // Abrir menú móvil
+    openMobileMenu() {
+        this.isMobileMenuOpen = true;
+        this.navbarMenu.classList.add('active');
+        this.navbarToggle.classList.add('active');
+        this.navbarOverlay.classList.add('active');
+        
+        // Prevenir scroll del body
+        document.body.style.overflow = 'hidden';
+        
+        // Actualizar aria-expanded
+        this.navbarToggle.setAttribute('aria-expanded', 'true');
+        
+        // Focus en el primer elemento del menú
+        setTimeout(() => {
+            const firstFocusable = this.navbarMenu.querySelector('button, a');
+            if (firstFocusable) {
+                firstFocusable.focus();
+            }
+        }, 100);
+    }
+
+    // Cerrar menú móvil
+    closeMobileMenu() {
+        this.isMobileMenuOpen = false;
+        this.navbarMenu.classList.remove('active');
+        this.navbarToggle.classList.remove('active');
+        this.navbarOverlay.classList.remove('active');
+        
+        // Restaurar scroll del body
+        document.body.style.overflow = '';
+        
+        // Actualizar aria-expanded
+        this.navbarToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    // Verificar estado de autenticación
     async checkAuthStatus() {
         try {
             const response = await fetch('/auth/status');
@@ -131,12 +289,12 @@ class Navbar {
         }
     }
 
-    // ✅ Manejar redirecciones de autenticación
+    // Manejar redirecciones de autenticación
     handleAuthRedirect() {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.get('auth_success') === 'true') {
-            this.showToast('¡Login exitoso!', 'success');
+            this.showToast('¡Inicio de sesión exitoso!', 'success');
             this.checkAuthStatus();
             
             // Limpiar URL
@@ -168,139 +326,200 @@ class Navbar {
         }
     }
 
-    // ✅ Toggle móvil con animaciones
-    toggleMobileMenu() {
-        const isActive = this.navbarMenu.classList.toggle('active');
-        this.navbarToggle.classList.toggle('active');
-        this.overlay.classList.toggle('active');
-        
-        // Prevenir scroll del body cuando el menú está abierto
-        if (isActive) {
-            document.body.style.overflow = 'hidden';
-            this.animateMenuItems();
-        } else {
-            document.body.style.overflow = '';
-        }
-        
-        // Actualizar aria-expanded para accesibilidad
-        this.navbarToggle.setAttribute('aria-expanded', isActive);
-    }
-
-    // ✅ Animación escalonada para items del menú
-    animateMenuItems() {
-        const menuItems = this.navbarMenu.querySelectorAll('.navbar-btn');
-        menuItems.forEach((item, index) => {
-            item.style.animationDelay = `${(index + 1) * 0.1}s`;
-        });
-    }
-
-    closeMobileMenu() {
-        this.navbarMenu.classList.remove('active');
-        this.navbarToggle.classList.remove('active');
-        this.overlay.classList.remove('active');
-        document.body.style.overflow = '';
-        this.navbarToggle.setAttribute('aria-expanded', 'false');
-    }
-
-    // ✅ Login con mejor UX
+    // Manejar login
     handleLogin() {
-        console.log('Redirecting to Google OAuth...');
+        // Mostrar loading en ambos botones
+        this.setLoadingState(true);
         
-        // Añadir estado de loading
-        this.loginBtn.classList.add('loading');
-        
+        // Mostrar toast informativo
         this.showToast('Redirigiendo a Google...', 'info');
         
-        // Delay para mostrar el loading
+        // Redirigir al endpoint de auth
         setTimeout(() => {
             window.location.href = '/auth/login';
         }, 500);
-        
-        this.closeMobileMenu();
     }
 
-    // ✅ Logout mejorado
+    // Manejar logout
     async handleLogout() {
         try {
-            // Añadir estado de loading
-            this.logoutBtn.classList.add('loading');
+            // Mostrar loading
+            this.setLoadingState(true);
             
             const response = await fetch('/auth/logout', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 }
             });
-
+            
             if (response.ok) {
                 this.setLoginStatus(false, null);
-                this.showToast('Logout exitoso', 'success');
+                this.showToast('Sesión cerrada correctamente', 'success');
                 
-                // Recargar página para limpiar datos
+                // Cerrar menú móvil si está abierto
+                if (this.isMobileMenuOpen) {
+                    this.closeMobileMenu();
+                }
+                
+                // Opcional: recargar página para limpiar datos
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
             } else {
-                throw new Error('Logout failed');
+                throw new Error('Error en logout');
             }
         } catch (error) {
-            console.error('Error during logout:', error);
-            this.showToast('Error en logout', 'error');
+            console.error('Error durante logout:', error);
+            this.showToast('Error al cerrar sesión', 'error');
         } finally {
-            this.logoutBtn.classList.remove('loading');
+            this.setLoadingState(false);
         }
-        
-        this.closeMobileMenu();
     }
 
-    // ✅ Manejar estado real de autenticación
+    // Establecer estado de login
     setLoginStatus(isLoggedIn, user = null) {
         this.isLoggedIn = isLoggedIn;
         this.currentUser = user;
         this.updateAuthButtons();
+        this.updateUserInfo();
     }
 
+    // Actualizar botones de autenticación
     updateAuthButtons() {
-        if (this.isLoggedIn && this.currentUser) {
-            // Mostrar botón logout con info del usuario
-            this.loginBtn.style.display = 'none';
-            this.logoutBtn.style.display = 'flex';
-            
-            // ✅ Mostrar email del usuario en el botón
-            const btnText = this.logoutBtn.querySelector('.btn-text');
-            if (btnText && this.currentUser.email) {
-                const username = this.currentUser.email.split('@')[0];
-                btnText.textContent = `${username}`;
-                this.logoutBtn.title = `Conectado como ${this.currentUser.email}`;
-                
-                // ✅ Añadir primera letra como avatar
-                const existingAvatar = this.logoutBtn.querySelector('.user-avatar');
-                if (!existingAvatar) {
-                    const avatar = document.createElement('span');
-                    avatar.className = 'user-avatar';
-                    avatar.textContent = username.charAt(0).toUpperCase();
-                    this.logoutBtn.insertBefore(avatar, btnText);
-                }
+        // Botones desktop
+        if (this.loginBtn && this.logoutBtn) {
+            if (this.isLoggedIn) {
+                this.loginBtn.style.display = 'none';
+                this.logoutBtn.style.display = 'flex';
+            } else {
+                this.loginBtn.style.display = 'flex';
+                this.logoutBtn.style.display = 'none';
             }
-        } else {
-            // Mostrar botón login
-            this.loginBtn.style.display = 'flex';
-            this.logoutBtn.style.display = 'none';
-            
-            // Remover avatar si existe
-            const avatar = this.logoutBtn.querySelector('.user-avatar');
-            if (avatar) {
-                avatar.remove();
+        }
+
+        // Botones móvil
+        if (this.mobileLoginBtn && this.mobileLogoutBtn) {
+            if (this.isLoggedIn) {
+                this.mobileLoginBtn.style.display = 'none';
+                this.mobileLogoutBtn.style.display = 'flex';
+            } else {
+                this.mobileLoginBtn.style.display = 'flex';
+                this.mobileLogoutBtn.style.display = 'none';
             }
         }
     }
 
-    handleResponsive() {
-        // Manejo responsivo mejorado se hace principalmente con CSS
-        // Aquí solo manejamos eventos específicos de JavaScript
+    // Actualizar información del usuario
+    updateUserInfo() {
+        if (this.isLoggedIn && this.currentUser) {
+            // Desktop user info
+            if (this.userInfo && this.userName) {
+                this.userInfo.style.display = 'flex';
+                this.userName.textContent = this.currentUser.name || 'Usuario';
+            }
+
+            // Mobile user info
+            if (this.mobileUserInfo && this.mobileUserName && this.mobileUserEmail) {
+                this.mobileUserInfo.style.display = 'flex';
+                this.mobileUserName.textContent = this.currentUser.name || 'Usuario';
+                this.mobileUserEmail.textContent = this.currentUser.email || 'usuario@email.com';
+            }
+        } else {
+            // Ocultar info de usuario
+            if (this.userInfo) {
+                this.userInfo.style.display = 'none';
+            }
+            if (this.mobileUserInfo) {
+                this.mobileUserInfo.style.display = 'none';
+            }
+        }
+    }
+
+    // Establecer estado de carga
+    setLoadingState(loading) {
+        const buttons = [this.loginBtn, this.logoutBtn, this.mobileLoginBtn, this.mobileLogoutBtn];
         
+        buttons.forEach(btn => {
+            if (btn) {
+                if (loading) {
+                    btn.classList.add('loading');
+                    btn.disabled = true;
+                } else {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
+            }
+        });
+    }
+
+    // Mostrar toast/notificación
+    showToast(message, type = 'info') {
+        // Remover toast existente
+        const existingToast = document.querySelector('.navbar-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        // Crear nuevo toast
+        const toast = document.createElement('div');
+        toast.className = `navbar-toast navbar-toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="fas ${this.getToastIcon(type)}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        // Estilos del toast
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '80px',
+            right: '20px',
+            background: type === 'error' ? '#dc2626' : type === 'success' ? '#059669' : '#3b82f6',
+            color: 'white',
+            padding: '1rem 1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+            zIndex: '9999',
+            transform: 'translateX(400px)',
+            transition: 'all 0.3s ease',
+            backdropFilter: 'blur(10px)',
+            maxWidth: '300px'
+        });
+
+        document.body.appendChild(toast);
+
+        // Animar entrada
+        setTimeout(() => {
+            toast.style.transform = 'translateX(0)';
+        }, 100);
+
+        // Auto-remover después de 4 segundos
+        setTimeout(() => {
+            toast.style.transform = 'translateX(400px)';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
+        }, 4000);
+    }
+
+    // Obtener icono para toast
+    getToastIcon(type) {
+        switch (type) {
+            case 'success': return 'fa-check-circle';
+            case 'error': return 'fa-exclamation-circle';
+            case 'warning': return 'fa-exclamation-triangle';
+            default: return 'fa-info-circle';
+        }
+    }
+
+    // Manejar responsive
+    handleResponsive() {
         const handleResize = () => {
-            if (window.innerWidth > 768 && this.navbarMenu.classList.contains('active')) {
+            if (window.innerWidth > 968 && this.isMobileMenuOpen) {
                 this.closeMobileMenu();
             }
         };
@@ -308,80 +527,10 @@ class Navbar {
         window.addEventListener('resize', handleResize);
     }
 
-    // ✅ Toast con mejor diseño y animaciones
-    showToast(message, type = 'info') {
-        // Remover toasts anteriores
-        const existingToasts = document.querySelectorAll('.toast');
-        existingToasts.forEach(toast => {
-            toast.style.animation = 'slideOutRight 0.3s ease forwards';
-            setTimeout(() => toast.remove(), 300);
-        });
-
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        // ✅ Iconos y colores
-        const icons = {
-            success: { icon: 'fa-check-circle', color: '#10b981' },
-            error: { icon: 'fa-exclamation-circle', color: '#ef4444' },
-            warning: { icon: 'fa-exclamation-triangle', color: '#f59e0b' },
-            info: { icon: 'fa-info-circle', color: '#3b82f6' }
-        };
-        
-        const { icon, color } = icons[type] || icons.info;
-        
-        toast.innerHTML = `
-            <div class="toast-content">
-                <div class="toast-icon">
-                    <i class="fas ${icon}"></i>
-                </div>
-                <div class="toast-text">
-                    <span class="toast-message">${message}</span>
-                </div>
-                <button class="toast-close" onclick="this.parentElement.remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-
-        // ✅ Estilos
-        toast.style.cssText = `
-            position: fixed;
-            top: 90px;
-            right: 20px;
-            background: white;
-            color: #374151;
-            padding: 0;
-            border-radius: 12px;
-            border-left: 4px solid ${color};
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-            z-index: 10001;
-            animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            min-width: 320px;
-            max-width: 500px;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        `;
-
-        document.body.appendChild(toast);
-
-        // Auto-remover después de 5 segundos
-        setTimeout(() => {
-            if (document.body.contains(toast)) {
-                toast.style.animation = 'slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-                setTimeout(() => {
-                    if (document.body.contains(toast)) {
-                        toast.remove();
-                    }
-                }, 400);
-            }
-        }, 5000);
-    }
-
-    // ✅ Métodos públicos para integración externa
+    // Métodos públicos para usar desde otros scripts
     getAuthStatus() {
         return {
-            isAuthenticated: this.isLoggedIn,
+            isLoggedIn: this.isLoggedIn,
             user: this.currentUser
         };
     }
@@ -390,188 +539,19 @@ class Navbar {
         this.checkAuthStatus();
     }
 
-    // Métodos legacy para compatibilidad
-    getLoginStatus() {
-        return this.isLoggedIn;
-    }
-
-    // ✅ Método para mostrar/ocultar navbar
-    toggleNavbar(show = true) {
-        if (show) {
-            this.navbar.style.transform = 'translateY(0)';
-        } else {
-            this.navbar.style.transform = 'translateY(-100%)';
+    closeMenu() {
+        if (this.isMobileMenuOpen) {
+            this.closeMobileMenu();
         }
     }
 }
 
-// Inicializar el navbar cuando el DOM esté listo
+// Inicializar navbar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.navbar = new Navbar();
 });
 
-// ✅ CSS para toasts y avatares (simplificado)
-const navbarStyles = document.createElement('style');
-navbarStyles.textContent = `
-    /* Animaciones para toasts */
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    @keyframes slideOutRight {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-    
-    /* Toast content */
-    .toast-content {
-        display: flex;
-        align-items: center;
-        padding: 16px 20px;
-        gap: 12px;
-    }
-    
-    .toast-icon {
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .toast-icon i {
-        font-size: 16px;
-    }
-    
-    .toast-text {
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .toast-message {
-        font-size: 14px;
-        font-weight: 500;
-        line-height: 1.4;
-    }
-    
-    .toast-close {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        color: #6b7280;
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-    
-    .toast-close:hover {
-        background-color: #f3f4f6;
-        color: #374151;
-    }
-    
-    .toast-close i {
-        font-size: 12px;
-    }
-    
-    /* Colores de iconos para toasts */
-    .toast-success .toast-icon i { color: #10b981; }
-    .toast-error .toast-icon i { color: #ef4444; }
-    .toast-warning .toast-icon i { color: #f59e0b; }
-    .toast-info .toast-icon i { color: #3b82f6; }
-    
-    /* Avatar de usuario */
-    .user-avatar {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        margin-right: 4px;
-    }
-    
-    /* Loading state */
-    .navbar-btn.loading i {
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-    
-    /* Transiciones para iconos de tema */
-    .toggle-mode i {
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    /* Overlay para menú móvil */
-    .navbar-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.3);
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 999;
-    }
-    
-    .navbar-overlay.active {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    body.dark-mode .navbar-overlay {
-        background: rgba(0, 0, 0, 0.6);
-    }
-    
-    /* Dark mode para toasts */
-    body.dark-mode .toast-content {
-        background: #1f2937;
-        color: #f9fafb;
-    }
-    
-    body.dark-mode .toast-close {
-        color: #9ca3af;
-    }
-    
-    body.dark-mode .toast-close:hover {
-        background-color: #374151;
-        color: #f9fafb;
-    }
-    
-    /* Responsive para toasts */
-    @media (max-width: 768px) {
-        .toast {
-            left: 20px;
-            right: 20px;
-            min-width: auto;
-            max-width: none;
-        }
-        
-        .toast-content {
-            padding: 14px 16px;
-        }
-        
-        .toast-message {
-            font-size: 13px;
-        }
-    }
-`;
-document.head.appendChild(navbarStyles);
+// Exportar para uso en otros módulos
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Navbar;
+}

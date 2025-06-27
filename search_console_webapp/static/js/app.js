@@ -5,6 +5,7 @@ import { elems, storage, initTheme, toggleTheme, setTheme, getCurrentTheme } fro
 import { initMonthChips as initializeMonthChipsUI, handleFormSubmit as handleFormSubmitUI, initDownloadExcel } from './ui-core.js'; // Renombradas para evitar conflictos
 import { initAIOverviewAnalysis } from './ui-ai-overview.js';
 import { initStickyActions } from './ui-sticky-actions.js';
+import { initAIOverlay, updateAIOverlayData, resetAIOverlay, updateRealProgress } from './ui-ai-overlay.js';
 
 // Variables para almacenar el país principal del negocio
 let primaryBusinessCountry = null;
@@ -1097,6 +1098,7 @@ function initializeApp() {
     initDownloadExcel();
     initAIOverviewAnalysis();
     initStickyActions(); // ✅ NUEVO: Inicializar botones sticky
+    initAIOverlay(); // ✅ NUEVO: Inicializar overlay AI
     initUrlPlaceholderFunctionality(); // ✅ NUEVO: Inicializar placeholder dinámico
     // ✅ NUEVO: Inicializar tooltip de información con timeout
     setTimeout(() => {
@@ -1159,8 +1161,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateUrlPlaceholder = updateUrlPlaceholder;
     window.setupTooltipInteraction = setupTooltipInteraction;
     window.initUrlsInfoTooltip = initUrlsInfoTooltip;
+    window.updateAIOverlayData = updateAIOverlayData;
+    window.resetAIOverlay = resetAIOverlay;
+    window.updateRealProgress = updateRealProgress;
     
-    // ✅ FUNCIÓN DE DEBUG MANUAL
+    // ✅ FUNCIÓN DE DEBUG MANUAL PARA TOOLTIPS
     window.testUrlsTooltip = function() {
         console.log('🧪 Prueba manual del tooltip...');
         
@@ -1185,6 +1190,43 @@ document.addEventListener('DOMContentLoaded', () => {
             tooltip.style.opacity = '1';
             tooltip.style.visibility = 'visible';
             tooltip.style.transform = 'translateY(0)';
+        }
+    };
+    
+    // ✅ NUEVA FUNCIÓN DE DEBUG PARA DARK MODE
+    window.debugDarkMode = function() {
+        console.log('🔍 Diagnóstico del Dark Mode:');
+        
+        const toggleBtn = document.getElementById('toggleModeBtn');
+        const mobileToggleBtn = document.getElementById('mobileToggleModeBtn');
+        const themeIcon = document.getElementById('themeIcon');
+        const mobileThemeIcon = document.getElementById('mobileThemeIcon');
+        const body = document.body;
+        
+        console.log('Elementos encontrados:', {
+            toggleBtn: !!toggleBtn,
+            mobileToggleBtn: !!mobileToggleBtn,
+            themeIcon: !!themeIcon,
+            mobileThemeIcon: !!mobileThemeIcon,
+            bodyHasDarkMode: body.classList.contains('dark-mode'),
+            localStorage: localStorage.getItem('darkMode'),
+            navbarInstance: !!window.navbar
+        });
+        
+        if (toggleBtn) {
+            console.log('Botón desktop event listeners:', getEventListeners(toggleBtn));
+        }
+        
+        if (mobileToggleBtn) {
+            console.log('Botón móvil event listeners:', getEventListeners(mobileToggleBtn));
+        }
+        
+        // Forzar toggle manual
+        console.log('🔧 Intentando toggle manual...');
+        if (window.navbar && window.navbar.handleThemeToggle) {
+            window.navbar.handleThemeToggle();
+        } else {
+            console.warn('⚠️ Navbar o función handleThemeToggle no disponible');
         }
     };
     

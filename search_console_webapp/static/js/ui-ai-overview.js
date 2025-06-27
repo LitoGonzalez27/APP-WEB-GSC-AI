@@ -45,6 +45,11 @@ export function enableAIOverviewAnalysis(keywordData, siteUrl) {
 
   console.log('[AI OVERVIEW] Configurando controles de análisis...');
 
+  // ✅ NUEVO: Actualizar overlay si está disponible
+  if (window.updateAIOverlayData) {
+    window.updateAIOverlayData(keywordData, siteUrl);
+  }
+
   console.log('[AI OVERVIEW] Listo para análisis via botones sticky');
 }
 

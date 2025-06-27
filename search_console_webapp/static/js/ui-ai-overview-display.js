@@ -152,11 +152,11 @@ function displayDetailedResults(results, container) {
           <thead>
             <tr>
               <th style="width: 60px;"></th>
-              <th>Keyword</th>
-              <th>With AIO</th>
-              <th>Organic Position</th>
-              <th>Your Domain in AIO</th>
-              <th>AIO Position</th>
+              <th>KEYWORD</th>
+              <th>WITH AIO</th>
+              <th>ORGANIC POSITION</th>
+              <th>YOUR DOMAIN IN AIO</th>
+              <th>AIO POSITION</th>
             </tr>
           </thead>
           <tbody>
@@ -176,14 +176,46 @@ function displayDetailedResults(results, container) {
       language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
       scrollX: true,
       responsive: false,
+      autoWidth: false,
       columnDefs: [
-        { targets: 0, orderable: false, className: 'dt-body-center' },
-        { targets: 1, className: 'dt-body-left kw-cell' },
-        { targets: '_all', className: 'dt-body-center' }
+        { targets: 0, orderable: false, className: 'dt-body-center', width: '60px' },
+        { targets: 1, className: 'dt-body-left kw-cell', width: '250px' },
+        { targets: 2, className: 'dt-body-center', width: '120px' },
+        { targets: 3, className: 'dt-body-center', width: '150px' },
+        { targets: 4, className: 'dt-body-center', width: '180px' },
+        { targets: 5, className: 'dt-body-center', width: '130px' }
       ],
       order: [[2, 'desc']],
       drawCallback: () => {
         if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
+      },
+      initComplete: () => {
+        // Forzar anchos después de la inicialización
+        const table = document.getElementById('aiOverviewTable');
+        if (table) {
+          const headers = table.querySelectorAll('thead th');
+          const widths = ['60px', '250px', '120px', '150px', '180px', '130px'];
+          headers.forEach((header, index) => {
+            if (widths[index]) {
+              header.style.width = widths[index];
+              header.style.minWidth = widths[index];
+              header.style.maxWidth = widths[index];
+            }
+          });
+          
+          // También forzar en las celdas del cuerpo
+          const rows = table.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((cell, index) => {
+              if (widths[index]) {
+                cell.style.width = widths[index];
+                cell.style.minWidth = widths[index];
+                cell.style.maxWidth = widths[index];
+              }
+            });
+          });
+        }
       }
     });
     // Aplicar mejoras visuales
