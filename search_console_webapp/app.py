@@ -43,12 +43,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Carga variables de entorno
-load_dotenv('serpapi.env')
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    logger.info("Entorno Railway detectado, no se carga .env local")
+else:
+    load_dotenv('serpapi.env')
+
 
 app = Flask(__name__)
 
 # --- NUEVO: Configuración de sesión para autenticación ---
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-here-change-in-production')
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here-change-in-production')
 app.config['SESSION_COOKIE_SECURE'] = False  # Cambiar a True en producción con HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -848,7 +852,7 @@ def download_excel():
 def get_serp_raw_json():
     keyword_query = request.args.get('keyword')
     country_param = request.args.get('country', '')
-    api_key_val = os.getenv('SERPAPI_API_KEY')
+    api_key_val = os.getenv('SERPAPI_KEY')
     
     if not keyword_query: 
         return jsonify({'error':'keyword es requerido'}), 400
