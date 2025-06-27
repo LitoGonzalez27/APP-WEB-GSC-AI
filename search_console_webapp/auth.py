@@ -28,7 +28,8 @@ SCOPES = [
 ]
 
 CLIENT_SECRETS_FILE = os.getenv('CLIENT_SECRETS_FILE', 'client_secret.json')
-REDIRECT_URI = os.getenv('BASE_URL', 'http://localhost:5001') + '/auth/callback'
+REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/auth/callback')
+
 
 def create_flow():
     try:
