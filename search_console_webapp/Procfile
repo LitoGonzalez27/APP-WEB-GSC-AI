@@ -1,2 +1,5 @@
-release: python3 -m playwright install chromium
+# 1) Instala dependencias nativas de Chromium
+# 2) Descarga el binario de Chromium
+# 3) Luego arranca tu app
+release: python3 -m playwright install-deps && python3 -m playwright install chromium
 web:     python3 app.py
