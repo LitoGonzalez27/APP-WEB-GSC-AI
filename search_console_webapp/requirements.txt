@@ -13,6 +13,7 @@ google-api-python-client==2.147.0
 # Procesamiento de datos (COMPATIBLE con Python 3.13)
 pandas==2.2.3
 openpyxl==3.1.5
+xlsxwriter==3.2.0
 
 # SERP API
 google-search-results==2.4.2
