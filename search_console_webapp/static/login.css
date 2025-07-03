@@ -466,7 +466,9 @@ body.loaded {
     text-decoration: underline;
 }
 
-/* Responsive Design */
+/* Media queries responsivas mejoradas */
+
+/* Tablet landscape y desktop pequeño */
 @media (max-width: 1024px) {
     .login-content {
         max-width: 900px;
@@ -478,55 +480,117 @@ body.loaded {
     }
 }
 
+/* Tablet portrait */
 @media (max-width: 768px) {
     .login-container {
-        padding: 0.5rem;
+        padding: 1rem;
     }
     
     .login-content {
         grid-template-columns: 1fr;
         max-width: 500px;
         min-height: auto;
+        /* Reorganizar el orden en mobile */
+        display: flex;
+        flex-direction: column;
     }
     
+    /* Reorganizar el orden de los elementos en mobile */
     .login-branding {
-        padding: 2rem;
+        order: 2; /* Las características van al final */
+        padding: 2rem 2rem 3rem 2rem;
+        background: var(--gray-50);
+        border-radius: 0;
+    }
+    
+    .login-form-panel {
+        order: 1; /* El formulario va primero */
+        padding: 3rem 2rem 2rem 2rem;
+    }
+    
+    /* Ajustar el branding para mobile */
+    .branding-content {
         text-align: center;
-    }
-    
-    .branding-text h2 {
-        font-size: 1.5rem;
-    }
-    
-    .branding-text p {
-        font-size: 1rem;
     }
     
     .brand-logo {
         justify-content: center;
+        margin-bottom: 1.5rem;
     }
     
     .brand-logo i {
         font-size: 2rem;
-        padding: 0.75rem;
+        color: var(--primary-color);
     }
     
     .brand-logo h1 {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
+        color: var(--gray-800);
     }
     
-    .login-form-panel {
-        padding: 2rem;
+    .branding-text {
+        margin-bottom: 2rem;
     }
     
+    .branding-text h2 {
+        font-size: 1.25rem;
+        color: var(--gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .branding-text p {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+    }
+    
+    .branding-features {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .feature {
+        background: var(--white);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+    }
+    
+    .feature i {
+        color: var(--primary-color);
+        font-size: 1.125rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature span {
+        color: var(--gray-700);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    /* Ajustar el formulario para mobile */
     .form-header h3 {
         font-size: 1.5rem;
+        text-align: center;
+    }
+    
+    .form-header p {
+        text-align: center;
+        font-size: 0.875rem;
     }
 }
 
+/* Mobile pequeño */
 @media (max-width: 480px) {
     .login-container {
-        padding: 0.25rem;
+        padding: 0.5rem;
+    }
+    
+    .login-content {
+        border-radius: 0.5rem;
+        max-width: 100%;
+        margin: 0;
     }
     
     .login-branding,
@@ -534,49 +598,177 @@ body.loaded {
         padding: 1.5rem;
     }
     
-    .google-login-btn {
-        padding: 0.875rem 1rem;
-        font-size: 0.9rem;
+    /* Hacer el logo más prominente en mobile */
+    .brand-logo {
+        margin-bottom: 2rem;
     }
     
+    .brand-logo i {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .brand-logo h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+    
+    /* Botón de Google más grande en mobile */
+    .google-login-btn {
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        min-height: 56px;
+    }
+    
+    /* Features en una sola columna en mobile pequeño */
     .branding-features {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
     
+    .feature {
+        padding: 0.75rem;
+        text-align: center;
+    }
+    
+    /* Ajustar círculos de fondo para mobile */
     .circle-1 {
-        width: 150px;
-        height: 150px;
+        width: 120px;
+        height: 120px;
+        top: 5%;
+        left: 5%;
     }
     
     .circle-2 {
-        width: 100px;
-        height: 100px;
+        width: 80px;
+        height: 80px;
+        top: 70%;
+        right: 10%;
     }
     
     .circle-3 {
-        width: 80px;
-        height: 80px;
+        width: 60px;
+        height: 60px;
+        bottom: 15%;
+        left: 20%;
+    }
+    
+    /* Header del formulario más compacto */
+    .form-header {
+        margin-bottom: 2rem;
+    }
+    
+    .form-header h3 {
+        font-size: 1.375rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-header p {
+        font-size: 0.8125rem;
+        line-height: 1.5;
     }
 }
 
-/* Dark mode considerations (for future implementation) */
+/* Mobile extra pequeño */
+@media (max-width: 360px) {
+    .login-branding,
+    .login-form-panel {
+        padding: 1rem;
+    }
+    
+    .brand-logo h1 {
+        font-size: 1.5rem;
+    }
+    
+    .branding-text h2 {
+        font-size: 1.125rem;
+    }
+    
+    .google-login-btn {
+        font-size: 0.9375rem;
+        padding: 0.875rem 1.25rem;
+    }
+}
+
+/* Header mobile - oculto por defecto */
+.mobile-header {
+    display: none;
+}
+
+/* Animación suave para la transición de elementos */
+.login-branding,
+.login-form-panel,
+.mobile-header {
+    transition: var(--transition);
+}
+
+/* Añadir una sección especial para el header mobile */
+@media (max-width: 768px) {
+    /* Crear un header mobile especial que contenga logo + nombre */
+    .mobile-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 2rem 2rem 1rem 2rem;
+        background: var(--white);
+        border-bottom: 1px solid var(--gray-200);
+        order: 0; /* Va primero de todo */
+    }
+    
+    .mobile-header .brand-logo {
+        margin-bottom: 0;
+    }
+    
+    .mobile-header .brand-logo i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 0.75rem;
+        display: block;
+    }
+    
+    .mobile-header .brand-logo h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--gray-800);
+        margin: 0;
+        letter-spacing: -0.025em;
+    }
+    
+    /* Ocultar el logo del branding en mobile para evitar duplicación */
+    .login-branding .brand-logo {
+        display: none;
+    }
+    
+    /* Ajustar el espaciado del formulario en mobile */
+    .login-form-panel .login-form-content {
+        padding-top: 0;
+    }
+    
+    /* Mejorar la separación visual entre secciones */
+    .login-form-panel {
+        border-bottom: 1px solid var(--gray-200);
+    }
+}
+
+/* Asegurar que el dark mode funcione bien */
 @media (prefers-color-scheme: dark) {
     :root {
+        --gray-50: #1f2937;
+        --gray-100: #374151;
+        --gray-200: #4b5563;
+        --gray-300: #6b7280;
+        --gray-400: #9ca3af;
+        --gray-500: #d1d5db;
+        --gray-600: #e5e7eb;
+        --gray-700: #f3f4f6;
+        --gray-800: #f9fafb;
+        --gray-900: #ffffff;
         --white: #1f2937;
-        --gray-900: #f9fafb;
-        --gray-800: #f3f4f6;
-        --gray-700: #e5e7eb;
-        --gray-600: #d1d5db;
-        --gray-500: #9ca3af;
-        --gray-400: #6b7280;
-        --gray-300: #4b5563;
-        --gray-200: #374151;
-        --gray-100: #1f2937;
-        --gray-50: #111827;
     }
 }
 
-/* Accessibility improvements */
+/* Reducir animaciones para usuarios que lo prefieran */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -591,7 +783,7 @@ body.loaded {
     }
 }
 
-/* Focus styles for accessibility */
+/* Mejorar la accesibilidad con focus visible */
 .google-login-btn:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
@@ -599,26 +791,28 @@ body.loaded {
 
 .footer-link:focus-visible,
 .support-link:focus-visible {
-    outline: 1px solid var(--primary-color);
+    outline: 2px solid var(--primary-color);
     outline-offset: 2px;
+    border-radius: 4px;
 }
 
-/* Loading states */
+/* Estados de loading mejorados */
 .google-login-btn.loading {
-    pointer-events: none;
+    background-color: var(--gray-100);
+    color: var(--gray-400);
 }
 
 .google-login-btn.loading .login-text {
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
-/* Animation delays for staggered animations */
+/* Animaciones escalonadas para las features */
 .feature:nth-child(1) { animation-delay: 0.1s; }
 .feature:nth-child(2) { animation-delay: 0.2s; }
 .feature:nth-child(3) { animation-delay: 0.3s; }
 .feature:nth-child(4) { animation-delay: 0.4s; }
 
-/* Mejoras adicionales para la experiencia de usuario */
+/* Efecto hover mejorado para el botón */
 .google-login-btn:before {
     content: '';
     position: absolute;
@@ -629,13 +823,14 @@ body.loaded {
     background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
     transform: translateX(-100%);
     transition: transform 0.6s;
+    pointer-events: none;
 }
 
 .google-login-btn:hover:before {
     transform: translateX(100%);
 }
 
-/* Pulse animation for loading state */
+/* Animación de pulso sutil */
 @keyframes pulse {
     0% {
         box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
@@ -652,32 +847,34 @@ body.loaded {
     animation: pulse 2s infinite;
 }
 
-/* Improved notification animations */
+/* Mejorar las notificaciones */
 .notification {
-    transform: translateY(-10px);
-    opacity: 0;
-    animation: slideDownNotification 0.4s ease-out forwards;
+    animation: slideDownNotification 0.5s ease-out;
+    border-left: 4px solid;
+    padding-left: 1rem;
 }
 
 @keyframes slideDownNotification {
-    0% {
-        transform: translateY(-10px);
+    from {
         opacity: 0;
+        transform: translateY(-20px);
     }
-    100% {
-        transform: translateY(0);
+    to {
         opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* Better mobile menu handling */
+/* Ajustes finales para mobile */
 @media (max-width: 480px) {
     .login-content {
+        box-shadow: none;
         border-radius: 0;
         min-height: 100vh;
     }
     
     .login-container {
         padding: 0;
+        align-items: stretch;
     }
 } 
