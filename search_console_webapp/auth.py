@@ -4,7 +4,7 @@ import os
 import json
 import secrets
 from functools import wraps
-from flask import session, redirect, request, jsonify
+from flask import session, redirect, request, jsonify, url_for
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -47,7 +47,11 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not is_user_authenticated():
-            return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+            # Si es una petición del navegador, redirigir a login
+            return redirect(url_for('login_page') + '?auth_required=true')
         return f(*args, **kwargs)
     return decorated_function
 
@@ -129,12 +133,19 @@ def setup_auth_routes(app):
     def auth_callback():
         try:
             if request.args.get('state') != session.get('state'):
-                return redirect('/?auth_error=invalid_state')
+                return redirect('/login?auth_error=invalid_state')
+            
+            # Manejar si el usuario negó el acceso
+            if request.args.get('error') == 'access_denied':
+                return redirect('/login?auth_error=access_denied')
+            
             flow = create_flow()
             if not flow:
-                return redirect('/?auth_error=oauth_config')
+                return redirect('/login?auth_error=oauth_config')
+            
             flow.fetch_token(authorization_response=request.url)
             credentials = flow.credentials
+            
             session['credentials'] = {
                 'token': credentials.token,
                 'refresh_token': credentials.refresh_token,
@@ -143,23 +154,40 @@ def setup_auth_routes(app):
                 'client_secret': credentials.client_secret,
                 'scopes': credentials.scopes
             }
+            
             user_info = get_user_info()
             if user_info:
                 session['user_info'] = user_info
+                logger.info(f"Usuario autenticado: {user_info.get('email')}")
+            
             session.pop('state', None)
             return redirect('/?auth_success=true')
         except Exception as e:
             logger.error(f"Error en auth_callback: {e}")
-            return redirect('/?auth_error=callback_failed')
+            return redirect('/login?auth_error=callback_failed')
 
-    @app.route('/auth/logout', methods=['POST'])
+    @app.route('/auth/logout', methods=['POST', 'GET'])
     def auth_logout():
         try:
+            user_email = session.get('user_info', {}).get('email', 'usuario')
             session.clear()
-            return jsonify({'success': True, 'message': 'Logout successful'})
+            logger.info(f"Usuario desconectado: {user_email}")
+            
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'success': True, 'message': 'Logout successful'})
+            
+            # Si es una petición del navegador, redirigir a login
+            return redirect('/login?session_expired=true')
         except Exception as e:
             logger.error(f"Error en logout: {e}")
-            return jsonify({'error': 'Logout failed'}), 500
+            
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Logout failed'}), 500
+            
+            # Si es una petición del navegador, redirigir a login con error
+            return redirect('/login?auth_error=logout_failed')
 
     @app.route('/auth/status')
     def auth_status():

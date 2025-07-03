@@ -346,6 +346,9 @@ class Navbar {
             // Mostrar loading
             this.setLoadingState(true);
             
+            // Mostrar toast informativo
+            this.showToast('Cerrando sesión...', 'info');
+            
             const response = await fetch('/auth/logout', {
                 method: 'POST',
                 headers: {
@@ -354,6 +357,7 @@ class Navbar {
             });
             
             if (response.ok) {
+                const data = await response.json();
                 this.setLoginStatus(false, null);
                 this.showToast('Sesión cerrada correctamente', 'success');
                 
@@ -362,16 +366,22 @@ class Navbar {
                     this.closeMobileMenu();
                 }
                 
-                // Opcional: recargar página para limpiar datos
+                // Redirigir a la página de login después de un breve delay
                 setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                    window.location.href = '/login?session_expired=true';
+                }, 1500);
             } else {
-                throw new Error('Error en logout');
+                const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                throw new Error(errorData.error || 'Error en logout');
             }
         } catch (error) {
             console.error('Error durante logout:', error);
-            this.showToast('Error al cerrar sesión', 'error');
+            this.showToast('Error al cerrar sesión. Redirigiendo...', 'error');
+            
+            // En caso de error, redirigir de todos modos
+            setTimeout(() => {
+                window.location.href = '/login?auth_error=logout_failed';
+            }, 2000);
         } finally {
             this.setLoadingState(false);
         }

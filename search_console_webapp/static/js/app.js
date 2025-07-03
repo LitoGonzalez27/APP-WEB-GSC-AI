@@ -904,9 +904,9 @@ function handleAuthError(error, context = '') {
     
     if (window.navbar && typeof window.navbar.showToast === 'function') {
         if (error.auth_required || error.reauth_required) {
-            window.navbar.showToast('Necesitas iniciar sesión para acceder a esta función', 'warning');
+            window.navbar.showToast('Tu sesión ha expirado. Redirigiendo al login...', 'warning');
         } else {
-            window.navbar.showToast('Error de autenticación. Por favor, inicia sesión nuevamente.', 'error');
+            window.navbar.showToast('Error de autenticación. Redirigiendo al login...', 'error');
         }
     }
     
@@ -914,6 +914,11 @@ function handleAuthError(error, context = '') {
     if (window.navbar) {
         window.navbar.setLoginStatus(false, null);
     }
+    
+    // Redirigir a login después de un breve delay
+    setTimeout(() => {
+        window.location.href = '/login?session_expired=true';
+    }, 2000);
 }
 
 // ✅ NUEVO: Inicializar tooltip del campo URLs

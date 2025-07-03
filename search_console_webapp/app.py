@@ -7,7 +7,7 @@ import traceback
 import zipfile
 from io import BytesIO
 from datetime import datetime, timedelta # Importación añadida
-from flask import Flask, render_template, request, jsonify, send_file, Response, session
+from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 import pandas as pd
 from excel_generator import generate_excel_from_data
 from dotenv import load_dotenv
@@ -240,18 +240,22 @@ def get_properties():
     props = [{'siteUrl': s['siteUrl']} for s in sites if s.get('siteUrl')]
     return jsonify({'properties': props})
 
-@app.route('/')
-def index():
-# ✅ CORREGIDO: Obtener información del usuario si está logueado
-    user_info = None
-    user_email = None
-    
+@app.route('/login')
+def login_page():
+    """Página de login - redirige a app si ya está autenticado"""
     if is_user_authenticated():
-        from auth import get_user_info
-        user_info = get_user_info()
-        user_email = user_info.get('email') if user_info else None
+        return redirect('/')
+    return render_template('login.html')
+
+@app.route('/')
+@login_required
+def index():
+    """Página principal - requiere autenticación"""
+    from auth import get_user_info
+    user_info = get_user_info()
+    user_email = user_info.get('email') if user_info else None
     
-    return render_template('index.html', user_email=user_email, authenticated=is_user_authenticated())
+    return render_template('index.html', user_email=user_email, authenticated=True)
 
 @app.route('/get-data', methods=['POST'])
 @login_required
