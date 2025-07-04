@@ -1,5 +1,10 @@
 // ui-serp-modal.js — Código optimizado sin CSS inline (usa styles/serp-and-table.css)
 
+import { MobileModalManager, isMobileDevice } from './utils.js';
+
+// Instancia global del gestor de modal robusto
+let serpModalManager = null;
+
 // --- Funciones auxiliares ---
 function escapeHtml(unsafe) {
   if (typeof unsafe !== 'string') return '';
@@ -158,20 +163,78 @@ export function openSerpModal(keyword, userSpecificUrl) {
   container.querySelector('.load-screenshot').addEventListener('click', () => loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty));
 
   modal.classList.add('show');
-  document.addEventListener('click', (e) => {
+  
+  // Inicializar gestor robusto para móviles
+  if (!serpModalManager) {
+    serpModalManager = new MobileModalManager('serpModal', {
+      removeFromDOM: false, // No remover del DOM, solo ocultar
+      forceClose: true
+    });
+  }
+  
+  // Mejorar detección de clics para cerrar
+  const closeHandler = (e) => {
     const modal = document.getElementById('serpModal');
     if (
       e.target.matches('#serpModal .close-btn') ||
-      e.target === modal
+      e.target === modal ||
+      e.target.matches('.modal-backdrop')
     ) {
       closeSerpModal();
     }
-  });
+  };
+  
+  // Remover listener previo y agregar nuevo
+  document.removeEventListener('click', closeHandler);
+  document.addEventListener('click', closeHandler);
+  
+  // Handler para tecla Escape
+  const escapeHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeSerpModal();
+    }
+  };
+  
+  document.addEventListener('keydown', escapeHandler);
+  
+  // Almacenar handlers para limpieza posterior
+  modal.setAttribute('data-handlers-attached', 'true');
 }
 
 function closeSerpModal() {
+  console.log('🚪 Cerrando modal SERP con sistema robusto');
+  
+  if (serpModalManager) {
+    // Usar el sistema robusto de cierre
+    serpModalManager.close();
+  } else {
+    // Fallback para cierre simple si no hay gestor
+    console.log('⚠️ Gestor robusto no disponible, usando cierre simple');
+    const modal = document.getElementById('serpModal');
+    if (modal) {
+      modal.classList.remove('show');
+      
+      // Aplicar optimizaciones móviles directas si es necesario
+      if (isMobileDevice()) {
+        modal.style.transition = 'none';
+        modal.style.opacity = '0';
+        modal.style.visibility = 'hidden';
+        modal.style.pointerEvents = 'none';
+      }
+    }
+  }
+  
+  // Limpiar event listeners
   const modal = document.getElementById('serpModal');
-  if (modal) modal.classList.remove('show');
+  if (modal && modal.getAttribute('data-handlers-attached')) {
+    document.removeEventListener('click', closeSerpModal);
+    document.removeEventListener('keydown', closeSerpModal);
+    modal.removeAttribute('data-handlers-attached');
+  }
+  
+  // Limpiar body
+  document.body.classList.remove('modal-open');
+  document.body.style.overflow = '';
 }
 
 async function loadQuickView(keyword, userSpecificUrl, siteUrlScProperty) {

@@ -24,6 +24,7 @@ import {
   hideStickyActions, 
   updateStickyData 
 } from './ui-sticky-actions.js';
+import { isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice, getAdaptiveTimeouts } from './utils.js';
 
 // ✅ IMPORTAR el nuevo selector de fechas
 import { 
@@ -48,6 +49,21 @@ export async function handleFormSubmit(e) {
     return;
   }
 
+  // ✅ NUEVO: Detección móvil mejorada y optimizaciones automáticas
+  const isMobile = isMobileDevice();
+  const deviceType = getDeviceType();
+  const adaptiveTimeouts = getAdaptiveTimeouts();
+  
+  if (isMobile) {
+    console.log(`📱 ${deviceType} detectado - aplicando optimizaciones avanzadas`);
+    
+    // Aplicar optimizaciones móviles automáticamente
+    optimizeForMobile();
+    
+    // Mostrar notificación optimizada para móviles
+    showMobileOptimizationNotice();
+  }
+
   // ✅ NUEVO: Validar fechas seleccionadas
   const dateValidation = validateSelectedDates();
   if (!dateValidation.isValid) {
@@ -69,6 +85,34 @@ export async function handleFormSubmit(e) {
   if (!elems.siteUrlSelect || !elems.siteUrlSelect.value) {
     alert('Error: You must select a domain before continuing.');
     return;
+  }
+
+  // ✅ NUEVO: Validaciones específicas para móviles
+  if (isMobile) {
+    const urlsInput = document.querySelector('textarea[name="urls"]');
+    if (urlsInput && urlsInput.value.trim()) {
+      const urls = urlsInput.value.trim().split('\n').filter(u => u.trim());
+      if (urls.length > 10) {
+        const confirmResult = confirm(`Tienes ${urls.length} URLs para analizar. En dispositivos móviles se recomienda máximo 10 URLs para evitar timeouts.\n\n¿Quieres continuar de todos modos?`);
+        if (!confirmResult) {
+          return;
+        }
+      }
+    }
+    
+    // Validar períodos largos en móviles
+    if (selectedDates.currentPeriod) {
+      const startDate = new Date(selectedDates.currentPeriod.startDate);
+      const endDate = new Date(selectedDates.currentPeriod.endDate);
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff > 90) {
+        const confirmResult = confirm(`Has seleccionado un período de ${daysDiff} días. En dispositivos móviles se recomienda máximo 90 días para evitar timeouts.\n\n¿Quieres continuar de todos modos?`);
+        if (!confirmResult) {
+          return;
+        }
+      }
+    }
   }
 
   const formData = new FormData(elems.form);
@@ -147,8 +191,8 @@ export async function handleFormSubmit(e) {
   window.currentData = null;
   window.currentAIOverviewData = null;
 
-  // ✅ NUEVO: Pasos de progreso actualizados para fechas específicas
-  const steps = [
+  // ✅ NUEVO: Pasos de progreso actualizados para fechas específicas y móviles
+  let steps = [
     'Validating dates and preparing query…',
     'Getting main period data…',
     selectedDates.hasComparison ? 'Getting comparison period data…' : null,
@@ -157,6 +201,11 @@ export async function handleFormSubmit(e) {
     'Generating summaries and charts…',
     'Finishing analysis…'
   ].filter(Boolean); // Eliminar elementos null
+
+  // ✅ NUEVO: Mensaje adicional para móviles
+  if (isMobile) {
+    steps.push('Optimizing results for mobile display…');
+  }
 
   showProgress(steps);
 
@@ -170,7 +219,12 @@ export async function handleFormSubmit(e) {
     }
     
     if (data.error) {
-        alert("Error del servidor: " + data.error);
+        // ✅ NUEVO: Mensaje de error más claro para móviles
+        let errorMessage = "Error del servidor: " + data.error;
+        if (isMobile && (data.error.includes('timeout') || data.error.includes('tardando'))) {
+          errorMessage += "\n\n💡 Consejo para móviles: Intenta con un período más corto o menos URLs.";
+        }
+        alert(errorMessage);
         renderTableError();
         if(elems.keywordComparisonTableBody) {
           elems.keywordComparisonTableBody.innerHTML = '<tr><td colspan="13">Error al cargar datos del servidor.</td></tr>';
@@ -248,9 +302,37 @@ export async function handleFormSubmit(e) {
     
     showStickyActions();
 
+    // ✅ NUEVO: Mensaje de éxito para móviles
+    if (isMobile) {
+      console.log('✅ Análisis completado exitosamente en dispositivo móvil');
+    }
+
   } catch (err) {
     console.error("Error en handleFormSubmit:", err);
-    alert("Se produjo un error al procesar tu solicitud: " + err.message);
+    
+    // ✅ NUEVO: Mensaje de error específico para móviles con timeouts adaptativos
+    let errorMessage = "Se produjo un error al procesar tu solicitud: " + err.message;
+    
+    if (isMobile) {
+      if (err.message.includes('timeout') || err.message.includes('tardando')) {
+        errorMessage += `\n\n📱 Problema común en dispositivos ${deviceType}:`;
+        errorMessage += `\n• Timeout extendido a ${adaptiveTimeouts.request.timeout / 1000}s para móviles`;
+        errorMessage += `\n• Reintentos automáticos: ${adaptiveTimeouts.request.retry}`;
+        errorMessage += "\n\n💡 Soluciones:";
+        errorMessage += "\n• Reduce el número de URLs";
+        errorMessage += "\n• Selecciona un período más corto";
+        errorMessage += "\n• Verifica tu conexión a internet";
+        errorMessage += "\n• Intenta desde WiFi en lugar de datos móviles";
+      } else if (err.message.includes('conexión') || err.message.includes('network')) {
+        errorMessage += "\n\n📱 Problema de conexión en móvil:";
+        errorMessage += "\n• Verifica que tengas buena señal";
+        errorMessage += "\n• Intenta conectarte a WiFi";
+        errorMessage += "\n• Cierra otras apps que usen internet";
+        errorMessage += `\n• Sistema de reintentos: ${adaptiveTimeouts.request.retry} intentos`;
+      }
+    }
+    
+    alert(errorMessage);
     renderTableError();
     if(elems.keywordComparisonTableBody) {
       elems.keywordComparisonTableBody.innerHTML = '<tr><td colspan="13">Error al procesar la solicitud.</td></tr>';

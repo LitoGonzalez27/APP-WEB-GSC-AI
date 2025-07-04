@@ -1,7 +1,7 @@
 // static/js/app.js - INICIALIZACIÓN CENTRALIZADA
 
 // 1. Importaciones al inicio
-import { elems, storage, initTheme, toggleTheme, setTheme, getCurrentTheme } from './utils.js';
+import { elems, storage, initTheme, toggleTheme, setTheme, getCurrentTheme, isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice } from './utils.js';
 import { initMonthChips as initializeMonthChipsUI, handleFormSubmit as handleFormSubmitUI, initDownloadExcel } from './ui-core.js'; // Renombradas para evitar conflictos
 import { initAIOverviewAnalysis } from './ui-ai-overview.js';
 import { initStickyActions } from './ui-sticky-actions.js';
@@ -63,6 +63,93 @@ function initUrlPlaceholderFunctionality() {
     
     // Actualizar placeholder inicial
     updateUrlPlaceholder();
+}
+
+// ✅ NUEVO: Inicialización automática de optimizaciones móviles
+function initMobileOptimizations() {
+    const isMobile = isMobileDevice();
+    const deviceType = getDeviceType();
+    
+    console.log(`📱 Iniciando optimizaciones para dispositivo: ${deviceType} (móvil: ${isMobile})`);
+    
+    if (isMobile) {
+        // Aplicar optimizaciones inmediatas
+        optimizeForMobile();
+        
+        // Mostrar notificación de optimizaciones (con delay para no interferir con la carga)
+        setTimeout(() => {
+            showMobileOptimizationNotice();
+        }, 2000);
+        
+        // Configurar listeners de eventos específicos para móviles
+        setupMobileEventListeners();
+        
+        // Mejorar touch scrolling
+        document.documentElement.style.webkitOverflowScrolling = 'touch';
+        
+        // Prevenir zoom accidental en inputs
+        const metaViewport = document.querySelector('meta[name="viewport"]');
+        if (metaViewport) {
+            metaViewport.setAttribute('content', 
+                'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+            );
+        }
+        
+        console.log('✅ Optimizaciones móviles aplicadas');
+    }
+    
+    // Listeners para cambios de orientación y redimensión
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            if (isMobileDevice()) {
+                optimizeForMobile();
+            }
+        }, 300);
+    });
+    
+    window.addEventListener('resize', () => {
+        if (isMobileDevice()) {
+            optimizeForMobile();
+        }
+    });
+}
+
+// ✅ NUEVO: Event listeners específicos para móviles
+function setupMobileEventListeners() {
+    // Listener para el evento personalizado de cierre de modal
+    document.addEventListener('progressModalClosed', (e) => {
+        const { device, attempts, success } = e.detail;
+        console.log(`📱 Modal de progreso cerrado en ${device}: ${attempts} intentos, éxito: ${success}`);
+        
+        if (!success) {
+            console.warn('⚠️ Modal no se cerró correctamente, aplicando cleanup adicional');
+            
+            // Cleanup adicional si el modal no se cerró bien
+            setTimeout(() => {
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                
+                const modal = document.getElementById('progressModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.style.opacity = '0';
+                    modal.style.visibility = 'hidden';
+                }
+            }, 500);
+        }
+    });
+    
+    // Listener para cierres de modal SERP
+    document.addEventListener('modalClosed', (e) => {
+        const { modalId, device, attempts, success } = e.detail;
+        console.log(`📱 Modal ${modalId} cerrado en ${device}: ${attempts} intentos, éxito: ${success}`);
+    });
+    
+    // Mejorar comportamiento táctil
+    document.addEventListener('touchstart', () => {}, { passive: true });
+    document.addEventListener('touchmove', () => {}, { passive: true });
+    
+    console.log('✅ Event listeners móviles configurados');
 }
 
 // ✅ ACTUALIZADO: Solo actualizar placeholder, sin mostrar banner
@@ -1105,6 +1192,7 @@ function initializeApp() {
     initStickyActions(); // ✅ NUEVO: Inicializar botones sticky
     initAIOverlay(); // ✅ NUEVO: Inicializar overlay AI
     initUrlPlaceholderFunctionality(); // ✅ NUEVO: Inicializar placeholder dinámico
+    initMobileOptimizations(); // ✅ NUEVO: Inicializar optimizaciones móviles automáticas
     // ✅ NUEVO: Inicializar tooltip de información con timeout
     setTimeout(() => {
         initUrlsInfoTooltip();
@@ -1170,6 +1258,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.resetAIOverlay = resetAIOverlay;
     window.updateRealProgress = updateRealProgress;
     
+    // ✅ NUEVO: Hacer utilidades móviles disponibles globalmente
+    window.mobileUtils = {
+        isMobile: isMobileDevice,
+        getDeviceType: getDeviceType,
+        optimize: optimizeForMobile,
+        showNotice: showMobileOptimizationNotice,
+        MobileModalManager: null // Se importará dinámicamente
+    };
+    
+    // Importar MobileModalManager dinámicamente para uso global
+    import('./utils.js').then(module => {
+        window.mobileUtils.MobileModalManager = module.MobileModalManager;
+        window.MobileModalManager = module.MobileModalManager;
+    }).catch(err => {
+        console.warn('⚠️ No se pudo cargar MobileModalManager:', err);
+    });
+    
     // ✅ FUNCIÓN DE DEBUG MANUAL PARA TOOLTIPS
     window.testUrlsTooltip = function() {
         console.log('🧪 Prueba manual del tooltip...');
@@ -1233,6 +1338,103 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.warn('⚠️ Navbar o función handleThemeToggle no disponible');
         }
+    };
+    
+    // ✅ NUEVA FUNCIÓN DE DEBUG PARA MÓVILES
+    window.debugMobileOptimizations = function() {
+        console.log('📱 Diagnóstico de Optimizaciones Móviles:');
+        
+        const isMobile = isMobileDevice();
+        const deviceType = getDeviceType();
+        
+        console.log('Detección de dispositivo:', {
+            isMobile,
+            deviceType,
+            userAgent: navigator.userAgent,
+            screenWidth: window.innerWidth,
+            touchSupport: 'ontouchstart' in window,
+            maxTouchPoints: navigator.maxTouchPoints
+        });
+        
+        // Verificar modales existentes
+        const progressModal = document.getElementById('progressModal');
+        const serpModal = document.getElementById('serpModal');
+        
+        console.log('Estados de modales:', {
+            progressModal: {
+                exists: !!progressModal,
+                visible: progressModal ? progressModal.classList.contains('show') : false,
+                opacity: progressModal ? getComputedStyle(progressModal).opacity : 'N/A'
+            },
+            serpModal: {
+                exists: !!serpModal,
+                visible: serpModal ? serpModal.classList.contains('show') : false,
+                opacity: serpModal ? getComputedStyle(serpModal).opacity : 'N/A'
+            }
+        });
+        
+        // Verificar optimizaciones aplicadas
+        const inputs = document.querySelectorAll('input[type="text"], input[type="email"], select, textarea');
+        const buttons = document.querySelectorAll('button, .btn');
+        
+        let inputsSized = 0;
+        let buttonsSized = 0;
+        
+        inputs.forEach(input => {
+            const fontSize = parseFloat(getComputedStyle(input).fontSize);
+            if (fontSize >= 16) inputsSized++;
+        });
+        
+        buttons.forEach(button => {
+            const rect = button.getBoundingClientRect();
+            if (rect.width >= 44 && rect.height >= 44) buttonsSized++;
+        });
+        
+        console.log('Optimizaciones aplicadas:', {
+            inputs: {
+                total: inputs.length,
+                sized: inputsSized,
+                percentage: Math.round((inputsSized / inputs.length) * 100) + '%'
+            },
+            buttons: {
+                total: buttons.length,
+                sized: buttonsSized,
+                percentage: Math.round((buttonsSized / buttons.length) * 100) + '%'
+            }
+        });
+        
+        // Verificar viewport
+        const metaViewport = document.querySelector('meta[name="viewport"]');
+        console.log('Viewport meta:', {
+            exists: !!metaViewport,
+            content: metaViewport ? metaViewport.getAttribute('content') : 'N/A'
+        });
+        
+        // Función para forzar optimizaciones
+        return {
+            forceOptimizations: () => {
+                console.log('🔧 Forzando optimizaciones móviles...');
+                optimizeForMobile();
+                showMobileOptimizationNotice();
+            },
+            testModalClose: (modalId = 'progressModal') => {
+                console.log(`🧪 Probando cierre robusto del modal: ${modalId}`);
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.add('show');
+                    setTimeout(() => {
+                        if (modalId === 'progressModal') {
+                            import('./ui-progress.js').then(module => {
+                                module.completeProgress();
+                            });
+                        } else {
+                            const manager = new window.MobileModalManager(modalId);
+                            manager.close();
+                        }
+                    }, 1000);
+                }
+            }
+        };
     };
     
     // ✅ Log para verificar que todo funciona

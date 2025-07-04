@@ -328,10 +328,18 @@ function showRandomFunFact() {
 }
 
 /**
- * Completar progreso
+ * Completar progreso con detección móvil y cierre robusto
  */
 export function completeProgress() {
   console.log('✅ Completing progress');
+  
+  // Detectar dispositivo móvil
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   window.innerWidth <= 768 ||
+                   'ontouchstart' in window ||
+                   navigator.maxTouchPoints > 0;
+  
+  console.log(`📱 Device detection: ${isMobile ? 'Mobile' : 'Desktop'}`);
   
   // Limpiar timer
   if (fakeTimer) {
@@ -377,17 +385,150 @@ export function completeProgress() {
     }
   }, 1000);
   
-  // Ocultar modal después de 2.5 segundos
-  setTimeout(() => {
+  // Configurar timeouts adaptativos basados en dispositivo
+  const mobileDelayMultiplier = isMobile ? 2.5 : 1; // 2.5x más tiempo en móviles
+  const baseDelay = isMobile ? 4000 : 2500; // 4s en móviles, 2.5s en desktop
+  const maxAttempts = isMobile ? 5 : 3; // Más intentos en móviles
+  
+  console.log(`⏱️ Using ${isMobile ? 'mobile' : 'desktop'} timeouts: base=${baseDelay}ms, maxAttempts=${maxAttempts}`);
+  
+  // Sistema de cierre robusto con múltiples intentos
+  let closeAttempt = 0;
+  
+  function attemptModalClose() {
+    closeAttempt++;
     const modal = document.getElementById('progressModal');
+    
+    console.log(`🔄 Close attempt ${closeAttempt}/${maxAttempts} - Modal found: ${!!modal}`);
+    
     if (modal) {
+      // Verificar si el modal ya está oculto
+      const isVisible = modal.classList.contains('show') || 
+                       getComputedStyle(modal).display !== 'none';
+      
+      if (isVisible) {
+        console.log(`🚪 Closing modal (attempt ${closeAttempt})`);
+        
+        // Cierre inmediato para móviles (sin animaciones costosas)
+        if (isMobile) {
+          modal.style.transition = 'none';
+          modal.style.opacity = '0';
+          modal.style.visibility = 'hidden';
+          modal.style.pointerEvents = 'none';
+        }
+        
+        modal.classList.remove('show');
+        document.body.classList.remove('modal-open');
+        
+        // Reset inmediato de variables
+        currentProgress = 0;
+        currentStep = 0;
+        stepsCache = [];
+        
+        // Verificar cierre después de un tiempo
+        setTimeout(() => {
+          verifyModalClosed(closeAttempt);
+        }, isMobile ? 500 : 300);
+        
+      } else {
+        console.log('✅ Modal already closed');
+        finalizeCleanup();
+      }
+    } else {
+      console.log('❌ Modal element not found');
+      finalizeCleanup();
+    }
+  }
+  
+  function verifyModalClosed(attemptNumber) {
+    const modal = document.getElementById('progressModal');
+    
+    if (modal) {
+      const isStillVisible = modal.classList.contains('show') || 
+                            getComputedStyle(modal).display !== 'none' ||
+                            parseFloat(getComputedStyle(modal).opacity) > 0.1;
+      
+      if (isStillVisible && closeAttempt < maxAttempts) {
+        console.log(`⚠️ Modal still visible after attempt ${attemptNumber}, retrying...`);
+        
+        // Incrementar delay para el siguiente intento
+        const retryDelay = baseDelay * (closeAttempt * 0.5);
+        setTimeout(attemptModalClose, retryDelay);
+        
+      } else if (isStillVisible && closeAttempt >= maxAttempts) {
+        console.log('🆘 Max attempts reached, forcing modal close');
+        forceModalClose();
+        
+      } else {
+        console.log('✅ Modal successfully closed');
+        finalizeCleanup();
+      }
+    } else {
+      console.log('✅ Modal removed from DOM');
+      finalizeCleanup();
+    }
+  }
+  
+  function forceModalClose() {
+    console.log('🔨 Force closing modal');
+    const modal = document.getElementById('progressModal');
+    
+    if (modal) {
+      // Remover todas las clases y estilos
       modal.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      modal.style.display = 'none';
+      modal.style.opacity = '0';
+      modal.style.visibility = 'hidden';
+      modal.style.pointerEvents = 'none';
+      modal.style.zIndex = '-9999';
+      
+      // Remover del DOM si es necesario
+      if (isMobile) {
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 100);
+      }
     }
     
-    // Reset
+    // Limpiar body
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    
+    finalizeCleanup();
+  }
+  
+  function finalizeCleanup() {
+    console.log('🧹 Finalizing cleanup');
+    
+    // Reset completo de variables
     currentProgress = 0;
     currentStep = 0;
     stepsCache = [];
-  }, 2500);
+    
+    // Limpiar cualquier timer restante
+    if (fakeTimer) {
+      clearTimeout(fakeTimer);
+      fakeTimer = null;
+    }
+    
+    // Restaurar body scroll
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
+    
+    // Trigger evento personalizado para notificar que el modal se cerró
+    document.dispatchEvent(new CustomEvent('progressModalClosed', {
+      detail: { 
+        device: isMobile ? 'mobile' : 'desktop',
+        attempts: closeAttempt 
+      }
+    }));
+    
+    console.log('✅ Progress modal cleanup complete');
+  }
+  
+  // Iniciar el primer intento de cierre después del delay base
+  console.log(`⏰ Scheduling modal close in ${baseDelay}ms`);
+  setTimeout(attemptModalClose, baseDelay);
 }
