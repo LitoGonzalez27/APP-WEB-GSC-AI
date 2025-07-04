@@ -385,12 +385,32 @@ export function completeProgress() {
     }
   }, 1000);
   
-  // Configurar timeouts adaptativos basados en dispositivo
-  const mobileDelayMultiplier = isMobile ? 2.5 : 1; // 2.5x más tiempo en móviles
-  const baseDelay = isMobile ? 4000 : 2500; // 4s en móviles, 2.5s en desktop
-  const maxAttempts = isMobile ? 5 : 3; // Más intentos en móviles
+  // ✅ NUEVO: Configurar timeouts adaptativos con delay adicional para renderizado
+  const mobileDelayMultiplier = isMobile ? 2.5 : 1;
+  const renderingDelay = isMobile ? 2000 : 1000; // Tiempo extra para renderizado
+  const baseDelay = (isMobile ? 4000 : 2500) + renderingDelay; // Sumar delay de renderizado
+  const maxAttempts = isMobile ? 5 : 3;
   
-  console.log(`⏱️ Using ${isMobile ? 'mobile' : 'desktop'} timeouts: base=${baseDelay}ms, maxAttempts=${maxAttempts}`);
+  console.log(`⏱️ Using ${isMobile ? 'mobile' : 'desktop'} timeouts: base=${baseDelay}ms (incluye ${renderingDelay}ms para renderizado), maxAttempts=${maxAttempts}`);
+  
+  // ✅ NUEVO: Verificar si hay resultados que renderizar antes de cerrar
+  let hasResultsToRender = false;
+  
+  // Verificar elementos que indican que hay resultados
+  const checkForResults = () => {
+    const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+    const resultsSection = document.getElementById('resultsSection');
+    const keywordsSection = document.getElementById('keywordsSection');
+    
+    hasResultsToRender = Array.from(resultsTables).some(table => {
+      const tbody = table.querySelector('tbody');
+      return tbody && tbody.children.length > 0;
+    }) || (resultsSection && resultsSection.style.display !== 'none') ||
+         (keywordsSection && keywordsSection.style.display !== 'none');
+    
+    console.log(`🔍 Results to render check: ${hasResultsToRender}`);
+    return hasResultsToRender;
+  };
   
   // Sistema de cierre robusto con múltiples intentos
   let closeAttempt = 0;
@@ -402,6 +422,17 @@ export function completeProgress() {
     console.log(`🔄 Close attempt ${closeAttempt}/${maxAttempts} - Modal found: ${!!modal}`);
     
     if (modal) {
+      // ✅ NUEVO: En móviles, verificar si los resultados están listos antes de cerrar
+      if (isMobile && closeAttempt === 1) {
+        const resultsReady = checkForResults();
+        if (!resultsReady) {
+          console.log('📱 Mobile device: Waiting for results to render before closing modal...');
+          // Esperar un poco más para que se rendericen los resultados
+          setTimeout(attemptModalClose, 1500);
+          return;
+        }
+      }
+      
       // Verificar si el modal ya está oculto
       const isVisible = modal.classList.contains('show') || 
                        getComputedStyle(modal).display !== 'none';
@@ -409,15 +440,29 @@ export function completeProgress() {
       if (isVisible) {
         console.log(`🚪 Closing modal (attempt ${closeAttempt})`);
         
-        // Cierre inmediato para móviles (sin animaciones costosas)
+        // ✅ NUEVO: Mensaje de estado antes del cierre
+        updateStatusMessage("Displaying Results", "Loading your dashboard...");
+        
+        // Cierre gradual para móviles para permitir renderizado
         if (isMobile) {
-          modal.style.transition = 'none';
-          modal.style.opacity = '0';
-          modal.style.visibility = 'hidden';
-          modal.style.pointerEvents = 'none';
+          // Primero reducir opacidad gradualmente
+          modal.style.transition = 'opacity 0.5s ease-out';
+          modal.style.opacity = '0.7';
+          
+          setTimeout(() => {
+            modal.style.opacity = '0.3';
+            setTimeout(() => {
+              modal.style.transition = 'none';
+              modal.style.opacity = '0';
+              modal.style.visibility = 'hidden';
+              modal.style.pointerEvents = 'none';
+              modal.classList.remove('show');
+            }, 250);
+          }, 250);
+        } else {
+          modal.classList.remove('show');
         }
         
-        modal.classList.remove('show');
         document.body.classList.remove('modal-open');
         
         // Reset inmediato de variables
@@ -428,7 +473,7 @@ export function completeProgress() {
         // Verificar cierre después de un tiempo
         setTimeout(() => {
           verifyModalClosed(closeAttempt);
-        }, isMobile ? 500 : 300);
+        }, isMobile ? 800 : 300);
         
       } else {
         console.log('✅ Modal already closed');
@@ -517,11 +562,32 @@ export function completeProgress() {
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open');
     
+    // ✅ NUEVO: Verificar que los resultados sean visibles después del cierre
+    setTimeout(() => {
+      const resultsVisible = checkForResults();
+      console.log(`📊 Results visible after modal close: ${resultsVisible}`);
+      
+      if (resultsVisible) {
+        // Scroll suave hacia los resultados en móviles
+        if (isMobile) {
+          const resultsSection = document.getElementById('resultsSection') || 
+                               document.getElementById('keywordsSection');
+          if (resultsSection) {
+            resultsSection.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            });
+          }
+        }
+      }
+    }, 500);
+    
     // Trigger evento personalizado para notificar que el modal se cerró
     document.dispatchEvent(new CustomEvent('progressModalClosed', {
       detail: { 
         device: isMobile ? 'mobile' : 'desktop',
-        attempts: closeAttempt 
+        attempts: closeAttempt,
+        hasResults: hasResultsToRender
       }
     }));
     

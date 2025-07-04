@@ -118,8 +118,8 @@ function initMobileOptimizations() {
 function setupMobileEventListeners() {
     // Listener para el evento personalizado de cierre de modal
     document.addEventListener('progressModalClosed', (e) => {
-        const { device, attempts, success } = e.detail;
-        console.log(`📱 Modal de progreso cerrado en ${device}: ${attempts} intentos, éxito: ${success}`);
+        const { device, attempts, success, hasResults } = e.detail;
+        console.log(`📱 Modal de progreso cerrado en ${device}: ${attempts} intentos, éxito: ${success}, resultados: ${hasResults}`);
         
         if (!success) {
             console.warn('⚠️ Modal no se cerró correctamente, aplicando cleanup adicional');
@@ -136,6 +136,72 @@ function setupMobileEventListeners() {
                     modal.style.visibility = 'hidden';
                 }
             }, 500);
+        }
+        
+        // ✅ NUEVO: Verificaciones adicionales para asegurar que los resultados sean visibles
+        if (hasResults && device.includes('mobile')) {
+            setTimeout(() => {
+                console.log('📱 Verificando visibilidad de resultados en móvil...');
+                
+                // Verificar tablas de resultados
+                const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+                const visibleTables = Array.from(resultsTables).filter(table => {
+                    const style = getComputedStyle(table);
+                    return style.display !== 'none' && style.visibility !== 'hidden';
+                });
+                
+                // Verificar secciones de resultados
+                const resultsSection = document.getElementById('resultsSection');
+                const keywordsSection = document.getElementById('keywordsSection');
+                
+                const sectionsVisible = {
+                    results: resultsSection && getComputedStyle(resultsSection).display !== 'none',
+                    keywords: keywordsSection && getComputedStyle(keywordsSection).display !== 'none'
+                };
+                
+                console.log('📊 Estado de resultados:', {
+                    tablesVisible: visibleTables.length,
+                    sectionsVisible: sectionsVisible,
+                    totalResults: resultsTables.length
+                });
+                
+                // Si no hay resultados visibles, mostrar mensaje de debug
+                if (visibleTables.length === 0 && !sectionsVisible.results && !sectionsVisible.keywords) {
+                    console.warn('⚠️ Resultados no visibles después del cierre del modal');
+                    
+                    // Intentar forzar visibilidad
+                    if (resultsSection) {
+                        resultsSection.style.display = 'block';
+                        console.log('🔧 Forzando visibilidad de resultsSection');
+                    }
+                    if (keywordsSection) {
+                        keywordsSection.style.display = 'block';
+                        console.log('🔧 Forzando visibilidad de keywordsSection');
+                    }
+                    
+                    // Re-trigger del renderizado si es necesario
+                    resultsTables.forEach(table => {
+                        const tableContainer = table.closest('.table-responsive-container');
+                        if (tableContainer) {
+                            tableContainer.style.display = 'block';
+                        }
+                    });
+                }
+                
+                // Scroll suave hacia resultados si están visibles
+                if (visibleTables.length > 0 || sectionsVisible.results || sectionsVisible.keywords) {
+                    const targetSection = resultsSection || keywordsSection || visibleTables[0];
+                    if (targetSection) {
+                        setTimeout(() => {
+                            targetSection.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start',
+                                inline: 'nearest'
+                            });
+                        }, 300);
+                    }
+                }
+            }, 1000);
         }
     });
     
@@ -292,7 +358,7 @@ function getCountryName(code) {
         'qat': { name: 'Qatar', flag: '🇶🇦' },
         'sau': { name: 'Saudi Arabia', flag: '🇸🇦' },
         'sgp': { name: 'Singapore', flag: '🇸🇬' },
-        'kor': { name: 'South Korea', flag: '🇰🇷' },
+        'kor': { name: 'South Korea', flag: '��🇷' },
         'lka': { name: 'Sri Lanka', flag: '🇱🇰' },
         'syr': { name: 'Syria', flag: '🇸🇾' },
         'twn': { name: 'Taiwan', flag: '🇹🇼' },
@@ -1463,3 +1529,162 @@ if (isDevelopment) {
     window.appStorage = storage;
     console.log('🔧 Elementos de debug disponibles en window.appElements y window.appStorage');
 }
+
+// ✅ NUEVA FUNCIÓN DE DEBUG PARA PROBLEMAS DE RENDERIZADO
+window.debugResultsRenderingIssue = function() {
+    console.log('🔍 DIAGNÓSTICO DE PROBLEMA DE RENDERIZADO:');
+    
+    // 1. Verificar estado del modal de progreso
+    const progressModal = document.getElementById('progressModal');
+    const modalState = {
+        exists: !!progressModal,
+        visible: progressModal ? progressModal.classList.contains('show') : false,
+        opacity: progressModal ? getComputedStyle(progressModal).opacity : 'N/A',
+        display: progressModal ? getComputedStyle(progressModal).display : 'N/A'
+    };
+    
+    console.log('1️⃣ Estado del Modal de Progreso:', modalState);
+    
+    // 2. Verificar estado de las tablas de resultados
+    const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+    const tablesInfo = Array.from(resultsTables).map(table => {
+        const tbody = table.querySelector('tbody');
+        const container = table.closest('.table-responsive-container');
+        
+        return {
+            id: table.id,
+            exists: true,
+            rowCount: tbody ? tbody.children.length : 0,
+            visible: getComputedStyle(table).display !== 'none',
+            containerVisible: container ? getComputedStyle(container).display !== 'none' : 'No container'
+        };
+    });
+    
+    console.log('2️⃣ Estado de las Tablas:', tablesInfo);
+    
+    // 3. Verificar secciones de resultados
+    const resultsSection = document.getElementById('resultsSection');
+    const keywordsSection = document.getElementById('keywordsSection');
+    
+    const sectionsInfo = {
+        resultsSection: {
+            exists: !!resultsSection,
+            visible: resultsSection ? getComputedStyle(resultsSection).display !== 'none' : false,
+            style: resultsSection ? resultsSection.style.display : 'N/A'
+        },
+        keywordsSection: {
+            exists: !!keywordsSection,
+            visible: keywordsSection ? getComputedStyle(keywordsSection).display !== 'none' : false,
+            style: keywordsSection ? keywordsSection.style.display : 'N/A'
+        }
+    };
+    
+    console.log('3️⃣ Estado de las Secciones:', sectionsInfo);
+    
+    // 4. Verificar estado del body
+    const bodyState = {
+        hasModalOpen: document.body.classList.contains('modal-open'),
+        overflow: document.body.style.overflow,
+        scrollTop: window.pageYOffset || document.documentElement.scrollTop
+    };
+    
+    console.log('4️⃣ Estado del Body:', bodyState);
+    
+    // 5. Verificar datos en el DOM
+    const hasDataInDOM = () => {
+        let dataFound = false;
+        
+        // Verificar si hay datos en las tablas
+        resultsTables.forEach(table => {
+            const tbody = table.querySelector('tbody');
+            if (tbody && tbody.children.length > 0) {
+                dataFound = true;
+            }
+        });
+        
+        return dataFound;
+    };
+    
+    const dataInfo = {
+        hasDataInTables: hasDataInDOM(),
+        lastDataReceived: window.lastReceivedData ? 'Sí' : 'No'
+    };
+    
+    console.log('5️⃣ Estado de los Datos:', dataInfo);
+    
+    // 6. Función para forzar la visualización de resultados
+    const forceShowResults = () => {
+        console.log('🔧 FORZANDO VISUALIZACIÓN DE RESULTADOS...');
+        
+        // Asegurar que el modal esté completamente cerrado
+        if (progressModal) {
+            progressModal.style.display = 'none';
+            progressModal.style.opacity = '0';
+            progressModal.style.visibility = 'hidden';
+            progressModal.style.zIndex = '-9999';
+            progressModal.classList.remove('show');
+            console.log('✅ Modal forzadamente cerrado');
+        }
+        
+        // Limpiar body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        console.log('✅ Body limpiado');
+        
+        // Forzar visibilidad de secciones
+        if (resultsSection) {
+            resultsSection.style.display = 'block';
+            console.log('✅ ResultsSection forzado a visible');
+        }
+        
+        if (keywordsSection) {
+            keywordsSection.style.display = 'block';
+            console.log('✅ KeywordsSection forzado a visible');
+        }
+        
+        // Forzar visibilidad de tablas y contenedores
+        resultsTables.forEach(table => {
+            const container = table.closest('.table-responsive-container');
+            if (container) {
+                container.style.display = 'block';
+            }
+            table.style.display = 'table';
+            console.log(`✅ Tabla ${table.id} forzada a visible`);
+        });
+        
+        console.log('🎉 Visualización forzada completada');
+    };
+    
+    // 7. Función para simular el cierre correcto del modal
+    const simulateCorrectClose = () => {
+        console.log('🧪 SIMULANDO CIERRE CORRECTO DEL MODAL...');
+        
+        if (window.completeProgress) {
+            // Simular datos recibidos
+            window.lastReceivedData = true;
+            
+            // Mostrar secciones antes del cierre
+            if (resultsSection) resultsSection.style.display = 'block';
+            if (keywordsSection) keywordsSection.style.display = 'block';
+            
+            setTimeout(() => {
+                window.completeProgress();
+                console.log('✅ Simulación de cierre completada');
+            }, 1000);
+        } else {
+            console.warn('⚠️ completeProgress no disponible');
+        }
+    };
+    
+    // Retornar funciones útiles
+    return {
+        modalState,
+        tablesInfo,
+        sectionsInfo,
+        bodyState,
+        dataInfo,
+        forceShowResults,
+        simulateCorrectClose,
+        refreshPage: () => window.location.reload()
+    };
+};
