@@ -35,6 +35,14 @@ from auth import (
     get_user_credentials
 )
 
+# --- NUEVO: Detector de dispositivos móviles ---
+from mobile_detector import (
+    should_block_mobile_access,
+    get_device_info,
+    get_device_type,
+    log_device_access
+)
+
 # Configurar logging mejorado
 logging.basicConfig(
     level=logging.INFO,
@@ -247,10 +255,41 @@ def login_page():
         return redirect('/')
     return render_template('login.html')
 
+@app.route('/mobile-not-supported')
+def mobile_not_supported():
+    """
+    Página de error para dispositivos móviles no compatibles.
+    """
+    # Registrar el acceso desde dispositivo móvil
+    log_device_access(logger)
+    
+    device_info = get_device_info()
+    logger.info(f"Usuario redirigido a página de error móvil - "
+                f"Tipo: {get_device_type()}, "
+                f"IP: {device_info['remote_addr']}")
+    
+    return render_template('mobile_error.html')
+
+
 @app.route('/')
 @login_required
 def index():
-    """Página principal - requiere autenticación"""
+    """
+    Página principal - requiere autenticación y bloquea dispositivos móviles
+    """
+    # Registrar información del dispositivo
+    log_device_access(logger)
+    
+    # Verificar si es un dispositivo móvil
+    if should_block_mobile_access():
+        device_type = get_device_type()
+        logger.info(f"Acceso bloqueado desde dispositivo móvil - Tipo: {device_type}")
+        return redirect(url_for('mobile_not_supported'))
+    
+    # Si no es móvil, mostrar la aplicación normal
+    device_type = get_device_type()
+    logger.info(f"Acceso permitido desde dispositivo: {device_type}")
+    
     from auth import get_user_info
     user_info = get_user_info()
     user_email = user_info.get('email') if user_info else None
@@ -262,152 +301,150 @@ def index():
 def get_data():
     """Obtiene datos de Search Console con fechas específicas y comparación opcional"""
     
-    # Obtener parámetros del formulario
-    form_urls = [u.strip() for u in request.form.get('urls','').splitlines() if u.strip()]
-    site_url_sc = request.form.get('site_url','')
-    match_type = request.form.get('match_type','contains')
-    selected_country = request.form.get('country', '')
+    # ✅ NUEVO: Detectar dispositivos móviles para ajustar timeouts
+    user_agent = request.headers.get('User-Agent', '')
+    is_mobile = any(device in user_agent.lower() for device in ['android', 'iphone', 'ipad', 'mobile', 'blackberry'])
+    x_requested_with = request.headers.get('X-Requested-With')
     
-    # ✅ NUEVO: Obtener fechas específicas en lugar de meses
-    current_start_date = request.form.get('current_start_date')
-    current_end_date = request.form.get('current_end_date')
+    if is_mobile:
+        logger.info(f"[MOBILE] Dispositivo móvil detectado: {user_agent[:50]}...")
     
-    # Datos de comparación (opcionales)
-    has_comparison = request.form.get('has_comparison', 'false').lower() == 'true'
-    comparison_start_date = request.form.get('comparison_start_date')
-    comparison_end_date = request.form.get('comparison_end_date')
-    comparison_mode = request.form.get('comparison_mode', 'none')
-    
-    # Validaciones básicas
-    if not current_start_date or not current_end_date:
-        return jsonify({'error': 'Fechas del período principal son requeridas.'}), 400
-    
-    if not site_url_sc:
-        return jsonify({'error': 'site_url es requerido.'}), 400
-
-    # ✅ NUEVO: Validar formato de fechas
     try:
-        current_start = datetime.strptime(current_start_date, '%Y-%m-%d').date()
-        current_end = datetime.strptime(current_end_date, '%Y-%m-%d').date()
+        # Obtener parámetros del formulario
+        form_urls = [u.strip() for u in request.form.get('urls','').splitlines() if u.strip()]
+        site_url_sc = request.form.get('site_url','')
+        match_type = request.form.get('match_type','contains')
+        selected_country = request.form.get('country', '')
         
-        if current_start >= current_end:
-            return jsonify({'error': 'La fecha de inicio debe ser anterior a la fecha de fin.'}), 400
-            
-        # Validar que las fechas estén dentro del rango permitido por GSC
-        max_date = datetime.now().date() - timedelta(days=3)  # GSC tiene delay
-        min_date = max_date - timedelta(days=16*30)  # ~16 meses atrás
+        # ✅ NUEVO: Obtener fechas específicas en lugar de meses
+        current_start_date = request.form.get('current_start_date')
+        current_end_date = request.form.get('current_end_date')
         
-        if current_start < min_date or current_end > max_date:
-            return jsonify({'error': f'Las fechas deben estar entre {min_date} y {max_date}.'}), 400
-            
-    except ValueError:
-        return jsonify({'error': 'Formato de fecha inválido. UsebeginPath-MM-DD.'}), 400
+        # Datos de comparación (opcionales)
+        has_comparison = request.form.get('has_comparison', 'false').lower() == 'true'
+        comparison_start_date = request.form.get('comparison_start_date')
+        comparison_end_date = request.form.get('comparison_end_date')
+        comparison_mode = request.form.get('comparison_mode', 'none')
+        
+        # Validaciones básicas
+        if not current_start_date or not current_end_date:
+            error_msg = 'Fechas del período principal son requeridas.'
+            if is_mobile:
+                error_msg += ' Asegúrate de seleccionar fechas válidas en el selector.'
+            return jsonify({'error': error_msg}), 400
+        
+        if not site_url_sc:
+            error_msg = 'Debes seleccionar un dominio antes de continuar.'
+            if is_mobile:
+                error_msg += ' Usa el selector de dominios en la parte superior.'
+            return jsonify({'error': error_msg}), 400
 
-    # Validar fechas de comparación si están presentes
-    comparison_start = None
-    comparison_end = None
-    if has_comparison and comparison_start_date and comparison_end_date:
+        # ✅ NUEVO: Validaciones específicas para móviles
+        if is_mobile and form_urls and len(form_urls) > 10:
+            return jsonify({
+                'error': 'En dispositivos móviles, se recomienda analizar máximo 10 URLs a la vez para evitar timeouts. Reduce el número de URLs e inténtalo de nuevo.'
+            }), 400
+
+        # ✅ NUEVO: Validar formato de fechas
         try:
-            comparison_start = datetime.strptime(comparison_start_date, '%Y-%m-%d').date()
-            comparison_end = datetime.strptime(comparison_end_date, '%Y-%m-%d').date()
+            current_start = datetime.strptime(current_start_date, '%Y-%m-%d').date()
+            current_end = datetime.strptime(current_end_date, '%Y-%m-%d').date()
             
-            if comparison_start >= comparison_end:
-                return jsonify({'error': 'Las fechas de comparación no son válidas.'}), 400
+            if current_start >= current_end:
+                return jsonify({'error': 'La fecha de inicio debe ser anterior a la fecha de fin.'}), 400
                 
-            if comparison_start < min_date or comparison_end > max_date:
-                return jsonify({'error': 'Las fechas de comparación están fuera del rango permitido.'}), 400
+            # ✅ NUEVO: Validación específica para móviles sobre períodos largos
+            period_days = (current_end - current_start).days + 1
+            if is_mobile and period_days > 90:
+                return jsonify({
+                    'error': 'En dispositivos móviles, se recomienda analizar períodos de máximo 90 días para evitar timeouts. Selecciona un período más corto.'
+                }), 400
+                
+            # Validar que las fechas estén dentro del rango permitido por GSC
+            max_date = datetime.now().date() - timedelta(days=3)  # GSC tiene delay
+            min_date = max_date - timedelta(days=16*30)  # ~16 meses atrás
+            
+            if current_start < min_date or current_end > max_date:
+                return jsonify({'error': f'Las fechas deben estar entre {min_date} y {max_date}.'}), 400
                 
         except ValueError:
-            return jsonify({'error': 'Formato de fecha de comparación inválido.'}), 400
+            return jsonify({'error': 'Formato de fecha inválido. Usa YYYY-MM-DD.'}), 400
 
-    # Logging descriptivo
-    logger.info(f"[GSC REQUEST] Período principal: {current_start_date} a {current_end_date}")
-    if has_comparison:
-        logger.info(f"[GSC REQUEST] Comparación ({comparison_mode}): {comparison_start_date} a {comparison_end_date}")
-    
-    if selected_country:
-        country_config = get_country_config(selected_country)
-        country_name = country_config['name'] if country_config else selected_country
-        logger.info(f"[GSC REQUEST] País filtrado: {country_name} ({selected_country})")
+        # Validar fechas de comparación si están presentes
+        comparison_start = None
+        comparison_end = None
+        if has_comparison and comparison_start_date and comparison_end_date:
+            try:
+                comparison_start = datetime.strptime(comparison_start_date, '%Y-%m-%d').date()
+                comparison_end = datetime.strptime(comparison_end_date, '%Y-%m-%d').date()
+                
+                if comparison_start >= comparison_end:
+                    return jsonify({'error': 'Las fechas de comparación no son válidas.'}), 400
+                    
+                if comparison_start < min_date or comparison_end > max_date:
+                    return jsonify({'error': 'Las fechas de comparación están fuera del rango permitido.'}), 400
+                    
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha de comparación inválido.'}), 400
 
-    # Obtener servicio autenticado
-    gsc_service = get_authenticated_service('searchconsole', 'v1')
-    if not gsc_service:
-        return jsonify({'error': 'Error de autenticación con Google Search Console.', 'auth_required': True}), 401
-
-    def get_base_filters(url_filters=None):
-        filters = []
-        
-        if url_filters:
-            filters.extend(url_filters)
+        # Logging descriptivo
+        logger.info(f"[GSC REQUEST] Período principal: {current_start_date} a {current_end_date}")
+        if has_comparison:
+            logger.info(f"[GSC REQUEST] Comparación ({comparison_mode}): {comparison_start_date} a {comparison_end_date}")
         
         if selected_country:
-            country_filter = {
-                'filters': [{
-                    'dimension': 'country',
-                    'operator': 'equals',
-                    'expression': selected_country
-                }]
-            }
-            filters.append(country_filter)
-        
-        return filters
+            country_config = get_country_config(selected_country)
+            country_name = country_config['name'] if country_config else selected_country
+            logger.info(f"[GSC REQUEST] País filtrado: {country_name} ({selected_country})")
 
-    # ✅ NUEVO: Determinar modo de análisis
-    analysis_mode = "property" if not form_urls else "page"
-    logger.info(f"[GSC REQUEST] Modo de análisis: {analysis_mode}")
-    
-    # ✅ NUEVA: Obtener datos para tabla de URLs (siempre muestra páginas individuales)
-    def fetch_urls_data(start_date, end_date, label_suffix=""):
-        period_data = {}
+        # Obtener servicio autenticado
+        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        if not gsc_service:
+            error_msg = 'Error de autenticación con Google Search Console.'
+            if is_mobile:
+                error_msg += ' Tu sesión puede haber expirado. Intenta recargar la página.'
+            return jsonify({'error': error_msg, 'auth_required': True}), 401
+
+        def get_base_filters(url_filters=None):
+            filters = []
+            
+            if url_filters:
+                filters.extend(url_filters)
+            
+            if selected_country:
+                country_filter = {
+                    'filters': [{
+                        'dimension': 'country',
+                        'operator': 'equals',
+                        'expression': selected_country
+                    }]
+                }
+                filters.append(country_filter)
+            
+            return filters
+
+        # ✅ NUEVO: Determinar modo de análisis
+        analysis_mode = "property" if not form_urls else "page"
+        logger.info(f"[GSC REQUEST] Modo de análisis: {analysis_mode}")
         
-        if analysis_mode == "property":
-            # SIN filtro de página - obtener TODAS las páginas de la propiedad
-            combined_filters = get_base_filters()  # Solo filtros de país si aplica
+        # ✅ NUEVA: Obtener datos para tabla de URLs (siempre muestra páginas individuales)
+        def fetch_urls_data(start_date, end_date, label_suffix=""):
+            period_data = {}
             
-            # Obtener datos de TODAS las páginas de la propiedad (como GSC sin filtros)
-            rows_data = fetch_searchconsole_data_single_call(
-                gsc_service, site_url_sc, 
-                start_date.strftime('%Y-%m-%d'), 
-                end_date.strftime('%Y-%m-%d'), 
-                ['page'],  # Usar 'page' para obtener todas las páginas individuales
-                combined_filters
-            )
-            
-            # Para datos de propiedad completa, procesar cada página individualmente
-            for r_item in rows_data:
-                page_url = r_item['keys'][0]
-                period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
+            if analysis_mode == "property":
+                # SIN filtro de página - obtener TODAS las páginas de la propiedad
+                combined_filters = get_base_filters()  # Solo filtros de país si aplica
                 
-                if page_url not in period_data:
-                    period_data[page_url] = []
-                
-                period_data[page_url].append({
-                    'Period': period_label,
-                    'StartDate': start_date.strftime('%Y-%m-%d'),
-                    'EndDate': end_date.strftime('%Y-%m-%d'),
-                    'Clicks': r_item['clicks'], 
-                    'Impressions': r_item['impressions'],
-                    'CTR': r_item['ctr'], 
-                    'Position': r_item['position']
-                })
-            
-            logger.info(f"[GSC URLS] Obtenidas {len(period_data)} páginas de la propiedad completa")
-        else:
-            # CON filtro de página - modo tradicional
-            for val_url in form_urls:
-                url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
-                combined_filters = get_base_filters(url_filter)
-                
-                # Obtener datos para este período
+                # Obtener datos de TODAS las páginas de la propiedad (como GSC sin filtros)
                 rows_data = fetch_searchconsole_data_single_call(
                     gsc_service, site_url_sc, 
                     start_date.strftime('%Y-%m-%d'), 
                     end_date.strftime('%Y-%m-%d'), 
-                    ['page'], 
+                    ['page'],  # Usar 'page' para obtener todas las páginas individuales
                     combined_filters
                 )
                 
+                # Para datos de propiedad completa, procesar cada página individualmente
                 for r_item in rows_data:
                     page_url = r_item['keys'][0]
                     period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
@@ -424,385 +461,422 @@ def get_data():
                         'CTR': r_item['ctr'], 
                         'Position': r_item['position']
                     })
-        
-        return period_data
-
-    # ✅ NUEVA: Obtener datos agregados para métricas generales (sin dimensión de página)
-    def fetch_summary_data(start_date, end_date, label_suffix=""):
-        summary_data = {}
-        
-        if analysis_mode == "property":
-            # SIN filtro de página - obtener datos agregados de toda la propiedad
-            combined_filters = get_base_filters()  # Solo filtros de país si aplica
-            
-            # Obtener datos agregados sin dimensión de página
-            rows_data = fetch_searchconsole_data_single_call(
-                gsc_service, site_url_sc, 
-                start_date.strftime('%Y-%m-%d'), 
-                end_date.strftime('%Y-%m-%d'), 
-                ['date'],  # Usar 'date' para obtener datos agregados por día
-                combined_filters
-            )
-            
-            # Para métricas agregadas, crear una entrada única con totales
-            if rows_data:
-                # Sumar todos los datos
-                total_clicks = sum(r.get('clicks', 0) for r in rows_data)
-                total_impressions = sum(r.get('impressions', 0) for r in rows_data)
-                total_ctr_weighted = sum(r.get('ctr', 0) * r.get('impressions', 0) for r in rows_data)
-                total_pos_weighted = sum(r.get('position', 0) * r.get('impressions', 0) for r in rows_data)
                 
-                avg_ctr = total_ctr_weighted / total_impressions if total_impressions > 0 else 0
-                avg_position = total_pos_weighted / total_impressions if total_impressions > 0 else 0
-                
-                property_url = f"{site_url_sc} (propiedad completa)"
-                period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
-                
-                summary_data[property_url] = [{
-                    'Period': period_label,
-                    'StartDate': start_date.strftime('%Y-%m-%d'),
-                    'EndDate': end_date.strftime('%Y-%m-%d'),
-                    'Clicks': total_clicks, 
-                    'Impressions': total_impressions,
-                    'CTR': avg_ctr, 
-                    'Position': avg_position
-                }]
-                
-                logger.info(f"[GSC SUMMARY] {property_url}: {total_clicks} clicks, {total_impressions} impressions")
-        else:
-            # Para páginas específicas, usar la misma lógica que URLs
-            summary_data = fetch_urls_data(start_date, end_date, label_suffix)
-        
-        return summary_data
-
-    # ✅ SEPARADO: Obtener datos de URLs (para tabla) y datos de summary (para métricas)
-    
-    # Datos para tabla de URLs (páginas individuales)
-    current_urls_data = fetch_urls_data(current_start, current_end, " (Current)")
-    comparison_urls_data = {}
-    if has_comparison and comparison_start and comparison_end:
-        comparison_urls_data = fetch_urls_data(comparison_start, comparison_end, " (Comparison)")
-
-    # Combinar datos de URLs de ambos períodos
-    combined_urls_data = {}
-    for page_url, metrics in current_urls_data.items():
-        combined_urls_data[page_url] = metrics
-    for page_url, metrics in comparison_urls_data.items():
-        if page_url in combined_urls_data:
-            combined_urls_data[page_url].extend(metrics)
-        else:
-            combined_urls_data[page_url] = metrics
-
-    # Datos para métricas agregadas (summary)
-    current_summary_data = fetch_summary_data(current_start, current_end, " (Current)")
-    comparison_summary_data = {}
-    if has_comparison and comparison_start and comparison_end:
-        comparison_summary_data = fetch_summary_data(comparison_start, comparison_end, " (Comparison)")
-
-    # Combinar datos de summary de ambos períodos
-    combined_summary_data = {}
-    for page_url, metrics in current_summary_data.items():
-        combined_summary_data[page_url] = metrics
-    for page_url, metrics in comparison_summary_data.items():
-        if page_url in combined_summary_data:
-            combined_summary_data[page_url].extend(metrics)
-        else:
-            combined_summary_data[page_url] = metrics
-
-    # Convertir a formato esperado por el frontend
-    pages_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_urls_data.items()]
-    summary_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_summary_data.items()]
-
-    # ✅ ACTUALIZADA: Procesar keywords con soporte para análisis de propiedad completa
-    def process_keywords_for_period(start_date, end_date):
-        keyword_data = {}
-        
-        if analysis_mode == "property":
-            # SIN filtro de página - obtener keywords agregadas de TODA la propiedad
-            combined_filters_kw = get_base_filters()  # Solo filtros de país si aplica
-            
-            rows_data = fetch_searchconsole_data_single_call(
-                gsc_service, site_url_sc,
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d'),
-                ['query'],  # Solo query para obtener keywords agregadas de toda la propiedad
-                combined_filters_kw
-            )
-            
-            for r_item in rows_data:
-                if len(r_item.get('keys', [])) >= 1:
-                    query = r_item['keys'][0]
-                    if query not in keyword_data:
-                        keyword_data[query] = {
-                            'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                            'pos_sum': 0.0, 'count': 0, 'url': f"{site_url_sc} (propiedad completa)"
-                        }
+                logger.info(f"[GSC URLS] Obtenidas {len(period_data)} páginas de la propiedad completa")
+            else:
+                # CON filtro de página - modo tradicional
+                for val_url in form_urls:
+                    url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
+                    combined_filters = get_base_filters(url_filter)
                     
-                    kw_entry = keyword_data[query]
-                    kw_entry['clicks'] += r_item['clicks']
-                    kw_entry['impressions'] += r_item['impressions']
-                    kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
-                    kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
-                    kw_entry['count'] += r_item['impressions']
+                    # Obtener datos para este período
+                    rows_data = fetch_searchconsole_data_single_call(
+                        gsc_service, site_url_sc, 
+                        start_date.strftime('%Y-%m-%d'), 
+                        end_date.strftime('%Y-%m-%d'), 
+                        ['page'], 
+                        combined_filters
+                    )
+                    
+                    for r_item in rows_data:
+                        page_url = r_item['keys'][0]
+                        period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
+                        
+                        if page_url not in period_data:
+                            period_data[page_url] = []
+                        
+                        period_data[page_url].append({
+                            'Period': period_label,
+                            'StartDate': start_date.strftime('%Y-%m-%d'),
+                            'EndDate': end_date.strftime('%Y-%m-%d'),
+                            'Clicks': r_item['clicks'], 
+                            'Impressions': r_item['impressions'],
+                            'CTR': r_item['ctr'], 
+                            'Position': r_item['position']
+                        })
             
-            logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords agregadas de propiedad completa")
-        else:
-            # CON filtro de página - modo tradicional
-            for val_url_kw in form_urls:
-                url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
-                combined_filters_kw = get_base_filters(url_filter_kw)
+            return period_data
+
+        # ✅ NUEVA: Obtener datos agregados para métricas generales (sin dimensión de página)
+        def fetch_summary_data(start_date, end_date, label_suffix=""):
+            summary_data = {}
+            
+            if analysis_mode == "property":
+                # SIN filtro de página - obtener datos agregados de toda la propiedad
+                combined_filters = get_base_filters()  # Solo filtros de país si aplica
+                
+                # Obtener datos agregados sin dimensión de página
+                rows_data = fetch_searchconsole_data_single_call(
+                    gsc_service, site_url_sc, 
+                    start_date.strftime('%Y-%m-%d'), 
+                    end_date.strftime('%Y-%m-%d'), 
+                    ['date'],  # Usar 'date' para obtener datos agregados por día
+                    combined_filters
+                )
+                
+                # Para métricas agregadas, crear una entrada única con totales
+                if rows_data:
+                    # Sumar todos los datos
+                    total_clicks = sum(r.get('clicks', 0) for r in rows_data)
+                    total_impressions = sum(r.get('impressions', 0) for r in rows_data)
+                    total_ctr_weighted = sum(r.get('ctr', 0) * r.get('impressions', 0) for r in rows_data)
+                    total_pos_weighted = sum(r.get('position', 0) * r.get('impressions', 0) for r in rows_data)
+                    
+                    avg_ctr = total_ctr_weighted / total_impressions if total_impressions > 0 else 0
+                    avg_position = total_pos_weighted / total_impressions if total_impressions > 0 else 0
+                    
+                    property_url = f"{site_url_sc} (propiedad completa)"
+                    period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
+                    
+                    summary_data[property_url] = [{
+                        'Period': period_label,
+                        'StartDate': start_date.strftime('%Y-%m-%d'),
+                        'EndDate': end_date.strftime('%Y-%m-%d'),
+                        'Clicks': total_clicks, 
+                        'Impressions': total_impressions,
+                        'CTR': avg_ctr, 
+                        'Position': avg_position
+                    }]
+                    
+                    logger.info(f"[GSC SUMMARY] {property_url}: {total_clicks} clicks, {total_impressions} impressions")
+            else:
+                # Para páginas específicas, usar la misma lógica que URLs
+                summary_data = fetch_urls_data(start_date, end_date, label_suffix)
+            
+            return summary_data
+
+        # ✅ SEPARADO: Obtener datos de URLs (para tabla) y datos de summary (para métricas)
+        
+        # Datos para tabla de URLs (páginas individuales)
+        current_urls_data = fetch_urls_data(current_start, current_end, " (Current)")
+        comparison_urls_data = {}
+        if has_comparison and comparison_start and comparison_end:
+            comparison_urls_data = fetch_urls_data(comparison_start, comparison_end, " (Comparison)")
+
+        # Combinar datos de URLs de ambos períodos
+        combined_urls_data = {}
+        for page_url, metrics in current_urls_data.items():
+            combined_urls_data[page_url] = metrics
+        for page_url, metrics in comparison_urls_data.items():
+            if page_url in combined_urls_data:
+                combined_urls_data[page_url].extend(metrics)
+            else:
+                combined_urls_data[page_url] = metrics
+
+        # Datos para métricas agregadas (summary)
+        current_summary_data = fetch_summary_data(current_start, current_end, " (Current)")
+        comparison_summary_data = {}
+        if has_comparison and comparison_start and comparison_end:
+            comparison_summary_data = fetch_summary_data(comparison_start, comparison_end, " (Comparison)")
+
+        # Combinar datos de summary de ambos períodos
+        combined_summary_data = {}
+        for page_url, metrics in current_summary_data.items():
+            combined_summary_data[page_url] = metrics
+        for page_url, metrics in comparison_summary_data.items():
+            if page_url in combined_summary_data:
+                combined_summary_data[page_url].extend(metrics)
+            else:
+                combined_summary_data[page_url] = metrics
+
+        # Convertir a formato esperado por el frontend
+        pages_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_urls_data.items()]
+        summary_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_summary_data.items()]
+
+        # ✅ ACTUALIZADA: Procesar keywords con soporte para análisis de propiedad completa
+        def process_keywords_for_period(start_date, end_date):
+            keyword_data = {}
+            
+            if analysis_mode == "property":
+                # SIN filtro de página - obtener keywords agregadas de TODA la propiedad
+                combined_filters_kw = get_base_filters()  # Solo filtros de país si aplica
                 
                 rows_data = fetch_searchconsole_data_single_call(
                     gsc_service, site_url_sc,
                     start_date.strftime('%Y-%m-%d'),
                     end_date.strftime('%Y-%m-%d'),
-                    ['page','query'], 
+                    ['query'],  # Solo query para obtener keywords agregadas de toda la propiedad
                     combined_filters_kw
                 )
                 
                 for r_item in rows_data:
-                    if len(r_item.get('keys', [])) >= 2:
-                        query = r_item['keys'][1]
+                    if len(r_item.get('keys', [])) >= 1:
+                        query = r_item['keys'][0]
                         if query not in keyword_data:
                             keyword_data[query] = {
                                 'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                'pos_sum': 0.0, 'count': 0, 'url': ''
+                                'pos_sum': 0.0, 'count': 0, 'url': f"{site_url_sc} (propiedad completa)"
                             }
                         
                         kw_entry = keyword_data[query]
-                        kw_entry['url'] = val_url_kw
                         kw_entry['clicks'] += r_item['clicks']
                         kw_entry['impressions'] += r_item['impressions']
                         kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                         kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                         kw_entry['count'] += r_item['impressions']
-        
-        return keyword_data
-
-    # Procesar keywords para el período actual SIEMPRE
-    current_keywords = process_keywords_for_period(current_start, current_end)
-    comparison_keywords = {}
-    
-    # Solo procesar comparación si existe
-    if has_comparison and comparison_start and comparison_end:
-        comparison_keywords = process_keywords_for_period(comparison_start, comparison_end)
-
-    # ✅ ACTUALIZADA: Generar estadísticas de keywords (funciona con o sin comparación)
-    def generate_keyword_stats(current_kw, comparison_kw=None):
-        def process_kw_by_position(kw_data):
-            stats = {'total': set(), 'pos1_3': set(), 'pos4_10': set(), 'pos11_20': set(), 'pos20_plus': set()}
-            
-            for query, data in kw_data.items():
-                if data['count'] > 0:
-                    avg_pos = data['pos_sum'] / data['count']
-                    stats['total'].add(query)
+                
+                logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords agregadas de propiedad completa")
+            else:
+                # CON filtro de página - modo tradicional
+                for val_url_kw in form_urls:
+                    url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
+                    combined_filters_kw = get_base_filters(url_filter_kw)
                     
-                    if avg_pos <= 3:
-                        stats['pos1_3'].add(query)
-                    elif avg_pos <= 10:
-                        stats['pos4_10'].add(query)
-                    elif avg_pos <= 20:
-                        stats['pos11_20'].add(query)
-                    else:
-                        stats['pos20_plus'].add(query)
+                    rows_data = fetch_searchconsole_data_single_call(
+                        gsc_service, site_url_sc,
+                        start_date.strftime('%Y-%m-%d'),
+                        end_date.strftime('%Y-%m-%d'),
+                        ['page','query'], 
+                        combined_filters_kw
+                    )
+                    
+                    for r_item in rows_data:
+                        if len(r_item.get('keys', [])) >= 2:
+                            query = r_item['keys'][1]
+                            if query not in keyword_data:
+                                keyword_data[query] = {
+                                    'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
+                                    'pos_sum': 0.0, 'count': 0, 'url': ''
+                                }
+                            
+                            kw_entry = keyword_data[query]
+                            kw_entry['url'] = val_url_kw
+                            kw_entry['clicks'] += r_item['clicks']
+                            kw_entry['impressions'] += r_item['impressions']
+                            kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
+                            kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
+                            kw_entry['count'] += r_item['impressions']
             
-            return stats
+            return keyword_data
 
-        current_stats = process_kw_by_position(current_kw)
+        # Procesar keywords para el período actual SIEMPRE
+        current_keywords = process_keywords_for_period(current_start, current_end)
+        comparison_keywords = {}
         
-        # ✅ NUEVO: Estadísticas básicas para período único
-        keyword_stats = {
-            'overall': {'total': len(current_stats['total'])},
-            'total': {'current': len(current_stats['total'])},
-            'top3': {'current': len(current_stats['pos1_3'])},
-            'top10': {'current': len(current_stats['pos4_10'])},
-            'top20': {'current': len(current_stats['pos11_20'])},
-            'top20plus': {'current': len(current_stats['pos20_plus'])}
-        }
-        
-        # ✅ NUEVO: Solo calcular comparaciones si hay datos de comparación
-        if comparison_kw and len(comparison_kw) > 0:
-            comparison_stats = process_kw_by_position(comparison_kw)
-            
-            # Calcular cambios entre períodos
-            for key, label in [('total', 'total'), ('pos1_3', 'top3'), ('pos4_10', 'top10'), 
-                               ('pos11_20', 'top20'), ('pos20_plus', 'top20plus')]:
-                current_set = current_stats[key]
-                comparison_set = comparison_stats[key]
+        # Solo procesar comparación si existe
+        if has_comparison and comparison_start and comparison_end:
+            comparison_keywords = process_keywords_for_period(comparison_start, comparison_end)
+
+        # ✅ ACTUALIZADA: Generar estadísticas de keywords (funciona con o sin comparación)
+        def generate_keyword_stats(current_kw, comparison_kw=None):
+            def process_kw_by_position(kw_data):
+                stats = {'total': set(), 'pos1_3': set(), 'pos4_10': set(), 'pos11_20': set(), 'pos20_plus': set()}
                 
-                keyword_stats[label].update({
-                    'previous': len(comparison_set),
-                    'new': len(current_set - comparison_set),
-                    'lost': len(comparison_set - current_set),
-                    'stay': len(current_set & comparison_set)
-                })
+                for query, data in kw_data.items():
+                    if data['count'] > 0:
+                        avg_pos = data['pos_sum'] / data['count']
+                        stats['total'].add(query)
+                        
+                        if avg_pos <= 3:
+                            stats['pos1_3'].add(query)
+                        elif avg_pos <= 10:
+                            stats['pos4_10'].add(query)
+                        elif avg_pos <= 20:
+                            stats['pos11_20'].add(query)
+                        else:
+                            stats['pos20_plus'].add(query)
+                
+                return stats
+
+            current_stats = process_kw_by_position(current_kw)
             
-            # Estadísticas generales de cambio de posiciones
-            current_positions = {q: d['pos_sum']/d['count'] for q, d in current_kw.items() if d['count'] > 0}
-            comparison_positions = {q: d['pos_sum']/d['count'] for q, d in comparison_kw.items() if d['count'] > 0}
-            
-            common_queries = set(current_positions.keys()) & set(comparison_positions.keys())
-            
-            improved = sum(1 for q in common_queries if current_positions[q] < comparison_positions[q])
-            worsened = sum(1 for q in common_queries if current_positions[q] > comparison_positions[q])
-            same = sum(1 for q in common_queries if current_positions[q] == comparison_positions[q])
-            
-            keyword_stats['overall'] = {
-                'total': len(current_positions),
-                'improved': improved,
-                'worsened': worsened,
-                'same': same,
-                'new': len(set(current_positions.keys()) - set(comparison_positions.keys())),
-                'lost': len(set(comparison_positions.keys()) - set(current_positions.keys()))
+            # ✅ NUEVO: Estadísticas básicas para período único
+            keyword_stats = {
+                'overall': {'total': len(current_stats['total'])},
+                'total': {'current': len(current_stats['total'])},
+                'top3': {'current': len(current_stats['pos1_3'])},
+                'top10': {'current': len(current_stats['pos4_10'])},
+                'top20': {'current': len(current_stats['pos11_20'])},
+                'top20plus': {'current': len(current_stats['pos20_plus'])}
             }
-        else:
-            # ✅ NUEVO: Para período único, agregar valores por defecto
-            for label in ['total', 'top3', 'top10', 'top20', 'top20plus']:
-                keyword_stats[label].update({
-                    'previous': 0,
-                    'new': 0,
-                    'lost': 0,
-                    'stay': keyword_stats[label]['current']  # Todas las keywords "se mantienen"
+            
+            # ✅ NUEVO: Solo calcular comparaciones si hay datos de comparación
+            if comparison_kw and len(comparison_kw) > 0:
+                comparison_stats = process_kw_by_position(comparison_kw)
+                
+                # Calcular cambios entre períodos
+                for key, label in [('total', 'total'), ('pos1_3', 'top3'), ('pos4_10', 'top10'), 
+                                   ('pos11_20', 'top20'), ('pos20_plus', 'top20plus')]:
+                    current_set = current_stats[key]
+                    comparison_set = comparison_stats[key]
+                    
+                    keyword_stats[label].update({
+                        'previous': len(comparison_set),
+                        'new': len(current_set - comparison_set),
+                        'lost': len(comparison_set - current_set),
+                        'stay': len(current_set & comparison_set)
+                    })
+                
+                # Estadísticas generales de cambio de posiciones
+                current_positions = {q: d['pos_sum']/d['count'] for q, d in current_kw.items() if d['count'] > 0}
+                comparison_positions = {q: d['pos_sum']/d['count'] for q, d in comparison_kw.items() if d['count'] > 0}
+                
+                common_queries = set(current_positions.keys()) & set(comparison_positions.keys())
+                
+                improved = sum(1 for q in common_queries if current_positions[q] < comparison_positions[q])
+                worsened = sum(1 for q in common_queries if current_positions[q] > comparison_positions[q])
+                same = sum(1 for q in common_queries if current_positions[q] == comparison_positions[q])
+                
+                keyword_stats['overall'] = {
+                    'total': len(current_positions),
+                    'improved': improved,
+                    'worsened': worsened,
+                    'same': same,
+                    'new': len(set(current_positions.keys()) - set(comparison_positions.keys())),
+                    'lost': len(set(comparison_positions.keys()) - set(current_positions.keys()))
+                }
+            else:
+                # ✅ NUEVO: Para período único, agregar valores por defecto
+                for label in ['total', 'top3', 'top10', 'top20', 'top20plus']:
+                    keyword_stats[label].update({
+                        'previous': 0,
+                        'new': 0,
+                        'lost': 0,
+                        'stay': keyword_stats[label]['current']  # Todas las keywords "se mantienen"
+                    })
+                
+                # Estadísticas overall para período único
+                keyword_stats['overall'].update({
+                    'improved': 0,
+                    'worsened': 0,
+                    'same': 0,
+                    'new': len(current_stats['total']),  # Todas son "nuevas" para el análisis
+                    'lost': 0
                 })
             
-            # Estadísticas overall para período único
-            keyword_stats['overall'].update({
-                'improved': 0,
-                'worsened': 0,
-                'same': 0,
-                'new': len(current_stats['total']),  # Todas son "nuevas" para el análisis
-                'lost': 0
-            })
-        
-        return keyword_stats
+            return keyword_stats
 
-    kw_stats_data = generate_keyword_stats(current_keywords, comparison_keywords)
+        kw_stats_data = generate_keyword_stats(current_keywords, comparison_keywords)
 
-    # ✅ ACTUALIZADA: Generar datos de comparación de keywords (funciona con período único)
-    def generate_keyword_comparison(current_kw, comparison_kw=None):
-        comparison_data = []
-        
-        # ✅ NUEVO: Para período único, mostrar datos del período actual
-        if not comparison_kw or len(comparison_kw) == 0:
-            for query, current_data in current_kw.items():
-                # Calcular métricas del período actual
-                current_clicks = current_data['clicks']
-                current_impressions = current_data['impressions']
-                current_ctr = (current_data['ctr_sum'] / current_data['count'] * 100) if current_data['count'] > 0 else 0
-                current_pos = (current_data['pos_sum'] / current_data['count']) if current_data['count'] > 0 else None
-                
-                comparison_data.append({
-                    'keyword': query,
-                    'url': current_data.get('url', ''),
-                    'clicks_m1': current_clicks,  # Sin período de comparación
-                    'clicks_m2': 0,  # Período actual
-                    'delta_clicks_percent': 'New',  # Marcado como nuevo
-                    'impressions_m1': current_impressions,
-                    'impressions_m2': 0,
-                    'delta_impressions_percent': 'New',
-                    'ctr_m1': current_ctr,
-                    'ctr_m2':0 ,
-                    'delta_ctr_percent': 'New',
-                    'position_m1': current_pos,
-                    'position_m2': None,
-                    'delta_position_absolute': 'New'
-                })
-        else:
-            # ✅ MANTENER: Lógica original para comparación entre períodos
-            all_queries = set(current_kw.keys()) | set(comparison_kw.keys())
+        # ✅ ACTUALIZADA: Generar datos de comparación de keywords (funciona con período único)
+        def generate_keyword_comparison(current_kw, comparison_kw=None):
+            comparison_data = []
             
-            for query in all_queries:
-                current_data = current_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
-                comparison_data_kw = comparison_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
+            # ✅ NUEVO: Para período único, mostrar datos del período actual
+            if not comparison_kw or len(comparison_kw) == 0:
+                for query, current_data in current_kw.items():
+                    # Calcular métricas del período actual
+                    current_clicks = current_data['clicks']
+                    current_impressions = current_data['impressions']
+                    current_ctr = (current_data['ctr_sum'] / current_data['count'] * 100) if current_data['count'] > 0 else 0
+                    current_pos = (current_data['pos_sum'] / current_data['count']) if current_data['count'] > 0 else None
+                    
+                    comparison_data.append({
+                        'keyword': query,
+                        'url': current_data.get('url', ''),
+                        'clicks_m1': current_clicks,  # Sin período de comparación
+                        'clicks_m2': 0,  # Período actual
+                        'delta_clicks_percent': 'New',  # Marcado como nuevo
+                        'impressions_m1': current_impressions,
+                        'impressions_m2': 0,
+                        'delta_impressions_percent': 'New',
+                        'ctr_m1': current_ctr,
+                        'ctr_m2':0 ,
+                        'delta_ctr_percent': 'New',
+                        'position_m1': current_pos,
+                        'position_m2': None,
+                        'delta_position_absolute': 'New'
+                    })
+            else:
+                # ✅ MANTENER: Lógica original para comparación entre períodos
+                all_queries = set(current_kw.keys()) | set(comparison_kw.keys())
                 
-                # Calcular métricas
-                current_clicks = current_data['clicks']
-                comparison_clicks = comparison_data_kw['clicks']
-                
-                current_impressions = current_data['impressions']
-                comparison_impressions = comparison_data_kw['impressions']
-                
-                current_ctr = (current_data['ctr_sum'] / current_data['count'] * 100) if current_data['count'] > 0 else 0
-                comparison_ctr = (comparison_data_kw['ctr_sum'] / comparison_data_kw['count'] * 100) if comparison_data_kw['count'] > 0 else 0
-                
-                current_pos = (current_data['pos_sum'] / current_data['count']) if current_data['count'] > 0 else None
-                comparison_pos = (comparison_data_kw['pos_sum'] / comparison_data_kw['count']) if comparison_data_kw['count'] > 0 else None
-                
-                # Calcular cambios
-                def calculate_percentage_change(new_val, old_val):
-                    if old_val == 0:
-                        return 'Infinity' if new_val > 0 else 0
-                    return ((new_val / old_val) - 1) * 100
-                
-                delta_clicks = calculate_percentage_change(current_clicks, comparison_clicks)
-                delta_impressions = calculate_percentage_change(current_impressions, comparison_impressions)
-                delta_ctr = current_ctr - comparison_ctr  # Diferencia absoluta en puntos porcentuales
-                
-                if current_pos is not None and comparison_pos is not None:
-                    delta_position = comparison_pos - current_pos  # Positivo = mejora
-                elif current_pos is not None:
-                    delta_position = 'New'
-                else:
-                    delta_position = 'Lost'
-                
-                comparison_data.append({
-                    'keyword': query,
-                    'url': current_data.get('url') or comparison_data_kw.get('url'),
-                    'clicks_m1': current_clicks,      # ✅ Actual en P1
-                    'clicks_m2': comparison_clicks,   # ✅ Comparación en P2
-                    'delta_clicks_percent': calculate_percentage_change(current_clicks, comparison_clicks),  # ✅ (P1 / P2 - 1) * 100
-                    'impressions_m1': current_impressions,
-                    'impressions_m2': comparison_impressions,
-                    'delta_impressions_percent': calculate_percentage_change(current_impressions, comparison_impressions),
-                    'ctr_m1': current_ctr,
-                    'ctr_m2': comparison_ctr,
-                    'delta_ctr_percent': current_ctr - comparison_ctr,  # Diferencia absoluta en puntos porcentuales
-                    'position_m1': current_pos,
-                    'position_m2': comparison_pos,
-                    'delta_position_absolute': comparison_pos - current_pos if current_pos is not None and comparison_pos is not None else ('New' if current_pos is not None else 'Lost')
-                })
-        
-        return comparison_data
+                for query in all_queries:
+                    current_data = current_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
+                    comparison_data_kw = comparison_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
+                    
+                    # Calcular métricas
+                    current_clicks = current_data['clicks']
+                    comparison_clicks = comparison_data_kw['clicks']
+                    
+                    current_impressions = current_data['impressions']
+                    comparison_impressions = comparison_data_kw['impressions']
+                    
+                    current_ctr = (current_data['ctr_sum'] / current_data['count'] * 100) if current_data['count'] > 0 else 0
+                    comparison_ctr = (comparison_data_kw['ctr_sum'] / comparison_data_kw['count'] * 100) if comparison_data_kw['count'] > 0 else 0
+                    
+                    current_pos = (current_data['pos_sum'] / current_data['count']) if current_data['count'] > 0 else None
+                    comparison_pos = (comparison_data_kw['pos_sum'] / comparison_data_kw['count']) if comparison_data_kw['count'] > 0 else None
+                    
+                    # Calcular cambios
+                    def calculate_percentage_change(new_val, old_val):
+                        if old_val == 0:
+                            return 'Infinity' if new_val > 0 else 0
+                        return ((new_val / old_val) - 1) * 100
+                    
+                    delta_clicks = calculate_percentage_change(current_clicks, comparison_clicks)
+                    delta_impressions = calculate_percentage_change(current_impressions, comparison_impressions)
+                    delta_ctr = current_ctr - comparison_ctr  # Diferencia absoluta en puntos porcentuales
+                    
+                    if current_pos is not None and comparison_pos is not None:
+                        delta_position = comparison_pos - current_pos  # Positivo = mejora
+                    elif current_pos is not None:
+                        delta_position = 'New'
+                    else:
+                        delta_position = 'Lost'
+                    
+                    comparison_data.append({
+                        'keyword': query,
+                        'url': current_data.get('url') or comparison_data_kw.get('url'),
+                        'clicks_m1': current_clicks,      # ✅ Actual en P1
+                        'clicks_m2': comparison_clicks,   # ✅ Comparación en P2
+                        'delta_clicks_percent': calculate_percentage_change(current_clicks, comparison_clicks),  # ✅ (P1 / P2 - 1) * 100
+                        'impressions_m1': current_impressions,
+                        'impressions_m2': comparison_impressions,
+                        'delta_impressions_percent': calculate_percentage_change(current_impressions, comparison_impressions),
+                        'ctr_m1': current_ctr,
+                        'ctr_m2': comparison_ctr,
+                        'delta_ctr_percent': current_ctr - comparison_ctr,  # Diferencia absoluta en puntos porcentuales
+                        'position_m1': current_pos,
+                        'position_m2': comparison_pos,
+                        'delta_position_absolute': comparison_pos - current_pos if current_pos is not None and comparison_pos is not None else ('New' if current_pos is not None else 'Lost')
+                    })
+            
+            return comparison_data
 
-    # ✅ NUEVO: Generar datos de keywords SIEMPRE (con o sin comparación)
-    keyword_comparison_data = generate_keyword_comparison(current_keywords, comparison_keywords)
+        # ✅ NUEVO: Generar datos de keywords SIEMPRE (con o sin comparación)
+        keyword_comparison_data = generate_keyword_comparison(current_keywords, comparison_keywords)
 
-    # ✅ ACTUALIZADA: Respuesta con información de períodos y modo de análisis
-    response_data = {
-        'pages': pages_payload_list,  # Para tabla de URLs (páginas individuales)
-        'summary': summary_payload_list,  # Para métricas agregadas 
-        'keywordStats': kw_stats_data,
-        'keyword_comparison_data': keyword_comparison_data,  # ✅ NUEVO: Siempre incluido
-        'selected_country': selected_country,
-        'analysis_mode': analysis_mode,  # ✅ NUEVO: Modo de análisis
-        'analysis_info': {
-            'mode': analysis_mode,
-            'is_property_analysis': analysis_mode == "property",
-            'domain': site_url_sc,
-            'url_count': len(form_urls)
-        },
-        'periods': {
-            'current': {
-                'start_date': current_start_date,
-                'end_date': current_end_date,
-                'label': f"{current_start_date} to {current_end_date}"
+        # ✅ ACTUALIZADA: Respuesta con información de períodos y modo de análisis
+        response_data = {
+            'pages': pages_payload_list,  # Para tabla de URLs (páginas individuales)
+            'summary': summary_payload_list,  # Para métricas agregadas 
+            'keywordStats': kw_stats_data,
+            'keyword_comparison_data': keyword_comparison_data,  # ✅ NUEVO: Siempre incluido
+            'selected_country': selected_country,
+            'analysis_mode': analysis_mode,  # ✅ NUEVO: Modo de análisis
+            'analysis_info': {
+                'mode': analysis_mode,
+                'is_property_analysis': analysis_mode == "property",
+                'domain': site_url_sc,
+                'url_count': len(form_urls)
             },
-            'has_comparison': has_comparison,
-            'comparison_mode': comparison_mode
+            'periods': {
+                'current': {
+                    'start_date': current_start_date,
+                    'end_date': current_end_date,
+                    'label': f"{current_start_date} to {current_end_date}"
+                },
+                'has_comparison': has_comparison,
+                'comparison_mode': comparison_mode
+            }
         }
-    }
-    
-    if has_comparison and comparison_start_date and comparison_end_date:
-        response_data['periods']['comparison'] = {
-            'start_date': comparison_start_date,
-            'end_date': comparison_end_date,
-            'label': f"{comparison_start_date} to {comparison_end_date}"
-        }
-    
-    logger.info(f"[RESPONSE] Keywords encontradas: {len(keyword_comparison_data)}")
-    logger.info(f"[RESPONSE] Total KWs: {kw_stats_data.get('overall', {}).get('total', 0)}")
-    
-    return jsonify(response_data)
+        
+        if has_comparison and comparison_start_date and comparison_end_date:
+            response_data['periods']['comparison'] = {
+                'start_date': comparison_start_date,
+                'end_date': comparison_end_date,
+                'label': f"{comparison_start_date} to {comparison_end_date}"
+            }
+        
+        logger.info(f"[RESPONSE] Keywords encontradas: {len(keyword_comparison_data)}")
+        logger.info(f"[RESPONSE] Total KWs: {kw_stats_data.get('overall', {}).get('total', 0)}")
+        
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error(f"Error general en get_data: {e}", exc_info=True)
+        return jsonify({'error': f'Error procesando solicitud: {str(e)}'}), 500
 
 @app.route('/download-excel', methods=['POST'])
 @login_required  # NUEVO: Requiere autenticación
