@@ -4,6 +4,9 @@ import { elems } from './utils.js';
 // Variable para almacenar la instancia de DataTable de URLs
 let urlsDataTable = null;
 
+// ✅ NUEVO: Variable global para almacenar los datos de keywords
+let globalKeywordData = [];
+
 // Funciones auxiliares para formateo (reutilizadas de la tabla de keywords)
 function formatPercentageChange(value, isCTR = false) {
   if (value === "Infinity") return '+∞%';
@@ -564,16 +567,19 @@ export function renderKeywords(keywordStats = {}) {
       </div>
     `;
     elems.keywordOverviewDiv.style.display = 'flex';
+    
+    // ✅ NOTA: No se agregan event listeners a las tarjetas del overview
+    // El overview es solo informativo, no clickeable
   }
 
   if (elems.keywordCategoryDiv) {
     const buckets = keywordStats;
     
-    const buildModernCatCard = (title, stat = { current: 0, new: 0, lost: 0, stay: 0 }) => {
+    const buildModernCatCard = (title, stat = { current: 0, new: 0, lost: 0, stay: 0 }, dataRange) => {
       const hasComparison = (stat.new > 0 || stat.lost > 0);
       
       return `
-        <div class="category-card">
+        <div class="category-card clickable-card" data-position-range="${dataRange}" style="cursor: pointer;">
           <div class="card-icon"><i class="fas fa-layer-group"></i></div>
           <div class="value">${(stat.current ?? 0).toLocaleString()}</div>
           <div class="subtitle">${title}</div>
@@ -590,12 +596,22 @@ export function renderKeywords(keywordStats = {}) {
     };
     
     elems.keywordCategoryDiv.innerHTML = [
-      buildModernCatCard('Positions 1 – 3', buckets.top3),
-      buildModernCatCard('Positions 4 – 10', buckets.top10),
-      buildModernCatCard('Positions 11 – 20', buckets.top20),
-      buildModernCatCard('Positions 20 or more', buckets.top20plus)
+      buildModernCatCard('Positions 1 – 3', buckets.top3, 'top3'),
+      buildModernCatCard('Positions 4 – 10', buckets.top10, 'top10'),
+      buildModernCatCard('Positions 11 – 20', buckets.top20, 'top20'),
+      buildModernCatCard('Positions 20 or more', buckets.top20plus, 'top20plus')
     ].join('');
     elems.keywordCategoryDiv.style.display = 'grid';
+    
+    // ✅ NUEVO: Agregar event listeners para las tarjetas de categorías
+    const categoryCards = elems.keywordCategoryDiv.querySelectorAll('.clickable-card');
+    categoryCards.forEach(card => {
+      card.addEventListener('click', function() {
+        const positionRange = this.dataset.positionRange;
+        const title = this.querySelector('.subtitle').textContent;
+        openKeywordModal(positionRange, title);
+      });
+    });
   }
 
   if (elems.keywordsSection) elems.keywordsSection.style.display = 'block';
@@ -938,6 +954,20 @@ export function renderTable(pages) {
     // ✅ NUEVO: Para columnas de números con separadores de miles
     DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
   }
+  
+  // ✅ NUEVO: Aplicar tipos de ordenamiento personalizados para el modal
+  if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
+    // Asegurar que los tipos personalizados estén disponibles para el modal
+    if (!DataTable.ext.type.order['percent-custom-pre']) {
+      DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
+    }
+    if (!DataTable.ext.type.order['position-custom-pre']) {
+      DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
+    }
+    if (!DataTable.ext.type.order['thousands-separated-pre']) {
+      DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
+    }
+  }
 
   // ✅ Configuración de DataTable adaptada
   const columnDefs = [
@@ -993,3 +1023,603 @@ export function renderTableError() {
   if (elems.resultsSection) elems.resultsSection.style.display = 'block';
   if (elems.resultsTitle) elems.resultsTitle.style.display = 'block';
 }
+
+// ✅ NUEVO: Función para filtrar keywords por rango de posiciones
+function filterKeywordsByPosition(keywordData, positionRange) {
+  if (!keywordData || keywordData.length === 0) return [];
+  
+  return keywordData.filter(keyword => {
+    const position = keyword.position_m1;
+    if (typeof position !== 'number') return false;
+    
+    switch (positionRange) {
+      case 'top3':
+        return position >= 1 && position <= 3;
+      case 'top10':
+        return position >= 4 && position <= 10;
+      case 'top20':
+        return position >= 11 && position <= 20;
+      case 'top20plus':
+        return position > 20;
+      default:
+        return true;
+    }
+  });
+}
+
+// ✅ NUEVO: Variables para almacenar datos pre-procesados y DataTables del modal
+let preProcessedModalData = {
+  top3: { keywords: [], dataTable: null, analysisType: 'single' },
+  top10: { keywords: [], dataTable: null, analysisType: 'single' },
+  top20: { keywords: [], dataTable: null, analysisType: 'single' },
+  top20plus: { keywords: [], dataTable: null, analysisType: 'single' }
+};
+
+let modalContainersCreated = false;
+
+// ✅ NUEVO: Funciones auxiliares para el modal (replicadas de ui-keyword-comparison-table.js)
+function getAnalysisTypeModal(keywordData) {
+  if (!keywordData || keywordData.length === 0) return 'empty';
+  
+  // Verificar si hay datos de comparación reales
+  const hasComparison = keywordData.some(row => 
+    (row.clicks_m2 > 0 || row.impressions_m2 > 0) && 
+    row.delta_clicks_percent !== 'New'
+  );
+  
+  return hasComparison ? 'comparison' : 'single';
+}
+
+function formatPercentageChangeModal(value, isCTR = false) {
+  if (value === 'Infinity' || value === Infinity) {
+    return '+∞%';
+  }
+  if (value === '-Infinity' || value === -Infinity) {
+    return '-∞%';
+  }
+  if (value === 'New' || value === 'Nuevo') {
+    return 'New';
+  }
+  if (value === 'Lost' || value === 'Perdido') {
+    return 'Lost';
+  }
+  if (typeof value === 'number') {
+    if (isCTR) {
+      return value >= 0 ? `+${value.toFixed(2)}pp` : `${value.toFixed(2)}pp`;
+    } else {
+      return value >= 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
+    }
+  }
+  return 'N/A';
+}
+
+function formatPositionModal(value) {
+  return typeof value === 'number' ? value.toFixed(1) : 'N/A';
+}
+
+function formatPositionDeltaModal(delta, pos1, pos2) {
+  if (delta === 'New' || delta === 'Nuevo') return 'New';
+  if (delta === 'Lost' || delta === 'Perdido') return 'Lost';
+  if (typeof delta === 'number') {
+    return delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
+  }
+  return 'N/A';
+}
+
+function updateModalTableHeaders(analysisType) {
+  const table = document.getElementById('keywordModalTable');
+  if (!table) return;
+  
+  const headers = table.querySelectorAll('thead th');
+  
+  if (analysisType === 'single') {
+    // Headers para período único
+    if (headers[2]) headers[2].textContent = 'Clicks';
+    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
+    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
+    if (headers[5]) headers[5].textContent = 'Impressions';
+    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
+    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
+    if (headers[8]) headers[8].textContent = 'CTR (%)';
+    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
+    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
+    if (headers[11]) headers[11].textContent = 'Position';
+    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
+    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
+  } else {
+    // Headers para comparación (mostrar todos)
+    if (headers[2]) headers[2].textContent = 'Clicks P1';
+    if (headers[3]) {
+      headers[3].style.display = '';
+      headers[3].textContent = 'Clicks P2';
+    }
+    if (headers[4]) {
+      headers[4].style.display = '';
+      headers[4].textContent = 'ΔClicks (%)';
+    }
+    if (headers[5]) headers[5].textContent = 'Impressions P1';
+    if (headers[6]) {
+      headers[6].style.display = '';
+      headers[6].textContent = 'Impressions P2';
+    }
+    if (headers[7]) {
+      headers[7].style.display = '';
+      headers[7].textContent = 'ΔImp. (%)';
+    }
+    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
+    if (headers[9]) {
+      headers[9].style.display = '';
+      headers[9].textContent = 'CTR P2 (%)';
+    }
+    if (headers[10]) {
+      headers[10].style.display = '';
+      headers[10].textContent = 'ΔCTR (%)';
+    }
+    if (headers[11]) headers[11].textContent = 'Pos P1';
+    if (headers[12]) {
+      headers[12].style.display = '';
+      headers[12].textContent = 'Pos P2';
+    }
+    if (headers[13]) {
+      headers[13].style.display = '';
+      headers[13].textContent = 'ΔPos';
+    }
+  }
+}
+
+// ✅ NUEVO: Función para actualizar headers de la tabla según el tipo de análisis para un rango específico
+function updateModalTableHeadersForRange(range, analysisType) {
+  const table = document.getElementById(`keywordModalTable-${range}`);
+  if (!table) return;
+  
+  const headers = table.querySelectorAll('thead th');
+  
+  if (analysisType === 'single') {
+    // Headers para período único
+    if (headers[2]) headers[2].textContent = 'Clicks';
+    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
+    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
+    if (headers[5]) headers[5].textContent = 'Impressions';
+    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
+    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
+    if (headers[8]) headers[8].textContent = 'CTR (%)';
+    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
+    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
+    if (headers[11]) headers[11].textContent = 'Position';
+    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
+    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
+  } else {
+    // Headers para comparación (mostrar todos)
+    if (headers[2]) headers[2].textContent = 'Clicks P1';
+    if (headers[3]) {
+      headers[3].style.display = '';
+      headers[3].textContent = 'Clicks P2';
+    }
+    if (headers[4]) {
+      headers[4].style.display = '';
+      headers[4].textContent = 'ΔClicks (%)';
+    }
+    if (headers[5]) headers[5].textContent = 'Impressions P1';
+    if (headers[6]) {
+      headers[6].style.display = '';
+      headers[6].textContent = 'Impressions P2';
+    }
+    if (headers[7]) {
+      headers[7].style.display = '';
+      headers[7].textContent = 'ΔImp. (%)';
+    }
+    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
+    if (headers[9]) {
+      headers[9].style.display = '';
+      headers[9].textContent = 'CTR P2 (%)';
+    }
+    if (headers[10]) {
+      headers[10].style.display = '';
+      headers[10].textContent = 'ΔCTR (%)';
+    }
+    if (headers[11]) headers[11].textContent = 'Pos P1';
+    if (headers[12]) {
+      headers[12].style.display = '';
+      headers[12].textContent = 'Pos P2';
+    }
+    if (headers[13]) {
+      headers[13].style.display = '';
+      headers[13].textContent = 'ΔPos';
+    }
+  }
+}
+
+// ✅ NUEVO: Función para abrir el modal de keywords (versión optimizada con pre-procesamiento)
+function openKeywordModal(positionRange, label) {
+  console.log('🔍 Abriendo modal para rango:', positionRange, 'label:', label);
+  
+  // Verificar que los datos estén pre-procesados
+  if (!preProcessedModalData[positionRange]) {
+    console.error('❌ No se encontraron datos pre-procesados para el rango:', positionRange);
+    return;
+  }
+  
+  const data = preProcessedModalData[positionRange];
+  
+  if (data.keywords.length === 0) {
+    console.log('⚠️  No hay keywords en este rango de posición');
+    return;
+  }
+  
+  // Verificar que los contenedores estén creados
+  if (!modalContainersCreated) {
+    createAllModalContainers();
+  }
+  
+  // Verificar que el modal específico existe
+  const modal = document.getElementById(`keywordModal-${positionRange}`);
+  if (!modal) {
+    console.error('❌ Modal no encontrado para rango:', positionRange);
+    return;
+  }
+  
+  // Verificar que la DataTable está lista
+  if (!data.dataTable && data.keywords.length > 0) {
+    console.log('🔄 DataTable no está lista, creando...');
+    createDataTableForRange(positionRange, data.keywords, data.analysisType);
+  }
+  
+  // Mostrar el modal instantáneamente
+  modal.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+  
+  console.log(`✅ Modal abierto instantáneamente para: ${label} (${data.keywords.length} keywords)`);
+}
+
+// ✅ NUEVO: Función para crear todos los contenedores de modales
+function createAllModalContainers() {
+  if (modalContainersCreated) return;
+  
+  console.log('🔍 Creando contenedores de modales pre-cargados...');
+  
+  const ranges = ['top3', 'top10', 'top20', 'top20plus'];
+  const labels = {
+    top3: 'Top 1-3',
+    top10: 'Posiciones 4-10', 
+    top20: 'Posiciones 11-20',
+    top20plus: 'Posiciones 20+'
+  };
+
+  ranges.forEach(range => {
+    const modalHTML = `
+      <div id="keywordModal-${range}" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="keywordModalTitle-${range}"><i class="fas fa-search"></i> Keywords en ${labels[range]}</h3>
+            <span class="close-btn" onclick="closeKeywordModal('${range}')">&times;</span>
+          </div>
+          <div class="modal-body">
+            <div class="keyword-modal-info">
+              <i class="fas fa-info-circle"></i>
+              <span>Información: Estas son las keywords que se posicionan en el rango seleccionado. Haz clic en el icono de búsqueda para ver el SERP.</span>
+            </div>
+            <div class="table-responsive-container">
+              <table id="keywordModalTable-${range}" class="display" style="width:100%;">
+                <thead>
+                  <tr>
+                    <th>View SERP</th>
+                    <th>Keyword</th>
+                    <th>Clicks P1</th>
+                    <th>Clicks P2</th>
+                    <th>ΔClicks (%)</th>
+                    <th>Impressions P1</th>
+                    <th>Impressions P2</th>
+                    <th>ΔImp. (%)</th>
+                    <th>CTR P1 (%)</th>
+                    <th>CTR P2 (%)</th>
+                    <th>ΔCTR (%)</th>
+                    <th>Pos P1</th>
+                    <th>Pos P2</th>
+                    <th>ΔPos</th>
+                  </tr>
+                </thead>
+                <tbody id="keywordModalTableBody-${range}"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Agregar event listener para cerrar el modal al hacer click fuera
+    const modal = document.getElementById(`keywordModal-${range}`);
+    if (modal) {
+      modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+          closeKeywordModal(range);
+        }
+      });
+    }
+  });
+  
+  modalContainersCreated = true;
+  console.log('✅ Contenedores de modales creados para todos los rangos');
+}
+
+// ✅ NUEVO: Función para crear DataTable para un rango específico
+function createDataTableForRange(range, keywords, analysisType) {
+  // Destruir DataTable anterior si existe
+  if (preProcessedModalData[range].dataTable) {
+    preProcessedModalData[range].dataTable.destroy();
+    preProcessedModalData[range].dataTable = null;
+  }
+
+  const tableId = `keywordModalTable-${range}`;
+  const tableBodyId = `keywordModalTableBody-${range}`;
+  const modalTableBody = document.getElementById(tableBodyId);
+  
+  if (!modalTableBody) {
+    console.error(`❌ No se encontró el tbody para ${range}`);
+    return;
+  }
+
+  // Limpiar tabla
+  modalTableBody.innerHTML = '';
+  
+  if (keywords.length === 0) {
+    modalTableBody.innerHTML = '<tr><td colspan="14">No se encontraron keywords en este rango de posiciones.</td></tr>';
+    return;
+  }
+
+  console.log(`🔄 Creando DataTable para ${range} con ${keywords.length} keywords...`);
+  const startTime = performance.now();
+
+  // Llenar la tabla con las keywords
+  keywords.forEach(keyword => {
+    // Calcular clases CSS para deltas
+    const deltaClicksClass =
+      (keyword.delta_clicks_percent === 'Infinity' || (typeof keyword.delta_clicks_percent === 'number' && keyword.delta_clicks_percent > 0))
+        ? 'positive-change'
+        : (typeof keyword.delta_clicks_percent === 'number' && keyword.delta_clicks_percent < 0)
+          ? 'negative-change'
+          : '';
+    const deltaImprClass =
+      (keyword.delta_impressions_percent === 'Infinity' || (typeof keyword.delta_impressions_percent === 'number' && keyword.delta_impressions_percent > 0))
+        ? 'positive-change'
+        : (typeof keyword.delta_impressions_percent === 'number' && keyword.delta_impressions_percent < 0)
+          ? 'negative-change'
+          : '';
+    const deltaCtrClass =
+      (keyword.delta_ctr_percent === 'Infinity' || (typeof keyword.delta_ctr_percent === 'number' && keyword.delta_ctr_percent > 0))
+        ? 'positive-change'
+        : (typeof keyword.delta_ctr_percent === 'number' && keyword.delta_ctr_percent < 0)
+          ? 'negative-change'
+          : '';
+    const deltaPosClass =
+      (keyword.delta_position_absolute === 'New' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute > 0))
+        ? 'positive-change'
+        : (keyword.delta_position_absolute === 'Lost' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute < 0))
+          ? 'negative-change'
+          : '';
+
+    const tr = document.createElement('tr');
+    
+    // Configurar visibilidad de columnas según el tipo
+    const p2ColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
+    const deltaColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
+    
+    tr.innerHTML = `
+      <td class="dt-body-center">
+        <i class="fas fa-search serp-icon"
+           data-keyword="${escapeHtml(keyword.keyword)}"
+           data-url="${escapeHtml(keyword.url || '')}"
+           title="Ver SERP para ${escapeHtml(keyword.keyword)}"
+           style="cursor:pointer;"></i>
+      </td>
+      <td class="dt-body-left kw-cell">${escapeHtml(keyword.keyword || 'N/A')}</td>
+      <td>${(keyword.clicks_m1 ?? 0).toLocaleString('es-ES')}</td>
+      <td ${p2ColumnsStyle}>${(keyword.clicks_m2 ?? 0).toLocaleString('es-ES')}</td>
+      <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_clicks_percent)}</td>
+      <td>${(keyword.impressions_m1 ?? 0).toLocaleString('es-ES')}</td>
+      <td ${p2ColumnsStyle}>${(keyword.impressions_m2 ?? 0).toLocaleString('es-ES')}</td>
+      <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_impressions_percent)}</td>
+      <td>${typeof keyword.ctr_m1 === 'number' ? (keyword.ctr_m1 * 100).toFixed(2) + '%' : 'N/A'}</td>
+      <td ${p2ColumnsStyle}>${typeof keyword.ctr_m2 === 'number' ? (keyword.ctr_m2 * 100).toFixed(2) + '%' : 'N/A'}</td>
+      <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_ctr_percent, true)}</td>
+      <td>${formatPositionModal(keyword.position_m1)}</td>
+      <td ${p2ColumnsStyle}>${formatPositionModal(keyword.position_m2)}</td>
+      <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDeltaModal(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>
+    `;
+    modalTableBody.appendChild(tr);
+  });
+
+  // Agregar event listeners para los iconos de SERP
+  const serpIcons = modalTableBody.querySelectorAll('.serp-icon');
+  serpIcons.forEach(icon => {
+    icon.addEventListener('click', () => {
+      if (typeof openSerpModal === 'function') {
+        openSerpModal(icon.dataset.keyword, icon.dataset.url);
+      }
+    });
+  });
+
+  // Actualizar headers según el tipo de análisis
+  updateModalTableHeadersForRange(range, analysisType);
+
+  // Configurar columnas para DataTable
+  const columnDefs = [
+    { targets: '_all', className: 'dt-body-right' },
+    { targets: [0, 1], className: 'dt-body-left' },
+    { targets: 0, orderable: false },
+    { targets: [2, 3], type: 'thousands-separated-pre' },
+    { targets: [4], type: 'delta-custom-pre' },
+    { targets: [5, 6], type: 'thousands-separated-pre' },
+    { targets: [7], type: 'delta-custom-pre' },
+    { targets: [8, 9], type: 'percent-custom-pre' },
+    { targets: [10], type: 'delta-custom-pre' },
+    { targets: [11, 12], type: 'position-custom-pre' },
+    { targets: [13], type: 'delta-custom-pre' }
+  ];
+
+  // Ocultar columnas para período único
+  if (analysisType === 'single') {
+    columnDefs.push(
+      { targets: [3, 4, 6, 7, 9, 10, 12, 13], visible: false }
+    );
+  }
+
+  // Asegurar que los tipos de ordenamiento estén disponibles
+  if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
+    if (!DataTable.ext.type.order['delta-custom-pre']) {
+      DataTable.ext.type.order['delta-custom-pre'] = parseSortableValue;
+    }
+    if (!DataTable.ext.type.order['thousands-separated-pre']) {
+      DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
+    }
+    if (!DataTable.ext.type.order['percent-custom-pre']) {
+      DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
+    }
+    if (!DataTable.ext.type.order['position-custom-pre']) {
+      DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
+    }
+  }
+
+  // Inicializar DataTable
+  if (window.DataTable) {
+    preProcessedModalData[range].dataTable = new DataTable(`#${tableId}`, {
+      pageLength: 10,
+      lengthMenu: [10, 25, 50, 100],
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
+      scrollX: true,
+      responsive: false,
+      columnDefs: columnDefs,
+      order: [[2, 'desc']], // Ordenar por clicks M1 de mayor a menor
+      drawCallback: () => {
+        if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
+      }
+    });
+    
+    const endTime = performance.now();
+    console.log(`✅ DataTable para ${range} creado en ${(endTime - startTime).toFixed(2)}ms`);
+  }
+}
+
+// ✅ NUEVO: Función para cerrar el modal
+function closeKeywordModal(range = null) {
+  // Si no se especifica rango, cerrar todos los modales
+  if (!range) {
+    const ranges = ['top3', 'top10', 'top20', 'top20plus'];
+    ranges.forEach(r => {
+      const modal = document.getElementById(`keywordModal-${r}`);
+      if (modal && modal.classList.contains('modal-open')) {
+        modal.classList.remove('modal-open');
+      }
+    });
+    document.body.style.overflow = '';
+    console.log('✅ Todos los modales cerrados');
+    return;
+  }
+  
+  // Cerrar modal específico
+  const modal = document.getElementById(`keywordModal-${range}`);
+  if (modal) {
+    modal.classList.remove('modal-open');
+    document.body.style.overflow = '';
+  }
+  
+  console.log(`✅ Modal cerrado para rango: ${range}`);
+}
+
+// ✅ NUEVO: Función para pre-procesar datos por rangos de posición
+function preprocessKeywordDataByRanges(keywordData) {
+  if (!keywordData || keywordData.length === 0) {
+    // Limpiar datos existentes
+    Object.keys(preProcessedModalData).forEach(range => {
+      preProcessedModalData[range].keywords = [];
+      if (preProcessedModalData[range].dataTable) {
+        preProcessedModalData[range].dataTable.destroy();
+        preProcessedModalData[range].dataTable = null;
+      }
+    });
+    return;
+  }
+
+  console.log('🔄 Pre-procesando keywords por rangos...');
+  const startTime = performance.now();
+
+  // Determinar tipo de análisis una vez
+  const analysisType = getAnalysisTypeModal(keywordData);
+  
+  // Clasificar keywords por rangos
+  const ranges = {
+    top3: keywordData.filter(kw => {
+      const pos = kw.position_m1;
+      return typeof pos === 'number' && pos >= 1 && pos <= 3;
+    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
+    
+    top10: keywordData.filter(kw => {
+      const pos = kw.position_m1;
+      return typeof pos === 'number' && pos >= 4 && pos <= 10;
+    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
+    
+    top20: keywordData.filter(kw => {
+      const pos = kw.position_m1;
+      return typeof pos === 'number' && pos >= 11 && pos <= 20;
+    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
+    
+    top20plus: keywordData.filter(kw => {
+      const pos = kw.position_m1;
+      return typeof pos === 'number' && pos > 20;
+    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
+  };
+
+  // Actualizar datos pre-procesados
+  Object.keys(ranges).forEach(range => {
+    preProcessedModalData[range].keywords = ranges[range];
+    preProcessedModalData[range].analysisType = analysisType;
+  });
+
+  const endTime = performance.now();
+  console.log(`✅ Keywords pre-procesadas en ${(endTime - startTime).toFixed(2)}ms:`, {
+    top3: ranges.top3.length,
+    top10: ranges.top10.length,
+    top20: ranges.top20.length,
+    top20plus: ranges.top20plus.length,
+    analysisType: analysisType
+  });
+
+  // Pre-crear las DataTables para cada rango
+  createPreloadedDataTables();
+}
+
+// ✅ NUEVO: Función para crear DataTables pre-cargadas
+function createPreloadedDataTables() {
+  if (!modalContainersCreated) {
+    createAllModalContainers();
+  }
+
+  Object.keys(preProcessedModalData).forEach(range => {
+    const data = preProcessedModalData[range];
+    if (data.keywords.length > 0) {
+      createDataTableForRange(range, data.keywords, data.analysisType);
+    }
+  });
+}
+
+// ✅ NUEVO: Función para actualizar los datos globales de keywords
+export function updateGlobalKeywordData(keywordData) {
+  globalKeywordData = keywordData || [];
+  console.log('📊 Datos globales de keywords actualizados:', globalKeywordData.length);
+  
+  // Pre-procesar inmediatamente
+  preprocessKeywordDataByRanges(keywordData);
+}
+
+// ✅ NUEVO: Función auxiliar para escapar HTML
+function escapeHtml(text) {
+  if (typeof text !== 'string') return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ✅ NUEVO: Hacer las funciones globales para que puedan ser llamadas desde onclick
+window.openKeywordModal = openKeywordModal;
+window.closeKeywordModal = closeKeywordModal;

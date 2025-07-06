@@ -14,10 +14,11 @@ import {
   renderKeywords,
   renderInsights,
   renderTable,
-  renderTableError
+  renderTableError,
+  updateGlobalKeywordData
 } from './ui-render.js';
 import { renderKeywordComparisonTable, clearKeywordComparisonTable } from './ui-keyword-comparison-table.js';
-import { enableAIOverviewAnalysis } from './ui-ai-overview.js';
+import { enableAIOverviewAnalysis } from './ui-ai-overview-main.js';
 import { 
   initStickyActions, 
   showStickyActions, 
@@ -257,7 +258,8 @@ export async function handleFormSubmit(e) {
       analysisMode: data.analysis_mode
     });
 
-    
+    // ✅ NUEVO: Actualizar datos globales de keywords para los modales
+    updateGlobalKeywordData(data.keyword_comparison_data || []);
 
     // ✅ MODIFICADO: Usar datos de summary para métricas agregadas, pages para tabla
     const summaryData = data.summary && data.summary.length > 0 ? data.summary : data.pages;
