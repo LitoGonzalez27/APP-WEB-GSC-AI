@@ -1,0 +1,76 @@
+/*=============================================
+  ESTRUCTURA DEL ARCHIVO:
+  1. Modal de Keywords (con DataTables)
+  2. Modal de SERP y destacado
+=============================================*/
+
+/*=============================================
+  1. MODAL DE KEYWORDS
+=============================================*/
+
+/* Backdrop y estado */
+[id^="keywordModal-"] {
+  backdrop-filter: blur(8px); z-index: 1050; display: flex !important; align-items: center; justify-content: center;
+}
+[id^="keywordModal-"]:not(.modal-open) { display: none !important; }
+[id^="keywordModal-"].modal-open { opacity: 1; visibility: visible; }
+
+/* Contenido */
+[id^="keywordModal-"] .modal-content {
+  background: var(--card-bg); border-radius: 16px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15); border: 1px solid var(--border-color); width: 95vw; max-width: 1400px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; transform: scale(0.95); transition: transform 0.3s ease;
+}
+[id^="keywordModal-"].modal-open .modal-content { transform: scale(1); }
+
+/* Header y Body */
+[id^="keywordModal-"] .modal-header {
+  display: flex; justify-content: space-between; align-items: center; padding: 24px 32px; border-bottom: 1px solid var(--border-color);
+}
+[id^="keywordModal-"] .modal-header h3 { font-size: 1.25rem; font-weight: 600; color: var(--heading); margin: 0; display: flex; align-items: center; gap: 12px; }
+[id^="keywordModal-"] .close-btn { font-size: 1.5rem; color: var(--text-color); cursor: pointer; }
+[id^="keywordModal-"] .modal-body { padding: 24px 32px; flex: 1; overflow-y: auto; }
+
+/* Info banner */
+.keyword-modal-info {
+  background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+}
+.keyword-modal-info i { color: #3B82F6; }
+
+/* DataTables */
+.table-responsive-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
+.dataTables_wrapper { padding: 0; }
+.dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { padding: 16px 20px 8px; background: rgba(0, 0, 0, 0.02); border-bottom: 1px solid var(--border-color); }
+.dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_paginate { padding: 16px 20px; background: rgba(0, 0, 0, 0.02); border-top: 1px solid var(--border-color); }
+.dataTables_paginate .paginate_button { padding: 8px 12px; margin: 0 2px; border: 1px solid var(--border-color); border-radius: 6px; }
+.dataTables_paginate .paginate_button:hover { background: #6366F1; color: white; border-color: #6366F1; }
+.dataTables_paginate .paginate_button.current { background: #6366F1; color: white; border-color: #6366F1; }
+
+[id^="keywordModal-"] .positive-change { color: #10B981 !important; font-weight: 600; }
+[id^="keywordModal-"] .negative-change { color: #EF4444 !important; font-weight: 600; }
+
+
+/*=============================================
+  2. MODAL DE SERP Y DESTACADO
+=============================================*/
+
+#serpModal { display: none; z-index: 10000; }
+#serpModal.show { display: block; }
+#serpModal .modal-content { background-color: #fff; margin: 20px auto; width: 90%; max-width: 1200px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); border-radius: var(--radius-md); }
+#serpModal .modal-header { background-color: #f8f9fa; padding: var(--spacing-md) var(--spacing-lg); border-bottom: 1px solid #dee2e6; }
+#serpModal .modal-body { padding: var(--spacing-lg); max-height: calc(100vh - 200px); overflow-y: auto; }
+#serpModal img { max-width: 100%; }
+
+.highlighted-result {
+    position: relative; background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%) !important; border: 2px solid #4caf50 !important; border-radius: 12px !important; padding: 16px !important; margin: 12px 0 !important; box-shadow: 0 4px 16px rgba(76, 175, 80, 0.15) !important;
+}
+
+.highlighted-result::before {
+    content: "👑 TU RESULTADO"; position: absolute; top: -8px; right: 16px; background: linear-gradient(135deg, #4caf50, #388e3c); color: white; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+}
+
+/* Dark Mode */
+body.dark-mode [id^="keywordModal-"] { background: rgba(0, 0, 0, 0.7); }
+body.dark-mode .modal-content { background: var(--card-bg); border-color: var(--border-color); }
+body.dark-mode .dataTables_paginate .paginate_button { background: var(--card-bg); color: var(--text-color); }
+body.dark-mode .dataTables_paginate .paginate_button:hover { background: #6366F1; }
+body.dark-mode .positive-change { color: #34D399 !important; }
+body.dark-mode .negative-change { color: #F87171 !important; }

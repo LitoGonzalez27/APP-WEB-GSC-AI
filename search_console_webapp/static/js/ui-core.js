@@ -185,7 +185,11 @@ export async function handleFormSubmit(e) {
   if (elems.keywordOverviewDiv) elems.keywordOverviewDiv.innerHTML = '';
   if (elems.keywordCategoryDiv) elems.keywordCategoryDiv.innerHTML = '';
   clearKeywordComparisonTable();
-  if (elems.tableBody) elems.tableBody.innerHTML = '';
+  
+  // ✅ MEJORADO: No limpiar tableBody aquí, se hará en renderTable con cleanupPreviousTable()
+  // Esto evita conflictos y permite una limpieza más robusta
+  console.log('🔄 Preparando para nueva consulta - limpieza básica realizada');
+  
   if (elems.aiAnalysisMessage) elems.aiAnalysisMessage.innerHTML = '';
   if (elems.aiOverviewResultsContainer) elems.aiOverviewResultsContainer.innerHTML = '';
 
@@ -285,13 +289,7 @@ export async function handleFormSubmit(e) {
       const urlsStats = generateUrlsStats(urlsData);
       console.log('📋 Estadísticas de URLs generadas:', urlsStats);
       
-      // ✅ Opcional: Agregar al título información sobre URLs
-      if (elems.resultsTitle) {
-        const baseTitle = elems.resultsTitle.textContent;
-        if (!baseTitle.includes('URLs:')) {
-          elems.resultsTitle.textContent = `${baseTitle} (${urlsStats.total_urls} URLs analyzed)`;
-        }
-      }
+      // ✅ ELIMINADO: Ya no agregamos conteo dinámico al título - se mantiene limpio como "URLs Performance"
     }
 
     const keywordData = data.keyword_comparison_data || [];

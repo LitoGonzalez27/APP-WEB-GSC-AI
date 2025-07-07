@@ -36,7 +36,7 @@
     transition: all var(--transition-base);
     z-index: 1000;
     margin-top: var(--spacing-xs);
-    font-size: 0.9rem;
+    font-size: 13px !important;
     line-height: 1.5;
     backdrop-filter: blur(10px);
 }
@@ -57,6 +57,10 @@
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
     border-bottom: 8px solid var(--card-bg);
+}
+
+.urls-info-tooltip p{
+    font-size:13px;
 }
 
 .urls-info-tooltip strong {

@@ -10,7 +10,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='modulos-especificos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modal-progreso.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modales-datos.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='serp-modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
@@ -411,7 +413,8 @@
   </section>
 
   <section id="resultsSection" class="glass-effect" style="display:none;">
-  <h2 id="resultsTitle">Results by URL</h2>
+  <h2 id="resultsTitle">URLs Performance</h2>
+  <div class="urls-overview-subtitle">Performance comparison between selected periods</div>
   <div id="resultsBlock" class="table-responsive-container">
     <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
       <thead>

@@ -50,12 +50,28 @@ export function showProgress(steps) {
   currentStep = 0;
   currentProgress = 0;
   
-  // Mostrar modal
-  const modal = document.getElementById('progressModal');
+  // Buscar modal existente
+  let modal = document.getElementById('progressModal');
+  
+  // ✅ NUEVO: Si el modal no existe (fue removido en análisis anteriores), recrearlo
   if (!modal) {
-    console.error('Modal not found');
+    console.log('🔄 Modal de progreso no encontrado, recreando...');
+    createProgressModal();
+    modal = document.getElementById('progressModal');
+  }
+  
+  if (!modal) {
+    console.error('❌ No se pudo crear o encontrar el modal de progreso');
     return;
   }
+  
+  // ✅ NUEVO: Resetear estilos que podrían haber quedado del cierre anterior
+  modal.style.display = '';
+  modal.style.opacity = '';
+  modal.style.visibility = '';
+  modal.style.pointerEvents = '';
+  modal.style.zIndex = '';
+  modal.style.transition = '';
   
   modal.classList.add('show');
   document.body.classList.add('modal-open');
@@ -527,14 +543,9 @@ export function completeProgress() {
       modal.style.pointerEvents = 'none';
       modal.style.zIndex = '-9999';
       
-      // Remover del DOM si es necesario
-      if (isMobile) {
-        setTimeout(() => {
-          if (modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-          }
-        }, 100);
-      }
+      // ✅ MEJORADO: No remover del DOM para evitar problemas en análisis posteriores
+      // El modal se reutilizará en futuros análisis
+      console.log('🔄 Modal ocultado pero mantenido en DOM para reutilización');
     }
     
     // Limpiar body
@@ -597,4 +608,108 @@ export function completeProgress() {
   // Iniciar el primer intento de cierre después del delay base
   console.log(`⏰ Scheduling modal close in ${baseDelay}ms`);
   setTimeout(attemptModalClose, baseDelay);
+}
+
+/**
+ * ✅ NUEVA FUNCIÓN: Crear el modal de progreso si no existe
+ */
+function createProgressModal() {
+  console.log('🛠️ Creando modal de progreso...');
+  
+  const modalHTML = `
+    <div id="progressModal" class="modal" role="dialog" aria-labelledby="progressModalTitle" aria-describedby="progressModalDesc">
+      <div class="modal-dialog">
+        <div class="progress-modal-content">
+          <!-- Header with branding -->
+          <div class="progress-modal-header">
+            <div class="progress-brand">
+              <div class="progress-logo" aria-hidden="true">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="progress-brand-text">
+                <h3 id="progressModalTitle">Performance Analysis</h3>
+                <p id="progressModalDesc">Processing your Search Console data</p>
+              </div>
+            </div>
+            <div class="progress-time-estimate">
+              <span class="time-label">Estimated time:</span>
+              <span class="time-value" id="timeEstimate" aria-live="polite">~45 seconds</span>
+            </div>
+          </div>
+
+          <!-- Main progress section -->
+          <div class="progress-modal-body">
+            <div class="progress-main-display">
+              <!-- Circular progress -->
+              <div class="progress-circle-container">
+                <svg class="progress-circle" viewBox="0 0 120 120" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#4285f4;stop-opacity:1" />
+                      <stop offset="50%" style="stop-color:#34a853;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#ea4335;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <circle 
+                    class="progress-circle-bg" 
+                    cx="60" 
+                    cy="60" 
+                    r="54" 
+                    fill="none" 
+                    stroke="rgba(255,255,255,0.1)" 
+                    stroke-width="8">
+                  </circle>
+                  <circle 
+                    class="progress-circle-fill" 
+                    id="progressCircleFill"
+                    cx="60" 
+                    cy="60" 
+                    r="54" 
+                    fill="none" 
+                    stroke="url(#progressGradient)" 
+                    stroke-width="8" 
+                    stroke-linecap="round"
+                    stroke-dasharray="339.292"
+                    stroke-dashoffset="339.292"
+                    transform="rotate(-90 60 60)">
+                  </circle>
+                </svg>
+                <div class="progress-percentage">
+                  <span id="progressPercentageNumber" aria-live="polite">0</span>%
+                </div>
+              </div>
+
+              <!-- Status display -->
+              <div class="progress-status">
+                <h4 id="progressCurrentStep" aria-live="polite">Starting analysis...</h4>
+                <p id="progressCurrentDetail">Preparing to process your data...</p>
+                
+                <div class="progress-step-counter">
+                  Step <span id="currentStepNumber" aria-live="polite">1</span> of <span id="totalStepsNumber">7</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step indicators -->
+            <div class="progress-steps-visual">
+              <div id="progressStepsContainer" class="progress-steps-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+            </div>
+
+            <!-- Fun facts section -->
+            <div class="progress-fun-section">
+              <div id="progressFunFact" class="progress-fun-fact">
+                <i class="fas fa-lightbulb" aria-hidden="true"></i>
+                <span>Did you know? Loading fun facts...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Insertar el modal en el body
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  console.log('✅ Modal de progreso creado exitosamente');
 }
