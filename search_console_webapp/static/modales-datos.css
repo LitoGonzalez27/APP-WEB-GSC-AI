@@ -36,7 +36,7 @@
 .keyword-modal-info i { color: #3B82F6; }
 
 /* DataTables */
-.table-responsive-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
+.table-responsive-container { background: var(--card-bg); padding:20px; overflow: hidden; }
 .dataTables_wrapper { padding: 0; }
 .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { padding: 16px 20px 8px; background: rgba(0, 0, 0, 0.02); border-bottom: 1px solid var(--border-color); }
 .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_paginate { padding: 16px 20px; background: rgba(0, 0, 0, 0.02); border-top: 1px solid var(--border-color); }

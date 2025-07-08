@@ -26,7 +26,7 @@
   <!-- ✅ NUEVO: Sistema responsive mejorado -->
   <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
 </head>
-<body>
+<body data-authenticated="{{ 'true' if authenticated else 'false' }}">
 
   <nav class="navbar" id="navbar">
     <div class="navbar-container">
@@ -558,6 +558,9 @@
   <!-- ✅ NUEVO: Detector de dispositivos móviles del lado del cliente -->
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
   <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+  
+  <!-- ✅ NUEVO: Sistema de gestión de sesiones con detección de inactividad -->
+  <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>

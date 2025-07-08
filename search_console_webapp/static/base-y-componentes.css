@@ -208,7 +208,7 @@ p {
   margin-bottom: var(--spacing-lg);
   border-radius: var(--radius-lg);
   transition: background var(--transition-base), border-color var(--transition-base);
-  box-shadow: 0 4px 6px var(--shadow-color);
+  box-shadow: 0 0px 6px var(--shadow-color);
 }
 
 /* Spinners genéricos */
@@ -588,8 +588,6 @@ tr:hover td {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--spacing-md);
-  padding-top: 70px;
   position: relative;
   text-align: center;
   border:none;

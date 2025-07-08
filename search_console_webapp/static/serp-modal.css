@@ -594,6 +594,7 @@
   background: var(--card-bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
+  padding:20px;
 }
 
 table.dataTable {
