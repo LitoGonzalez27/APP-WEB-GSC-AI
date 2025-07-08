@@ -107,6 +107,125 @@ def format_ai_summary_data(ai_overview_results):
     return summary_data
 
 
+def filter_keywords_by_position(keyword_data, position_range):
+    """
+    Filtra keywords por rango de posición específico
+    """
+    if not keyword_data:
+        return []
+    
+    filtered_keywords = []
+    for k in keyword_data:
+        position = k.get('position_m1')
+        if not isinstance(position, (int, float)):
+            continue
+            
+        include_keyword = False
+        if position_range == 'top3' and 1 <= position <= 3:
+            include_keyword = True
+        elif position_range == 'top10' and 4 <= position <= 10:
+            include_keyword = True
+        elif position_range == 'top20' and 11 <= position <= 20:
+            include_keyword = True
+        elif position_range == 'top20plus' and position > 20:
+            include_keyword = True
+            
+        if include_keyword:
+            filtered_keywords.append(k)
+    
+    # Ordenar por clics descendente
+    filtered_keywords.sort(key=lambda x: x.get('clicks_m1', 0), reverse=True)
+    return filtered_keywords
+
+
+def create_keyword_position_sheets(writer, data, country_info, header_format):
+    """
+    Crea hojas separadas para cada rango de posición de keywords
+    """
+    ranges_config = [
+        {'range': 'top3', 'title': 'Keywords Posiciones 1-3', 'description': 'Posiciones 1 a 3'},
+        {'range': 'top10', 'title': 'Keywords Posiciones 4-10', 'description': 'Posiciones 4 a 10'},
+        {'range': 'top20', 'title': 'Keywords Posiciones 11-20', 'description': 'Posiciones 11 a 20'},
+        {'range': 'top20plus', 'title': 'Keywords Posiciones 20+', 'description': 'Posiciones 20 o más'}
+    ]
+    
+    all_keywords = data.get('keyword_comparison_data', [])
+    
+    for range_config in ranges_config:
+        range_name = range_config['range']
+        sheet_name = range_config['title']
+        description = range_config['description']
+        
+        # Filtrar keywords para este rango
+        filtered_keywords = filter_keywords_by_position(all_keywords, range_name)
+        
+        # Crear filas para la hoja
+        keyword_rows = []
+        for k in filtered_keywords:
+            keyword = k.get('keyword', '')
+            # Obtener la URL específica donde posiciona esta keyword
+            url = k.get('url', '')
+            if not url and 'urls' in k:  # Si hay múltiples URLs, tomar la que posiciona mejor
+                urls = k.get('urls', [])
+                if urls:
+                    # Ordenar por posición y tomar la mejor
+                    urls.sort(key=lambda x: x.get('position', float('inf')))
+                    url = urls[0].get('url', '')
+            
+            if 'clicks_m1' in k and 'clicks_m2' in k:  # Si hay datos de comparación
+                keyword_rows.append({
+                    'Keyword': keyword,
+                    'URL que Posiciona': url,
+                    'Clicks P1': k.get('clicks_m1', 0),
+                    'Clicks P2': k.get('clicks_m2', 0),
+                    'Impresiones P1': k.get('impressions_m1', 0),
+                    'Impresiones P2': k.get('impressions_m2', 0),
+                    'CTR P1 (%)': f"{k.get('ctr_m1', 0):.2f}%",
+                    'CTR P2 (%)': f"{k.get('ctr_m2', 0):.2f}%",
+                    'Posición Media P1': k.get('position_m1', ''),
+                    'Posición Media P2': k.get('position_m2', '')
+                })
+            else:  # Si solo hay un período
+                keyword_rows.append({
+                    'Keyword': keyword,
+                    'URL que Posiciona': url,
+                    'Clicks P1': k.get('clicks_m1', 0),
+                    'Clicks P2': '',
+                    'Impresiones P1': k.get('impressions_m1', 0),
+                    'Impresiones P2': '',
+                    'CTR P1 (%)': f"{k.get('ctr_m1', 0):.2f}%",
+                    'CTR P2 (%)': '',
+                    'Posición Media P1': k.get('position_m1', ''),
+                    'Posición Media P2': ''
+                })
+        
+        # Si no hay keywords para este rango, añadir fila explicativa
+        if not keyword_rows:
+            keyword_rows = [{
+                'Keyword': f'No hay keywords en {description.lower()} para {country_info}.',
+                'URL que Posiciona': '',
+                'Clicks P1': '', 'Clicks P2': '',
+                'Impresiones P1': '', 'Impresiones P2': '',
+                'CTR P1 (%)': '', 'CTR P2 (%)': '',
+                'Posición Media P1': '', 'Posición Media P2': ''
+            }]
+        
+        # Crear la hoja
+        df_keywords_range = pd.DataFrame(keyword_rows)
+        df_keywords_range.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+        # Ajustar columnas de la hoja
+        worksheet_range = writer.sheets[sheet_name]
+        worksheet_range.set_column('A:A', 30)  # Keyword
+        worksheet_range.set_column('B:B', 50)  # URL que Posiciona
+        worksheet_range.set_column('C:J', 15)  # Métricas
+        
+        # Aplicar formato de cabecera
+        for col_num, col_name in enumerate(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']):
+            if col_num < len(df_keywords_range.columns):
+                worksheet_range.write(f'{col_name}1', df_keywords_range.columns[col_num], header_format)
+
+
 def generate_excel_from_data(data, ai_overview_data=None):
     """
     Genera un Excel con datos de páginas, keywords y AI Overview opcional.
@@ -285,6 +404,9 @@ def generate_excel_from_data(data, ai_overview_data=None):
         worksheet_keywords.set_column('A:A', 30)  # Keyword
         worksheet_keywords.set_column('B:B', 50)  # URL que Posiciona
         worksheet_keywords.set_column('C:J', 15)  # Métricas
+
+        # ✅ NUEVAS HOJAS: Keywords por rangos de posición
+        create_keyword_position_sheets(writer, data, country_info, header_format)
 
         # ✅ PROCESAMIENTO DE HOJAS DE AI OVERVIEW (solo si hay datos)
         if ai_overview_data:

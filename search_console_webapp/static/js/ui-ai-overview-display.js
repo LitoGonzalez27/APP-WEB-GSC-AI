@@ -151,12 +151,12 @@ function displayDetailedResults(results, container) {
         <table id="aiOverviewTable" class="dataTable display" style="width:100%">
           <thead>
             <tr>
-              <th style="width: 60px;"></th>
-              <th>KEYWORD</th>
-              <th>WITH AIO</th>
-              <th>ORGANIC POSITION</th>
-              <th>YOUR DOMAIN IN AIO</th>
-              <th>AIO POSITION</th>
+              <th style="width: 60px;">View SERP</th>
+              <th>Keyword</th>
+              <th>With AIO</th>
+              <th>Organic Position</th>
+              <th>Your Domain in AIO</th>
+              <th>AIO Position</th>
             </tr>
           </thead>
           <tbody>
@@ -177,6 +177,8 @@ function displayDetailedResults(results, container) {
       scrollX: true,
       responsive: false,
       autoWidth: false,
+      sScrollX: "100%",
+      sScrollXInner: "1300px",
       columnDefs: [
         { targets: 0, orderable: false, className: 'dt-body-center', width: '60px' },
         { targets: 1, className: 'dt-body-left kw-cell', width: '250px' },
@@ -190,6 +192,20 @@ function displayDetailedResults(results, container) {
         if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
       },
       initComplete: () => {
+        // Forzar ancho del contenedor scroll interno
+        const scrollHeadInner = document.querySelector('#aiOverviewTable_wrapper .dataTables_scrollHeadInner');
+        if (scrollHeadInner) {
+          scrollHeadInner.style.width = '1300px';
+          scrollHeadInner.style.boxSizing = 'content-box';
+          
+          // También forzar el ancho de la tabla dentro del contenedor
+          const innerTable = scrollHeadInner.querySelector('table');
+          if (innerTable) {
+            innerTable.style.width = '1300px';
+            innerTable.style.marginLeft = '0px';
+          }
+        }
+        
         // Forzar anchos después de la inicialización
         const table = document.getElementById('aiOverviewTable');
         if (table) {

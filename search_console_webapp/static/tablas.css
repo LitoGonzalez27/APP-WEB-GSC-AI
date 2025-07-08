@@ -159,6 +159,11 @@ table.dataTable#aiOverviewTable thead th:nth-child(2) {
   min-width: 200px !important;
 }
 
+/* Override para texto normal en encabezados de AI Overview */
+table.dataTable#aiOverviewTable thead th {
+  text-transform: none !important; /* Quitar uppercase para AI Overview */
+}
+
 /* Anchos específicos para columnas de la tabla AIO - con máxima especificidad */
 div.dataTables_wrapper table.dataTable#aiOverviewTable thead th:nth-child(1) {
   width: 60px !important;
