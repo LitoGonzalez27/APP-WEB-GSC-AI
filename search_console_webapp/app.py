@@ -553,15 +553,46 @@ def get_data():
         if has_comparison and comparison_start and comparison_end:
             comparison_urls_data = fetch_urls_data(comparison_start, comparison_end, " (Comparison)")
 
-        # Combinar datos de URLs de ambos períodos
+        # ✅ CORREGIDO: Combinar datos asegurando que hay métricas para ambos períodos si se seleccionó comparación
         combined_urls_data = {}
-        for page_url, metrics in current_urls_data.items():
-            combined_urls_data[page_url] = metrics
-        for page_url, metrics in comparison_urls_data.items():
-            if page_url in combined_urls_data:
-                combined_urls_data[page_url].extend(metrics)
-            else:
-                combined_urls_data[page_url] = metrics
+        
+        if has_comparison and comparison_start and comparison_end:
+            # Si hay comparación, asegurar que todas las URLs tengan datos para ambos períodos
+            all_urls = set(current_urls_data.keys()) | set(comparison_urls_data.keys())
+            
+            for page_url in all_urls:
+                current_metric = current_urls_data.get(page_url, [])
+                comparison_metric = comparison_urls_data.get(page_url, [])
+                
+                # Si no hay datos para el período actual, crear entrada con 0s
+                if not current_metric:
+                    current_metric = [{
+                        'Period': f"{current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')} (Current)",
+                        'StartDate': current_start.strftime('%Y-%m-%d'),
+                        'EndDate': current_end.strftime('%Y-%m-%d'),
+                        'Clicks': 0,
+                        'Impressions': 0,
+                        'CTR': 0.0,
+                        'Position': 0.0
+                    }]
+                
+                # Si no hay datos para el período de comparación, crear entrada con 0s
+                if not comparison_metric:
+                    comparison_metric = [{
+                        'Period': f"{comparison_start.strftime('%Y-%m-%d')} to {comparison_end.strftime('%Y-%m-%d')} (Comparison)",
+                        'StartDate': comparison_start.strftime('%Y-%m-%d'),
+                        'EndDate': comparison_end.strftime('%Y-%m-%d'),
+                        'Clicks': 0,
+                        'Impressions': 0,
+                        'CTR': 0.0,
+                        'Position': 0.0
+                    }]
+                
+                # Combinar ambos períodos (actual + comparación)
+                combined_urls_data[page_url] = current_metric + comparison_metric
+        else:
+            # Sin comparación, usar solo datos actuales
+            combined_urls_data = current_urls_data
 
         # Datos para métricas agregadas (summary)
         current_summary_data = fetch_summary_data(current_start, current_end, " (Current)")
@@ -569,15 +600,46 @@ def get_data():
         if has_comparison and comparison_start and comparison_end:
             comparison_summary_data = fetch_summary_data(comparison_start, comparison_end, " (Comparison)")
 
-        # Combinar datos de summary de ambos períodos
+        # ✅ CORREGIDO: Combinar datos de summary asegurando que hay métricas para ambos períodos si se seleccionó comparación
         combined_summary_data = {}
-        for page_url, metrics in current_summary_data.items():
-            combined_summary_data[page_url] = metrics
-        for page_url, metrics in comparison_summary_data.items():
-            if page_url in combined_summary_data:
-                combined_summary_data[page_url].extend(metrics)
-            else:
-                combined_summary_data[page_url] = metrics
+        
+        if has_comparison and comparison_start and comparison_end:
+            # Si hay comparación, asegurar que hay datos para ambos períodos
+            all_summary_keys = set(current_summary_data.keys()) | set(comparison_summary_data.keys())
+            
+            for summary_key in all_summary_keys:
+                current_summary_metric = current_summary_data.get(summary_key, [])
+                comparison_summary_metric = comparison_summary_data.get(summary_key, [])
+                
+                # Si no hay datos para el período actual, crear entrada con 0s
+                if not current_summary_metric:
+                    current_summary_metric = [{
+                        'Period': f"{current_start.strftime('%Y-%m-%d')} to {current_end.strftime('%Y-%m-%d')} (Current)",
+                        'StartDate': current_start.strftime('%Y-%m-%d'),
+                        'EndDate': current_end.strftime('%Y-%m-%d'),
+                        'Clicks': 0,
+                        'Impressions': 0,
+                        'CTR': 0.0,
+                        'Position': 0.0
+                    }]
+                
+                # Si no hay datos para el período de comparación, crear entrada con 0s
+                if not comparison_summary_metric:
+                    comparison_summary_metric = [{
+                        'Period': f"{comparison_start.strftime('%Y-%m-%d')} to {comparison_end.strftime('%Y-%m-%d')} (Comparison)",
+                        'StartDate': comparison_start.strftime('%Y-%m-%d'),
+                        'EndDate': comparison_end.strftime('%Y-%m-%d'),
+                        'Clicks': 0,
+                        'Impressions': 0,
+                        'CTR': 0.0,
+                        'Position': 0.0
+                    }]
+                
+                # Combinar ambos períodos
+                combined_summary_data[summary_key] = current_summary_metric + comparison_summary_metric
+        else:
+            # Sin comparación, usar solo datos actuales
+            combined_summary_data = current_summary_data
 
         # Convertir a formato esperado por el frontend
         pages_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_urls_data.items()]

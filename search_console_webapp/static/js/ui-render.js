@@ -38,10 +38,16 @@ function formatPositionDelta(delta, pos1, pos2) {
 }
 
 // ✅ NUEVA función para determinar el tipo de análisis para URLs
-function getUrlAnalysisType(urlData) {
+function getUrlAnalysisType(urlData, periods = null) {
   if (!urlData || urlData.length === 0) return 'empty';
   
-  // Verificar si hay múltiples períodos por URL
+  // ✅ CORREGIDO: Primero verificar si el usuario seleccionó comparación
+  if (periods && periods.has_comparison && periods.comparison) {
+    console.log('🔍 Usuario seleccionó comparación explícitamente - forzando modo comparison');
+    return 'comparison';
+  }
+  
+  // Verificar si hay múltiples períodos por URL (lógica original)
   const hasMultiplePeriods = urlData.some(urlItem => 
     urlItem.Metrics && urlItem.Metrics.length > 1
   );
@@ -120,18 +126,18 @@ function processUrlsData(pages) {
     const metrics = item.Metrics || [];
     
     if (metrics.length === 1) {
-      // Período único
+      // Período único - ✅ CORREGIDO: Datos van a P1 (período actual)
       const metric = metrics[0];
       urlsData.push({
         url: url,
-        clicks_p1: 0,
-        clicks_p2: metric.Clicks || 0,
-        impressions_p1: 0,
-        impressions_p2: metric.Impressions || 0,
-        ctr_p1: 0,
-        ctr_p2: (metric.CTR || 0) * 100,
-        position_p1: null,
-        position_p2: metric.Position || null,
+        clicks_p1: metric.Clicks || 0,
+        clicks_p2: 0,
+        impressions_p1: metric.Impressions || 0,
+        impressions_p2: 0,
+        ctr_p1: (metric.CTR || 0) * 100,
+        ctr_p2: 0,
+        position_p1: metric.Position || null,
+        position_p2: null,
         delta_clicks_percent: 'New',
         delta_impressions_percent: 'New',
         delta_ctr_percent: 'New',
@@ -1019,7 +1025,10 @@ export function renderTable(pages) {
 
   // ✅ Procesar datos de URLs
   const urlsData = processUrlsData(pages);
-  const analysisType = getUrlAnalysisType(pages);
+  
+  // ✅ CORREGIDO: Pasar información de períodos para determinar el tipo correcto
+  const periods = window.currentData && window.currentData.periods ? window.currentData.periods : null;
+  const analysisType = getUrlAnalysisType(pages, periods);
   
   console.log(`📊 Tipo de análisis URLs: ${analysisType}, URLs: ${urlsData.length}`);
   console.log('📋 Datos procesados:', urlsData.slice(0, 3)); // Log primeros 3 para debugging
@@ -1062,16 +1071,16 @@ export function renderTable(pages) {
 
     tr.innerHTML = `
       <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
-      <td>${analysisType === 'single' ? (row.clicks_p2 ?? 0).toLocaleString('es-ES') : (row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
+      <td>${(row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
       <td ${p2ColumnsStyle}>${(row.clicks_p2 ?? 0).toLocaleString('es-ES')}</td>
       <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_clicks_percent)}</td>
-      <td>${analysisType === 'single' ? (row.impressions_p2 ?? 0).toLocaleString('es-ES') : (row.impressions_p1 ?? 0).toLocaleString('es-ES')}</td>
+      <td>${(row.impressions_p1 ?? 0).toLocaleString('es-ES')}</td>
       <td ${p2ColumnsStyle}>${(row.impressions_p2 ?? 0).toLocaleString('es-ES')}</td>
       <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-      <td>${analysisType === 'single' ? (typeof row.ctr_p2 === 'number' ? row.ctr_p2.toFixed(2) + '%' : 'N/A') : (typeof row.ctr_p1 === 'number' ? row.ctr_p1.toFixed(2) + '%' : 'N/A')}</td>
+      <td>${typeof row.ctr_p1 === 'number' ? row.ctr_p1.toFixed(2) + '%' : 'N/A'}</td>
       <td ${p2ColumnsStyle}>${typeof row.ctr_p2 === 'number' ? row.ctr_p2.toFixed(2) + '%' : 'N/A'}</td>
       <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
-      <td>${analysisType === 'single' ? formatPosition(row.position_p2) : formatPosition(row.position_p1)}</td>
+      <td>${formatPosition(row.position_p1)}</td>
       <td ${p2ColumnsStyle}>${formatPosition(row.position_p2)}</td>
       <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2)}</td>
     `;
@@ -1220,7 +1229,7 @@ export function renderTable(pages) {
       scrollX: true,
       responsive: false,
       columnDefs: columnDefs,
-      order: analysisType === 'single' ? [[1, 'desc']] : [[2, 'desc']], // Ordenar por clicks actuales
+      order: [[1, 'desc']], // ✅ CORREGIDO: Siempre ordenar por clicks P1 (período actual)
       drawCallback: () => {
         if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
       },
@@ -1353,7 +1362,15 @@ let modalContainersCreated = false;
 function getAnalysisTypeModal(keywordData) {
   if (!keywordData || keywordData.length === 0) return 'empty';
   
-  // Verificar si hay datos de comparación reales
+  // ✅ CORREGIDO: Usar la misma lógica que las tablas principales
+  const periods = window.currentData && window.currentData.periods ? window.currentData.periods : null;
+  
+  if (periods && periods.has_comparison && periods.comparison) {
+    console.log('🔍 Usuario seleccionó comparación explícitamente para modal - forzando modo comparison');
+    return 'comparison';
+  }
+  
+  // Verificar si hay datos de comparación reales (lógica original)
   const hasComparison = keywordData.some(row => 
     (row.clicks_m2 > 0 || row.impressions_m2 > 0) && 
     row.delta_clicks_percent !== 'New'

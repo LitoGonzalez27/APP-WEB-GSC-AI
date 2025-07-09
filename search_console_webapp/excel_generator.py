@@ -301,8 +301,10 @@ def generate_excel_from_data(data, ai_overview_data=None):
             metrics = p.get('Metrics', []) or p.get('metrics', [])
             
             if len(metrics) >= 2:  # Si hay datos de comparación
-                p1_metrics = metrics[1]  # Período principal
-                p2_metrics = metrics[0]  # Período de comparación
+                # ✅ CORREGIDO: Ordenar por fecha para determinar P1 (actual) y P2 (comparación)
+                sorted_metrics = sorted(metrics, key=lambda x: x.get('StartDate', ''))
+                p2_metrics = sorted_metrics[0]  # Período de comparación (más antiguo)
+                p1_metrics = sorted_metrics[-1]  # Período principal (más reciente)
                 
                 rows.append({
                     'URL': url,

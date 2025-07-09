@@ -90,18 +90,18 @@ export function processUrlsForComparison(pages, periods) {
     const metrics = item.Metrics || [];
     
     if (metrics.length === 1) {
-      // Período único
+      // Período único - ✅ CORREGIDO: Datos van a P1 (período actual)
       const metric = metrics[0];
       urlsData.push({
         url: url,
-        clicks_p1: 0,
-        clicks_p2: metric.Clicks || 0,
-        impressions_p1: 0,
-        impressions_p2: metric.Impressions || 0,
-        ctr_p1: 0,
-        ctr_p2: (metric.CTR || 0) * 100,
-        position_p1: null,
-        position_p2: metric.Position || null,
+        clicks_p1: metric.Clicks || 0,
+        clicks_p2: 0,
+        impressions_p1: metric.Impressions || 0,
+        impressions_p2: 0,
+        ctr_p1: (metric.CTR || 0) * 100,
+        ctr_p2: 0,
+        position_p1: metric.Position || null,
+        position_p2: null,
         delta_clicks_percent: 'New',
         delta_impressions_percent: 'New',
         delta_ctr_percent: 'New',

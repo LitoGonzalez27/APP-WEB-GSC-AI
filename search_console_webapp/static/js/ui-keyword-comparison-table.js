@@ -47,10 +47,16 @@ function formatPositionDelta(delta, pos1, pos2) {
 }
 
 // ✅ FUNCIÓN para determinar el tipo de análisis
-function getAnalysisType(keywordData) {
+function getAnalysisType(keywordData, periods = null) {
   if (!keywordData || keywordData.length === 0) return 'empty';
   
-  // Verificar si hay datos de comparación reales
+  // ✅ CORREGIDO: Primero verificar si el usuario seleccionó comparación
+  if (periods && periods.has_comparison && periods.comparison) {
+    console.log('🔍 Usuario seleccionó comparación explícitamente para keywords - forzando modo comparison');
+    return 'comparison';
+  }
+  
+  // Verificar si hay datos de comparación reales (lógica original)
   const hasComparison = keywordData.some(row => 
     (row.clicks_m2 > 0 || row.impressions_m2 > 0) && 
     row.delta_clicks_percent !== 'New'
@@ -204,7 +210,7 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
   elems.keywordComparisonTableBody.innerHTML = '';
 
   // ✅ Determinar tipo de análisis
-  const analysisType = getAnalysisType(keywordData);
+  const analysisType = getAnalysisType(keywordData, periods);
   console.log(`📊 Tipo de análisis: ${analysisType}, Keywords: ${keywordData ? keywordData.length : 0}`);
 
   if (!keywordData || keywordData.length === 0) {
