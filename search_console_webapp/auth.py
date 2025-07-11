@@ -32,8 +32,8 @@ CLIENT_SECRETS_FILE = os.getenv('CLIENT_SECRETS_FILE', 'client_secret.json')
 REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/auth/callback')
 
 # ✅ NUEVA: Configuración de inactividad (en minutos)
-SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '15'))  # 15 minutos por defecto
-WARNING_MINUTES = int(os.getenv('SESSION_WARNING_MINUTES', '3'))  # Advertir 3 minutos antes
+SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '45'))  # 45 minutos por defecto
+WARNING_MINUTES = int(os.getenv('SESSION_WARNING_MINUTES', '5'))  # Advertir 5 minutos antes
 
 def create_flow():
     try:

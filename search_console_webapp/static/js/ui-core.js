@@ -196,6 +196,32 @@ export async function handleFormSubmit(e) {
   window.currentData = null;
   window.currentAIOverviewData = null;
 
+  // ✅ NUEVO: Extraer parámetros para la estimación de tiempo
+  const urlsValue = formData.get('urls') || '';
+  const urlCount = urlsValue.trim() === '' ? 0 : urlsValue.trim().split(/\r\n|\r|\n/).length;
+  const countrySelected = !!formData.get('country');
+  const matchType = formData.get('match_type') || 'contains';
+  const analysisParams = { urlCount, countrySelected, matchType };
+
+  // ✅ NUEVO: Advertencia para más de 25 URLs
+  if (urlCount > 25) {
+    const confirmation = window.confirm(
+        `Estás a punto de analizar ${urlCount} URLs. ` +
+        `El proceso puede tardar mucho tiempo (más de 15 minutos) y podría fallar.\n\n` +
+        `¿Deseas continuar de todas formas?`
+    );
+    if (!confirmation) {
+        console.log('Análisis cancelado por el usuario debido al alto número de URLs.');
+        // Reactivar el botón de envío si el usuario cancela
+        const submitButton = document.querySelector('#urlForm button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-search"></i> Analyze Performance';
+        }
+        return; // Detener el proceso
+    }
+  }
+
   // ✅ NUEVO: Pasos de progreso actualizados para fechas específicas y móviles
   let steps = [
     'Validating dates and preparing query…',
@@ -212,7 +238,7 @@ export async function handleFormSubmit(e) {
     steps.push('Optimizing results for mobile display…');
   }
 
-  showProgress(steps);
+  showProgress(steps, analysisParams);
 
   try {
     const data = await fetchData(formData);

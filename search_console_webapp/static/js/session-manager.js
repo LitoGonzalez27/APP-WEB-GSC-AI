@@ -22,6 +22,7 @@ class SessionManager {
         this.checkTimer = null;
         this.keepAliveTimer = null;
         this.activityTimeout = null;
+        this.isPaused = false; // ✅ NUEVO: Estado de pausa
 
         // Elementos del DOM
         this.warningModal = null;
@@ -91,9 +92,33 @@ class SessionManager {
     }
 
     /**
+     * ✅ NUEVO: Pausar la verificación de la sesión
+     */
+    pause() {
+        this.isPaused = true;
+        this.log('El verificador de sesión está en pausa.');
+    }
+
+    /**
+     * ✅ NUEVO: Reanudar la verificación de la sesión
+     */
+    resume() {
+        this.isPaused = false;
+        this.log('El verificador de sesión se ha reanudado.');
+        // Forzar una verificación inmediata para sincronizar el estado
+        this.checkSessionStatus();
+    }
+    
+    /**
      * Verificar el estado de la sesión en el servidor
      */
     async checkSessionStatus() {
+        // ✅ NUEVO: No hacer nada si el gestor está en pausa
+        if (this.isPaused) {
+            this.log('Verificación omitida porque el gestor está en pausa.');
+            return;
+        }
+
         try {
             const response = await fetch('/auth/status');
             const data = await response.json();
@@ -540,29 +565,38 @@ class SessionManager {
     }
 }
 
-// Crear instancia global cuando el DOM esté listo
-let sessionManager = null;
+// ✅ MODIFICADO: Hacer que el gestor de sesión sea accesible globalmente
+let sessionManagerInstance = null;
 
 function initializeSessionManager() {
-    // Solo inicializar si estamos autenticados
-    if (document.body.getAttribute('data-authenticated') === 'true' || 
-        window.location.pathname !== '/login') {
-        
-        sessionManager = new SessionManager({
-            debug: localStorage.getItem('session_debug') === 'true'
-        });
-        
-        console.log('✅ SessionManager inicializado');
+    if (sessionManagerInstance) {
+        console.warn('SessionManager ya está inicializado.');
+        return sessionManagerInstance;
     }
+
+    // Configuración para el gestor de sesión
+    const config = {
+        checkInterval: 30000,      // Verificar cada 30 seg
+        warningTime: 180,        // Advertencia a los 3 minutos
+        keepAliveInterval: 300000, // Keep-alive cada 5 min
+        debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' // Activar debug en local
+    };
+
+    sessionManagerInstance = new SessionManager(config);
+
+    // Hacer la instancia accesible globalmente para poder pausarla/reanudarla
+    window.sessionManager = sessionManagerInstance;
+
+    return sessionManagerInstance;
 }
 
-// Inicializar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeSessionManager);
-} else {
-    initializeSessionManager();
-}
-
-// Exportar para uso global
-window.SessionManager = SessionManager;
-window.sessionManager = sessionManager; 
+// Inicializar al cargar el script
+document.addEventListener('DOMContentLoaded', () => {
+    // Verificar si el usuario está autenticado antes de iniciar
+    const isAuthenticated = document.body.dataset.authenticated === 'true';
+    if (isAuthenticated) {
+        initializeSessionManager();
+    } else {
+        console.log('[SessionManager] El usuario no está autenticado. El gestor no se iniciará.');
+    }
+}); 

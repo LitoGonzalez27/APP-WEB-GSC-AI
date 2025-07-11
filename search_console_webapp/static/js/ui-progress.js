@@ -7,6 +7,7 @@ let stepsCache = [];
 let fakeTimer = null;
 let currentStep = 0;
 let currentProgress = 0;
+let estimatedTotalTime = 45 * 1000; // Default time in ms
 
 // Fun facts en inglés
 const FUN_FACTS = [
@@ -34,17 +35,139 @@ const STEP_MESSAGES = [
 ];
 
 /**
+ * NEW: Calculate estimated time based on query params.
+ */
+function calculateEstimatedTime(params = {}) {
+    const { urlCount = 0, countrySelected = false, matchType = 'contains' } = params;
+
+    // ✅ NUEVO: Lógica más rápida para el tipo de concordancia "equals"
+    if (matchType === 'equals') {
+        console.log(`⏱️ Calculating 'equals' match time for ${urlCount} URLs.`);
+        if (urlCount > 25) return 600;  // más de 25 URLs: 10 min
+        if (urlCount > 20) return 540;  // 21-25 URLs: 9 min
+        if (urlCount > 15) return 420;  // 16-20 URLs: 7 min
+        if (urlCount > 10) return 300;  // 11-15 URLs: 5 min
+        if (urlCount > 5) return 120;   // 6-10 URLs: 2 min
+        if (urlCount > 0) return 90;    // 1-5 URLs: 1 min 30s
+
+        // Casos base para 0 URLs (propiedad completa) con 'equals'
+        // Es más rápido que 'contains', así que reducimos la estimación
+        if (countrySelected) return 40;
+        return 20;
+    }
+
+    // --- Lógica existente para "contains" y otros tipos de concordancia ---
+
+    // Tiempos específicos para análisis de alto volumen de URLs
+    const highVolumeTimes = {
+        5: 180,  // 3 min
+        10: 300, // 5 min
+        15: 540, // 9 min
+        20: 720, // 12 min
+        25: 900, // 15 min
+        30: 1200, // 20 min
+        40: 1500, // 25 min
+        50: 1800  // 30 min
+    };
+
+    if (highVolumeTimes[urlCount] !== undefined) {
+        return highVolumeTimes[urlCount];
+    }
+
+    // Casos base para bajo volumen
+    if (!countrySelected) {
+        if (urlCount === 0) return 25;
+        if (urlCount === 1) return 40;
+        if (urlCount === 2) return 90;
+    } else {
+        if (urlCount === 0) return 50;
+        if (urlCount === 1) return 75;
+        // Caso no especificado: 2 URLs con país. Asumimos 90s (base) + 25s (coste de país)
+        if (urlCount === 2) return 115;
+    }
+
+    // Interpolación y extrapolación para casos no definidos
+    const dataPoints = [
+        { urls: 2, time: countrySelected ? 115 : 90 },
+        { urls: 5, time: 180 },
+        { urls: 10, time: 300 },
+        { urls: 15, time: 540 },
+        { urls: 20, time: 720 },
+        { urls: 25, time: 900 },
+        { urls: 30, time: 1200 },
+        { urls: 40, time: 1500 },
+        { urls: 50, time: 1800 }
+    ];
+
+    // Extrapolar para más de 50 URLs
+    if (urlCount > 50) {
+        // Tasa de 30s/URL basada en los últimos puntos de datos (1800-1500)/(50-40) = 30
+        return 1800 + (urlCount - 50) * 30;
+    }
+
+    // Interpolar para recuentos de URL entre los puntos definidos
+    if (urlCount > 2) {
+        let lowerBound = dataPoints[0];
+        let upperBound = dataPoints[1];
+
+        for (let i = 1; i < dataPoints.length; i++) {
+            if (urlCount <= dataPoints[i].urls) {
+                lowerBound = dataPoints[i - 1];
+                upperBound = dataPoints[i];
+                break;
+            }
+        }
+        
+        const { urls: x1, time: y1 } = lowerBound;
+        const { urls: x2, time: y2 } = upperBound;
+
+        // Fórmula de interpolación lineal
+        const interpolatedTime = y1 + ((urlCount - x1) * (y2 - y1)) / (x2 - x1);
+        return Math.round(interpolatedTime);
+    }
+
+    return 45; // Fallback por si acaso
+}
+
+/**
+ * NEW: Format seconds into a user-friendly string.
+ */
+function formatTime(seconds) {
+    if (seconds < 60) {
+        return `~${seconds} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (remainingSeconds === 0) {
+        return `~${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+    
+    return `~${minutes} min ${remainingSeconds} sec`;
+}
+
+/**
  * Mostrar el modal de progreso
  */
-export function showProgress(steps) {
+export function showProgress(steps, analysisParams = {}) {
   console.log('🚀 Starting simple progress with steps:', steps);
   
+  // ✅ NUEVO: Pausar el gestor de sesión
+  if (window.sessionManager && typeof window.sessionManager.pause === 'function') {
+    window.sessionManager.pause();
+  }
+
   // Limpiar timers previos
   if (fakeTimer) {
     clearTimeout(fakeTimer);
     fakeTimer = null;
   }
   
+  // ✅ NUEVO: Calcular y almacenar tiempo estimado
+  const estimatedSeconds = calculateEstimatedTime(analysisParams);
+  estimatedTotalTime = estimatedSeconds * 1000;
+  console.log(`⏱️ Estimated analysis time: ${estimatedSeconds}s`, analysisParams);
+
   // Inicializar variables
   stepsCache = steps;
   currentStep = 0;
@@ -76,6 +199,13 @@ export function showProgress(steps) {
   modal.classList.add('show');
   document.body.classList.add('modal-open');
   
+  // ✅ NUEVO: Actualizar el tiempo estimado en la UI
+  const timeElement = document.getElementById('timeEstimate');
+  if (timeElement) {
+    timeElement.textContent = formatTime(estimatedSeconds);
+    timeElement.style.color = ''; // Reset color on new analysis
+  }
+
   // Inicializar UI
   initializeUI();
   
@@ -122,34 +252,43 @@ function initializeUI() {
  * Iniciar progreso suave
  */
 function startSmoothProgress() {
-  console.log('📊 Starting smooth progress animation');
-  
+  console.log(`📊 Starting smooth progress animation over ${estimatedTotalTime / 1000}s`);
+  const startTime = Date.now();
+
   function progressStep() {
-    // Si ya completamos, salir
-    if (currentProgress >= 90) {
+    const elapsedTime = Date.now() - startTime;
+    let progress = (elapsedTime / estimatedTotalTime) * 90; // Progreso hasta el 90%
+
+    // Si ya completamos el 90% o el tiempo ha pasado, detener la simulación en 90%
+    if (progress >= 90) {
       console.log('📊 Progress simulation complete at 90%');
+      updateCircularProgress(90);
+      updatePercentage(90);
+      currentProgress = 90;
+      updateCurrentStep(); // Asegurarse de que el paso final se actualice
+      
+      // Limpiar timer
+      if (fakeTimer) {
+        clearTimeout(fakeTimer);
+        fakeTimer = null;
+      }
       return;
     }
     
-    // Incremento aleatorio pequeño para fluidez
-    const increment = Math.random() * 2 + 0.5; // 0.5% a 2.5%
-    const newProgress = Math.min(currentProgress + increment, 90);
+    // Actualizar UI
+    updateCircularProgress(progress);
+    updatePercentage(Math.round(progress));
+    currentProgress = progress;
     
-    // Actualizar progreso
-    updateCircularProgress(newProgress);
-    updatePercentage(Math.round(newProgress));
-    currentProgress = newProgress;
-    
-    // Actualizar paso si es necesario
+    // Actualizar el paso actual si es necesario
     updateCurrentStep();
     
-    // Continuar animación
-    const delay = Math.random() * 300 + 200; // 200-500ms
-    fakeTimer = setTimeout(progressStep, delay);
+    // Continuar la animación
+    fakeTimer = setTimeout(progressStep, 250); // Revisar el progreso cada 250ms
   }
-  
+
   // Iniciar después de un pequeño delay
-  fakeTimer = setTimeout(progressStep, 500);
+  fakeTimer = setTimeout(progressStep, 250);
 }
 
 /**
@@ -558,6 +697,11 @@ export function completeProgress() {
   function finalizeCleanup() {
     console.log('🧹 Finalizing cleanup');
     
+    // ✅ NUEVO: Reanudar el gestor de sesión
+    if (window.sessionManager && typeof window.sessionManager.resume === 'function') {
+      window.sessionManager.resume();
+    }
+
     // Reset completo de variables
     currentProgress = 0;
     currentStep = 0;
