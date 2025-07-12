@@ -258,14 +258,6 @@ def get_properties():
     props = [{'siteUrl': s['siteUrl']} for s in sites if s.get('siteUrl')]
     return jsonify({'properties': props})
 
-@app.route('/login')
-def login_page():
-    """Página de login - redirige a dashboard si ya está autenticado"""
-    if is_user_authenticated():
-        user = get_current_user()
-        if user and user['is_active']:
-            return redirect('/dashboard')
-    return render_template('login.html')
 
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
