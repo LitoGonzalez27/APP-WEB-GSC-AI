@@ -7,7 +7,7 @@ class SessionManager {
     constructor(options = {}) {
         // Configuración por defecto
         this.config = {
-            checkInterval: 30000,        // Verificar cada 30 segundos
+            checkInterval: 60000,        // Verificar cada 60 segundos (REDUCIDO para evitar conflictos)
             warningTime: 300,           // Mostrar advertencia a los 5 minutos (300 segundos)
             keepAliveInterval: 300000,  // Enviar keepalive cada 5 minutos
             debug: false,
@@ -23,6 +23,7 @@ class SessionManager {
         this.keepAliveTimer = null;
         this.activityTimeout = null;
         this.isPaused = false; // ✅ NUEVO: Estado de pausa
+        this.isChecking = false; // ✅ NUEVO: Evitar verificaciones simultáneas
 
         // Elementos del DOM
         this.warningModal = null;
@@ -119,8 +120,24 @@ class SessionManager {
             return;
         }
 
+        // ✅ NUEVO: Evitar verificaciones simultáneas
+        if (this.isChecking) {
+            this.log('Verificación ya en progreso, omitiendo...');
+            return;
+        }
+
+        this.isChecking = true;
+
         try {
-            const response = await fetch('/auth/status');
+            // ✅ NUEVO: Timeout para evitar bloqueos
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+            const response = await fetch('/auth/status', {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
             const data = await response.json();
 
             if (!data.authenticated) {
@@ -144,6 +161,8 @@ class SessionManager {
         } catch (error) {
             this.log('Error verificando estado de sesión:', error);
             // En caso de error de red, no hacer nada drástico
+        } finally {
+            this.isChecking = false; // ✅ NUEVO: Liberar el bloqueo
         }
     }
 
@@ -565,38 +584,33 @@ class SessionManager {
     }
 }
 
-// ✅ MODIFICADO: Hacer que el gestor de sesión sea accesible globalmente
-let sessionManagerInstance = null;
+// ✅ MODIFICADO: No auto-inicializar, solo definir función de inicialización
+// La inicialización es controlada por session-init.js
 
-function initializeSessionManager() {
-    if (sessionManagerInstance) {
+function initializeSessionManager(options = {}) {
+    if (window.sessionManager) {
         console.warn('SessionManager ya está inicializado.');
-        return sessionManagerInstance;
+        return window.sessionManager;
     }
 
-    // Configuración para el gestor de sesión
-    const config = {
-        checkInterval: 30000,      // Verificar cada 30 seg
-        warningTime: 180,        // Advertencia a los 3 minutos
+    // Configuración por defecto
+    const defaultConfig = {
+        checkInterval: 60000,      // Verificar cada 60 seg (reducido para evitar conflictos)
+        warningTime: 300,          // Advertencia a los 5 minutos  
         keepAliveInterval: 300000, // Keep-alive cada 5 min
-        debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' // Activar debug en local
+        debug: localStorage.getItem('session_debug') === 'true'
     };
 
-    sessionManagerInstance = new SessionManager(config);
+    // Combinar configuración por defecto con opciones pasadas
+    const config = { ...defaultConfig, ...options };
 
-    // Hacer la instancia accesible globalmente para poder pausarla/reanudarla
+    const sessionManagerInstance = new SessionManager(config);
+
+    // Hacer la instancia accesible globalmente
     window.sessionManager = sessionManagerInstance;
 
     return sessionManagerInstance;
 }
 
-// Inicializar al cargar el script
-document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si el usuario está autenticado antes de iniciar
-    const isAuthenticated = document.body.dataset.authenticated === 'true';
-    if (isAuthenticated) {
-        initializeSessionManager();
-    } else {
-        console.log('[SessionManager] El usuario no está autenticado. El gestor no se iniciará.');
-    }
-}); 
+// ✅ NUEVO: Exportar función para uso controlado
+window.initializeSessionManager = initializeSessionManager; 

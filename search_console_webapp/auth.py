@@ -610,23 +610,45 @@ def setup_auth_routes(app):
 
     @app.route('/auth/status')
     def auth_status():
-        """Estado de autenticación"""
+        """Estado de autenticación - Versión robusta para evitar bucles"""
         try:
-            if not is_user_authenticated():
+            # ✅ NUEVO: Verificación básica sin side effects
+            if 'user_id' not in session or session['user_id'] is None:
                 return jsonify({
                     'authenticated': False,
                     'session_expired': False,
                     'time_remaining': 0
                 })
             
-            if is_session_expired():
+            # ✅ NUEVO: Verificar expiración sin limpiar sesión (solo consulta)
+            if 'last_activity' not in session:
                 return jsonify({
                     'authenticated': False,
                     'session_expired': True,
                     'time_remaining': 0
                 })
             
-            user = get_current_user()
+            try:
+                last_activity = datetime.fromisoformat(session['last_activity'])
+                now = datetime.now()
+                time_diff = now - last_activity
+                
+                if time_diff > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
+                    return jsonify({
+                        'authenticated': False,
+                        'session_expired': True,
+                        'time_remaining': 0
+                    })
+            except Exception:
+                # Si hay error en las fechas, considerar expirada
+                return jsonify({
+                    'authenticated': False,
+                    'session_expired': True,
+                    'time_remaining': 0
+                })
+            
+            # ✅ NUEVO: Obtener usuario sin side effects
+            user = get_user_by_id(session['user_id'])
             if not user:
                 return jsonify({
                     'authenticated': False,
@@ -634,10 +656,24 @@ def setup_auth_routes(app):
                     'time_remaining': 0
                 })
             
+            # ✅ NUEVO: Verificar si está activo
+            if not user['is_active']:
+                return jsonify({
+                    'authenticated': False,
+                    'account_suspended': True,
+                    'time_remaining': 0
+                })
+            
+            # ✅ NUEVO: Todo OK, retornar estado completo
             return jsonify({
                 'authenticated': True,
                 'session_expired': False,
                 'time_remaining': get_session_time_remaining(),
+                'session': {
+                    'remaining_seconds': get_session_time_remaining(),
+                    'timeout_minutes': SESSION_TIMEOUT_MINUTES,
+                    'warning_minutes': WARNING_MINUTES
+                },
                 'user': {
                     'id': user['id'],
                     'email': user['email'],

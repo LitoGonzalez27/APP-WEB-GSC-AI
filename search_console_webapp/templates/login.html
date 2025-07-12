@@ -311,6 +311,11 @@
             const spinner = btn.querySelector('.login-spinner');
             const text = btn.querySelector('.login-text');
             
+            // ✅ NUEVO: Pausar SessionManager durante login
+            if (window.sessionManager) {
+                window.sessionManager.pause();
+            }
+            
             // Mostrar loading state
             btn.disabled = true;
             btn.classList.add('loading');
@@ -354,6 +359,11 @@
             if (!email || !password) {
                 showNotification('Por favor, completa todos los campos.', 'error');
                 return;
+            }
+            
+            // ✅ NUEVO: Pausar SessionManager durante login
+            if (window.sessionManager) {
+                window.sessionManager.pause();
             }
             
             // Mostrar loading
