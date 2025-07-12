@@ -30,9 +30,12 @@ from services.country_config import get_country_config
 from auth import (
     setup_auth_routes,
     login_required,
+    auth_required,
+    admin_required,
     is_user_authenticated,
     get_authenticated_service,
-    get_user_credentials
+    get_user_credentials,
+    get_current_user
 )
 
 # --- NUEVO: Detector de dispositivos móviles ---
@@ -61,9 +64,16 @@ app = Flask(__name__)
 
 # --- NUEVO: Configuración de sesión para autenticación ---
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here-change-in-production')
-app.config['SESSION_COOKIE_SECURE'] = False  # Cambiar a True en producción con HTTPS
+
+# Configuración automática según entorno
+is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
+app.config['SESSION_COOKIE_SECURE'] = is_production  # True en producción (HTTPS)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Configuraciones adicionales para producción
+if is_production:
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)
@@ -241,7 +251,7 @@ def fetch_validated_sites():
         return []
 
 @app.route('/get-properties')
-@login_required  # NUEVO: Requiere autenticación
+@auth_required  # NUEVO: Requiere autenticación
 def get_properties():
     """Obtiene propiedades de Search Console del usuario autenticado"""
     sites = fetch_validated_sites()
@@ -250,9 +260,11 @@ def get_properties():
 
 @app.route('/login')
 def login_page():
-    """Página de login - redirige a app si ya está autenticado"""
+    """Página de login - redirige a dashboard si ya está autenticado"""
     if is_user_authenticated():
-        return redirect('/')
+        user = get_current_user()
+        if user and user['is_active']:
+            return redirect('/dashboard')
     return render_template('login.html')
 
 @app.route('/mobile-not-supported')
@@ -272,7 +284,7 @@ def mobile_not_supported():
 
 
 @app.route('/')
-@login_required
+@auth_required
 def index():
     """
     Página principal - requiere autenticación y bloquea dispositivos móviles
@@ -297,7 +309,7 @@ def index():
     return render_template('index.html', user_email=user_email, authenticated=True)
 
 @app.route('/get-data', methods=['POST'])
-@login_required
+@auth_required
 def get_data():
     """Obtiene datos de Search Console con fechas específicas y comparación opcional"""
     
@@ -941,7 +953,7 @@ def get_data():
         return jsonify({'error': f'Error procesando solicitud: {str(e)}'}), 500
 
 @app.route('/download-excel', methods=['POST'])
-@login_required  # NUEVO: Requiere autenticación
+@auth_required  # NUEVO: Requiere autenticación
 def download_excel():
     # ... (el resto del código permanece igual)
     try:
@@ -1258,7 +1270,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
     return results_list, errors_list, successful_analyses
 
 @app.route('/api/analyze-ai-overview', methods=['POST'])
-@login_required  # NUEVO: Requiere autenticación
+@auth_required  # NUEVO: Requiere autenticación
 def analyze_ai_overview_route():
     try:
         request_payload = request.get_json()
@@ -1387,7 +1399,7 @@ def test_url_matching_route():
         return jsonify({'error': str(e_match_test_route)}), 500
 
 @app.route('/get-available-countries', methods=['POST'])
-@login_required  # NUEVO: Requiere autenticación
+@auth_required  # NUEVO: Requiere autenticación
 def get_available_countries():
     site_url = request.json.get('site_url', '')
     if not site_url:
@@ -1492,5 +1504,14 @@ def debug_serp_params():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Railway lo asigna automáticamente
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Railway proporciona el puerto automáticamente
+    port = int(os.environ.get('PORT', 5001))
+    
+    # Configurar debug según entorno
+    debug_mode = not is_production
+    
+    logger.info(f"🚀 Iniciando aplicación en puerto {port}")
+    logger.info(f"📊 Entorno: {'PRODUCCIÓN' if is_production else 'DESARROLLO'}")
+    logger.info(f"🐛 Debug mode: {debug_mode}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

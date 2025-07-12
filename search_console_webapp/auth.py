@@ -1,16 +1,30 @@
-# auth.py - Sistema de autenticación con Google OAuth2
+# auth.py - Sistema de autenticación con PostgreSQL y Google OAuth2
 
 import os
 import json
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
-from flask import session, redirect, request, jsonify, url_for
+from flask import session, redirect, request, jsonify, url_for, flash, render_template
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import logging
 from dotenv import load_dotenv
+
+# Importar funciones de base de datos
+from database import (
+    init_database, 
+    get_user_by_email, 
+    get_user_by_google_id, 
+    get_user_by_id,
+    create_user, 
+    authenticate_user,
+    get_all_users,
+    update_user_activity,
+    update_user_role,
+    get_user_stats
+)
 
 # Carga las variables de entorno desde el .env
 load_dotenv()
@@ -31,7 +45,7 @@ SCOPES = [
 CLIENT_SECRETS_FILE = os.getenv('CLIENT_SECRETS_FILE', 'client_secret.json')
 REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/auth/callback')
 
-# ✅ NUEVA: Configuración de inactividad (en minutos)
+# ✅ Configuración de inactividad (en minutos)
 SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', '45'))  # 45 minutos por defecto
 WARNING_MINUTES = int(os.getenv('SESSION_WARNING_MINUTES', '5'))  # Advertir 5 minutos antes
 
@@ -85,34 +99,119 @@ def get_session_time_remaining():
         logger.error(f"Error calculando tiempo restante: {e}")
         return 0
 
-def login_required(f):
+def get_current_user():
+    """Obtiene el usuario actual desde la sesión"""
+    if 'user_id' not in session:
+        return None
+    
+    return get_user_by_id(session['user_id'])
+
+def is_user_authenticated():
+    """Verifica si el usuario está autenticado"""
+    return 'user_id' in session and session['user_id'] is not None
+
+def is_user_active():
+    """Verifica si el usuario está activo"""
+    user = get_current_user()
+    return user and user['is_active']
+
+def is_user_admin():
+    """Verifica si el usuario es administrador"""
+    user = get_current_user()
+    return user and user['role'] == 'admin'
+
+def auth_required(f):
+    """Decorador que requiere autenticación"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Verificar autenticación básica
         if not is_user_authenticated():
-            # Si es una petición AJAX, devolver JSON
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
-            # Si es una petición del navegador, redirigir a login
             return redirect(url_for('login_page') + '?auth_required=true')
         
-        # ✅ NUEVA: Verificar expiración por inactividad
+        # Verificar expiración por inactividad
         if is_session_expired():
-            # Limpiar sesión expirada
             session.clear()
             logger.info("Sesión expirada por inactividad")
             
-            # Si es una petición AJAX, devolver JSON
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            # Si es una petición del navegador, redirigir a login
             return redirect(url_for('login_page') + '?session_expired=true')
         
-        # ✅ NUEVA: Actualizar última actividad para peticiones válidas
+        # Verificar si el usuario está en la base de datos
+        user = get_current_user()
+        if not user:
+            session.clear()
+            logger.warning("Usuario no encontrado en base de datos")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            return redirect(url_for('signup_page') + '?user_not_found=true')
+        
+        # Verificar si el usuario está activo
+        if not user['is_active']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
+            return redirect(url_for('login_page') + '?account_suspended=true')
+        
+        # Actualizar última actividad
         update_last_activity()
         
         return f(*args, **kwargs)
     return decorated_function
+
+def admin_required(f):
+    """Decorador que requiere privilegios de administrador"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar autenticación básica
+        if not is_user_authenticated():
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?auth_required=true')
+        
+        # Verificar expiración por inactividad
+        if is_session_expired():
+            session.clear()
+            logger.info("Sesión expirada por inactividad")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
+            return redirect(url_for('login_page') + '?session_expired=true')
+        
+        # Verificar si el usuario está en la base de datos
+        user = get_current_user()
+        if not user:
+            session.clear()
+            logger.warning("Usuario no encontrado en base de datos")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?user_not_found=true')
+        
+        # Verificar si el usuario está activo
+        if not user['is_active']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
+            return redirect(url_for('login_page') + '?account_suspended=true')
+        
+        # Verificar si el usuario es administrador
+        if not user['role'] == 'admin':
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403
+            return redirect(url_for('dashboard') + '?admin_required=true')
+        
+        # Actualizar última actividad
+        update_last_activity()
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Mantener compatibilidad con el decorador anterior
+def login_required(f):
+    """Decorador de compatibilidad - alias para auth_required"""
+    return auth_required(f)
 
 def auth_required_no_activity_update(f):
     """
@@ -123,35 +222,48 @@ def auth_required_no_activity_update(f):
     def decorated_function(*args, **kwargs):
         # Verificar autenticación básica
         if not is_user_authenticated():
-            # Si es una petición AJAX, devolver JSON
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
-            # Si es una petición del navegador, redirigir a login
             return redirect(url_for('login_page') + '?auth_required=true')
         
-        # ✅ NUEVA: Verificar expiración por inactividad
+        # Verificar expiración por inactividad
         if is_session_expired():
-            # Limpiar sesión expirada
             session.clear()
             logger.info("Sesión expirada por inactividad")
             
-            # Si es una petición AJAX, devolver JSON
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
-            # Si es una petición del navegador, redirigir a login
             return redirect(url_for('login_page') + '?session_expired=true')
+        
+        # Verificar si el usuario está en la base de datos
+        user = get_current_user()
+        if not user:
+            session.clear()
+            logger.warning("Usuario no encontrado en base de datos")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?user_not_found=true')
+        
+        # Verificar si el usuario está activo
+        if not user['is_active']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
+            return redirect(url_for('login_page') + '?account_suspended=true')
         
         # ⚠️ NO actualizar última actividad - solo verificar autenticación
         
         return f(*args, **kwargs)
     return decorated_function
 
-def is_user_authenticated():
-    return 'credentials' in session and session['credentials'] is not None
-
 def get_user_credentials():
+    """Obtiene las credenciales de Google OAuth del usuario actual"""
     if not is_user_authenticated():
         return None
+    
+    if 'credentials' not in session:
+        return None
+        
     try:
         credentials_dict = session['credentials']
         return Credentials(
@@ -167,6 +279,7 @@ def get_user_credentials():
         return None
 
 def get_user_info():
+    """Obtiene información del usuario desde Google OAuth"""
     credentials = get_user_credentials()
     if not credentials:
         return None
@@ -185,6 +298,7 @@ def get_user_info():
         return None
 
 def refresh_credentials_if_needed(credentials):
+    """Actualiza las credenciales si es necesario"""
     try:
         if credentials.expired and credentials.refresh_token:
             credentials.refresh(Request())
@@ -202,13 +316,116 @@ def refresh_credentials_if_needed(credentials):
         return None
 
 def setup_auth_routes(app):
+    """Configura todas las rutas de autenticación"""
+    
+    # Inicializar base de datos
+    init_database()
+
+    @app.route('/login')
+    def login_page():
+        """Página de inicio de sesión"""
+        if is_user_authenticated():
+            user = get_current_user()
+            if user and user['is_active']:
+                return redirect(url_for('dashboard'))
+        
+        return render_template('login.html')
+
+    @app.route('/signup')
+    def signup_page():
+        """Página de registro"""
+        if is_user_authenticated():
+            user = get_current_user()
+            if user and user['is_active']:
+                return redirect(url_for('dashboard'))
+        
+        return render_template('signup.html')
+
+    @app.route('/signup', methods=['POST'])
+    def signup_manual():
+        """Registro manual con email y contraseña"""
+        try:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+            name = data.get('name', '').strip()
+            password = data.get('password', '')
+            
+            # Validar datos
+            if not email or not name or not password:
+                return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+            
+            if len(password) < 8:
+                return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+            
+            # Verificar si el usuario ya existe
+            existing_user = get_user_by_email(email)
+            if existing_user:
+                return jsonify({'error': 'Ya existe un usuario con este email'}), 400
+            
+            # Crear usuario
+            user = create_user(email, name, password)
+            if not user:
+                return jsonify({'error': 'Error creando usuario'}), 500
+            
+            logger.info(f"Usuario registrado manualmente: {email}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuario registrado exitosamente. Ahora puedes iniciar sesión.',
+                'redirect': url_for('login_page')
+            })
+            
+        except Exception as e:
+            logger.error(f"Error en registro manual: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/login', methods=['POST'])
+    def login_manual():
+        """Inicio de sesión manual con email y contraseña"""
+        try:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+            password = data.get('password', '')
+            
+            # Validar datos
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+            
+            # Autenticar usuario
+            user = authenticate_user(email, password)
+            if not user:
+                return jsonify({'error': 'Email o contraseña incorrectos'}), 401
+            
+            # Verificar si el usuario está activo
+            if not user['is_active']:
+                return jsonify({'error': 'Tu cuenta está suspendida. Contacta con soporte.'}), 403
+            
+            # Iniciar sesión
+            session['user_id'] = user['id']
+            session['user_email'] = user['email']
+            session['user_name'] = user['name']
+            update_last_activity()
+            
+            logger.info(f"Usuario autenticado manualmente: {email}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Inicio de sesión exitoso',
+                'redirect': url_for('dashboard')
+            })
+            
+        except Exception as e:
+            logger.error(f"Error en login manual: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
 
     @app.route('/auth/login')
     def auth_login():
+        """Inicio de sesión con Google OAuth"""
         try:
             flow = create_flow()
             if not flow:
                 return jsonify({'error': 'OAuth configuration error'}), 500
+            
             session['state'] = secrets.token_urlsafe(32)
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
@@ -222,6 +439,7 @@ def setup_auth_routes(app):
 
     @app.route('/auth/callback')
     def auth_callback():
+        """Callback de Google OAuth"""
         try:
             if request.args.get('state') != session.get('state'):
                 return redirect('/login?auth_error=invalid_state')
@@ -237,6 +455,7 @@ def setup_auth_routes(app):
             flow.fetch_token(authorization_response=request.url)
             credentials = flow.credentials
             
+            # Guardar credenciales en sesión
             session['credentials'] = {
                 'token': credentials.token,
                 'refresh_token': credentials.refresh_token,
@@ -246,128 +465,269 @@ def setup_auth_routes(app):
                 'scopes': credentials.scopes
             }
             
+            # Obtener información del usuario
             user_info = get_user_info()
-            if user_info:
-                session['user_info'] = user_info
-                logger.info(f"Usuario autenticado: {user_info.get('email')}")
+            if not user_info:
+                return redirect('/login?auth_error=user_info_failed')
             
-            # ✅ NUEVA: Establecer última actividad al autenticarse
-            update_last_activity()
+            # Verificar si el usuario ya existe en la base de datos
+            existing_user = get_user_by_google_id(user_info['id'])
+            if not existing_user:
+                existing_user = get_user_by_email(user_info['email'])
             
-            session.pop('state', None)
-            return redirect('/?auth_success=true')
+            if existing_user:
+                # Usuario existe - verificar si está activo
+                if not existing_user['is_active']:
+                    return redirect('/login?account_suspended=true')
+                
+                # Iniciar sesión
+                session['user_id'] = existing_user['id']
+                session['user_email'] = existing_user['email']
+                session['user_name'] = existing_user['name']
+                update_last_activity()
+                
+                logger.info(f"Usuario autenticado con Google: {user_info['email']}")
+                return redirect(url_for('dashboard'))
+            else:
+                # Usuario no existe - redirigir a registro
+                session['pending_google_signup'] = {
+                    'google_id': user_info['id'],
+                    'email': user_info['email'],
+                    'name': user_info['name'],
+                    'picture': user_info.get('picture')
+                }
+                return redirect('/signup?google_signup=true')
+                
         except Exception as e:
             logger.error(f"Error en auth_callback: {e}")
             return redirect('/login?auth_error=callback_failed')
 
-    @app.route('/auth/logout', methods=['POST', 'GET'])
-    def auth_logout():
+    @app.route('/auth/complete-google-signup', methods=['POST'])
+    def complete_google_signup():
+        """Completa el registro con Google OAuth"""
         try:
-            user_email = session.get('user_info', {}).get('email', 'usuario')
-            session.clear()
-            logger.info(f"Usuario desconectado: {user_email}")
+            if 'pending_google_signup' not in session:
+                return jsonify({'error': 'No hay registro pendiente'}), 400
             
-            # Si es una petición AJAX, devolver JSON
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'success': True, 'message': 'Logout successful'})
+            google_data = session['pending_google_signup']
             
-            # Si es una petición del navegador, redirigir a login
-            return redirect('/login?session_expired=true')
-        except Exception as e:
-            logger.error(f"Error en logout: {e}")
+            # Crear usuario en la base de datos
+            user = create_user(
+                email=google_data['email'],
+                name=google_data['name'],
+                google_id=google_data['google_id'],
+                picture=google_data.get('picture')
+            )
             
-            # Si es una petición AJAX, devolver JSON
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'Logout failed'}), 500
+            if not user:
+                return jsonify({'error': 'Error creando usuario'}), 500
             
-            # Si es una petición del navegador, redirigir a login con error
-            return redirect('/login?auth_error=logout_failed')
-
-    @app.route('/auth/status')
-    def auth_status():
-        try:
-            if is_user_authenticated():
-                # ✅ NUEVA: Verificar si la sesión ha expirado por inactividad
-                if is_session_expired():
-                    session.clear()
-                    return jsonify({
-                        'authenticated': False, 
-                        'session_expired': True,
-                        'reason': 'Session expired due to inactivity'
-                    })
-                
-                user_info = session.get('user_info', {})
-                remaining_seconds = get_session_time_remaining()
-                
-                return jsonify({
-                    'authenticated': True,
-                    'user': {
-                        'email': user_info.get('email'),
-                        'name': user_info.get('name'),
-                        'picture': user_info.get('picture')
-                    },
-                    'session': {
-                        'remaining_seconds': remaining_seconds,
-                        'timeout_minutes': SESSION_TIMEOUT_MINUTES,
-                        'warning_minutes': WARNING_MINUTES
-                    }
-                })
-            return jsonify({'authenticated': False})
-        except Exception as e:
-            logger.error(f"Error en auth_status: {e}")
-            return jsonify({'error': 'Status check failed'}), 500
-
-    # ✅ NUEVA: Endpoint para renovar la sesión (mantener activa)
-    @app.route('/auth/keepalive', methods=['POST'])
-    @auth_required_no_activity_update
-    def auth_keepalive():
-        """Mantiene la sesión activa actualizando la última actividad SOLO si se confirma actividad"""
-        try:
-            # ✅ SOLO actualizar actividad si se envía confirmación explícita
-            request_data = request.get_json() or {}
-            user_active = request_data.get('user_active', False)
+            # Limpiar datos pendientes
+            session.pop('pending_google_signup', None)
             
-            if user_active:
-                update_last_activity()
-                message = 'Session refreshed - user activity confirmed'
-                logger.info("Keep-alive con actividad del usuario confirmada")
-            else:
-                message = 'Session checked - no activity update'
-                logger.info("Keep-alive sin actividad del usuario")
-            
-            remaining_seconds = get_session_time_remaining()
+            logger.info(f"Usuario registrado con Google: {google_data['email']}")
             
             return jsonify({
                 'success': True,
-                'remaining_seconds': remaining_seconds,
-                'user_active': user_active,
-                'message': message
+                'message': 'Usuario registrado exitosamente. Ahora puedes iniciar sesión.',
+                'redirect': url_for('login_page')
+            })
+            
+        except Exception as e:
+            logger.error(f"Error completando registro con Google: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/auth/logout', methods=['POST', 'GET'])
+    def auth_logout():
+        """Cerrar sesión"""
+        try:
+            user_email = session.get('user_email', 'Unknown')
+            
+            # Limpiar sesión
+            session.clear()
+            
+            logger.info(f"Usuario desconectado: {user_email}")
+            
+            if request.method == 'POST':
+                return jsonify({'success': True, 'message': 'Sesión cerrada exitosamente'})
+            else:
+                flash('Sesión cerrada exitosamente', 'success')
+                return redirect(url_for('login_page'))
+                
+        except Exception as e:
+            logger.error(f"Error en logout: {e}")
+            return redirect(url_for('login_page'))
+
+    @app.route('/auth/status')
+    def auth_status():
+        """Estado de autenticación"""
+        try:
+            if not is_user_authenticated():
+                return jsonify({
+                    'authenticated': False,
+                    'session_expired': False,
+                    'time_remaining': 0
+                })
+            
+            if is_session_expired():
+                return jsonify({
+                    'authenticated': False,
+                    'session_expired': True,
+                    'time_remaining': 0
+                })
+            
+            user = get_current_user()
+            if not user:
+                return jsonify({
+                    'authenticated': False,
+                    'user_not_found': True,
+                    'time_remaining': 0
+                })
+            
+            return jsonify({
+                'authenticated': True,
+                'session_expired': False,
+                'time_remaining': get_session_time_remaining(),
+                'user': {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'name': user['name'],
+                    'picture': user.get('picture'),
+                    'role': user['role'],
+                    'is_active': user['is_active']
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo estado de autenticación: {e}")
+            return jsonify({
+                'authenticated': False,
+                'error': 'Error interno del servidor'
+            }), 500
+
+    @app.route('/auth/keepalive', methods=['POST'])
+    @auth_required_no_activity_update
+    def auth_keepalive():
+        """Mantener sesión activa"""
+        try:
+            return jsonify({
+                'success': True,
+                'time_remaining': get_session_time_remaining(),
+                'session_timeout_minutes': SESSION_TIMEOUT_MINUTES,
+                'warning_minutes': WARNING_MINUTES
             })
         except Exception as e:
-            logger.error(f"Error en auth_keepalive: {e}")
-            return jsonify({'error': 'Failed to refresh session'}), 500
+            logger.error(f"Error en keepalive: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
 
     @app.route('/auth/user')
-    @login_required
+    @auth_required
     def auth_user():
+        """Información del usuario actual"""
         try:
-            user_info = get_user_info()
-            if user_info:
-                return jsonify({'user': user_info})
-            return jsonify({'error': 'User information not available'}), 400
+            user = get_current_user()
+            if not user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            return jsonify({
+                'id': user['id'],
+                'email': user['email'],
+                'name': user['name'],
+                'picture': user.get('picture'),
+                'role': user['role'],
+                'is_active': user['is_active'],
+                'created_at': user['created_at'].isoformat() if user['created_at'] else None
+            })
+            
         except Exception as e:
-            logger.error(f"Error en auth_user: {e}")
-            return jsonify({'error': 'Failed to get user information'}), 500
+            logger.error(f"Error obteniendo información del usuario: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/dashboard')
+    @auth_required
+    def dashboard():
+        """Panel de usuario"""
+        user = get_current_user()
+        return render_template('dashboard.html', user=user)
+
+    @app.route('/admin/users')
+    @admin_required
+    def admin_users():
+        """Panel de administración de usuarios"""
+        users = get_all_users()
+        stats = get_user_stats()
+        return render_template('admin_users.html', users=users, stats=stats)
+
+    @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+    @admin_required
+    def toggle_user_status(user_id):
+        """Activar/desactivar usuario"""
+        try:
+            user = get_user_by_id(user_id)
+            if not user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            new_status = not user['is_active']
+            success = update_user_activity(user_id, new_status)
+            
+            if success:
+                action = 'activado' if new_status else 'desactivado'
+                logger.info(f"Usuario {user['email']} {action} por admin")
+                return jsonify({
+                    'success': True,
+                    'message': f'Usuario {action} exitosamente',
+                    'is_active': new_status
+                })
+            else:
+                return jsonify({'error': 'Error actualizando usuario'}), 500
+                
+        except Exception as e:
+            logger.error(f"Error toggling user status: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/update-role', methods=['POST'])
+    @admin_required
+    def update_user_role_route(user_id):
+        """Actualizar rol de usuario"""
+        try:
+            data = request.get_json()
+            new_role = data.get('role')
+            
+            if new_role not in ['user', 'admin']:
+                return jsonify({'error': 'Rol inválido'}), 400
+            
+            user = get_user_by_id(user_id)
+            if not user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            success = update_user_role(user_id, new_role)
+            
+            if success:
+                logger.info(f"Rol de usuario {user['email']} actualizado a {new_role}")
+                return jsonify({
+                    'success': True,
+                    'message': f'Rol actualizado a {new_role}',
+                    'role': new_role
+                })
+            else:
+                return jsonify({'error': 'Error actualizando rol'}), 500
+                
+        except Exception as e:
+            logger.error(f"Error updating user role: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
 
 def get_authenticated_service(service_name, version):
+    """Obtiene un servicio autenticado de Google API"""
     credentials = get_user_credentials()
     if not credentials:
         return None
-    credentials = refresh_credentials_if_needed(credentials)
-    if not credentials:
-        return None
+    
     try:
+        credentials = refresh_credentials_if_needed(credentials)
+        if not credentials:
+            return None
+            
         return build(service_name, version, credentials=credentials)
     except Exception as e:
-        logger.error(f"Error creando servicio {service_name}: {e}")
+        logger.error(f"Error obteniendo servicio autenticado: {e}")
         return None

@@ -1,0 +1,422 @@
+/* signup.css - Estilos específicos para la página de registro */
+
+/* Pestañas de registro */
+.signup-tabs {
+    display: flex;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    padding: 4px;
+    gap: 4px;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6c757d;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tab-button.active {
+    background: #fff;
+    color: #007bff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tab-button i {
+    font-size: 16px;
+}
+
+/* Contenido de pestañas */
+.signup-tab-content {
+    display: none;
+}
+
+.signup-tab-content.active {
+    display: block;
+}
+
+/* Formulario manual */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"] {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-group input.error {
+    border-color: #dc3545;
+}
+
+.form-group input.error:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+/* Campo de contraseña con toggle */
+.password-input {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 16px;
+    padding: 4px;
+    transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #495057;
+}
+
+.password-requirements {
+    margin-top: 0.5rem;
+}
+
+.password-requirements small {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+/* Errores de campo */
+.field-error {
+    display: block;
+    margin-top: 0.25rem;
+    color: #dc3545;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Botón de registro */
+.signup-btn {
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 1rem;
+}
+
+.signup-btn:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+}
+
+.signup-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.signup-btn.loading {
+    pointer-events: none;
+}
+
+.btn-spinner {
+    font-size: 14px;
+}
+
+/* Registro con Google */
+.google-signup-content {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.google-signup-description {
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+}
+
+/* Registro con Google pendiente */
+.google-pending-content {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.pending-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+}
+
+.pending-header i {
+    font-size: 24px;
+    color: #28a745;
+}
+
+.pending-header h4 {
+    margin: 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.pending-description {
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.pending-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-avatar i {
+    font-size: 24px;
+    color: #6c757d;
+}
+
+.user-details {
+    flex: 1;
+    text-align: left;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.user-email {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+/* Link de login */
+.login-link {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.login-link p {
+    color: #6c757d;
+    font-size: 14px;
+    margin: 0;
+}
+
+.login-link a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive para signup */
+@media (max-width: 768px) {
+    .signup-tabs {
+        margin-bottom: 1.5rem;
+    }
+    
+    .tab-button {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    .tab-button i {
+        font-size: 14px;
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group input[type="password"] {
+        padding: 10px 12px;
+        font-size: 16px; /* Evitar zoom en iOS */
+    }
+    
+    .signup-btn {
+        padding: 12px 20px;
+        font-size: 15px;
+    }
+    
+    .google-signup-content {
+        padding: 1.5rem 0;
+    }
+    
+    .pending-user-info {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .user-details {
+        text-align: center;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.signup-tab-content.active {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+/* Estados adicionales */
+.signup-btn:active {
+    transform: translateY(0);
+}
+
+.form-group input:valid {
+    border-color: #28a745;
+}
+
+.form-group input:invalid:not(:placeholder-shown) {
+    border-color: #dc3545;
+}
+
+/* Mejoras de accesibilidad */
+.tab-button:focus,
+.signup-btn:focus,
+.form-group input:focus,
+.password-toggle:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Tema oscuro (opcional) */
+@media (prefers-color-scheme: dark) {
+    .signup-tabs {
+        background: #2d3748;
+    }
+    
+    .tab-button {
+        color: #a0aec0;
+    }
+    
+    .tab-button:hover {
+        background: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .tab-button.active {
+        background: #1a202c;
+        color: #63b3ed;
+    }
+    
+    .form-group label {
+        color: #e2e8f0;
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group input[type="password"] {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .form-group input:focus {
+        border-color: #63b3ed;
+        box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+    }
+    
+    .pending-user-info {
+        background: #2d3748;
+    }
+    
+    .user-name {
+        color: #e2e8f0;
+    }
+    
+    .user-email {
+        color: #a0aec0;
+    }
+} 
