@@ -147,7 +147,7 @@ def auth_required(f):
             
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'User not found', 'auth_required': True}), 401
-            return redirect(url_for('signup_page') + '?user_not_found=true')
+            return redirect(url_for('login_page') + '?auth_error=user_not_found')
         
         # Verificar si el usuario está activo
         if not user['is_active']:
@@ -243,7 +243,7 @@ def auth_required_no_activity_update(f):
             
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'User not found', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?user_not_found=true')
+            return redirect(url_for('login_page') + '?auth_error=user_not_found')
         
         # Verificar si el usuario está activo
         if not user['is_active']:
@@ -418,6 +418,56 @@ def setup_auth_routes(app):
             logger.error(f"Error en login manual: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
+    @app.route('/auth/login/manual', methods=['POST'])
+    def auth_login_manual():
+        """Inicio de sesión manual con email y contraseña - nueva ruta"""
+        try:
+            data = request.get_json()
+            email = data.get('email', '').strip().lower()
+            password = data.get('password', '')
+            remember = data.get('remember', False)
+            
+            # Validar datos
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+            
+            # Verificar si el usuario existe
+            user = get_user_by_email(email)
+            if not user:
+                return jsonify({'error': 'user_not_found'}), 404
+            
+            # Autenticar usuario
+            auth_user = authenticate_user(email, password)
+            if not auth_user:
+                return jsonify({'error': 'invalid_credentials'}), 401
+            
+            # Verificar si el usuario está activo
+            if not auth_user['is_active']:
+                return jsonify({'error': 'account_suspended'}), 403
+            
+            # Iniciar sesión
+            session['user_id'] = auth_user['id']
+            session['user_email'] = auth_user['email']
+            session['user_name'] = auth_user['name']
+            
+            # Extender sesión si se marca "recordar"
+            if remember:
+                session.permanent = True
+            
+            update_last_activity()
+            
+            logger.info(f"Usuario autenticado manualmente: {email}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Inicio de sesión exitoso',
+                'redirect': url_for('dashboard')
+            })
+            
+        except Exception as e:
+            logger.error(f"Error en login manual: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
     @app.route('/auth/login')
     def auth_login():
         """Inicio de sesión con Google OAuth"""
@@ -478,7 +528,7 @@ def setup_auth_routes(app):
             if existing_user:
                 # Usuario existe - verificar si está activo
                 if not existing_user['is_active']:
-                    return redirect('/login?account_suspended=true')
+                    return redirect('/login?auth_error=account_suspended')
                 
                 # Iniciar sesión
                 session['user_id'] = existing_user['id']
@@ -487,7 +537,7 @@ def setup_auth_routes(app):
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                return redirect(url_for('dashboard'))
+                return redirect('/dashboard?auth_success=true')
             else:
                 # Usuario no existe - redirigir a registro
                 session['pending_google_signup'] = {
@@ -643,12 +693,7 @@ def setup_auth_routes(app):
             logger.error(f"Error obteniendo información del usuario: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
-    @app.route('/dashboard')
-    @auth_required
-    def dashboard():
-        """Panel de usuario"""
-        user = get_current_user()
-        return render_template('dashboard.html', user=user)
+
 
     @app.route('/admin/users')
     @admin_required

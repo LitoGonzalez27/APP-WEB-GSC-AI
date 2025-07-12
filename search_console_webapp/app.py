@@ -258,7 +258,6 @@ def get_properties():
     props = [{'siteUrl': s['siteUrl']} for s in sites if s.get('siteUrl')]
     return jsonify({'properties': props})
 
-
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
     """
@@ -276,10 +275,21 @@ def mobile_not_supported():
 
 
 @app.route('/')
-@auth_required
-def index():
+def landing():
     """
-    Página principal - requiere autenticación y bloquea dispositivos móviles
+    Landing page - página de bienvenida sin autenticación requerida
+    """
+    # Si ya está autenticado, redirigir al dashboard
+    if is_user_authenticated():
+        return redirect(url_for('dashboard'))
+    
+    return render_template('landing.html')
+
+@app.route('/dashboard')
+@auth_required
+def dashboard():
+    """
+    Dashboard principal - requiere autenticación y bloquea dispositivos móviles
     """
     # Registrar información del dispositivo
     log_device_access(logger)
