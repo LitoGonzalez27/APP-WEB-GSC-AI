@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clicandseo</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modal-progreso.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modales-datos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='serp-modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
+  
+  <!-- ✅ NUEVO: Agregar estilos del selector de fechas -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='date-selector.css') }}">
+  <!-- ✅ NUEVO: Agregar estilos del modo de análisis -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='analysis-mode-styles.css') }}">
+  <!-- ✅ NUEVO: Agregar estilos del overlay IA -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai-overlay-styles.css') }}">
+  <!-- ✅ NUEVO: Sistema responsive mejorado -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
+</head>
+<body data-authenticated="{{ 'true' if authenticated else 'false' }}">
+
+  <nav class="navbar" id="navbar">
+    <div class="navbar-container">
+      <!-- Logo/Brand Section -->
+      <div class="navbar-brand">
+        <div class="brand-logo">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <span class="brand-text">Clicandseo</span>
+      </div>
+
+      <!-- Desktop Actions (visible en desktop) -->
+      <div class="navbar-desktop-actions">
+        <div class="navbar-user-section">
+          <!-- User avatar/info cuando esté logueado -->
+          <div class="user-info" id="userInfo" style="display: none;">
+            <div class="user-avatar">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <span class="user-name" id="userName">Usuario</span>
+          </div>
+          
+          <!-- Auth buttons -->
+          <div class="auth-buttons">
+            <button type="button" class="btn-auth btn-login" id="loginBtn">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>Iniciar Sesión</span>
+            </button>
+
+            <button type="button" class="btn-auth btn-logout" id="logoutBtn" style="display: none;">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Theme toggle en desktop -->
+        <div class="theme-section">
+          <button type="button" class="btn-theme" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema">
+            <i class="fas fa-moon" id="themeIcon"></i>
+            <span class="theme-text">Modo Oscuro</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <!-- Mobile Menu -->
+      <div class="navbar-mobile-menu" id="navbarMenu">
+        <div class="mobile-menu-header">
+          <div class="mobile-brand">
+            <i class="fas fa-chart-line"></i>
+            <span>Search Console</span>
+          </div>
+          <button class="mobile-menu-close" id="mobileMenuClose">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="mobile-menu-content">
+          <!-- User section en móvil -->
+          <div class="mobile-user-section">
+            <div class="mobile-user-info" id="mobileUserInfo" style="display: none;">
+              <div class="mobile-user-avatar">
+                <i class="fas fa-user-circle"></i>
+              </div>
+              <div class="mobile-user-details">
+                <span class="mobile-user-name" id="mobileUserName">Usuario</span>
+                <span class="mobile-user-email" id="mobileUserEmail">usuario@email.com</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Auth actions en móvil -->
+          <div class="mobile-auth-section">
+            <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>Iniciar Sesión con Google</span>
+            </button>
+
+            <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: none;">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+
+          <!-- Theme toggle en móvil -->
+          <div class="mobile-theme-section">
+            <div class="mobile-theme-toggle">
+              <span class="mobile-theme-label">Tema de la aplicación</span>
+              <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
+                <i class="fas fa-moon" id="mobileThemeIcon"></i>
+                <span id="mobileThemeText">Modo Oscuro</span>
+                <i class="fas fa-chevron-right mobile-chevron"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="navbar-overlay" id="navbarOverlay"></div>
+  </nav>
+
+  <div id="stickyActions" class="sticky-actions" style="display: none;">
+    <div class="sticky-actions-container">
+      <button type="button" id="stickyDownloadBtn" class="sticky-btn sticky-btn-download">
+        <i class="fas fa-download"></i>
+        <span class="sticky-btn-text">Excel</span>
+        <span class="sticky-btn-spinner" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i>
+        </span>
+      </button>
+      
+      <button type="button" id="stickyAIBtn" class="sticky-btn sticky-btn-ai">
+        <i class="fas fa-robot"></i>
+        <span class="sticky-btn-text">Execute AI Analysis</span>
+        <span class="sticky-btn-spinner" style="display: none;">
+          <i class="fas fa-spinner fa-spin"></i>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <form id="urlForm" class="search-form">
+      
+      <div class="form-header">
+        <h1>Search Results Performance</h1>
+        <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
+      </div> 
+
+      <div class="form-row">
+        <div class="form-group form-group-half">
+          <label for="siteUrlSelect">Select Domain</label>
+          <select id="siteUrlSelect" name="site_url" required>
+            <option value="" disabled selected>Loading properties...</option>
+          </select>
+        </div>
+        
+        <div class="form-group form-group-half">
+          <label for="countrySelect">
+            Country
+            <span class="country-info-icon" id="countryInfoIcon">
+              <i class="fas fa-info-circle"></i>
+            </span>
+          </label>
+          <select id="countrySelect" name="country">
+            <option value="" disabled selected>Select a domain first</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group form-group-large">
+          <label for="urlsInput">
+            URL(s)
+            <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon" title="Click para más información"></i>
+          </label>
+          <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
+        </div>
+        
+        <div class="form-group form-group-small">
+          <label for="matchTypeGroup">Match Type</label>
+          <div class="match-type-group" id="matchTypeGroup">
+            <input type="radio" id="matchContains" name="match_type" value="contains" checked>
+            <label for="matchContains" class="match-type-btn">Contains</label>
+            
+            <input type="radio" id="matchEquals" name="match_type" value="equals">
+            <label for="matchEquals" class="match-type-btn">Equals</label>
+            
+            <input type="radio" id="matchNotContains" name="match_type" value="notContains">
+            <label for="matchNotContains" class="match-type-btn">Not Contains</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ ACTUALIZADO: Selector de fechas ahora es un modal elegante -->
+      <div class="form-row">
+        <div class="form-group form-group-full">
+          <!-- ✅ IMPORTANTE: El contenido será reemplazado por el botón modal y selector de fechas -->
+          <div id="monthChips" role="group" aria-labelledby="monthChipsLabel"></div>
+        </div>
+      </div>
+
+      <div class="form-row form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-search"></i>
+          Analyze Performance
+        </button>
+        <button type="button" id="clearUrlsBtn" class="btn btn-secondary">
+          <i class="fas fa-times"></i>
+          Clear URLs
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Resto del HTML permanece igual... -->
+  <div id="loader" style="display:none; text-align:center; margin:20px;" role="status" aria-live="polite">
+    <div class="spinner"></div>
+    <p>Processing data for specific periods...</p>
+  </div>
+
+  <section id="insightsSection" class="glass-effect" style="display:none;">
+    <h2 id="insightsTitle">Performance Overview</h2>
+    <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
+    <div id="summaryDisclaimer" class="summary-disclaimer"></div>
+  </section>
+
+  <!-- Resto de secciones sin cambios... -->
+  <section id="performanceSection" class="glass-effect" style="display:none;">
+    <h2 id="performanceTitle">Selected Periods Performance</h2>
+    <div id="summaryBlock" class="summary-block">
+      <!-- Cards permanecen igual -->
+      <div class="summary-card" id="summaryClicks">
+        <div class="card-icon"><i class="fas fa-mouse-pointer"></i></div>
+        <strong>Clicks</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryImpressions">
+        <div class="card-icon"><i class="fas fa-eye"></i></div>
+        <strong>Impressions</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryCTR">
+        <div class="card-icon"><i class="fas fa-percentage"></i></div>
+        <strong>Average CTR</strong>
+        <div class="summary-content"></div>
+      </div>
+      <div class="summary-card" id="summaryPosition">
+        <div class="card-icon"><i class="fas fa-location-arrow"></i></div>
+        <strong>Average Position</strong>
+        <div class="summary-content"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="keywordsSection" class="glass-effect" style="display:none;">
+    <h2 id="keywordsTitle">Keyword Performance</h2> 
+    <div class="keywords-overview-subtitle">Performance comparison between selected periods</div>
+    <div id="keyword-overview" class="overview-cards"></div>
+    <div id="keyword-category-cards" class="category-cards"></div>
+    <div id="keywordComparisonBlock" class="table-responsive-container">
+      <table id="keywordComparisonTable" class="display" style="width:100%;">
+        <thead>
+          <tr>
+            <th>View SERP</th>
+            <th>Keyword</th>
+            <th>Clicks P1</th>
+            <th>Clicks P2</th>
+            <th>&Delta;Clicks (%)</th>
+            <th>Impresiones P1</th>
+            <th>Impresiones P2</th>
+            <th>&Delta;Imp. (%)</th>
+            <th>CTR P1 (%)</th>
+            <th>CTR P2 (%)</th>
+            <th>&Delta;CTR (%)</th>
+            <th>Pos P1</th>
+            <th>Pos P2</th>
+            <th>&Delta;Pos</th>
+          </tr>
+        </thead>
+        <tbody id="keywordComparisonTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="aiOverviewSection" class="glass-effect" style="display:none;">
+    <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
+    
+    <!-- Contenedor principal con overlay -->
+    <div class="ai-content-wrapper blurred" id="aiContentWrapper">
+      <!-- Datos placeholder que se muestran inicialmente -->
+      <div class="ai-placeholder-data" id="aiPlaceholderData">
+        <div class="ai-placeholder-summary">
+          <h3><i class="fas fa-chart-line"></i> Resumen de Análisis IA</h3>
+          <div class="ai-placeholder-metrics">
+            <div class="ai-placeholder-metric ai-shimmer">
+              <div class="ai-placeholder-metric-value">24</div>
+              <div class="ai-placeholder-metric-label">Keywords Analizadas</div>
+            </div>
+            <div class="ai-placeholder-metric ai-shimmer">
+              <div class="ai-placeholder-metric-value">18</div>
+              <div class="ai-placeholder-metric-label">Con AI Overview</div>
+            </div>
+            <div class="ai-placeholder-metric ai-shimmer">
+              <div class="ai-placeholder-metric-value">7</div>
+              <div class="ai-placeholder-metric-label">Como Fuente IA</div>
+            </div>
+            <div class="ai-placeholder-metric ai-shimmer">
+              <div class="ai-placeholder-metric-value">245</div>
+              <div class="ai-placeholder-metric-label">Clics Potenciales</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="ai-placeholder-table">
+          <div class="ai-placeholder-table-header">
+            <i class="fas fa-table"></i> Top Keywords por Impacto IA
+          </div>
+          <div class="ai-placeholder-rows">
+            <div class="ai-placeholder-row">
+              <span class="ai-placeholder-keyword">comprar zapatillas running</span>
+              <span class="ai-placeholder-status positive">Fuente IA</span>
+            </div>
+            <div class="ai-placeholder-row">
+              <span class="ai-placeholder-keyword">mejores marcas deportivas</span>
+              <span class="ai-placeholder-status negative">Sin Mención</span>
+            </div>
+            <div class="ai-placeholder-row">
+              <span class="ai-placeholder-keyword">reviews zapatillas 2024</span>
+              <span class="ai-placeholder-status positive">Fuente IA</span>
+            </div>
+            <div class="ai-placeholder-row">
+              <span class="ai-placeholder-keyword">ofertas calzado deportivo</span>
+              <span class="ai-placeholder-status neutral">AI Overview</span>
+            </div>
+            <div class="ai-placeholder-row">
+              <span class="ai-placeholder-keyword">guía tallas zapatos</span>
+              <span class="ai-placeholder-status positive">Fuente IA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Contenedor real de resultados (inicialmente oculto) -->
+      <div id="aiAnalysisMessage" class="ai-analysis-message" style="display: none;"></div>
+      <div id="aiOverviewResultsContainer" class="ai-overview-results-container" style="display: none;"></div>
+    </div>
+    
+    <!-- Overlay con botón de ejecutar análisis -->
+    <div class="ai-overlay" id="aiOverlay">
+      <div class="ai-overlay-content">
+        <i class="fas fa-robot ai-overlay-icon"></i>
+        <h3 class="ai-overlay-title">Execute AI Analysis</h3>
+        <p class="ai-overlay-subtitle">
+          Analiza el impacto de AI Overview en tus keywords y descubre oportunidades de visibilidad
+        </p>
+        <button class="btn-execute-ai" id="executeAIBtn" disabled>
+          <i class="fas fa-play"></i>
+          Ejecutar Análisis IA
+        </button>
+      </div>
+    </div>
+    
+    <!-- Overlay de progreso -->
+    <div class="ai-progress-overlay" id="aiProgressOverlay">
+      <div class="ai-progress-container">
+        <h3 class="ai-progress-title">Analizando AI Overview</h3>
+        <p class="ai-progress-subtitle">Procesando keywords y SERPs...</p>
+        
+        <div class="ai-progress-circle">
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <circle class="progress-bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress-bar" cx="50" cy="50" r="45" id="progressCircle"></circle>
+          </svg>
+          <div class="ai-progress-percentage" id="progressPercentage">0%</div>
+        </div>
+        
+        <div class="ai-progress-status" id="progressStatus">Iniciando análisis...</div>
+        <div class="ai-progress-details" id="progressDetails">Preparando datos de keywords</div>
+        
+        <div class="ai-progress-steps">
+          <div class="ai-progress-step" id="step1"></div>
+          <div class="ai-progress-step" id="step2"></div>
+          <div class="ai-progress-step" id="step3"></div>
+          <div class="ai-progress-step" id="step4"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="resultsSection" class="glass-effect" style="display:none;">
+  <h2 id="resultsTitle">URLs Performance</h2>
+  <div class="urls-overview-subtitle">Performance comparison between selected periods</div>
+  <div id="resultsBlock" class="table-responsive-container">
+    <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Clicks P1</th>
+          <th>Clicks P2</th>
+          <th>ΔClicks (%)</th>
+          <th>Impressions P1</th>
+          <th>Impressions P2</th>
+          <th>ΔImp. (%)</th>
+          <th>CTR P1 (%)</th>
+          <th>CTR P2 (%)</th>
+          <th>ΔCTR (%)</th>
+          <th>Pos P1</th>
+          <th>Pos P2</th>
+          <th>ΔPos</th>
+        </tr>
+      </thead>
+      <tbody id="tableBodyResults"></tbody>
+    </table>
+  </div>
+</section>
+
+  <!-- Modales permanecen igual -->
+  <div id="serpModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-search"></i> 
+          SERP Analysis: <span id="serpKeyword"></span>
+        </h3>
+        <span class="close-btn">&times;</span>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="progressModal" class="modal" role="dialog" aria-labelledby="progressModalTitle" aria-describedby="progressModalDesc">
+    <div class="modal-dialog">
+      <div class="progress-modal-content">
+        <!-- Header with branding -->
+        <div class="progress-modal-header">
+          <div class="progress-brand">
+            <div class="progress-logo" aria-hidden="true">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="progress-brand-text">
+              <h3 id="progressModalTitle">Performance Analysis</h3>
+              <p id="progressModalDesc">Processing your Search Console data</p>
+            </div>
+          </div>
+          <div class="progress-time-estimate">
+            <span class="time-label">Estimated time:</span>
+            <span class="time-value" id="timeEstimate" aria-live="polite">~45 seconds</span>
+          </div>
+        </div>
+
+        <!-- Main progress section -->
+        <div class="progress-main-section">
+          <!-- Circular progress indicator -->
+          <div class="progress-circle-container">
+            <svg class="progress-circle-svg" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="progressGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#00f2fe;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#43e97b;stop-opacity:1" />
+                </linearGradient>
+              </defs>
+              <circle 
+                class="progress-circle-bg" 
+                cx="60" cy="60" r="54" 
+                fill="none" 
+                stroke-width="4">
+              </circle>
+              <circle 
+                class="progress-circle-fill" 
+                cx="60" cy="60" r="54" 
+                fill="none" 
+                stroke-width="4"
+                stroke-linecap="round"
+                id="progressCircleFill">
+              </circle>
+            </svg>
+            <div class="progress-percentage-display">
+              <span class="progress-percentage-number" id="progressPercentageNumber">0</span>
+              <span class="progress-percentage-symbol">%</span>
+            </div>
+            <div class="progress-pulse-ring"></div>
+          </div>
+
+          <!-- Status and current step -->
+          <div class="progress-status-section">
+            <h4 class="progress-current-step" id="progressCurrentStep" aria-live="polite">Initializing analysis...</h4>
+            <p class="progress-current-detail" id="progressCurrentDetail" aria-live="polite">Preparing to fetch your Search Console data</p>
+            
+            <!-- Fun facts section -->
+            <div class="progress-fun-fact" id="progressFunFact" role="note">
+              <i class="fas fa-lightbulb" aria-hidden="true"></i>
+              <span>Did you know? Google processes over 8.5 billion searches per day!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Steps indicator -->
+        <div class="progress-steps-section">
+          <div class="progress-steps-header">
+            <span class="steps-label">Analysis Steps</span>
+            <span class="steps-counter" aria-live="polite">
+              <span id="currentStepNumber">1</span> of <span id="totalStepsNumber">7</span>
+            </span>
+          </div>
+          <div class="progress-steps-container" id="progressStepsContainer" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Analysis progress">
+            <!-- Steps will be dynamically generated -->
+          </div>
+        </div>
+
+        <!-- Floating particles for visual appeal -->
+        <div class="progress-particles">
+          <div class="particle particle-1"></div>
+          <div class="particle particle-2"></div>
+          <div class="particle particle-3"></div>
+          <div class="particle particle-4"></div>
+          <div class="particle particle-5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- ✅ NUEVO: Detector de dispositivos móviles del lado del cliente -->
+  <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+  
+  <!-- ✅ NUEVO: Sistema de gestión de sesiones con detección de inactividad -->
+  <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+  <!-- ✅ NUEVO: Importar el selector de fechas antes de app.js -->
+  <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
+
+</body>
+</html>
