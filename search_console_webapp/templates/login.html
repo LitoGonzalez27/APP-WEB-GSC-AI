@@ -273,6 +273,10 @@
                 showNotification('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.', 'success');
             }
             
+            if (urlParams.get('registration_success') === 'true') {
+                showNotification('¡Registro completado exitosamente! Ahora puedes iniciar sesión.', 'success');
+            }
+            
             // Limpiar URL
             if (urlParams.toString()) {
                 const newUrl = window.location.pathname;

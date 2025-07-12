@@ -552,6 +552,28 @@ def setup_auth_routes(app):
             logger.error(f"Error en auth_callback: {e}")
             return redirect('/login?auth_error=callback_failed')
 
+    @app.route('/auth/pending-google-signup')
+    def get_pending_google_signup():
+        """Obtiene los datos pendientes de registro con Google"""
+        try:
+            if 'pending_google_signup' not in session:
+                return jsonify({'pending': False})
+            
+            google_data = session['pending_google_signup']
+            
+            return jsonify({
+                'pending': True,
+                'data': {
+                    'name': google_data['name'],
+                    'email': google_data['email'],
+                    'picture': google_data.get('picture')
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo datos pendientes: {e}")
+            return jsonify({'pending': False})
+
     @app.route('/auth/complete-google-signup', methods=['POST'])
     def complete_google_signup():
         """Completa el registro con Google OAuth"""
@@ -572,15 +594,16 @@ def setup_auth_routes(app):
             if not user:
                 return jsonify({'error': 'Error creando usuario'}), 500
             
+            # ✅ MODIFICADO: NO iniciar sesión automáticamente, redirigir al login
             # Limpiar datos pendientes
             session.pop('pending_google_signup', None)
             
-            logger.info(f"Usuario registrado con Google: {google_data['email']}")
+            logger.info(f"Usuario registrado con Google: {google_data['email']} - Redirigiendo al login")
             
             return jsonify({
                 'success': True,
                 'message': 'Usuario registrado exitosamente. Ahora puedes iniciar sesión.',
-                'redirect': url_for('login_page')
+                'redirect': url_for('login_page') + '?registration_success=true'
             })
             
         except Exception as e:

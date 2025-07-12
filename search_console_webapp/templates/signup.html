@@ -475,17 +475,23 @@
             const urlParams = new URLSearchParams(window.location.search);
             
             if (urlParams.get('google_signup') === 'true') {
-                // Verificar si hay datos pendientes de Google
-                fetch('/auth/status')
+                // ✅ CORREGIDO: Verificar datos pendientes de Google
+                fetch('/auth/pending-google-signup')
                     .then(response => response.json())
                     .then(data => {
-                        // Aquí manejaríamos los datos pendientes de Google
-                        // Por ahora, simplemente mostramos la pestaña de Google
-                        switchTab('google');
-                        showNotification('Completa tu registro con Google', 'info');
+                        if (data.pending) {
+                            // Mostrar interfaz de registro pendiente
+                            showGoogleSignupPending(data.data);
+                            showNotification('Completa tu registro con Google', 'info');
+                        } else {
+                            // No hay datos pendientes, mostrar pestaña de Google normal
+                            switchTab('google');
+                            showNotification('Inicia el proceso de registro con Google', 'info');
+                        }
                     })
                     .catch(error => {
-                        console.error('Error verificando estado:', error);
+                        console.error('Error verificando datos pendientes:', error);
+                        switchTab('google');
                     });
             }
             
@@ -494,6 +500,37 @@
                 const newUrl = window.location.pathname;
                 window.history.replaceState({}, '', newUrl);
             }
+        }
+
+        // ✅ NUEVA FUNCIÓN: Mostrar interfaz de registro pendiente con Google
+        function showGoogleSignupPending(userData) {
+            // Ocultar otras pestañas
+            document.querySelectorAll('.signup-tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Mostrar pestaña de registro pendiente
+            const pendingTab = document.getElementById('googleSignupPending');
+            pendingTab.style.display = 'block';
+            
+            // Llenar datos del usuario
+            document.getElementById('pendingUserName').textContent = userData.name;
+            document.getElementById('pendingUserEmail').textContent = userData.email;
+            
+            // Manejar imagen de perfil
+            if (userData.picture) {
+                const img = document.getElementById('pendingUserPicture');
+                const icon = document.getElementById('pendingUserIcon');
+                img.src = userData.picture;
+                img.style.display = 'block';
+                icon.style.display = 'none';
+            }
+            
+            // Activar pestaña de Google
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('[data-tab="google"]').classList.add('active');
         }
 
         // Inicialización

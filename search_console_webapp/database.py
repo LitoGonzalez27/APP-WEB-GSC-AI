@@ -110,16 +110,20 @@ def create_user(email, name, password=None, google_id=None, picture=None):
         # Preparar datos del usuario
         password_hash = hash_password(password) if password else None
         
+        # ✅ CORREGIDO: Usuarios con Google se crean como activos por defecto
+        # Los usuarios con registro manual requieren verificación
+        is_active = True if google_id else False
+        
         cur.execute('''
             INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
-            VALUES (%s, %s, %s, %s, %s, 'user', FALSE)
+            VALUES (%s, %s, %s, %s, %s, 'user', %s)
             RETURNING id, email, name, picture, role, is_active, created_at
-        ''', (email, name, password_hash, google_id, picture))
+        ''', (email, name, password_hash, google_id, picture, is_active))
         
         user = cur.fetchone()
         conn.commit()
         
-        logger.info(f"Usuario creado exitosamente: {email}")
+        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active})")
         return dict(user)
         
     except Exception as e:
