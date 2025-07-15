@@ -226,10 +226,20 @@
             const notifications = document.getElementById('loginNotifications');
             
             if (urlParams.get('auth_success') === 'true') {
-                showNotification('¡Autenticación exitosa! Redirigiendo...', 'success');
+                const action = urlParams.get('action');
+                const firstTime = urlParams.get('first_time');
+                
+                if (action === 'register' && firstTime === 'true') {
+                    showNotification('¡Cuenta creada e iniciada sesión automáticamente! Bienvenido a Clicandseo.', 'success');
+                } else if (action === 'register') {
+                    showNotification('¡Cuenta creada exitosamente! Bienvenido a Clicandseo.', 'success');
+                } else {
+                    showNotification('¡Autenticación exitosa! Redirigiendo...', 'success');
+                }
+                
                 setTimeout(() => {
                     window.location.href = '/dashboard';
-                }, 1500);
+                }, 2000);
                 return;
             }
             
@@ -247,6 +257,12 @@
                     case 'callback_failed':
                         errorMessage = 'Error en la autenticación. Intenta de nuevo.';
                         break;
+                    case 'user_info_failed':
+                        errorMessage = 'No se pudo obtener información del usuario de Google.';
+                        break;
+                    case 'account_suspended':
+                        errorMessage = 'Tu cuenta está suspendida. Contacta con soporte.';
+                        break;
                     case 'access_denied':
                         errorMessage = 'Acceso denegado. Necesitas permitir el acceso para continuar.';
                         break;
@@ -255,6 +271,18 @@
                         break;
                     case 'invalid_credentials':
                         errorMessage = 'Email o contraseña incorrectos. Verifica tus datos.';
+                        break;
+                    case 'user_creation_failed':
+                        errorMessage = 'Error creando tu cuenta. Por favor, intenta de nuevo.';
+                        break;
+                    case 'auto_registration_failed':
+                        errorMessage = 'Error en el registro automático. Por favor, intenta de nuevo.';
+                        break;
+                    case 'user_already_exists':
+                        errorMessage = 'Ya tienes una cuenta creada. Usa "Continuar con Google" para iniciar sesión.';
+                        break;
+                    case 'user_not_registered':
+                        errorMessage = 'No tienes una cuenta registrada. <a href="/signup" style="color: #667eea; text-decoration: underline;">Crear cuenta primero</a>';
                         break;
                 }
                 
@@ -274,7 +302,12 @@
             }
             
             if (urlParams.get('registration_success') === 'true') {
-                showNotification('¡Registro completado exitosamente! Ahora puedes iniciar sesión.', 'success');
+                const withGoogle = urlParams.get('with_google') === 'true';
+                if (withGoogle) {
+                    showNotification('¡Cuenta creada con Google exitosamente! Ahora puedes iniciar sesión con Google.', 'success');
+                } else {
+                    showNotification('¡Registro completado exitosamente! Ahora puedes iniciar sesión.', 'success');
+                }
             }
             
             // Limpiar URL

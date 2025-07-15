@@ -23,7 +23,8 @@ from database import (
     get_all_users,
     update_user_activity,
     update_user_role,
-    get_user_stats
+    get_user_stats,
+    get_db_connection
 )
 
 # Carga las variables de entorno desde el .env
@@ -297,6 +298,35 @@ def get_user_info():
         logger.error(f"Error obteniendo información del usuario: {e}")
         return None
 
+def get_user_info_from_temp_credentials():
+    """Obtiene información del usuario desde credenciales temporales"""
+    if 'temp_credentials' not in session:
+        return None
+        
+    try:
+        credentials_dict = session['temp_credentials']
+        credentials = Credentials(
+            token=credentials_dict['token'],
+            refresh_token=credentials_dict.get('refresh_token'),
+            token_uri=credentials_dict['token_uri'],
+            client_id=credentials_dict['client_id'],
+            client_secret=credentials_dict['client_secret'],
+            scopes=credentials_dict['scopes']
+        )
+        
+        service = build('oauth2', 'v2', credentials=credentials)
+        user_info = service.userinfo().get().execute()
+        return {
+            'id': user_info.get('id'),
+            'email': user_info.get('email'),
+            'name': user_info.get('name'),
+            'picture': user_info.get('picture'),
+            'verified_email': user_info.get('verified_email', False)
+        }
+    except Exception as e:
+        logger.error(f"Error obteniendo información del usuario desde credenciales temporales: {e}")
+        return None
+
 def refresh_credentials_if_needed(credentials):
     """Actualiza las credenciales si es necesario"""
     try:
@@ -470,13 +500,15 @@ def setup_auth_routes(app):
 
     @app.route('/auth/login')
     def auth_login():
-        """Inicio de sesión con Google OAuth"""
+        """Inicio de sesión con Google OAuth - Solo para usuarios existentes"""
         try:
             flow = create_flow()
             if not flow:
                 return jsonify({'error': 'OAuth configuration error'}), 500
             
             session['state'] = secrets.token_urlsafe(32)
+            session['oauth_action'] = 'login'  # ✅ MARCAR como LOGIN
+            
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
@@ -487,9 +519,30 @@ def setup_auth_routes(app):
             logger.error(f"Error en auth_login: {e}")
             return jsonify({'error': 'Authentication initiation failed'}), 500
 
+    @app.route('/auth/signup')
+    def auth_signup():
+        """Registro con Google OAuth - Para usuarios nuevos"""
+        try:
+            flow = create_flow()
+            if not flow:
+                return jsonify({'error': 'OAuth configuration error'}), 500
+            
+            session['state'] = secrets.token_urlsafe(32)
+            session['oauth_action'] = 'signup'  # ✅ MARCAR como REGISTRO
+            
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                state=session['state']
+            )
+            return redirect(authorization_url)
+        except Exception as e:
+            logger.error(f"Error en auth_signup: {e}")
+            return jsonify({'error': 'Authentication initiation failed'}), 500
+
     @app.route('/auth/callback')
     def auth_callback():
-        """Callback de Google OAuth"""
+        """Callback de Google OAuth - Maneja registro y login por separado"""
         try:
             if request.args.get('state') != session.get('state'):
                 return redirect('/login?auth_error=invalid_state')
@@ -505,8 +558,8 @@ def setup_auth_routes(app):
             flow.fetch_token(authorization_response=request.url)
             credentials = flow.credentials
             
-            # Guardar credenciales en sesión
-            session['credentials'] = {
+            # Guardar credenciales en sesión temporalmente (para obtener info del usuario)
+            session['temp_credentials'] = {
                 'token': credentials.token,
                 'refresh_token': credentials.refresh_token,
                 'token_uri': credentials.token_uri,
@@ -516,8 +569,9 @@ def setup_auth_routes(app):
             }
             
             # Obtener información del usuario
-            user_info = get_user_info()
+            user_info = get_user_info_from_temp_credentials()
             if not user_info:
+                session.pop('temp_credentials', None)
                 return redirect('/login?auth_error=user_info_failed')
             
             # Verificar si el usuario ya existe en la base de datos
@@ -525,90 +579,97 @@ def setup_auth_routes(app):
             if not existing_user:
                 existing_user = get_user_by_email(user_info['email'])
             
-            if existing_user:
+            # ✅ DETERMINAR ACCIÓN: registro vs login
+            oauth_action = session.pop('oauth_action', 'login')  # Por defecto es login
+            
+            if oauth_action == 'signup':
+                # ===============================================
+                # FLUJO DE REGISTRO: Crear cuenta SIN iniciar sesión
+                # ===============================================
+                if existing_user:
+                    # Usuario ya existe, no se puede registrar de nuevo
+                    session.pop('temp_credentials', None)
+                    logger.warning(f"Usuario {user_info['email']} ya existe, no se puede registrar de nuevo")
+                    return redirect('/login?auth_error=user_already_exists')
+                
+                # Crear nuevo usuario
+                try:
+                    new_user = create_user(
+                        email=user_info['email'],
+                        name=user_info['name'],
+                        google_id=user_info['id'],
+                        picture=user_info.get('picture')
+                    )
+                    
+                    if not new_user:
+                        session.pop('temp_credentials', None)
+                        logger.error(f"Error creando usuario en registro: {user_info['email']}")
+                        return redirect('/signup?auth_error=user_creation_failed')
+                    
+                    # ✅ ACTIVAR automáticamente el usuario recién creado
+                    update_user_activity(new_user['id'], is_active=True)
+                    
+                    # ✅ NO INICIAR SESIÓN - Solo limpiar credenciales temporales
+                    session.pop('temp_credentials', None)
+                    
+                    logger.info(f"Usuario registrado con Google (sin iniciar sesión): {user_info['email']}")
+                    return redirect('/login?registration_success=true&with_google=true')
+                    
+                except Exception as e:
+                    session.pop('temp_credentials', None)
+                    logger.error(f"Error en registro con Google: {e}")
+                    return redirect('/signup?auth_error=registration_failed')
+            
+            else:
+                # ===============================================
+                # FLUJO DE LOGIN: Solo permitir si ya existe
+                # ===============================================
+                if not existing_user:
+                    # Usuario no existe, no puede hacer login
+                    session.pop('temp_credentials', None)
+                    logger.warning(f"Usuario {user_info['email']} no existe, no puede hacer login")
+                    return redirect('/login?auth_error=user_not_registered')
+                
                 # Usuario existe - verificar si está activo
                 if not existing_user['is_active']:
+                    session.pop('temp_credentials', None)
                     return redirect('/login?auth_error=account_suspended')
                 
-                # Iniciar sesión
+                # ✅ VINCULAR cuenta existente con Google ID si es necesario
+                if not existing_user['google_id'] and user_info['id']:
+                    try:
+                        conn = get_db_connection()
+                        if conn:
+                            cur = conn.cursor()
+                            cur.execute('''
+                                UPDATE users 
+                                SET google_id = %s, picture = %s, updated_at = NOW()
+                                WHERE id = %s
+                            ''', (user_info['id'], user_info.get('picture'), existing_user['id']))
+                            conn.commit()
+                            conn.close()
+                            logger.info(f"Vinculada cuenta existente {user_info['email']} con Google ID")
+                    except Exception as e:
+                        logger.error(f"Error vinculando cuenta con Google: {e}")
+                
+                # ✅ INICIAR SESIÓN
+                session['credentials'] = session.pop('temp_credentials')  # Mover credenciales a permanentes
                 session['user_id'] = existing_user['id']
                 session['user_email'] = existing_user['email']
                 session['user_name'] = existing_user['name']
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                return redirect('/dashboard?auth_success=true')
-            else:
-                # Usuario no existe - redirigir a registro
-                session['pending_google_signup'] = {
-                    'google_id': user_info['id'],
-                    'email': user_info['email'],
-                    'name': user_info['name'],
-                    'picture': user_info.get('picture')
-                }
-                return redirect('/signup?google_signup=true')
+                return redirect('/dashboard?auth_success=true&action=login')
                 
         except Exception as e:
+            session.pop('temp_credentials', None)
+            session.pop('oauth_action', None)
             logger.error(f"Error en auth_callback: {e}")
             return redirect('/login?auth_error=callback_failed')
 
-    @app.route('/auth/pending-google-signup')
-    def get_pending_google_signup():
-        """Obtiene los datos pendientes de registro con Google"""
-        try:
-            if 'pending_google_signup' not in session:
-                return jsonify({'pending': False})
-            
-            google_data = session['pending_google_signup']
-            
-            return jsonify({
-                'pending': True,
-                'data': {
-                    'name': google_data['name'],
-                    'email': google_data['email'],
-                    'picture': google_data.get('picture')
-                }
-            })
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo datos pendientes: {e}")
-            return jsonify({'pending': False})
-
-    @app.route('/auth/complete-google-signup', methods=['POST'])
-    def complete_google_signup():
-        """Completa el registro con Google OAuth"""
-        try:
-            if 'pending_google_signup' not in session:
-                return jsonify({'error': 'No hay registro pendiente'}), 400
-            
-            google_data = session['pending_google_signup']
-            
-            # Crear usuario en la base de datos
-            user = create_user(
-                email=google_data['email'],
-                name=google_data['name'],
-                google_id=google_data['google_id'],
-                picture=google_data.get('picture')
-            )
-            
-            if not user:
-                return jsonify({'error': 'Error creando usuario'}), 500
-            
-            # ✅ MODIFICADO: NO iniciar sesión automáticamente, redirigir al login
-            # Limpiar datos pendientes
-            session.pop('pending_google_signup', None)
-            
-            logger.info(f"Usuario registrado con Google: {google_data['email']} - Redirigiendo al login")
-            
-            return jsonify({
-                'success': True,
-                'message': 'Usuario registrado exitosamente. Ahora puedes iniciar sesión.',
-                'redirect': url_for('login_page') + '?registration_success=true'
-            })
-            
-        except Exception as e:
-            logger.error(f"Error completando registro con Google: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+    # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
+    # El registro con Google ahora es automático en auth_callback
 
     @app.route('/auth/logout', methods=['POST', 'GET'])
     def auth_logout():

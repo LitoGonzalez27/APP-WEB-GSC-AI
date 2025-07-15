@@ -168,33 +168,7 @@
                         </div>
 
                         <!-- Registro con Google pendiente -->
-                        <div id="googleSignupPending" class="signup-tab-content" style="display: none;">
-                            <div class="google-pending-content">
-                                <div class="pending-header">
-                                    <i class="fas fa-user-check"></i>
-                                    <h4>Completar registro</h4>
-                                </div>
-                                <p class="pending-description">
-                                    Hemos obtenido tu información de Google. Haz clic en "Completar registro" para crear tu cuenta.
-                                </p>
-                                <div class="pending-user-info">
-                                    <div class="user-avatar">
-                                        <img id="pendingUserPicture" src="" alt="Avatar" style="display: none;">
-                                        <i class="fas fa-user" id="pendingUserIcon"></i>
-                                    </div>
-                                    <div class="user-details">
-                                        <div class="user-name" id="pendingUserName"></div>
-                                        <div class="user-email" id="pendingUserEmail"></div>
-                                    </div>
-                                </div>
-                                <button type="button" id="completeGoogleSignup" class="signup-btn">
-                                    <span class="btn-text">Completar registro</span>
-                                    <div class="btn-spinner" style="display: none;">
-                                        <i class="fas fa-spinner fa-spin"></i>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
+                        <!-- ✅ ELIMINADO: Ya no necesitamos completar registro con Google manualmente -->
                     </div>
 
                     <!-- Footer del formulario -->
@@ -415,52 +389,11 @@
             
             // Redirigir después de un breve delay
             setTimeout(() => {
-                window.location.href = '/auth/login';
+                window.location.href = '/auth/signup';
             }, 1000);
         });
 
-        // Manejar completar registro con Google
-        document.getElementById('completeGoogleSignup').addEventListener('click', async function() {
-            const btn = this;
-            const spinner = btn.querySelector('.btn-spinner');
-            const text = btn.querySelector('.btn-text');
-            
-            // Mostrar loading state
-            btn.disabled = true;
-            btn.classList.add('loading');
-            spinner.style.display = 'block';
-            text.textContent = 'Completando...';
-
-            try {
-                const response = await fetch('/auth/complete-google-signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showNotification(result.message, 'success');
-                    setTimeout(() => {
-                        window.location.href = result.redirect;
-                    }, 2000);
-                } else {
-                    showNotification(result.error, 'error');
-                }
-
-            } catch (error) {
-                console.error('Error completando registro:', error);
-                showNotification('Error de conexión. Intenta de nuevo.', 'error');
-            } finally {
-                // Restaurar botón
-                btn.disabled = false;
-                btn.classList.remove('loading');
-                spinner.style.display = 'none';
-                text.textContent = 'Completar registro';
-            }
-        });
+        // ✅ ELIMINADO: Ya no necesitamos manejar completar registro con Google manualmente
 
         // Manejar eventos de pestañas
         document.querySelectorAll('.tab-button').forEach(btn => {
@@ -474,25 +407,31 @@
         function handleUrlNotifications() {
             const urlParams = new URLSearchParams(window.location.search);
             
+            // ✅ SIMPLIFICADO: Ya no hay registro pendiente con Google
             if (urlParams.get('google_signup') === 'true') {
-                // ✅ CORREGIDO: Verificar datos pendientes de Google
-                fetch('/auth/pending-google-signup')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.pending) {
-                            // Mostrar interfaz de registro pendiente
-                            showGoogleSignupPending(data.data);
-                            showNotification('Completa tu registro con Google', 'info');
-                        } else {
-                            // No hay datos pendientes, mostrar pestaña de Google normal
-                            switchTab('google');
-                            showNotification('Inicia el proceso de registro con Google', 'info');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error verificando datos pendientes:', error);
-                        switchTab('google');
-                    });
+                // Mostrar pestaña de Google y mensaje informativo
+                switchTab('google');
+                showNotification('Haz clic en "Registrarse con Google" para crear tu cuenta.', 'info');
+            }
+            
+            // Manejar errores de autenticación
+            const authError = urlParams.get('auth_error');
+            if (authError) {
+                let errorMessage = 'Error en el registro. Por favor, intenta de nuevo.';
+                
+                switch (authError) {
+                    case 'user_creation_failed':
+                        errorMessage = 'Error creando tu cuenta. Por favor, intenta de nuevo.';
+                        break;
+                    case 'registration_failed':
+                        errorMessage = 'Error en el registro. Por favor, intenta de nuevo.';
+                        break;
+                    case 'user_already_exists':
+                        errorMessage = 'Ya tienes una cuenta creada. <a href="/login" style="color: #667eea; text-decoration: underline;">Iniciar sesión</a>';
+                        break;
+                }
+                
+                showNotification(errorMessage, 'error');
             }
             
             // Limpiar URL
@@ -502,36 +441,7 @@
             }
         }
 
-        // ✅ NUEVA FUNCIÓN: Mostrar interfaz de registro pendiente con Google
-        function showGoogleSignupPending(userData) {
-            // Ocultar otras pestañas
-            document.querySelectorAll('.signup-tab-content').forEach(tab => {
-                tab.style.display = 'none';
-            });
-            
-            // Mostrar pestaña de registro pendiente
-            const pendingTab = document.getElementById('googleSignupPending');
-            pendingTab.style.display = 'block';
-            
-            // Llenar datos del usuario
-            document.getElementById('pendingUserName').textContent = userData.name;
-            document.getElementById('pendingUserEmail').textContent = userData.email;
-            
-            // Manejar imagen de perfil
-            if (userData.picture) {
-                const img = document.getElementById('pendingUserPicture');
-                const icon = document.getElementById('pendingUserIcon');
-                img.src = userData.picture;
-                img.style.display = 'block';
-                icon.style.display = 'none';
-            }
-            
-            // Activar pestaña de Google
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector('[data-tab="google"]').classList.add('active');
-        }
+        // ✅ ELIMINADO: Ya no necesitamos mostrar interfaz de registro pendiente con Google
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
