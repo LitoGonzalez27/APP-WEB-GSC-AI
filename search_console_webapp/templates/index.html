@@ -55,6 +55,18 @@
               <i class="fas fa-sign-in-alt"></i>
               <span>Iniciar Sesión</span>
             </button>
+            
+            <!-- Navigation buttons when logged in -->
+            <div class="logged-in-nav" id="loggedInNav" style="display: none;">
+              <a href="/dashboard" class="btn-nav">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+              </a>
+              <a href="/profile" class="btn-nav">
+                <i class="fas fa-user-circle"></i>
+                <span>Mi Perfil</span>
+              </a>
+            </div>
 
             <button type="button" class="btn-auth btn-logout" id="logoutBtn" style="display: none;">
               <i class="fas fa-sign-out-alt"></i>
@@ -554,6 +566,58 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Estilos para navegación de usuarios logueados -->
+  <style>
+    .logged-in-nav {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .btn-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #f8f9fa;
+      color: #495057;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      border: 1px solid #dee2e6;
+    }
+    
+    .btn-nav:hover {
+      background: #e9ecef;
+      color: #333;
+      text-decoration: none;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-nav i {
+      font-size: 0.875rem;
+    }
+    
+    /* Responsive para móviles */
+    @media (max-width: 768px) {
+      .logged-in-nav {
+        gap: 0.25rem;
+      }
+      
+      .btn-nav {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8rem;
+      }
+      
+      .btn-nav span {
+        display: none; /* Ocultar texto en móvil, solo iconos */
+      }
+    }
+  </style>
 
   <!-- ✅ NUEVO: Detector de dispositivos móviles del lado del cliente -->
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>

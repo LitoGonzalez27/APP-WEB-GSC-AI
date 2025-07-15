@@ -27,6 +27,7 @@ class Navbar {
         // Elementos de usuario
         this.userInfo = document.getElementById('userInfo');
         this.userName = document.getElementById('userName');
+        this.loggedInNav = document.getElementById('loggedInNav');
         this.mobileUserInfo = document.getElementById('mobileUserInfo');
         this.mobileUserName = document.getElementById('mobileUserName');
         this.mobileUserEmail = document.getElementById('mobileUserEmail');
@@ -428,6 +429,11 @@ class Navbar {
                 this.userInfo.style.display = 'flex';
                 this.userName.textContent = this.currentUser.name || 'Usuario';
             }
+            
+            // Navigation buttons for logged in users
+            if (this.loggedInNav) {
+                this.loggedInNav.style.display = 'flex';
+            }
 
             // Mobile user info
             if (this.mobileUserInfo && this.mobileUserName && this.mobileUserEmail) {
@@ -439,6 +445,9 @@ class Navbar {
             // Ocultar info de usuario
             if (this.userInfo) {
                 this.userInfo.style.display = 'none';
+            }
+            if (this.loggedInNav) {
+                this.loggedInNav.style.display = 'none';
             }
             if (this.mobileUserInfo) {
                 this.mobileUserInfo.style.display = 'none';

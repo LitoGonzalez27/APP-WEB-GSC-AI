@@ -300,13 +300,38 @@ def dashboard():
         logger.info(f"Acceso bloqueado desde dispositivo móvil - Tipo: {device_type}")
         return redirect(url_for('mobile_not_supported'))
     
-    # Si no es móvil, mostrar la aplicación normal
+    # Si no es móvil, mostrar el dashboard
     device_type = get_device_type()
     logger.info(f"Acceso permitido desde dispositivo: {device_type}")
     
-    from auth import get_user_info
-    user_info = get_user_info()
-    user_email = user_info.get('email') if user_info else None
+    # Obtener información completa del usuario
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login_page'))
+    
+    return render_template('dashboard.html', user=user, authenticated=True)
+
+@app.route('/app')
+@auth_required
+def app_main():
+    """
+    Aplicación principal de análisis SEO - requiere autenticación
+    """
+    # Registrar información del dispositivo
+    log_device_access(logger)
+    
+    # Verificar si es un dispositivo móvil
+    if should_block_mobile_access():
+        device_type = get_device_type()
+        logger.info(f"Acceso bloqueado desde dispositivo móvil - Tipo: {device_type}")
+        return redirect(url_for('mobile_not_supported'))
+    
+    # Si no es móvil, mostrar la aplicación de análisis
+    device_type = get_device_type()
+    logger.info(f"Acceso permitido desde dispositivo: {device_type}")
+    
+    user = get_current_user()
+    user_email = user['email'] if user else None
     
     return render_template('index.html', user_email=user_email, authenticated=True)
 
