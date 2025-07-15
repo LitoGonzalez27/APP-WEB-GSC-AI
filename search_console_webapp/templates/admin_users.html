@@ -205,8 +205,13 @@
                             </td>
                             <td>
                                 <div class="date-cell">
+                                                                    {% if user.created_at %}
                                     <div class="date">{{ user.created_at.strftime('%d/%m/%Y') }}</div>
                                     <div class="time">{{ user.created_at.strftime('%H:%M') }}</div>
+                                {% else %}
+                                    <div class="date">Sin fecha</div>
+                                    <div class="time">--:--</div>
+                                {% endif %}
                                 </div>
                             </td>
                             <td>

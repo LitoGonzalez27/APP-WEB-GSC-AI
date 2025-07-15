@@ -29,7 +29,8 @@ from database import (
     admin_reset_password,
     update_user_profile,
     get_user_activity_log,
-    get_detailed_user_stats
+    get_detailed_user_stats,
+    migrate_user_timestamps
 )
 
 # Carga las variables de entorno desde el .env
@@ -355,6 +356,7 @@ def setup_auth_routes(app):
     
     # Inicializar base de datos
     init_database()
+    migrate_user_timestamps() # Ejecutar la migración de timestamps
 
     @app.route('/login')
     def login_page():
@@ -1044,3 +1046,4 @@ def get_authenticated_service(service_name, version):
     except Exception as e:
         logger.error(f"Error obteniendo servicio autenticado: {e}")
         return None
+

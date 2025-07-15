@@ -566,3 +566,58 @@ def get_detailed_user_stats():
     finally:
         if conn:
             conn.close() 
+
+def migrate_user_timestamps():
+    """Migrar usuarios existentes para agregar timestamps faltantes"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No se pudo conectar a la base de datos para migración")
+            return False
+            
+        cur = conn.cursor()
+        
+        # Verificar si existen usuarios sin created_at
+        cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NULL')
+        users_without_created_at = cur.fetchone()[0]
+        
+        if users_without_created_at > 0:
+            logger.info(f"Migrando {users_without_created_at} usuarios sin fecha de creación")
+            
+            # Actualizar usuarios sin created_at
+            cur.execute('''
+                UPDATE users 
+                SET created_at = NOW(), updated_at = NOW() 
+                WHERE created_at IS NULL
+            ''')
+            
+            conn.commit()
+            logger.info("Migración de timestamps completada exitosamente")
+        
+        # Verificar si existen usuarios sin updated_at
+        cur.execute('SELECT COUNT(*) FROM users WHERE updated_at IS NULL')
+        users_without_updated_at = cur.fetchone()[0]
+        
+        if users_without_updated_at > 0:
+            logger.info(f"Migrando {users_without_updated_at} usuarios sin fecha de actualización")
+            
+            # Actualizar usuarios sin updated_at (usar created_at si existe, sino NOW())
+            cur.execute('''
+                UPDATE users 
+                SET updated_at = COALESCE(created_at, NOW()) 
+                WHERE updated_at IS NULL
+            ''')
+            
+            conn.commit()
+            logger.info("Migración de updated_at completada exitosamente")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error en migración de timestamps: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close() 

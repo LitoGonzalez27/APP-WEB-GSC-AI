@@ -164,7 +164,13 @@
                                 </div>
                                 <div class="info-item">
                                     <label>Fecha de registro</label>
-                                    <div class="info-value">{{ user.created_at.strftime('%d de %B de %Y') }}</div>
+                                    <div class="info-value">
+                                        {% if user.created_at %}
+                                            {{ user.created_at.strftime('%d de %B de %Y') }}
+                                        {% else %}
+                                            No disponible
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 <div class="info-item">
                                     <label>Tipo de autenticación</label>
@@ -266,7 +272,11 @@
                                         <div class="activity-title">{{ activity.activity }}</div>
                                         <div class="activity-details">{{ activity.details }}</div>
                                         <div class="activity-time">
+                                            {% if activity.timestamp %}
                                             {{ activity.timestamp.strftime('%d de %B de %Y a las %H:%M') }}
+                                        {% else %}
+                                            Fecha no disponible
+                                        {% endif %}
                                         </div>
                                     </div>
                                 </div>
