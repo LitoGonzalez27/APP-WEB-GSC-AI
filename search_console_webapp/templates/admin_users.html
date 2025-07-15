@@ -228,6 +228,15 @@
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     
+                                    {% if user.password_hash %}
+                                    <button class="btn-action reset-password" 
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name }}"
+                                            title="Restablecer contraseña">
+                                        <i class="fas fa-key"></i>
+                                    </button>
+                                    {% endif %}
+                                    
                                     <button class="btn-action delete-user" 
                                             data-user-id="{{ user.id }}"
                                             data-user-name="{{ user.name }}"
@@ -291,12 +300,16 @@
                         <span id="detailCreated">-</span>
                     </div>
                     <div class="detail-item">
-                        <label>Última actualización:</label>
-                        <span id="detailUpdated">-</span>
+                        <label>Tipo de autenticación:</label>
+                        <span id="detailAuthType">-</span>
                     </div>
                     <div class="detail-item">
-                        <label>Google ID:</label>
-                        <span id="detailGoogleId">-</span>
+                        <label>Último acceso:</label>
+                        <span id="detailLastLogin">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Total de accesos:</label>
+                        <span id="detailLoginCount">-</span>
                     </div>
                 </div>
             </div>
@@ -316,6 +329,68 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancelar</button>
                 <button class="btn btn-primary" id="confirmAction">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de restablecimiento de contraseña -->
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Restablecer contraseña</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="reset-info">
+                    <div class="user-info-box">
+                        <i class="fas fa-user"></i>
+                        <div>
+                            <strong id="resetUserName">Usuario</strong>
+                            <p>Se establecerá una nueva contraseña para este usuario</p>
+                        </div>
+                    </div>
+                </div>
+                <form id="resetPasswordForm">
+                    <div class="form-group">
+                        <label for="newPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="newPassword" name="new_password" required 
+                                   placeholder="Mínimo 8 caracteres">
+                            <button type="button" class="password-toggle" onclick="toggleResetPassword()">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="newPasswordError"></span>
+                        <div class="field-help">La contraseña debe tener al menos 8 caracteres</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="confirmNewPassword" name="confirm_password" required 
+                                   placeholder="Repetir la nueva contraseña">
+                            <button type="button" class="password-toggle" onclick="toggleConfirmPassword()">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="confirmNewPasswordError"></span>
+                    </div>
+                </form>
+                <div class="warning-box">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <strong>Importante:</strong>
+                        <p>El usuario deberá usar esta nueva contraseña en su próximo inicio de sesión. Asegúrate de comunicársela de forma segura.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">Cancelar</button>
+                <button class="btn btn-primary" id="resetPasswordBtn" onclick="resetUserPassword()">
+                    <span class="btn-text">Restablecer contraseña</span>
+                    <div class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
             </div>
         </div>
     </div>
@@ -507,20 +582,38 @@
         }
 
         // Función para mostrar detalles de usuario
-        function showUserDetails(userId) {
+        async function showUserDetails(userId) {
             const user = allUsers.find(u => u.id === userId);
             if (!user) return;
 
             const row = user.element;
             
+            // Información básica
             document.getElementById('detailId').textContent = userId;
             document.getElementById('detailName').textContent = user.name;
             document.getElementById('detailEmail').textContent = user.email;
             document.getElementById('detailRole').textContent = user.role === 'admin' ? 'Administrador' : 'Usuario';
             document.getElementById('detailStatus').textContent = user.status === 'active' ? 'Activo' : 'Inactivo';
             document.getElementById('detailCreated').textContent = row.querySelector('.date').textContent + ' ' + row.querySelector('.time').textContent;
-            document.getElementById('detailUpdated').textContent = 'No disponible';
-            document.getElementById('detailGoogleId').textContent = 'No disponible';
+            
+            // Información adicional
+            const hasPassword = row.querySelector('.reset-password') !== null;
+            document.getElementById('detailAuthType').textContent = hasPassword ? 'Email y contraseña' : 'Google OAuth';
+            
+            // Cargar estadísticas detalladas
+            try {
+                const response = await fetch('/admin/stats/detailed');
+                const stats = await response.json();
+                
+                // Esta información estaría disponible si implementáramos logs de actividad
+                document.getElementById('detailLastLogin').textContent = 'No disponible';
+                document.getElementById('detailLoginCount').textContent = 'No disponible';
+                
+            } catch (error) {
+                console.log('No se pudieron cargar estadísticas detalladas');
+                document.getElementById('detailLastLogin').textContent = 'Error cargando datos';
+                document.getElementById('detailLoginCount').textContent = 'Error cargando datos';
+            }
             
             openModal('userDetailsModal');
         }
@@ -536,6 +629,116 @@
             };
             
             openModal('confirmModal');
+        }
+
+        // Función para abrir modal de restablecimiento de contraseña
+        function resetPassword(userId, userName) {
+            document.getElementById('resetUserName').textContent = userName;
+            document.getElementById('resetPasswordForm').dataset.userId = userId;
+            
+            // Limpiar formulario
+            document.getElementById('resetPasswordForm').reset();
+            document.querySelectorAll('#resetPasswordModal .field-error').forEach(error => {
+                error.textContent = '';
+            });
+            
+            openModal('resetPasswordModal');
+        }
+
+        // Función para toggle de contraseña en modal de reset
+        function toggleResetPassword() {
+            const input = document.getElementById('newPassword');
+            const toggle = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+
+        function toggleConfirmPassword() {
+            const input = document.getElementById('confirmNewPassword');
+            const toggle = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+
+        // Función para restablecer contraseña
+        async function resetUserPassword() {
+            const btn = document.getElementById('resetPasswordBtn');
+            const spinner = btn.querySelector('.btn-spinner');
+            const text = btn.querySelector('.btn-text');
+            const form = document.getElementById('resetPasswordForm');
+            const userId = form.dataset.userId;
+            
+            try {
+                // Limpiar errores previos
+                document.querySelectorAll('#resetPasswordModal .field-error').forEach(error => {
+                    error.textContent = '';
+                });
+                
+                const formData = new FormData(form);
+                const newPassword = formData.get('new_password');
+                const confirmPassword = formData.get('confirm_password');
+                
+                // Validaciones
+                if (!newPassword || !confirmPassword) {
+                    showNotification('Todos los campos son obligatorios', 'error');
+                    return;
+                }
+                
+                if (newPassword.length < 8) {
+                    document.getElementById('newPasswordError').textContent = 'La contraseña debe tener al menos 8 caracteres';
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    document.getElementById('confirmNewPasswordError').textContent = 'Las contraseñas no coinciden';
+                    return;
+                }
+                
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Restableciendo...';
+                
+                const response = await fetch(`/admin/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ new_password: newPassword })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    closeModal('resetPasswordModal');
+                } else {
+                    showNotification(result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error de conexión. Intenta de nuevo.', 'error');
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.textContent = 'Restablecer contraseña';
+            }
         }
 
         // Función para logout
@@ -612,6 +815,13 @@
                     const btn = e.target.closest('.view-details');
                     const userId = btn.dataset.userId;
                     showUserDetails(userId);
+                }
+                
+                if (e.target.closest('.reset-password')) {
+                    const btn = e.target.closest('.reset-password');
+                    const userId = btn.dataset.userId;
+                    const userName = btn.dataset.userName;
+                    resetPassword(userId, userName);
                 }
                 
                 if (e.target.closest('.delete-user')) {
@@ -925,6 +1135,15 @@
             background: #f5c6cb;
         }
 
+        .btn-action.reset-password {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .btn-action.reset-password:hover {
+            background: #ffeaa7;
+        }
+
         .pagination {
             display: flex;
             justify-content: center;
@@ -1060,6 +1279,127 @@
 
         .detail-item span {
             color: #333;
+        }
+
+        /* Estilos específicos para modal de reset password */
+        .reset-info {
+            margin-bottom: 1.5rem;
+        }
+
+        .user-info-box {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .user-info-box i {
+            font-size: 1.5rem;
+            color: #007bff;
+        }
+
+        .user-info-box strong {
+            display: block;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .user-info-box p {
+            margin: 0.25rem 0 0 0;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+
+        .warning-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin-top: 1.5rem;
+        }
+
+        .warning-box i {
+            font-size: 1.25rem;
+            color: #856404;
+            margin-top: 0.25rem;
+        }
+
+        .warning-box strong {
+            display: block;
+            color: #856404;
+            margin-bottom: 0.25rem;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: #856404;
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .password-input {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 4px;
+        }
+
+        .field-error {
+            display: block;
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .field-help {
+            display: block;
+            color: #6c757d;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .btn-spinner {
+            display: none;
         }
 
         /* Notificaciones */

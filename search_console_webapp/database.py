@@ -345,3 +345,224 @@ def get_user_stats():
     finally:
         if conn:
             conn.close() 
+
+def change_password(user_id, old_password, new_password):
+    """Cambia la contraseña de un usuario verificando la contraseña actual"""
+    try:
+        # Primero verificar que el usuario existe y tiene contraseña
+        user = get_user_by_id(user_id)
+        if not user:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        
+        if not user['password_hash']:
+            return {'success': False, 'error': 'Este usuario no tiene contraseña configurada. Usa login con Google.'}
+        
+        # Verificar contraseña actual
+        if not verify_password(old_password, user['password_hash']):
+            return {'success': False, 'error': 'La contraseña actual es incorrecta'}
+        
+        # Generar nueva contraseña hash
+        new_password_hash = hash_password(new_password)
+        
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Error de conexión a la base de datos'}
+            
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE users 
+            SET password_hash = %s, updated_at = NOW()
+            WHERE id = %s
+        ''', (new_password_hash, user_id))
+        
+        conn.commit()
+        
+        if cur.rowcount > 0:
+            logger.info(f"Contraseña cambiada exitosamente para usuario ID: {user_id}")
+            return {'success': True, 'message': 'Contraseña cambiada exitosamente'}
+        else:
+            return {'success': False, 'error': 'No se pudo actualizar la contraseña'}
+        
+    except Exception as e:
+        logger.error(f"Error cambiando contraseña: {e}")
+        return {'success': False, 'error': 'Error interno del servidor'}
+    finally:
+        if conn:
+            conn.close()
+
+def admin_reset_password(admin_user_id, target_user_id, new_password):
+    """Permite a un administrador restablecer la contraseña de otro usuario"""
+    try:
+        # Verificar que el admin es realmente admin
+        admin = get_user_by_id(admin_user_id)
+        if not admin or admin['role'] != 'admin':
+            return {'success': False, 'error': 'Permisos insuficientes'}
+        
+        # Verificar que el usuario objetivo existe
+        target_user = get_user_by_id(target_user_id)
+        if not target_user:
+            return {'success': False, 'error': 'Usuario objetivo no encontrado'}
+        
+        # Generar nueva contraseña hash
+        new_password_hash = hash_password(new_password)
+        
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Error de conexión a la base de datos'}
+            
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE users 
+            SET password_hash = %s, updated_at = NOW()
+            WHERE id = %s
+        ''', (new_password_hash, target_user_id))
+        
+        conn.commit()
+        
+        if cur.rowcount > 0:
+            logger.info(f"Contraseña restablecida por admin {admin_user_id} para usuario {target_user_id}")
+            return {'success': True, 'message': f'Contraseña restablecida para {target_user["name"]}'}
+        else:
+            return {'success': False, 'error': 'No se pudo restablecer la contraseña'}
+        
+    except Exception as e:
+        logger.error(f"Error restableciendo contraseña: {e}")
+        return {'success': False, 'error': 'Error interno del servidor'}
+    finally:
+        if conn:
+            conn.close()
+
+def update_user_profile(user_id, name=None, email=None):
+    """Actualiza información del perfil de usuario"""
+    try:
+        user = get_user_by_id(user_id)
+        if not user:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        
+        # Preparar datos para actualizar
+        updates = []
+        params = []
+        
+        if name and name != user['name']:
+            updates.append('name = %s')
+            params.append(name)
+        
+        if email and email != user['email']:
+            # Verificar que el nuevo email no esté en uso
+            existing_user = get_user_by_email(email)
+            if existing_user and existing_user['id'] != user_id:
+                return {'success': False, 'error': 'El email ya está en uso por otro usuario'}
+            
+            updates.append('email = %s')
+            params.append(email)
+        
+        if not updates:
+            return {'success': False, 'error': 'No hay cambios para aplicar'}
+        
+        updates.append('updated_at = NOW()')
+        params.append(user_id)
+        
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Error de conexión a la base de datos'}
+            
+        cur = conn.cursor()
+        query = f"UPDATE users SET {', '.join(updates)} WHERE id = %s"
+        cur.execute(query, params)
+        
+        conn.commit()
+        
+        if cur.rowcount > 0:
+            logger.info(f"Perfil actualizado para usuario ID: {user_id}")
+            return {'success': True, 'message': 'Perfil actualizado exitosamente'}
+        else:
+            return {'success': False, 'error': 'No se pudo actualizar el perfil'}
+        
+    except Exception as e:
+        logger.error(f"Error actualizando perfil: {e}")
+        return {'success': False, 'error': 'Error interno del servidor'}
+    finally:
+        if conn:
+            conn.close()
+
+def get_user_activity_log(user_id, limit=10):
+    """Obtiene un registro de actividad del usuario (placeholder para futura implementación)"""
+    try:
+        # Por ahora retornamos datos básicos del usuario
+        user = get_user_by_id(user_id)
+        if not user:
+            return []
+        
+        # En una implementación futura, aquí tendríamos una tabla de logs
+        return [
+            {
+                'activity': 'Cuenta creada',
+                'timestamp': user['created_at'],
+                'details': 'Usuario registrado en el sistema'
+            },
+            {
+                'activity': 'Última actualización',
+                'timestamp': user.get('updated_at', user['created_at']),
+                'details': 'Información del perfil actualizada'
+            }
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo log de actividad: {e}")
+        return []
+
+def get_detailed_user_stats():
+    """Obtiene estadísticas detalladas de usuarios para administradores"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {}
+            
+        cur = conn.cursor()
+        
+        # Estadísticas básicas existentes
+        stats = get_user_stats()
+        
+        # Usuarios con Google OAuth vs password
+        cur.execute('SELECT COUNT(*) FROM users WHERE google_id IS NOT NULL')
+        google_users = cur.fetchone()[0]
+        
+        cur.execute('SELECT COUNT(*) FROM users WHERE password_hash IS NOT NULL')
+        password_users = cur.fetchone()[0]
+        
+        # Usuarios por rol
+        cur.execute('SELECT role, COUNT(*) FROM users GROUP BY role')
+        role_stats = dict(cur.fetchall())
+        
+        # Registros por mes (últimos 6 meses)
+        cur.execute('''
+            SELECT 
+                DATE_TRUNC('month', created_at) as month,
+                COUNT(*) as registrations
+            FROM users 
+            WHERE created_at >= NOW() - INTERVAL '6 months'
+            GROUP BY DATE_TRUNC('month', created_at)
+            ORDER BY month DESC
+        ''')
+        monthly_registrations = cur.fetchall()
+        
+        stats.update({
+            'google_users': google_users,
+            'password_users': password_users,
+            'role_stats': role_stats,
+            'monthly_registrations': [
+                {
+                    'month': row[0].strftime('%Y-%m'),
+                    'registrations': row[1]
+                } for row in monthly_registrations
+            ]
+        })
+        
+        return stats
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas detalladas: {e}")
+        return get_user_stats()  # Fallback a estadísticas básicas
+    finally:
+        if conn:
+            conn.close() 

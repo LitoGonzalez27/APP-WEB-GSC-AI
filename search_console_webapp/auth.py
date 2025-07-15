@@ -24,7 +24,12 @@ from database import (
     update_user_activity,
     update_user_role,
     get_user_stats,
-    get_db_connection
+    get_db_connection,
+    change_password,
+    admin_reset_password,
+    update_user_profile,
+    get_user_activity_log,
+    get_detailed_user_stats
 )
 
 # Carga las variables de entorno desde el .env
@@ -879,6 +884,149 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error updating user role: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    # ================================
+    # RUTAS DE PERFIL DE USUARIO
+    # ================================
+
+    @app.route('/profile')
+    @auth_required
+    def user_profile():
+        """Página de perfil de usuario"""
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('login_page'))
+        
+        # Obtener estadísticas del usuario
+        activity_log = get_user_activity_log(user['id'])
+        
+        return render_template('user_profile.html', 
+                             user=user, 
+                             activity_log=activity_log)
+
+    @app.route('/profile/update', methods=['POST'])
+    @auth_required
+    def update_profile():
+        """Actualizar información del perfil"""
+        try:
+            data = request.get_json()
+            name = data.get('name', '').strip()
+            email = data.get('email', '').strip().lower()
+            
+            current_user = get_current_user()
+            if not current_user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            # Validaciones
+            if not name:
+                return jsonify({'error': 'El nombre es obligatorio'}), 400
+            
+            if not email:
+                return jsonify({'error': 'El email es obligatorio'}), 400
+            
+            # Verificar formato de email básico
+            if '@' not in email or '.' not in email:
+                return jsonify({'error': 'Formato de email inválido'}), 400
+            
+            # Actualizar perfil
+            result = update_user_profile(current_user['id'], name=name, email=email)
+            
+            if result['success']:
+                # Actualizar sesión si el email cambió
+                if email != current_user['email']:
+                    session['user_email'] = email
+                if name != current_user['name']:
+                    session['user_name'] = name
+                
+                logger.info(f"Perfil actualizado para usuario {current_user['email']}")
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error actualizando perfil: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/profile/change-password', methods=['POST'])
+    @auth_required
+    def change_user_password():
+        """Cambiar contraseña del usuario"""
+        try:
+            data = request.get_json()
+            current_password = data.get('current_password')
+            new_password = data.get('new_password')
+            confirm_password = data.get('confirm_password')
+            
+            # Validaciones
+            if not current_password or not new_password or not confirm_password:
+                return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+            
+            if new_password != confirm_password:
+                return jsonify({'error': 'Las contraseñas nuevas no coinciden'}), 400
+            
+            if len(new_password) < 8:
+                return jsonify({'error': 'La nueva contraseña debe tener al menos 8 caracteres'}), 400
+            
+            current_user = get_current_user()
+            if not current_user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            # Cambiar contraseña
+            result = change_password(current_user['id'], current_password, new_password)
+            
+            if result['success']:
+                logger.info(f"Contraseña cambiada para usuario {current_user['email']}")
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Error cambiando contraseña: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    # ================================
+    # RUTAS DE ADMINISTRACIÓN AVANZADA
+    # ================================
+
+    @app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+    @admin_required
+    def admin_reset_user_password(user_id):
+        """Restablecer contraseña de usuario por administrador"""
+        try:
+            data = request.get_json()
+            new_password = data.get('new_password')
+            
+            if not new_password:
+                return jsonify({'error': 'Nueva contraseña es requerida'}), 400
+            
+            if len(new_password) < 8:
+                return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+            
+            current_admin = get_current_user()
+            if not current_admin:
+                return jsonify({'error': 'Administrador no encontrado'}), 404
+            
+            # Restablecer contraseña
+            result = admin_reset_password(current_admin['id'], user_id, new_password)
+            
+            if result['success']:
+                logger.info(f"Contraseña restablecida por admin {current_admin['email']} para usuario ID {user_id}")
+            
+            return jsonify(result)
+            
+        except Exception as e:
+            logger.error(f"Error restableciendo contraseña: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/stats/detailed')
+    @admin_required
+    def admin_detailed_stats():
+        """Estadísticas detalladas para administradores"""
+        try:
+            stats = get_detailed_user_stats()
+            return jsonify(stats)
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas detalladas: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
 def get_authenticated_service(service_name, version):

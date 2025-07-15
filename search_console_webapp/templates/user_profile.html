@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - Clicandseo</title>
+    
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-chart-line"></i>
+                <span class="brand-name">Clicandseo</span>
+            </div>
+            
+            <div class="navbar-menu">
+                <div class="navbar-links">
+                    <a href="/dashboard" class="navbar-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                    <a href="/" class="navbar-link">
+                        <i class="fas fa-analytics"></i>
+                        Análisis
+                    </a>
+                    {% if user.role == 'admin' %}
+                    <a href="/admin/users" class="navbar-link">
+                        <i class="fas fa-users-cog"></i>
+                        Administración
+                    </a>
+                    {% endif %}
+                </div>
+                
+                <div class="navbar-user">
+                    <div class="user-dropdown">
+                        <button class="user-btn">
+                            <div class="user-avatar">
+                                {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar">
+                                {% else %}
+                                <i class="fas fa-user"></i>
+                                {% endif %}
+                            </div>
+                            <span class="user-name">{{ user.name }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="user-dropdown-menu">
+                            <a href="/profile" class="dropdown-item active">
+                                <i class="fas fa-user-circle"></i>
+                                Mi Perfil
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Cerrar sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Header -->
+            <div class="profile-header">
+                <div class="header-content">
+                    <div class="user-info">
+                        <div class="user-avatar-large">
+                            {% if user.picture %}
+                            <img src="{{ user.picture }}" alt="Avatar de {{ user.name }}">
+                            {% else %}
+                            <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-details">
+                            <h1>{{ user.name }}</h1>
+                            <p class="user-email">{{ user.email }}</p>
+                            <div class="user-badges">
+                                <span class="badge badge-role">
+                                    <i class="fas fa-{{ 'crown' if user.role == 'admin' else 'user' }}"></i>
+                                    {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                </span>
+                                <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
+                                    <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
+                                    {{ 'Activo' if user.is_active else 'Inactivo' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="openEditProfile()">
+                            <i class="fas fa-edit"></i>
+                            Editar perfil
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenido en pestañas -->
+            <div class="profile-tabs">
+                <div class="tab-nav">
+                    <button class="tab-button active" data-tab="info">
+                        <i class="fas fa-info-circle"></i>
+                        Información personal
+                    </button>
+                    <button class="tab-button" data-tab="security">
+                        <i class="fas fa-shield-alt"></i>
+                        Seguridad
+                    </button>
+                    <button class="tab-button" data-tab="activity">
+                        <i class="fas fa-history"></i>
+                        Actividad
+                    </button>
+                </div>
+
+                <!-- Pestaña de información -->
+                <div id="infoTab" class="tab-content active">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-user"></i>
+                                Información personal
+                            </h3>
+                            <p>Gestiona tu información básica de perfil</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Nombre completo</label>
+                                    <div class="info-value">{{ user.name }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Email</label>
+                                    <div class="info-value">{{ user.email }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Rol</label>
+                                    <div class="info-value">
+                                        <span class="badge badge-role">
+                                            {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Estado de la cuenta</label>
+                                    <div class="info-value">
+                                        <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
+                                            {{ 'Activa' if user.is_active else 'Inactiva' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Fecha de registro</label>
+                                    <div class="info-value">{{ user.created_at.strftime('%d de %B de %Y') }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Tipo de autenticación</label>
+                                    <div class="info-value">
+                                        {% if user.google_id %}
+                                        <span class="auth-type google">
+                                            <i class="fab fa-google"></i>
+                                            Google OAuth
+                                        </span>
+                                        {% else %}
+                                        <span class="auth-type manual">
+                                            <i class="fas fa-envelope"></i>
+                                            Email y contraseña
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de seguridad -->
+                <div id="securityTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-shield-alt"></i>
+                                Seguridad de la cuenta
+                            </h3>
+                            <p>Gestiona la seguridad y contraseña de tu cuenta</p>
+                        </div>
+                        <div class="card-body">
+                            {% if user.password_hash %}
+                            <div class="security-section">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>
+                                            <i class="fas fa-key"></i>
+                                            Contraseña
+                                        </h4>
+                                        <p>Cambia tu contraseña para mantener tu cuenta segura</p>
+                                    </div>
+                                    <button class="btn btn-outline" onclick="openChangePassword()">
+                                        <i class="fas fa-edit"></i>
+                                        Cambiar contraseña
+                                    </button>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="security-notice">
+                                <div class="notice-content">
+                                    <i class="fab fa-google"></i>
+                                    <div>
+                                        <h4>Cuenta vinculada con Google</h4>
+                                        <p>Tu cuenta está autenticada mediante Google OAuth. No tienes una contraseña específica en nuestro sistema.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="security-section">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>
+                                            <i class="fas fa-clock"></i>
+                                            Sesión activa
+                                        </h4>
+                                        <p>Información sobre tu sesión actual</p>
+                                    </div>
+                                    <button class="btn btn-outline" onclick="showSessionInfo()">
+                                        <i class="fas fa-info"></i>
+                                        Ver detalles
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de actividad -->
+                <div id="activityTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-history"></i>
+                                Actividad reciente
+                            </h3>
+                            <p>Registro de las acciones más recientes en tu cuenta</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-list">
+                                {% for activity in activity_log %}
+                                <div class="activity-item">
+                                    <div class="activity-icon">
+                                        <i class="fas fa-circle"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">{{ activity.activity }}</div>
+                                        <div class="activity-details">{{ activity.details }}</div>
+                                        <div class="activity-time">
+                                            {{ activity.timestamp.strftime('%d de %B de %Y a las %H:%M') }}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de edición de perfil -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar perfil</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="editName">Nombre completo</label>
+                        <input type="text" id="editName" name="name" value="{{ user.name }}" required>
+                        <span class="field-error" id="editNameError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input type="email" id="editEmail" name="email" value="{{ user.email }}" required>
+                        <span class="field-error" id="editEmailError"></span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="updateProfile()">
+                    <span class="btn-text">Guardar cambios</span>
+                    <div class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de cambio de contraseña -->
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Cambiar contraseña</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Contraseña actual</label>
+                        <div class="password-input">
+                            <input type="password" id="currentPassword" name="current_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('currentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="currentPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="newPassword" name="new_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('newPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="newPasswordError"></span>
+                        <div class="field-help">La contraseña debe tener al menos 8 caracteres</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="confirmPassword" name="confirm_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="confirmPasswordError"></span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">
+                    <span class="btn-text">Cambiar contraseña</span>
+                    <div class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Scripts -->
+    <script>
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notifications = document.getElementById('notifications');
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            notification.innerHTML = `
+                <i class="${icons[type]}"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            notifications.appendChild(notification);
+            
+            // Auto-remove después de 5 segundos
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        // Función para abrir modal
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        // Función para cerrar modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // Limpiar formularios
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) {
+                form.reset();
+                // Limpiar errores
+                form.querySelectorAll('.field-error').forEach(error => {
+                    error.textContent = '';
+                });
+            }
+        }
+
+        // Función para toggle de contraseña
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const toggle = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+
+        // Función para manejar pestañas
+        function switchTab(tabId) {
+            // Remover clase active de todos los botones y contenidos
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Agregar clase active al botón y contenido seleccionado
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+        }
+
+        // Función para abrir modal de edición
+        function openEditProfile() {
+            openModal('editProfileModal');
+        }
+
+        // Función para abrir modal de cambio de contraseña
+        function openChangePassword() {
+            openModal('changePasswordModal');
+        }
+
+        // Función para actualizar perfil
+        async function updateProfile() {
+            const btn = document.querySelector('#editProfileModal .btn-primary');
+            const spinner = btn.querySelector('.btn-spinner');
+            const text = btn.querySelector('.btn-text');
+            
+            try {
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Guardando...';
+                
+                const formData = new FormData(document.getElementById('editProfileForm'));
+                const data = {
+                    name: formData.get('name'),
+                    email: formData.get('email')
+                };
+                
+                const response = await fetch('/profile/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    closeModal('editProfileModal');
+                    // Recargar página para mostrar cambios
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error de conexión. Intenta de nuevo.', 'error');
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.textContent = 'Guardar cambios';
+            }
+        }
+
+        // Función para cambiar contraseña
+        async function changePassword() {
+            const btn = document.querySelector('#changePasswordModal .btn-primary');
+            const spinner = btn.querySelector('.btn-spinner');
+            const text = btn.querySelector('.btn-text');
+            
+            try {
+                // Limpiar errores previos
+                document.querySelectorAll('#changePasswordModal .field-error').forEach(error => {
+                    error.textContent = '';
+                });
+                
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Cambiando...';
+                
+                const formData = new FormData(document.getElementById('changePasswordForm'));
+                const data = {
+                    current_password: formData.get('current_password'),
+                    new_password: formData.get('new_password'),
+                    confirm_password: formData.get('confirm_password')
+                };
+                
+                const response = await fetch('/profile/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    closeModal('changePasswordModal');
+                } else {
+                    showNotification(result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error de conexión. Intenta de nuevo.', 'error');
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.textContent = 'Cambiar contraseña';
+            }
+        }
+
+        // Función para mostrar información de sesión
+        function showSessionInfo() {
+            fetch('/auth/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.authenticated && data.session) {
+                        const minutes = Math.floor(data.session.remaining_seconds / 60);
+                        showNotification(`Tu sesión expira en ${minutes} minutos`, 'info');
+                    } else {
+                        showNotification('Información de sesión no disponible', 'warning');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error obteniendo información de sesión', 'error');
+                });
+        }
+
+        // Función para logout
+        async function logout() {
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    console.error('Error en logout');
+                }
+            } catch (error) {
+                console.error('Error en logout:', error);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pestañas
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+            
+            // Dropdown de usuario
+            const userBtn = document.querySelector('.user-btn');
+            const userDropdown = document.querySelector('.user-dropdown-menu');
+            
+            userBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+            
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+            
+            // Logout
+            document.querySelector('.logout-btn').addEventListener('click', logout);
+            
+            // Modales
+            document.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+            
+            // Clicks fuera del modal
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+
+    <!-- Estilos específicos -->
+    <style>
+        .main-content {
+            padding-top: 70px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .profile-header {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-avatar-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 3px solid #007bff;
+        }
+
+        .user-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar-large i {
+            font-size: 2rem;
+            color: #6c757d;
+        }
+
+        .user-details h1 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1.75rem;
+        }
+
+        .user-email {
+            margin: 0 0 1rem 0;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .user-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .badge-role {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-status.active {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .badge-status.inactive {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .profile-tabs {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-nav {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6c757d;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover,
+        .tab-button.active {
+            color: #007bff;
+            background: white;
+            border-bottom-color: #007bff;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 2rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .profile-card {
+            background: transparent;
+        }
+
+        .card-header {
+            margin-bottom: 2rem;
+        }
+
+        .card-header h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header p {
+            margin: 0;
+            color: #6c757d;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-item label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .auth-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .auth-type.google {
+            background: #fef7e0;
+            color: #f57c00;
+        }
+
+        .auth-type.manual {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .security-section {
+            margin-bottom: 2rem;
+        }
+
+        .security-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            gap: 1rem;
+        }
+
+        .security-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .security-info p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+
+        .security-notice {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .notice-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notice-content i {
+            font-size: 2rem;
+            color: #007bff;
+        }
+
+        .notice-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+
+        .notice-content p {
+            margin: 0;
+            color: #6c757d;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .activity-icon i {
+            color: white;
+            font-size: 0.75rem;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .activity-details {
+            color: #6c757d;
+            font-size: 0.875rem;
+            margin: 0.25rem 0;
+        }
+
+        .activity-time {
+            color: #adb5bd;
+            font-size: 0.75rem;
+        }
+
+        /* Estilos de modales y formularios */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: #f8f9fa;
+            color: #333;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .password-input {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 4px;
+        }
+
+        .field-error {
+            display: block;
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .field-help {
+            display: block;
+            color: #6c757d;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #545b62;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #007bff;
+            border: 1px solid #007bff;
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-spinner {
+            display: none;
+        }
+
+        /* Notificaciones */
+        .notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .notification {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 400px;
+            border-left: 4px solid #007bff;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-success {
+            border-left-color: #28a745;
+        }
+
+        .notification-error {
+            border-left-color: #dc3545;
+        }
+
+        .notification-warning {
+            border-left-color: #ffc107;
+        }
+
+        .notification i {
+            color: #007bff;
+        }
+
+        .notification-success i {
+            color: #28a745;
+        }
+
+        .notification-error i {
+            color: #dc3545;
+        }
+
+        .notification-warning i {
+            color: #ffc107;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            margin-left: auto;
+            padding: 4px;
+        }
+
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #007bff;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .navbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .navbar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: #6c757d;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-link:hover,
+        .navbar-link.active {
+            color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .user-dropdown {
+            position: relative;
+        }
+
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .user-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar i {
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+
+        .user-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 150px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .user-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            color: #495057;
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #f8f9fa;
+            color: #007bff;
+        }
+
+        .dropdown-item.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #e9ecef;
+            margin: 0.5rem 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .navbar-container {
+                padding: 0 1rem;
+            }
+
+            .navbar-links {
+                display: none;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .tab-nav {
+                overflow-x: auto;
+            }
+
+            .tab-button {
+                white-space: nowrap;
+                flex: none;
+                min-width: 140px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .security-item {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <!-- Scripts de sesión -->
+    <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
+</body>
+</html> 

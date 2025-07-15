@@ -69,14 +69,16 @@
                                 </div>
                             </div>
                             <div class="dropdown-divider"></div>
-                            <a href="#" class="dropdown-item">
-                                <i class="fas fa-user-edit"></i>
-                                Editar perfil
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <i class="fas fa-cog"></i>
-                                Configuración
-                            </a>
+                                                    <a href="/profile" class="dropdown-item">
+                <i class="fas fa-user-circle"></i>
+                Mi Perfil
+            </a>
+            {% if user.role == 'admin' %}
+            <a href="/admin/users" class="dropdown-item">
+                <i class="fas fa-users-cog"></i>
+                Administración
+            </a>
+            {% endif %}
                             <div class="dropdown-divider"></div>
                             <button class="dropdown-item logout-btn">
                                 <i class="fas fa-sign-out-alt"></i>
