@@ -1030,7 +1030,7 @@ def get_serp_position():
     keyword_val = request.args.get('keyword')
     site_url_val = request.args.get('site_url', '')
     country_param = request.args.get('country', '')
-    api_key_serp = os.getenv('SERPAPI_API_KEY')
+    api_key_serp = os.getenv('SERPAPI_KEY')
     
     if not keyword_val or not site_url_val:
         return jsonify({'error': 'keyword y site_url son requeridos'}), 400
@@ -1109,7 +1109,7 @@ def get_serp_screenshot_route():
     keyword_param = request.args.get('keyword')
     site_url_param = request.args.get('site_url', '')
     country_param = request.args.get('country', '')
-    api_key_env = os.getenv('SERPAPI_API_KEY')
+    api_key_env = os.getenv('SERPAPI_KEY')
 
     if not keyword_param or not site_url_param:
         return jsonify({'error': 'keyword y site_url son requeridos'}), 400
@@ -1125,11 +1125,11 @@ def get_serp_screenshot_route():
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
 
 def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=None):
-    api_key_env_val = os.getenv('SERPAPI_API_KEY')
+    api_key_env_val = os.getenv('SERPAPI_KEY')
     if not api_key_env_val:
-        logger.error("SERPAPI_API_KEY no está configurada para analyze_single_keyword_ai_impact")
+        logger.error("SERPAPI_KEY no está configurada para analyze_single_keyword_ai_impact")
         return {
-            'keyword': keyword_arg, 'error': "SERPAPI_API_KEY no está configurada",
+            'keyword': keyword_arg, 'error': "SERPAPI_KEY no está configurada",
             'ai_analysis': {'has_ai_overview': False, 'debug_info': {'error': "API key missing"}},
             'site_position': None, 'site_result': None, 'organic_results_count': 0,
             'serp_features': [], 'timestamp': time.time(), 'serpapi_success': False
@@ -1308,9 +1308,9 @@ def analyze_ai_overview_route():
         if not site_url_req:
             return jsonify({'error': 'site_url es requerido'}), 400
         
-        serpapi_key = os.getenv('SERPAPI_API_KEY')
+        serpapi_key = os.getenv('SERPAPI_KEY')
         if not serpapi_key:
-            logger.error("SERPAPI_API_KEY no configurada para ruta analyze-ai-overview")
+            logger.error("SERPAPI_KEY no configurada para ruta analyze-ai-overview")
             return jsonify({'error': 'API key de SerpAPI no configurada en el servidor'}), 500
         
         original_count = len(keywords_data_list)
@@ -1476,14 +1476,16 @@ def debug_serp_params():
     keyword = request.args.get('keyword', 'test')
     country = request.args.get('country', 'esp')
     
+    serpapi_key = os.getenv('SERPAPI_KEY')
+    
     # Parámetros para AI Analysis
-    ai_params = get_serp_params_with_location(keyword, os.getenv('SERPAPI_API_KEY'), country)
+    ai_params = get_serp_params_with_location(keyword, serpapi_key, country)
     
     # Parámetros para Screenshot (simulando serp_service.py)
     screenshot_params = {
         'engine': 'google',
         'q': keyword,
-        'api_key': os.getenv('SERPAPI_API_KEY'),
+        'api_key': serpapi_key,
         'gl': 'es',
         'hl': 'es',
         'num': 20

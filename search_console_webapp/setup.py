@@ -76,8 +76,8 @@ def create_env_file():
         f.write("# ================================\n")
         f.write("# API Keys\n")
         f.write("# ================================\n")
-        serpapi_key = existing_vars.get('SERPAPI_API_KEY', 'tu_serpapi_key_aqui')
-        f.write(f"SERPAPI_API_KEY={serpapi_key}\n\n")
+        serpapi_key = existing_vars.get('SERPAPI_KEY', 'tu_serpapi_key_aqui')
+        f.write(f"SERPAPI_KEY={serpapi_key}\n\n")
         
         f.write("# ================================\n")
         f.write("# Configuración OAuth2\n")
@@ -98,7 +98,7 @@ def create_env_file():
         
         # Añadir otras variables existentes
         other_vars = {k: v for k, v in existing_vars.items() 
-                     if k not in required_vars and k != 'SERPAPI_API_KEY'}
+                     if k not in required_vars and k != 'SERPAPI_KEY'}
         if other_vars:
             f.write("\n# ================================\n")
             f.write("# Otras configuraciones\n")
