@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-overlay-styles.css') }}">
   <!-- ✅ NUEVO: Sistema responsive mejorado -->
   <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='feedback-button.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
 
@@ -618,6 +619,17 @@
       }
     }
   </style>
+
+  <!-- Botón de Feedback Beta Tester - Sticky -->
+  <div class="feedback-button-container">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfVN-ZILnx6wzfaxaZ6dwSJNgG4CSSyuctaNOoVdsWnFE4GFw/viewform?usp=sharing&ouid=107199513026819931698" 
+       target="_blank" 
+       class="feedback-btn" 
+       data-tooltip="Reporta un error">
+      <i class="fas fa-bug"></i>
+      <span>Feedback Beta Tester</span>
+    </a>
+  </div>
 
   <!-- ✅ NUEVO: Detector de dispositivos móviles del lado del cliente -->
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
