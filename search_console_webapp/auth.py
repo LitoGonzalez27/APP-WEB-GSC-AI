@@ -840,6 +840,72 @@ def setup_auth_routes(app):
         # ✅ USANDO TEMPLATE SIMPLE Y LIMPIO CON MODALES GARANTIZADOS
         return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
 
+    @app.route('/admin/debug-stats')
+    @admin_required 
+    def debug_stats():
+        """Debug de estadísticas para solucionar problema"""
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        debug_info = {
+            'database_connection': False,
+            'users_data': [],
+            'raw_queries': {},
+            'stats_function_result': {},
+            'error_details': []
+        }
+        
+        try:
+            # 1. Probar conexión directa
+            conn = get_db_connection()
+            if conn:
+                debug_info['database_connection'] = True
+                cur = conn.cursor()
+                
+                # 2. Consulta directa de usuarios
+                cur.execute('SELECT id, email, name, is_active, created_at, role FROM users ORDER BY id')
+                users_raw = cur.fetchall()
+                debug_info['users_data'] = [dict(user) for user in users_raw]
+                
+                # 3. Consultas individuales de estadísticas
+                queries = {
+                    'total_users': 'SELECT COUNT(*) FROM users',
+                    'active_users': 'SELECT COUNT(*) FROM users WHERE is_active = TRUE',
+                    'inactive_users': 'SELECT COUNT(*) FROM users WHERE is_active = FALSE',
+                    'today_registrations': '''
+                        SELECT COUNT(*) FROM users 
+                        WHERE created_at IS NOT NULL 
+                        AND created_at >= CURRENT_DATE 
+                        AND created_at < CURRENT_DATE + INTERVAL '1 day'
+                    ''',
+                    'week_registrations': '''
+                        SELECT COUNT(*) FROM users 
+                        WHERE created_at IS NOT NULL 
+                        AND created_at >= NOW() - INTERVAL '7 days'
+                    '''
+                }
+                
+                for key, query in queries.items():
+                    try:
+                        cur.execute(query)
+                        result = cur.fetchone()
+                        debug_info['raw_queries'][key] = result[0] if result else 0
+                    except Exception as e:
+                        debug_info['raw_queries'][key] = f"ERROR: {str(e)}"
+                        debug_info['error_details'].append(f"{key}: {str(e)}")
+                
+                # 4. Resultado de la función get_user_stats()
+                debug_info['stats_function_result'] = get_user_stats()
+                
+                conn.close()
+            else:
+                debug_info['error_details'].append("No se pudo conectar a la base de datos")
+                
+        except Exception as e:
+            debug_info['error_details'].append(f"Error general: {str(e)}")
+        
+        return jsonify(debug_info)
+
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
     @admin_required
     def toggle_user_status(user_id):

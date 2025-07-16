@@ -308,10 +308,11 @@ def delete_user(user_id):
 
 def get_user_stats():
     """Obtiene estadísticas de usuarios para el panel de administración"""
+    logger.info("🔍 INICIANDO get_user_stats()")
     try:
         conn = get_db_connection()
         if not conn:
-            logger.error("No se pudo conectar a la base de datos para estadísticas")
+            logger.error("❌ CRÍTICO: No se pudo conectar a la base de datos para estadísticas")
             return {
                 'total_users': 0,
                 'active_users': 0,
@@ -319,6 +320,8 @@ def get_user_stats():
                 'today_registrations': 0,
                 'week_registrations': 0
             }
+        
+        logger.info("✅ Conexión a base de datos exitosa")
             
         cur = conn.cursor()
         
