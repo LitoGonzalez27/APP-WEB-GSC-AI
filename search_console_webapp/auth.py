@@ -828,6 +828,10 @@ def setup_auth_routes(app):
         """Panel de administración de usuarios"""
         users = get_all_users()
         stats = get_user_stats()
+        
+        # Debug logging
+        logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {stats}")
+        
         return render_template('admin_users.html', users=users, stats=stats)
 
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])

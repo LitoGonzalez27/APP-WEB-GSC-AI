@@ -413,15 +413,11 @@
         function loadInitialData() {
             try {
                 const rows = document.querySelectorAll('tbody tr');
-                console.log('Filas encontradas:', rows.length);
+                console.log('📊 Cargando datos - Filas encontradas:', rows.length);
                 
                 allUsers = Array.from(rows).map(row => {
                     const userNameElement = row.querySelector('.user-name');
                     const emailElement = row.querySelector('td:nth-child(2)');
-                    
-                    if (!userNameElement || !emailElement) {
-                        console.warn('Elementos no encontrados en fila:', row);
-                    }
                     
                     return {
                         id: row.dataset.userId,
@@ -434,9 +430,9 @@
                 });
                 
                 filteredUsers = [...allUsers];
-                console.log('Usuarios cargados:', allUsers.length, allUsers);
+                console.log('✅ Usuarios cargados exitosamente:', allUsers.length);
             } catch (error) {
-                console.error('Error en loadInitialData:', error);
+                console.error('❌ Error en loadInitialData:', error);
                 allUsers = [];
                 filteredUsers = [];
             }
@@ -473,12 +469,23 @@
 
         // Función para abrir modal
         function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
+            console.log('Intentando abrir modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                console.log('Modal abierto:', modalId);
+            } else {
+                console.error('Modal no encontrado:', modalId);
+            }
         }
 
         // Función para cerrar modal
         function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
+            console.log('Cerrando modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         // Función para filtrar usuarios
@@ -607,15 +614,13 @@
 
         // Función para mostrar detalles de usuario
         async function showUserDetails(userId) {
-            console.log('showUserDetails llamada con userId:', userId);
-            console.log('allUsers disponibles:', allUsers);
+            console.log('🔍 showUserDetails ejecutándose para userId:', userId);
             
             const user = allUsers.find(u => u.id === userId || u.id === String(userId) || String(u.id) === String(userId));
-            console.log('Usuario encontrado:', user);
             
             if (!user) {
-                console.error('Usuario no encontrado para ID:', userId);
-                console.error('IDs disponibles:', allUsers.map(u => u.id));
+                console.error('❌ Usuario no encontrado para ID:', userId);
+                console.error('📋 IDs disponibles:', allUsers.map(u => u.id));
                 showNotification('Usuario no encontrado', 'error');
                 return;
             }
@@ -645,6 +650,7 @@
                 document.getElementById('detailLastLogin').textContent = 'No disponible';
                 document.getElementById('detailLoginCount').textContent = 'No disponible';
                 
+                console.log('Intentando abrir modal de detalles de usuario...');
                 openModal('userDetailsModal');
                 
             } catch (error) {
@@ -655,11 +661,12 @@
 
         // Función para eliminar usuario
         function deleteUser(userId, userName) {
-            console.log('deleteUser llamada con userId:', userId, 'userName:', userName);
+            console.log('🗑️ deleteUser ejecutándose para:', userId, userName);
             
             document.getElementById('confirmTitle').textContent = 'Eliminar Usuario';
             document.getElementById('confirmMessage').textContent = `¿Estás seguro de que quieres eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`;
             
+            console.log('Configurando confirmAction onclick...');
             document.getElementById('confirmAction').onclick = async function() {
                 closeModal('confirmModal');
                 
@@ -694,6 +701,7 @@
                 }
             };
             
+            console.log('Intentando abrir modal de confirmación...');
             openModal('confirmModal');
         }
 
@@ -860,24 +868,20 @@
             // Debug después de cargar datos
             setTimeout(debugButtons, 100);
             
-            // Test directo de clics
+            // Test de modales y clics
             setTimeout(function() {
-                console.log('=== TEST DIRECTO DE CLICS ===');
-                const firstViewBtn = document.querySelector('.view-details');
-                const firstDeleteBtn = document.querySelector('.delete-user');
+                console.log('=== TEST DE MODALES ===');
+                const userDetailsModal = document.getElementById('userDetailsModal');
+                const confirmModal = document.getElementById('confirmModal');
                 
-                if (firstViewBtn) {
-                    console.log('Primer botón view-details:', firstViewBtn);
-                    console.log('Dataset:', firstViewBtn.dataset);
-                    
-                    // Test click programático
-                    console.log('Simulando click en view-details...');
-                    firstViewBtn.click();
+                console.log('Modal userDetailsModal encontrado:', !!userDetailsModal);
+                console.log('Modal confirmModal encontrado:', !!confirmModal);
+                
+                if (userDetailsModal) {
+                    console.log('userDetailsModal display:', getComputedStyle(userDetailsModal).display);
                 }
-                
-                if (firstDeleteBtn) {
-                    console.log('Primer botón delete-user:', firstDeleteBtn);
-                    console.log('Dataset:', firstDeleteBtn.dataset);
+                if (confirmModal) {
+                    console.log('confirmModal display:', getComputedStyle(confirmModal).display);
                 }
             }, 500);
             
@@ -920,10 +924,7 @@
             
             // Acciones de usuarios
             document.addEventListener('click', function(e) {
-                console.log('Click detectado en:', e.target);
-                
                 if (e.target.closest('.toggle-status')) {
-                    console.log('Click en toggle-status');
                     const btn = e.target.closest('.toggle-status');
                     const userId = btn.dataset.userId;
                     const currentStatus = btn.dataset.currentStatus === 'true';
@@ -931,15 +932,13 @@
                 }
                 
                 if (e.target.closest('.view-details')) {
-                    console.log('Click en view-details');
+                    console.log('🔍 Click en view-details, User ID:', e.target.closest('.view-details').dataset.userId);
                     const btn = e.target.closest('.view-details');
                     const userId = btn.dataset.userId;
-                    console.log('User ID para detalles:', userId);
                     showUserDetails(userId);
                 }
                 
                 if (e.target.closest('.reset-password')) {
-                    console.log('Click en reset-password');
                     const btn = e.target.closest('.reset-password');
                     const userId = btn.dataset.userId;
                     const userName = btn.dataset.userName;
@@ -947,11 +946,10 @@
                 }
                 
                 if (e.target.closest('.delete-user')) {
-                    console.log('Click en delete-user');
+                    console.log('🗑️ Click en delete-user, User ID:', e.target.closest('.delete-user').dataset.userId);
                     const btn = e.target.closest('.delete-user');
                     const userId = btn.dataset.userId;
                     const userName = btn.dataset.userName;
-                    console.log('User ID para eliminar:', userId, 'Nombre:', userName);
                     deleteUser(userId, userName);
                 }
             });

@@ -323,30 +323,44 @@ def get_user_stats():
         cur = conn.cursor()
         
         # Total de usuarios
+        logger.info("Ejecutando query: SELECT COUNT(*) FROM users")
         cur.execute('SELECT COUNT(*) FROM users')
-        total_users = cur.fetchone()[0] or 0
+        total_users_result = cur.fetchone()
+        total_users = total_users_result[0] if total_users_result else 0
+        logger.info(f"Total usuarios resultado: {total_users}")
         
         # Usuarios activos
+        logger.info("Ejecutando query: SELECT COUNT(*) FROM users WHERE is_active = TRUE")
         cur.execute('SELECT COUNT(*) FROM users WHERE is_active = TRUE')
-        active_users = cur.fetchone()[0] or 0
+        active_users_result = cur.fetchone()
+        active_users = active_users_result[0] if active_users_result else 0
+        logger.info(f"Usuarios activos resultado: {active_users}")
         
         # Usuarios registrados hoy (considerar NULL en created_at)
+        logger.info("Ejecutando query para registros de hoy")
         cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND DATE(created_at) = CURRENT_DATE')
-        today_registrations = cur.fetchone()[0] or 0
+        today_result = cur.fetchone()
+        today_registrations = today_result[0] if today_result else 0
+        logger.info(f"Registros hoy resultado: {today_registrations}")
         
         # Usuarios registrados en los últimos 7 días (considerar NULL en created_at)
+        logger.info("Ejecutando query para registros de última semana")
         cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND created_at >= NOW() - INTERVAL \'7 days\'')
-        week_registrations = cur.fetchone()[0] or 0
+        week_result = cur.fetchone()
+        week_registrations = week_result[0] if week_result else 0
+        logger.info(f"Registros semana resultado: {week_registrations}")
+        
+        inactive_users = max(0, total_users - active_users)
         
         stats = {
-            'total_users': total_users,
-            'active_users': active_users,
-            'inactive_users': total_users - active_users,
-            'today_registrations': today_registrations,
-            'week_registrations': week_registrations
+            'total_users': int(total_users),
+            'active_users': int(active_users),
+            'inactive_users': int(inactive_users),
+            'today_registrations': int(today_registrations),
+            'week_registrations': int(week_registrations)
         }
         
-        logger.info(f"Estadísticas obtenidas: {stats}")
+        logger.info(f"Estadísticas finales: {stats}")
         return stats
         
     except Exception as e:
