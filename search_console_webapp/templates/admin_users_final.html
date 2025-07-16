@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Usuarios - Clicandseo</title>
+    
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
+    
+    <!-- ✅ CSS ESPECÍFICO COMPLETAMENTE SEPARADO -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin-users.css') }}">
+</head>
+<body class="admin-users-page">
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-chart-line"></i>
+                <span class="brand-name">Clicandseo</span>
+            </div>
+            
+            <div class="navbar-menu">
+                <div class="navbar-links">
+                    <a href="/dashboard" class="navbar-link">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                    <a href="/app" class="navbar-link">
+                        <i class="fas fa-analytics"></i>
+                        Ir a Clicandseo
+                    </a>
+                    <a href="/admin/users" class="navbar-link active">
+                        <i class="fas fa-users-cog"></i>
+                        Administración
+                    </a>
+                </div>
+                
+                <div class="navbar-user">
+                    <div class="user-dropdown">
+                        <button class="user-btn">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span class="user-name">Admin</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="user-dropdown-menu">
+                            <a href="/dashboard" class="dropdown-item">
+                                <i class="fas fa-home"></i>
+                                Dashboard
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Cerrar sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Header -->
+            <div class="admin-header">
+                <div class="header-content">
+                    <h1>
+                        <i class="fas fa-users-cog"></i>
+                        Administración de Usuarios
+                    </h1>
+                    <p class="admin-subtitle">
+                        Gestiona usuarios, roles y permisos del sistema
+                    </p>
+                </div>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">{{ stats.total_users if stats and stats.total_users is not none else 0 }}</div>
+                        <div class="stat-label">Total de usuarios</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon active">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">{{ stats.active_users if stats and stats.active_users is not none else 0 }}</div>
+                        <div class="stat-label">Usuarios activos</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon inactive">
+                        <i class="fas fa-user-times"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">{{ stats.inactive_users if stats and stats.inactive_users is not none else 0 }}</div>
+                        <div class="stat-label">Usuarios inactivos</div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon new">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-number">{{ stats.today_registrations if stats and stats.today_registrations is not none else 0 }}</div>
+                        <div class="stat-label">Registros hoy</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros y búsqueda -->
+            <div class="filters-section">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre o email...">
+                </div>
+                
+                <div class="filters">
+                    <select id="roleFilter">
+                        <option value="">Todos los roles</option>
+                        <option value="admin">Administrador</option>
+                        <option value="user">Usuario</option>
+                    </select>
+                    
+                    <select id="statusFilter">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activos</option>
+                        <option value="inactive">Inactivos</option>
+                    </select>
+                    
+                    <button class="btn btn-outline" onclick="window.adminManager?.clearFilters()">
+                        <i class="fas fa-times"></i>
+                        Limpiar filtros
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de usuarios -->
+            <div class="table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Fecha de registro</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        {% for user in users %}
+                        <tr data-user-id="{{ user.id }}" 
+                            data-user-role="{{ user.role }}" 
+                            data-user-status="{{ 'active' if user.is_active else 'inactive' }}">
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-avatar">
+                                        {% if user.picture %}
+                                        <img src="{{ user.picture }}" alt="Avatar">
+                                        {% else %}
+                                        <i class="fas fa-user"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="user-info">
+                                        <div class="user-name">{{ user.name }}</div>
+                                        <div class="user-id">ID: {{ user.id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <select class="role-select" data-user-id="{{ user.id }}" data-current-role="{{ user.role }}">
+                                    <option value="user" {% if user.role == 'user' %}selected{% endif %}>Usuario</option>
+                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrador</option>
+                                </select>
+                            </td>
+                            <td>
+                                <span class="status-badge {% if user.is_active %}active{% else %}inactive{% endif %}">
+                                    {% if user.is_active %}
+                                    <i class="fas fa-check-circle"></i>
+                                    Activo
+                                    {% else %}
+                                    <i class="fas fa-times-circle"></i>
+                                    Inactivo
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="date-cell">
+                                    {% if user.created_at %}
+                                    <div class="date">{{ user.created_at.strftime('%d/%m/%Y') }}</div>
+                                    <div class="time">{{ user.created_at.strftime('%H:%M') }}</div>
+                                    {% else %}
+                                    <div class="date">Sin fecha</div>
+                                    <div class="time">--:--</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn-action toggle-status" 
+                                            data-user-id="{{ user.id }}" 
+                                            data-current-status="{{ user.is_active }}"
+                                            title="{% if user.is_active %}Desactivar{% else %}Activar{% endif %} usuario">
+                                        {% if user.is_active %}
+                                        <i class="fas fa-user-slash"></i>
+                                        {% else %}
+                                        <i class="fas fa-user-check"></i>
+                                        {% endif %}
+                                    </button>
+                                    
+                                    <button class="btn-action view-details" 
+                                            data-user-id="{{ user.id }}"
+                                            title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    
+                                    {% if user.password_hash %}
+                                    <button class="btn-action reset-password" 
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name }}"
+                                            title="Restablecer contraseña">
+                                        <i class="fas fa-key"></i>
+                                    </button>
+                                    {% endif %}
+                                    
+                                    <button class="btn-action delete-user" 
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name }}"
+                                            title="Eliminar usuario">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            <div class="pagination">
+                <button class="btn btn-outline" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                    Anterior
+                </button>
+                <span class="page-info">Página 1 de 1</span>
+                <button class="btn btn-outline" disabled>
+                    Siguiente
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de detalles de usuario -->
+    <div id="userDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Detalles del Usuario</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="user-detail-grid">
+                    <div class="detail-item">
+                        <label>ID:</label>
+                        <span id="detailId">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Nombre:</label>
+                        <span id="detailName">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Email:</label>
+                        <span id="detailEmail">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Rol:</label>
+                        <span id="detailRole">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Estado:</label>
+                        <span id="detailStatus">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Fecha de registro:</label>
+                        <span id="detailCreated">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Tipo de autenticación:</label>
+                        <span id="detailAuthType">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Último acceso:</label>
+                        <span id="detailLastLogin">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Total de accesos:</label>
+                        <span id="detailLoginCount">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirmTitle">Confirmar acción</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">¿Estás seguro de que quieres realizar esta acción?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="window.adminManager?.closeModal('confirmModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmAction">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- ✅ JavaScript externo - CARGA LIMPIA Y MODULAR -->
+    <script src="{{ url_for('static', filename='js/admin-users.js') }}"></script>
+</body>
+</html> 
