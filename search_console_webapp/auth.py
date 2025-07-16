@@ -1020,6 +1020,41 @@ def setup_auth_routes(app):
             logger.error(f"Error restableciendo contraseña: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
+    @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+    @admin_required
+    def admin_delete_user(user_id):
+        """Eliminar usuario por administrador"""
+        try:
+            # Verificar que el usuario objetivo existe
+            target_user = get_user_by_id(user_id)
+            if not target_user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+            
+            current_admin = get_current_user()
+            if not current_admin:
+                return jsonify({'error': 'Administrador no encontrado'}), 404
+                
+            # No permitir que el admin se elimine a sí mismo
+            if user_id == current_admin['id']:
+                return jsonify({'error': 'No puedes eliminar tu propia cuenta'}), 400
+            
+            # Usar la función de database.py para eliminar
+            from database import delete_user
+            success = delete_user(user_id)
+            
+            if success:
+                logger.info(f"Usuario {target_user['email']} eliminado por admin {current_admin['email']}")
+                return jsonify({
+                    'success': True,
+                    'message': f'Usuario {target_user["name"]} eliminado exitosamente'
+                })
+            else:
+                return jsonify({'error': 'Error eliminando usuario'}), 500
+                
+        except Exception as e:
+            logger.error(f"Error eliminando usuario: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
     @app.route('/admin/stats/detailed')
     @admin_required
     def admin_detailed_stats():

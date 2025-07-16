@@ -31,7 +31,7 @@
                     </a>
                     <a href="/app" class="navbar-link">
                         <i class="fas fa-analytics"></i>
-                        Análisis SEO
+                        Ir a Clicandseo
                     </a>
                     {% if user.role == 'admin' %}
                     <a href="/admin/users" class="navbar-link">
@@ -149,11 +149,11 @@
                     <div class="card-header">
                         <h3>
                             <i class="fas fa-chart-line"></i>
-                            Análisis SEO
+                            Ir a Clicandseo
                         </h3>
                     </div>
                     <div class="card-content">
-                        <p>Accede a herramientas avanzadas de análisis SEO para optimizar tu sitio web.</p>
+                        <p>Accede a la herramienta completa de Clicandseo para optimizar tu sitio web.</p>
                         <div class="card-features">
                             <div class="feature-item">
                                 <i class="fas fa-search"></i>
@@ -210,17 +210,7 @@
                         </div>
                     </div>
                     <div class="card-footer">
-                        {% if user.is_active %}
-                        <button class="btn btn-outline" onclick="loadProperties()">
-                            <i class="fas fa-sync"></i>
-                            Actualizar propiedades
-                        </button>
-                        {% else %}
-                        <button class="btn btn-secondary" disabled>
-                            <i class="fas fa-lock"></i>
-                            Requiere cuenta activa
-                        </button>
-                        {% endif %}
+                        <!-- Botón de actualizar propiedades eliminado - se actualiza automáticamente -->
                     </div>
                 </div>
 

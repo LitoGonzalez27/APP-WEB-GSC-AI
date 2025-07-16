@@ -311,27 +311,34 @@ def get_user_stats():
     try:
         conn = get_db_connection()
         if not conn:
-            return {}
+            logger.error("No se pudo conectar a la base de datos para estadísticas")
+            return {
+                'total_users': 0,
+                'active_users': 0,
+                'inactive_users': 0,
+                'today_registrations': 0,
+                'week_registrations': 0
+            }
             
         cur = conn.cursor()
         
         # Total de usuarios
         cur.execute('SELECT COUNT(*) FROM users')
-        total_users = cur.fetchone()[0]
+        total_users = cur.fetchone()[0] or 0
         
         # Usuarios activos
         cur.execute('SELECT COUNT(*) FROM users WHERE is_active = TRUE')
-        active_users = cur.fetchone()[0]
+        active_users = cur.fetchone()[0] or 0
         
-        # Usuarios registrados hoy
-        cur.execute('SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURRENT_DATE')
-        today_registrations = cur.fetchone()[0]
+        # Usuarios registrados hoy (considerar NULL en created_at)
+        cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND DATE(created_at) = CURRENT_DATE')
+        today_registrations = cur.fetchone()[0] or 0
         
-        # Usuarios registrados en los últimos 7 días
-        cur.execute('SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL \'7 days\'')
-        week_registrations = cur.fetchone()[0]
+        # Usuarios registrados en los últimos 7 días (considerar NULL en created_at)
+        cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND created_at >= NOW() - INTERVAL \'7 days\'')
+        week_registrations = cur.fetchone()[0] or 0
         
-        return {
+        stats = {
             'total_users': total_users,
             'active_users': active_users,
             'inactive_users': total_users - active_users,
@@ -339,9 +346,19 @@ def get_user_stats():
             'week_registrations': week_registrations
         }
         
+        logger.info(f"Estadísticas obtenidas: {stats}")
+        return stats
+        
     except Exception as e:
         logger.error(f"Error obteniendo estadísticas de usuarios: {e}")
-        return {}
+        # Retornar valores por defecto en caso de error
+        return {
+            'total_users': 0,
+            'active_users': 0,
+            'inactive_users': 0,
+            'today_registrations': 0,
+            'week_registrations': 0
+        }
     finally:
         if conn:
             conn.close() 

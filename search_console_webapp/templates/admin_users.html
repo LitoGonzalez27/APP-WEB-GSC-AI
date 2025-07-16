@@ -32,7 +32,7 @@
                     </a>
                     <a href="/app" class="navbar-link">
                         <i class="fas fa-analytics"></i>
-                        Análisis SEO
+                        Ir a Clicandseo
                     </a>
                     <a href="/admin/users" class="navbar-link active">
                         <i class="fas fa-users-cog"></i>
@@ -89,7 +89,7 @@
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number">{{ stats.total_users }}</div>
+                        <div class="stat-number">{{ stats.total_users if stats and stats.total_users is not none else 0 }}</div>
                         <div class="stat-label">Total de usuarios</div>
                     </div>
                 </div>
@@ -99,7 +99,7 @@
                         <i class="fas fa-user-check"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number">{{ stats.active_users }}</div>
+                        <div class="stat-number">{{ stats.active_users if stats and stats.active_users is not none else 0 }}</div>
                         <div class="stat-label">Usuarios activos</div>
                     </div>
                 </div>
@@ -109,7 +109,7 @@
                         <i class="fas fa-user-times"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number">{{ stats.inactive_users }}</div>
+                        <div class="stat-number">{{ stats.inactive_users if stats and stats.inactive_users is not none else 0 }}</div>
                         <div class="stat-label">Usuarios inactivos</div>
                     </div>
                 </div>
@@ -119,7 +119,7 @@
                         <i class="fas fa-user-plus"></i>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-number">{{ stats.today_registrations }}</div>
+                        <div class="stat-number">{{ stats.today_registrations if stats and stats.today_registrations is not none else 0 }}</div>
                         <div class="stat-label">Registros hoy</div>
                     </div>
                 </div>
@@ -589,38 +589,42 @@
         // Función para mostrar detalles de usuario
         async function showUserDetails(userId) {
             const user = allUsers.find(u => u.id === userId);
-            if (!user) return;
+            if (!user) {
+                showNotification('Usuario no encontrado', 'error');
+                return;
+            }
 
             const row = user.element;
             
-            // Información básica
-            document.getElementById('detailId').textContent = userId;
-            document.getElementById('detailName').textContent = user.name;
-            document.getElementById('detailEmail').textContent = user.email;
-            document.getElementById('detailRole').textContent = user.role === 'admin' ? 'Administrador' : 'Usuario';
-            document.getElementById('detailStatus').textContent = user.status === 'active' ? 'Activo' : 'Inactivo';
-            document.getElementById('detailCreated').textContent = row.querySelector('.date').textContent + ' ' + row.querySelector('.time').textContent;
-            
-            // Información adicional
-            const hasPassword = row.querySelector('.reset-password') !== null;
-            document.getElementById('detailAuthType').textContent = hasPassword ? 'Email y contraseña' : 'Google OAuth';
-            
-            // Cargar estadísticas detalladas
             try {
-                const response = await fetch('/admin/stats/detailed');
-                const stats = await response.json();
+                // Información básica
+                document.getElementById('detailId').textContent = userId;
+                document.getElementById('detailName').textContent = user.name || 'Sin nombre';
+                document.getElementById('detailEmail').textContent = user.email || 'Sin email';
+                document.getElementById('detailRole').textContent = user.role === 'admin' ? 'Administrador' : 'Usuario';
+                document.getElementById('detailStatus').textContent = user.status === 'active' ? 'Activo' : 'Inactivo';
                 
-                // Esta información estaría disponible si implementáramos logs de actividad
+                // Fecha de creación
+                const dateElement = row.querySelector('.date');
+                const timeElement = row.querySelector('.time');
+                const dateText = dateElement ? dateElement.textContent : 'Sin fecha';
+                const timeText = timeElement ? timeElement.textContent : '--:--';
+                document.getElementById('detailCreated').textContent = `${dateText} ${timeText}`;
+                
+                // Tipo de autenticación
+                const hasPassword = row.querySelector('.reset-password') !== null;
+                document.getElementById('detailAuthType').textContent = hasPassword ? 'Email y contraseña' : 'Google OAuth';
+                
+                // Información adicional (placeholder hasta implementar logs)
                 document.getElementById('detailLastLogin').textContent = 'No disponible';
                 document.getElementById('detailLoginCount').textContent = 'No disponible';
                 
+                openModal('userDetailsModal');
+                
             } catch (error) {
-                console.log('No se pudieron cargar estadísticas detalladas');
-                document.getElementById('detailLastLogin').textContent = 'Error cargando datos';
-                document.getElementById('detailLoginCount').textContent = 'Error cargando datos';
+                console.error('Error mostrando detalles del usuario:', error);
+                showNotification('Error cargando detalles del usuario', 'error');
             }
-            
-            openModal('userDetailsModal');
         }
 
         // Función para eliminar usuario
@@ -630,7 +634,36 @@
             
             document.getElementById('confirmAction').onclick = async function() {
                 closeModal('confirmModal');
-                showNotification('Función de eliminación no implementada', 'warning');
+                
+                try {
+                    const response = await fetch(`/admin/users/${userId}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showNotification(result.message, 'success');
+                        
+                        // Remover la fila de la tabla
+                        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+                        if (row) {
+                            row.remove();
+                        }
+                        
+                        // Actualizar datos locales
+                        loadInitialData();
+                        filterUsers();
+                    } else {
+                        showNotification(result.error, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('Error de conexión al eliminar usuario', 'error');
+                }
             };
             
             openModal('confirmModal');
