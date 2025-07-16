@@ -906,6 +906,38 @@ def setup_auth_routes(app):
         
         return jsonify(debug_info)
 
+    @app.route('/admin/fix-dates')
+    @admin_required 
+    def fix_user_dates():
+        """Arreglar fechas created_at que están en NULL"""
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'error': 'No se pudo conectar a la base de datos'})
+            
+            cur = conn.cursor()
+            
+            # Actualizar usuarios con created_at NULL
+            cur.execute('''
+                UPDATE users 
+                SET created_at = NOW() - INTERVAL '1 day' * (id - 1),
+                    updated_at = NOW()
+                WHERE created_at IS NULL
+            ''')
+            
+            affected_rows = cur.rowcount
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Se actualizaron {affected_rows} usuarios con fechas válidas',
+                'affected_rows': affected_rows
+            })
+            
+        except Exception as e:
+            return jsonify({'error': f'Error: {str(e)}'})
+
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
     @admin_required
     def toggle_user_status(user_id):
