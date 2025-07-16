@@ -122,9 +122,9 @@ class AdminUsersManager {
         this.modalsInitialized = true;
         console.log('✅ Modales inicializados correctamente');
         
-        // Test automático de modales
+        // Debug automático después de inicialización
         setTimeout(() => {
-            this.testModals();
+            this.debugSetup();
         }, 500);
     }
     
@@ -591,86 +591,175 @@ class AdminUsersManager {
     // ========================================
     
     debugSetup() {
-        console.log('🧪 === DIAGNÓSTICO COMPLETO ===');
+        console.log('🔍 === DIAGNÓSTICO COMPLETO DE ADMIN USERS ===');
         
-        // Debug botones
+        // 1. Verificar botones
         const viewDetailsButtons = document.querySelectorAll('.view-details');
         const deleteButtons = document.querySelectorAll('.delete-user');
+        const toggleButtons = document.querySelectorAll('.toggle-status');
         
-        console.log('Botones view-details encontrados:', viewDetailsButtons.length);
-        console.log('Botones delete-user encontrados:', deleteButtons.length);
+        console.log('📊 Botones encontrados:');
+        console.log('  - view-details:', viewDetailsButtons.length);
+        console.log('  - delete-user:', deleteButtons.length);
+        console.log('  - toggle-status:', toggleButtons.length);
         
-        // Debug modales
-        const modals = document.querySelectorAll('.modal');
-        console.log('Modales encontrados:', modals.length);
+        // 2. Verificar modales
+        const userDetailsModal = document.getElementById('userDetailsModal');
+        const confirmModal = document.getElementById('confirmModal');
         
-        modals.forEach(modal => {
-            console.log(`Modal ${modal.id}:`, {
-                exists: !!modal,
-                display: getComputedStyle(modal).display,
-                position: getComputedStyle(modal).position,
-                zIndex: getComputedStyle(modal).zIndex
-            });
-        });
+        console.log('🎭 Modales:');
+        console.log('  - userDetailsModal:', !!userDetailsModal);
+        console.log('  - confirmModal:', !!confirmModal);
+        
+        // 3. Verificar filas de usuarios
+        const userRows = document.querySelectorAll('tbody tr[data-user-id]');
+        console.log('👥 Filas de usuarios:', userRows.length);
+        
+        if (userRows.length > 0) {
+            const firstRow = userRows[0];
+            console.log('🔍 Primera fila de ejemplo:');
+            console.log('  - data-user-id:', firstRow.dataset.userId);
+            console.log('  - data-user-role:', firstRow.dataset.userRole);
+            console.log('  - data-user-status:', firstRow.dataset.userStatus);
+            
+            const detailsBtn = firstRow.querySelector('.view-details');
+            const deleteBtn = firstRow.querySelector('.delete-user');
+            console.log('  - Botón view-details:', !!detailsBtn);
+            console.log('  - Botón delete-user:', !!deleteBtn);
+        }
+        
+        // 4. Verificar datos cargados
+        console.log('📦 Datos internos:');
+        console.log('  - allUsers.length:', this.allUsers.length);
+        console.log('  - filteredUsers.length:', this.filteredUsers.length);
+        console.log('  - modalsInitialized:', this.modalsInitialized);
+        
+        // 5. Test manual de apertura de modal
+        this.debugModalTest();
     }
     
-    testModals() {
-        console.log('🧪 Probando modales automáticamente...');
+    debugModalTest() {
+        console.log('🧪 === TEST MANUAL DE MODALES ===');
         
         const userDetailsModal = document.getElementById('userDetailsModal');
+        const confirmModal = document.getElementById('confirmModal');
+        
         if (userDetailsModal) {
-            console.log('🔓 Abriendo modal de prueba...');
+            console.log('🔍 Probando userDetailsModal...');
+            console.log('  - display actual:', window.getComputedStyle(userDetailsModal).display);
+            console.log('  - visibility:', window.getComputedStyle(userDetailsModal).visibility);
+            console.log('  - z-index:', window.getComputedStyle(userDetailsModal).zIndex);
+            console.log('  - offsetParent:', userDetailsModal.offsetParent);
             
-            if (this.openModal('userDetailsModal')) {
+            // Test directo
+            this.openModal('userDetailsModal');
+            
+            setTimeout(() => {
+                console.log('  - Después de openModal:');
+                console.log('    - display:', userDetailsModal.style.display);
+                console.log('    - classes:', userDetailsModal.className);
+                console.log('    - offsetParent:', userDetailsModal.offsetParent);
+                
+                this.closeModal('userDetailsModal');
+            }, 100);
+        }
+        
+        if (confirmModal) {
+            setTimeout(() => {
+                console.log('🔍 Probando confirmModal...');
+                console.log('  - display actual:', window.getComputedStyle(confirmModal).display);
+                
+                this.openModal('confirmModal');
+                
                 setTimeout(() => {
-                    console.log('🔍 Verificando estado del modal...');
-                    const isVisible = userDetailsModal.offsetParent !== null;
-                    console.log('- Modal visible:', isVisible);
-                    console.log('- Display:', getComputedStyle(userDetailsModal).display);
-                    console.log('- Z-index:', getComputedStyle(userDetailsModal).zIndex);
+                    console.log('  - Después de openModal:');
+                    console.log('    - display:', confirmModal.style.display);
+                    console.log('    - offsetParent:', confirmModal.offsetParent);
                     
-                    setTimeout(() => {
-                        console.log('🔒 Cerrando modal de prueba...');
-                        this.closeModal('userDetailsModal');
-                    }, 2000);
-                }, 1000);
-            }
+                    this.closeModal('confirmModal');
+                }, 100);
+            }, 500);
         }
     }
     
-    // Funciones de debug para consola
-    debugModals() {
-        console.log('🔍 === DIAGNÓSTICO DE MODALES ===');
+    // Función global para testing desde consola
+    testModalDirect(modalId) {
+        console.log(`🧪 Test directo de modal: ${modalId}`);
         
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            const computedStyle = getComputedStyle(modal);
-            
-            console.log(`📋 Modal: ${modal.id}`);
-            console.log(`  - Existe: ${!!modal}`);
-            console.log(`  - Display computed: ${computedStyle.display}`);
-            console.log(`  - Display inline: ${modal.style.display}`);
-            console.log(`  - Z-index: ${computedStyle.zIndex}`);
-            console.log(`  - Position: ${computedStyle.position}`);
-            console.log(`  - Visibility: ${computedStyle.visibility}`);
-            console.log(`  - Opacity: ${computedStyle.opacity}`);
-            console.log(`  - offsetParent: ${modal.offsetParent !== null}`);
+        const modal = document.getElementById(modalId);
+        if (!modal) {
+            console.error('❌ Modal no encontrado:', modalId);
+            return;
+        }
+        
+        console.log('Modal antes:', {
+            display: modal.style.display,
+            classes: modal.className,
+            offsetParent: modal.offsetParent
         });
+        
+        // Abrir con estilos forzados
+        modal.style.cssText = `
+            display: flex !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background-color: rgba(0, 0, 0, 0.8) !important;
+            z-index: 99999 !important;
+            align-items: center !important;
+            justify-content: center !important;
+        `;
+        
+        modal.classList.add('modal-active');
+        
+        setTimeout(() => {
+            console.log('Modal después:', {
+                display: modal.style.display,
+                classes: modal.className,
+                offsetParent: modal.offsetParent,
+                visible: modal.offsetParent !== null
+            });
+        }, 50);
+        
+        // Auto cerrar después de 3 segundos
+        setTimeout(() => {
+            modal.style.cssText = '';
+            modal.style.display = 'none';
+            modal.classList.remove('modal-active');
+            console.log('✅ Modal cerrado automáticamente');
+        }, 3000);
     }
     
-    forceOpenModal(modalId) {
-        console.log(`🔨 Forzando apertura de modal: ${modalId}`);
-        return this.openModal(modalId);
-    }
+    // ========================================
+    // FUNCIONES GLOBALES PARA DEBUGGING
+    // ========================================
     
     makeGloballyAvailable() {
-        // Hacer funciones disponibles globalmente para debugging
         window.adminManager = this;
-        window.debugModals = () => this.debugModals();
-        window.testModal = (modalId) => this.openModal(modalId);
-        window.forceOpenModal = (modalId) => this.forceOpenModal(modalId);
         
-        console.log('🌐 AdminUsersManager disponible globalmente como window.adminManager');
+        // Funciones de debug globales
+        window.debugAdminUsers = () => this.debugSetup();
+        window.testModal = (modalId) => this.testModalDirect(modalId);
+        window.forceOpenModal = (modalId) => {
+            console.log(`🔧 Forzando apertura de ${modalId}...`);
+            this.openModal(modalId);
+        };
+        window.showTestUserDetails = () => {
+            console.log('🧪 Test de showUserDetails...');
+            if (this.allUsers.length > 0) {
+                this.showUserDetails(this.allUsers[0].id);
+            } else {
+                console.log('❌ No hay usuarios para probar');
+            }
+        };
+        
+        console.log('🌍 Funciones globales disponibles:');
+        console.log('  - debugAdminUsers()');
+        console.log('  - testModal(modalId)');
+        console.log('  - forceOpenModal(modalId)');
+        console.log('  - showTestUserDetails()');
     }
 }
 
