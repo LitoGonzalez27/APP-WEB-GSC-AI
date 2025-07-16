@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Simple & Clean</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* ========== RESET Y BASE ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .nav-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* ========== MAIN CONTENT ========== */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        /* ========== STATS ========== */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        
+        /* ========== TABLE ========== */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+        
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .user-details h4 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .user-details small {
+            color: #666;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .badge.admin {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .badge.user {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .badge.active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .badge.inactive {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 5px;
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        /* ========== MODALES - INLINE CRÍTICO ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99999;
+            padding: 2rem;
+        }
+        
+        .modal.show {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .detail-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .detail-value {
+            color: #666;
+        }
+        
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .nav-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .modal {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="nav-title">
+                <i class="fas fa-users-cog"></i>
+                Panel de Administración
+            </div>
+            <div class="nav-actions">
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-home"></i>
+                    Inicio
+                </a>
+                <a href="/auth/logout" class="btn btn-secondary">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Salir
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Gestión de Usuarios</h1>
+            <p>Administra los usuarios del sistema de forma sencilla</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_users if stats else 0 }}</div>
+                <div class="stat-label">Total Usuarios</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.active_users if stats else 0 }}</div>
+                <div class="stat-label">Usuarios Activos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.inactive_users if stats else 0 }}</div>
+                <div class="stat-label">Usuarios Inactivos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.today_registrations if stats else 0 }}</div>
+                <div class="stat-label">Registros Hoy</div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="user-info">
+                                    <div class="user-avatar">
+                                        {% if user.picture %}
+                                            <img src="{{ user.picture }}" alt="Avatar">
+                                        {% else %}
+                                            <i class="fas fa-user"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="user-details">
+                                        <h4>{{ user.name or 'Sin nombre' }}</h4>
+                                        <small>ID: {{ user.id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge {{ user.role }}">
+                                    {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {{ 'active' if user.is_active else 'inactive' }}">
+                                    {{ 'Activo' if user.is_active else 'Inactivo' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if user.created_at %}
+                                    {{ user.created_at.strftime('%d/%m/%Y') }}<br>
+                                    <small>{{ user.created_at.strftime('%H:%M') }}</small>
+                                {% else %}
+                                    Sin fecha
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn btn-info btn-sm btn-view-details"
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or 'Sin nombre' }}"
+                                            data-user-email="{{ user.email }}"
+                                            data-user-role="{{ user.role }}"
+                                            data-user-status="{{ 'Activo' if user.is_active else 'Inactivo' }}"
+                                            data-user-created="{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'Sin fecha' }}"
+                                            data-user-auth="{{ 'Google' if user.google_id else 'Email' }}">
+                                        <i class="fas fa-eye"></i>
+                                        Ver
+                                    </button>
+                                    {% if user.id != current_user.id %}
+                                    <button class="btn btn-danger btn-sm btn-delete-user"
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or user.email }}">
+                                        <i class="fas fa-trash"></i>
+                                        Eliminar
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+                                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                                No hay usuarios registrados
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal de Detalles de Usuario -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user"></i> Detalles del Usuario</h3>
+                <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">ID:</span>
+                        <span class="detail-value" id="detailId">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Nombre:</span>
+                        <span class="detail-value" id="detailName">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value" id="detailEmail">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Rol:</span>
+                        <span class="detail-value" id="detailRole">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Estado:</span>
+                        <span class="detail-value" id="detailStatus">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Registro:</span>
+                        <span class="detail-value" id="detailCreated">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Autenticación:</span>
+                        <span class="detail-value" id="detailAuth">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+                <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres eliminar al usuario <strong id="deleteUserName">-</strong>?</p>
+                <p style="color: #dc3545; margin-top: 1rem;">
+                    <i class="fas fa-warning"></i>
+                    Esta acción no se puede deshacer.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancelar</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i>
+                    Eliminar Usuario
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== FUNCIONES BÁSICAS Y DIRECTAS ==========
+        
+        function showUserDetails(id, name, email, role, status, created, authType) {
+            console.log('📋 Mostrando detalles de usuario:', id);
+            
+            document.getElementById('detailId').textContent = id;
+            document.getElementById('detailName').textContent = name;
+            document.getElementById('detailEmail').textContent = email;
+            document.getElementById('detailRole').textContent = role;
+            document.getElementById('detailStatus').textContent = status;
+            document.getElementById('detailCreated').textContent = created;
+            document.getElementById('detailAuth').textContent = authType;
+            
+            openModal('userModal');
+        }
+        
+        function showDeleteConfirm(userId, userName) {
+            console.log('🗑️ Confirmando eliminación de usuario:', userId);
+            
+            document.getElementById('deleteUserName').textContent = userName;
+            
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            confirmBtn.onclick = function() {
+                deleteUser(userId, userName);
+            };
+            
+            openModal('deleteModal');
+        }
+        
+        // Event listeners para botones con data attributes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Botones de ver detalles
+            document.querySelectorAll('.btn-view-details').forEach(button => {
+                button.addEventListener('click', function() {
+                    const data = this.dataset;
+                    showUserDetails(
+                        data.userId,
+                        data.userName,
+                        data.userEmail,
+                        data.userRole,
+                        data.userStatus,
+                        data.userCreated,
+                        data.userAuth
+                    );
+                });
+            });
+            
+            // Botones de eliminar
+            document.querySelectorAll('.btn-delete-user').forEach(button => {
+                button.addEventListener('click', function() {
+                    const data = this.dataset;
+                    showDeleteConfirm(data.userId, data.userName);
+                });
+            });
+        });
+        
+        function openModal(modalId) {
+            console.log('🔓 Abriendo modal:', modalId);
+            
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                console.error('❌ Modal no encontrado:', modalId);
+                return;
+            }
+            
+            // Método directo y garantizado
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.classList.add('show');
+            
+            // Prevenir scroll del body
+            document.body.style.overflow = 'hidden';
+            
+            console.log('✅ Modal abierto:', modalId);
+        }
+        
+        function closeModal(modalId) {
+            console.log('🔒 Cerrando modal:', modalId);
+            
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                console.error('❌ Modal no encontrado:', modalId);
+                return;
+            }
+            
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            
+            // Restaurar scroll del body
+            document.body.style.overflow = '';
+            
+            console.log('✅ Modal cerrado:', modalId);
+        }
+        
+        async function deleteUser(userId, userName) {
+            console.log('🗑️ Eliminando usuario:', userId);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Usuario eliminado exitosamente');
+                    location.reload(); // Recargar página para actualizar lista
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            }
+            
+            closeModal('deleteModal');
+        }
+        
+        // Cerrar modal al hacer clic fuera
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal')) {
+                const modalId = event.target.id;
+                closeModal(modalId);
+            }
+        });
+        
+        // Debug simple
+        console.log('🚀 Admin Panel Simple cargado correctamente');
+        
+        // Funciones de test globales
+        window.testModal = function(modalId) {
+            console.log('🧪 Test de modal:', modalId);
+            openModal(modalId);
+            setTimeout(() => closeModal(modalId), 2000);
+        };
+        
+        window.testUserDetails = function() {
+            showUserDetails(1, 'Usuario Test', 'test@ejemplo.com', 'Usuario', 'Activo', '01/01/2024 10:00', 'Email');
+        };
+        
+        console.log('🛠️ Funciones de test disponibles: testModal("userModal"), testUserDetails()');
+    </script>
+</body>
+</html> 

@@ -832,7 +832,8 @@ def setup_auth_routes(app):
         # Debug logging
         logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {stats}")
         
-        return render_template('admin_users.html', users=users, stats=stats)
+        # ✅ USANDO TEMPLATE SIMPLE Y LIMPIO CON MODALES GARANTIZADOS
+        return render_template('admin_simple.html', users=users, stats=stats)
 
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
     @admin_required
