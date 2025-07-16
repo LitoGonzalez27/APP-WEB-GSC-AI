@@ -683,4 +683,93 @@ def migrate_user_timestamps():
         return False
     finally:
         if conn:
-            conn.close() 
+            conn.close()
+
+def ensure_sample_data():
+    """Asegurar que hay datos de prueba si la base de datos está vacía"""
+    try:
+        # Verificar si ya hay suficientes usuarios
+        users = get_all_users()
+        if len(users) >= 3:
+            logger.info(f"Base de datos tiene {len(users)} usuarios - datos suficientes")
+            return True
+        
+        logger.info("Base de datos con pocos usuarios - creando datos de prueba...")
+        
+        # Crear usuarios de prueba
+        sample_users = [
+            {
+                'email': 'admin@clicandseo.com',
+                'name': 'Administrador Principal',
+                'password': 'admin123456',
+                'role': 'admin',
+                'is_active': True
+            },
+            {
+                'email': 'usuario1@ejemplo.com',
+                'name': 'María García',
+                'password': 'usuario123',
+                'role': 'user',
+                'is_active': True
+            },
+            {
+                'email': 'usuario2@ejemplo.com',
+                'name': 'Carlos López',
+                'password': 'usuario123',
+                'role': 'user',
+                'is_active': True
+            },
+            {
+                'email': 'usuario3@ejemplo.com',
+                'name': 'Ana Martínez',
+                'password': 'usuario123',
+                'role': 'user',
+                'is_active': False  # Usuario inactivo para testing
+            }
+        ]
+        
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cur = conn.cursor()
+        created_count = 0
+        
+        for user_data in sample_users:
+            # Verificar si ya existe
+            cur.execute('SELECT id FROM users WHERE email = %s', (user_data['email'],))
+            if cur.fetchone():
+                continue
+            
+            # Crear usuario
+            try:
+                password_hash = hash_password(user_data['password'])
+                
+                cur.execute('''
+                    INSERT INTO users (email, name, password_hash, role, is_active, created_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW() - INTERVAL '%s days')
+                ''', (
+                    user_data['email'],
+                    user_data['name'],
+                    password_hash,
+                    user_data['role'],
+                    user_data['is_active'],
+                    created_count  # Distribuir fechas
+                ))
+                
+                created_count += 1
+                logger.info(f"Usuario de prueba creado: {user_data['name']}")
+                
+            except Exception as e:
+                logger.error(f"Error creando usuario {user_data['email']}: {e}")
+                continue
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ Se crearon {created_count} usuarios de prueba")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creando datos de prueba: {e}")
+        return False 

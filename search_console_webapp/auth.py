@@ -30,7 +30,8 @@ from database import (
     update_user_profile,
     get_user_activity_log,
     get_detailed_user_stats,
-    migrate_user_timestamps
+    migrate_user_timestamps,
+    ensure_sample_data
 )
 
 # Carga las variables de entorno desde el .env
@@ -826,6 +827,9 @@ def setup_auth_routes(app):
     @admin_required
     def admin_users():
         """Panel de administración de usuarios"""
+        # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
+        ensure_sample_data()
+        
         users = get_all_users()
         stats = get_user_stats()
         current_user = get_current_user()

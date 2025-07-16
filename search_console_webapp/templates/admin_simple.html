@@ -251,6 +251,47 @@
             background: #c82333;
         }
         
+        /* ========== ROLE MANAGEMENT ========== */
+        .role-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-role-edit {
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-role-edit:hover {
+            background: #e0a800;
+            transform: scale(1.05);
+        }
+        
+        .role-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+        }
+        
+        .role-select:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        
         /* ========== MODALES - INLINE CRÍTICO ========== */
         .modal {
             display: none;
@@ -463,9 +504,19 @@
                             </td>
                             <td>{{ user.email }}</td>
                             <td>
-                                <span class="badge {{ user.role }}">
-                                    {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
-                                </span>
+                                <div class="role-container">
+                                    <span class="badge {{ user.role }}">
+                                        {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                    </span>
+                                    {% if user.id != current_user.id %}
+                                    <button class="btn-role-edit btn-sm" 
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or user.email }}"
+                                            data-user-role="{{ user.role }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td>
                                 <span class="badge {{ 'active' if user.is_active else 'inactive' }}">
@@ -584,6 +635,40 @@
         </div>
     </div>
 
+    <!-- Modal de Cambio de Rol -->
+    <div id="roleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-tag"></i> Cambiar Rol de Usuario</h3>
+                <button class="modal-close" onclick="closeModal('roleModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Qué rol quieres asignar a <strong id="roleUserName">-</strong>?</p>
+                <div style="margin-top: 1rem;">
+                    <label for="roleSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar rol:</label>
+                    <select id="roleSelect" class="role-select">
+                        <option value="user">Usuario</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Nota:</strong></p>
+                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                        • <strong>Usuario:</strong> Acceso básico al sistema<br>
+                        • <strong>Administrador:</strong> Acceso completo y gestión de usuarios
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('roleModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmRoleBtn">
+                    <i class="fas fa-save"></i>
+                    Cambiar Rol
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== FUNCIONES BÁSICAS Y DIRECTAS ==========
         
@@ -614,6 +699,20 @@
             openModal('deleteModal');
         }
         
+        function showRoleModal(userId, userName, currentRole) {
+            console.log('👤 Abriendo modal de cambio de rol:', userId, currentRole);
+            
+            document.getElementById('roleUserName').textContent = userName;
+            document.getElementById('roleSelect').value = currentRole;
+            
+            const confirmBtn = document.getElementById('confirmRoleBtn');
+            confirmBtn.onclick = function() {
+                updateUserRole(userId, userName);
+            };
+            
+            openModal('roleModal');
+        }
+        
         // Event listeners para botones con data attributes
         document.addEventListener('DOMContentLoaded', function() {
             // Botones de ver detalles
@@ -637,6 +736,14 @@
                 button.addEventListener('click', function() {
                     const data = this.dataset;
                     showDeleteConfirm(data.userId, data.userName);
+                });
+            });
+            
+            // Botones de cambiar rol
+            document.querySelectorAll('.btn-role-edit').forEach(button => {
+                button.addEventListener('click', function() {
+                    const data = this.dataset;
+                    showRoleModal(data.userId, data.userName, data.userRole);
                 });
             });
         });
@@ -705,6 +812,38 @@
             }
             
             closeModal('deleteModal');
+        }
+        
+        async function updateUserRole(userId, userName) {
+            console.log('👤 Actualizando rol de usuario:', userId);
+            
+            const newRole = document.getElementById('roleSelect').value;
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/update-role`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role: newRole
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Rol actualizado exitosamente a: ${newRole === 'admin' ? 'Administrador' : 'Usuario'}`);
+                    location.reload(); // Recargar página para actualizar lista
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            }
+            
+            closeModal('roleModal');
         }
         
         // Cerrar modal al hacer clic fuera
