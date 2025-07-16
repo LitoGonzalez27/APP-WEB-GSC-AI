@@ -343,12 +343,31 @@ def get_user_stats():
             logger.error(f"❌ Error query usuarios activos: {str(e)}")
             active_users = 0
         
-        # Usuarios registrados hoy (considerar NULL en created_at)
+        # ✅ ARREGLADO: Usuarios registrados hoy (mejorar consulta de timezone)
         try:
-            cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND DATE(created_at) = CURRENT_DATE')
+            # Usar timezone explícito y rango de tiempo más específico
+            cur.execute('''
+                SELECT COUNT(*) FROM users 
+                WHERE created_at IS NOT NULL 
+                AND created_at >= CURRENT_DATE 
+                AND created_at < CURRENT_DATE + INTERVAL '1 day'
+            ''')
             today_result = cur.fetchone()
             today_registrations = today_result[0] if today_result else 0
             logger.info(f"✅ Registros hoy: {today_registrations}")
+            
+            # ✅ DEBUG: Mostrar usuarios de hoy para verificar
+            if today_registrations > 0:
+                cur.execute('''
+                    SELECT email, created_at FROM users 
+                    WHERE created_at IS NOT NULL 
+                    AND created_at >= CURRENT_DATE 
+                    AND created_at < CURRENT_DATE + INTERVAL '1 day'
+                    ORDER BY created_at DESC
+                ''')
+                today_users = cur.fetchall()
+                logger.info(f"🔍 Usuarios registrados hoy: {[dict(user) for user in today_users]}")
+                
         except Exception as e:
             logger.error(f"❌ Error query registros hoy: {str(e)}")
             today_registrations = 0

@@ -497,25 +497,14 @@
             }, 5000);
         }
 
-        // Función para abrir modal
+        // ✅ FUNCIÓN ARREGLADA: Abrir modal
         function openModal(modalId) {
             console.log('🔓 Intentando abrir modal:', modalId);
             const modal = document.getElementById(modalId);
             if (modal) {
-                // Asegurar estilos del modal
-                modal.style.display = 'flex';
-                modal.style.position = 'fixed';
-                modal.style.zIndex = '9999';
-                modal.style.left = '0';
-                modal.style.top = '0';
-                modal.style.width = '100vw';
-                modal.style.height = '100vh';
-                modal.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-                modal.style.alignItems = 'center';
-                modal.style.justifyContent = 'center';
-                
-                // Añadir clase para animación
-                modal.classList.add('modal-open');
+                // ✅ ARREGLADO: Usar clase CSS en lugar de estilos inline
+                modal.classList.add('modal-show');
+                document.body.classList.add('modal-open');
                 
                 // Verificar visibilidad después de un momento
                 setTimeout(() => {
@@ -523,6 +512,18 @@
                     console.log('✅ Modal visible:', isVisible, 'ID:', modalId);
                     if (!isVisible) {
                         console.error('⚠️ Modal no es visible después de abrirlo');
+                        // Fallback: forzar estilos inline si la clase no funciona
+                        modal.style.display = 'flex';
+                        modal.style.position = 'fixed';
+                        modal.style.zIndex = '10000';
+                        modal.style.left = '0';
+                        modal.style.top = '0';
+                        modal.style.width = '100vw';
+                        modal.style.height = '100vh';
+                        modal.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                        modal.style.alignItems = 'center';
+                        modal.style.justifyContent = 'center';
+                        console.log('🔧 Aplicando estilos inline como fallback');
                     }
                 }, 100);
                 
@@ -532,13 +533,25 @@
             }
         }
 
-        // Función para cerrar modal
+        // ✅ FUNCIÓN ARREGLADA: Cerrar modal
         function closeModal(modalId) {
             console.log('🔒 Cerrando modal:', modalId);
             const modal = document.getElementById(modalId);
             if (modal) {
-                modal.style.display = 'none';
-                modal.classList.remove('modal-open');
+                // ✅ ARREGLADO: Usar clase CSS y limpiar estilos inline
+                modal.classList.remove('modal-show');
+                modal.style.display = '';
+                modal.style.position = '';
+                modal.style.zIndex = '';
+                modal.style.left = '';
+                modal.style.top = '';
+                modal.style.width = '';
+                modal.style.height = '';
+                modal.style.backgroundColor = '';
+                modal.style.alignItems = '';
+                modal.style.justifyContent = '';
+                
+                document.body.classList.remove('modal-open');
                 console.log('✅ Modal cerrado:', modalId);
             }
         }
@@ -890,31 +903,116 @@
             }
         }
 
-        // Función de debugging para verificar botones
-        function debugButtons() {
-            console.log('=== DEBUG BOTONES ===');
-            const viewDetailsButtons = document.querySelectorAll('.view-details');
-            const deleteButtons = document.querySelectorAll('.delete-user');
-            
-            console.log('Botones view-details encontrados:', viewDetailsButtons.length);
-            viewDetailsButtons.forEach((btn, index) => {
-                console.log(`Botón ${index}:`, {
-                    element: btn,
-                    userId: btn.dataset.userId,
-                    hasClick: btn.onclick !== null
+                    // ✅ FUNCIÓN MEJORADA: Debugging completo
+            function debugButtons() {
+                console.log('=== DEBUG BOTONES ===');
+                const viewDetailsButtons = document.querySelectorAll('.view-details');
+                const deleteButtons = document.querySelectorAll('.delete-user');
+                
+                console.log('Botones view-details encontrados:', viewDetailsButtons.length);
+                viewDetailsButtons.forEach((btn, index) => {
+                    console.log(`Botón ${index}:`, {
+                        element: btn,
+                        userId: btn.dataset.userId,
+                        hasClick: btn.onclick !== null
+                    });
                 });
-            });
-            
-            console.log('Botones delete-user encontrados:', deleteButtons.length);
-            deleteButtons.forEach((btn, index) => {
-                console.log(`Botón ${index}:`, {
-                    element: btn,
-                    userId: btn.dataset.userId,
-                    userName: btn.dataset.userName,
-                    hasClick: btn.onclick !== null
+                
+                console.log('Botones delete-user encontrados:', deleteButtons.length);
+                deleteButtons.forEach((btn, index) => {
+                    console.log(`Botón ${index}:`, {
+                        element: btn,
+                        userId: btn.dataset.userId,
+                        userName: btn.dataset.userName,
+                        hasClick: btn.onclick !== null
+                    });
                 });
-            });
-        }
+            }
+
+            // ✅ NUEVA: Función de diagnóstico completo de modales
+            function debugModals() {
+                console.log('🔍 === DIAGNÓSTICO COMPLETO DE MODALES ===');
+                
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
+                    const computedStyle = getComputedStyle(modal);
+                    
+                    console.log(`📋 Modal: ${modal.id}`);
+                    console.log(`  - Existe en DOM: ${!!modal}`);
+                    console.log(`  - Display computed: ${computedStyle.display}`);
+                    console.log(`  - Display inline: ${modal.style.display}`);
+                    console.log(`  - Clase modal-show: ${modal.classList.contains('modal-show')}`);
+                    console.log(`  - Z-index: ${computedStyle.zIndex}`);
+                    console.log(`  - Position: ${computedStyle.position}`);
+                    console.log(`  - Visibility: ${computedStyle.visibility}`);
+                    console.log(`  - Opacity: ${computedStyle.opacity}`);
+                    console.log(`  - offsetParent (visible): ${modal.offsetParent !== null}`);
+                    console.log('---');
+                });
+                
+                console.log('🧰 Funciones disponibles:');
+                console.log('  - testModal("modalId") - Probar modal específico');
+                console.log('  - forceOpenModal("modalId") - Forzar apertura');
+                console.log('  - debugModals() - Volver a ejecutar diagnóstico');
+            }
+
+            // ✅ NUEVA: Función para probar modales manualmente
+            function testModal(modalId) {
+                console.log(`🧪 Probando modal: ${modalId}`);
+                
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.error(`❌ Modal ${modalId} no encontrado`);
+                    return;
+                }
+                
+                console.log('1️⃣ Abriendo modal...');
+                openModal(modalId);
+                
+                setTimeout(() => {
+                    console.log('2️⃣ Verificando estado después de 1 segundo...');
+                    debugModals();
+                    
+                    setTimeout(() => {
+                        console.log('3️⃣ Cerrando modal...');
+                        closeModal(modalId);
+                    }, 2000);
+                }, 1000);
+            }
+
+            // ✅ NUEVA: Función para forzar apertura con estilos inline
+            function forceOpenModal(modalId) {
+                console.log(`🔨 Forzando apertura de modal: ${modalId}`);
+                
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.error(`❌ Modal ${modalId} no encontrado`);
+                    return;
+                }
+                
+                // Forzar estilos inline directamente
+                modal.style.display = 'flex';
+                modal.style.position = 'fixed';
+                modal.style.zIndex = '10000';
+                modal.style.left = '0';
+                modal.style.top = '0';
+                modal.style.width = '100vw';
+                modal.style.height = '100vh';
+                modal.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+                
+                modal.classList.add('modal-show');
+                document.body.classList.add('modal-open');
+                
+                console.log('✅ Modal forzado a abrirse');
+            }
+
+            // ✅ Hacer funciones disponibles globalmente para debugging
+            window.debugModals = debugModals;
+            window.testModal = testModal;
+            window.forceOpenModal = forceOpenModal;
+            window.debugButtons = debugButtons;
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
@@ -943,14 +1041,19 @@
                     console.log('confirmModal position:', getComputedStyle(confirmModal).position);
                 }
                 
-                // Test de apertura y cierre automático de modal
+                // ✅ MEJORADO: Test de modales con nueva lógica
                 console.log('🧪 Probando apertura automática de modal...');
                 setTimeout(() => {
                     if (userDetailsModal) {
-                        console.log('🔓 Abriendo modal de prueba...');
+                        console.log('🔓 Abriendo modal de prueba con nueva lógica...');
                         openModal('userDetailsModal');
                         
                         setTimeout(() => {
+                            console.log('🔍 Verificando estado del modal después de apertura...');
+                            console.log('- Tiene clase modal-show:', userDetailsModal.classList.contains('modal-show'));
+                            console.log('- Computed display:', getComputedStyle(userDetailsModal).display);
+                            console.log('- offsetParent (visible):', userDetailsModal.offsetParent !== null);
+                            
                             console.log('🔒 Cerrando modal de prueba...');
                             closeModal('userDetailsModal');
                         }, 2000);
@@ -979,18 +1082,21 @@
             // Logout
             document.querySelector('.logout-btn').addEventListener('click', logout);
             
-            // Modales
+            // ✅ ARREGLADO: Modales con nueva lógica
             document.querySelectorAll('.modal-close').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    this.closest('.modal').style.display = 'none';
+                    const modal = this.closest('.modal');
+                    if (modal) {
+                        closeModal(modal.id);
+                    }
                 });
             });
             
-            // Clicks fuera del modal
+            // ✅ ARREGLADO: Clicks fuera del modal
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', function(e) {
                     if (e.target === this) {
-                        this.style.display = 'none';
+                        closeModal(this.id);
                     }
                 });
             });
@@ -1401,7 +1507,7 @@
 
         /* Modales */
         .modal {
-            display: none;
+            display: none !important;
             position: fixed;
             z-index: 9999 !important;
             left: 0;
@@ -1412,6 +1518,11 @@
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(2px);
+        }
+
+        /* ✅ ARREGLADO: Cuando el modal está abierto, debe mostrarse */
+        .modal.modal-show {
+            display: flex !important;
         }
 
         .modal-content {
@@ -1429,12 +1540,12 @@
             transition: all 0.2s ease;
         }
 
-        .modal-open .modal-content {
+        .modal.modal-show .modal-content {
             transform: scale(1);
             opacity: 1;
         }
 
-        .modal-open {
+        .modal.modal-show {
             animation: fadeIn 0.2s ease;
         }
 
