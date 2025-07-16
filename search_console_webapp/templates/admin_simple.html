@@ -870,5 +870,46 @@
         
         console.log('🛠️ Funciones de test disponibles: testModal("userModal"), testUserDetails()');
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Obtener todas las rows de users
+            const userRows = document.querySelectorAll('.table tbody tr');
+
+            let total = 0;
+            let active = 0;
+            let inactive = 0;
+            let today = 0;
+
+            const todayDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            userRows.forEach(row => {
+                // Ignorar si es la row de "no users"
+                if (row.querySelector('td[colspan]')) return;
+
+                total++;
+
+                // Estado: td index 3 (0-based)
+                const statusBadge = row.querySelectorAll('td')[3].querySelector('.badge');
+                if (statusBadge.classList.contains('active')) active++;
+                else inactive++;
+
+                // Fecha: td index 4, primera línea
+                const dateTd = row.querySelectorAll('td')[4];
+                const dateText = dateTd.textContent.trim().split('\n')[0].trim();
+
+                if (dateText === todayDate) today++;
+            });
+
+            // Actualizar stats cards (en orden: total, active, inactive, today)
+            const statNumbers = document.querySelectorAll('.stat-number');
+            if (statNumbers.length >= 4) {
+                statNumbers[0].textContent = total;
+                statNumbers[1].textContent = active;
+                statNumbers[2].textContent = inactive;
+                statNumbers[3].textContent = today;
+            }
+        });
+    </script>
 </body>
 </html> 
