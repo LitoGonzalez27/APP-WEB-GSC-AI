@@ -411,16 +411,35 @@
 
         // Función para cargar datos iniciales
         function loadInitialData() {
-            const rows = document.querySelectorAll('tbody tr');
-            allUsers = Array.from(rows).map(row => ({
-                id: row.dataset.userId,
-                role: row.dataset.userRole,
-                status: row.dataset.userStatus,
-                name: row.querySelector('.user-name').textContent,
-                email: row.querySelector('td:nth-child(2)').textContent,
-                element: row
-            }));
-            filteredUsers = [...allUsers];
+            try {
+                const rows = document.querySelectorAll('tbody tr');
+                console.log('Filas encontradas:', rows.length);
+                
+                allUsers = Array.from(rows).map(row => {
+                    const userNameElement = row.querySelector('.user-name');
+                    const emailElement = row.querySelector('td:nth-child(2)');
+                    
+                    if (!userNameElement || !emailElement) {
+                        console.warn('Elementos no encontrados en fila:', row);
+                    }
+                    
+                    return {
+                        id: row.dataset.userId,
+                        role: row.dataset.userRole,
+                        status: row.dataset.userStatus,
+                        name: userNameElement ? userNameElement.textContent : 'Sin nombre',
+                        email: emailElement ? emailElement.textContent : 'Sin email',
+                        element: row
+                    };
+                });
+                
+                filteredUsers = [...allUsers];
+                console.log('Usuarios cargados:', allUsers.length, allUsers);
+            } catch (error) {
+                console.error('Error en loadInitialData:', error);
+                allUsers = [];
+                filteredUsers = [];
+            }
         }
 
         // Función para mostrar notificaciones
@@ -588,8 +607,15 @@
 
         // Función para mostrar detalles de usuario
         async function showUserDetails(userId) {
-            const user = allUsers.find(u => u.id === userId);
+            console.log('showUserDetails llamada con userId:', userId);
+            console.log('allUsers disponibles:', allUsers);
+            
+            const user = allUsers.find(u => u.id === userId || u.id === String(userId) || String(u.id) === String(userId));
+            console.log('Usuario encontrado:', user);
+            
             if (!user) {
+                console.error('Usuario no encontrado para ID:', userId);
+                console.error('IDs disponibles:', allUsers.map(u => u.id));
                 showNotification('Usuario no encontrado', 'error');
                 return;
             }
@@ -629,6 +655,8 @@
 
         // Función para eliminar usuario
         function deleteUser(userId, userName) {
+            console.log('deleteUser llamada con userId:', userId, 'userName:', userName);
+            
             document.getElementById('confirmTitle').textContent = 'Eliminar Usuario';
             document.getElementById('confirmMessage').textContent = `¿Estás seguro de que quieres eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`;
             
@@ -799,9 +827,59 @@
             }
         }
 
+        // Función de debugging para verificar botones
+        function debugButtons() {
+            console.log('=== DEBUG BOTONES ===');
+            const viewDetailsButtons = document.querySelectorAll('.view-details');
+            const deleteButtons = document.querySelectorAll('.delete-user');
+            
+            console.log('Botones view-details encontrados:', viewDetailsButtons.length);
+            viewDetailsButtons.forEach((btn, index) => {
+                console.log(`Botón ${index}:`, {
+                    element: btn,
+                    userId: btn.dataset.userId,
+                    hasClick: btn.onclick !== null
+                });
+            });
+            
+            console.log('Botones delete-user encontrados:', deleteButtons.length);
+            deleteButtons.forEach((btn, index) => {
+                console.log(`Botón ${index}:`, {
+                    element: btn,
+                    userId: btn.dataset.userId,
+                    userName: btn.dataset.userName,
+                    hasClick: btn.onclick !== null
+                });
+            });
+        }
+
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             loadInitialData();
+            
+            // Debug después de cargar datos
+            setTimeout(debugButtons, 100);
+            
+            // Test directo de clics
+            setTimeout(function() {
+                console.log('=== TEST DIRECTO DE CLICS ===');
+                const firstViewBtn = document.querySelector('.view-details');
+                const firstDeleteBtn = document.querySelector('.delete-user');
+                
+                if (firstViewBtn) {
+                    console.log('Primer botón view-details:', firstViewBtn);
+                    console.log('Dataset:', firstViewBtn.dataset);
+                    
+                    // Test click programático
+                    console.log('Simulando click en view-details...');
+                    firstViewBtn.click();
+                }
+                
+                if (firstDeleteBtn) {
+                    console.log('Primer botón delete-user:', firstDeleteBtn);
+                    console.log('Dataset:', firstDeleteBtn.dataset);
+                }
+            }, 500);
             
             // Filtros
             document.getElementById('searchInput').addEventListener('input', filterUsers);
@@ -842,7 +920,10 @@
             
             // Acciones de usuarios
             document.addEventListener('click', function(e) {
+                console.log('Click detectado en:', e.target);
+                
                 if (e.target.closest('.toggle-status')) {
+                    console.log('Click en toggle-status');
                     const btn = e.target.closest('.toggle-status');
                     const userId = btn.dataset.userId;
                     const currentStatus = btn.dataset.currentStatus === 'true';
@@ -850,12 +931,15 @@
                 }
                 
                 if (e.target.closest('.view-details')) {
+                    console.log('Click en view-details');
                     const btn = e.target.closest('.view-details');
                     const userId = btn.dataset.userId;
+                    console.log('User ID para detalles:', userId);
                     showUserDetails(userId);
                 }
                 
                 if (e.target.closest('.reset-password')) {
+                    console.log('Click en reset-password');
                     const btn = e.target.closest('.reset-password');
                     const userId = btn.dataset.userId;
                     const userName = btn.dataset.userName;
@@ -863,9 +947,11 @@
                 }
                 
                 if (e.target.closest('.delete-user')) {
+                    console.log('Click en delete-user');
                     const btn = e.target.closest('.delete-user');
                     const userId = btn.dataset.userId;
                     const userName = btn.dataset.userName;
+                    console.log('User ID para eliminar:', userId, 'Nombre:', userName);
                     deleteUser(userId, userName);
                 }
             });
