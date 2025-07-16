@@ -323,32 +323,45 @@ def get_user_stats():
         cur = conn.cursor()
         
         # Total de usuarios
-        logger.info("Ejecutando query: SELECT COUNT(*) FROM users")
-        cur.execute('SELECT COUNT(*) FROM users')
-        total_users_result = cur.fetchone()
-        total_users = total_users_result[0] if total_users_result else 0
-        logger.info(f"Total usuarios resultado: {total_users}")
+        logger.info("📊 Iniciando obtención de estadísticas...")
+        try:
+            cur.execute('SELECT COUNT(*) FROM users')
+            total_users_result = cur.fetchone()
+            total_users = total_users_result[0] if total_users_result else 0
+            logger.info(f"✅ Total usuarios: {total_users}")
+        except Exception as e:
+            logger.error(f"❌ Error query total usuarios: {str(e)}")
+            total_users = 0
         
         # Usuarios activos
-        logger.info("Ejecutando query: SELECT COUNT(*) FROM users WHERE is_active = TRUE")
-        cur.execute('SELECT COUNT(*) FROM users WHERE is_active = TRUE')
-        active_users_result = cur.fetchone()
-        active_users = active_users_result[0] if active_users_result else 0
-        logger.info(f"Usuarios activos resultado: {active_users}")
+        try:
+            cur.execute('SELECT COUNT(*) FROM users WHERE is_active = TRUE')
+            active_users_result = cur.fetchone()
+            active_users = active_users_result[0] if active_users_result else 0
+            logger.info(f"✅ Usuarios activos: {active_users}")
+        except Exception as e:
+            logger.error(f"❌ Error query usuarios activos: {str(e)}")
+            active_users = 0
         
         # Usuarios registrados hoy (considerar NULL en created_at)
-        logger.info("Ejecutando query para registros de hoy")
-        cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND DATE(created_at) = CURRENT_DATE')
-        today_result = cur.fetchone()
-        today_registrations = today_result[0] if today_result else 0
-        logger.info(f"Registros hoy resultado: {today_registrations}")
+        try:
+            cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND DATE(created_at) = CURRENT_DATE')
+            today_result = cur.fetchone()
+            today_registrations = today_result[0] if today_result else 0
+            logger.info(f"✅ Registros hoy: {today_registrations}")
+        except Exception as e:
+            logger.error(f"❌ Error query registros hoy: {str(e)}")
+            today_registrations = 0
         
         # Usuarios registrados en los últimos 7 días (considerar NULL en created_at)
-        logger.info("Ejecutando query para registros de última semana")
-        cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND created_at >= NOW() - INTERVAL \'7 days\'')
-        week_result = cur.fetchone()
-        week_registrations = week_result[0] if week_result else 0
-        logger.info(f"Registros semana resultado: {week_registrations}")
+        try:
+            cur.execute('SELECT COUNT(*) FROM users WHERE created_at IS NOT NULL AND created_at >= NOW() - INTERVAL \'7 days\'')
+            week_result = cur.fetchone()
+            week_registrations = week_result[0] if week_result else 0
+            logger.info(f"✅ Registros semana: {week_registrations}")
+        except Exception as e:
+            logger.error(f"❌ Error query registros semana: {str(e)}")
+            week_registrations = 0
         
         inactive_users = max(0, total_users - active_users)
         
