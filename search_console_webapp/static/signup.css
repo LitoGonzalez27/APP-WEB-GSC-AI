@@ -1,5 +1,6 @@
 /* signup.css - Estilos específicos para la página de registro */
 
+
 /* Pestañas de registro */
 .signup-tabs {
     display: flex;
@@ -34,7 +35,7 @@
 
 .tab-button.active {
     background: #fff;
-    color: #007bff;
+    color: #D8F9B8;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -79,7 +80,7 @@
 
 .form-group input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: #D8F9B8;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
@@ -137,8 +138,8 @@
 .signup-btn {
     width: 100%;
     padding: 14px 24px;
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    color: white;
+    background: #D8F9B8;
+    color: rgb(21, 21, 21);
     border: none;
     border-radius: 8px;
     font-size: 16px;
@@ -153,7 +154,6 @@
 }
 
 .signup-btn:hover {
-    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
 }
@@ -279,7 +279,7 @@
 }
 
 .login-link a {
-    color: #007bff;
+    color: #D8F9B8;
     text-decoration: none;
     font-weight: 500;
 }
