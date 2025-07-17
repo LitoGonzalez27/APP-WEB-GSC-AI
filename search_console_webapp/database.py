@@ -19,7 +19,11 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:sRZcCViicJDQsgFZnVeiDsLHEzWBbvIB@yamanote.proxy.rlwy.net:15620/railway')
 
 # Detectar si estamos en producción
-is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
+# Detección de entorno mejorada
+railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+is_production = railway_env == 'production'
+is_staging = railway_env == 'staging' 
+is_development = not railway_env or railway_env == 'development'
 
 def get_db_connection():
     """Obtiene una conexión a la base de datos PostgreSQL"""

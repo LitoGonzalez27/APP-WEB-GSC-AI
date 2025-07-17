@@ -221,8 +221,14 @@ def generate_deployment_summary():
     print("=" * 50)
     
     # Información del entorno
-    is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
-    print(f"🌍 Entorno: {'PRODUCCIÓN' if is_production else 'DESARROLLO'}")
+    # Detección de entorno mejorada
+    railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+    is_production = railway_env == 'production'
+    is_staging = railway_env == 'staging'
+    is_development = not railway_env or railway_env == 'development'
+    
+    environment_name = 'PRODUCCIÓN' if is_production else ('STAGING' if is_staging else 'DESARROLLO')
+    print(f"🌍 Entorno: {environment_name} ({railway_env or 'local'})")
     print(f"🐍 Python: {sys.version.split()[0]}")
     
     # Variables configuradas
