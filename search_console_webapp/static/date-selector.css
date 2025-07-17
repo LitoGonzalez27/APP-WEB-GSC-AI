@@ -792,17 +792,18 @@ body.dark-mode {
   
   .date-presets {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     align-items: stretch;
   }
   
   .preset-btn {
     width: 100%;
-    padding: 14px 16px;
-    font-size: 0.9rem;
+    padding: 12px 14px;
+    font-size: 0.8rem;
     border-radius: 12px;
     justify-content: center;
+    text-align: center;
   }
   
   .date-modal-footer {
