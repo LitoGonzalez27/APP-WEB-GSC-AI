@@ -88,6 +88,37 @@ export async function handleFormSubmit(e) {
     return;
   }
 
+  // ✅ NUEVO: Validación de compatibilidad de dominios
+  const urlsInput = document.querySelector('textarea[name="urls"]');
+  if (urlsInput && urlsInput.value.trim()) {
+    // Importar DataValidator dinámicamente
+    const { DataValidator } = await import('./ui-validations.js');
+    const validator = new DataValidator();
+    
+    const urls = urlsInput.value.trim().split('\n').filter(url => url.trim());
+    const selectedProperty = elems.siteUrlSelect.value;
+    
+    console.log('🔍 Ejecutando validación de dominios...', {
+      selectedProperty,
+      urlCount: urls.length
+    });
+    
+    const domainValidation = validator.validateDomainCompatibility(urls, selectedProperty);
+    
+    if (!domainValidation.isValid) {
+      console.error('❌ Validación de dominio fallida:', domainValidation.errors);
+      alert(domainValidation.errors.join('\n\n'));
+      return;
+    }
+    
+    if (domainValidation.warnings && domainValidation.warnings.length > 0) {
+      console.warn('⚠️ Advertencias de validación:', domainValidation.warnings);
+      // Las advertencias no bloquean el envío, solo se logean
+    }
+    
+    console.log('✅ Validación de dominios exitosa');
+  }
+
   // ✅ NUEVO: Validaciones específicas para móviles
   if (isMobile) {
     const urlsInput = document.querySelector('textarea[name="urls"]');

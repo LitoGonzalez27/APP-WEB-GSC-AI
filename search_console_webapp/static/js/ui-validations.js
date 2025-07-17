@@ -2,10 +2,123 @@
 
 import { detectOverlappingURLs, validateDataIntegrity } from './data.js';
 
+// ✅ NUEVO: Funciones auxiliares para validación de dominios
+function extractDomainFromUrl(url) {
+    if (!url) return '';
+    try {
+        // Manejar URLs sin protocolo
+        if (!/^https?:\/\//.test(url)) {
+            url = 'https://' + url;
+        }
+        const u = new URL(url);
+        return u.hostname.replace(/^www\./, '');
+    } catch {
+        // Fallback para URLs mal formateadas
+        const simpleDomain = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+        return simpleDomain.split('/')[0];
+    }
+}
+
+function normalizeSearchConsoleProperty(scProperty) {
+    if (!scProperty) return '';
+    // Manejar propiedades de tipo dominio (sc-domain:ejemplo.com)
+    if (scProperty.startsWith('sc-domain:')) {
+        return scProperty.split(':')[1];
+    }
+    // Manejar propiedades de tipo URL (https://ejemplo.com/)
+    return extractDomainFromUrl(scProperty);
+}
+
+function domainsMatch(urlDomain, propertyDomain) {
+    if (!urlDomain || !propertyDomain) return false;
+    
+    // Normalizar ambos dominios
+    const normalizedUrlDomain = urlDomain.toLowerCase();
+    const normalizedPropertyDomain = propertyDomain.toLowerCase();
+    
+    // Verificar coincidencia exacta o subdominio
+    return normalizedUrlDomain === normalizedPropertyDomain || 
+           normalizedUrlDomain.endsWith(`.${normalizedPropertyDomain}`);
+}
+
 export class DataValidator {
     constructor() {
         this.warnings = [];
         this.errors = [];
+    }
+    
+    // ✅ NUEVA: Validación de compatibilidad de dominios
+    validateDomainCompatibility(urls, selectedProperty) {
+        this.warnings = [];
+        this.errors = [];
+        
+        if (!selectedProperty) {
+            this.errors.push('Debes seleccionar una propiedad de Search Console antes de continuar.');
+            return {
+                isValid: false,
+                errors: this.errors,
+                warnings: this.warnings
+            };
+        }
+        
+        // Si no hay URLs especificadas, es válido (análisis de propiedad completa)
+        if (!urls || urls.length === 0) {
+            return {
+                isValid: true,
+                errors: this.errors,
+                warnings: this.warnings
+            };
+        }
+        
+        const propertyDomain = normalizeSearchConsoleProperty(selectedProperty);
+        const propertyDisplay = selectedProperty.replace('sc-domain:', '').replace('https://', '').replace('http://', '').replace(/\/$/, '');
+        
+        console.log('🔍 Validando dominios:', {
+            selectedProperty,
+            propertyDomain,
+            urlsToCheck: urls.length
+        });
+        
+        const incompatibleUrls = [];
+        const validUrls = [];
+        
+        urls.forEach(url => {
+            if (!url.trim()) return; // Saltar URLs vacías
+            
+            const urlDomain = extractDomainFromUrl(url.trim());
+            if (domainsMatch(urlDomain, propertyDomain)) {
+                validUrls.push({ url: url.trim(), domain: urlDomain });
+            } else {
+                incompatibleUrls.push({ url: url.trim(), domain: urlDomain });
+            }
+        });
+        
+        if (incompatibleUrls.length > 0) {
+            const domainList = [...new Set(incompatibleUrls.map(item => item.domain))].join(', ');
+            
+            this.errors.push(
+                `❌ Dominio incompatible detectado\n\n` +
+                `Propiedad de Search Console seleccionada: ${propertyDisplay}\n` +
+                `Dominio(s) encontrado(s) en las URLs: ${domainList}\n\n` +
+                `URLs problemáticas:\n${incompatibleUrls.map(item => `• ${item.url}`).join('\n')}\n\n` +
+                `💡 Solución: Solo puedes analizar URLs del dominio de tu propiedad de Search Console. ` +
+                `Cambia la propiedad seleccionada o usa URLs del dominio correcto.`
+            );
+            
+            console.warn('❌ URLs incompatibles encontradas:', incompatibleUrls);
+        }
+        
+        if (validUrls.length > 0) {
+            console.log('✅ URLs válidas:', validUrls);
+        }
+        
+        return {
+            isValid: incompatibleUrls.length === 0,
+            errors: this.errors,
+            warnings: this.warnings,
+            validUrls: validUrls,
+            incompatibleUrls: incompatibleUrls
+        };
     }
     
     validateURLs(urls, matchType) {

@@ -66,14 +66,23 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here-change-in-production')
 
 # Configuración automática según entorno
-is_production = os.getenv('RAILWAY_ENVIRONMENT') == 'production'
-app.config['SESSION_COOKIE_SECURE'] = is_production  # True en producción (HTTPS)
+railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
+is_production = railway_env == 'production'
+is_staging = railway_env == 'staging'
+is_development = not railway_env or railway_env == 'development'
+
+logger.info(f"🌍 Entorno detectado: {railway_env or 'development'}")
+logger.info(f"📊 Configuración: Production={is_production}, Staging={is_staging}, Development={is_development}")
+
+# Configurar cookies de sesión según el entorno
+app.config['SESSION_COOKIE_SECURE'] = is_production or is_staging  # HTTPS en producción y staging
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
-# Configuraciones adicionales para producción
-if is_production:
+# Configuraciones adicionales para producción y staging
+if is_production or is_staging:
     app.config['PREFERRED_URL_SCHEME'] = 'https'
+    logger.info("✅ Configuración HTTPS habilitada para entorno no-development")
 
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)

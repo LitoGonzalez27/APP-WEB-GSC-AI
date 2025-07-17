@@ -1,9 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clicandseo</title>
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
+
 
   <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
@@ -33,10 +42,9 @@
     <div class="navbar-container">
       <!-- Logo/Brand Section -->
       <div class="navbar-brand">
-        <div class="brand-logo">
-          <i class="fas fa-chart-line"></i>
-        </div>
-        <span class="brand-text">Clicandseo</span>
+          <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+               alt="Clicandseo Logo" 
+               class="logo-image">
       </div>
 
       <!-- Desktop Actions (visible en desktop) -->
@@ -96,8 +104,10 @@
       <div class="navbar-mobile-menu" id="navbarMenu">
         <div class="mobile-menu-header">
           <div class="mobile-brand">
-            <i class="fas fa-chart-line"></i>
-            <span>Search Console</span>
+            <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                 alt="Clicandseo Logo" 
+                 class="logo-image">
+            <span>Clicandseo</span>
           </div>
           <button class="mobile-menu-close" id="mobileMenuClose">
             <i class="fas fa-times"></i>

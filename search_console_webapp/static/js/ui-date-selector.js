@@ -133,8 +133,10 @@ export class DateRangeSelector {
                                     <button type="button" class="preset-btn" data-preset="last7days">Last 7 days</button>
                                     <button type="button" class="preset-btn" data-preset="last30days">Last 30 days</button>
                                     <button type="button" class="preset-btn" data-preset="last3months">Last 3 months</button>
-                                    <button type="button" class="preset-btn" data-preset="currentMonth">Current month</button>
-                                    <button type="button" class="preset-btn" data-preset="lastMonth">Last month</button>
+                                    <button type="button" class="preset-btn" data-preset="last6months">Last 6 months</button>
+                                    <button type="button" class="preset-btn" data-preset="thisYear">This Year</button>
+                                    <button type="button" class="preset-btn" data-preset="currentMonth">Current Month</button>
+                                    <button type="button" class="preset-btn" data-preset="lastMonth">Last Month</button>
                                 </div>
                             </div>
 
@@ -450,6 +452,16 @@ export class DateRangeSelector {
                 break;
             case 'last3months':
                 startDate.setMonth(endDate.getMonth() - 3);
+                break;
+            case 'last6months':
+                // ✅ NUEVO: Últimos 6 meses
+                startDate.setMonth(endDate.getMonth() - 6);
+                break;
+            case 'thisYear':
+                // ✅ NUEVO: Desde el 1 de enero del año actual hasta la fecha máxima disponible
+                const currentYear = endDate.getFullYear();
+                startDate = new Date(currentYear, 0, 1); // 1 de enero del año actual
+                // endDate ya está configurado como this.maxDate
                 break;
             case 'currentMonth':
                 // ✅ ARREGLO: Mes actual pero respetando límites GSC
