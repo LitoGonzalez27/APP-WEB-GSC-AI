@@ -2,8 +2,8 @@
 
 /* Variables CSS */
 :root {
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
+    --primary-color: #D8F9B8;
+    --primary-hover: #D8F9B8;
     --primary-light: #dbeafe;
     --secondary-color: #6366f1;
     --success-color: #10b981;
@@ -40,7 +40,7 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     line-height: 1.6;
     color: var(--gray-800);
-    background: #0D7FF3;
+    background: #F3F2F1;
     min-height: 100vh;
     overflow-x: hidden;
     opacity: 0;
@@ -216,10 +216,12 @@ body.loaded {
     backdrop-filter: blur(10px);
 }
 
-.brand-logo h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0;
+.logo-image-login{
+    width: 300px;
+}
+
+.logo-image-signup{
+    width: 300px;
 }
 
 .branding-text h2 {
