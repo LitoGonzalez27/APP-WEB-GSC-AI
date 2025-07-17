@@ -705,3 +705,28 @@ body {
      padding-top: 60px;
    }
  }
+/* ===== LOGO STYLES ===== */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-image {
+  height: 42px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+}
+
+
+
+/* Responsive - Logo más pequeño en móvil */
+@media (max-width: 768px) {
+  .logo-image {
+    height: 35px;
+    max-width: 100px;
+  }
+}
+
+

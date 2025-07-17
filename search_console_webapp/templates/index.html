@@ -44,10 +44,8 @@
       <div class="navbar-brand">
         <div class="brand-logo">
           <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
-         alt="Clicandseo Logo" 
-         class="logo-image"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-    <i class="fas fa-chart-line logo-fallback" style="display: none;"></i>
+               alt="Clicandseo Logo" 
+               class="logo-image">
         </div>
         <span class="brand-text">Clicandseo</span>
       </div>
@@ -109,8 +107,10 @@
       <div class="navbar-mobile-menu" id="navbarMenu">
         <div class="mobile-menu-header">
           <div class="mobile-brand">
-            <i class="fas fa-chart-line"></i>
-            <span>Search Console</span>
+            <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                 alt="Clicandseo Logo" 
+                 class="logo-image">
+            <span>Clicandseo</span>
           </div>
           <button class="mobile-menu-close" id="mobileMenuClose">
             <i class="fas fa-times"></i>
