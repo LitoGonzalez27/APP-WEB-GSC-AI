@@ -47,18 +47,89 @@ function updateUrlPlaceholder() {
     }
 }
 
+// ✅ NUEVO: Validación en tiempo real de dominios
+async function validateUrlsRealTime() {
+    if (!elems.urlsInput || !elems.siteUrlSelect) return;
+    
+    const selectedProperty = elems.siteUrlSelect.value;
+    const urlsValue = elems.urlsInput.value.trim();
+    
+    // Limpiar estado de error anterior
+    elems.urlsInput.classList.remove('domain-error', 'domain-warning');
+    
+    // Remover mensaje de error anterior
+    const existingError = document.getElementById('domainValidationError');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Si no hay dominio seleccionado o no hay URLs, no validar
+    if (!selectedProperty || !urlsValue) {
+        return;
+    }
+    
+    try {
+        // Importar DataValidator dinámicamente
+        const { DataValidator } = await import('./ui-validations.js');
+        const validator = new DataValidator();
+        
+        const urls = urlsValue.split('\n').filter(url => url.trim());
+        const domainValidation = validator.validateDomainCompatibility(urls, selectedProperty);
+        
+        if (!domainValidation.isValid) {
+            // Mostrar error visual
+            elems.urlsInput.classList.add('domain-error');
+            
+            // Crear mensaje de error compacto para tiempo real
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'domainValidationError';
+            errorDiv.className = 'domain-validation-error';
+            errorDiv.innerHTML = `
+                <div style="background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 8px 12px; border-radius: 4px; font-size: 14px; margin-top: 4px;">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Dominio incompatible:</strong> Las URLs deben pertenecer al dominio de la propiedad seleccionada.
+                    <br><small style="opacity: 0.8;">Encontradas URLs de: ${[...new Set(domainValidation.incompatibleUrls.map(item => item.domain))].join(', ')}</small>
+                </div>
+            `;
+            
+            // Insertar después del campo de URLs
+            elems.urlsInput.parentNode.insertBefore(errorDiv, elems.urlsInput.nextSibling);
+            
+        } else if (domainValidation.warnings && domainValidation.warnings.length > 0) {
+            // Mostrar advertencia visual (opcional)
+            elems.urlsInput.classList.add('domain-warning');
+        }
+        
+    } catch (error) {
+        console.error('Error en validación en tiempo real:', error);
+    }
+}
+
 // ✅ NUEVO: Inicializar funcionalidad de placeholder dinámico
 function initUrlPlaceholderFunctionality() {
     if (!elems.urlsInput || !elems.siteUrlSelect) return;
     
     // Actualizar placeholder cuando cambie el dominio
-    elems.siteUrlSelect.addEventListener('change', updateUrlPlaceholder);
+    elems.siteUrlSelect.addEventListener('change', () => {
+        updateUrlPlaceholder();
+        validateUrlsRealTime(); // Validar cuando cambie el dominio
+    });
     
     // Actualizar placeholder cuando cambie el contenido del campo URLs
-    elems.urlsInput.addEventListener('input', updateUrlPlaceholder);
+    elems.urlsInput.addEventListener('input', () => {
+        updateUrlPlaceholder();
+        
+        // Validación en tiempo real con debounce
+        clearTimeout(window.urlValidationTimeout);
+        window.urlValidationTimeout = setTimeout(validateUrlsRealTime, 500);
+    });
+    
     elems.urlsInput.addEventListener('paste', () => {
         // Delay para que se procese el paste
-        setTimeout(updateUrlPlaceholder, 50);
+        setTimeout(() => {
+            updateUrlPlaceholder();
+            validateUrlsRealTime();
+        }, 100);
     });
     
     // Actualizar placeholder inicial

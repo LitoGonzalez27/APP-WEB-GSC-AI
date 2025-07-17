@@ -4,6 +4,7 @@
   2. Tarjetas y Secciones
   3. Botones Flotantes (Sticky)
   4. Media Queries Generales
+  5. Validación de Dominios
 =============================================*/
 
 /*=============================================
@@ -227,19 +228,103 @@
 
 
 /*=============================================
-  4. MEDIA QUERIES Y DARK MODE (GENERALES)
+  4. MEDIA QUERIES GENERALES
 =============================================*/
-@media (max-width: 768px) {
-  #performanceTitle, #insightsTitle, #keywordsTitle { font-size: 1.5rem; }
-  #insightsSection, #performanceSection, #keywordsSection { padding: 30px 0; }
-  #keywordCategoryDiv { grid-template-columns: 1fr; }
-  .sticky-actions { bottom: 15px; right: 15px; }
-  .sticky-btn-text { display: none; }
-  .modern-card { min-height: 240px; }
+
+/*=============================================
+  5. VALIDACIÓN DE DOMINIOS
+=============================================*/
+
+/* Estados de validación para el campo de URLs */
+textarea.domain-error {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important;
+  background-color: rgba(220, 53, 69, 0.05) !important;
 }
 
+textarea.domain-warning {
+  border-color: #ffc107 !important;
+  box-shadow: 0 0 5px rgba(255, 193, 7, 0.3) !important;
+  background-color: rgba(255, 193, 7, 0.05) !important;
+}
+
+/* Contenedor del mensaje de error de validación */
+.domain-validation-error {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos responsivos para mensajes de error */
+@media (max-width: 768px) {
+  .domain-validation-error {
+    font-size: 13px !important;
+    padding: 6px 10px !important;
+  }
+  
+  .domain-validation-error small {
+    font-size: 11px !important;
+  }
+  
+  /* Estilos generales para móviles */
+  #performanceTitle, #insightsTitle, #keywordsTitle { 
+    font-size: 1.5rem; 
+  }
+  
+  #insightsSection, #performanceSection, #keywordsSection { 
+    padding: 30px 0; 
+  }
+  
+  #keywordCategoryDiv { 
+    grid-template-columns: 1fr; 
+  }
+  
+  .sticky-actions { 
+    bottom: 15px; 
+    right: 15px; 
+  }
+  
+  .sticky-btn-text { 
+    display: none; 
+  }
+  
+  .modern-card { 
+    min-height: 240px; 
+  }
+}
+
+/* Dark mode para elementos de validación */
 body.dark-mode .insight-item,
-body.dark-mode .category-card { background: var(--card-bg); border-color: var(--border-color); }
-body.dark-mode .modern-card { border-color: rgba(51, 65, 85, 0.8); }
-body.dark-mode .period-value-line { background: rgba(15, 23, 42, 0.8); border-color: rgba(51, 65, 85, 0.6); }
-body.dark-mode .mini-chart-container-modern { background: rgba(15, 23, 42, 0.3); }
+body.dark-mode .category-card { 
+  background: var(--card-bg); 
+  border-color: var(--border-color); 
+}
+
+body.dark-mode .modern-card { 
+  border-color: rgba(51, 65, 85, 0.8); 
+}
+
+body.dark-mode .period-value-line { 
+  background: rgba(15, 23, 42, 0.8); 
+  border-color: rgba(51, 65, 85, 0.6); 
+}
+
+body.dark-mode .mini-chart-container-modern { 
+  background: rgba(15, 23, 42, 0.3); 
+}
+
+/* Dark mode para validación de dominios */
+body.dark-mode .domain-validation-error div {
+  background: rgba(220, 53, 69, 0.2) !important;
+  border-color: rgba(220, 53, 69, 0.4) !important;
+  color: #f8d7da !important;
+}
