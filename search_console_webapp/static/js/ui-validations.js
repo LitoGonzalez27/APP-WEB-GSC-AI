@@ -2,9 +2,15 @@
 
 import { detectOverlappingURLs, validateDataIntegrity } from './data.js';
 
-// ✅ NUEVO: Funciones auxiliares para validación de dominios
+// ✅ ACTUALIZADO: Funciones auxiliares para validación de dominios
 function extractDomainFromUrl(url) {
     if (!url) return '';
+    
+    // ✅ NUEVO: Si es un path relativo (empieza con /), retornamos null para indicar que es válido
+    if (url.trim().startsWith('/')) {
+        return null; // null significa "es un path relativo válido"
+    }
+    
     try {
         // Manejar URLs sin protocolo
         if (!/^https?:\/\//.test(url)) {
@@ -29,7 +35,11 @@ function normalizeSearchConsoleProperty(scProperty) {
     return extractDomainFromUrl(scProperty);
 }
 
+// ✅ ACTUALIZADO: Función para verificar si los dominios coinciden
 function domainsMatch(urlDomain, propertyDomain) {
+    // Si urlDomain es null, significa que es un path relativo válido
+    if (urlDomain === null) return true;
+    
     if (!urlDomain || !propertyDomain) return false;
     
     // Normalizar ambos dominios
@@ -41,13 +51,30 @@ function domainsMatch(urlDomain, propertyDomain) {
            normalizedUrlDomain.endsWith(`.${normalizedPropertyDomain}`);
 }
 
+// ✅ NUEVO: Función para verificar si una URL contiene un dominio explícito diferente
+function hasConflictingDomain(url, propertyDomain) {
+    if (!url || !propertyDomain) return false;
+    
+    // Si es un path relativo, no hay conflicto
+    if (url.trim().startsWith('/')) return false;
+    
+    // Extraer el dominio de la URL
+    const urlDomain = extractDomainFromUrl(url);
+    
+    // Si no se pudo extraer dominio, no hay conflicto
+    if (!urlDomain) return false;
+    
+    // Verificar si hay conflicto de dominios
+    return !domainsMatch(urlDomain, propertyDomain);
+}
+
 export class DataValidator {
     constructor() {
         this.warnings = [];
         this.errors = [];
     }
     
-    // ✅ NUEVA: Validación de compatibilidad de dominios
+    // ✅ ACTUALIZADA: Validación de compatibilidad de dominios mejorada
     validateDomainCompatibility(urls, selectedProperty) {
         this.warnings = [];
         this.errors = [];
@@ -81,35 +108,55 @@ export class DataValidator {
         
         const incompatibleUrls = [];
         const validUrls = [];
+        const relativePaths = [];
         
         urls.forEach(url => {
             if (!url.trim()) return; // Saltar URLs vacías
             
-            const urlDomain = extractDomainFromUrl(url.trim());
-            if (domainsMatch(urlDomain, propertyDomain)) {
-                validUrls.push({ url: url.trim(), domain: urlDomain });
+            const trimmedUrl = url.trim();
+            
+            // ✅ NUEVO: Verificar si es un path relativo
+            if (trimmedUrl.startsWith('/')) {
+                relativePaths.push({ url: trimmedUrl, type: 'relative_path' });
+                validUrls.push({ url: trimmedUrl, domain: 'relative_path' });
+                return;
+            }
+            
+            // ✅ NUEVO: Verificar si hay conflicto de dominios
+            if (hasConflictingDomain(trimmedUrl, propertyDomain)) {
+                const urlDomain = extractDomainFromUrl(trimmedUrl);
+                incompatibleUrls.push({ url: trimmedUrl, domain: urlDomain });
             } else {
-                incompatibleUrls.push({ url: url.trim(), domain: urlDomain });
+                const urlDomain = extractDomainFromUrl(trimmedUrl);
+                validUrls.push({ url: trimmedUrl, domain: urlDomain || 'same_domain' });
             }
         });
         
+        // ✅ MEJORADO: Mensaje de error más específico y claro
         if (incompatibleUrls.length > 0) {
-            const domainList = [...new Set(incompatibleUrls.map(item => item.domain))].join(', ');
+            const domainList = [...new Set(incompatibleUrls.map(item => item.domain))].filter(d => d).join(', ');
             
             this.errors.push(
-                `❌ Dominio incompatible detectado\n\n` +
-                `Propiedad de Search Console seleccionada: ${propertyDisplay}\n` +
-                `Dominio(s) encontrado(s) en las URLs: ${domainList}\n\n` +
+                `❌ Error de dominio incompatible\n\n` +
+                `Tu propiedad de Search Console: ${propertyDisplay}\n` +
+                `Dominio(s) detectado(s) en tus URLs: ${domainList}\n\n` +
                 `URLs problemáticas:\n${incompatibleUrls.map(item => `• ${item.url}`).join('\n')}\n\n` +
-                `💡 Solución: Solo puedes analizar URLs del dominio de tu propiedad de Search Console. ` +
-                `Cambia la propiedad seleccionada o usa URLs del dominio correcto.`
+                `💡 Solución:\n` +
+                `• Para analizar páginas de tu propiedad, usa paths relativos: /blog/, /productos/\n` +
+                `• Para analizar URLs completas, asegúrate de que sean del mismo dominio que tu propiedad\n` +
+                `• Si quieres analizar otro dominio, cambia la propiedad seleccionada en Search Console`
             );
             
             console.warn('❌ URLs incompatibles encontradas:', incompatibleUrls);
         }
         
+        // ✅ NUEVO: Logging informativo
+        if (relativePaths.length > 0) {
+            console.log(`✅ ${relativePaths.length} paths relativos detectados (válidos para la propiedad):`, relativePaths.map(p => p.url));
+        }
+        
         if (validUrls.length > 0) {
-            console.log('✅ URLs válidas:', validUrls);
+            console.log('✅ URLs válidas encontradas:', validUrls.length);
         }
         
         return {
@@ -117,7 +164,8 @@ export class DataValidator {
             errors: this.errors,
             warnings: this.warnings,
             validUrls: validUrls,
-            incompatibleUrls: incompatibleUrls
+            incompatibleUrls: incompatibleUrls,
+            relativePaths: relativePaths
         };
     }
     
