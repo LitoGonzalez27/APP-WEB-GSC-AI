@@ -12,7 +12,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
 
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -83,101 +82,44 @@
                     <!-- Header del formulario -->
                     <div class="form-header">
                         <h3>Crear cuenta</h3>
-                        <p>Regístrate para acceder a todas las funcionalidades de Clicandseo</p>
+                        <p>Regístrate con Google para acceder a todas las funcionalidades de Clicandseo</p>
                     </div>
 
                     <!-- Área de notificaciones -->
                     <div id="signupNotifications" class="login-notifications" style="display: none;"></div>
 
-                    <!-- Formulario de registro -->
+                    <!-- Registro con Google únicamente -->
                     <div class="signup-form">
-                        <!-- Pestañas de tipo de registro -->
-                        <div class="signup-tabs">
-                            <button type="button" class="tab-button active" data-tab="manual">
-                                <i class="fas fa-envelope"></i>
-                                Email
+                        <div class="google-signup-content">
+                            <p class="google-signup-description">
+                                Regístrate rápidamente con tu cuenta de Google para acceder a tus propiedades de Search Console y comenzar a analizar tu sitio web.
+                            </p>
+                            
+                            <button type="button" id="googleSignupBtn" class="google-login-btn">
+                                <div class="google-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                </div>
+                                <span class="login-text">Registrarse con Google</span>
+                                <div class="login-spinner" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
                             </button>
-                            <button type="button" class="tab-button" data-tab="google">
-                                <i class="fab fa-google"></i>
-                                Google
-                            </button>
-                        </div>
-
-                        <!-- Formulario manual -->
-                        <div id="manualSignup" class="signup-tab-content active">
-                            <form id="manualSignupForm">
-                                <div class="form-group">
-                                    <label for="name">Nombre completo</label>
-                                    <input type="text" id="name" name="name" required>
-                                    <span class="field-error" id="nameError"></span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="email">Email</label>
-                                    <input type="email" id="email" name="email" required>
-                                    <span class="field-error" id="emailError"></span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="password">Contraseña</label>
-                                    <div class="password-input">
-                                        <input type="password" id="password" name="password" required>
-                                        <button type="button" class="password-toggle" onclick="togglePassword()">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                    <div class="password-requirements">
-                                        <small>La contraseña debe tener al menos 8 caracteres</small>
-                                    </div>
-                                    <span class="field-error" id="passwordError"></span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="confirmPassword">Confirmar contraseña</label>
-                                    <div class="password-input">
-                                        <input type="password" id="confirmPassword" name="confirmPassword" required>
-                                        <button type="button" class="password-toggle" onclick="toggleConfirmPassword()">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                    <span class="field-error" id="confirmPasswordError"></span>
-                                </div>
-
-                                <button type="submit" class="signup-btn">
-                                    <span class="btn-text">Crear cuenta</span>
-                                    <div class="btn-spinner" style="display: none;">
-                                        <i class="fas fa-spinner fa-spin"></i>
-                                    </div>
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- Registro con Google -->
-                        <div id="googleSignup" class="signup-tab-content">
-                            <div class="google-signup-content">
-                                <p class="google-signup-description">
-                                    Regístrate rápidamente con tu cuenta de Google para acceder a tus propiedades de Search Console.
-                                </p>
-                                
-                                <button type="button" id="googleSignupBtn" class="google-login-btn">
-                                    <div class="google-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                        </svg>
-                                    </div>
-                                    <span class="login-text">Registrarse con Google</span>
-                                    <div class="login-spinner" style="display: none;">
-                                        <i class="fas fa-spinner fa-spin"></i>
-                                    </div>
-                                </button>
+                            
+                            <div class="signup-benefits">
+                                <h4>¿Por qué usar Google?</h4>
+                                <ul>
+                                    <li><i class="fas fa-check"></i> Acceso directo a Search Console</li>
+                                    <li><i class="fas fa-check"></i> Registro instantáneo y seguro</li>
+                                    <li><i class="fas fa-check"></i> Sin necesidad de crear nueva contraseña</li>
+                                    <li><i class="fas fa-check"></i> Sincronización automática con tus propiedades</li>
+                                </ul>
                             </div>
                         </div>
-
-                        <!-- Registro con Google pendiente -->
-                        <!-- ✅ ELIMINADO: Ya no necesitamos completar registro con Google manualmente -->
                     </div>
 
                     <!-- Footer del formulario -->
@@ -190,6 +132,9 @@
                             <span class="footer-separator">•</span>
                             <a href="#" class="footer-link">Términos de Servicio</a>
                         </div>
+                        <p class="footer-note">
+                            Al registrarte, aceptas nuestros términos de servicio y política de privacidad.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -198,53 +143,6 @@
 
     <!-- Scripts -->
     <script>
-        // Variables globales
-        let currentTab = 'manual';
-
-        // Funciones para manejar pestañas
-        function switchTab(tabName) {
-            // Remover clase activa de todas las pestañas
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelectorAll('.signup-tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            // Activar la pestaña seleccionada
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            document.getElementById(tabName === 'manual' ? 'manualSignup' : 'googleSignup').classList.add('active');
-            
-            currentTab = tabName;
-        }
-
-        // Función para mostrar/ocultar contraseña
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleBtn = passwordInput.nextElementSibling.querySelector('i');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleBtn.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleBtn.classList.replace('fa-eye-slash', 'fa-eye');
-            }
-        }
-
-        function toggleConfirmPassword() {
-            const passwordInput = document.getElementById('confirmPassword');
-            const toggleBtn = passwordInput.nextElementSibling.querySelector('i');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleBtn.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleBtn.classList.replace('fa-eye-slash', 'fa-eye');
-            }
-        }
-
         // Función para mostrar notificaciones
         function showNotification(message, type = 'info') {
             const notifications = document.getElementById('signupNotifications');
@@ -271,116 +169,6 @@
             }
         }
 
-        // Función para limpiar errores
-        function clearErrors() {
-            document.querySelectorAll('.field-error').forEach(error => {
-                error.textContent = '';
-            });
-        }
-
-        // Función para validar formulario
-        function validateForm() {
-            clearErrors();
-            let isValid = true;
-
-            const name = document.getElementById('name').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            // Validar nombre
-            if (!name) {
-                document.getElementById('nameError').textContent = 'El nombre es obligatorio';
-                isValid = false;
-            }
-
-            // Validar email
-            if (!email) {
-                document.getElementById('emailError').textContent = 'El email es obligatorio';
-                isValid = false;
-            } else if (!/\S+@\S+\.\S+/.test(email)) {
-                document.getElementById('emailError').textContent = 'El email no es válido';
-                isValid = false;
-            }
-
-            // Validar contraseña
-            if (!password) {
-                document.getElementById('passwordError').textContent = 'La contraseña es obligatoria';
-                isValid = false;
-            } else if (password.length < 8) {
-                document.getElementById('passwordError').textContent = 'La contraseña debe tener al menos 8 caracteres';
-                isValid = false;
-            }
-
-            // Validar confirmación de contraseña
-            if (!confirmPassword) {
-                document.getElementById('confirmPasswordError').textContent = 'Debes confirmar la contraseña';
-                isValid = false;
-            } else if (password !== confirmPassword) {
-                document.getElementById('confirmPasswordError').textContent = 'Las contraseñas no coinciden';
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        // Manejar registro manual
-        document.getElementById('manualSignupForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!validateForm()) {
-                return;
-            }
-
-            const btn = document.querySelector('.signup-btn');
-            const spinner = btn.querySelector('.btn-spinner');
-            const text = btn.querySelector('.btn-text');
-            
-            // Mostrar loading state
-            btn.disabled = true;
-            btn.classList.add('loading');
-            spinner.style.display = 'block';
-            text.textContent = 'Creando cuenta...';
-
-            try {
-                const formData = new FormData(this);
-                const data = {
-                    name: formData.get('name'),
-                    email: formData.get('email'),
-                    password: formData.get('password')
-                };
-
-                const response = await fetch('/signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showNotification(result.message, 'success');
-                    setTimeout(() => {
-                        window.location.href = result.redirect;
-                    }, 2000);
-                } else {
-                    showNotification(result.error, 'error');
-                }
-
-            } catch (error) {
-                console.error('Error en registro:', error);
-                showNotification('Error de conexión. Intenta de nuevo.', 'error');
-            } finally {
-                // Restaurar botón
-                btn.disabled = false;
-                btn.classList.remove('loading');
-                spinner.style.display = 'none';
-                text.textContent = 'Crear cuenta';
-            }
-        });
-
         // Manejar registro con Google
         document.getElementById('googleSignupBtn').addEventListener('click', function() {
             const btn = this;
@@ -400,26 +188,24 @@
             setTimeout(() => {
                 window.location.href = '/auth/signup';
             }, 1000);
-        });
-
-        // ✅ ELIMINADO: Ya no necesitamos manejar completar registro con Google manualmente
-
-        // Manejar eventos de pestañas
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tabName = this.dataset.tab;
-                switchTab(tabName);
-            });
+            
+            // Timeout de seguridad
+            setTimeout(() => {
+                if (btn.disabled) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    spinner.style.display = 'none';
+                    text.textContent = 'Registrarse con Google';
+                    showNotification('Error en la redirección. Por favor, intenta de nuevo.', 'error');
+                }
+            }, 10000);
         });
 
         // Manejar notificaciones de URL
         function handleUrlNotifications() {
             const urlParams = new URLSearchParams(window.location.search);
             
-            // ✅ SIMPLIFICADO: Ya no hay registro pendiente con Google
             if (urlParams.get('google_signup') === 'true') {
-                // Mostrar pestaña de Google y mensaje informativo
-                switchTab('google');
                 showNotification('Haz clic en "Registrarse con Google" para crear tu cuenta.', 'info');
             }
             
@@ -438,6 +224,12 @@
                     case 'user_already_exists':
                         errorMessage = 'Ya tienes una cuenta creada. <a href="/login" style="color: #667eea; text-decoration: underline;">Iniciar sesión</a>';
                         break;
+                    case 'oauth_config':
+                        errorMessage = 'Error de configuración. Contacta con soporte.';
+                        break;
+                    case 'access_denied':
+                        errorMessage = 'Acceso denegado. Necesitas permitir el acceso para continuar.';
+                        break;
                 }
                 
                 showNotification(errorMessage, 'error');
@@ -449,8 +241,6 @@
                 window.history.replaceState({}, '', newUrl);
             }
         }
-
-        // ✅ ELIMINADO: Ya no necesitamos mostrar interfaz de registro pendiente con Google
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
@@ -477,6 +267,23 @@
                     console.error('Error verificando autenticación:', error);
                 });
         });
+
+        // Efecto de partículas en el fondo
+        function createFloatingElements() {
+            const background = document.querySelector('.login-background');
+            
+            for (let i = 0; i < 6; i++) {
+                const element = document.createElement('div');
+                element.className = 'floating-element';
+                element.style.left = Math.random() * 100 + '%';
+                element.style.animationDelay = Math.random() * 4 + 's';
+                element.style.animationDuration = (Math.random() * 3 + 4) + 's';
+                background.appendChild(element);
+            }
+        }
+
+        // Crear elementos flotantes después de cargar
+        setTimeout(createFloatingElements, 500);
     </script>
 </body>
 </html> 

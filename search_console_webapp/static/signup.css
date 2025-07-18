@@ -1,7 +1,84 @@
 /* signup.css - Estilos específicos para la página de registro */
 
+/* ===== ESTILOS PARA INTERFAZ SIMPLIFICADA (SOLO GOOGLE) ===== */
 
-/* Pestañas de registro */
+/* Contenedor principal del registro con Google */
+.google-signup-content {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.google-signup-description {
+    font-size: 16px;
+    color: #6c757d;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+/* Beneficios del registro con Google */
+.signup-benefits {
+    margin-top: 2rem;
+    text-align: left;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 4px solid #D8F9B8;
+}
+
+.signup-benefits h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.signup-benefits h4::before {
+    content: "✨";
+    font-size: 18px;
+}
+
+.signup-benefits ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.signup-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.signup-benefits li i {
+    color: #28a745;
+    font-size: 16px;
+    min-width: 16px;
+}
+
+/* Mejoras para el botón de Google en la página de registro */
+.google-login-btn {
+    min-height: 56px;
+    font-size: 16px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.google-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== ESTILOS LEGACY (COMENTADOS - YA NO SE USAN) ===== */
+
+/* 
+Pestañas de registro - YA NO SE USAN
 .signup-tabs {
     display: flex;
     margin-bottom: 2rem;
@@ -42,8 +119,9 @@
 .tab-button i {
     font-size: 16px;
 }
+*/
 
-/* Contenido de pestañas */
+/* Contenido de pestañas - CONSERVADO para compatibilidad */
 .signup-tab-content {
     display: none;
 }
@@ -170,19 +248,6 @@
 
 .btn-spinner {
     font-size: 14px;
-}
-
-/* Registro con Google */
-.google-signup-content {
-    text-align: center;
-    padding: 2rem 0;
-}
-
-.google-signup-description {
-    color: #6c757d;
-    font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 2rem;
 }
 
 /* Registro con Google pendiente */
