@@ -1541,6 +1541,238 @@ def debug_serp_params():
         'are_identical': ai_params == screenshot_params
     })
 
+# ✅ NUEVO ENDPOINT: Obtener keywords de una URL específica
+@app.route('/api/url-keywords', methods=['POST'])
+@auth_required
+def get_url_keywords():
+    """Obtiene las keywords de una URL específica con las mismas fechas del último análisis"""
+    try:
+        data = request.get_json()
+        target_url = data.get('url', '').strip()
+        site_url_sc = data.get('site_url', '').strip()
+        selected_country = data.get('country', '')
+        
+        # Fechas del análisis (usando las mismas que el frontend)
+        current_start_date = data.get('current_start_date')
+        current_end_date = data.get('current_end_date')
+        comparison_start_date = data.get('comparison_start_date')
+        comparison_end_date = data.get('comparison_end_date')
+        has_comparison = data.get('has_comparison', False)
+        
+        if not target_url:
+            return jsonify({'error': 'URL es requerida'}), 400
+        if not site_url_sc:
+            return jsonify({'error': 'site_url es requerido'}), 400
+        if not current_start_date or not current_end_date:
+            return jsonify({'error': 'Fechas son requeridas'}), 400
+        
+        logger.info(f"[URL KEYWORDS] Buscando keywords para URL: {target_url}")
+        
+        # Obtener servicio autenticado
+        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        if not gsc_service:
+            return jsonify({'error': 'Error de autenticación con Search Console'}), 401
+        
+        # Configurar filtros base (país)
+        def get_base_filters_url_keywords(additional_filters=None):
+            filter_groups = []
+            
+            # Filtro de país si está seleccionado
+            if selected_country:
+                filter_groups.append({
+                    'filters': [{'dimension': 'country', 'operator': 'equals', 'expression': selected_country}]
+                })
+            
+            # Filtros adicionales (URL específica)
+            if additional_filters:
+                filter_groups.extend(additional_filters)
+            
+            return filter_groups
+        
+        # Función para procesar keywords de una URL específica
+        def get_keywords_for_url(start_date, end_date, url):
+            keyword_data = {}
+            
+            # Filtro para la URL específica (usar 'equals' para exactitud)
+            url_filter = [{'filters': [{'dimension': 'page', 'operator': 'equals', 'expression': url}]}]
+            combined_filters = get_base_filters_url_keywords(url_filter)
+            
+            # Obtener datos de Search Console
+            rows_data = fetch_searchconsole_data_single_call(
+                gsc_service, site_url_sc,
+                start_date, end_date,
+                ['page', 'query'],  # Dimensiones: página y keyword
+                combined_filters
+            )
+            
+            logger.info(f"[URL KEYWORDS] Obtenidas {len(rows_data)} filas para URL: {url}")
+            
+            for r_item in rows_data:
+                if len(r_item.get('keys', [])) >= 2:
+                    page_url = r_item['keys'][0]
+                    query = r_item['keys'][1]
+                    
+                    # Solo incluir si la página coincide exactamente con nuestra URL objetivo
+                    if page_url.lower() == url.lower():
+                        if query not in keyword_data:
+                            keyword_data[query] = {
+                                'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0,
+                                'pos_sum': 0.0, 'count': 0, 'url': page_url
+                            }
+                        
+                        kw_entry = keyword_data[query]
+                        kw_entry['clicks'] += r_item['clicks']
+                        kw_entry['impressions'] += r_item['impressions']
+                        kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
+                        kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
+                        kw_entry['count'] += r_item['impressions']
+            
+            return keyword_data
+        
+        # Función para calcular cambio porcentual
+        def calculate_percentage_change_url_keywords(current, comparison):
+            if comparison == 0:
+                return "Infinity" if current > 0 else 0
+            return ((current - comparison) / comparison) * 100
+        
+        # Convertir fechas
+        from datetime import datetime
+        current_start = datetime.strptime(current_start_date, '%Y-%m-%d')
+        current_end = datetime.strptime(current_end_date, '%Y-%m-%d')
+        
+        # Obtener keywords del período actual
+        current_keywords = get_keywords_for_url(
+            current_start.strftime('%Y-%m-%d'),
+            current_end.strftime('%Y-%m-%d'),
+            target_url
+        )
+        
+        comparison_keywords = {}
+        if has_comparison and comparison_start_date and comparison_end_date:
+            comparison_start = datetime.strptime(comparison_start_date, '%Y-%m-%d')
+            comparison_end = datetime.strptime(comparison_end_date, '%Y-%m-%d')
+            
+            comparison_keywords = get_keywords_for_url(
+                comparison_start.strftime('%Y-%m-%d'),
+                comparison_end.strftime('%Y-%m-%d'),
+                target_url
+            )
+        
+        # Generar datos de comparación
+        comparison_data = []
+        
+        if not comparison_keywords:
+            # Solo período actual
+            for query, current_data in current_keywords.items():
+                current_clicks = current_data['clicks']
+                current_impressions = current_data['impressions']
+                current_ctr = (current_data['ctr_sum'] / current_data['count'] * 100) if current_data['count'] > 0 else 0
+                current_pos = (current_data['pos_sum'] / current_data['count']) if current_data['count'] > 0 else None
+                
+                comparison_data.append({
+                    'keyword': query,
+                    'url': current_data.get('url', target_url),
+                    'clicks_m1': current_clicks,
+                    'clicks_m2': 0,
+                    'delta_clicks_percent': 'New',
+                    'impressions_m1': current_impressions,
+                    'impressions_m2': 0,
+                    'delta_impressions_percent': 'New',
+                    'ctr_m1': current_ctr,
+                    'ctr_m2': 0,
+                    'delta_ctr_percent': 'New',
+                    'position_m1': current_pos,
+                    'position_m2': None,
+                    'delta_position_absolute': 'New'
+                })
+        else:
+            # Con comparación
+            all_queries = set(current_keywords.keys()) | set(comparison_keywords.keys())
+            
+            for query in all_queries:
+                current_data = current_keywords.get(query, {})
+                comparison_data_kw = comparison_keywords.get(query, {})
+                
+                # Métricas del período actual
+                current_clicks = current_data.get('clicks', 0)
+                current_impressions = current_data.get('impressions', 0)
+                current_ctr = (current_data.get('ctr_sum', 0) / current_data.get('count', 1) * 100) if current_data.get('count', 0) > 0 else 0
+                current_pos = (current_data.get('pos_sum', 0) / current_data.get('count', 1)) if current_data.get('count', 0) > 0 else None
+                
+                # Métricas del período de comparación
+                comparison_clicks = comparison_data_kw.get('clicks', 0)
+                comparison_impressions = comparison_data_kw.get('impressions', 0)
+                comparison_ctr = (comparison_data_kw.get('ctr_sum', 0) / comparison_data_kw.get('count', 1) * 100) if comparison_data_kw.get('count', 0) > 0 else 0
+                comparison_pos = (comparison_data_kw.get('pos_sum', 0) / comparison_data_kw.get('count', 1)) if comparison_data_kw.get('count', 0) > 0 else None
+                
+                # Calcular deltas
+                if query in comparison_keywords and query in current_keywords:
+                    delta_clicks = calculate_percentage_change_url_keywords(current_clicks, comparison_clicks)
+                    delta_impressions = calculate_percentage_change_url_keywords(current_impressions, comparison_impressions)
+                    delta_ctr = current_ctr - comparison_ctr
+                    
+                    if current_pos is not None and comparison_pos is not None:
+                        delta_position = comparison_pos - current_pos  # Positivo = mejora
+                    elif current_pos is not None:
+                        delta_position = 'New'
+                    else:
+                        delta_position = 'Lost'
+                elif query in current_keywords:
+                    delta_clicks = 'New'
+                    delta_impressions = 'New'
+                    delta_ctr = 'New'
+                    delta_position = 'New'
+                else:
+                    delta_clicks = 'Lost'
+                    delta_impressions = 'Lost'
+                    delta_ctr = 'Lost'
+                    delta_position = 'Lost'
+                
+                comparison_data.append({
+                    'keyword': query,
+                    'url': current_data.get('url') or comparison_data_kw.get('url') or target_url,
+                    'clicks_m1': current_clicks,
+                    'clicks_m2': comparison_clicks,
+                    'delta_clicks_percent': delta_clicks,
+                    'impressions_m1': current_impressions,
+                    'impressions_m2': comparison_impressions,
+                    'delta_impressions_percent': delta_impressions,
+                    'ctr_m1': current_ctr,
+                    'ctr_m2': comparison_ctr,
+                    'delta_ctr_percent': delta_ctr,
+                    'position_m1': current_pos,
+                    'position_m2': comparison_pos,
+                    'delta_position_absolute': delta_position
+                })
+        
+        # Ordenar por clicks descendente
+        comparison_data.sort(key=lambda x: x.get('clicks_m1', 0), reverse=True)
+        
+        logger.info(f"[URL KEYWORDS] Devolviendo {len(comparison_data)} keywords para URL: {target_url}")
+        
+        return jsonify({
+            'keywords': comparison_data,
+            'url': target_url,
+            'total_keywords': len(comparison_data),
+            'has_comparison': has_comparison,
+            'periods': {
+                'current': {
+                    'start_date': current_start_date,
+                    'end_date': current_end_date,
+                    'label': f"{current_start_date} to {current_end_date}"
+                },
+                'comparison': {
+                    'start_date': comparison_start_date,
+                    'end_date': comparison_end_date,
+                    'label': f"{comparison_start_date} to {comparison_end_date}"
+                } if has_comparison else None
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en get_url_keywords: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo keywords de URL: {str(e)}'}), 500
+
 if __name__ == '__main__':
     # Railway proporciona el puerto automáticamente
     port = int(os.environ.get('PORT', 5001))

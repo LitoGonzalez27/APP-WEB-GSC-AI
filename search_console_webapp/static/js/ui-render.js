@@ -4,6 +4,27 @@ import { elems } from './utils.js';
 // Variable para almacenar la instancia de DataTable de URLs
 let urlsDataTable = null;
 
+// ✅ NUEVA: Función para resetear completamente el estado de la tabla de URLs
+export function resetUrlsTableState() {
+  console.log('🔄 Reseteando estado completo de la tabla de URLs...');
+  
+  // Resetear variable global
+  urlsDataTable = null;
+  
+  // Limpiar datos globales relacionados
+  window.currentData = null;
+  
+  // Asegurar que la sección esté oculta inicialmente
+  if (elems.resultsSection) {
+    elems.resultsSection.style.display = 'none';
+  }
+  if (elems.resultsTitle) {
+    elems.resultsTitle.style.display = 'none';
+  }
+  
+  console.log('✅ Estado de tabla de URLs reseteado completamente');
+}
+
 // ✅ NUEVO: Variable global para almacenar los datos de keywords
 let globalKeywordData = [];
 
@@ -64,55 +85,55 @@ function updateUrlTableHeaders(analysisType) {
   
   if (analysisType === 'single') {
     // Headers para período único
-    if (headers[1]) headers[1].textContent = 'Clicks P1';
-    if (headers[2]) headers[2].style.display = 'none'; // Ocultar P2
-    if (headers[3]) headers[3].style.display = 'none'; // Ocultar Delta
-    if (headers[4]) headers[4].textContent = 'Impressions P1';
-    if (headers[5]) headers[5].style.display = 'none'; // Ocultar P2
-    if (headers[6]) headers[6].style.display = 'none'; // Ocultar Delta
-    if (headers[7]) headers[7].textContent = 'CTR P1 (%)';
-    if (headers[8]) headers[8].style.display = 'none'; // Ocultar P2
-    if (headers[9]) headers[9].style.display = 'none'; // Ocultar Delta
-    if (headers[10]) headers[10].textContent = 'Pos P1';
-    if (headers[11]) headers[11].style.display = 'none'; // Ocultar P2
-    if (headers[12]) headers[12].style.display = 'none'; // Ocultar Delta
+    if (headers[2]) headers[2].textContent = 'Clicks P1';
+    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
+    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
+    if (headers[5]) headers[5].textContent = 'Impressions P1';
+    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
+    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
+    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
+    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
+    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
+    if (headers[11]) headers[11].textContent = 'Pos P1';
+    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
+    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
   } else {
     // Headers para comparación (mostrar todos)
-    if (headers[1]) headers[1].textContent = 'Clicks P1';
-    if (headers[2]) {
-      headers[2].style.display = '';
-      headers[2].textContent = 'Clicks P2';
-    }
+    if (headers[2]) headers[2].textContent = 'Clicks P1';
     if (headers[3]) {
       headers[3].style.display = '';
-      headers[3].textContent = 'ΔClicks (%)';
+      headers[3].textContent = 'Clicks P2';
     }
-    if (headers[4]) headers[4].textContent = 'Impressions P1';
-    if (headers[5]) {
-      headers[5].style.display = '';
-      headers[5].textContent = 'Impressions P2';
+    if (headers[4]) {
+      headers[4].style.display = '';
+      headers[4].textContent = 'ΔClicks (%)';
     }
+    if (headers[5]) headers[5].textContent = 'Impressions P1';
     if (headers[6]) {
       headers[6].style.display = '';
-      headers[6].textContent = 'ΔImp. (%)';
+      headers[6].textContent = 'Impressions P2';
     }
-    if (headers[7]) headers[7].textContent = 'CTR P1 (%)';
-    if (headers[8]) {
-      headers[8].style.display = '';
-      headers[8].textContent = 'CTR P2 (%)';
+    if (headers[7]) {
+      headers[7].style.display = '';
+      headers[7].textContent = 'ΔImp. (%)';
     }
+    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
     if (headers[9]) {
       headers[9].style.display = '';
-      headers[9].textContent = 'ΔCTR (%)';
+      headers[9].textContent = 'CTR P2 (%)';
     }
-    if (headers[10]) headers[10].textContent = 'Pos P1';
-    if (headers[11]) {
-      headers[11].style.display = '';
-      headers[11].textContent = 'Pos P2';
+    if (headers[10]) {
+      headers[10].style.display = '';
+      headers[10].textContent = 'ΔCTR (%)';
     }
+    if (headers[11]) headers[11].textContent = 'Pos P1';
     if (headers[12]) {
       headers[12].style.display = '';
-      headers[12].textContent = 'ΔPos';
+      headers[12].textContent = 'Pos P2';
+    }
+    if (headers[13]) {
+      headers[13].style.display = '';
+      headers[13].textContent = 'ΔPos';
     }
   }
 }
@@ -825,35 +846,70 @@ function cleanupPreviousTable() {
   
   if (isDataTableInitialized) {
     try {
-      console.log('🔄 DataTable detectada, procediendo con destrucción...');
+      console.log('🔄 DataTable detectada, procediendo con destrucción segura...');
       
-      // Método más seguro: usar la API de DataTable directamente
-      const dt = new DataTable('#resultsTable');
-      
-      // ✅ CORREGIDO: Usar destroy() sin parámetro para mantener el HTML
-      dt.destroy(); // NO remover del DOM, solo destruir la instancia
-      
-      console.log('✅ DataTable anterior destruida correctamente (HTML conservado)');
-    } catch (error) {
-      console.warn('⚠️ Error al destruir DataTable, intentando método alternativo:', error);
-      
-      // ✅ MÉTODO ALTERNATIVO: Destrucción forzada
-      try {
-        // Usar jQuery DataTable si está disponible
-        if (window.$ && window.$.fn.DataTable) {
-          if (window.$.fn.DataTable.isDataTable('#resultsTable')) {
-            window.$('#resultsTable').DataTable().destroy(); // SIN true para conservar HTML
-            console.log('✅ DataTable destruida usando jQuery fallback (HTML conservado)');
-          }
+      // ✅ MÉTODO MÁS SEGURO: Destruir desde jQuery si está disponible
+      if (window.$ && window.$.fn.DataTable && window.$.fn.DataTable.isDataTable('#resultsTable')) {
+        const jqTable = window.$('#resultsTable').DataTable();
+        
+        // Pausar cualquier procesamiento de DataTable
+        try {
+          jqTable.processing(false);
+        } catch (e) {
+          // Ignorar error si processing() no está disponible
         }
-      } catch (fallbackError) {
-        console.warn('⚠️ Error en método alternativo, continuando con limpieza manual...', fallbackError);
+        
+        // Destruir la instancia
+        jqTable.destroy(false); // false = conservar HTML
+        console.log('✅ DataTable destruida con jQuery (método seguro)');
+      } else {
+        // Método alternativo con API nativa de DataTable
+        const dt = new DataTable('#resultsTable');
+        dt.destroy(false);
+        console.log('✅ DataTable destruida con API nativa');
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Error al destruir DataTable, aplicando limpieza manual...', error);
+      
+      // ✅ LIMPIEZA MANUAL: Remover todas las referencias de DataTable del DOM
+      try {
+        // Limpiar clases y atributos de DataTable del elemento table
+        if (table) {
+          table.classList.remove('dataTable', 'table-striped', 'table-bordered');
+          table.removeAttribute('role');
+          table.removeAttribute('aria-describedby');
+          table.removeAttribute('style');
+          
+          // Limpiar headers
+          const headers = table.querySelectorAll('thead th');
+          headers.forEach(header => {
+            header.removeAttribute('class');
+            header.removeAttribute('style');
+            header.removeAttribute('aria-label');
+            header.removeAttribute('aria-sort');
+            header.removeAttribute('tabindex');
+          });
+          
+          // Limpiar filas del tbody
+          const rows = table.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            row.removeAttribute('class');
+            row.removeAttribute('style');
+            row.removeAttribute('role');
+          });
+        }
+        
+        console.log('✅ Limpieza manual de DataTable completada');
+      } catch (manualError) {
+        console.warn('⚠️ Error en limpieza manual, continuando...', manualError);
       }
     }
   }
   
   // Siempre resetear la variable
   urlsDataTable = null;
+  console.log('✅ Variable urlsDataTable reseteada');
   
   // 2. Limpiar completamente el DOM de la tabla
   if (table) {
@@ -893,6 +949,7 @@ function cleanupPreviousTable() {
     if (headers.length >= 13) {
       // Resetear headers a estado por defecto (comparación)
       const headerTexts = [
+        'Keywords',
         'URL',
         'Clicks P1', 'Clicks P2', 'ΔClicks (%)',
         'Impressions P1', 'Impressions P2', 'ΔImp. (%)',
@@ -959,6 +1016,7 @@ function ensureTableStructure() {
       <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
         <thead>
           <tr>
+            <th>Keywords</th>
             <th>URL</th>
             <th>Clicks P1</th>
             <th>Clicks P2</th>
@@ -1004,8 +1062,12 @@ function ensureTableStructure() {
 }
 
 // ✅ COMPLETAMENTE NUEVA: renderTable para manejar comparación de URLs
-export function renderTable(pages) {
-  console.log('🔄 Actualizando tabla de URLs con nuevos datos...', { pagesCount: pages?.length });
+export async function renderTable(pages) {
+  console.log('🔄 Actualizando tabla de URLs con nuevos datos...', { 
+    pagesCount: pages?.length, 
+    pagesType: typeof pages, 
+    pagesData: pages ? pages.slice(0, 2) : 'null' 
+  });
   
   // ✅ MEJORADO: Limpieza completa de la tabla anterior
   cleanupPreviousTable();
@@ -1016,10 +1078,31 @@ export function renderTable(pages) {
     return;
   }
   
-  if (!pages.length) {
-    if (elems.tableBody) elems.tableBody.innerHTML = '<tr><td colspan="13">No hay datos para la tabla.</td></tr>';
+  // ✅ CRÍTICO: Re-obtener referencias DOM después de posible recreación
+  elems.tableBody = document.querySelector('#resultsTable tbody');
+  elems.resultsSection = document.getElementById('resultsBlock');
+  elems.resultsTitle = document.querySelector('.results-title');
+  
+  if (!elems.tableBody) {
+    console.error('❌ No se pudo obtener referencia al tbody después de recreación');
+    return;
+  }
+  console.log('✅ Referencias DOM actualizadas después de estructura verificada');
+  
+  if (!pages || !pages.length) {
+    console.log('⚠️ No hay datos de páginas para mostrar');
+    if (elems.tableBody) elems.tableBody.innerHTML = '<tr><td colspan="14">No hay datos para la tabla.</td></tr>';
     if (elems.resultsSection) elems.resultsSection.style.display = 'block';
     if (elems.resultsTitle) elems.resultsTitle.style.display = 'block';
+    if (elems.resultsTitle) elems.resultsTitle.textContent = 'URLs Performance';
+    
+    // ✅ NUEVO: Mostrar subtítulo también cuando no hay datos
+    const urlsSubtitle = document.querySelector('.urls-overview-subtitle');
+    if (urlsSubtitle) {
+      urlsSubtitle.style.display = 'block';
+      console.log('✅ Subtítulo de URLs mostrado (sin datos)');
+    }
+    
     return;
   }
 
@@ -1036,8 +1119,15 @@ export function renderTable(pages) {
   // ✅ Actualizar headers según el tipo
   updateUrlTableHeaders(analysisType);
 
+  // ✅ NUEVO: Limpiar tbody antes de añadir nuevos datos
+  if (elems.tableBody) {
+    elems.tableBody.innerHTML = '';
+    console.log('🧹 Tbody limpiado antes de añadir nuevos datos');
+  }
+  
   // ✅ Renderizar filas
-  urlsData.forEach(row => {
+  console.log(`🔄 Añadiendo ${urlsData.length} filas al tbody...`);
+  urlsData.forEach((row, index) => {
     const deltaClicksClass =
       (row.delta_clicks_percent === 'Infinity' || (typeof row.delta_clicks_percent === 'number' && row.delta_clicks_percent > 0))
         ? 'positive-change'
@@ -1070,6 +1160,12 @@ export function renderTable(pages) {
     const deltaColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
 
     tr.innerHTML = `
+      <td class="dt-body-center">
+        <i class="fas fa-list keywords-icon"
+           data-url="${escapeHtml(row.url)}"
+           title="Ver keywords para esta URL"
+           style="cursor:pointer; color: #007bff;"></i>
+      </td>
       <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
       <td>${(row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
       <td ${p2ColumnsStyle}>${(row.clicks_p2 ?? 0).toLocaleString('es-ES')}</td>
@@ -1085,8 +1181,17 @@ export function renderTable(pages) {
       <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2)}</td>
     `;
     
-    if (elems.tableBody) elems.tableBody.appendChild(tr);
+    if (elems.tableBody) {
+      elems.tableBody.appendChild(tr);
+      if (index < 3) { // Log solo las primeras 3 para debugging
+        console.log(`✅ Fila ${index + 1} añadida: ${row.url}`);
+      }
+    } else {
+      console.error(`❌ No se pudo añadir fila ${index + 1}: tbody no disponible`);
+    }
   });
+  
+  console.log(`✅ ${urlsData.length} filas añadidas al tbody. Filas en DOM: ${elems.tableBody ? elems.tableBody.children.length : 'N/A'}`);
 
   // === ORDENAMIENTO PERSONALIZADO PARA DATATABLES ===
   function parseSortableValue(val) {
@@ -1177,22 +1282,23 @@ export function renderTable(pages) {
   // ✅ Configuración de DataTable adaptada
   const columnDefs = [
     { targets: '_all', className: 'dt-body-right' },
-    { targets: [0], className: 'dt-body-left' },
+    { targets: [0, 1], className: 'dt-body-left' }, // Iconos y URL a la izquierda
+    { targets: 0, orderable: false }, // No ordenar la columna de iconos
     // Orden personalizado para cada columna relevante
-    { targets: [1,2], type: 'thousands-separated' }, // ✅ CORREGIDO: Clicks P1 y P2 con separadores de miles
-    { targets: [3], type: 'delta-custom' }, // ΔClicks (%)
-    { targets: [4,5], type: 'thousands-separated' }, // ✅ CORREGIDO: Impressions P1 y P2 con separadores de miles
-    { targets: [6], type: 'delta-custom' }, // ΔImp. (%)
-    { targets: [7,8], type: 'percent-custom' }, // CTR P1 y P2
-    { targets: [9], type: 'delta-custom' }, // ΔCTR (%)
-    { targets: [10,11], type: 'position-custom' }, // Pos P1 y P2
-    { targets: [12], type: 'delta-custom' } // ΔPos
+    { targets: [2,3], type: 'thousands-separated' }, // Clicks P1 y P2 con separadores de miles
+    { targets: [4], type: 'delta-custom' }, // ΔClicks (%)
+    { targets: [5,6], type: 'thousands-separated' }, // Impressions P1 y P2 con separadores de miles
+    { targets: [7], type: 'delta-custom' }, // ΔImp. (%)
+    { targets: [8,9], type: 'percent-custom' }, // CTR P1 y P2
+    { targets: [10], type: 'delta-custom' }, // ΔCTR (%)
+    { targets: [11,12], type: 'position-custom' }, // Pos P1 y P2
+    { targets: [13], type: 'delta-custom' } // ΔPos
   ];
 
   // ✅ Ocultar columnas para período único
   if (analysisType === 'single') {
     columnDefs.push(
-      { targets: [2, 3, 5, 6, 8, 9, 11, 12], visible: false }  // Ocultar P2 y Delta
+      { targets: [3, 4, 6, 7, 9, 10, 12, 13], visible: false }  // Ocultar P2 y Delta (ajustado por nueva columna)
     );
   }
 
@@ -1203,24 +1309,117 @@ export function renderTable(pages) {
       columnDefs: columnDefs.length 
     });
     
-    // ✅ VERIFICACIÓN: La tabla debería existir después de ensureTableStructure()
+    // ✅ VERIFICACIÓN EXHAUSTIVA: La tabla debe existir y estar lista
     const table = document.getElementById('resultsTable');
     if (!table) {
       throw new Error('Tabla #resultsTable no encontrada después de verificación de estructura');
     }
     
-    // ✅ NUEVO: Verificación de que no hay instancia previa (doble check)
+    // Verificar que no hay instancias DataTable residuales
     if (window.DataTable && window.DataTable.isDataTable('#resultsTable')) {
-      console.warn('⚠️ DataTable aún detectada después de limpieza, forzando destrucción final...');
+      console.warn('⚠️ Se detectó DataTable residual justo antes de crear nueva instancia, limpiando...');
       try {
-        new DataTable('#resultsTable').destroy(true);
+        if (window.$ && window.$.fn.DataTable.isDataTable('#resultsTable')) {
+          window.$('#resultsTable').DataTable().destroy(false);
+        }
       } catch (e) {
-        console.warn('⚠️ Error en destrucción final, continuando...', e);
+        console.warn('⚠️ Error limpiando DataTable residual, continuando...', e);
       }
-      
-      // ✅ CORREGIDO: Usar setTimeout en lugar de await
-      console.log('⏳ Esperando 100ms para completar destrucción...');
     }
+    
+    // Verificar que la estructura es correcta
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    if (!thead || !tbody) {
+      console.warn('⚠️ Estructura de tabla incompleta, recreando...');
+      ensureTableStructure();
+    }
+    
+    // ✅ MEJORADO: Verificación exhaustiva y limpieza final
+    let finalCleanupAttempts = 0;
+    while (window.DataTable && window.DataTable.isDataTable('#resultsTable') && finalCleanupAttempts < 3) {
+      finalCleanupAttempts++;
+      console.warn(`⚠️ DataTable aún detectada después de limpieza, intento ${finalCleanupAttempts}/3...`);
+      
+      try {
+        // Intentar destrucción completa
+        if (window.$ && window.$.fn.DataTable && window.$.fn.DataTable.isDataTable('#resultsTable')) {
+          window.$('#resultsTable').DataTable().destroy(true); // true = remover del DOM
+          console.log('✅ Destrucción completa con jQuery');
+        } else {
+          new DataTable('#resultsTable').destroy(true);
+          console.log('✅ Destrucción completa con API nativa');
+        }
+        
+        // Forzar recreación de estructura si se removió del DOM
+        if (!document.getElementById('resultsTable')) {
+          ensureTableStructure();
+          console.log('✅ Estructura de tabla recreada después de destrucción completa');
+        }
+        
+        break; // Salir del loop si tuvo éxito
+      } catch (e) {
+        console.warn(`⚠️ Error en destrucción final intento ${finalCleanupAttempts}:`, e);
+        
+        if (finalCleanupAttempts >= 3) {
+          // Último recurso: recrear la tabla completamente
+          console.warn('🆘 Forzando recreación completa de la tabla...');
+          const resultsBlock = document.getElementById('resultsBlock');
+          if (resultsBlock) {
+            // Remover tabla antigua completamente
+            const oldTable = document.getElementById('resultsTable');
+            if (oldTable) {
+              oldTable.remove();
+            }
+            
+            // Recrear estructura
+            ensureTableStructure();
+            console.log('✅ Tabla recreada completamente como último recurso');
+          }
+        }
+      }
+    }
+    
+    // ✅ VERIFICACIÓN FINAL: Asegurar que la tabla tiene datos antes de crear DataTable
+    const finalTableBody = document.querySelector('#resultsTable tbody');
+    const finalRowCount = finalTableBody ? finalTableBody.children.length : 0;
+    console.log(`🔍 Verificación pre-DataTable: ${finalRowCount} filas en tbody`);
+    
+    if (finalRowCount === 0) {
+      console.warn('⚠️ No hay filas en tbody antes de crear DataTable');
+      
+      // Intentar re-añadir los datos
+      console.log('🔄 Re-intentando añadir datos al tbody...');
+      if (finalTableBody && urlsData && urlsData.length > 0) {
+        urlsData.forEach((row, index) => {
+          // Usar el mismo HTML de antes pero simplificado para este reintento
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="dt-body-center">
+              <i class="fas fa-list keywords-icon" data-url="${escapeHtml(row.url)}" title="Ver keywords para esta URL" style="cursor:pointer; color: #007bff;"></i>
+            </td>
+            <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
+            <td>${(row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${(row.clicks_p2 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${formatPercentageChange(row.delta_clicks_percent)}</td>
+            <td>${(row.impressions_p1 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${(row.impressions_p2 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${formatPercentageChange(row.delta_impressions_percent)}</td>
+            <td>${typeof row.ctr_p1 === 'number' ? row.ctr_p1.toFixed(2) + '%' : 'N/A'}</td>
+            <td>${typeof row.ctr_p2 === 'number' ? row.ctr_p2.toFixed(2) + '%' : 'N/A'}</td>
+            <td>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
+            <td>${formatPosition(row.position_p1)}</td>
+            <td>${formatPosition(row.position_p2)}</td>
+            <td>${formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2)}</td>
+          `;
+          finalTableBody.appendChild(tr);
+        });
+        console.log(`✅ Re-añadidas ${urlsData.length} filas. Total en DOM: ${finalTableBody.children.length}`);
+      }
+    }
+    
+    // ✅ NUEVO: Pequeño delay para asegurar estabilidad del DOM
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     urlsDataTable = new DataTable('#resultsTable', {
       pageLength: 10,
@@ -1229,14 +1428,16 @@ export function renderTable(pages) {
       scrollX: true,
       responsive: false,
       columnDefs: columnDefs,
-      order: [[1, 'desc']], // ✅ CORREGIDO: Siempre ordenar por clicks P1 (período actual)
+      order: [[2, 'desc']], // ✅ CORREGIDO: Siempre ordenar por clicks P1 (período actual, ajustado por nueva columna)
       drawCallback: () => {
         if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
       },
       // ✅ NUEVO: Configuraciones adicionales para evitar conflictos
       retrieve: false, // No recuperar instancia existente
       destroy: false,  // No permitir auto-destroy
-      stateSave: false // No guardar estado entre sesiones
+      stateSave: false, // No guardar estado entre sesiones
+      deferRender: true, // Renderizado diferido para mejor rendimiento
+      processing: false // Desactivar indicador de procesamiento
     });
     
     console.log('✅ Nueva DataTable creada exitosamente');
@@ -1292,6 +1493,31 @@ export function renderTable(pages) {
   }
   
   console.log('✅ Tabla de URLs actualizada completamente');
+  
+  // ✅ NUEVO: Verificación final para asegurar que la tabla es visible
+  setTimeout(() => {
+    const resultsSection = document.getElementById('resultsSection') || elems.resultsSection;
+    const resultsTitle = document.getElementById('resultsTitle') || elems.resultsTitle;
+    const tableElement = document.getElementById('resultsTable');
+    
+    if (resultsSection && resultsSection.style.display !== 'block') {
+      console.warn('⚠️ Sección de resultados no visible, forzando visibilidad...');
+      resultsSection.style.display = 'block';
+    }
+    
+    if (resultsTitle && resultsTitle.style.display !== 'block') {
+      console.warn('⚠️ Título de resultados no visible, forzando visibilidad...');
+      resultsTitle.style.display = 'block';
+      resultsTitle.textContent = 'URLs Performance';
+    }
+    
+    if (tableElement && !tableElement.offsetParent) {
+      console.warn('⚠️ Tabla no visible, verificando estructura...');
+      ensureTableStructure();
+    }
+    
+    console.log('🔍 Verificación final de visibilidad completada');
+  }, 100);
 }
 
 // ✅ MEJORADO: renderTableError con limpieza robusta
@@ -1303,7 +1529,7 @@ export function renderTableError() {
   
   // Mostrar mensaje de error
   if (elems.tableBody) {
-    elems.tableBody.innerHTML = '<tr><td colspan="13">Error al procesar la solicitud.</td></tr>';
+    elems.tableBody.innerHTML = '<tr><td colspan="14">Error al procesar la solicitud.</td></tr>';
   }
   
   if (elems.resultsSection) {
@@ -1932,3 +2158,258 @@ function escapeHtml(text) {
 // ✅ NUEVO: Hacer las funciones globales para que puedan ser llamadas desde onclick
 window.openKeywordModal = openKeywordModal;
 window.closeKeywordModal = closeKeywordModal;
+
+// ✅ NUEVO: Función para abrir el modal de keywords por URL
+export function openUrlKeywordsModal(url) {
+  console.log('🔍 Abriendo modal de keywords para URL:', url);
+  
+  // Crear modal dinámicamente si no existe
+  let modal = document.getElementById('keywordModal-url');
+  if (!modal) {
+    createUrlKeywordsModal();
+    modal = document.getElementById('keywordModal-url');
+  }
+  
+  // Actualizar título del modal
+  const modalTitle = document.getElementById('keywordModalTitle-url');
+  if (modalTitle) {
+    modalTitle.innerHTML = `<i class="fas fa-search"></i> Keywords para: ${escapeHtml(url)}`;
+  }
+  
+  // Mostrar modal con loading
+  const modalBody = document.getElementById('keywordModalBody-url');
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div class="loading-container" style="text-align: center; padding: 2em;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #007bff;"></i>
+        <p style="margin-top: 1em; color: #666;">Obteniendo keywords para esta URL...</p>
+      </div>
+    `;
+  }
+  
+  modal.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+  
+  // Obtener datos del último análisis desde el contexto global
+  const currentData = window.currentData || {};
+  const periods = currentData.periods || {};
+  
+  // Hacer petición al nuevo endpoint
+  fetchUrlKeywords(url, periods).then(data => {
+    renderUrlKeywordsData(data);
+  }).catch(error => {
+    console.error('Error obteniendo keywords:', error);
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div style="text-align: center; padding: 2em; color: #dc3545;">
+          <i class="fas fa-exclamation-triangle" style="font-size: 2em;"></i>
+          <p style="margin-top: 1em;">Error obteniendo keywords: ${error.message}</p>
+        </div>
+      `;
+    }
+  });
+}
+
+// ✅ NUEVO: Función para crear el modal HTML
+function createUrlKeywordsModal() {
+  const modalHTML = `
+    <div id="keywordModal-url" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="keywordModalTitle-url"><i class="fas fa-search"></i> Keywords por URL</h3>
+          <span class="close-btn" onclick="closeKeywordModal('url')">&times;</span>
+        </div>
+        <div class="modal-body" id="keywordModalBody-url">
+          <!-- Contenido dinámico -->
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// ✅ NUEVO: Función para hacer la petición al backend
+async function fetchUrlKeywords(url, periods) {
+  const siteUrl = document.getElementById('siteUrlSelect')?.value || '';
+  const selectedCountry = document.getElementById('countrySelect')?.value || '';
+  
+  const payload = {
+    url: url,
+    site_url: siteUrl,
+    country: selectedCountry,
+    current_start_date: periods.current?.start_date,
+    current_end_date: periods.current?.end_date,
+    comparison_start_date: periods.comparison?.start_date,
+    comparison_end_date: periods.comparison?.end_date,
+    has_comparison: periods.has_comparison || false
+  };
+  
+  const response = await fetch('/api/url-keywords', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(errorData.error || `Error del servidor: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// ✅ NUEVO: Función para renderizar los datos en el modal
+function renderUrlKeywordsData(data) {
+  const modalBody = document.getElementById('keywordModalBody-url');
+  if (!modalBody) return;
+  
+  const keywords = data.keywords || [];
+  const hasComparison = data.has_comparison || false;
+  
+  if (keywords.length === 0) {
+    modalBody.innerHTML = `
+      <div style="text-align: center; padding: 2em; color: #666;">
+        <i class="fas fa-info-circle" style="font-size: 2em;"></i>
+        <p style="margin-top: 1em;">No se encontraron keywords para esta URL en el período seleccionado.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Crear tabla
+  const tableHTML = `
+    <div class="url-keywords-info" style="margin-bottom: 1em; padding: 1em; background: #f8f9fa; border-radius: 5px;">
+      <p><strong>URL analizada:</strong> ${escapeHtml(data.url)}</p>
+      <p><strong>Keywords encontradas:</strong> ${keywords.length}</p>
+      <p><strong>Período:</strong> ${data.periods.current.label}</p>
+      ${hasComparison ? `<p><strong>Comparando con:</strong> ${data.periods.comparison.label}</p>` : ''}
+    </div>
+    
+    <div class="table-responsive-container">
+      <table id="keywordModalTable-url" class="display" style="width:100%;">
+        <thead>
+          <tr>
+            <th>View SERP</th>
+            <th>Keyword</th>
+            <th>Clicks P1</th>
+            ${hasComparison ? '<th>Clicks P2</th>' : ''}
+            ${hasComparison ? '<th>ΔClicks (%)</th>' : ''}
+            <th>Impressions P1</th>
+            ${hasComparison ? '<th>Impressions P2</th>' : ''}
+            ${hasComparison ? '<th>ΔImp. (%)</th>' : ''}
+            <th>CTR P1 (%)</th>
+            ${hasComparison ? '<th>CTR P2 (%)</th>' : ''}
+            ${hasComparison ? '<th>ΔCTR (%)</th>' : ''}
+            <th>Pos P1</th>
+            ${hasComparison ? '<th>Pos P2</th>' : ''}
+            ${hasComparison ? '<th>ΔPos</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${keywords.map(keyword => createUrlKeywordRow(keyword, hasComparison)).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  
+  modalBody.innerHTML = tableHTML;
+  
+  // Inicializar DataTable
+  if (window.DataTable) {
+    const columnDefs = [
+      { targets: '_all', className: 'dt-body-right' },
+      { targets: [0, 1], className: 'dt-body-left' },
+      { targets: 0, orderable: false }
+    ];
+    
+    new DataTable('#keywordModalTable-url', {
+      pageLength: 10,
+      lengthMenu: [10, 25, 50, 100],
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
+      scrollX: true,
+      responsive: false,
+      columnDefs: columnDefs,
+      order: [[2, 'desc']] // Ordenar por clicks
+    });
+  }
+  
+  // Añadir event listeners para SERP
+  const serpIcons = modalBody.querySelectorAll('.serp-icon');
+  serpIcons.forEach(icon => {
+    icon.addEventListener('click', () => {
+      if (typeof openSerpModal === 'function') {
+        openSerpModal(icon.dataset.keyword, icon.dataset.url);
+      }
+    });
+  });
+}
+
+// ✅ NUEVO: Función para crear filas de keywords
+function createUrlKeywordRow(keyword, hasComparison) {
+  // Calcular clases para deltas
+  const deltaClicksClass = getDeltaClass(keyword.delta_clicks_percent);
+  const deltaImprClass = getDeltaClass(keyword.delta_impressions_percent);
+  const deltaCtrClass = getDeltaClass(keyword.delta_ctr_percent);
+  const deltaPosClass = getDeltaClassPosition(keyword.delta_position_absolute);
+  
+  return `
+    <tr>
+      <td class="dt-body-center">
+        <i class="fas fa-search serp-icon"
+           data-keyword="${escapeHtml(keyword.keyword)}"
+           data-url="${escapeHtml(keyword.url)}"
+           title="Ver SERP para ${escapeHtml(keyword.keyword)}"
+           style="cursor:pointer;"></i>
+      </td>
+      <td class="dt-body-left">${escapeHtml(keyword.keyword)}</td>
+      <td>${(keyword.clicks_m1 || 0).toLocaleString('es-ES')}</td>
+      ${hasComparison ? `<td>${(keyword.clicks_m2 || 0).toLocaleString('es-ES')}</td>` : ''}
+      ${hasComparison ? `<td class="${deltaClicksClass}">${formatPercentageChange(keyword.delta_clicks_percent)}</td>` : ''}
+      <td>${(keyword.impressions_m1 || 0).toLocaleString('es-ES')}</td>
+      ${hasComparison ? `<td>${(keyword.impressions_m2 || 0).toLocaleString('es-ES')}</td>` : ''}
+      ${hasComparison ? `<td class="${deltaImprClass}">${formatPercentageChange(keyword.delta_impressions_percent)}</td>` : ''}
+      <td>${typeof keyword.ctr_m1 === 'number' ? keyword.ctr_m1.toFixed(2) + '%' : 'N/A'}</td>
+      ${hasComparison ? `<td>${typeof keyword.ctr_m2 === 'number' ? keyword.ctr_m2.toFixed(2) + '%' : 'N/A'}</td>` : ''}
+      ${hasComparison ? `<td class="${deltaCtrClass}">${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>` : ''}
+      <td>${formatPosition(keyword.position_m1)}</td>
+      ${hasComparison ? `<td>${formatPosition(keyword.position_m2)}</td>` : ''}
+      ${hasComparison ? `<td class="${deltaPosClass}">${formatPositionDelta(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>` : ''}
+    </tr>
+  `;
+}
+
+// ✅ NUEVO: Funciones auxiliares para clases CSS
+function getDeltaClass(value) {
+  if (value === 'New' || value === 'Infinity' || (typeof value === 'number' && value > 0)) {
+    return 'positive-change';
+  } else if (value === 'Lost' || (typeof value === 'number' && value < 0)) {
+    return 'negative-change';
+  }
+  return '';
+}
+
+function getDeltaClassPosition(value) {
+  // Para posiciones, negativo es bueno (mejor posición)
+  if (value === 'New' || (typeof value === 'number' && value < 0)) {
+    return 'positive-change';
+  } else if (value === 'Lost' || (typeof value === 'number' && value > 0)) {
+    return 'negative-change';
+  }
+  return '';
+}
+
+// ✅ NUEVO: Event listener para los iconos de keywords en la tabla de URLs
+document.addEventListener('DOMContentLoaded', function() {
+  // Delegación de eventos para los iconos de keywords
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('keywords-icon')) {
+      const url = e.target.dataset.url;
+      if (url) {
+        openUrlKeywordsModal(url);
+      }
+    }
+  });
+});

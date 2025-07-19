@@ -15,7 +15,8 @@ import {
   renderInsights,
   renderTable,
   renderTableError,
-  updateGlobalKeywordData
+  updateGlobalKeywordData,
+  resetUrlsTableState
 } from './ui-render.js';
 import { renderKeywordComparisonTable, clearKeywordComparisonTable } from './ui-keyword-comparison-table.js';
 import { enableAIOverviewAnalysis } from './ui-ai-overview-main.js';
@@ -221,6 +222,9 @@ export async function handleFormSubmit(e) {
   // Esto evita conflictos y permite una limpieza más robusta
   console.log('🔄 Preparando para nueva consulta - limpieza básica realizada');
   
+  // ✅ NUEVO: Resetear estado completo de la tabla de URLs antes de nueva consulta
+  resetUrlsTableState();
+  
   if (elems.aiAnalysisMessage) elems.aiAnalysisMessage.innerHTML = '';
   if (elems.aiOverviewResultsContainer) elems.aiOverviewResultsContainer.innerHTML = '';
 
@@ -337,8 +341,11 @@ export async function handleFormSubmit(e) {
 
     renderInsights(summary);
     
+    // ✅ NUEVO: Almacenar datos globales para el modal de keywords por URL
+    window.currentData = data;
+    
     // ✅ NUEVO: Renderizar tabla de URLs con nueva lógica
-    renderTable(data.pages);
+    await renderTable(data.pages);
 
     // ✅ NUEVO: Generar estadísticas adicionales de URLs si hay comparación
     if (hasUrlComparison(data.pages)) {
