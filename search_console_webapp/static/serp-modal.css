@@ -590,7 +590,6 @@
   10. COMPATIBILIDAD CON DATATABLES MEJORADA
 =============================================*/
 .dataTables_wrapper {
-  margin: 20px;
   background: var(--card-bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
