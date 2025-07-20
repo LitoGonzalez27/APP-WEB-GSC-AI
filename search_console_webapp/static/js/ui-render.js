@@ -1812,14 +1812,14 @@ function createDataTableForRange(range, keywords, analysisType) {
     { targets: '_all', className: 'dt-body-right' },
     { targets: [0, 1], className: 'dt-body-left' },
     { targets: 0, orderable: false },
-    { targets: [2, 3], type: 'spanish-integer-pre' },
-    { targets: [4], type: 'spanish-delta-pre' },
-    { targets: [5, 6], type: 'spanish-integer-pre' },
-    { targets: [7], type: 'spanish-delta-pre' },
-    { targets: [8, 9], type: 'spanish-percentage-pre' },
-    { targets: [10], type: 'spanish-delta-pre' },
-    { targets: [11, 12], type: 'spanish-decimal-pre' },
-    { targets: [13], type: 'spanish-delta-pre' }
+    { targets: [2, 3], type: 'spanish-integer' },
+    { targets: [4], type: 'spanish-delta' },
+    { targets: [5, 6], type: 'spanish-integer' },
+    { targets: [7], type: 'spanish-delta' },
+    { targets: [8, 9], type: 'spanish-percentage' },
+    { targets: [10], type: 'spanish-delta' },
+    { targets: [11, 12], type: 'spanish-decimal' },
+    { targets: [13], type: 'spanish-delta' }
   ];
 
   // Ocultar columnas para período único

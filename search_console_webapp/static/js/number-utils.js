@@ -32,8 +32,9 @@ export function formatInteger(value) {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (!isFinite(num)) return '0';
   
-  // Formatear con locale español específicamente para enteros
-  return Math.round(num).toLocaleString('es-ES');
+  // Formateo manual para español: punto como separador de miles
+  const rounded = Math.round(num);
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 /**
@@ -242,17 +243,44 @@ export function registerDataTableSortingTypes() {
     return;
   }
   
-  // Tipo para números enteros (clicks, impressions)
+  // Funciones de detección de tipo
+  window.DataTable.ext.type.detect.unshift(function (data) {
+    if (typeof data !== 'string') return null;
+    
+    // Detectar enteros con formato español (ej: "14.789")
+    if (/^\d{1,3}(\.\d{3})*$/.test(data)) {
+      return 'spanish-integer';
+    }
+    
+    // Detectar decimales con formato español (ej: "14.789,50" o "5,67")
+    if (/^\d{1,3}(\.\d{3})*,\d+$/.test(data) || /^\d+,\d+$/.test(data)) {
+      return 'spanish-decimal';
+    }
+    
+    // Detectar porcentajes (ej: "5,67%" o "15%")
+    if (/^[+\-]?\d+([,\.]\d+)?%$/.test(data)) {
+      return 'spanish-percentage';
+    }
+    
+    // Detectar deltas (ej: "+15,5%" o "-8,2%" o "New" o "Lost")
+    if (/^[+\-]\d+([,\.]\d+)?%$/.test(data) || data === 'New' || data === 'Lost' || data === 'Infinity') {
+      return 'spanish-delta';
+    }
+    
+    return null;
+  });
+  
+  // Funciones de ordenamiento
   window.DataTable.ext.type.order['spanish-integer-pre'] = parseIntegerValue;
-  
-  // Tipo para números decimales (CTR, posición)
   window.DataTable.ext.type.order['spanish-decimal-pre'] = parseNumericValue;
-  
-  // Tipo para porcentajes
   window.DataTable.ext.type.order['spanish-percentage-pre'] = parseNumericValue;
-  
-  // Tipo para deltas (cambios porcentuales)
   window.DataTable.ext.type.order['spanish-delta-pre'] = parseNumericValue;
+  
+  // También registrar sin el sufijo -pre para compatibilidad
+  window.DataTable.ext.type.order['spanish-integer'] = parseIntegerValue;
+  window.DataTable.ext.type.order['spanish-decimal'] = parseNumericValue;
+  window.DataTable.ext.type.order['spanish-percentage'] = parseNumericValue;
+  window.DataTable.ext.type.order['spanish-delta'] = parseNumericValue;
   
   console.log('✅ Tipos de ordenamiento español registrados en DataTables');
 }
@@ -270,14 +298,14 @@ export function getStandardUrlTableConfig(analysisType = 'comparison') {
     { targets: [0, 1], className: 'dt-body-left' }, // Iconos y URL a la izquierda
     { targets: 0, orderable: false }, // No ordenar la columna de iconos
     // Configuración de tipos para ordenamiento correcto
-    { targets: [2, 3], type: 'spanish-integer-pre' }, // Clicks P1 y P2
-    { targets: [4], type: 'spanish-delta-pre' }, // ΔClicks (%)
-    { targets: [5, 6], type: 'spanish-integer-pre' }, // Impressions P1 y P2
-    { targets: [7], type: 'spanish-delta-pre' }, // ΔImp. (%)
-    { targets: [8, 9], type: 'spanish-percentage-pre' }, // CTR P1 y P2
-    { targets: [10], type: 'spanish-delta-pre' }, // ΔCTR (%)
-    { targets: [11, 12], type: 'spanish-decimal-pre' }, // Pos P1 y P2
-    { targets: [13], type: 'spanish-delta-pre' } // ΔPos
+    { targets: [2, 3], type: 'spanish-integer' }, // Clicks P1 y P2
+    { targets: [4], type: 'spanish-delta' }, // ΔClicks (%)
+    { targets: [5, 6], type: 'spanish-integer' }, // Impressions P1 y P2
+    { targets: [7], type: 'spanish-delta' }, // ΔImp. (%)
+    { targets: [8, 9], type: 'spanish-percentage' }, // CTR P1 y P2
+    { targets: [10], type: 'spanish-delta' }, // ΔCTR (%)
+    { targets: [11, 12], type: 'spanish-decimal' }, // Pos P1 y P2
+    { targets: [13], type: 'spanish-delta' } // ΔPos
   ];
 
   // Ocultar columnas para período único
@@ -319,14 +347,14 @@ export function getStandardKeywordTableConfig(analysisType = 'comparison') {
     { targets: [0, 1], className: 'dt-body-left' }, // SERP y keyword a la izquierda
     { targets: 0, orderable: false }, // No ordenar la columna de iconos SERP
     // Configuración de tipos para ordenamiento correcto
-    { targets: [2, 3], type: 'spanish-integer-pre' }, // Clicks M1 y M2
-    { targets: [4], type: 'spanish-delta-pre' }, // ΔClicks (%)
-    { targets: [5, 6], type: 'spanish-integer-pre' }, // Impressions M1 y M2
-    { targets: [7], type: 'spanish-delta-pre' }, // ΔImp. (%)
-    { targets: [8, 9], type: 'spanish-percentage-pre' }, // CTR M1 y M2
-    { targets: [10], type: 'spanish-delta-pre' }, // ΔCTR (%)
-    { targets: [11, 12], type: 'spanish-decimal-pre' }, // Pos M1 y M2
-    { targets: [13], type: 'spanish-delta-pre' } // ΔPos
+    { targets: [2, 3], type: 'spanish-integer' }, // Clicks M1 y M2
+    { targets: [4], type: 'spanish-delta' }, // ΔClicks (%)
+    { targets: [5, 6], type: 'spanish-integer' }, // Impressions M1 y M2
+    { targets: [7], type: 'spanish-delta' }, // ΔImp. (%)
+    { targets: [8, 9], type: 'spanish-percentage' }, // CTR M1 y M2
+    { targets: [10], type: 'spanish-delta' }, // ΔCTR (%)
+    { targets: [11, 12], type: 'spanish-decimal' }, // Pos M1 y M2
+    { targets: [13], type: 'spanish-delta' } // ΔPos
   ];
 
   // Ocultar columnas para período único

@@ -16,15 +16,17 @@ document.addEventListener('DOMContentLoaded', function() {
         formatPercentage, 
         formatDecimal, 
         formatPosition, 
-        formatPercentageChange 
+        formatPercentageChange,
+        parseIntegerValue
       } = module;
       
-      console.log('🧪 Testing formatInteger:');
+      console.log('🧪 Testing formatInteger (formateo manual):');
       console.log('formatInteger(9666):', formatInteger(9666));
-      console.log('formatInteger(1234567):', formatInteger(1234567));
+      console.log('formatInteger(1234567):', formatInteger(1234567)); 
+      console.log('formatInteger(45000):', formatInteger(45000));
+      console.log('formatInteger(1500):', formatInteger(1500));
+      console.log('formatInteger(999):', formatInteger(999));
       console.log('formatInteger(123):', formatInteger(123));
-      console.log('(9666).toLocaleString("es-ES"):', (9666).toLocaleString('es-ES'));
-      console.log('(1234567).toLocaleString("es-ES"):', (1234567).toLocaleString('es-ES'));
       
               console.log('🧪 Testing formatPercentage (for CTR):');
         console.log('formatPercentage(5.67) [CTR ya en %]:', formatPercentage(5.67));
@@ -39,9 +41,14 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('formatPosition(5.2):', formatPosition(5.2));
       console.log('formatPosition(10.75):', formatPosition(10.75));
       
-      console.log('🧪 Testing formatPercentageChange:');
-      console.log('formatPercentageChange(15.5):', formatPercentageChange(15.5));
-      console.log('formatPercentageChange(-8.2):', formatPercentageChange(-8.2));
+              console.log('🧪 Testing formatPercentageChange:');
+        console.log('formatPercentageChange(15.5):', formatPercentageChange(15.5));
+        console.log('formatPercentageChange(-8.2):', formatPercentageChange(-8.2));
+        
+        console.log('🧪 Testing ordenamiento (parseIntegerValue):');
+        const testNumbers = ['45.000', '1.500', '999'];
+        const parsed = testNumbers.map(n => ({ original: n, parsed: module.parseIntegerValue(n) }));
+        console.log('Números ordenados por valor:', parsed.sort((a, b) => b.parsed - a.parsed));
       
               // Hacer funciones disponibles globalmente para testing manual
         window.debugFormatting = {
@@ -49,12 +56,14 @@ document.addEventListener('DOMContentLoaded', function() {
           formatPercentage,
           formatDecimal,
           formatPosition,
-          formatPercentageChange
+          formatPercentageChange,
+          parseIntegerValue
         };
       
               console.log('✅ Funciones de formateo disponibles en window.debugFormatting');
         console.log('🧪 Ejemplos:');
-        console.log('  window.debugFormatting.formatInteger(9666)');
+        console.log('  window.debugFormatting.formatInteger(45000) // Debería devolver "45.000"');
+        console.log('  window.debugFormatting.parseIntegerValue("45.000") // Debería devolver 45000');
         console.log('  window.debugFormatting.formatPercentage(5.67) // Para CTR ya en %');
       
     }).catch(error => {
