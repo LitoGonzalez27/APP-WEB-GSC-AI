@@ -1812,14 +1812,14 @@ function createDataTableForRange(range, keywords, analysisType) {
     { targets: '_all', className: 'dt-body-right' },
     { targets: [0, 1], className: 'dt-body-left' },
     { targets: 0, orderable: false },
-    { targets: [2, 3], type: 'thousands-separated-pre' },
-    { targets: [4], type: 'delta-custom-pre' },
-    { targets: [5, 6], type: 'thousands-separated-pre' },
-    { targets: [7], type: 'delta-custom-pre' },
-    { targets: [8, 9], type: 'percent-custom-pre' },
-    { targets: [10], type: 'delta-custom-pre' },
-    { targets: [11, 12], type: 'position-custom-pre' },
-    { targets: [13], type: 'delta-custom-pre' }
+    { targets: [2, 3], type: 'spanish-integer' },
+    { targets: [4], type: 'spanish-delta' },
+    { targets: [5, 6], type: 'spanish-integer' },
+    { targets: [7], type: 'spanish-delta' },
+    { targets: [8, 9], type: 'spanish-percentage' },
+    { targets: [10], type: 'spanish-delta' },
+    { targets: [11, 12], type: 'spanish-decimal' },
+    { targets: [13], type: 'spanish-delta' }
   ];
 
   // Ocultar columnas para período único
@@ -1829,21 +1829,8 @@ function createDataTableForRange(range, keywords, analysisType) {
     );
   }
 
-  // Asegurar que los tipos de ordenamiento estén disponibles
-  if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
-    if (!DataTable.ext.type.order['delta-custom-pre']) {
-      DataTable.ext.type.order['delta-custom-pre'] = parseSortableValue;
-    }
-    if (!DataTable.ext.type.order['thousands-separated-pre']) {
-      DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
-    }
-    if (!DataTable.ext.type.order['percent-custom-pre']) {
-      DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
-    }
-    if (!DataTable.ext.type.order['position-custom-pre']) {
-      DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
-    }
-  }
+  // ✅ CORREGIDO: Usar el registro centralizado de tipos de ordenamiento
+  registerDataTableSortingTypes();
 
   // Inicializar DataTable
   if (window.DataTable) {
