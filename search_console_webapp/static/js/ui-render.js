@@ -140,7 +140,7 @@ function processUrlsData(pages) {
         clicks_p2: 0,
         impressions_p1: metric.Impressions || 0,
         impressions_p2: 0,
-        ctr_p1: (metric.CTR || 0) * 100,
+        ctr_p1: metric.CTR || 0,
         ctr_p2: 0,
         position_p1: metric.Position || null,
         position_p2: null,
@@ -165,7 +165,7 @@ function processUrlsData(pages) {
       // ✅ CORREGIDO: Calcular deltas como P1 sobre P2 (actual sobre comparación)
       const deltaClicks = calculatePercentageChange(currentMetric.Clicks, comparisonMetric.Clicks);
       const deltaImpressions = calculatePercentageChange(currentMetric.Impressions, comparisonMetric.Impressions);
-      const deltaCTR = ((currentMetric.CTR || 0) * 100) - ((comparisonMetric.CTR || 0) * 100);
+      const deltaCTR = ((currentMetric.CTR || 0) - (comparisonMetric.CTR || 0)) * 100;
       const deltaPosition = (currentMetric.Position && comparisonMetric.Position)
         ? currentMetric.Position - comparisonMetric.Position
         : (currentMetric.Position ? 'New' : 'Lost');
@@ -175,13 +175,13 @@ function processUrlsData(pages) {
         // ✅ CORREGIDO: P1 = período actual (más reciente)
         clicks_p1: currentMetric.Clicks || 0,      
         impressions_p1: currentMetric.Impressions || 0,
-        ctr_p1: (currentMetric.CTR || 0) * 100,
+        ctr_p1: currentMetric.CTR || 0,
         position_p1: currentMetric.Position || null,
         
         // ✅ CORREGIDO: P2 = período de comparación (más antiguo)
         clicks_p2: comparisonMetric.Clicks || 0,      
         impressions_p2: comparisonMetric.Impressions || 0,
-        ctr_p2: (comparisonMetric.CTR || 0) * 100,
+        ctr_p2: comparisonMetric.CTR || 0,
         position_p2: comparisonMetric.Position || null,
         
         // ✅ CORREGIDO: Deltas calculados como (P1 - P2) / P2
@@ -680,7 +680,7 @@ export function renderInsights(periodData) {
     changeData = {
       clicks: calculatePercentageChangeInsights(firstPeriod.Clicks, lastPeriod.Clicks),
       impressions: calculatePercentageChangeInsights(firstPeriod.Impressions, lastPeriod.Impressions),
-      ctr: calculatePercentageChangeInsights(firstPeriod.CTR * 100, lastPeriod.CTR * 100),
+      ctr: calculatePercentageChangeInsights(firstPeriod.CTR, lastPeriod.CTR),
       position: calculatePercentageChangeInsights(firstPeriod.Position, lastPeriod.Position, true)
     };
   }
@@ -716,7 +716,7 @@ export function renderInsights(periodData) {
       type: 'ctr',
       icon: 'fas fa-percentage',
       label: 'Average CTR',
-      value: `${p1CTR.toFixed(2)}%`,
+      value: formatDecimal(p1CTR, 2) + '%',
       change: changeData ? formatChange(changeData.ctr) : getNoChangeHTML(periods.length),
       description: periods.length > 1 ? 'vs first period' : `Promedio del período`
     },
@@ -1186,7 +1186,7 @@ export async function renderTable(pages) {
     console.log('🔧 Creando nueva DataTable...', { 
       analysisType, 
       rowsCount: urlsData.length,
-      columnDefs: columnDefs.length 
+      configReady: !!dtConfig
     });
     
     // ✅ VERIFICACIÓN EXHAUSTIVA: La tabla debe existir y estar lista
