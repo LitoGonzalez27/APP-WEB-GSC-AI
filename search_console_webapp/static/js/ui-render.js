@@ -3,7 +3,7 @@ import { elems } from './utils.js';
 import { 
   formatInteger, 
   formatDecimal, 
-  formatCTR, 
+  formatPercentage,
   formatPosition, 
   formatPercentageChange, 
   formatPositionDelta,
@@ -1158,8 +1158,8 @@ export async function renderTable(pages) {
       <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
       <td ${p2ColumnsStyle}>${formatInteger(row.impressions_p2 ?? 0)}</td>
       <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-      <td>${formatCTR(row.ctr_p1)}</td>
-      <td ${p2ColumnsStyle}>${formatCTR(row.ctr_p2)}</td>
+      <td>${formatPercentage(row.ctr_p1)}</td>
+      <td ${p2ColumnsStyle}>${formatPercentage(row.ctr_p2)}</td>
       <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
       <td>${formatPosition(row.position_p1)}</td>
       <td ${p2ColumnsStyle}>${formatPosition(row.position_p2)}</td>
@@ -1285,8 +1285,8 @@ export async function renderTable(pages) {
             <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
             <td>${formatInteger(row.impressions_p2 ?? 0)}</td>
             <td>${formatPercentageChange(row.delta_impressions_percent)}</td>
-            <td>${formatCTR(row.ctr_p1)}</td>
-            <td>${formatCTR(row.ctr_p2)}</td>
+            <td>${formatPercentage(row.ctr_p1)}</td>
+            <td>${formatPercentage(row.ctr_p2)}</td>
             <td>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
             <td>${formatPosition(row.position_p1)}</td>
             <td>${formatPosition(row.position_p2)}</td>
@@ -1784,8 +1784,8 @@ function createDataTableForRange(range, keywords, analysisType) {
       <td>${formatInteger(keyword.impressions_m1 ?? 0)}</td>
       <td ${p2ColumnsStyle}>${formatInteger(keyword.impressions_m2 ?? 0)}</td>
       <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_impressions_percent)}</td>
-      <td>${formatCTR(keyword.ctr_m1)}</td>
-      <td ${p2ColumnsStyle}>${formatCTR(keyword.ctr_m2)}</td>
+      <td>${formatPercentage(keyword.ctr_m1)}</td>
+      <td ${p2ColumnsStyle}>${formatPercentage(keyword.ctr_m2)}</td>
       <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>
       <td>${formatPosition(keyword.position_m1)}</td>
       <td ${p2ColumnsStyle}>${formatPosition(keyword.position_m2)}</td>
@@ -1812,14 +1812,14 @@ function createDataTableForRange(range, keywords, analysisType) {
     { targets: '_all', className: 'dt-body-right' },
     { targets: [0, 1], className: 'dt-body-left' },
     { targets: 0, orderable: false },
-    { targets: [2, 3], type: 'spanish-integer' },
-    { targets: [4], type: 'spanish-delta' },
-    { targets: [5, 6], type: 'spanish-integer' },
-    { targets: [7], type: 'spanish-delta' },
-    { targets: [8, 9], type: 'spanish-percentage' },
-    { targets: [10], type: 'spanish-delta' },
-    { targets: [11, 12], type: 'spanish-decimal' },
-    { targets: [13], type: 'spanish-delta' }
+    { targets: [2, 3], type: 'spanish-integer-pre' },
+    { targets: [4], type: 'spanish-delta-pre' },
+    { targets: [5, 6], type: 'spanish-integer-pre' },
+    { targets: [7], type: 'spanish-delta-pre' },
+    { targets: [8, 9], type: 'spanish-percentage-pre' },
+    { targets: [10], type: 'spanish-delta-pre' },
+    { targets: [11, 12], type: 'spanish-decimal-pre' },
+    { targets: [13], type: 'spanish-delta-pre' }
   ];
 
   // Ocultar columnas para período único
@@ -2187,8 +2187,8 @@ function createUrlKeywordRow(keyword, hasComparison) {
       <td>${formatInteger(keyword.impressions_m1 || 0)}</td>
       ${hasComparison ? `<td>${formatInteger(keyword.impressions_m2 || 0)}</td>` : ''}
       ${hasComparison ? `<td class="${deltaImprClass}">${formatPercentageChange(keyword.delta_impressions_percent)}</td>` : ''}
-      <td>${formatCTR(keyword.ctr_m1)}</td>
-      ${hasComparison ? `<td>${formatCTR(keyword.ctr_m2)}</td>` : ''}
+      <td>${formatPercentage(keyword.ctr_m1)}</td>
+      ${hasComparison ? `<td>${formatPercentage(keyword.ctr_m2)}</td>` : ''}
       ${hasComparison ? `<td class="${deltaCtrClass}">${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>` : ''}
       <td>${formatPosition(keyword.position_m1)}</td>
       ${hasComparison ? `<td>${formatPosition(keyword.position_m2)}</td>` : ''}

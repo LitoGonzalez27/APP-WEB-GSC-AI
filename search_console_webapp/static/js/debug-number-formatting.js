@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     import('./number-utils.js').then(module => {
       const { 
         formatInteger, 
-        formatCTR, 
+        formatPercentage, 
         formatDecimal, 
         formatPosition, 
         formatPercentageChange 
@@ -23,11 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('formatInteger(9666):', formatInteger(9666));
       console.log('formatInteger(1234567):', formatInteger(1234567));
       console.log('formatInteger(123):', formatInteger(123));
+      console.log('(9666).toLocaleString("es-ES"):', (9666).toLocaleString('es-ES'));
+      console.log('(1234567).toLocaleString("es-ES"):', (1234567).toLocaleString('es-ES'));
       
-      console.log('🧪 Testing formatCTR:');
-      console.log('formatCTR(0.0567):', formatCTR(0.0567));
-      console.log('formatCTR(0.1234):', formatCTR(0.1234));
-      console.log('formatCTR(0.05):', formatCTR(0.05));
+              console.log('🧪 Testing formatPercentage (for CTR):');
+        console.log('formatPercentage(5.67) [CTR ya en %]:', formatPercentage(5.67));
+        console.log('formatPercentage(12.34) [CTR ya en %]:', formatPercentage(12.34));
+        console.log('formatPercentage(5.00) [CTR ya en %]:', formatPercentage(5.00));
       
       console.log('🧪 Testing formatDecimal:');
       console.log('formatDecimal(5.67, 2):', formatDecimal(5.67, 2));
@@ -41,17 +43,19 @@ document.addEventListener('DOMContentLoaded', function() {
       console.log('formatPercentageChange(15.5):', formatPercentageChange(15.5));
       console.log('formatPercentageChange(-8.2):', formatPercentageChange(-8.2));
       
-      // Hacer funciones disponibles globalmente para testing manual
-      window.debugFormatting = {
-        formatInteger,
-        formatCTR,
-        formatDecimal,
-        formatPosition,
-        formatPercentageChange
-      };
+              // Hacer funciones disponibles globalmente para testing manual
+        window.debugFormatting = {
+          formatInteger,
+          formatPercentage,
+          formatDecimal,
+          formatPosition,
+          formatPercentageChange
+        };
       
-      console.log('✅ Funciones de formateo disponibles en window.debugFormatting');
-      console.log('🧪 Ejemplo: window.debugFormatting.formatInteger(9666)');
+              console.log('✅ Funciones de formateo disponibles en window.debugFormatting');
+        console.log('🧪 Ejemplos:');
+        console.log('  window.debugFormatting.formatInteger(9666)');
+        console.log('  window.debugFormatting.formatPercentage(5.67) // Para CTR ya en %');
       
     }).catch(error => {
       console.error('❌ Error importando number-utils:', error);

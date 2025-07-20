@@ -5,7 +5,7 @@ import { openSerpModal } from './ui-serp-modal.js';
 import { enhanceTable, setupTableRedrawEnhancements } from './ui-table-enhancements.js';
 import { 
   formatInteger, 
-  formatCTR, 
+  formatPercentage, 
   formatPosition, 
   formatPercentageChange, 
   formatPositionDelta,
@@ -172,8 +172,8 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
         <td>${formatInteger(row.impressions_m1 ?? 0)}</td>
         <td ${p2ColumnsStyle}>${formatInteger(row.impressions_m2 ?? 0)}</td>
         <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-        <td>${formatCTR(row.ctr_m1)}</td>
-        <td ${p2ColumnsStyle}>${formatCTR(row.ctr_m2)}</td>
+        <td>${formatPercentage(row.ctr_m1)}</td>
+        <td ${p2ColumnsStyle}>${formatPercentage(row.ctr_m2)}</td>
         <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
         <td>${formatPosition(row.position_m1)}</td>
         <td ${p2ColumnsStyle}>${formatPosition(row.position_m2)}</td>

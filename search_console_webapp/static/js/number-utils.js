@@ -31,7 +31,9 @@ export function formatInteger(value) {
   if (value == null || value === '' || isNaN(value)) return '0';
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (!isFinite(num)) return '0';
-  return Math.round(num).toLocaleString(ES_LOCALE, ES_FORMAT_OPTIONS);
+  
+  // Formatear con locale español específicamente para enteros
+  return Math.round(num).toLocaleString('es-ES');
 }
 
 /**
@@ -268,14 +270,14 @@ export function getStandardUrlTableConfig(analysisType = 'comparison') {
     { targets: [0, 1], className: 'dt-body-left' }, // Iconos y URL a la izquierda
     { targets: 0, orderable: false }, // No ordenar la columna de iconos
     // Configuración de tipos para ordenamiento correcto
-    { targets: [2, 3], type: 'spanish-integer' }, // Clicks P1 y P2
-    { targets: [4], type: 'spanish-delta' }, // ΔClicks (%)
-    { targets: [5, 6], type: 'spanish-integer' }, // Impressions P1 y P2
-    { targets: [7], type: 'spanish-delta' }, // ΔImp. (%)
-    { targets: [8, 9], type: 'spanish-percentage' }, // CTR P1 y P2
-    { targets: [10], type: 'spanish-delta' }, // ΔCTR (%)
-    { targets: [11, 12], type: 'spanish-decimal' }, // Pos P1 y P2
-    { targets: [13], type: 'spanish-delta' } // ΔPos
+    { targets: [2, 3], type: 'spanish-integer-pre' }, // Clicks P1 y P2
+    { targets: [4], type: 'spanish-delta-pre' }, // ΔClicks (%)
+    { targets: [5, 6], type: 'spanish-integer-pre' }, // Impressions P1 y P2
+    { targets: [7], type: 'spanish-delta-pre' }, // ΔImp. (%)
+    { targets: [8, 9], type: 'spanish-percentage-pre' }, // CTR P1 y P2
+    { targets: [10], type: 'spanish-delta-pre' }, // ΔCTR (%)
+    { targets: [11, 12], type: 'spanish-decimal-pre' }, // Pos P1 y P2
+    { targets: [13], type: 'spanish-delta-pre' } // ΔPos
   ];
 
   // Ocultar columnas para período único
@@ -317,14 +319,14 @@ export function getStandardKeywordTableConfig(analysisType = 'comparison') {
     { targets: [0, 1], className: 'dt-body-left' }, // SERP y keyword a la izquierda
     { targets: 0, orderable: false }, // No ordenar la columna de iconos SERP
     // Configuración de tipos para ordenamiento correcto
-    { targets: [2, 3], type: 'spanish-integer' }, // Clicks M1 y M2
-    { targets: [4], type: 'spanish-delta' }, // ΔClicks (%)
-    { targets: [5, 6], type: 'spanish-integer' }, // Impressions M1 y M2
-    { targets: [7], type: 'spanish-delta' }, // ΔImp. (%)
-    { targets: [8, 9], type: 'spanish-percentage' }, // CTR M1 y M2
-    { targets: [10], type: 'spanish-delta' }, // ΔCTR (%)
-    { targets: [11, 12], type: 'spanish-decimal' }, // Pos M1 y M2
-    { targets: [13], type: 'spanish-delta' } // ΔPos
+    { targets: [2, 3], type: 'spanish-integer-pre' }, // Clicks M1 y M2
+    { targets: [4], type: 'spanish-delta-pre' }, // ΔClicks (%)
+    { targets: [5, 6], type: 'spanish-integer-pre' }, // Impressions M1 y M2
+    { targets: [7], type: 'spanish-delta-pre' }, // ΔImp. (%)
+    { targets: [8, 9], type: 'spanish-percentage-pre' }, // CTR M1 y M2
+    { targets: [10], type: 'spanish-delta-pre' }, // ΔCTR (%)
+    { targets: [11, 12], type: 'spanish-decimal-pre' }, // Pos M1 y M2
+    { targets: [13], type: 'spanish-delta-pre' } // ΔPos
   ];
 
   // Ocultar columnas para período único
