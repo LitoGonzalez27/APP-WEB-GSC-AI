@@ -140,7 +140,7 @@ function processUrlsData(pages) {
         clicks_p2: 0,
         impressions_p1: metric.Impressions || 0,
         impressions_p2: 0,
-        ctr_p1: metric.CTR || 0,
+        ctr_p1: (metric.CTR || 0) * 100,  // ✅ Convertir decimal GSC a porcentaje
         ctr_p2: 0,
         position_p1: metric.Position || null,
         position_p2: null,
@@ -175,13 +175,13 @@ function processUrlsData(pages) {
         // ✅ CORREGIDO: P1 = período actual (más reciente)
         clicks_p1: currentMetric.Clicks || 0,      
         impressions_p1: currentMetric.Impressions || 0,
-        ctr_p1: currentMetric.CTR || 0,
+        ctr_p1: (currentMetric.CTR || 0) * 100,  // ✅ Convertir decimal GSC a porcentaje
         position_p1: currentMetric.Position || null,
         
         // ✅ CORREGIDO: P2 = período de comparación (más antiguo)
         clicks_p2: comparisonMetric.Clicks || 0,      
         impressions_p2: comparisonMetric.Impressions || 0,
-        ctr_p2: comparisonMetric.CTR || 0,
+        ctr_p2: (comparisonMetric.CTR || 0) * 100,  // ✅ Convertir decimal GSC a porcentaje
         position_p2: comparisonMetric.Position || null,
         
         // ✅ CORREGIDO: Deltas calculados como (P1 - P2) / P2

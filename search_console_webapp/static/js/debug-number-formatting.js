@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const testNumbers = ['45.000', '1.500', '999'];
         const parsed = testNumbers.map(n => ({ original: n, parsed: module.parseIntegerValue(n) }));
         console.log('Números ordenados por valor:', parsed.sort((a, b) => b.parsed - a.parsed));
+        
+        console.log('🧪 Testing CTR conversion (GSC decimal to percentage):');
+        console.log('GSC CTR 0.0567 * 100 =', (0.0567 * 100).toFixed(2), '→ formatPercentage:', module.formatPercentage(0.0567 * 100));
+        console.log('GSC CTR 0.1234 * 100 =', (0.1234 * 100).toFixed(2), '→ formatPercentage:', module.formatPercentage(0.1234 * 100));
       
               // Hacer funciones disponibles globalmente para testing manual
         window.debugFormatting = {
