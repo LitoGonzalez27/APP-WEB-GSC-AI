@@ -151,30 +151,23 @@ function completeProgressBar(analysisData = null) {
 
 // Nueva función para el fetch de análisis AI
 async function analyzeAIOverview(keywords, siteUrl) {
-    // Usar la lógica de país principal del negocio
-    const countryToUse = window.getCountryToUse ? window.getCountryToUse() : 'esp';
+    // ✅ NUEVA LÓGICA: Usar la misma lógica que SERP para consistencia
+    const countrySelect = document.getElementById('countrySelect');
+    const selectedCountry = countrySelect ? countrySelect.value : '';
     
     const payload = {
         keywords: keywords,
         site_url: siteUrl
     };
     
-    // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
-    if (countryToUse) {
-        payload.country = countryToUse;
-        
-        // Logging descriptivo sobre qué país se está usando
-        const countryName = window.getCountryName ? window.getCountryName(countryToUse) : countryToUse;
-        const isPrimary = window.primaryBusinessCountry && window.primaryBusinessCountry() === countryToUse;
-        const isManual = document.getElementById('countrySelect')?.value === countryToUse;
-        
-        if (isManual) {
-            console.log(`🎯 Análisis AI Overview usando selección manual: ${countryName}`);
-        } else if (isPrimary) {
-            console.log(`👑 Análisis AI Overview usando país principal del negocio: ${countryName}`);
-        } else {
-            console.log(`🔄 Análisis AI Overview usando fallback: ${countryName}`);
-        }
+    // Solo añadir país si hay uno específico seleccionado
+    // Si está vacío, el backend usará detección dinámica del país con más clics
+    if (selectedCountry) {
+        payload.country = selectedCountry;
+        const countryName = window.getCountryName ? window.getCountryName(selectedCountry) : selectedCountry;
+        console.log(`🎯 Análisis AI Overview con país específico: ${countryName}`);
+    } else {
+        console.log(`🌍 Análisis AI Overview sin país específico - backend usará país con más clics dinámicamente`);
     }
     
     // Timeout aumentado para análisis paralelo

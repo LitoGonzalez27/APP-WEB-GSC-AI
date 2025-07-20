@@ -88,10 +88,55 @@ if is_production or is_staging:
 setup_auth_routes(app)
 
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
-def get_serp_params_with_location(keyword, api_key, country_code=None):
+def get_top_country_for_site(site_url):
+    """
+    Determina dinámicamente el país con más clics para un sitio específico
+    para usar como geolocalización en SERP API cuando no se especifica país.
+    """
+    try:
+        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        if not gsc_service:
+            logger.warning("No se pudo obtener servicio autenticado para determinar país principal")
+            return 'esp'  # fallback
+            
+        # Obtener datos de los últimos 3 meses
+        end_date = pd.Timestamp.now()
+        start_date = end_date - pd.DateOffset(months=3)
+        
+        countries_data = fetch_searchconsole_data_single_call(
+            gsc_service, 
+            site_url, 
+            start_date.strftime('%Y-%m-%d'), 
+            end_date.strftime('%Y-%m-%d'), 
+            ['country'],
+            []
+        )
+        
+        if not countries_data:
+            logger.info(f"[DYNAMIC COUNTRY] Sin datos de países para {site_url}, usando España")
+            return 'esp'
+            
+        # Ordenar por clics y obtener el país principal
+        sorted_countries = sorted(countries_data, key=lambda x: x['clicks'], reverse=True)
+        top_country = sorted_countries[0]['keys'][0]
+        
+        # Validar que el país esté en nuestra configuración
+        country_config = get_country_config(top_country)
+        if not country_config:
+            logger.warning(f"[DYNAMIC COUNTRY] País {top_country} no configurado, usando España")
+            return 'esp'
+            
+        logger.info(f"[DYNAMIC COUNTRY] País con más clics detectado: {country_config['name']} ({top_country}) con {sorted_countries[0]['clicks']:,} clics")
+        return top_country
+        
+    except Exception as e:
+        logger.error(f"Error determinando país principal para {site_url}: {e}")
+        return 'esp'  # fallback seguro
+
+def get_serp_params_with_location(keyword, api_key, country_code=None, site_url=None):
     """
     Genera parámetros para SERP API con geolocalización según el país.
-    ✅ DEBE SER IDÉNTICA a serp_service.py
+    Si no se especifica country_code, determina dinámicamente el país con más clics.
     """
     # Parámetros base
     params = {
@@ -103,6 +148,11 @@ def get_serp_params_with_location(keyword, api_key, country_code=None):
         'num': 20
     }
     
+    # ✅ NUEVA LÓGICA: Si no hay país específico, usar país con más clics dinámicamente
+    if not country_code and site_url:
+        country_code = get_top_country_for_site(site_url)
+        logger.info(f"[SERP DYNAMIC] Usando país con más clics: {country_code}")
+    
     # ✅ AÑADIR: Si se especifica un país, usar su configuración
     if country_code:
         country_config = get_country_config(country_code)
@@ -113,16 +163,16 @@ def get_serp_params_with_location(keyword, api_key, country_code=None):
                 'hl': country_config['serp_hl'],
                 'google_domain': country_config['google_domain']  # 👈 CRÍTICO
             })
-            logger.info(f"[AI ANALYSIS] Usando configuración para {country_config['name']}")
+            logger.info(f"[SERP GEOLOCATION] Usando configuración para {country_config['name']}")
     else:
-        # ✅ NUEVO: Si no hay país, usar España como fallback para consistencia
+        # ✅ FALLBACK: Si no hay país, usar España como fallback para consistencia
         country_config = get_country_config('esp')
         if country_config:
             params.update({
                 'location': country_config['serp_location'],
                 'google_domain': country_config['google_domain']
             })
-            logger.info(f"[AI ANALYSIS] Sin país especificado, usando España por defecto")
+            logger.info(f"[SERP GEOLOCATION] Sin país especificado, usando España por defecto")
     
     return params
 
@@ -1039,15 +1089,23 @@ def download_excel():
 @app.route('/api/serp')
 def get_serp_raw_json():
     keyword_query = request.args.get('keyword')
-    country_param = request.args.get('country', '')
+    country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
+    site_url_param = request.args.get('site_url', '')
     api_key_val = os.getenv('SERPAPI_KEY')
     
     if not keyword_query: 
         return jsonify({'error':'keyword es requerido'}), 400
+    if not site_url_param:
+        return jsonify({'error':'site_url es requerido para determinar geolocalización'}), 400
     if not api_key_val:
         return jsonify({'error':'API key de SerpAPI no configurada'}), 500
-        
-    params_serp = get_serp_params_with_location(keyword_query, api_key_val, country_param)
+    
+    # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
+    country_to_use = country_param if country_param else None
+    
+    logger.info(f"[SERP API] Keyword: '{keyword_query}', País: {country_to_use or 'DINÁMICO'}, Site: {site_url_param}")
+    
+    params_serp = get_serp_params_with_location(keyword_query, api_key_val, country_to_use, site_url_param)
     
     try:
         serp_data_json = get_serp_json(params_serp)
@@ -1063,7 +1121,7 @@ def get_serp_raw_json():
 def get_serp_position():
     keyword_val = request.args.get('keyword')
     site_url_val = request.args.get('site_url', '')
-    country_param = request.args.get('country', '')
+    country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
     api_key_serp = os.getenv('SERPAPI_KEY')
     
     if not keyword_val or not site_url_val:
@@ -1071,9 +1129,12 @@ def get_serp_position():
     if not api_key_serp:
         return jsonify({'error': 'API key de SerpAPI no configurada'}), 500
     
-    logger.info(f"[SERP POSITION] Iniciando búsqueda para '{keyword_val}' en '{site_url_val}' (País: {country_param or 'España'})")
+    # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
+    country_to_use = country_param if country_param else None
     
-    params_serp = get_serp_params_with_location(keyword_val, api_key_serp, country_param)
+    logger.info(f"[SERP POSITION] Iniciando búsqueda para '{keyword_val}' en '{site_url_val}' (País: {country_to_use or 'DINÁMICO'})")
+    
+    params_serp = get_serp_params_with_location(keyword_val, api_key_serp, country_to_use, site_url_val)
     
     try:
         serp_data_pos = get_serp_json(params_serp)
@@ -1142,7 +1203,7 @@ def get_serp_position():
 def get_serp_screenshot_route():
     keyword_param = request.args.get('keyword')
     site_url_param = request.args.get('site_url', '')
-    country_param = request.args.get('country', '')
+    country_param = request.args.get('country', '')  # Puede estar vacío para "All countries"
     api_key_env = os.getenv('SERPAPI_KEY')
 
     if not keyword_param or not site_url_param:
@@ -1151,9 +1212,12 @@ def get_serp_screenshot_route():
          logger.error("API key de SerpAPI no configurada para screenshot.")
          return jsonify({'error': 'API key de SerpAPI no configurada en el servidor'}), 500
     
+    # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
+    country_to_use = country_param if country_param else None
+    
     try:
-        logger.info(f"Solicitando screenshot para keyword: '{keyword_param}', site_url: '{site_url_param}', país: {country_param or 'España'}")
-        return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env, country=country_param)
+        logger.info(f"[SCREENSHOT] Keyword: '{keyword_param}', Site: '{site_url_param}', País: {country_to_use or 'DINÁMICO'}")
+        return get_page_screenshot(keyword=keyword_param, site_url_to_highlight=site_url_param, api_key=api_key_env, country=country_to_use, site_url=site_url_param)
     except Exception as e:
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
@@ -1169,7 +1233,8 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
             'serp_features': [], 'timestamp': time.time(), 'serpapi_success': False
         }
     
-    params_ai = get_serp_params_with_location(keyword_arg, api_key_env_val, country_code)
+    # ✅ NUEVA LÓGICA: Pasar site_url para detección dinámica de país
+    params_ai = get_serp_params_with_location(keyword_arg, api_key_env_val, country_code, site_url_arg)
     
     try:
         serp_data_from_service = get_serp_json(params_ai)
@@ -1323,19 +1388,16 @@ def analyze_ai_overview_route():
         logger.info(f"Country fallback logic needed: {not country_req}")
         logger.info("==================================")
         
-        # NUEVO: Logging que explica la lógica de negocio 
+        # ✅ NUEVO: Logging mejorado sobre la lógica de país
         if country_req:
             country_config = get_country_config(country_req)
             if country_config:
-                if country_req == 'esp':
-                    logger.info(f"[AI BUSINESS LOGIC] 🔄 Analizando desde España (fallback o país principal)")
-                else:
-                    logger.info(f"[AI BUSINESS LOGIC] 👑 Analizando desde país principal del negocio: {country_config['name']} ({country_req})")
-                logger.info(f"[AI BUSINESS LOGIC] 📍 Simulando búsquedas desde: {country_config['serp_location']}")
+                logger.info(f"[AI ANALYSIS] 🎯 Usando país específico: {country_config['name']} ({country_req})")
+                logger.info(f"[AI ANALYSIS] 📍 Simulando búsquedas desde: {country_config['serp_location']}")
             else:
-                logger.warning(f"[AI BUSINESS LOGIC] ⚠️ País no reconocido: {country_req}")
+                logger.warning(f"[AI ANALYSIS] ⚠️ País no reconocido: {country_req}")
         else:
-            logger.info("[AI BUSINESS LOGIC] 🌍 Sin país especificado (análisis global)")
+            logger.info("[AI ANALYSIS] 🌍 Sin país especificado - usando detección dinámica del país con más clics")
         
         if not keywords_data_list:
             return jsonify({'error': 'No se proporcionaron keywords para analizar'}), 400
@@ -1508,38 +1570,57 @@ def get_available_countries():
 @app.route('/debug-serp-params')
 def debug_serp_params():
     keyword = request.args.get('keyword', 'test')
-    country = request.args.get('country', 'esp')
+    country = request.args.get('country', '')  # Puede estar vacío
+    site_url = request.args.get('site_url', '')
     
     serpapi_key = os.getenv('SERPAPI_KEY')
     
-    # Parámetros para AI Analysis
-    ai_params = get_serp_params_with_location(keyword, serpapi_key, country)
+    if not site_url:
+        return jsonify({'error': 'site_url es requerido para test dinámico'}), 400
     
-    # Parámetros para Screenshot (simulando serp_service.py)
-    screenshot_params = {
-        'engine': 'google',
-        'q': keyword,
-        'api_key': serpapi_key,
-        'gl': 'es',
-        'hl': 'es',
-        'num': 20
+    # ✅ NUEVA LÓGICA: Probar detección dinámica
+    country_to_use = country if country else None
+    
+    # Parámetros para AI Analysis (con nueva lógica)
+    ai_params = get_serp_params_with_location(keyword, serpapi_key, country_to_use, site_url)
+    
+    # Información adicional para debug
+    debug_info = {
+        'inputs': {
+            'keyword': keyword,
+            'country_param': country,
+            'site_url': site_url,
+            'country_to_use': country_to_use
+        },
+        'serp_params': ai_params,
+        'logic_applied': {
+            'has_specific_country': bool(country),
+            'will_use_dynamic_detection': not bool(country),
+            'detected_country': None
+        }
     }
     
-    if country:
-        country_config = get_country_config(country)
-        if country_config:
-            screenshot_params.update({
-                'location': country_config['serp_location'],
-                'gl': country_config['serp_gl'],
-                'hl': country_config['serp_hl'],
-                'google_domain': country_config['google_domain']
-            })
+    # Si no hay país específico, mostrar qué país se detectaría
+    if not country:
+        try:
+            detected_country = get_top_country_for_site(site_url)
+            debug_info['logic_applied']['detected_country'] = detected_country
+            debug_info['logic_applied']['detection_successful'] = True
+            
+            # Obtener información del país detectado
+            country_config = get_country_config(detected_country)
+            if country_config:
+                debug_info['detected_country_info'] = {
+                    'code': detected_country,
+                    'name': country_config['name'],
+                    'serp_location': country_config['serp_location'],
+                    'google_domain': country_config['google_domain']
+                }
+        except Exception as e:
+            debug_info['logic_applied']['detection_error'] = str(e)
+            debug_info['logic_applied']['detection_successful'] = False
     
-    return jsonify({
-        'ai_params': ai_params,
-        'screenshot_params': screenshot_params,
-        'are_identical': ai_params == screenshot_params
-    })
+    return jsonify(debug_info)
 
 # ✅ NUEVO ENDPOINT: Obtener keywords de una URL específica
 @app.route('/api/url-keywords', methods=['POST'])

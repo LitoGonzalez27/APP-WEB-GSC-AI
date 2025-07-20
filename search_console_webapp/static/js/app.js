@@ -1066,6 +1066,59 @@ window.debugCountryLogic = function() {
     console.log('=========================');
 };
 
+// ✅ NUEVA FUNCIÓN DE DEBUG PARA SERP DINÁMICO
+window.debugSerpDynamic = async function(keyword = 'test seo') {
+    const siteUrl = document.getElementById('siteUrlSelect')?.value;
+    const countrySelect = document.getElementById('countrySelect');
+    const selectedCountry = countrySelect?.value || '';
+    
+    if (!siteUrl) {
+        console.error('⚠️ Selecciona un dominio primero');
+        return;
+    }
+    
+    console.log('=== DEBUG SERP DINÁMICO ===');
+    console.log(`Keyword: "${keyword}"`);
+    console.log(`Site URL: ${siteUrl}`);
+    console.log(`País seleccionado: "${selectedCountry}" ${selectedCountry === '' ? '(All countries)' : ''}`);
+    
+    try {
+        // Test backend detection
+        const debugUrl = `/debug-serp-params?keyword=${encodeURIComponent(keyword)}&site_url=${encodeURIComponent(siteUrl)}&country=${selectedCountry}`;
+        const response = await fetch(debugUrl);
+        const debugData = await response.json();
+        
+        console.log('📊 Resultado del backend:');
+        console.log('  - País específico:', debugData.logic_applied.has_specific_country);
+        console.log('  - Usará detección dinámica:', debugData.logic_applied.will_use_dynamic_detection);
+        
+        if (debugData.detected_country_info) {
+            console.log('  - País detectado dinámicamente:', debugData.detected_country_info.name, `(${debugData.detected_country_info.code})`);
+            console.log('  - Localización SERP:', debugData.detected_country_info.serp_location);
+        }
+        
+        console.log('🔧 Parámetros SERP generados:');
+        console.log('  - Location:', debugData.serp_params.location);
+        console.log('  - GL:', debugData.serp_params.gl);
+        console.log('  - HL:', debugData.serp_params.hl);
+        console.log('  - Google Domain:', debugData.serp_params.google_domain);
+        
+        // Test frontend logic
+        console.log('🌐 Lógica del frontend:');
+        if (typeof getSelectedCountry === 'function') {
+            const frontendCountry = getSelectedCountry();
+            console.log('  - getSelectedCountry():', frontendCountry || '(vacío - usará detección dinámica)');
+        }
+        
+        console.log('✅ Debug completado. Datos completos:', debugData);
+        
+    } catch (error) {
+        console.error('❌ Error en debug:', error);
+    }
+    
+    console.log('===========================');
+};
+
 // ✅ OPTIMIZADA: función para sincronizar con el navbar (solo una vez)
 function setupNavbarIntegration() {
     if (navbarIntegrationSetup) {

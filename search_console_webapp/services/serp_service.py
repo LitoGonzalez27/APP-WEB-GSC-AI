@@ -43,15 +43,23 @@ def get_serp_html(params: dict) -> str:
         logger.error(f"Excepción en get_serp_html para params {params}: {e}", exc_info=True)
         return f"<html><body>Excepción al obtener HTML: {e}</body></html>"
 
-def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, country: str = None) -> Response:
+def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, country: str = None, site_url: str = None) -> Response:
     """
     Obtiene el HTML de SERP, lo mejora para resaltar el dominio,
     captura la pantalla con Playwright, cachea el PNG y devuelve un Response de Flask.
     Genera screenshot de SERP con geolocalización opcional.
+    Si no se especifica country, determina dinámicamente el país con más clics.
     """
     if not api_key:
         logger.error("API Key de SerpAPI no proporcionada para get_page_screenshot.")
         return Response("API Key de SerpAPI no configurada", status=500, mimetype='text/plain')
+
+    # ✅ NUEVA LÓGICA: Si no hay país específico y tenemos site_url, determinar dinámicamente
+    if not country and site_url:
+        # Importar función desde app para evitar dependencia circular
+        from app import get_top_country_for_site
+        country = get_top_country_for_site(site_url)
+        logger.info(f"[SCREENSHOT DYNAMIC] Usando país con más clics: {country}")
 
     # Parámetros base
     params = {
@@ -82,9 +90,10 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     logger.info(f"Params: {json.dumps(params, indent=2)}")
     logger.info(f"========================")
 
-    # Crear cache key que incluya el país
+    # Crear cache key que incluya el país y site_url (para cache dinámico)
     domain_norm = normalize_search_console_url(site_url_to_highlight)
-    cache_key_hash = hashlib.md5(f"screenshot:{keyword}:{domain_norm}:{country or 'default'}".encode()).hexdigest()
+    site_key = site_url or 'no-site'
+    cache_key_hash = hashlib.md5(f"screenshot:{keyword}:{domain_norm}:{country or 'default'}:{site_key}".encode()).hexdigest()
     now = time.time()
 
     if cache_key_hash in SCREENSHOT_CACHE and now - SCREENSHOT_CACHE[cache_key_hash][1] < CACHE_DURATION:

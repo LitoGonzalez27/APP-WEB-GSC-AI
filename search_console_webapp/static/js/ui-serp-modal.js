@@ -46,58 +46,83 @@ function urlsMatchJS(serpUrl, scPropertyUrl) {
   );
 }
 
-// ✅ FUNCIÓN CORREGIDA: getSelectedCountry
+// ✅ FUNCIÓN CORREGIDA: getSelectedCountry para SERP
 function getSelectedCountry() {
-    const country = window.getCountryToUse ? window.getCountryToUse() : null;
+    const countrySelect = document.getElementById('countrySelect');
     
-    // ✅ NUEVO: Para SERP API, si no hay país específico, usar España como fallback
-    // Esto es porque SERP API siempre necesita un país para geolocalización
-    if (!country) {
-        console.log('🌍 Sin país específico para SERP - usando España como geolocalización por defecto');
-        return 'esp';
+    // ✅ NUEVA LÓGICA: Retornar exactamente lo que el usuario seleccionó
+    // Si seleccionó "All countries" (value=""), retornamos vacío para activar detección dinámica
+    if (countrySelect && countrySelect.value === '') {
+        console.log('🌍 Usuario seleccionó "All countries" - SERP usará país con más clics dinámicamente');
+        return '';
     }
     
-    console.log(`🎯 Usando país para SERP: ${country}`);
-    return country;
+    if (countrySelect && countrySelect.value) {
+        console.log(`🎯 Usuario seleccionó país específico para SERP: ${countrySelect.value}`);
+        return countrySelect.value;
+    }
+    
+    // Fallback si no hay country select disponible
+    console.log('🔄 Sin selector de país disponible - SERP usará detección dinámica');
+    return '';
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpPosition
 async function fetchSerpPosition(keyword, siteUrl) {
-    const selectedCountry = getSelectedCountry(); // Siempre devuelve un país para SERP
+    const selectedCountry = getSelectedCountry(); // Puede ser vacío para activar detección dinámica
+    const currentSiteUrl = siteUrl || document.getElementById('siteUrlSelect')?.value || '';
+    
     const params = new URLSearchParams({
         keyword: keyword,
-        site_url: siteUrl,
-        country: selectedCountry // Siempre incluir país para SERP
+        site_url: currentSiteUrl
     });
     
-    console.log(`🔍 SERP Position API: keyword="${keyword}", country="${selectedCountry}"`);
+    // Solo añadir country si hay uno específico seleccionado
+    if (selectedCountry) {
+        params.set('country', selectedCountry);
+    }
+    
+    console.log(`🔍 SERP Position API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp/position?${params}`);
     return response.json();
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpData
 async function fetchSerpData(keyword) {
-    const selectedCountry = getSelectedCountry(); // Siempre devuelve un país para SERP
+    const selectedCountry = getSelectedCountry(); // Puede ser vacío para activar detección dinámica
+    const currentSiteUrl = document.getElementById('siteUrlSelect')?.value || '';
+    
     const params = new URLSearchParams({
         keyword: keyword,
-        country: selectedCountry // Siempre incluir país para SERP
+        site_url: currentSiteUrl
     });
     
-    console.log(`🔍 SERP Data API: keyword="${keyword}", country="${selectedCountry}"`);
+    // Solo añadir country si hay uno específico seleccionado
+    if (selectedCountry) {
+        params.set('country', selectedCountry);
+    }
+    
+    console.log(`🔍 SERP Data API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp?${params}`);
     return response.json();
 }
 
 // ✅ FUNCIÓN CORREGIDA: fetchSerpScreenshot
 async function fetchSerpScreenshot(keyword, siteUrl) {
-    const selectedCountry = getSelectedCountry(); // Siempre devuelve un país para SERP
+    const selectedCountry = getSelectedCountry(); // Puede ser vacío para activar detección dinámica
+    const currentSiteUrl = siteUrl || document.getElementById('siteUrlSelect')?.value || '';
+    
     const params = new URLSearchParams({
         keyword: keyword,
-        site_url: siteUrl,
-        country: selectedCountry // Siempre incluir país para SERP
+        site_url: currentSiteUrl
     });
     
-    console.log(`📸 SERP Screenshot API: keyword="${keyword}", country="${selectedCountry}"`);
+    // Solo añadir country si hay uno específico seleccionado
+    if (selectedCountry) {
+        params.set('country', selectedCountry);
+    }
+    
+    console.log(`📸 SERP Screenshot API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp/screenshot?${params}`);
     return response;
 }
@@ -392,5 +417,8 @@ async function loadScreenshot(keyword, userSpecificUrl, siteUrlScProperty) {
     showError(`Network error: ${error.message || 'Could not connect to server.'}`);
   }
 }
+
+// ✅ HACER DISPONIBLE GLOBALMENTE PARA DEBUG
+window.getSelectedCountry = getSelectedCountry;
 
 window.openSerpModal = openSerpModal;
