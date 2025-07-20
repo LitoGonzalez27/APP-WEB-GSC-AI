@@ -650,8 +650,9 @@
   <!-- ✅ NUEVO: Inicializador centralizado para evitar conflictos -->
   <script src="{{ url_for('static', filename='js/session-init.js') }}"></script>
 
-  <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
   <!-- ✅ NUEVO: Importar el selector de fechas antes de app.js -->
   <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>

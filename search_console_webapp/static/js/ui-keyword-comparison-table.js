@@ -3,48 +3,21 @@
 import { elems } from './utils.js';
 import { openSerpModal } from './ui-serp-modal.js';
 import { enhanceTable, setupTableRedrawEnhancements } from './ui-table-enhancements.js';
+import { 
+  formatInteger, 
+  formatCTR, 
+  formatPosition, 
+  formatPercentageChange, 
+  formatPositionDelta,
+  getStandardKeywordTableConfig,
+  registerDataTableSortingTypes,
+  escapeHtml as escapeHtmlUtil
+} from './number-utils.js';
 
 
 let keywordComparisonDataTable = null;
 
-function escapeHtml(unsafe) {
-  if (!unsafe) return '';
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatPercentageChange(value, isCTR = false) {
-  if (value === "Infinity") return '+∞%';
-  if (value === "-Infinity") return '-∞%';
-  if (value === "New") return '<span class="positive-change">New</span>';
-  if (value === "Lost") return '<span class="negative-change">Lost</span>';
-  if (typeof value === 'number' && isFinite(value)) {
-    if (value === 0 && Object.is(value, -0)) return isCTR ? '-0.00%' : '-0.0%';
-    if (value === 0) return isCTR ? '0.00%' : '0.0%';
-    return isCTR ? `${value.toFixed(2)}%` : `${value.toFixed(1)}%`;
-  }
-  return 'N/A';
-}
-
-function formatPosition(value) {
-  return (value == null || isNaN(value)) ? 'N/A' : value.toFixed(1);
-}
-
-function formatPositionDelta(delta, pos1, pos2) {
-  if (delta === 'New')   return '<span class="positive-change">New</span>';
-  if (delta === 'Lost')  return '<span class="negative-change">Lost</span>';
-  if (typeof delta === 'number' && isFinite(delta)) {
-    if (delta > 0) return `+${delta.toFixed(1)}`;
-    if (delta < 0) return delta.toFixed(1);
-    return '0.0';
-  }
-  if (pos1 == null && pos2 == null) return 'N/A';
-  return pos1 === pos2 ? '0.0' : 'N/A';
-}
+// ✅ REMOVIDO: Funciones duplicadas - ahora se usan las del módulo centralizado number-utils.js
 
 // ✅ FUNCIÓN para determinar el tipo de análisis
 function getAnalysisType(keywordData, periods = null) {
@@ -127,77 +100,7 @@ function updateTableHeaders(analysisType) {
   }
 }
 
-// === ORDENAMIENTO PERSONALIZADO PARA DATATABLES ===
-function parseSortableValue(val) {
-  if (val === 'Infinity' || val === '+∞%' || val === '+∞') return Infinity;
-  if (val === '-Infinity' || val === '-∞%' || val === '-∞') return -Infinity;
-  if (val === 'New' || val === 'Nuevo') return 0.00001; // Valor bajo pero positivo
-  if (val === 'Lost' || val === 'Perdido') return -0.00001; // Valor bajo pero negativo
-  if (typeof val === 'string') {
-    // ✅ CORREGIDO: Manejar separadores de miles (puntos) y porcentajes
-    let num = val.replace(/[%]/g, ''); // Quitar %
-    
-    // ✅ Si el string contiene puntos, asumir que son separadores de miles
-    // Ejemplo: "14.789" -> 14789, "1.234.567" -> 1234567
-    if (num.includes('.') && !num.includes(',')) {
-      // Solo puntos - interpretar como separadores de miles
-      num = num.replace(/\./g, '');
-    } else if (num.includes(',') && !num.includes('.')) {
-      // Solo comas - interpretar como separadores de miles
-      num = num.replace(/,/g, '');
-    } else if (num.includes('.') && num.includes(',')) {
-      // Ambos - el último carácter determina el separador decimal
-      const lastDot = num.lastIndexOf('.');
-      const lastComma = num.lastIndexOf(',');
-      
-      if (lastDot > lastComma) {
-        // Punto es decimal, comas son separadores de miles: "1,234.56"
-        num = num.replace(/,/g, '');
-      } else {
-        // Coma es decimal, puntos son separadores de miles: "1.234,56"
-        num = num.replace(/\./g, '').replace(',', '.');
-      }
-    }
-    
-    let parsed = parseFloat(num);
-    if (!isNaN(parsed)) return parsed;
-  }
-  if (typeof val === 'number') return val;
-  return 0;
-}
-
-// ✅ NUEVO: Función específica para números con separadores de miles
-function parseThousandsSeparatedNumber(val) {
-  if (typeof val === 'number') return val;
-  if (typeof val !== 'string') return 0;
-  
-  // Limpiar el string
-  let cleaned = val.toString().trim();
-  
-  // Si contiene solo dígitos y puntos (sin comas), tratar puntos como separadores de miles
-  if (/^\d{1,3}(\.\d{3})*$/.test(cleaned)) {
-    return parseInt(cleaned.replace(/\./g, ''), 10);
-  }
-  
-  // Si contiene solo dígitos y comas (sin puntos), tratar comas como separadores de miles
-  if (/^\d{1,3}(,\d{3})*$/.test(cleaned)) {
-    return parseInt(cleaned.replace(/,/g, ''), 10);
-  }
-  
-  // Usar la función general para otros casos
-  return parseSortableValue(val);
-}
-
-if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
-  // Para columnas de porcentaje
-  DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
-  // Para columnas de posición
-  DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
-  // Para columnas de delta
-  DataTable.ext.type.order['delta-custom-pre'] = parseSortableValue;
-  // ✅ NUEVO: Para columnas de números con separadores de miles
-  DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
-}
+// ✅ REMOVIDO: Funciones de parsing duplicadas - ahora se usan las del módulo centralizado
 
 export function renderKeywordComparisonTable(keywordData, periods = null) {
   if (!elems.keywordComparisonTableBody) return;
@@ -257,20 +160,20 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
       tr.innerHTML = `
         <td class="dt-body-center">
           <i class="fas fa-search serp-icon"
-             data-keyword="${escapeHtml(row.keyword)}"
-             data-url="${escapeHtml(row.url || '')}"
-             title="Ver SERP para ${escapeHtml(row.keyword)}"
+             data-keyword="${escapeHtmlUtil(row.keyword)}"
+             data-url="${escapeHtmlUtil(row.url || '')}"
+             title="Ver SERP para ${escapeHtmlUtil(row.keyword)}"
              style="cursor:pointer;"></i>
         </td>
-        <td class="dt-body-left kw-cell">${escapeHtml(row.keyword || 'N/A')}</td>
-        <td>${(row.clicks_m1 ?? 0).toLocaleString('es-ES')}</td>
-        <td ${p2ColumnsStyle}>${(row.clicks_m2 ?? 0).toLocaleString('es-ES')}</td>
+        <td class="dt-body-left kw-cell">${escapeHtmlUtil(row.keyword || 'N/A')}</td>
+        <td>${formatInteger(row.clicks_m1 ?? 0)}</td>
+        <td ${p2ColumnsStyle}>${formatInteger(row.clicks_m2 ?? 0)}</td>
         <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_clicks_percent)}</td>
-        <td>${(row.impressions_m1 ?? 0).toLocaleString('es-ES')}</td>
-        <td ${p2ColumnsStyle}>${(row.impressions_m2 ?? 0).toLocaleString('es-ES')}</td>
+        <td>${formatInteger(row.impressions_m1 ?? 0)}</td>
+        <td ${p2ColumnsStyle}>${formatInteger(row.impressions_m2 ?? 0)}</td>
         <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-        <td>${typeof row.ctr_m1 === 'number' ? row.ctr_m1.toFixed(2) + '%' : 'N/A'}</td>
-        <td ${p2ColumnsStyle}>${typeof row.ctr_m2 === 'number' ? row.ctr_m2.toFixed(2) + '%' : 'N/A'}</td>
+        <td>${formatCTR(row.ctr_m1)}</td>
+        <td ${p2ColumnsStyle}>${formatCTR(row.ctr_m2)}</td>
         <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
         <td>${formatPosition(row.position_m1)}</td>
         <td ${p2ColumnsStyle}>${formatPosition(row.position_m2)}</td>
@@ -287,41 +190,10 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
       }
     });
 
-    // ✅ Configuración de DataTable adaptada
-    const columnDefs = [
-      { targets: '_all', className: 'dt-body-right' },
-      { targets: [0,1], className: 'dt-body-left' },
-      { targets: 0, orderable: false },
-      // Orden personalizado para cada columna relevante
-      { targets: [2,3], type: 'thousands-separated' }, // ✅ CORREGIDO: Clicks M1 y M2 con separadores de miles
-      { targets: [4], type: 'delta-custom' }, // ΔClicks (%)
-      { targets: [5,6], type: 'thousands-separated' }, // ✅ CORREGIDO: Impressions M1 y M2 con separadores de miles
-      { targets: [7], type: 'delta-custom' }, // ΔImp. (%)
-      { targets: [8,9], type: 'percent-custom' }, // CTR M1 y M2
-      { targets: [10], type: 'delta-custom' }, // ΔCTR (%)
-      { targets: [11,12], type: 'position-custom' }, // Pos M1 y M2
-      { targets: [13], type: 'delta-custom' } // ΔPos
-    ];
-
-    // ✅ Ocultar columnas para período único
-    if (analysisType === 'single') {
-      columnDefs.push(
-        { targets: [3, 4, 6, 7, 9, 10, 12, 13], visible: false }  // Ocultar P2 y Delta
-      );
-    }
-
-    keywordComparisonDataTable = new DataTable(elems.keywordComparisonTable, {
-      pageLength: 10,
-      lengthMenu: [10, 25, 50, 100, -1],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
-      scrollX: true,
-      responsive: false,
-      columnDefs: columnDefs,
-      order: [[2, 'desc']], // ✅ CORREGIDO: Siempre ordenar por clicks_m1 (columna 2)
-      drawCallback: () => {
-        if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
-      }
-    });
+    // ✅ ACTUALIZADO: Usar configuración estandarizada del módulo centralizado
+    registerDataTableSortingTypes(); // Asegurar que los tipos estén registrados
+    const dtConfig = getStandardKeywordTableConfig(analysisType);
+    keywordComparisonDataTable = new DataTable(elems.keywordComparisonTable, dtConfig);
   }
 
   if (elems.keywordComparisonTableTitle) {

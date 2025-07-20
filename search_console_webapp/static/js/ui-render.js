@@ -1,5 +1,18 @@
 // ui-render.js - ACTUALIZADO para manejar períodos específicos en lugar de meses
 import { elems } from './utils.js';
+import { 
+  formatInteger, 
+  formatDecimal, 
+  formatCTR, 
+  formatPosition, 
+  formatPercentageChange, 
+  formatPositionDelta,
+  parseNumericValue, 
+  parseIntegerValue,
+  getStandardUrlTableConfig,
+  registerDataTableSortingTypes,
+  escapeHtml as escapeHtmlUtil
+} from './number-utils.js';
 
 // Variable para almacenar la instancia de DataTable de URLs
 let urlsDataTable = null;
@@ -28,35 +41,7 @@ export function resetUrlsTableState() {
 // ✅ NUEVO: Variable global para almacenar los datos de keywords
 let globalKeywordData = [];
 
-// Funciones auxiliares para formateo (reutilizadas de la tabla de keywords)
-function formatPercentageChange(value, isCTR = false) {
-  if (value === "Infinity") return '+∞%';
-  if (value === "-Infinity") return '-∞%';
-  if (value === "New") return '<span class="positive-change">Nuevo</span>';
-  if (value === "Lost") return '<span class="negative-change">Perdido</span>';
-  if (typeof value === 'number' && isFinite(value)) {
-    if (value === 0 && Object.is(value, -0)) return isCTR ? '-0.00%' : '-0.0%';
-    if (value === 0) return isCTR ? '0.00%' : '0.0%';
-    return isCTR ? `${value.toFixed(2)}%` : `${value.toFixed(1)}%`;
-  }
-  return 'N/A';
-}
-
-function formatPosition(value) {
-  return (value == null || isNaN(value)) ? 'N/A' : value.toFixed(1);
-}
-
-function formatPositionDelta(delta, pos1, pos2) {
-  if (delta === 'New')   return '<span class="positive-change">Nuevo</span>';
-  if (delta === 'Lost')  return '<span class="negative-change">Perdido</span>';
-  if (typeof delta === 'number' && isFinite(delta)) {
-    if (delta > 0) return `+${delta.toFixed(1)}`;
-    if (delta < 0) return delta.toFixed(1);
-    return '0.0';
-  }
-  if (pos1 == null && pos2 == null) return 'N/A';
-  return pos1 === pos2 ? '0.0' : 'N/A';
-}
+// ✅ REMOVIDO: Funciones de formateo - ahora se usan las del módulo centralizado number-utils.js
 
 // ✅ NUEVA función para determinar el tipo de análisis para URLs
 function getUrlAnalysisType(urlData, periods = null) {
@@ -303,7 +288,7 @@ function createMiniChart(canvasId, data, color, labels, type = 'line') {
               const value = context.parsed.y;
               if (canvasId.includes('ctr')) return `${value.toFixed(2)}%`;
               if (canvasId.includes('position')) return value.toFixed(1);
-              return Number.isInteger(value) ? value.toLocaleString() : value;
+              return Number.isInteger(value) ? formatInteger(value) : value;
             }
           }
         }
@@ -401,9 +386,9 @@ export function renderSummary(periodSummary) {
   // ✅ ACTUALIZADA: Función para crear cards con información de períodos
   const createSummaryCard = (id, title, icon, total, chartData, chartLabels, color, isPercentage = false, isPosition = false) => {
     const formatValue = (val) => {
-      if (isPercentage) return `${val.toFixed(2)}%`;
-      if (isPosition) return val.toFixed(1);
-      return val.toLocaleString();
+      if (isPercentage) return formatDecimal(val, 2) + '%';
+      if (isPosition) return formatDecimal(val, 1);
+      return formatInteger(val);
     };
 
     // Función para formatear el delta
@@ -565,32 +550,32 @@ export function renderKeywords(keywordStats = {}) {
       <div class="overview-card total-kws">
         <div class="card-icon"><i class="fas fa-search"></i></div>
         <div class="label">Total KWs</div>
-        <div class="value">${(ov.total ?? 0).toLocaleString()}</div>
+        <div class="value">${formatInteger(ov.total ?? 0)}</div>
       </div>
       <div class="overview-card improved">
         <div class="card-icon"><i class="fas fa-arrow-trend-up"></i></div>
         <div class="label">${hasComparison ? 'Improve positions' : 'Top 1-3'}</div>
-        <div class="value">${hasComparison ? '+' + (ov.improved ?? 0).toLocaleString() : (keywordStats.top3?.current ?? 0).toLocaleString()}</div>
+        <div class="value">${hasComparison ? '+' + formatInteger(ov.improved ?? 0) : formatInteger(keywordStats.top3?.current ?? 0)}</div>
       </div>
       <div class="overview-card declined">
         <div class="card-icon"><i class="fas fa-arrow-trend-down"></i></div>
         <div class="label">${hasComparison ? 'Decline positions' : 'Pos 4-10'}</div>
-        <div class="value">${hasComparison ? '-' + (ov.worsened ?? 0).toLocaleString() : (keywordStats.top10?.current ?? 0).toLocaleString()}</div>
+        <div class="value">${hasComparison ? '-' + formatInteger(ov.worsened ?? 0) : formatInteger(keywordStats.top10?.current ?? 0)}</div>
       </div>
       <div class="overview-card same-pos">
         <div class="card-icon"><i class="fas fa-equals"></i></div>
         <div class="label">Same pos.</div>
-        <div class="value">${hasComparison ? (ov.same ?? 0).toLocaleString() : (keywordStats.top20?.current ?? 0).toLocaleString()}</div>
+        <div class="value">${hasComparison ? formatInteger(ov.same ?? 0) : formatInteger(keywordStats.top20?.current ?? 0)}</div>
       </div>
       <div class="overview-card added">
         <div class="card-icon"><i class="fas fa-plus-circle"></i></div>
         <div class="label">${hasComparison ? 'New' : 'Pos 20+'}</div>
-        <div class="value">${hasComparison ? '+' + (ov.new ?? 0).toLocaleString() : (keywordStats.top20plus?.current ?? 0).toLocaleString()}</div>
+        <div class="value">${hasComparison ? '+' + formatInteger(ov.new ?? 0) : formatInteger(keywordStats.top20plus?.current ?? 0)}</div>
       </div>
       <div class="overview-card removed">
         <div class="card-icon"><i class="fas fa-minus-circle"></i></div>
         <div class="label">${hasComparison ? 'Lost' : 'Current period'}</div>
-        <div class="value">${hasComparison ? '-' + (ov.lost ?? 0).toLocaleString() : '📊'}</div>
+        <div class="value">${hasComparison ? '-' + formatInteger(ov.lost ?? 0) : '📊'}</div>
       </div>
     `;
     elems.keywordOverviewDiv.style.display = 'flex';
@@ -608,12 +593,12 @@ export function renderKeywords(keywordStats = {}) {
       return `
         <div class="category-card clickable-card" data-position-range="${dataRange}" style="cursor: pointer;">
           <div class="card-icon"><i class="fas fa-layer-group"></i></div>
-          <div class="value">${(stat.current ?? 0).toLocaleString()}</div>
+          <div class="value">${formatInteger(stat.current ?? 0)}</div>
           <div class="subtitle">${title}</div>
           ${hasComparison ? `
-            <div class="entry">New: <strong>+${(stat.new ?? 0).toLocaleString()}</strong></div>
-            <div class="exit">Lost: <strong>-${(stat.lost ?? 0).toLocaleString()}</strong></div>
-            <div class="maintain">Maintained: <strong>${(stat.stay ?? 0).toLocaleString()}</strong></div>
+            <div class="entry">New: <strong>+${formatInteger(stat.new ?? 0)}</strong></div>
+            <div class="exit">Lost: <strong>-${formatInteger(stat.lost ?? 0)}</strong></div>
+            <div class="maintain">Maintained: <strong>${formatInteger(stat.stay ?? 0)}</strong></div>
           ` : `
             <div class="entry">Keywords in these positions</div>
             <div class="maintain">Total of the selected period</div>
@@ -715,7 +700,7 @@ export function renderInsights(periodData) {
       type: 'clicks',
       icon: 'fas fa-mouse-pointer',
       label: 'Clicks',
-      value: p1Clicks.toLocaleString(),
+      value: formatInteger(p1Clicks),
       change: changeData ? formatChange(changeData.clicks) : getNoChangeHTML(periods.length),
       description: periods.length > 1 ? 'vs first period' : `Total del período`
     },
@@ -723,7 +708,7 @@ export function renderInsights(periodData) {
       type: 'impressions',
       icon: 'fas fa-eye',
       label: 'Impressions',
-      value: p1Impressions.toLocaleString(),
+      value: formatInteger(p1Impressions),
       change: changeData ? formatChange(changeData.impressions) : getNoChangeHTML(periods.length),
       description: periods.length > 1 ? 'vs first period' : `Total del período`
     },
@@ -1162,19 +1147,19 @@ export async function renderTable(pages) {
     tr.innerHTML = `
       <td class="dt-body-center">
         <i class="fas fa-list keywords-icon"
-           data-url="${escapeHtml(row.url)}"
+           data-url="${escapeHtmlUtil(row.url)}"
            title="Ver keywords para esta URL"
            style="cursor:pointer; color: #007bff;"></i>
       </td>
       <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
-      <td>${(row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
-      <td ${p2ColumnsStyle}>${(row.clicks_p2 ?? 0).toLocaleString('es-ES')}</td>
+      <td>${formatInteger(row.clicks_p1 ?? 0)}</td>
+      <td ${p2ColumnsStyle}>${formatInteger(row.clicks_p2 ?? 0)}</td>
       <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_clicks_percent)}</td>
-      <td>${(row.impressions_p1 ?? 0).toLocaleString('es-ES')}</td>
-      <td ${p2ColumnsStyle}>${(row.impressions_p2 ?? 0).toLocaleString('es-ES')}</td>
+      <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
+      <td ${p2ColumnsStyle}>${formatInteger(row.impressions_p2 ?? 0)}</td>
       <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-      <td>${typeof row.ctr_p1 === 'number' ? row.ctr_p1.toFixed(2) + '%' : 'N/A'}</td>
-      <td ${p2ColumnsStyle}>${typeof row.ctr_p2 === 'number' ? row.ctr_p2.toFixed(2) + '%' : 'N/A'}</td>
+      <td>${formatCTR(row.ctr_p1)}</td>
+      <td ${p2ColumnsStyle}>${formatCTR(row.ctr_p2)}</td>
       <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
       <td>${formatPosition(row.position_p1)}</td>
       <td ${p2ColumnsStyle}>${formatPosition(row.position_p2)}</td>
@@ -1193,114 +1178,9 @@ export async function renderTable(pages) {
   
   console.log(`✅ ${urlsData.length} filas añadidas al tbody. Filas en DOM: ${elems.tableBody ? elems.tableBody.children.length : 'N/A'}`);
 
-  // === ORDENAMIENTO PERSONALIZADO PARA DATATABLES ===
-  function parseSortableValue(val) {
-    if (val === 'Infinity' || val === '+∞%' || val === '+∞') return Infinity;
-    if (val === '-Infinity' || val === '-∞%' || val === '-∞') return -Infinity;
-    if (val === 'New' || val === 'Nuevo') return 0.00001; // Valor bajo pero positivo
-    if (val === 'Lost' || val === 'Perdido') return -0.00001; // Valor bajo pero negativo
-    if (typeof val === 'string') {
-      // ✅ CORREGIDO: Manejar separadores de miles (puntos) y porcentajes
-      let num = val.replace(/[%]/g, ''); // Quitar %
-      
-      // ✅ Si el string contiene puntos, asumir que son separadores de miles
-      // Ejemplo: "14.789" -> 14789, "1.234.567" -> 1234567
-      if (num.includes('.') && !num.includes(',')) {
-        // Solo puntos - interpretar como separadores de miles
-        num = num.replace(/\./g, '');
-      } else if (num.includes(',') && !num.includes('.')) {
-        // Solo comas - interpretar como separadores de miles
-        num = num.replace(/,/g, '');
-      } else if (num.includes('.') && num.includes(',')) {
-        // Ambos - el último carácter determina el separador decimal
-        const lastDot = num.lastIndexOf('.');
-        const lastComma = num.lastIndexOf(',');
-        
-        if (lastDot > lastComma) {
-          // Punto es decimal, comas son separadores de miles: "1,234.56"
-          num = num.replace(/,/g, '');
-        } else {
-          // Coma es decimal, puntos son separadores de miles: "1.234,56"
-          num = num.replace(/\./g, '').replace(',', '.');
-        }
-      }
-      
-      let parsed = parseFloat(num);
-      if (!isNaN(parsed)) return parsed;
-    }
-    if (typeof val === 'number') return val;
-    return 0;
-  }
-
-  // ✅ NUEVO: Función específica para números con separadores de miles
-  function parseThousandsSeparatedNumber(val) {
-    if (typeof val === 'number') return val;
-    if (typeof val !== 'string') return 0;
-    
-    // Limpiar el string
-    let cleaned = val.toString().trim();
-    
-    // Si contiene solo dígitos y puntos (sin comas), tratar puntos como separadores de miles
-    if (/^\d{1,3}(\.\d{3})*$/.test(cleaned)) {
-      return parseInt(cleaned.replace(/\./g, ''), 10);
-    }
-    
-    // Si contiene solo dígitos y comas (sin puntos), tratar comas como separadores de miles
-    if (/^\d{1,3}(,\d{3})*$/.test(cleaned)) {
-      return parseInt(cleaned.replace(/,/g, ''), 10);
-    }
-    
-    // Usar la función general para otros casos
-    return parseSortableValue(val);
-  }
-
-  if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
-    // Para columnas de porcentaje
-    DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
-    // Para columnas de posición
-    DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
-    // Para columnas de delta
-    DataTable.ext.type.order['delta-custom-pre'] = parseSortableValue;
-    // ✅ NUEVO: Para columnas de números con separadores de miles
-    DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
-  }
-  
-  // ✅ NUEVO: Aplicar tipos de ordenamiento personalizados para el modal
-  if (window.DataTable && window.DataTable.ext && window.DataTable.ext.type) {
-    // Asegurar que los tipos personalizados estén disponibles para el modal
-    if (!DataTable.ext.type.order['percent-custom-pre']) {
-      DataTable.ext.type.order['percent-custom-pre'] = parseSortableValue;
-    }
-    if (!DataTable.ext.type.order['position-custom-pre']) {
-      DataTable.ext.type.order['position-custom-pre'] = parseSortableValue;
-    }
-    if (!DataTable.ext.type.order['thousands-separated-pre']) {
-      DataTable.ext.type.order['thousands-separated-pre'] = parseThousandsSeparatedNumber;
-    }
-  }
-
-  // ✅ Configuración de DataTable adaptada
-  const columnDefs = [
-    { targets: '_all', className: 'dt-body-right' },
-    { targets: [0, 1], className: 'dt-body-left' }, // Iconos y URL a la izquierda
-    { targets: 0, orderable: false }, // No ordenar la columna de iconos
-    // Orden personalizado para cada columna relevante
-    { targets: [2,3], type: 'thousands-separated' }, // Clicks P1 y P2 con separadores de miles
-    { targets: [4], type: 'delta-custom' }, // ΔClicks (%)
-    { targets: [5,6], type: 'thousands-separated' }, // Impressions P1 y P2 con separadores de miles
-    { targets: [7], type: 'delta-custom' }, // ΔImp. (%)
-    { targets: [8,9], type: 'percent-custom' }, // CTR P1 y P2
-    { targets: [10], type: 'delta-custom' }, // ΔCTR (%)
-    { targets: [11,12], type: 'position-custom' }, // Pos P1 y P2
-    { targets: [13], type: 'delta-custom' } // ΔPos
-  ];
-
-  // ✅ Ocultar columnas para período único
-  if (analysisType === 'single') {
-    columnDefs.push(
-      { targets: [3, 4, 6, 7, 9, 10, 12, 13], visible: false }  // Ocultar P2 y Delta (ajustado por nueva columna)
-    );
-  }
+  // ✅ ACTUALIZADO: Usar configuración estandarizada del módulo centralizado
+  registerDataTableSortingTypes(); // Asegurar que los tipos estén registrados
+  const dtConfig = getStandardUrlTableConfig(analysisType);
 
   try {
     console.log('🔧 Creando nueva DataTable...', { 
@@ -1396,17 +1276,17 @@ export async function renderTable(pages) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td class="dt-body-center">
-              <i class="fas fa-list keywords-icon" data-url="${escapeHtml(row.url)}" title="Ver keywords para esta URL" style="cursor:pointer; color: #007bff;"></i>
+              <i class="fas fa-list keywords-icon" data-url="${escapeHtmlUtil(row.url)}" title="Ver keywords para esta URL" style="cursor:pointer; color: #007bff;"></i>
             </td>
             <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
-            <td>${(row.clicks_p1 ?? 0).toLocaleString('es-ES')}</td>
-            <td>${(row.clicks_p2 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${formatInteger(row.clicks_p1 ?? 0)}</td>
+            <td>${formatInteger(row.clicks_p2 ?? 0)}</td>
             <td>${formatPercentageChange(row.delta_clicks_percent)}</td>
-            <td>${(row.impressions_p1 ?? 0).toLocaleString('es-ES')}</td>
-            <td>${(row.impressions_p2 ?? 0).toLocaleString('es-ES')}</td>
+            <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
+            <td>${formatInteger(row.impressions_p2 ?? 0)}</td>
             <td>${formatPercentageChange(row.delta_impressions_percent)}</td>
-            <td>${typeof row.ctr_p1 === 'number' ? row.ctr_p1.toFixed(2) + '%' : 'N/A'}</td>
-            <td>${typeof row.ctr_p2 === 'number' ? row.ctr_p2.toFixed(2) + '%' : 'N/A'}</td>
+            <td>${formatCTR(row.ctr_p1)}</td>
+            <td>${formatCTR(row.ctr_p2)}</td>
             <td>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
             <td>${formatPosition(row.position_p1)}</td>
             <td>${formatPosition(row.position_p2)}</td>
@@ -1421,24 +1301,7 @@ export async function renderTable(pages) {
     // ✅ NUEVO: Pequeño delay para asegurar estabilidad del DOM
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    urlsDataTable = new DataTable('#resultsTable', {
-      pageLength: 10,
-      lengthMenu: [10, 25, 50, 100, -1],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
-      scrollX: true,
-      responsive: false,
-      columnDefs: columnDefs,
-      order: [[2, 'desc']], // ✅ CORREGIDO: Siempre ordenar por clicks P1 (período actual, ajustado por nueva columna)
-      drawCallback: () => {
-        if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
-      },
-      // ✅ NUEVO: Configuraciones adicionales para evitar conflictos
-      retrieve: false, // No recuperar instancia existente
-      destroy: false,  // No permitir auto-destroy
-      stateSave: false, // No guardar estado entre sesiones
-      deferRender: true, // Renderizado diferido para mejor rendimiento
-      processing: false // Desactivar indicador de procesamiento
-    });
+    urlsDataTable = new DataTable('#resultsTable', dtConfig);
     
     console.log('✅ Nueva DataTable creada exitosamente');
     
@@ -1605,41 +1468,7 @@ function getAnalysisTypeModal(keywordData) {
   return hasComparison ? 'comparison' : 'single';
 }
 
-function formatPercentageChangeModal(value, isCTR = false) {
-  if (value === 'Infinity' || value === Infinity) {
-    return '+∞%';
-  }
-  if (value === '-Infinity' || value === -Infinity) {
-    return '-∞%';
-  }
-  if (value === 'New' || value === 'Nuevo') {
-    return 'New';
-  }
-  if (value === 'Lost' || value === 'Perdido') {
-    return 'Lost';
-  }
-  if (typeof value === 'number') {
-    if (isCTR) {
-      return value >= 0 ? `+${value.toFixed(2)}pp` : `${value.toFixed(2)}pp`;
-    } else {
-      return value >= 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
-    }
-  }
-  return 'N/A';
-}
-
-function formatPositionModal(value) {
-  return typeof value === 'number' ? value.toFixed(1) : 'N/A';
-}
-
-function formatPositionDeltaModal(delta, pos1, pos2) {
-  if (delta === 'New' || delta === 'Nuevo') return 'New';
-  if (delta === 'Lost' || delta === 'Perdido') return 'Lost';
-  if (typeof delta === 'number') {
-    return delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1);
-  }
-  return 'N/A';
-}
+// ✅ REMOVIDO: Funciones Modal duplicadas - ahora se usan las del módulo centralizado
 
 function updateModalTableHeaders(analysisType) {
   const table = document.getElementById('keywordModalTable');
@@ -1943,24 +1772,24 @@ function createDataTableForRange(range, keywords, analysisType) {
     tr.innerHTML = `
       <td class="dt-body-center">
         <i class="fas fa-search serp-icon"
-           data-keyword="${escapeHtml(keyword.keyword)}"
-           data-url="${escapeHtml(keyword.url || '')}"
-           title="Ver SERP para ${escapeHtml(keyword.keyword)}"
+           data-keyword="${escapeHtmlUtil(keyword.keyword)}"
+           data-url="${escapeHtmlUtil(keyword.url || '')}"
+           title="Ver SERP para ${escapeHtmlUtil(keyword.keyword)}"
            style="cursor:pointer;"></i>
       </td>
-      <td class="dt-body-left kw-cell">${escapeHtml(keyword.keyword || 'N/A')}</td>
-      <td>${(keyword.clicks_m1 ?? 0).toLocaleString('es-ES')}</td>
-      <td ${p2ColumnsStyle}>${(keyword.clicks_m2 ?? 0).toLocaleString('es-ES')}</td>
-      <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_clicks_percent)}</td>
-      <td>${(keyword.impressions_m1 ?? 0).toLocaleString('es-ES')}</td>
-      <td ${p2ColumnsStyle}>${(keyword.impressions_m2 ?? 0).toLocaleString('es-ES')}</td>
-      <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_impressions_percent)}</td>
-      <td>${typeof keyword.ctr_m1 === 'number' ? (keyword.ctr_m1 * 100).toFixed(2) + '%' : 'N/A'}</td>
-      <td ${p2ColumnsStyle}>${typeof keyword.ctr_m2 === 'number' ? (keyword.ctr_m2 * 100).toFixed(2) + '%' : 'N/A'}</td>
-      <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChangeModal(keyword.delta_ctr_percent, true)}</td>
-      <td>${formatPositionModal(keyword.position_m1)}</td>
-      <td ${p2ColumnsStyle}>${formatPositionModal(keyword.position_m2)}</td>
-      <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDeltaModal(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>
+      <td class="dt-body-left kw-cell">${escapeHtmlUtil(keyword.keyword || 'N/A')}</td>
+      <td>${formatInteger(keyword.clicks_m1 ?? 0)}</td>
+      <td ${p2ColumnsStyle}>${formatInteger(keyword.clicks_m2 ?? 0)}</td>
+      <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_clicks_percent)}</td>
+      <td>${formatInteger(keyword.impressions_m1 ?? 0)}</td>
+      <td ${p2ColumnsStyle}>${formatInteger(keyword.impressions_m2 ?? 0)}</td>
+      <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_impressions_percent)}</td>
+      <td>${formatCTR(keyword.ctr_m1)}</td>
+      <td ${p2ColumnsStyle}>${formatCTR(keyword.ctr_m2)}</td>
+      <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>
+      <td>${formatPosition(keyword.position_m1)}</td>
+      <td ${p2ColumnsStyle}>${formatPosition(keyword.position_m2)}</td>
+      <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>
     `;
     modalTableBody.appendChild(tr);
   });
@@ -2359,20 +2188,20 @@ function createUrlKeywordRow(keyword, hasComparison) {
     <tr>
       <td class="dt-body-center">
         <i class="fas fa-search serp-icon"
-           data-keyword="${escapeHtml(keyword.keyword)}"
-           data-url="${escapeHtml(keyword.url)}"
-           title="Ver SERP para ${escapeHtml(keyword.keyword)}"
+           data-keyword="${escapeHtmlUtil(keyword.keyword)}"
+           data-url="${escapeHtmlUtil(keyword.url)}"
+           title="Ver SERP para ${escapeHtmlUtil(keyword.keyword)}"
            style="cursor:pointer;"></i>
       </td>
-      <td class="dt-body-left">${escapeHtml(keyword.keyword)}</td>
-      <td>${(keyword.clicks_m1 || 0).toLocaleString('es-ES')}</td>
-      ${hasComparison ? `<td>${(keyword.clicks_m2 || 0).toLocaleString('es-ES')}</td>` : ''}
+      <td class="dt-body-left">${escapeHtmlUtil(keyword.keyword)}</td>
+      <td>${formatInteger(keyword.clicks_m1 || 0)}</td>
+      ${hasComparison ? `<td>${formatInteger(keyword.clicks_m2 || 0)}</td>` : ''}
       ${hasComparison ? `<td class="${deltaClicksClass}">${formatPercentageChange(keyword.delta_clicks_percent)}</td>` : ''}
-      <td>${(keyword.impressions_m1 || 0).toLocaleString('es-ES')}</td>
-      ${hasComparison ? `<td>${(keyword.impressions_m2 || 0).toLocaleString('es-ES')}</td>` : ''}
+      <td>${formatInteger(keyword.impressions_m1 || 0)}</td>
+      ${hasComparison ? `<td>${formatInteger(keyword.impressions_m2 || 0)}</td>` : ''}
       ${hasComparison ? `<td class="${deltaImprClass}">${formatPercentageChange(keyword.delta_impressions_percent)}</td>` : ''}
-      <td>${typeof keyword.ctr_m1 === 'number' ? keyword.ctr_m1.toFixed(2) + '%' : 'N/A'}</td>
-      ${hasComparison ? `<td>${typeof keyword.ctr_m2 === 'number' ? keyword.ctr_m2.toFixed(2) + '%' : 'N/A'}</td>` : ''}
+      <td>${formatCTR(keyword.ctr_m1)}</td>
+      ${hasComparison ? `<td>${formatCTR(keyword.ctr_m2)}</td>` : ''}
       ${hasComparison ? `<td class="${deltaCtrClass}">${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>` : ''}
       <td>${formatPosition(keyword.position_m1)}</td>
       ${hasComparison ? `<td>${formatPosition(keyword.position_m2)}</td>` : ''}
