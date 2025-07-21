@@ -57,20 +57,20 @@ export function displayTypologyChart(container, analysisData) {
       <div class="ai-typology-header">
         <h3 class="ai-typology-title">
           <i class="fas fa-chart-bar"></i>
-          Análisis de AI Overview por Tipología y Posición
+          AI Overview Analysis by Keyword Length & Position
         </h3>
         <div class="ai-typology-subtitle">
-          Basado en el análisis actual de ${analysisData.keywordResults.length} keywords
+          Based on current analysis of ${analysisData.keywordResults.length} keywords
         </div>
       </div>
       
       <div class="ai-typology-main-container">
-        <!-- COLUMNA IZQUIERDA: Gráfico de Tipología -->
+        <!-- COLUMNA IZQUIERDA: Tabla de Longitud de Keywords -->
         <div class="ai-typology-left">
-          <div id="typologyChartContainer" class="ai-typology-container">
+          <div id="keywordLengthTableContainer" class="ai-typology-container">
             <div class="typology-loading">
               <i class="fas fa-calculator"></i>
-              <p>Procesando keywords del análisis actual...</p>
+              <p>Processing keyword analysis...</p>
             </div>
           </div>
         </div>
@@ -80,19 +80,9 @@ export function displayTypologyChart(container, analysisData) {
           <div id="aioPositionTableContainer" class="aio-position-table-container">
             <div class="typology-loading">
               <i class="fas fa-list-ol"></i>
-              <p>Analizando posiciones en AI Overview...</p>
+              <p>Analyzing AI Overview positions...</p>
             </div>
           </div>
-        </div>
-      </div>
-      
-      <div class="typology-insights" id="typologyInsights" style="display: none;">
-        <div class="typology-insights-container">
-          <h4 class="typology-insights-title">
-            <i class="fas fa-lightbulb"></i>
-            Insights de Tipología y Posicionamiento
-          </h4>
-          <div class="typology-insights-grid" id="typologyInsightsContent"></div>
         </div>
       </div>
     </div>
@@ -105,17 +95,17 @@ export function displayTypologyChart(container, analysisData) {
 }
 
 /**
- * Procesa los datos del análisis actual y genera el gráfico
+ * Procesa los datos del análisis actual y genera las tablas
  */
 function processCurrentAnalysisData(keywordResults) {
-  console.log('🔍 Procesando', keywordResults.length, 'keywords para tipología');
+  console.log('🔍 Processing', keywordResults.length, 'keywords for analysis');
 
-  // Definir categorías según los nuevos criterios
+  // Definir categorías actualizadas según los nuevos criterios
   const categories = {
-    '1_palabra': { label: '1 palabra', min: 1, max: 1, total: 0, conAI: 0 },
-    '2_3_palabras': { label: '2-3 palabras', min: 2, max: 3, total: 0, conAI: 0 },
-    '4_8_palabras': { label: '4-8 palabras', min: 4, max: 8, total: 0, conAI: 0 },
-    '9_12_palabras': { label: '9-12 palabras', min: 9, max: 12, total: 0, conAI: 0 }
+    'short_tail': { label: 'Short Tail', description: '1 word', min: 1, max: 1, total: 0, withAI: 0 },
+    'middle_tail': { label: 'Middle Tail', description: '2-3 words', min: 2, max: 3, total: 0, withAI: 0 },
+    'long_tail': { label: 'Long Tail', description: '4-8 words', min: 4, max: 8, total: 0, withAI: 0 },
+    'super_long_tail': { label: 'Super Long Tail', description: '9+ words', min: 9, max: Infinity, total: 0, withAI: 0 }
   };
 
   // Procesar cada keyword del análisis actual
@@ -124,74 +114,116 @@ function processCurrentAnalysisData(keywordResults) {
     const wordCount = keyword.trim().split(/\s+/).length;
     const hasAI = result.ai_analysis?.has_ai_overview || false;
 
-    console.log(`📝 Keyword: "${keyword}" - ${wordCount} palabras - AI: ${hasAI}`);
+    console.log(`📝 Keyword: "${keyword}" - ${wordCount} words - AI: ${hasAI}`);
 
     // Clasificar en la categoría correcta
     for (const [key, category] of Object.entries(categories)) {
       if (wordCount >= category.min && wordCount <= category.max) {
         category.total++;
         if (hasAI) {
-          category.conAI++;
+          category.withAI++;
         }
         break;
       }
     }
   });
 
-  // Preparar datos para el gráfico
-  const typologyData = {
-    categories: [],
-    total_queries: [],
-    queries_with_ai: [],
-    ai_percentage: []
-  };
-
-  // Calcular total de AIO para porcentajes relativos
-  const totalWithAI = Object.values(categories).reduce((sum, cat) => sum + cat.conAI, 0);
-
-  console.log('📊 Resumen por categorías:');
-  Object.values(categories).forEach(category => {
-    if (category.total > 0) { // Solo mostrar categorías con datos
-      const percentageOfCategory = category.total > 0 ? (category.conAI / category.total * 100) : 0;
-      const percentageOfTotal = totalWithAI > 0 ? (category.conAI / totalWithAI * 100) : 0;
-      
-      console.log(`   - ${category.label}: ${category.conAI}/${category.total} (${percentageOfCategory.toFixed(1)}% de la categoría, ${percentageOfTotal.toFixed(1)}% del total AIO)`);
-      
-      typologyData.categories.push(category.label);
-      typologyData.total_queries.push(category.total);
-      typologyData.queries_with_ai.push(category.conAI);
-      typologyData.ai_percentage.push(percentageOfTotal); // Porcentaje relativo al total de AIO
-    }
-  });
-
-  const summary = {
-    total_queries_analyzed: keywordResults.length,
-    total_with_ai_overview: totalWithAI,
-    categories_with_data: typologyData.categories.length
-  };
-
-  // Crear el gráfico
-  createTypologyChart(typologyData, summary);
+  // Crear la tabla de longitud de keywords
+  createKeywordLengthTable(categories, keywordResults.length);
   
   // Crear la tabla de posiciones AIO
   createAIOPositionTable(keywordResults);
+}
+
+/**
+ * Crea la tabla de longitud de keywords
+ */
+function createKeywordLengthTable(categories, totalKeywords) {
+  const container = document.getElementById('keywordLengthTableContainer');
+  if (!container) {
+    console.error('Container de tabla de longitud de keywords no encontrado');
+    return;
+  }
+
+  // Calcular total de keywords con AI Overview
+  const totalWithAI = Object.values(categories).reduce((sum, cat) => sum + cat.withAI, 0);
+
+  console.log('📊 Creating keyword length table with data:', categories);
+
+  // Crear tabla HTML
+  let tableHTML = `
+    <div class="aio-position-table-header">
+      <h4 class="aio-position-table-title">Keyword Length Analysis</h4>
+      <p class="aio-position-table-subtitle">
+        Distribution of ${totalKeywords} keywords analyzed with ${totalWithAI} having AI Overview
+      </p>
+    </div>
+    
+    <table class="aio-position-table">
+      <thead>
+        <tr>
+          <th>Keyword Length</th>
+          <th style="text-align: center;">Keywords</th>
+          <th style="text-align: right;">Weight</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  // Procesar cada categoría
+  Object.values(categories).forEach(category => {
+    const percentage = totalKeywords > 0 ? (category.total / totalKeywords * 100) : 0;
+    
+    tableHTML += `
+      <tr>
+        <td class="aio-position-range">
+          <div style="font-weight: 600; color: #0D7FF3;">${category.label}</div>
+          <div style="font-size: 0.8rem; color: #666666; margin-top: 0.25rem;">${category.description}</div>
+        </td>
+        <td class="aio-position-count">
+          <div style="font-weight: 700; font-size: 1.1rem;">${category.total}</div>
+          <div style="font-size: 0.75rem; color: #666666;">${category.withAI} with AI</div>
+        </td>
+        <td class="aio-position-percentage">${percentage.toFixed(1)}%</td>
+      </tr>
+    `;
+  });
+
+  tableHTML += `
+      </tbody>
+    </table>
+    
+    <div class="aio-position-summary" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); text-align: center;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
+        <div style="padding: 0.75rem; background: rgba(13, 127, 243, 0.08); border-radius: 8px;">
+          <div style="font-weight: 700; color: #0D7FF3; font-size: 1.25rem;">${totalWithAI}</div>
+          <div style="color: #666666;">With AI Overview</div>
+        </div>
+        <div style="padding: 0.75rem; background: rgba(149, 165, 166, 0.08); border-radius: 8px;">
+          <div style="font-weight: 700; color: #95a5a6; font-size: 1.25rem;">${totalKeywords - totalWithAI}</div>
+          <div style="color: #666666;">Without AI Overview</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = tableHTML;
   
-  // Mostrar insights
-  showTypologyInsights(typologyData, summary);
+  console.log('✅ Keyword length table created');
 }
 
 /**
  * Procesa las posiciones AIO y crea datos para la tabla
  */
 function processAIOPositionData(keywordResults) {
-  console.log('🎯 Procesando posiciones AIO para', keywordResults.length, 'keywords');
+  console.log('🎯 Processing AIO positions for', keywordResults.length, 'keywords');
 
   // Definir rangos de posición
   const positionRanges = {
     '1-3': { label: '1 - 3', min: 1, max: 3, count: 0 },
     '4-6': { label: '4 - 6', min: 4, max: 6, count: 0 },
     '7-9': { label: '7 - 9', min: 7, max: 9, count: 0 },
-    '10+': { label: '10 o más', min: 10, max: Infinity, count: 0 }
+    '10+': { label: '10 or more', min: 10, max: Infinity, count: 0 }
   };
 
   let totalWithAIOPosition = 0;
@@ -202,7 +234,7 @@ function processAIOPositionData(keywordResults) {
     const hasAI = result.ai_analysis?.has_ai_overview || false;
     const aioPosition = result.ai_analysis?.domain_ai_source_position;
 
-    console.log(`🔍 Keyword: "${keyword}" - AI: ${hasAI} - Posición AIO: ${aioPosition}`);
+    console.log(`🔍 Keyword: "${keyword}" - AI: ${hasAI} - AIO Position: ${aioPosition}`);
 
     // Solo procesar si tiene AI Overview y posición
     if (hasAI && aioPosition && aioPosition > 0) {
@@ -212,7 +244,7 @@ function processAIOPositionData(keywordResults) {
       for (const [key, range] of Object.entries(positionRanges)) {
         if (aioPosition >= range.min && aioPosition <= range.max) {
           range.count++;
-          console.log(`   ✅ Clasificado en rango ${range.label} (posición ${aioPosition})`);
+          console.log(`   ✅ Classified in range ${range.label} (position ${aioPosition})`);
           break;
         }
       }
@@ -234,7 +266,7 @@ function processAIOPositionData(keywordResults) {
     }
   });
 
-  console.log('📊 Resumen de posiciones AIO:', positionData);
+  console.log('📊 AIO positions summary:', positionData);
 
   return {
     positionData,
@@ -249,7 +281,7 @@ function processAIOPositionData(keywordResults) {
 function createAIOPositionTable(keywordResults) {
   const container = document.getElementById('aioPositionTableContainer');
   if (!container) {
-    console.error('Container de tabla de posiciones AIO no encontrado');
+    console.error('AIO position table container not found');
     return;
   }
 
@@ -261,9 +293,9 @@ function createAIOPositionTable(keywordResults) {
     container.innerHTML = `
       <div class="typology-empty">
         <i class="fas fa-info-circle"></i>
-        <p>Tu dominio no aparece como fuente en ningún AI Overview</p>
+        <p>Your domain doesn't appear as a source in any AI Overview</p>
         <p style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.5rem;">
-          ${totalWithAI} keywords tienen AI Overview, pero tu sitio no está mencionado
+          ${totalWithAI} keywords have AI Overview, but your site is not mentioned
         </p>
       </div>
     `;
@@ -273,18 +305,18 @@ function createAIOPositionTable(keywordResults) {
   // Crear tabla HTML
   let tableHTML = `
     <div class="aio-position-table-header">
-      <h4 class="aio-position-table-title">Posiciones en AI Overview</h4>
+      <h4 class="aio-position-table-title">AI Overview Positions</h4>
       <p class="aio-position-table-subtitle">
-        ${totalWithAIOPosition} menciones de tu dominio en ${totalWithAI} AI Overview detectados
+        ${totalWithAIOPosition} mentions of your domain in ${totalWithAI} detected AI Overview
       </p>
     </div>
     
     <table class="aio-position-table">
       <thead>
         <tr>
-          <th>Posición</th>
+          <th>Position</th>
           <th style="text-align: center;">Keywords</th>
-          <th style="text-align: right;">Peso</th>
+          <th style="text-align: right;">Weight</th>
         </tr>
       </thead>
       <tbody>
@@ -308,11 +340,11 @@ function createAIOPositionTable(keywordResults) {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
         <div style="padding: 0.75rem; background: rgba(231, 76, 60, 0.08); border-radius: 8px;">
           <div style="font-weight: 700; color: #e74c3c; font-size: 1.25rem;">${totalWithAIOPosition}</div>
-          <div style="color: #666666;">Menciones totales</div>
+          <div style="color: #666666;">Total mentions</div>
         </div>
         <div style="padding: 0.75rem; background: rgba(149, 165, 166, 0.08); border-radius: 8px;">
           <div style="font-weight: 700; color: #95a5a6; font-size: 1.25rem;">${totalWithAI - totalWithAIOPosition}</div>
-          <div style="color: #666666;">Sin mención</div>
+          <div style="color: #666666;">Without mention</div>
         </div>
       </div>
     </div>
@@ -320,309 +352,7 @@ function createAIOPositionTable(keywordResults) {
 
   container.innerHTML = tableHTML;
   
-  console.log('✅ Tabla de posiciones AIO creada');
-}
-
-/**
- * Carga los datos de tipología desde el servidor
- */
-async function loadTypologyData() {
-  // Esta función ya no se usa, pero la mantengo por compatibilidad
-  console.log('⚠️ loadTypologyData llamada pero se usa procesamiento dinámico');
-}
-
-/**
- * Crea el gráfico de barras de tipología
- */
-function createTypologyChart(typologyData, summary) {
-  const container = document.getElementById('typologyChartContainer');
-  if (!container) return;
-
-  // Si no hay datos, mostrar mensaje
-  if (!typologyData.categories || typologyData.categories.length === 0) {
-    container.innerHTML = `
-      <div class="typology-empty">
-        <i class="fas fa-info-circle"></i>
-        <p>No se encontraron keywords con AI Overview en este análisis</p>
-      </div>
-    `;
-    return;
-  }
-
-  // Encontrar el valor máximo para escalar las barras (usamos queries_with_ai para escalar)
-  const maxValue = Math.max(...typologyData.queries_with_ai);
-  const totalAIO = typologyData.queries_with_ai.reduce((sum, val) => sum + val, 0);
-  
-  // Crear gráfico HTML
-  let chartHTML = `
-    <div class="typology-chart">
-      <div class="typology-chart-header">
-        <h4 class="typology-chart-title">AI Overview por Tipología de Consulta</h4>
-        <p class="typology-chart-subtitle">
-          ${summary.total_queries_analyzed} keywords analizadas • ${totalAIO} con AI Overview
-        </p>
-      </div>
-      
-      <div class="typology-chart-bars">
-  `;
-
-  typologyData.categories.forEach((category, index) => {
-    const totalQueries = typologyData.total_queries[index];
-    const withAI = typologyData.queries_with_ai[index];
-    const percentageOfTotal = typologyData.ai_percentage[index];
-    const percentageOfCategory = totalQueries > 0 ? (withAI / totalQueries * 100) : 0;
-    
-    // Escalar la barra basada en la cantidad de AIO (no en total de queries)
-    const barWidth = maxValue > 0 ? (withAI / maxValue) * 100 : 0;
-    
-    chartHTML += `
-      <div class="typology-bar-group">
-        <div class="typology-bar-header">
-          <div class="typology-bar-label">
-            <div class="typology-bar-category">${category}</div>
-            <div class="typology-bar-details">
-              ${totalQueries} keywords total • ${withAI} con AIO
-            </div>
-          </div>
-          <div class="typology-bar-stats">
-            <div class="typology-bar-value">${withAI}</div>
-            <div class="typology-bar-percentage">
-              ${percentageOfTotal.toFixed(1)}% del total AIO
-            </div>
-          </div>
-        </div>
-        
-        <div class="typology-bar-container">
-          <div class="typology-bar-fill" style="width: ${barWidth}%;">
-            ${withAI > 0 ? `<span class="typology-bar-fill-text">${withAI}</span>` : ''}
-          </div>
-        </div>
-        
-        <div class="typology-bar-footer">
-          <span>${percentageOfCategory.toFixed(1)}% de keywords de esta categoría tienen AIO</span>
-          <span>Peso: ${percentageOfTotal.toFixed(1)}% del total de AIO detectado</span>
-        </div>
-      </div>
-    `;
-  });
-
-  chartHTML += `
-      </div>
-      
-      <div class="typology-chart-summary">
-        <div class="typology-summary-grid">
-          <div class="typology-summary-card with-ai">
-            <div class="typology-summary-number">${totalAIO}</div>
-            <div class="typology-summary-label">Keywords con AI Overview</div>
-          </div>
-          <div class="typology-summary-card without-ai">
-            <div class="typology-summary-number">${summary.total_queries_analyzed - totalAIO}</div>
-            <div class="typology-summary-label">Keywords sin AI Overview</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="typology-chart-legend">
-        <div class="typology-legend-content">
-          <div class="typology-legend-item">
-            <div class="typology-legend-color"></div>
-            <span>Keywords con AI Overview</span>
-          </div>
-          <span class="typology-legend-separator">•</span>
-          <span>Las barras muestran cantidad absoluta y peso relativo</span>
-        </div>
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = chartHTML;
-  
-  // Animar las barras después de que se rendericen
-  setTimeout(() => {
-    const bars = container.querySelectorAll('.typology-bar-fill');
-    bars.forEach(bar => {
-      bar.style.transform = 'scaleX(1)';
-    });
-  }, 100);
-}
-
-/**
- * Muestra insights de tipología basados en el análisis actual
- */
-function showTypologyInsights(typologyData, summary) {
-  const insightsContainer = document.getElementById('typologyInsights');
-  const insightsContent = document.getElementById('typologyInsightsContent');
-  
-  if (!insightsContainer || !insightsContent) return;
-
-  // Calcular insights del análisis actual
-  const insights = calculateCurrentAnalysisInsights(typologyData, summary);
-  
-  let insightsHTML = '';
-  
-  insights.forEach(insight => {
-    insightsHTML += `
-      <div class="typology-insight-item">
-        <i class="${insight.icon} typology-insight-icon" style="color: ${insight.color};"></i>
-        <span class="typology-insight-text">${insight.text}</span>
-      </div>
-    `;
-  });
-  
-  insightsContent.innerHTML = insightsHTML;
-  insightsContainer.style.display = 'block';
-}
-
-/**
- * Calcula insights específicos del análisis actual
- */
-function calculateCurrentAnalysisInsights(data, summary) {
-  const insights = [];
-  
-  if (!data.categories || data.categories.length === 0) {
-    return [{
-      icon: 'fas fa-info-circle',
-      color: '#3498db',
-      text: 'No se detectó AI Overview en ninguna keyword de este análisis'
-    }];
-  }
-
-  const totalWithAI = data.queries_with_ai.reduce((sum, val) => sum + val, 0);
-  const totalAnalyzed = summary.total_queries_analyzed;
-  const aiRate = (totalWithAI / totalAnalyzed * 100);
-
-  // Insight general sobre la tasa de AI Overview
-  if (aiRate >= 70) {
-    insights.push({
-      icon: 'fas fa-exclamation-triangle',
-      color: '#e74c3c',
-      text: `¡Alto riesgo! ${aiRate.toFixed(1)}% de tus keywords principales ya tienen AI Overview`
-    });
-  } else if (aiRate >= 40) {
-    insights.push({
-      icon: 'fas fa-exclamation-circle',
-      color: '#f39c12',
-      text: `Riesgo moderado: ${aiRate.toFixed(1)}% de tus keywords tienen AI Overview`
-    });
-  } else if (aiRate >= 15) {
-    insights.push({
-      icon: 'fas fa-chart-line',
-      color: '#3498db',
-      text: `${aiRate.toFixed(1)}% de tus keywords tienen AI Overview - situación manejable`
-    });
-  } else {
-    insights.push({
-      icon: 'fas fa-check-circle',
-      color: '#27ae60',
-      text: `Bajo impacto: solo ${aiRate.toFixed(1)}% de tus keywords tienen AI Overview`
-    });
-  }
-
-  // Encontrar la categoría con mayor cantidad de AIO
-  let maxAICategory = '';
-  let maxAICount = 0;
-  let maxAIPercentage = 0;
-
-  data.categories.forEach((category, index) => {
-    const aiCount = data.queries_with_ai[index];
-    const aiPercentage = data.ai_percentage[index];
-    
-    if (aiCount > maxAICount) {
-      maxAICount = aiCount;
-      maxAICategory = category;
-      maxAIPercentage = aiPercentage;
-    }
-  });
-
-  if (maxAICount > 0) {
-    insights.push({
-      icon: 'fas fa-target',
-      color: '#9b59b6',
-      text: `Las keywords de "${maxAICategory}" son las más afectadas (${maxAICount} keywords, ${maxAIPercentage.toFixed(1)}% del total AIO)`
-    });
-  }
-
-  // Comparar keywords cortas vs largas
-  const shortCategories = ['1 palabra', '2-3 palabras'];
-  const longCategories = ['4-8 palabras', '9-12 palabras'];
-  
-  let shortAI = 0, shortTotal = 0;
-  let longAI = 0, longTotal = 0;
-
-  data.categories.forEach((category, index) => {
-    const aiCount = data.queries_with_ai[index];
-    const totalCount = data.total_queries[index];
-    
-    if (shortCategories.includes(category)) {
-      shortAI += aiCount;
-      shortTotal += totalCount;
-    } else if (longCategories.includes(category)) {
-      longAI += aiCount;
-      longTotal += totalCount;
-    }
-  });
-
-  if (shortTotal > 0 && longTotal > 0) {
-    const shortRate = (shortAI / shortTotal * 100);
-    const longRate = (longAI / longTotal * 100);
-    
-    if (Math.abs(shortRate - longRate) > 15) {
-      if (shortRate > longRate) {
-        insights.push({
-          icon: 'fas fa-compress-alt',
-          color: '#e67e22',
-          text: `Las keywords cortas tienen mayor riesgo de AI Overview (${shortRate.toFixed(1)}% vs ${longRate.toFixed(1)}%)`
-        });
-      } else {
-        insights.push({
-          icon: 'fas fa-expand-alt',
-          color: '#16a085',
-          text: `Las keywords largas son más vulnerables a AI Overview (${longRate.toFixed(1)}% vs ${shortRate.toFixed(1)}%)`
-        });
-      }
-    }
-  }
-
-  // Recomendación estratégica
-  if (totalWithAI > 0) {
-    if (aiRate >= 50) {
-      insights.push({
-        icon: 'fas fa-lightbulb',
-        color: '#f1c40f',
-        text: 'Recomendación: Considera estrategias de long-tail y contenido muy específico para evitar AI Overview'
-      });
-    } else if (aiRate >= 25) {
-      insights.push({
-        icon: 'fas fa-shield-alt',
-        color: '#3498db',
-        text: 'Recomendación: Optimiza para aparecer como fuente en AI Overview y mejora featured snippets'
-      });
-    } else {
-      insights.push({
-        icon: 'fas fa-eye',
-        color: '#27ae60',
-        text: 'Recomendación: Mantén el seguimiento, tu posición actual es favorable'
-      });
-    }
-  }
-
-  return insights;
-}
-
-/**
- * Muestra un mensaje de error en el contenedor de tipología
- */
-function showTypologyError(errorMessage) {
-  const container = document.getElementById('typologyChartContainer');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="typology-empty">
-      <i class="fas fa-exclamation-triangle"></i>
-      <p>Error cargando tipología: ${errorMessage}</p>
-      <p style="font-size: 0.9em; opacity: 0.7;">Inténtalo de nuevo más tarde</p>
-    </div>
-  `;
+  console.log('✅ AIO position table created');
 }
 
 function displaySummary(summary, container) {
