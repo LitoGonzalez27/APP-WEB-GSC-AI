@@ -155,7 +155,7 @@ function createKeywordLengthTable(categories, totalKeywords) {
     <div class="aio-position-table-header">
       <h4 class="aio-position-table-title">Keyword Length Analysis</h4>
       <p class="aio-position-table-subtitle">
-        Distribution of ${totalKeywords} keywords analyzed with ${totalWithAI} having AI Overview
+        ${totalWithAI} keywords with AI Overview from ${totalKeywords} analyzed
       </p>
     </div>
     
@@ -163,7 +163,7 @@ function createKeywordLengthTable(categories, totalKeywords) {
       <thead>
         <tr>
           <th>Keyword Length</th>
-          <th style="text-align: center;">Keywords</th>
+          <th style="text-align: center;">Keywords with AIO</th>
           <th style="text-align: right;">Weight</th>
         </tr>
       </thead>
@@ -172,17 +172,18 @@ function createKeywordLengthTable(categories, totalKeywords) {
 
   // Procesar cada categoría
   Object.values(categories).forEach(category => {
-    const percentage = totalKeywords > 0 ? (category.total / totalKeywords * 100) : 0;
+    // Porcentaje basado en keywords CON AIO (no total de keywords)
+    const percentage = totalWithAI > 0 ? (category.withAI / totalWithAI * 100) : 0;
     
     tableHTML += `
       <tr>
         <td class="aio-position-range">
-          <div style="font-weight: 600; color: #0D7FF3;">${category.label}</div>
-          <div style="font-size: 0.8rem; color: #666666; margin-top: 0.25rem;">${category.description}</div>
+          <div style="font-weight: 600; color: #0D7FF3;">
+            ${category.label} (${category.description})
+          </div>
         </td>
         <td class="aio-position-count">
-          <div style="font-weight: 700; font-size: 1.1rem;">${category.total}</div>
-          <div style="font-size: 0.75rem; color: #666666;">${category.withAI} with AI</div>
+          <div style="font-weight: 700; font-size: 1.2rem;">${category.withAI}</div>
         </td>
         <td class="aio-position-percentage">${percentage.toFixed(1)}%</td>
       </tr>
