@@ -1,7 +1,7 @@
 /*=============================================
-  AI TYPOLOGY CHART STYLES
+  AI TYPOLOGY CHART STYLES - VERSIÓN ROBUSTA
   Estilos específicos para el gráfico de tipología de consultas AI Overview
-  Mantiene consistencia con el sistema de diseño de la app
+  Con valores concretos y alta especificidad para evitar conflictos
 =============================================*/
 
 /* ========================================
@@ -9,38 +9,40 @@
    ======================================== */
 
 .ai-typology-section {
-  margin-top: var(--spacing-lg);
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 2rem !important;
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .ai-typology-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-  padding: 0 var(--spacing-sm);
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 1.5rem !important;
+  padding: 0 1rem !important;
 }
 
 .ai-typology-title {
-  color: var(--heading);
-  margin: 0;
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  color: #1A1A1A !important;
+  margin: 0 !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .ai-typology-title i {
-  color: var(--cta-bg);
-  font-size: 0.9em;
+  color: #0D7FF3 !important;
+  font-size: 0.9em !important;
 }
 
 .ai-typology-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  opacity: 0.7;
-  margin: 0;
+  font-size: 0.9rem !important;
+  color: #666666 !important;
+  margin: 0 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -48,29 +50,30 @@
    ======================================== */
 
 .ai-typology-container {
-  background: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-lg);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: all var(--transition-base);
-  position: relative;
-  overflow: hidden;
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  padding: 2rem !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin-bottom: 2rem !important;
 }
 
 .ai-typology-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--cta-bg), var(--info-color));
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 4px !important;
+  background: linear-gradient(90deg, #0D7FF3, #19A0D4) !important;
 }
 
 .ai-typology-container:hover {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px) !important;
 }
 
 /* ========================================
@@ -78,22 +81,23 @@
    ======================================== */
 
 .typology-chart-header {
-  margin-bottom: var(--spacing-md);
-  text-align: center;
+  margin-bottom: 1.5rem !important;
+  text-align: center !important;
 }
 
 .typology-chart-title {
-  margin: 0;
-  color: var(--heading);
-  font-size: clamp(1.1rem, 2.5vw, 1.25rem);
-  font-weight: 600;
+  margin: 0 !important;
+  color: #1A1A1A !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-chart-subtitle {
-  margin: var(--spacing-xs) 0 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  opacity: 0.8;
+  margin: 0.5rem 0 0 0 !important;
+  font-size: 0.9rem !important;
+  color: #666666 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -101,68 +105,75 @@
    ======================================== */
 
 .typology-chart-bars {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2rem !important;
 }
 
 .typology-bar-group {
-  position: relative;
-  transition: all var(--transition-base);
+  position: relative !important;
+  transition: all 0.3s ease !important;
+  background: rgba(248, 250, 252, 0.5) !important;
+  padding: 1.5rem !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
 }
 
 .typology-bar-group:hover {
-  transform: translateX(4px);
+  transform: translateX(4px) !important;
+  background: rgba(248, 250, 252, 0.8) !important;
 }
 
 /* Header de cada barra */
 .typology-bar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--spacing-sm);
-  gap: var(--spacing-sm);
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  margin-bottom: 1rem !important;
+  gap: 1rem !important;
 }
 
 .typology-bar-label {
-  flex: 1;
+  flex: 1 !important;
 }
 
 .typology-bar-category {
-  font-weight: 600;
-  color: var(--heading);
-  font-size: clamp(1rem, 2.5vw, 1.125rem);
-  margin: 0;
-  line-height: 1.3;
+  font-weight: 600 !important;
+  color: #1A1A1A !important;
+  font-size: 1.125rem !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-bar-details {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  opacity: 0.7;
-  margin-top: 0.25rem;
-  line-height: 1.4;
+  font-size: 0.9rem !important;
+  color: #666666 !important;
+  margin-top: 0.25rem !important;
+  line-height: 1.4 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-bar-stats {
-  text-align: right;
-  flex-shrink: 0;
+  text-align: right !important;
+  flex-shrink: 0 !important;
 }
 
 .typology-bar-value {
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: 700;
-  color: var(--cta-bg);
-  margin: 0;
-  line-height: 1;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  color: #0D7FF3 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-bar-percentage {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  opacity: 0.7;
-  margin: 0.25rem 0 0 0;
-  line-height: 1;
+  font-size: 0.85rem !important;
+  color: #666666 !important;
+  margin: 0.25rem 0 0 0 !important;
+  line-height: 1 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -170,38 +181,40 @@
    ======================================== */
 
 .typology-bar-container {
-  position: relative;
-  height: 40px;
-  background: var(--border-color);
-  border-radius: calc(var(--radius-lg) + 4px);
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  position: relative !important;
+  height: 40px !important;
+  background: rgba(0,0,0,0.1) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+  margin: 1rem 0 !important;
 }
 
 .typology-bar-fill {
-  height: 100%;
-  background: linear-gradient(135deg, var(--cta-bg), var(--info-color));
-  border-radius: calc(var(--radius-lg) + 4px);
-  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(13, 127, 243, 0.3);
-  transform-origin: left;
+  height: 100% !important;
+  background: linear-gradient(135deg, #0D7FF3, #19A0D4) !important;
+  border-radius: 20px !important;
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 8px rgba(13, 127, 243, 0.3) !important;
+  transform-origin: left !important;
 }
 
 .typology-bar-fill:hover {
-  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.4);
+  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.4) !important;
 }
 
 .typology-bar-fill-text {
-  color: white;
-  font-weight: 700;
-  font-size: var(--font-size-sm);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  animation: fadeInText 0.8s ease 0.6s forwards;
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 0.9rem !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  opacity: 0 !important;
+  animation: fadeInText 0.8s ease 0.6s forwards !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -209,13 +222,13 @@
    ======================================== */
 
 .typology-bar-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  opacity: 0.6;
-  line-height: 1.3;
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-top: 0.5rem !important;
+  font-size: 0.8rem !important;
+  color: #666666 !important;
+  line-height: 1.3 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -223,61 +236,63 @@
    ======================================== */
 
 .typology-chart-summary {
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
+  margin-top: 2rem !important;
+  padding-top: 2rem !important;
+  border-top: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 .typology-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 1rem !important;
+  margin-bottom: 1rem !important;
 }
 
 .typology-summary-card {
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  text-align: center;
-  transition: all var(--transition-base);
-  border: 1px solid transparent;
+  padding: 1.5rem !important;
+  border-radius: 12px !important;
+  text-align: center !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid transparent !important;
 }
 
 .typology-summary-card.with-ai {
-  background: rgba(52, 152, 219, 0.08);
-  border-color: rgba(52, 152, 219, 0.2);
+  background: rgba(52, 152, 219, 0.08) !important;
+  border-color: rgba(52, 152, 219, 0.2) !important;
 }
 
 .typology-summary-card.without-ai {
-  background: rgba(149, 165, 166, 0.08);
-  border-color: rgba(149, 165, 166, 0.2);
+  background: rgba(149, 165, 166, 0.08) !important;
+  border-color: rgba(149, 165, 166, 0.2) !important;
 }
 
 .typology-summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
 }
 
 .typology-summary-number {
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 700;
-  margin: 0;
-  line-height: 1;
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-summary-card.with-ai .typology-summary-number {
-  color: var(--cta-bg);
+  color: #0D7FF3 !important;
 }
 
 .typology-summary-card.without-ai .typology-summary-number {
-  color: #95a5a6;
+  color: #95a5a6 !important;
 }
 
 .typology-summary-label {
-  font-size: var(--font-size-sm);
-  color: var(--heading);
-  margin: var(--spacing-xs) 0 0 0;
-  line-height: 1.4;
+  font-size: 0.9rem !important;
+  color: #1A1A1A !important;
+  margin: 0.5rem 0 0 0 !important;
+  line-height: 1.4 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -285,39 +300,39 @@
    ======================================== */
 
 .typology-chart-legend {
-  margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-color);
+  margin-top: 1rem !important;
+  padding-top: 1rem !important;
+  border-top: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 .typology-legend-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-md);
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  opacity: 0.8;
-  flex-wrap: wrap;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 1rem !important;
+  font-size: 0.9rem !important;
+  color: #666666 !important;
+  flex-wrap: wrap !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
 }
 
 .typology-legend-color {
-  width: 16px;
-  height: 16px;
-  background: linear-gradient(135deg, var(--cta-bg), var(--info-color));
-  border-radius: var(--radius-sm);
-  box-shadow: 0 2px 4px rgba(13, 127, 243, 0.3);
+  width: 16px !important;
+  height: 16px !important;
+  background: linear-gradient(135deg, #0D7FF3, #19A0D4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(13, 127, 243, 0.3) !important;
 }
 
 .typology-legend-separator {
-  color: var(--border-color);
-  font-weight: 700;
+  color: rgba(0,0,0,0.3) !important;
+  font-weight: 700 !important;
 }
 
 /* ========================================
@@ -325,65 +340,67 @@
    ======================================== */
 
 .typology-insights {
-  margin-top: var(--spacing-lg);
+  margin-top: 2rem !important;
 }
 
 .typology-insights-container {
-  background: rgba(52, 152, 219, 0.06);
-  border-left: 4px solid var(--cta-bg);
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-md);
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  background: rgba(52, 152, 219, 0.06) !important;
+  border-left: 4px solid #0D7FF3 !important;
+  padding: 2rem !important;
+  border-radius: 12px !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
 }
 
 .typology-insights-title {
-  margin: 0 0 var(--spacing-md) 0;
-  color: var(--cta-bg);
-  font-size: clamp(1rem, 2.5vw, 1.125rem);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
+  margin: 0 0 1rem 0 !important;
+  color: #0D7FF3 !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-insights-grid {
-  display: grid;
-  gap: var(--spacing-sm);
+  display: grid !important;
+  gap: 1rem !important;
 }
 
 .typology-insight-item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm);
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 1rem !important;
+  padding: 1rem !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
 }
 
 .typology-insight-item:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95) !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .typology-insight-icon {
-  width: 18px;
-  margin-top: 0.1em;
-  flex-shrink: 0;
-  transition: transform var(--transition-fast);
+  width: 18px !important;
+  margin-top: 0.1em !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.2s ease !important;
 }
 
 .typology-insight-item:hover .typology-insight-icon {
-  transform: scale(1.1);
+  transform: scale(1.1) !important;
 }
 
 .typology-insight-text {
-  line-height: 1.5;
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
+  line-height: 1.5 !important;
+  color: #060606 !important;
+  font-size: 0.9rem !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -391,17 +408,22 @@
    ======================================== */
 
 .typology-loading {
-  text-align: center;
-  padding: var(--spacing-xl);
-  color: var(--text-color);
-  opacity: 0.7;
+  text-align: center !important;
+  padding: 3rem !important;
+  color: #666666 !important;
 }
 
 .typology-loading i {
-  font-size: 2em;
-  margin-bottom: var(--spacing-sm);
-  color: var(--cta-bg);
-  animation: pulse 1.5s ease-in-out infinite;
+  font-size: 2em !important;
+  margin-bottom: 1rem !important;
+  color: #0D7FF3 !important;
+  animation: pulse 1.5s ease-in-out infinite !important;
+}
+
+.typology-loading p {
+  margin: 0 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
+  font-size: 1rem !important;
 }
 
 /* ========================================
@@ -409,23 +431,23 @@
    ======================================== */
 
 .typology-empty {
-  text-align: center;
-  padding: var(--spacing-xl);
-  color: var(--text-color);
-  opacity: 0.7;
+  text-align: center !important;
+  padding: 3rem !important;
+  color: #666666 !important;
 }
 
 .typology-empty i {
-  font-size: 3em;
-  margin-bottom: var(--spacing-md);
-  opacity: 0.5;
-  color: var(--info-color);
+  font-size: 3em !important;
+  margin-bottom: 1rem !important;
+  opacity: 0.5 !important;
+  color: #19A0D4 !important;
 }
 
 .typology-empty p {
-  margin: 0;
-  font-size: var(--font-size-base);
-  line-height: 1.5;
+  margin: 0.5rem 0 !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
@@ -434,34 +456,34 @@
 
 @keyframes fadeInUp {
   from {
-    opacity: 0;
-    transform: translateY(30px);
+    opacity: 0 !important;
+    transform: translateY(30px) !important;
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 1 !important;
+    transform: translateY(0) !important;
   }
 }
 
 @keyframes fadeInText {
   from {
-    opacity: 0;
-    transform: scale(0.8);
+    opacity: 0 !important;
+    transform: scale(0.8) !important;
   }
   to {
-    opacity: 1;
-    transform: scale(1);
+    opacity: 1 !important;
+    transform: scale(1) !important;
   }
 }
 
 @keyframes pulse {
   0%, 100% {
-    opacity: 1;
-    transform: scale(1);
+    opacity: 1 !important;
+    transform: scale(1) !important;
   }
   50% {
-    opacity: 0.7;
-    transform: scale(1.05);
+    opacity: 0.7 !important;
+    transform: scale(1.05) !important;
   }
 }
 
@@ -471,77 +493,59 @@
 
 @media (max-width: 768px) {
   .ai-typology-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
   }
 
   .typology-bar-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
   }
 
   .typology-bar-stats {
-    text-align: left;
+    text-align: left !important;
   }
 
   .typology-bar-container {
-    height: 32px;
+    height: 32px !important;
   }
 
   .typology-bar-footer {
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-direction: column !important;
+    gap: 0.25rem !important;
   }
 
   .typology-legend-content {
-    flex-direction: column;
-    gap: var(--spacing-sm);
+    flex-direction: column !important;
+    gap: 0.5rem !important;
   }
 
   .typology-insights-container {
-    padding: var(--spacing-md);
+    padding: 1rem !important;
+  }
+
+  .ai-typology-container {
+    padding: 1rem !important;
   }
 }
 
 @media (max-width: 480px) {
-  .ai-typology-container {
-    padding: var(--spacing-md);
-  }
-
   .typology-chart-bars {
-    gap: var(--spacing-md);
+    gap: 1rem !important;
   }
 
   .typology-bar-container {
-    height: 28px;
+    height: 28px !important;
   }
 
   .typology-summary-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-sm);
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
   }
-}
 
-/* ========================================
-   MODO OSCURO (si se implementa en el futuro)
-   ======================================== */
-
-body.dark-mode .ai-typology-container {
-  background: var(--card-bg);
-  border-color: var(--border-color);
-}
-
-body.dark-mode .typology-bar-container {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-body.dark-mode .typology-insight-item {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-body.dark-mode .typology-insight-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  .typology-bar-group {
+    padding: 1rem !important;
+  }
 } 
