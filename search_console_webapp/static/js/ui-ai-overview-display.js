@@ -53,26 +53,31 @@ export function displayTypologyChart(container, analysisData) {
 
   // Crear contenedor del gráfico
   const chartHTML = `
-    <div class="ai-typology-section" style="margin-top: 2em;">
-      <div class="ai-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em;">
-        <h3 style="color: var(--primary-color); margin: 0;">
-          <i class="fas fa-chart-bar"></i> Tipología de Consultas AI Overview
+    <div class="ai-typology-section">
+      <div class="ai-typology-header">
+        <h3 class="ai-typology-title">
+          <i class="fas fa-chart-bar"></i>
+          Tipología de Consultas AI Overview
         </h3>
-        <div style="font-size: 0.9em; color: var(--text-secondary);">
+        <div class="ai-typology-subtitle">
           Basado en el análisis actual
         </div>
       </div>
       
-      <div id="typologyChartContainer" style="background: var(--card-background); border-radius: 8px; padding: 1.5em; border: 1px solid var(--border-color);">
-        <div class="loading-placeholder" style="text-align: center; padding: 2em; color: var(--text-secondary);">
-          <i class="fas fa-calculator"></i> Procesando keywords del análisis actual...
+      <div id="typologyChartContainer" class="ai-typology-container">
+        <div class="typology-loading">
+          <i class="fas fa-calculator"></i>
+          <p>Procesando keywords del análisis actual...</p>
         </div>
       </div>
       
-      <div class="typology-insights" id="typologyInsights" style="margin-top: 1em; display: none;">
-        <div style="background: rgba(52, 152, 219, 0.1); border-left: 4px solid #3498db; padding: 1em; border-radius: 4px;">
-          <h4 style="margin: 0 0 0.5em 0; color: #3498db;">💡 Insights de Tipología</h4>
-          <div id="typologyInsightsContent"></div>
+      <div class="typology-insights" id="typologyInsights" style="display: none;">
+        <div class="typology-insights-container">
+          <h4 class="typology-insights-title">
+            <i class="fas fa-lightbulb"></i>
+            Insights de Tipología
+          </h4>
+          <div class="typology-insights-grid" id="typologyInsightsContent"></div>
         </div>
       </div>
     </div>
@@ -173,8 +178,8 @@ function createTypologyChart(typologyData, summary) {
   // Si no hay datos, mostrar mensaje
   if (!typologyData.categories || typologyData.categories.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 2em; color: var(--text-secondary);">
-        <i class="fas fa-info-circle" style="font-size: 2em; margin-bottom: 0.5em; opacity: 0.5;"></i>
+      <div class="typology-empty">
+        <i class="fas fa-info-circle"></i>
         <p>No se encontraron keywords con AI Overview en este análisis</p>
       </div>
     `;
@@ -188,14 +193,14 @@ function createTypologyChart(typologyData, summary) {
   // Crear gráfico HTML
   let chartHTML = `
     <div class="typology-chart">
-      <div class="chart-header" style="margin-bottom: 1.5em;">
-        <h4 style="margin: 0; color: var(--text-color);">AI Overview por Tipología de Consulta</h4>
-        <p style="margin: 0.5em 0 0 0; font-size: 0.9em; color: var(--text-secondary);">
+      <div class="typology-chart-header">
+        <h4 class="typology-chart-title">AI Overview por Tipología de Consulta</h4>
+        <p class="typology-chart-subtitle">
           ${summary.total_queries_analyzed} keywords analizadas • ${totalAIO} con AI Overview
         </p>
       </div>
       
-      <div class="chart-bars" style="space-y: 1.5em;">
+      <div class="typology-chart-bars">
   `;
 
   typologyData.categories.forEach((category, index) => {
@@ -208,41 +213,29 @@ function createTypologyChart(typologyData, summary) {
     const barWidth = maxValue > 0 ? (withAI / maxValue) * 100 : 0;
     
     chartHTML += `
-      <div class="chart-bar-group" style="margin-bottom: 2em;">
-        <div class="bar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8em;">
-          <div class="bar-label">
-            <span style="font-weight: 600; color: var(--text-color); font-size: 1.1em;">${category}</span>
-            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 0.2em;">
+      <div class="typology-bar-group">
+        <div class="typology-bar-header">
+          <div class="typology-bar-label">
+            <div class="typology-bar-category">${category}</div>
+            <div class="typology-bar-details">
               ${totalQueries} keywords total • ${withAI} con AIO
             </div>
           </div>
-          <div class="bar-stats" style="text-align: right;">
-            <div style="font-size: 1.2em; font-weight: bold; color: var(--primary-color);">
-              ${withAI}
-            </div>
-            <div style="font-size: 0.85em; color: var(--text-secondary);">
+          <div class="typology-bar-stats">
+            <div class="typology-bar-value">${withAI}</div>
+            <div class="typology-bar-percentage">
               ${percentageOfTotal.toFixed(1)}% del total AIO
             </div>
           </div>
         </div>
         
-        <div class="bar-container" style="position: relative; height: 32px; background: var(--border-color); border-radius: 16px; overflow: hidden;">
-          <div class="bar-fill" style="
-            width: ${barWidth}%; 
-            height: 100%; 
-            background: linear-gradient(90deg, #3498db, #2980b9); 
-            border-radius: 16px;
-            transition: width 0.8s ease;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          ">
-            ${withAI > 0 ? `<span style="color: white; font-weight: bold; font-size: 0.9em;">${withAI}</span>` : ''}
+        <div class="typology-bar-container">
+          <div class="typology-bar-fill" style="width: ${barWidth}%;">
+            ${withAI > 0 ? `<span class="typology-bar-fill-text">${withAI}</span>` : ''}
           </div>
         </div>
         
-        <div class="bar-details" style="display: flex; justify-content: space-between; margin-top: 0.5em; font-size: 0.8em; color: var(--text-secondary);">
+        <div class="typology-bar-footer">
           <span>${percentageOfCategory.toFixed(1)}% de keywords de esta categoría tienen AIO</span>
           <span>Peso: ${percentageOfTotal.toFixed(1)}% del total de AIO detectado</span>
         </div>
@@ -253,26 +246,26 @@ function createTypologyChart(typologyData, summary) {
   chartHTML += `
       </div>
       
-      <div class="chart-summary" style="margin-top: 2em; padding-top: 1.5em; border-top: 1px solid var(--border-color);">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1em; text-align: center;">
-          <div style="padding: 1em; background: rgba(52, 152, 219, 0.1); border-radius: 8px;">
-            <div style="font-size: 1.5em; font-weight: bold; color: #3498db;">${totalAIO}</div>
-            <div style="font-size: 0.9em; color: var(--text-color);">Keywords con AI Overview</div>
+      <div class="typology-chart-summary">
+        <div class="typology-summary-grid">
+          <div class="typology-summary-card with-ai">
+            <div class="typology-summary-number">${totalAIO}</div>
+            <div class="typology-summary-label">Keywords con AI Overview</div>
           </div>
-          <div style="padding: 1em; background: rgba(149, 165, 166, 0.1); border-radius: 8px;">
-            <div style="font-size: 1.5em; font-weight: bold; color: #95a5a6;">${summary.total_queries_analyzed - totalAIO}</div>
-            <div style="font-size: 0.9em; color: var(--text-color);">Keywords sin AI Overview</div>
+          <div class="typology-summary-card without-ai">
+            <div class="typology-summary-number">${summary.total_queries_analyzed - totalAIO}</div>
+            <div class="typology-summary-label">Keywords sin AI Overview</div>
           </div>
         </div>
       </div>
       
-      <div class="chart-legend" style="margin-top: 1.5em; padding-top: 1em; border-top: 1px solid var(--border-color);">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 1em; font-size: 0.9em; color: var(--text-secondary);">
-          <div style="display: flex; align-items: center; gap: 0.5em;">
-            <div style="width: 16px; height: 16px; background: linear-gradient(90deg, #3498db, #2980b9); border-radius: 8px;"></div>
+      <div class="typology-chart-legend">
+        <div class="typology-legend-content">
+          <div class="typology-legend-item">
+            <div class="typology-legend-color"></div>
             <span>Keywords con AI Overview</span>
           </div>
-          <span>•</span>
+          <span class="typology-legend-separator">•</span>
           <span>Las barras muestran cantidad absoluta y peso relativo</span>
         </div>
       </div>
@@ -283,7 +276,7 @@ function createTypologyChart(typologyData, summary) {
   
   // Animar las barras después de que se rendericen
   setTimeout(() => {
-    const bars = container.querySelectorAll('.bar-fill');
+    const bars = container.querySelectorAll('.typology-bar-fill');
     bars.forEach(bar => {
       bar.style.transform = 'scaleX(1)';
     });
@@ -302,18 +295,16 @@ function showTypologyInsights(typologyData, summary) {
   // Calcular insights del análisis actual
   const insights = calculateCurrentAnalysisInsights(typologyData, summary);
   
-  let insightsHTML = '<div style="display: grid; gap: 0.8em;">';
+  let insightsHTML = '';
   
   insights.forEach(insight => {
     insightsHTML += `
-      <div style="display: flex; align-items: start; gap: 0.8em; padding: 0.6em; background: rgba(255,255,255,0.05); border-radius: 6px;">
-        <i class="${insight.icon}" style="color: ${insight.color}; width: 18px; margin-top: 0.1em; flex-shrink: 0;"></i>
-        <span style="line-height: 1.4;">${insight.text}</span>
+      <div class="typology-insight-item">
+        <i class="${insight.icon} typology-insight-icon" style="color: ${insight.color};"></i>
+        <span class="typology-insight-text">${insight.text}</span>
       </div>
     `;
   });
-  
-  insightsHTML += '</div>';
   
   insightsContent.innerHTML = insightsHTML;
   insightsContainer.style.display = 'block';
@@ -456,20 +447,17 @@ function calculateCurrentAnalysisInsights(data, summary) {
 }
 
 /**
- * Muestra error en el gráfico de tipología
+ * Muestra un mensaje de error en el contenedor de tipología
  */
 function showTypologyError(errorMessage) {
   const container = document.getElementById('typologyChartContainer');
   if (!container) return;
 
   container.innerHTML = `
-    <div style="text-align: center; padding: 2em; color: var(--error-color);">
-      <i class="fas fa-exclamation-triangle" style="font-size: 2em; margin-bottom: 0.5em;"></i>
-      <p>Error cargando datos de tipología</p>
-      <p style="font-size: 0.9em; opacity: 0.7;">${errorMessage}</p>
-      <button onclick="loadTypologyData()" class="btn-primary" style="margin-top: 1em;">
-        <i class="fas fa-retry"></i> Reintentar
-      </button>
+    <div class="typology-empty">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>Error cargando tipología: ${errorMessage}</p>
+      <p style="font-size: 0.9em; opacity: 0.7;">Inténtalo de nuevo más tarde</p>
     </div>
   `;
 }

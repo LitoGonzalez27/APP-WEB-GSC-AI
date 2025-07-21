@@ -1,0 +1,547 @@
+/*=============================================
+  AI TYPOLOGY CHART STYLES
+  Estilos específicos para el gráfico de tipología de consultas AI Overview
+  Mantiene consistencia con el sistema de diseño de la app
+=============================================*/
+
+/* ========================================
+   CONTENEDOR PRINCIPAL
+   ======================================== */
+
+.ai-typology-section {
+  margin-top: var(--spacing-lg);
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-typology-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding: 0 var(--spacing-sm);
+}
+
+.ai-typology-title {
+  color: var(--heading);
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.ai-typology-title i {
+  color: var(--cta-bg);
+  font-size: 0.9em;
+}
+
+.ai-typology-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  opacity: 0.7;
+  margin: 0;
+}
+
+/* ========================================
+   CONTENEDOR DEL GRÁFICO
+   ======================================== */
+
+.ai-typology-container {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-typology-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--cta-bg), var(--info-color));
+}
+
+.ai-typology-container:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   HEADER DEL GRÁFICO
+   ======================================== */
+
+.typology-chart-header {
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+.typology-chart-title {
+  margin: 0;
+  color: var(--heading);
+  font-size: clamp(1.1rem, 2.5vw, 1.25rem);
+  font-weight: 600;
+}
+
+.typology-chart-subtitle {
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  opacity: 0.8;
+}
+
+/* ========================================
+   BARRAS DEL GRÁFICO
+   ======================================== */
+
+.typology-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.typology-bar-group {
+  position: relative;
+  transition: all var(--transition-base);
+}
+
+.typology-bar-group:hover {
+  transform: translateX(4px);
+}
+
+/* Header de cada barra */
+.typology-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-sm);
+  gap: var(--spacing-sm);
+}
+
+.typology-bar-label {
+  flex: 1;
+}
+
+.typology-bar-category {
+  font-weight: 600;
+  color: var(--heading);
+  font-size: clamp(1rem, 2.5vw, 1.125rem);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.typology-bar-details {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  opacity: 0.7;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.typology-bar-stats {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.typology-bar-value {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 700;
+  color: var(--cta-bg);
+  margin: 0;
+  line-height: 1;
+}
+
+.typology-bar-percentage {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  opacity: 0.7;
+  margin: 0.25rem 0 0 0;
+  line-height: 1;
+}
+
+/* ========================================
+   BARRA VISUAL
+   ======================================== */
+
+.typology-bar-container {
+  position: relative;
+  height: 40px;
+  background: var(--border-color);
+  border-radius: calc(var(--radius-lg) + 4px);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.typology-bar-fill {
+  height: 100%;
+  background: linear-gradient(135deg, var(--cta-bg), var(--info-color));
+  border-radius: calc(var(--radius-lg) + 4px);
+  transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(13, 127, 243, 0.3);
+  transform-origin: left;
+}
+
+.typology-bar-fill:hover {
+  box-shadow: 0 4px 12px rgba(13, 127, 243, 0.4);
+}
+
+.typology-bar-fill-text {
+  color: white;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  animation: fadeInText 0.8s ease 0.6s forwards;
+}
+
+/* ========================================
+   DETALLES ADICIONALES
+   ======================================== */
+
+.typology-bar-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  opacity: 0.6;
+  line-height: 1.3;
+}
+
+/* ========================================
+   RESUMEN DEL GRÁFICO
+   ======================================== */
+
+.typology-chart-summary {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.typology-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.typology-summary-card {
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  text-align: center;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+}
+
+.typology-summary-card.with-ai {
+  background: rgba(52, 152, 219, 0.08);
+  border-color: rgba(52, 152, 219, 0.2);
+}
+
+.typology-summary-card.without-ai {
+  background: rgba(149, 165, 166, 0.08);
+  border-color: rgba(149, 165, 166, 0.2);
+}
+
+.typology-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.typology-summary-number {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1;
+}
+
+.typology-summary-card.with-ai .typology-summary-number {
+  color: var(--cta-bg);
+}
+
+.typology-summary-card.without-ai .typology-summary-number {
+  color: #95a5a6;
+}
+
+.typology-summary-label {
+  font-size: var(--font-size-sm);
+  color: var(--heading);
+  margin: var(--spacing-xs) 0 0 0;
+  line-height: 1.4;
+}
+
+/* ========================================
+   LEYENDA
+   ======================================== */
+
+.typology-chart-legend {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.typology-legend-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  opacity: 0.8;
+  flex-wrap: wrap;
+}
+
+.typology-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.typology-legend-color {
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, var(--cta-bg), var(--info-color));
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 4px rgba(13, 127, 243, 0.3);
+}
+
+.typology-legend-separator {
+  color: var(--border-color);
+  font-weight: 700;
+}
+
+/* ========================================
+   INSIGHTS SECTION
+   ======================================== */
+
+.typology-insights {
+  margin-top: var(--spacing-lg);
+}
+
+.typology-insights-container {
+  background: rgba(52, 152, 219, 0.06);
+  border-left: 4px solid var(--cta-bg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.typology-insights-title {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--cta-bg);
+  font-size: clamp(1rem, 2.5vw, 1.125rem);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.typology-insights-grid {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.typology-insight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.typology-insight-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.typology-insight-icon {
+  width: 18px;
+  margin-top: 0.1em;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.typology-insight-item:hover .typology-insight-icon {
+  transform: scale(1.1);
+}
+
+.typology-insight-text {
+  line-height: 1.5;
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   LOADING STATE
+   ======================================== */
+
+.typology-loading {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.typology-loading i {
+  font-size: 2em;
+  margin-bottom: var(--spacing-sm);
+  color: var(--cta-bg);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* ========================================
+   EMPTY STATE
+   ======================================== */
+
+.typology-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.typology-empty i {
+  font-size: 3em;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+  color: var(--info-color);
+}
+
+.typology-empty p {
+  margin: 0;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+/* ========================================
+   ANIMACIONES
+   ======================================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInText {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 768px) {
+  .ai-typology-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .typology-bar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .typology-bar-stats {
+    text-align: left;
+  }
+
+  .typology-bar-container {
+    height: 32px;
+  }
+
+  .typology-bar-footer {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .typology-legend-content {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .typology-insights-container {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-typology-container {
+    padding: var(--spacing-md);
+  }
+
+  .typology-chart-bars {
+    gap: var(--spacing-md);
+  }
+
+  .typology-bar-container {
+    height: 28px;
+  }
+
+  .typology-summary-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+}
+
+/* ========================================
+   MODO OSCURO (si se implementa en el futuro)
+   ======================================== */
+
+body.dark-mode .ai-typology-container {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .typology-bar-container {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .typology-insight-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .typology-insight-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+} 
