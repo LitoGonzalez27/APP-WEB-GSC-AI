@@ -5,7 +5,7 @@
 =============================================*/
 
 /* ========================================
-   CONTENEDOR PRINCIPAL
+   LAYOUT DE 2 COLUMNAS
    ======================================== */
 
 .ai-typology-section {
@@ -14,12 +14,32 @@
   font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
+.ai-typology-main-container {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 2rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.ai-typology-left {
+  flex: 1 !important;
+}
+
+.ai-typology-right {
+  flex: 1 !important;
+}
+
+/* ========================================
+   HEADER COMÚN
+   ======================================== */
+
 .ai-typology-header {
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
   margin-bottom: 1.5rem !important;
   padding: 0 1rem !important;
+  grid-column: 1 / -1 !important; /* Ocupa todo el ancho */
 }
 
 .ai-typology-title {
@@ -46,19 +66,19 @@
 }
 
 /* ========================================
-   CONTENEDOR DEL GRÁFICO
+   CONTENEDOR DEL GRÁFICO (MÁS COMPACTO)
    ======================================== */
 
 .ai-typology-container {
   background: #ffffff !important;
   border-radius: 12px !important;
-  padding: 2rem !important;
+  padding: 1.5rem !important; /* Reducido de 2rem */
   border: 1px solid rgba(0,0,0,0.1) !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
   transition: all 0.3s ease !important;
   position: relative !important;
   overflow: hidden !important;
-  margin-bottom: 2rem !important;
+  margin-bottom: 1rem !important; /* Reducido */
 }
 
 .ai-typology-container::before {
@@ -77,44 +97,44 @@
 }
 
 /* ========================================
-   HEADER DEL GRÁFICO
+   HEADER DEL GRÁFICO (MÁS COMPACTO)
    ======================================== */
 
 .typology-chart-header {
-  margin-bottom: 1.5rem !important;
+  margin-bottom: 1rem !important; /* Reducido */
   text-align: center !important;
 }
 
 .typology-chart-title {
   margin: 0 !important;
   color: #1A1A1A !important;
-  font-size: 1.25rem !important;
+  font-size: 1.1rem !important; /* Reducido */
   font-weight: 600 !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-chart-subtitle {
-  margin: 0.5rem 0 0 0 !important;
-  font-size: 0.9rem !important;
+  margin: 0.25rem 0 0 0 !important; /* Reducido */
+  font-size: 0.85rem !important; /* Reducido */
   color: #666666 !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
-   BARRAS DEL GRÁFICO
+   BARRAS DEL GRÁFICO (MÁS COMPACTAS)
    ======================================== */
 
 .typology-chart-bars {
   display: flex !important;
   flex-direction: column !important;
-  gap: 2rem !important;
+  gap: 1.5rem !important; /* Reducido */
 }
 
 .typology-bar-group {
   position: relative !important;
   transition: all 0.3s ease !important;
   background: rgba(248, 250, 252, 0.5) !important;
-  padding: 1.5rem !important;
+  padding: 1rem !important; /* Reducido */
   border-radius: 8px !important;
   border: 1px solid rgba(0,0,0,0.05) !important;
 }
@@ -129,7 +149,7 @@
   display: flex !important;
   justify-content: space-between !important;
   align-items: flex-start !important;
-  margin-bottom: 1rem !important;
+  margin-bottom: 0.75rem !important; /* Reducido */
   gap: 1rem !important;
 }
 
@@ -140,14 +160,14 @@
 .typology-bar-category {
   font-weight: 600 !important;
   color: #1A1A1A !important;
-  font-size: 1.125rem !important;
+  font-size: 1rem !important; /* Reducido */
   margin: 0 !important;
   line-height: 1.3 !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 .typology-bar-details {
-  font-size: 0.9rem !important;
+  font-size: 0.8rem !important; /* Reducido */
   color: #666666 !important;
   margin-top: 0.25rem !important;
   line-height: 1.4 !important;
@@ -160,7 +180,7 @@
 }
 
 .typology-bar-value {
-  font-size: 1.5rem !important;
+  font-size: 1.25rem !important; /* Reducido */
   font-weight: 700 !important;
   color: #0D7FF3 !important;
   margin: 0 !important;
@@ -169,7 +189,7 @@
 }
 
 .typology-bar-percentage {
-  font-size: 0.85rem !important;
+  font-size: 0.75rem !important; /* Reducido */
   color: #666666 !important;
   margin: 0.25rem 0 0 0 !important;
   line-height: 1 !important;
@@ -177,23 +197,23 @@
 }
 
 /* ========================================
-   BARRA VISUAL
+   BARRA VISUAL (MÁS COMPACTA)
    ======================================== */
 
 .typology-bar-container {
   position: relative !important;
-  height: 40px !important;
+  height: 32px !important; /* Reducido de 40px */
   background: rgba(0,0,0,0.1) !important;
-  border-radius: 20px !important;
+  border-radius: 16px !important;
   overflow: hidden !important;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06) !important;
-  margin: 1rem 0 !important;
+  margin: 0.75rem 0 !important; /* Reducido */
 }
 
 .typology-bar-fill {
   height: 100% !important;
   background: linear-gradient(135deg, #0D7FF3, #19A0D4) !important;
-  border-radius: 20px !important;
+  border-radius: 16px !important;
   transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
   display: flex !important;
@@ -210,7 +230,7 @@
 .typology-bar-fill-text {
   color: white !important;
   font-weight: 700 !important;
-  font-size: 0.9rem !important;
+  font-size: 0.8rem !important; /* Reducido */
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
   opacity: 0 !important;
   animation: fadeInText 0.8s ease 0.6s forwards !important;
@@ -218,38 +238,38 @@
 }
 
 /* ========================================
-   DETALLES ADICIONALES
+   DETALLES ADICIONALES (MÁS COMPACTOS)
    ======================================== */
 
 .typology-bar-footer {
   display: flex !important;
   justify-content: space-between !important;
   margin-top: 0.5rem !important;
-  font-size: 0.8rem !important;
+  font-size: 0.75rem !important; /* Reducido */
   color: #666666 !important;
   line-height: 1.3 !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
 }
 
 /* ========================================
-   RESUMEN DEL GRÁFICO
+   RESUMEN DEL GRÁFICO (MÁS COMPACTO)
    ======================================== */
 
 .typology-chart-summary {
-  margin-top: 2rem !important;
-  padding-top: 2rem !important;
+  margin-top: 1.5rem !important; /* Reducido */
+  padding-top: 1.5rem !important; /* Reducido */
   border-top: 1px solid rgba(0,0,0,0.1) !important;
 }
 
 .typology-summary-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
-  gap: 1rem !important;
+  grid-template-columns: 1fr 1fr !important; /* Forzar 2 columnas */
+  gap: 0.75rem !important; /* Reducido */
   margin-bottom: 1rem !important;
 }
 
 .typology-summary-card {
-  padding: 1.5rem !important;
+  padding: 1rem !important; /* Reducido */
   border-radius: 12px !important;
   text-align: center !important;
   transition: all 0.3s ease !important;
@@ -272,7 +292,7 @@
 }
 
 .typology-summary-number {
-  font-size: 2rem !important;
+  font-size: 1.5rem !important; /* Reducido */
   font-weight: 700 !important;
   margin: 0 !important;
   line-height: 1 !important;
@@ -288,11 +308,106 @@
 }
 
 .typology-summary-label {
-  font-size: 0.9rem !important;
+  font-size: 0.8rem !important; /* Reducido */
   color: #1A1A1A !important;
   margin: 0.5rem 0 0 0 !important;
   line-height: 1.4 !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
+}
+
+/* ========================================
+   TABLA DE POSICIONES AIO - LADO DERECHO
+   ======================================== */
+
+.aio-position-table-container {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  padding: 1.5rem !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin-bottom: 1rem !important;
+}
+
+.aio-position-table-container::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 4px !important;
+  background: linear-gradient(90deg, #e74c3c, #c0392b) !important;
+}
+
+.aio-position-table-container:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px) !important;
+}
+
+.aio-position-table-header {
+  margin-bottom: 1rem !important;
+  text-align: center !important;
+}
+
+.aio-position-table-title {
+  margin: 0 !important;
+  color: #1A1A1A !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
+}
+
+.aio-position-table-subtitle {
+  margin: 0.25rem 0 0 0 !important;
+  font-size: 0.85rem !important;
+  color: #666666 !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
+}
+
+.aio-position-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-family: 'Jost', 'Inter', sans-serif !important;
+}
+
+.aio-position-table th {
+  background: rgba(231, 76, 60, 0.1) !important;
+  color: #1A1A1A !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 0.5rem !important;
+  text-align: left !important;
+  font-size: 0.85rem !important;
+  border-bottom: 2px solid rgba(231, 76, 60, 0.2) !important;
+}
+
+.aio-position-table td {
+  padding: 0.75rem 0.5rem !important;
+  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+  font-size: 0.9rem !important;
+  vertical-align: middle !important;
+}
+
+.aio-position-table tbody tr:hover {
+  background: rgba(248, 250, 252, 0.8) !important;
+}
+
+.aio-position-range {
+  font-weight: 600 !important;
+  color: #e74c3c !important;
+}
+
+.aio-position-count {
+  font-weight: 700 !important;
+  color: #1A1A1A !important;
+  text-align: center !important;
+}
+
+.aio-position-percentage {
+  font-weight: 600 !important;
+  color: #666666 !important;
+  text-align: right !important;
 }
 
 /* ========================================
@@ -492,6 +607,12 @@
    ======================================== */
 
 @media (max-width: 768px) {
+  /* Layout de columnas se convierte en vertical en móviles */
+  .ai-typology-main-container {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
   .ai-typology-header {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -529,6 +650,17 @@
   .ai-typology-container {
     padding: 1rem !important;
   }
+  
+  .aio-position-table-container {
+    padding: 1rem !important;
+  }
+  
+  /* Hacer la tabla más compacta en móvil */
+  .aio-position-table th,
+  .aio-position-table td {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.8rem !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -547,5 +679,19 @@
 
   .typology-bar-group {
     padding: 1rem !important;
+  }
+  
+  .ai-typology-title {
+    font-size: 1.25rem !important;
+  }
+  
+  .aio-position-table th,
+  .aio-position-table td {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  .aio-position-table-title {
+    font-size: 1rem !important;
   }
 } 
