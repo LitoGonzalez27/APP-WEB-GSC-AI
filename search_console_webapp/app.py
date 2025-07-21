@@ -46,6 +46,15 @@ from mobile_detector import (
     log_device_access
 )
 
+# --- NUEVO: Base de datos y caché para AI Overview ---
+from database import (
+    init_database, 
+    save_ai_overview_analysis, 
+    get_ai_overview_stats,
+    get_ai_overview_history
+)
+from services.ai_cache import ai_cache
+
 # Configurar logging mejorado
 logging.basicConfig(
     level=logging.INFO,
@@ -1223,17 +1232,36 @@ def get_serp_screenshot_route():
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
 
 def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=None):
+    """
+    Analiza el impacto de AI Overview para una keyword específica con sistema de caché
+    """
+    
+    if not keyword_arg or not site_url_arg:
+        raise ValueError("keyword_arg y site_url_arg son requeridos")
+    
+    logger.info(f"🤖 Analizando AI Overview para '{keyword_arg}' en {site_url_arg}")
+    
+    # ✅ NUEVO: Verificar caché primero
+    cached_result = ai_cache.get_cached_analysis(keyword_arg, site_url_arg, country_code or '')
+    if cached_result and cached_result.get('analysis'):
+        logger.info(f"💾 Usando resultado cacheado para '{keyword_arg}'")
+        return cached_result['analysis']
+    
     api_key_env_val = os.getenv('SERPAPI_KEY')
     if not api_key_env_val:
         logger.error("SERPAPI_KEY no está configurada para analyze_single_keyword_ai_impact")
-        return {
-            'keyword': keyword_arg, 'error': "SERPAPI_KEY no está configurada",
+        error_result = {
+            'keyword': keyword_arg, 
+            'error': "SERPAPI_KEY no está configurada",
             'ai_analysis': {'has_ai_overview': False, 'debug_info': {'error': "API key missing"}},
-            'site_position': None, 'site_result': None, 'organic_results_count': 0,
-            'serp_features': [], 'timestamp': time.time(), 'serpapi_success': False
+            'site_position': 'Error', 
+            'serp_features': [], 
+            'timestamp': time.time(), 
+            'country_analyzed': country_code or 'esp'
         }
+        return error_result
     
-    # ✅ NUEVA LÓGICA: Pasar site_url para detección dinámica de país
+    # ✅ LÓGICA: Pasar site_url para detección dinámica de país
     params_ai = get_serp_params_with_location(keyword_arg, api_key_env_val, country_code, site_url_arg)
     
     try:
@@ -1262,34 +1290,38 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
                     serp_features_output_list.append(f"{feature_key_item}: {len(feature_data_val)} elementos")
                 else:
                     serp_features_output_list.append(f"{feature_key_item}: presente")
-        
-        final_result_dict = {
-            'keyword': keyword_arg, 
+
+        result_data = {
+            'keyword': keyword_arg,
             'ai_analysis': ai_analysis_data,
-            'site_position': site_pos_info['position'],
-            'site_result': site_pos_info['result'],
-            'result_type': site_pos_info.get('result_type', 'Unknown'),
-            'organic_results_count': len(organic_results_data),
+            'site_position': site_pos_info.get('position', 'No encontrado'),
+            'organic_url': site_pos_info.get('url', ''),
             'serp_features': serp_features_output_list,
-            'timestamp': time.time(), 
-            'serpapi_success': True
+            'timestamp': time.time(),
+            'country_analyzed': country_code or 'esp'  # Añadir país al resultado
         }
         
-        return final_result_dict
+        # ✅ NUEVO: Guardar en caché para futuras consultas
+        ai_cache.cache_analysis(keyword_arg, site_url_arg, country_code or '', result_data)
         
-    except Exception as e:
-        logger.error(f"Error analizando keyword '{keyword_arg}': {str(e)}")
-        return {
-            'keyword': keyword_arg, 'error': str(e),
-            'ai_analysis': {
-                'has_ai_overview': False, 'ai_overview_detected': [], 'total_elements': 0,
-                'impact_score': 0, 'domain_is_ai_source': False,
-                'domain_ai_source_position': None, 'domain_ai_source_link': None,
-                'debug_info': {'error': str(e)}
-            },
-            'site_position': None, 'site_result': None, 'result_type': None,
-            'organic_results_count': 0, 'serp_features': [], 'timestamp': time.time(), 'serpapi_success': False
+        return result_data
+        
+    except Exception as e_single_keyword:
+        logger.error(f"Error analizando keyword '{keyword_arg}': {str(e_single_keyword)}")
+        
+        # ✅ NUEVO: Para errores, también cachear brevemente para evitar re-intentos inmediatos
+        error_result = {
+            'keyword': keyword_arg,
+            'ai_analysis': {'has_ai_overview': False, 'error': str(e_single_keyword)},
+            'site_position': 'Error',
+            'serp_features': [],
+            'timestamp': time.time(),
+            'country_analyzed': country_code or 'esp'
         }
+        
+        ai_cache.cache_analysis(keyword_arg, site_url_arg, country_code or '', error_result)
+        
+        raise Exception(f"Error analizando {keyword_arg}: {str(e_single_keyword)}")
 
 def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max_workers=3):
     """
@@ -1449,6 +1481,32 @@ def analyze_ai_overview_route():
             'analysis_timestamp': time.time(),
             'country_analyzed': country_req # NUEVO: País analizado
         }
+
+        # ✅ NUEVO: Guardar análisis en la base de datos
+        current_user = get_current_user()
+        user_id = current_user.get('id') if current_user else None
+        
+        analysis_data = {
+            'results': results_list_overview,
+            'summary': summary_overview_stats,
+            'site_url': site_url_req
+        }
+        
+        # Intentar guardar en base de datos (no crítico si falla)
+        try:
+            if save_ai_overview_analysis(analysis_data, user_id):
+                logger.info("✅ Análisis guardado en base de datos correctamente")
+            else:
+                logger.warning("⚠️ No se pudo guardar el análisis en base de datos")
+        except Exception as e:
+            logger.error(f"❌ Error guardando análisis en BD: {e}")
+
+        # ✅ NUEVO: Guardar múltiples análisis en caché por lotes
+        try:
+            cached_count = ai_cache.cache_analysis_batch(results_list_overview)
+            logger.info(f"💾 {cached_count} análisis guardados en caché por lotes")
+        except Exception as e:
+            logger.warning(f"⚠️ Error guardando lote en caché: {e}")
 
         response_data_overview = {
             'results': results_list_overview,
@@ -1853,6 +1911,170 @@ def get_url_keywords():
     except Exception as e:
         logger.error(f"Error en get_url_keywords: {e}", exc_info=True)
         return jsonify({'error': f'Error obteniendo keywords de URL: {str(e)}'}), 500
+
+# ====================================
+# 📊 NUEVAS RUTAS AI OVERVIEW ANALYTICS
+# ====================================
+
+@app.route('/api/ai-overview-stats', methods=['GET'])
+@auth_required
+def get_ai_overview_stats_route():
+    """Obtiene estadísticas generales de AI Overview"""
+    try:
+        stats = get_ai_overview_stats()
+        
+        # Añadir estadísticas del caché
+        try:
+            cache_stats = ai_cache.get_cache_stats()
+            stats['cache_stats'] = cache_stats
+        except Exception as e:
+            logger.warning(f"Error obteniendo stats de caché: {e}")
+            stats['cache_stats'] = {'cache_available': False}
+        
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas AI Overview: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ai-overview-typology', methods=['GET'])
+@auth_required  
+def get_ai_overview_typology_route():
+    """Obtiene datos de tipología de consultas para el gráfico de barras"""
+    try:
+        stats = get_ai_overview_stats()
+        word_count_stats = stats.get('word_count_stats', [])
+        
+        # Transformar datos para el gráfico
+        typology_data = {
+            'categories': [],
+            'total_queries': [],
+            'queries_with_ai': [],
+            'ai_percentage': []
+        }
+        
+        category_labels = {
+            '1_termino': '1 término',
+            '2_5_terminos': '2-5 términos', 
+            '6_10_terminos': '6-10 términos',
+            '11_20_terminos': '11-20 términos',
+            'mas_20_terminos': '20+ términos'
+        }
+        
+        for item in word_count_stats:
+            categoria = item['categoria']
+            label = category_labels.get(categoria, categoria)
+            
+            typology_data['categories'].append(label)
+            typology_data['total_queries'].append(item['total'])
+            typology_data['queries_with_ai'].append(item['con_ai_overview'])
+            typology_data['ai_percentage'].append(item['porcentaje_ai'])
+        
+        return jsonify({
+            'success': True,
+            'typology_data': typology_data,
+            'summary': {
+                'total_categories': len(word_count_stats),
+                'total_queries_analyzed': sum(item['total'] for item in word_count_stats),
+                'total_with_ai_overview': sum(item['con_ai_overview'] for item in word_count_stats)
+            },
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo datos de tipología: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ai-overview-history', methods=['GET'])
+@auth_required
+def get_ai_overview_history_route():
+    """Obtiene historial de análisis de AI Overview"""
+    try:
+        # Parámetros opcionales
+        site_url = request.args.get('site_url')
+        keyword = request.args.get('keyword')
+        days = int(request.args.get('days', 30))
+        limit = int(request.args.get('limit', 100))
+        
+        history = get_ai_overview_history(site_url, keyword, days, limit)
+        
+        return jsonify({
+            'success': True,
+            'history': history,
+            'filters': {
+                'site_url': site_url,
+                'keyword': keyword,
+                'days': days,
+                'limit': limit
+            },
+            'count': len(history),
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo historial AI Overview: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/cache-management', methods=['POST'])
+@admin_required  # Solo administradores pueden gestionar caché
+def cache_management_route():
+    """Gestiona operaciones de caché (limpiar, invalidar, estadísticas)"""
+    try:
+        action = request.get_json().get('action')
+        
+        if action == 'clear':
+            deleted = ai_cache.clear_cache()
+            return jsonify({
+                'success': True,
+                'message': f'Caché limpiado: {deleted} entradas eliminadas',
+                'deleted_count': deleted
+            })
+            
+        elif action == 'stats':
+            stats = ai_cache.get_cache_stats()
+            return jsonify({
+                'success': True,
+                'cache_stats': stats
+            })
+            
+        elif action == 'invalidate_site':
+            site_url = request.get_json().get('site_url')
+            if not site_url:
+                return jsonify({'success': False, 'error': 'site_url requerido'}), 400
+                
+            deleted = ai_cache.invalidate_site_cache(site_url)
+            return jsonify({
+                'success': True,
+                'message': f'Caché invalidado para {site_url}: {deleted} entradas eliminadas',
+                'deleted_count': deleted
+            })
+            
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Acción no reconocida. Acciones válidas: clear, stats, invalidate_site'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error en gestión de caché: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
 if __name__ == '__main__':
     # Railway proporciona el puerto automáticamente
