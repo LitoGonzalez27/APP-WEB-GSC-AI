@@ -483,6 +483,10 @@
                     <i class="fas fa-home"></i>
                     Inicio
                 </a>
+                <button class="btn btn-secondary" id="clearCacheBtn">
+                    <i class="fas fa-broom"></i>
+                    Vaciar Caché
+                </button>
                 <a href="/auth/logout" class="btn btn-secondary">
                     <i class="fas fa-sign-out-alt"></i>
                     Salir
@@ -1052,6 +1056,22 @@
                 statNumbers[1].textContent = active;
                 statNumbers[2].textContent = inactive;
                 statNumbers[3].textContent = today;
+            }
+        });
+
+        document.getElementById('clearCacheBtn').addEventListener('click', function() {
+            if (confirm('Esto vaciará el caché de análisis de AI Overview (Redis) y el caché temporal de screenshots. Los análisis se regenerarán en las próximas solicitudes. ¿Estás seguro de continuar?')) {
+                fetch('/api/cache-management', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'clear'})
+                }).then(response => response.json()).then(data => {
+                    if (data.success) {
+                        alert('Caché vaciado exitosamente: ' + data.message);
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                }).catch(error => alert('Error en la conexión: ' + error));
             }
         });
     </script>

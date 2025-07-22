@@ -1,42 +1,36 @@
 # services/ai_analysis.py
 import logging
-from .utils import urls_match, normalize_search_console_url
+from .utils import urls_match, normalize_search_console_url, extract_domain
 
 logger = logging.getLogger(__name__)
 
-def check_domain_in_references(element_data, normalized_site_url):
+def detect_ai_overview_elements(serp_data, site_url=None):
     """
-    Recorre arrays de referencias (references, sources, links, citations)
-    y comprueba si aparece normalized_site_url.
-    Devuelve (bool, posición, enlace) o (False, None, None).
+    Detecta elementos de AI Overview con implementación HÍBRIDA INTELIGENTE.
+    
+    ⚠️ IMPORTANTE: Maneja tanto la estructura oficial como casos híbridos de SERPAPI:
+    
+    CASO 1 - Estructura oficial:
+    {
+      "ai_overview": {
+        "text_blocks": [...],
+        "references": [...]  // Fuentes aquí
+      }
+    }
+    
+    CASO 2 - Estructura híbrida:
+    {
+      "ai_overview": {
+        "text_blocks": [
+          {"reference_indexes": [0, 4, 8]}  // Apuntan a organic_results
+        ]
+      },
+      "organic_results": [...]  // Fuentes aquí
+    }
     """
-    references = (
-        element_data.get('references')
-        or element_data.get('sources')
-        or element_data.get('links')
-        or element_data.get('citations')
-        or []
-    )
-    for idx, ref in enumerate(references, start=1):
-        if not isinstance(ref, dict):
-            continue
-        link = (
-            ref.get('url')
-            or ref.get('link')
-            or ref.get('source')
-            or ref.get('href')
-            or ref.get('source_link')
-        )
-        if link and urls_match(link, normalized_site_url):
-            return True, idx, link
-    return False, None, None
-
-
-def detect_ai_overview_elements(serp_data, site_url_to_check=None):
-    """
-    Detecta únicamente bloques de AI Overview (ignora featured_snippet)
-    y comprueba si nuestro dominio aparece como fuente.
-    """
+    logger.info("[AI ANALYSIS] === INICIANDO DETECCIÓN AI OVERVIEW (HÍBRIDA INTELIGENTE) ===")
+    
+    # Estructura de retorno compatible con legacy
     ai_elements = {
         'has_ai_overview': False,
         'ai_overview_detected': [],
@@ -48,102 +42,216 @@ def detect_ai_overview_elements(serp_data, site_url_to_check=None):
         'domain_ai_source_link': None,
         'debug_info': {}
     }
-
+    
     if not serp_data:
-        logger.warning("serp_data vacío en detect_ai_overview_elements")
+        logger.warning("[AI ANALYSIS] No hay datos SERP para analizar")
+        ai_elements['debug_info']['error'] = 'No SERP data'
         return ai_elements
-
-    # Registro de claves disponibles
-    keys = list(serp_data.keys())
-    ai_elements['debug_info']['available_keys'] = keys
-    logger.info(f"Claves SERP recibidas: {keys}")
-
-    # Solo estos bloques consideramos AI Overview
-    ai_overview_keys = [
-        'ai_overview', 'ai_overview_first_person_singular',
-        'ai_overview_complete', 'ai_overview_inline',
-        'generative_ai', 'bard_answer', 'answer_box'
-    ]
-
-    normalized_site = None
-    if site_url_to_check:
-        normalized_site = normalize_search_console_url(site_url_to_check)
-
-    position_counter = 0
-
-    for ai_key in ai_overview_keys:
-        element_data = serp_data.get(ai_key)
-        if not element_data:
-            continue
-
-        logger.info(f"Procesando bloque AI: {ai_key}")
-
-        # ✅ NUEVO: Verificar que el AI Overview tenga contenido real
-        current_content_length = 0
-        sources_count = 0
-        references = []
-
-        if isinstance(element_data, dict):
-            # Text blocks
-            text_blocks = element_data.get('text_blocks') or []
-            for block in text_blocks:
-                current_content_length += len(str(block.get('snippet', '')))
-            # Campos sueltos
-            if current_content_length == 0:
-                for field in ['text', 'answer', 'snippet', 'description']:
-                    val = element_data.get(field)
-                    if isinstance(val, str):
-                        current_content_length += len(val)
-            # Referencias/fuentes
-            references = (
-                element_data.get('references')
-                or element_data.get('sources')
-                or element_data.get('links')
-                or element_data.get('citations')
-                or []
-            )
-            sources_count = len(references)
-
-        elif isinstance(element_data, list):
-            for item in element_data:
-                if isinstance(item, dict):
-                    snippet = item.get('text') or item.get('snippet') or ''
-                    current_content_length += len(str(snippet))
-            sources_count = 0 # Asumiendo que las listas de elementos no tienen un conteo directo de fuentes aquí, o se maneja por elemento si fuera necesario.
-
-        else:
-            current_content_length = len(str(element_data))
-
-        # ✅ NUEVO: Solo marcar como AI Overview si tiene contenido O fuentes
-        if current_content_length == 0 and sources_count == 0:
-            logger.warning(f"AI Overview detectado pero vacío para clave: {ai_key}")
-            continue  # Skip este bloque vacío
-
-        # ✅ Solo si llegamos aquí, es un AI Overview válido
-        ai_elements['has_ai_overview'] = True
-
-        # Comprobar dominio en referencias
-        if normalized_site and isinstance(references, list) and references:
-            is_src, pos, link = check_domain_in_references(element_data, normalized_site)
-            if is_src:
-                ai_elements['domain_is_ai_source'] = True
-                ai_elements['domain_ai_source_position'] = pos
-                ai_elements['domain_ai_source_link'] = link
-
-        # Añadir al listado de bloques detectados
+    
+    # Normalizar URL del sitio
+    normalized_site_url = None
+    raw_site_url = site_url
+    
+    if site_url:
+        normalized_site_url = normalize_search_console_url(site_url)
+        logger.info(f"[AI ANALYSIS] Sitio a analizar: {site_url} → {normalized_site_url}")
+    
+    # Buscar AI Overview en los datos SERP
+    ai_overview_data = serp_data.get('ai_overview')
+    
+    if not ai_overview_data:
+        logger.info("[AI ANALYSIS] No se encontró 'ai_overview' en datos SERP")
+        ai_elements['debug_info']['available_keys'] = list(serp_data.keys())
+        ai_elements['debug_info']['ai_overview_found'] = False
+        return ai_elements
+    
+    # Verificar si es un error
+    if 'error' in ai_overview_data:
+        logger.warning(f"[AI ANALYSIS] Error en AI Overview: {ai_overview_data['error']}")
+        ai_elements['debug_info']['ai_overview_error'] = ai_overview_data['error']
+        return ai_elements
+    
+    # Verificar si requiere petición adicional
+    if 'page_token' in ai_overview_data:
+        logger.info(f"[AI ANALYSIS] AI Overview requiere petición adicional con page_token")
+        ai_elements['debug_info']['requires_additional_request'] = True
+        ai_elements['debug_info']['page_token'] = ai_overview_data['page_token'][:50] + "..."
+        ai_elements['debug_info']['serpapi_link'] = ai_overview_data.get('serpapi_link')
+        return ai_elements
+    
+    # ✅ AI OVERVIEW DETECTADO
+    ai_elements['has_ai_overview'] = True
+    logger.info("[AI ANALYSIS] ✅ AI Overview encontrado!")
+    
+    # Analizar estructura completa
+    text_blocks = ai_overview_data.get('text_blocks', [])
+    references = ai_overview_data.get('references', [])
+    organic_results = serp_data.get('organic_results', [])  # Para caso híbrido
+    
+    logger.info(f"[AI ANALYSIS] Estructura: {len(text_blocks)} text_blocks, {len(references)} references, {len(organic_results)} organic_results")
+    
+    # Contadores para estadísticas y compatibilidad legacy
+    total_content_length = 0
+    total_reference_indexes = set()
+    
+    # Analizar text_blocks para obtener reference_indexes y contenido
+    for i, block in enumerate(text_blocks):
+        block_type = block.get('type', 'unknown')
+        snippet = block.get('snippet', '')
+        reference_indexes = block.get('reference_indexes', [])
+        
+        total_content_length += len(snippet)
+        total_reference_indexes.update(reference_indexes)
+        
+        logger.debug(f"[AI ANALYSIS] Text block {i+1}: type={block_type}, snippet_length={len(snippet)}, references={reference_indexes}")
+        
+        # Añadir a la lista de elementos detectados (compatibilidad legacy)
         ai_elements['ai_overview_detected'].append({
-            'type': f'AI Overview ({ai_key})',
-            'position': position_counter,
-            'content_length': current_content_length,
-            'sources_count': sources_count
+            'type': f'AI Overview ({block_type})',
+            'position': i,
+            'content_length': len(snippet),
+            'sources_count': len(reference_indexes),
+            'content_fields_found': ['text_blocks']
         })
-        ai_elements['impact_score'] += 40
-        position_counter += 1
-
-    # Resultado final
-    ai_elements['total_elements'] = len(ai_elements['ai_overview_detected'])
-    ai_elements['elements_before_organic'] = position_counter
-    ai_elements['impact_score'] = min(ai_elements['impact_score'], 100)
-
-    logger.info(f"AI Overview completo: {ai_elements}")
+        
+        # Analizar listas anidadas
+        if block_type == 'list' and 'list' in block:
+            for j, list_item in enumerate(block['list']):
+                item_refs = list_item.get('reference_indexes', [])
+                total_reference_indexes.update(item_refs)
+                item_snippet = list_item.get('snippet', '')
+                total_content_length += len(item_snippet)
+                logger.debug(f"[AI ANALYSIS]   List item {j+1}: references={item_refs}")
+    
+    # Asignar valores de compatibilidad legacy
+    ai_elements['total_elements'] = len(text_blocks)
+    ai_elements['elements_before_organic'] = len(text_blocks)
+    ai_elements['impact_score'] = min(40 * len(text_blocks), 100)  # Máximo 100
+    
+    logger.info(f"[AI ANALYSIS] Total content length: {total_content_length}")
+    logger.info(f"[AI ANALYSIS] Unique reference indexes: {sorted(total_reference_indexes)}")
+    
+    # 🧠 LÓGICA HÍBRIDA INTELIGENTE
+    domain_found = False
+    domain_position = None
+    domain_link = None
+    detection_method = None
+    
+    if normalized_site_url:
+        # MÉTODO 1: Buscar en ai_overview.references (oficial)
+        if references:
+            logger.info(f"[AI ANALYSIS] 🔍 MÉTODO OFICIAL: Buscando en {len(references)} referencias oficiales...")
+            
+            for ref in references:
+                ref_index = ref.get('index')
+                ref_title = ref.get('title', '')
+                ref_link = ref.get('link', '')
+                ref_source = ref.get('source', '')
+                
+                logger.debug(f"[AI ANALYSIS] Referencia {ref_index}: {ref_title[:50]}... → {ref_link}")
+                
+                # Verificar coincidencia de dominio
+                if ref_link and urls_match(ref_link, normalized_site_url):
+                    domain_found = True
+                    domain_position = ref_index + 1  # Posición 1-based
+                    domain_link = ref_link
+                    detection_method = "official_references"
+                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO OFICIAL: Dominio encontrado en posición {domain_position}")
+                    break
+                
+                # También verificar en source y title
+                if (ref_source and normalized_site_url.lower() in ref_source.lower()) or \
+                   (ref_title and normalized_site_url.lower() in ref_title.lower()):
+                    domain_found = True
+                    domain_position = ref_index + 1
+                    domain_link = ref_link
+                    detection_method = "official_source_title"
+                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO OFICIAL: Dominio encontrado en source/title posición {domain_position}")
+                    break
+        
+        # MÉTODO 2: Buscar en organic_results usando reference_indexes (híbrido)
+        if not domain_found and total_reference_indexes and organic_results:
+            logger.info(f"[AI ANALYSIS] 🔍 MÉTODO HÍBRIDO: Buscando en organic_results usando reference_indexes {sorted(total_reference_indexes)}")
+            
+            for ref_idx in sorted(total_reference_indexes):
+                if ref_idx < len(organic_results):
+                    result = organic_results[ref_idx]
+                    result_link = result.get('link', '')
+                    result_title = result.get('title', '')
+                    result_source = result.get('source', '')
+                    
+                    logger.debug(f"[AI ANALYSIS] Organic result {ref_idx}: {result_title[:50]}... → {result_link}")
+                    
+                    # Verificar coincidencia
+                    if result_link and urls_match(result_link, normalized_site_url):
+                        domain_found = True
+                        domain_position = ref_idx + 1  # Posición 1-based en organic results
+                        domain_link = result_link
+                        detection_method = "hybrid_organic_results"
+                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO: Dominio encontrado en organic_results[{ref_idx}]")
+                        break
+                    
+                    # Verificar en source y title
+                    if (result_source and normalized_site_url.lower() in result_source.lower()) or \
+                       (result_title and normalized_site_url.lower() in result_title.lower()):
+                        domain_found = True
+                        domain_position = ref_idx + 1
+                        domain_link = result_link
+                        detection_method = "hybrid_source_title"
+                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO: Dominio encontrado en source/title organic_results[{ref_idx}]")
+                        break
+    
+    # Asignar resultados del dominio
+    ai_elements['domain_is_ai_source'] = domain_found
+    ai_elements['domain_ai_source_position'] = domain_position
+    ai_elements['domain_ai_source_link'] = domain_link
+    
+    # Información de debugging completa
+    ai_elements['debug_info'] = {
+        'total_text_blocks': len(text_blocks),
+        'total_references': len(references),
+        'total_organic_results': len(organic_results),
+        'total_content_length': total_content_length,
+        'total_sources_analyzed': len(references) + len(organic_results),
+        'site_url_original': raw_site_url,
+        'site_url_normalized': normalized_site_url,
+        'reference_indexes_found': sorted(total_reference_indexes),
+        'structure_type': 'hybrid_intelligent',
+        'detection_method': detection_method,
+        'ai_overview_found': True,
+        'available_keys': list(serp_data.keys()),
+        'requires_additional_request': False,
+        'has_official_references': bool(references),
+        'has_organic_fallback': bool(organic_results and total_reference_indexes)
+    }
+    
+    # Log del resultado final
+    if domain_found:
+        logger.info(f"[AI ANALYSIS] ✅ RESULTADO FINAL: Dominio encontrado en posición {domain_position} (método: {detection_method})")
+        ai_elements['impact_score'] += 20  # Bonus por encontrar el dominio
+    else:
+        logger.info("[AI ANALYSIS] ❌ RESULTADO FINAL: Dominio NO encontrado en ningún método")
+    
+    logger.info(f"[AI ANALYSIS] Summary: {ai_elements['total_elements']} elements, impact_score={ai_elements['impact_score']}")
+    logger.info("[AI ANALYSIS] === DETECCIÓN AI OVERVIEW COMPLETADA ===")
+    
     return ai_elements
+
+
+def check_domain_in_references(element_data, normalized_site_url, raw_site_url=None):
+    """
+    FUNCIÓN LEGACY - Mantenida por compatibilidad pero ya no se usa.
+    La nueva implementación está integrada en detect_ai_overview_elements.
+    """
+    logger.warning("[AI ANALYSIS] check_domain_in_references es una función legacy - usar detect_ai_overview_elements")
+    return False, None, None
+
+
+def check_domain_in_reference_indexes(element_data, organic_results, normalized_site_url, raw_site_url=None):
+    """
+    FUNCIÓN LEGACY - Mantenida por compatibilidad pero ya no se usa.
+    La nueva implementación está integrada en detect_ai_overview_elements.
+    """
+    logger.warning("[AI ANALYSIS] check_domain_in_reference_indexes es una función legacy - usar detect_ai_overview_elements")
+    return False, None, None
+

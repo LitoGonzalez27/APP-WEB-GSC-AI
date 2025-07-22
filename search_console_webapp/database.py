@@ -8,6 +8,7 @@ import logging
 from dotenv import load_dotenv
 import hashlib
 import secrets
+import json
 
 # Cargar variables de entorno
 load_dotenv()
@@ -67,8 +68,46 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)')
         
+        # ✅ NUEVO: Crear tabla de análisis AI Overview
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS ai_overview_analysis (
+                id SERIAL PRIMARY KEY,
+                site_url VARCHAR(255) NOT NULL,
+                keyword VARCHAR(255) NOT NULL,
+                analysis_date TIMESTAMP DEFAULT NOW(),
+                has_ai_overview BOOLEAN DEFAULT FALSE,
+                domain_is_ai_source BOOLEAN DEFAULT FALSE,
+                impact_score INTEGER DEFAULT 0,
+                country_code VARCHAR(3),
+                keyword_word_count INTEGER,
+                clicks_m1 INTEGER DEFAULT 0,
+                clicks_m2 INTEGER DEFAULT 0,
+                delta_clicks_absolute INTEGER DEFAULT 0,
+                delta_clicks_percent DECIMAL(10,2),
+                impressions_m1 INTEGER DEFAULT 0,
+                impressions_m2 INTEGER DEFAULT 0,
+                ctr_m1 DECIMAL(5,2),
+                ctr_m2 DECIMAL(5,2),
+                position_m1 DECIMAL(5,2),
+                position_m2 DECIMAL(5,2),
+                ai_elements_count INTEGER DEFAULT 0,
+                domain_ai_source_position INTEGER,
+                raw_data JSONB,
+                user_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        
+        # Índices para consultas rápidas de AI Overview
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_site_date ON ai_overview_analysis(site_url, analysis_date)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_keyword ON ai_overview_analysis(keyword)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_country ON ai_overview_analysis(country_code)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_user ON ai_overview_analysis(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_word_count ON ai_overview_analysis(keyword_word_count)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_has_ai ON ai_overview_analysis(has_ai_overview)')
+        
         conn.commit()
-        logger.info("Base de datos inicializada correctamente")
+        logger.info("Todas las tablas inicializadas correctamente")
         return True
         
     except Exception as e:
@@ -606,7 +645,7 @@ def get_detailed_user_stats():
         return get_user_stats()  # Fallback a estadísticas básicas
     finally:
         if conn:
-            conn.close() 
+            conn.close()
 
 def migrate_user_timestamps():
     """Migrar usuarios existentes para agregar timestamps faltantes"""
@@ -751,3 +790,296 @@ def ensure_sample_data():
     except Exception as e:
         logger.error(f"Error creando datos de prueba: {e}")
         return False 
+
+# ====================================
+# 💾 SISTEMA AI OVERVIEW ANALYSIS
+# ====================================
+
+def init_ai_overview_tables():
+    """Inicializa las tablas necesarias para el análisis de AI Overview (versión independiente)"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cur = conn.cursor()
+        
+        # Tabla principal de análisis AI Overview
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS ai_overview_analysis (
+                id SERIAL PRIMARY KEY,
+                site_url VARCHAR(255) NOT NULL,
+                keyword VARCHAR(255) NOT NULL,
+                analysis_date TIMESTAMP DEFAULT NOW(),
+                has_ai_overview BOOLEAN DEFAULT FALSE,
+                domain_is_ai_source BOOLEAN DEFAULT FALSE,
+                impact_score INTEGER DEFAULT 0,
+                country_code VARCHAR(3),
+                keyword_word_count INTEGER,
+                clicks_m1 INTEGER DEFAULT 0,
+                clicks_m2 INTEGER DEFAULT 0,
+                delta_clicks_absolute INTEGER DEFAULT 0,
+                delta_clicks_percent DECIMAL(10,2),
+                impressions_m1 INTEGER DEFAULT 0,
+                impressions_m2 INTEGER DEFAULT 0,
+                ctr_m1 DECIMAL(5,2),
+                ctr_m2 DECIMAL(5,2),
+                position_m1 DECIMAL(5,2),
+                position_m2 DECIMAL(5,2),
+                ai_elements_count INTEGER DEFAULT 0,
+                domain_ai_source_position INTEGER,
+                raw_data JSONB,
+                user_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        
+        # Índices para consultas rápidas
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_site_date ON ai_overview_analysis(site_url, analysis_date)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_keyword ON ai_overview_analysis(keyword)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_country ON ai_overview_analysis(country_code)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_user ON ai_overview_analysis(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_word_count ON ai_overview_analysis(keyword_word_count)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_has_ai ON ai_overview_analysis(has_ai_overview)')
+        
+        conn.commit()
+        logger.info("Tablas de AI Overview Analysis inicializadas correctamente")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error inicializando tablas de AI Overview: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def save_ai_overview_analysis(analysis_data, user_id=None):
+    """Guarda un análisis de AI Overview en la base de datos"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cur = conn.cursor()
+        saved_count = 0
+        
+        results = analysis_data.get('results', [])
+        
+        for result in results:
+            try:
+                # Extraer datos del resultado
+                keyword = result.get('keyword', '')
+                site_url = analysis_data.get('site_url', '')
+                country_code = result.get('country_analyzed', '')
+                
+                # Calcular número de palabras en la keyword
+                keyword_word_count = len(keyword.split()) if keyword else 0
+                
+                # Datos de AI Overview
+                ai_analysis = result.get('ai_analysis', {})
+                has_ai_overview = ai_analysis.get('has_ai_overview', False)
+                domain_is_ai_source = ai_analysis.get('domain_is_ai_source', False)
+                impact_score = ai_analysis.get('impact_score', 0)
+                ai_elements_count = ai_analysis.get('total_elements', 0)
+                domain_ai_source_position = ai_analysis.get('domain_ai_source_position')
+                
+                # Métricas de GSC
+                clicks_m1 = result.get('clicks_m1', 0)
+                clicks_m2 = result.get('clicks_m2', 0) 
+                delta_clicks_absolute = result.get('delta_clicks_absolute', 0)
+                delta_clicks_percent = result.get('delta_clicks_percent')
+                impressions_m1 = result.get('impressions_m1', 0)
+                impressions_m2 = result.get('impressions_m2', 0)
+                ctr_m1 = result.get('ctr_m1')
+                ctr_m2 = result.get('ctr_m2')
+                position_m1 = result.get('position_m1')
+                position_m2 = result.get('position_m2')
+                
+                # Datos raw como JSON
+                raw_data = {
+                    'ai_analysis': ai_analysis,
+                    'serp_features': result.get('serp_features', []),
+                    'organic_position': result.get('site_position'),
+                    'timestamp': result.get('timestamp'),
+                    'analysis_summary': analysis_data.get('summary', {})
+                }
+                
+                cur.execute('''
+                    INSERT INTO ai_overview_analysis (
+                        site_url, keyword, has_ai_overview, domain_is_ai_source, 
+                        impact_score, country_code, keyword_word_count,
+                        clicks_m1, clicks_m2, delta_clicks_absolute, delta_clicks_percent,
+                        impressions_m1, impressions_m2, ctr_m1, ctr_m2,
+                        position_m1, position_m2, ai_elements_count,
+                        domain_ai_source_position, raw_data, user_id
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                ''', (
+                    site_url, keyword, has_ai_overview, domain_is_ai_source,
+                    impact_score, country_code, keyword_word_count,
+                    clicks_m1, clicks_m2, delta_clicks_absolute, delta_clicks_percent,
+                    impressions_m1, impressions_m2, ctr_m1, ctr_m2,
+                    position_m1, position_m2, ai_elements_count,
+                    domain_ai_source_position, json.dumps(raw_data), user_id
+                ))
+                
+                saved_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error guardando análisis para keyword '{keyword}': {e}")
+                continue
+        
+        conn.commit()
+        logger.info(f"✅ Guardados {saved_count} análisis de AI Overview en la base de datos")
+        return saved_count > 0
+        
+    except Exception as e:
+        logger.error(f"Error guardando análisis de AI Overview: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_ai_overview_stats():
+    """Obtiene estadísticas generales de análisis de AI Overview"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {}
+            
+        cur = conn.cursor()
+        
+        # Estadísticas básicas
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis')
+        total_analyses = cur.fetchone()[0]
+        
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE has_ai_overview = true')
+        with_ai_overview = cur.fetchone()[0]
+        
+        cur.execute('SELECT COUNT(*) FROM ai_overview_analysis WHERE domain_is_ai_source = true')
+        as_ai_source = cur.fetchone()[0]
+        
+        # Análisis por tipología de palabras
+        cur.execute('''
+            SELECT 
+                CASE 
+                    WHEN keyword_word_count = 1 THEN '1_termino'
+                    WHEN keyword_word_count BETWEEN 2 AND 5 THEN '2_5_terminos'
+                    WHEN keyword_word_count BETWEEN 6 AND 10 THEN '6_10_terminos'
+                    WHEN keyword_word_count BETWEEN 11 AND 20 THEN '11_20_terminos'
+                    ELSE 'mas_20_terminos'
+                END as categoria,
+                COUNT(*) as total,
+                SUM(CASE WHEN has_ai_overview THEN 1 ELSE 0 END) as con_ai_overview
+            FROM ai_overview_analysis 
+            WHERE keyword_word_count > 0
+            GROUP BY categoria
+            ORDER BY 
+                CASE categoria
+                    WHEN '1_termino' THEN 1
+                    WHEN '2_5_terminos' THEN 2
+                    WHEN '6_10_terminos' THEN 3
+                    WHEN '11_20_terminos' THEN 4
+                    ELSE 5
+                END
+        ''')
+        word_count_stats = cur.fetchall()
+        
+        # Países más analizados
+        cur.execute('''
+            SELECT country_code, COUNT(*) as total
+            FROM ai_overview_analysis 
+            WHERE country_code IS NOT NULL
+            GROUP BY country_code
+            ORDER BY total DESC
+            LIMIT 10
+        ''')
+        country_stats = cur.fetchall()
+        
+        # Análisis por fecha (últimos 30 días)
+        cur.execute('''
+            SELECT 
+                DATE(analysis_date) as fecha,
+                COUNT(*) as total_analisis,
+                SUM(CASE WHEN has_ai_overview THEN 1 ELSE 0 END) as con_ai_overview
+            FROM ai_overview_analysis 
+            WHERE analysis_date >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(analysis_date)
+            ORDER BY fecha DESC
+        ''')
+        daily_stats = cur.fetchall()
+        
+        return {
+            'total_analyses': total_analyses,
+            'with_ai_overview': with_ai_overview,
+            'as_ai_source': as_ai_source,
+            'ai_overview_percentage': round((with_ai_overview / total_analyses * 100), 2) if total_analyses > 0 else 0,
+            'word_count_stats': [
+                {
+                    'categoria': row[0],
+                    'total': row[1],
+                    'con_ai_overview': row[2],
+                    'porcentaje_ai': round((row[2] / row[1] * 100), 2) if row[1] > 0 else 0
+                }
+                for row in word_count_stats
+            ],
+            'country_stats': [{'country': row[0], 'total': row[1]} for row in country_stats],
+            'daily_stats': [
+                {
+                    'fecha': row[0].strftime('%Y-%m-%d'),
+                    'total_analisis': row[1],
+                    'con_ai_overview': row[2]
+                }
+                for row in daily_stats
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas de AI Overview: {e}")
+        return {}
+    finally:
+        if conn:
+            conn.close()
+
+def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100):
+    """Obtiene el historial de análisis de AI Overview"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return []
+            
+        cur = conn.cursor()
+        
+        query = '''
+            SELECT 
+                id, site_url, keyword, analysis_date, has_ai_overview,
+                domain_is_ai_source, impact_score, country_code, keyword_word_count,
+                clicks_m1, clicks_m2, delta_clicks_absolute, ai_elements_count
+            FROM ai_overview_analysis 
+            WHERE analysis_date >= NOW() - INTERVAL '%s days'
+        '''
+        params = [days]
+        
+        if site_url:
+            query += ' AND site_url = %s'
+            params.append(site_url)
+            
+        if keyword:
+            query += ' AND keyword ILIKE %s'
+            params.append(f'%{keyword}%')
+        
+        query += ' ORDER BY analysis_date DESC LIMIT %s'
+        params.append(limit)
+        
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        return [dict(row) for row in results]
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo historial de AI Overview: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close() 
