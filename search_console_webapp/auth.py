@@ -489,8 +489,7 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # ✅ ACTIVAR automáticamente el usuario recién creado
-                    update_user_activity(new_user['id'], is_active=True)
+                    # NO ACTIVAR automáticamente - dejar inactivo para revisión admin
                     
                     # ✅ NO INICIAR SESIÓN - Solo limpiar credenciales temporales
                     session.pop('temp_credentials', None)
