@@ -978,7 +978,7 @@ def get_data():
                     delta_ctr = current_ctr - comparison_ctr  # Diferencia absoluta en puntos porcentuales
                     
                     if current_pos is not None and comparison_pos is not None:
-                        delta_position = comparison_pos - current_pos  # Positivo = mejora
+                        delta_position = current_pos - comparison_pos  # KEYWORDS: P1 - P2 (como estaba originalmente)
                     elif current_pos is not None:
                         delta_position = 'New'
                     else:
@@ -998,7 +998,7 @@ def get_data():
                         'delta_ctr_percent': current_ctr - comparison_ctr,  # Diferencia absoluta en puntos porcentuales
                         'position_m1': current_pos,
                         'position_m2': comparison_pos,
-                        'delta_position_absolute': comparison_pos - current_pos if current_pos is not None and comparison_pos is not None else ('New' if current_pos is not None else 'Lost')
+                        'delta_position_absolute': current_pos - comparison_pos if current_pos is not None and comparison_pos is not None else ('New' if current_pos is not None else 'Lost')
                     })
             
             return comparison_data
@@ -1851,7 +1851,7 @@ def get_url_keywords():
                     delta_ctr = current_ctr - comparison_ctr
                     
                     if current_pos is not None and comparison_pos is not None:
-                        delta_position = comparison_pos - current_pos  # Positivo = mejora
+                        delta_position = current_pos - comparison_pos  # URL KEYWORDS: P1 - P2 (igual que keywords principales)
                     elif current_pos is not None:
                         delta_position = 'New'
                     else:

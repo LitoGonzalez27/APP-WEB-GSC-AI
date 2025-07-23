@@ -143,9 +143,9 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
             ? 'negative-change'
             : '';
       const deltaPosClass    =
-        (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute > 0))
+        (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0))
           ? 'positive-change'
-          : (row.delta_position_absolute === 'Lost' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0))
+          : (row.delta_position_absolute === 'Lost' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute > 0))
             ? 'negative-change'
             : '';
 
