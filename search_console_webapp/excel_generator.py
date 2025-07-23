@@ -454,8 +454,8 @@ def create_executive_dashboard(writer, data, ai_overview_data, header_format, co
             comparison_metrics = [
                 ['', ''],
                 ['COMPARACIÓN TEMPORAL', ''],
-                ['Variación Clics (%)', f"{delta_clicks:+.1f}%"],
-                ['Variación Impresiones (%)', f"{delta_impressions:+.1f}%"],
+                ['Variación Clics (%)', f"{delta_clicks:.1f}%"],
+                ['Variación Impresiones (%)', f"{delta_impressions:.1f}%"],
                 ['Tendencia', 'Positiva' if delta_clicks > 0 else 'Negativa' if delta_clicks < 0 else 'Estable']
             ]
         
@@ -507,10 +507,10 @@ def create_executive_dashboard(writer, data, ai_overview_data, header_format, co
         
         # Crear DataFrame y exportar
         df_dashboard = pd.DataFrame(dashboard_data[1:], columns=dashboard_data[0])
-        df_dashboard.to_excel(writer, sheet_name='📊 Executive Dashboard', index=False)
+        df_dashboard.to_excel(writer, sheet_name='Executive Dashboard', index=False)
         
         # Formatear hoja
-        worksheet = writer.sheets['📊 Executive Dashboard']
+        worksheet = writer.sheets['Executive Dashboard']
         worksheet.set_column('A:A', 40)  # Métrica
         worksheet.set_column('B:B', 20)  # Valor
         
@@ -600,7 +600,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         # 1) RESUMEN EJECUTIVO
         executive_section = [
             ['SECCIÓN', 'VALOR'],
-            ['=== RESUMEN EJECUTIVO AI OVERVIEW ===', ''],
+            ['RESUMEN EJECUTIVO AI OVERVIEW', ''],
             ['Total Keywords Analizadas', summary.get('total_keywords_analyzed', 0)],
             ['Keywords con AI Overview', summary.get('keywords_with_ai_overview', 0)],
             ['Tu dominio como Fuente AI', summary.get('keywords_as_ai_source', 0)],
@@ -612,7 +612,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # 2) TIPOLOGÍA DE KEYWORDS
         tipologia_section = [
-            ['=== TIPOLOGÍA DE KEYWORDS ===', ''],
+            ['TIPOLOGÍA DE KEYWORDS', ''],
             ['Tipo de Keyword', 'Keywords con AIO'],
         ]
         
@@ -621,7 +621,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             tipologia_section.append([f"{category['label']} ({category['description']})", f"{category['withAI']} ({percentage:.1f}%)"])
         
         tipologia_section.extend([
-            ['--- Resumen ---', ''],
+            ['Resumen Tipología', ''],
             ['Total con AI Overview', total_with_ai],
             ['Total sin AI Overview', total_keywords - total_with_ai],
             ['', ''],
@@ -629,7 +629,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # 3) POSICIONES EN AIO
         posiciones_section = [
-            ['=== POSICIONES EN AI OVERVIEW ===', ''],
+            ['POSICIONES EN AI OVERVIEW', ''],
             ['Rango de Posición', 'Keywords'],
         ]
         
@@ -642,7 +642,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             posiciones_section.append(['No hay menciones', 'Tu dominio no aparece como fuente'])
         else:
             posiciones_section.extend([
-                ['--- Resumen ---', ''],
+                ['Resumen Posiciones', ''],
                 ['Total menciones', total_with_aio_position],
                 ['Con AIO sin mención', total_with_ai_positions - total_with_aio_position],
             ])
@@ -651,7 +651,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # 4) TABLA COMPLETA DE KEYWORDS
         keywords_section = [
-            ['=== DETALLE COMPLETO POR KEYWORD ===', ''],
+            ['DETALLE COMPLETO POR KEYWORD', ''],
             ['Keyword', 'With AIO', 'Organic Position', 'Your Domain in AIO', 'AIO Position'],
         ]
         
@@ -690,10 +690,10 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # Crear DataFrame y exportar
         df_aio = pd.DataFrame(all_data[1:], columns=all_data[0])
-        df_aio.to_excel(writer, sheet_name='🤖 AI Overview Analysis', index=False)
+        df_aio.to_excel(writer, sheet_name='AI Overview Analysis', index=False)
         
         # Formatear hoja
-        worksheet = writer.sheets['🤖 AI Overview Analysis']
+        worksheet = writer.sheets['AI Overview Analysis']
         worksheet.set_column('A:A', 45)  # Más ancho para keywords
         worksheet.set_column('B:B', 18)  
         worksheet.set_column('C:C', 18)  
@@ -707,7 +707,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         # Encontrar filas de sección para formatear
         section_rows = []
         for i, row in enumerate(all_data[1:], start=1):
-            if row[0].startswith('===') and row[0].endswith('==='):
+            if row[0] in ['RESUMEN EJECUTIVO AI OVERVIEW', 'TIPOLOGÍA DE KEYWORDS', 'POSICIONES EN AI OVERVIEW', 'DETALLE COMPLETO POR KEYWORD']:
                 section_rows.append(i)
         
         for row_num in section_rows:
