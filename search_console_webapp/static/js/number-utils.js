@@ -143,11 +143,11 @@ export function formatPositionDelta(deltaValue, posP1, posP2) {
   
   const formatted = formatDecimal(Math.abs(num), 1);
   
-  // Para posición, delta negativo es bueno (subió en ranking)
+  // Para posición, mostrar el signo real del delta
   if (num < 0) {
-    return '+' + formatted; // Subió posiciones
+    return '-' + formatted; // Delta negativo = mejora de posición
   } else if (num > 0) {
-    return '-' + formatted; // Bajó posiciones
+    return '+' + formatted; // Delta positivo = empeoramiento de posición
   } else {
     return '0,0'; // Sin cambio
   }
@@ -376,7 +376,12 @@ export function getStandardKeywordTableConfig(analysisType = 'comparison') {
       if (window.jQuery && window.jQuery.fn.tooltip) {
         window.jQuery('[data-toggle="tooltip"]').tooltip();
       }
-    }
+    },
+    retrieve: false,
+    destroy: false,
+    stateSave: false,
+    deferRender: true,
+    processing: false
   };
 }
 

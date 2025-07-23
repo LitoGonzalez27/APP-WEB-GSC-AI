@@ -18,14 +18,14 @@ export function displayAIOverviewResults(data) {
   const aiSection = document.getElementById('aiOverviewSection');
   if (aiSection) aiSection.style.display = 'block';
 
-  // Mostrar resumen
+  // 1️⃣ Mostrar resumen
   displaySummary(data.summary, resultsContainer);
   
-  // Mostrar resultados detallados
-  displayDetailedResults(data.keywordResults, resultsContainer);
-  
-  // ✅ NUEVO: Mostrar gráfico de tipología
+  // 2️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ARRIBA)
   displayTypologyChart(resultsContainer, data);
+  
+  // 3️⃣ Mostrar tabla detallada de keywords (MOVIDO ABAJO)
+  displayDetailedResults(data.keywordResults, resultsContainer);
   
   showToast('AI Overview analysis complete', 'success');
 }

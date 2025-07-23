@@ -153,9 +153,8 @@ def create_user(email, name, password=None, google_id=None, picture=None):
         # Preparar datos del usuario
         password_hash = hash_password(password) if password else None
         
-        # ✅ CORREGIDO: Usuarios con Google se crean como activos por defecto
-        # Los usuarios con registro manual requieren verificación
-        is_active = True if google_id else False
+        # Usuarios se crean inactivos por defecto
+        is_active = False
         
         cur.execute('''
             INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)

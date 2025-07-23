@@ -1132,7 +1132,7 @@ export async function renderTable(pages) {
           ? 'negative-change'
           : '';
     const deltaPosClass    =
-      (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0)) // Pos delta: negative is good (lower position)
+      (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0)) // Pos delta: negative is good (better position)
         ? 'positive-change'
         : (row.delta_position_absolute === 'Lost' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute > 0))
           ? 'negative-change'
@@ -1757,9 +1757,9 @@ function createDataTableForRange(range, keywords, analysisType) {
           ? 'negative-change'
           : '';
     const deltaPosClass =
-      (keyword.delta_position_absolute === 'New' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute > 0))
+      (keyword.delta_position_absolute === 'New' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute < 0))
         ? 'positive-change'
-        : (keyword.delta_position_absolute === 'Lost' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute < 0))
+        : (keyword.delta_position_absolute === 'Lost' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute > 0))
           ? 'negative-change'
           : '';
 
