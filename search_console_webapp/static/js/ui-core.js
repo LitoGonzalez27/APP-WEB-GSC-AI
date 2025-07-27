@@ -1,4 +1,4 @@
-// Actualización de ui-core.js para integrar el nuevo selector de fechas
+// Actualización de ui-core.js para integrar el nuevo selector de fechas y sidebar
 
 import { elems } from './utils.js';
 import { 
@@ -27,6 +27,15 @@ import {
   updateStickyData 
 } from './ui-sticky-actions.js';
 import { isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice, getAdaptiveTimeouts } from './utils.js';
+
+// ✅ NUEVO: Importar funciones del sidebar
+import { 
+  onAnalysisStart, 
+  onAnalysisComplete, 
+  onAIAnalysisReady,
+  showSection, 
+  resetSidebar
+} from './sidebar-navigation.js';
 
 // ✅ IMPORTAR el nuevo selector de fechas
 import { 
@@ -198,6 +207,9 @@ export async function handleFormSubmit(e) {
     console.log(`  ${key}: ${value}`);
   }
 
+  // ✅ NUEVO: Resetear sidebar al inicio del análisis
+  resetSidebar();
+
   // Reset UI
   hideStickyActions();
   
@@ -274,6 +286,9 @@ export async function handleFormSubmit(e) {
   }
 
   showProgress(steps, analysisParams);
+
+  // ✅ NUEVO: Notificar al sidebar que el análisis ha comenzado
+  onAnalysisStart();
 
   try {
     const data = await fetchData(formData);
@@ -365,6 +380,81 @@ export async function handleFormSubmit(e) {
     }
     
     showStickyActions();
+
+    // ✅ NUEVO: Determinar secciones disponibles y notificar al sidebar
+    const availableSections = [];
+    
+    // ✅ DEBUGGING: Verificar qué estructura tiene summary
+    console.log('🔍 DEBUG: summary object structure:', summary);
+    console.log('🔍 DEBUG: summary keys:', summary ? Object.keys(summary) : 'summary is null/undefined');
+    console.log('🔍 DEBUG: summary values:', summary ? Object.values(summary) : 'summary is null/undefined');
+    
+    // ✅ DEBUG DETALLADO: Examinar cada período individualmente
+    if (summary) {
+      Object.entries(summary).forEach(([periodName, periodData]) => {
+        console.log(`🔍 DEBUG Period "${periodName}":`, periodData);
+        console.log(`  - clicks: ${periodData.clicks} (type: ${typeof periodData.clicks})`);
+        console.log(`  - impressions: ${periodData.impressions} (type: ${typeof periodData.impressions})`);
+        console.log(`  - Clicks: ${periodData.Clicks} (type: ${typeof periodData.Clicks})`);
+        console.log(`  - Impressions: ${periodData.Impressions} (type: ${typeof periodData.Impressions})`);
+        console.log(`  - has clicks > 0: ${(periodData.clicks && periodData.clicks > 0) || (periodData.Clicks && periodData.Clicks > 0)}`);
+        console.log(`  - has impressions > 0: ${(periodData.impressions && periodData.impressions > 0) || (periodData.Impressions && periodData.Impressions > 0)}`);
+      });
+    }
+    
+    // ✅ CORREGIDO: Verificar si hay datos de performance en cualquier período (tanto minúscula como mayúscula)
+    const hasPerformanceData = summary && Object.values(summary).some(period => 
+      (period.clicks && period.clicks > 0) || (period.impressions && period.impressions > 0) ||
+      (period.Clicks && period.Clicks > 0) || (period.Impressions && period.Impressions > 0)
+    );
+    
+    console.log('🔍 DEBUG: hasPerformanceData evaluation:', hasPerformanceData);
+    
+    if (hasPerformanceData) {
+      availableSections.push('performance');
+      console.log('✅ Performance section enabled - found data in periods');
+    } else {
+      console.log('❌ Performance section NOT enabled - no data found or invalid structure');
+      // ✅ ALTERNATIVA: Si summary tiene datos pero con estructura diferente
+      if (summary) {
+        console.log('🔍 FALLBACK: Checking alternative summary structure...');
+        // Verificar si hay datos directamente en summary
+        if ((summary.clicks && summary.clicks > 0) || (summary.impressions && summary.impressions > 0)) {
+          availableSections.push('performance');
+          console.log('✅ Performance section enabled via fallback - found direct data in summary');
+        }
+      }
+    }
+    
+    if (data.keywordStats && Object.keys(data.keywordStats).length > 0) {
+      availableSections.push('keywords');
+      console.log('✅ Keywords section enabled - found', Object.keys(data.keywordStats).length, 'keyword groups');
+    }
+    
+    if (data.pages && data.pages.length > 0) {
+      availableSections.push('pages');
+      console.log('✅ Pages section enabled - found', data.pages.length, 'pages');
+    }
+    
+    console.log('🎯 Available sections determined:', availableSections);
+    
+    // Notificar al sidebar que el análisis está completo
+    onAnalysisComplete(availableSections);
+    
+    // Habilitar AI Overview si hay keywords disponibles
+    if (keywordData && keywordData.length > 0) {
+      onAIAnalysisReady();
+    }
+
+    // ✅ NUEVO: Redirección automática a Performance Overview si está disponible
+    if (availableSections.includes('performance')) {
+      setTimeout(() => {
+        console.log('🎯 Auto-navegando a Performance Overview (performanceContent) tras completar análisis');
+        showSection('performance');
+        // ✅ NUEVO: Scroll arriba del todo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 1500); // Esperar 1.5s para que se complete la renderización
+    }
 
     // ✅ NUEVO: Mensaje de éxito para móviles
     if (isMobile) {

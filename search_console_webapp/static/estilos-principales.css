@@ -43,11 +43,158 @@
 #keywordsTitle,
 #aiOverviewTitle {
   text-align: center;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--heading);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   position: relative;
+}
+
+/* ✅ NUEVO: Título más compacto para keywords */
+.keywords-title-compact {
+  margin-bottom: 8px !important;
+}
+
+/* ✅ NUEVO: Espaciado compacto para tabla de keywords */
+#keywordComparisonBlock {
+  margin-top: var(--spacing-md) !important;
+}
+
+/* ✅ NUEVO: Ancho unificado para todas las secciones */
+#keywordsContent,
+#pagesContent,
+#aiOverviewContent,
+#performanceContent {
+  max-width: 68rem !important;
+  margin: 0 auto !important;
+}
+
+/* ✅ NUEVO: Optimización para pantallas de 14 pulgadas (1366px-1599px) */
+@media (min-width: 1366px) and (max-width: 1599px) {
+  /* Keywords: Aumentar especificidad para superar base-y-componentes.css */
+  #keywordsContent .overview-card,
+  .keywords-overview-block .overview-card {
+    flex: 1 1 120px !important;
+    max-width: 150px !important;
+    padding: var(--spacing-xs) !important;
+  }
+  
+  #keywordsContent .overview-card .card-icon,
+  .keywords-overview-block .overview-card .card-icon {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.1rem !important;
+  }
+  
+  #keywordsContent .overview-card .value,
+  .keywords-overview-block .overview-card .value {
+    font-size: 1.8rem !important;
+  }
+  
+  #keywordsContent .overview-card .label,
+  .keywords-overview-block .overview-card .label {
+    font-size: 0.75rem !important;
+  }
+  
+  #keywordsContent .category-card,
+  .keywords-category-block .category-card {
+    padding: var(--spacing-sm) !important;
+  }
+  
+  #keywordsContent .category-card .card-icon,
+  .keywords-category-block .category-card .card-icon {
+    padding: 6px !important;
+    font-size: 1.1rem !important;
+  }
+  
+  #keywordsContent .category-card .value,
+  .keywords-category-block .category-card .value {
+    font-size: 1.4rem !important;
+  }
+  
+  #keywordsContent .category-card .subtitle,
+  .keywords-category-block .category-card .subtitle {
+    font-size: 0.85rem !important;
+  }
+  
+  /* Pages: Reducir espaciado de tabla */
+  #pagesContent #resultsBlock {
+    margin-top: var(--spacing-sm) !important;
+  }
+  
+  /* Keywords: Reducir espaciado de tabla de comparación */
+  #keywordsContent #keywordComparisonBlock {
+    margin-top: var(--spacing-sm) !important;
+  }
+  
+  /* Tablas: Aumentar especificidad para superar tablas.css */
+  div.dataTables_wrapper table.dataTable thead th,
+  div.dataTables_wrapper table.dataTable thead td,
+  .table-responsive-container table.dataTable thead th,
+  .table-responsive-container table.dataTable thead td {
+    padding: 10px 6px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  div.dataTables_wrapper table.dataTable tbody th,
+  div.dataTables_wrapper table.dataTable tbody td,
+  .table-responsive-container table.dataTable tbody th,
+  .table-responsive-container table.dataTable tbody td {
+    padding: 8px 6px !important;
+    font-size: 0.8rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Keywords y Pages: Aumentar especificidad para contenedores */
+  #keywordsContent .keywords-overview-block,
+  #keywordsContent .keywords-category-block {
+    padding: var(--spacing-sm) !important;
+    margin-bottom: var(--spacing-sm) !important;
+  }
+  
+  #keywordsContent .overview-cards.overview-cards-horizontal,
+  .keywords-overview-block .overview-cards.overview-cards-horizontal {
+    gap: var(--spacing-xs) !important;
+    margin: var(--spacing-xs) auto !important;
+  }
+  
+  #keywordsContent .category-cards.category-cards-horizontal,
+  .keywords-category-block .category-cards.category-cards-horizontal {
+    gap: var(--spacing-xs) !important;
+    margin: var(--spacing-xs) auto !important;
+  }
+  
+  /* Keywords: Ajustar título para consistencia con Performance */
+  #keywordsContent .keywords-title-compact {
+    font-size: 1.2rem !important;
+    margin-bottom: 6px !important;
+  }
+  
+  #keywordsContent .keywords-overview-subtitle {
+    font-size: 0.8rem !important;
+    margin-bottom: 16px !important;
+    margin-top: 6px !important;
+  }
+}
+
+/* ✅ NUEVO: Optimización para pantallas grandes (≥1600px) */
+@media (min-width: 1600px) {
+  #keywordsContent,
+  #pagesContent,
+  #aiOverviewContent,
+  #performanceContent {
+    max-width: 1200px !important;
+  }
+}
+
+/* ✅ NUEVO: Responsive - ancho completo en pantallas pequeñas */
+@media (max-width: 1024px) {
+  #keywordsContent,
+  #pagesContent,
+  #aiOverviewContent,
+  #performanceContent {
+    max-width: 100% !important;
+  }
 }
 
 #performanceTitle::after,
@@ -81,7 +228,7 @@
 /* --- Insights Section (Modern) --- */
 #summaryDisclaimer {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 24px;
   margin: 40px auto;
   max-width: 1200px;
@@ -96,7 +243,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 16px;
+  gap: 10px;
   transition: all var(--transition-base);
 }
 
@@ -132,12 +279,12 @@
 /* --- Keywords Overview & Category Cards --- */
 .keywords-overview-subtitle, .urls-overview-subtitle, .insights-subtitle {
   text-align: center;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-color);
   opacity: 0.8;
-  margin-bottom: 32px;
-  margin-top: 12px;
+  margin-bottom: 20px;
+  margin-top: 8px;
 }
 
 #keywordOverviewDiv {

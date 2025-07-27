@@ -7,7 +7,7 @@ export const elems = {
   urlsInput: document.getElementById('urlsInput'), // ✅ NUEVO: Campo de URLs
   monthChipsDiv: document.getElementById('monthChips'),
   matchType: document.getElementById('matchType'),
-  downloadExcelBtn: document.getElementById('downloadExcelBtn'),
+  // downloadExcelBtn: document.getElementById('downloadExcelBtn'), // Eliminado - ahora está en el sidebar
   
   insightsSection: document.getElementById('insightsSection'),
   performanceSection: document.getElementById('performanceSection'),
@@ -43,7 +43,7 @@ export const elems = {
 
   // NUEVOS ELEMENTOS STICKY
   stickyActions: document.getElementById('stickyActions'),
-  stickyDownloadBtn: document.getElementById('stickyDownloadBtn'),
+  // stickyDownloadBtn: document.getElementById('stickyDownloadBtn'), // Eliminado - ahora está en el sidebar
   stickyAIBtn: document.getElementById('stickyAIBtn'),
 
   // ELEMENTOS DEL NAVBAR

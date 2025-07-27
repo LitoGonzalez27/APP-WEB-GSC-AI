@@ -32,6 +32,9 @@ class Navbar {
         this.mobileUserName = document.getElementById('mobileUserName');
         this.mobileUserEmail = document.getElementById('mobileUserEmail');
         
+        // Sidebar navigation
+        this.navSectionGlobal = document.getElementById('navSectionGlobal');
+        
         // Estado de la aplicación
         this.isLoggedIn = false;
         this.currentUser = null;
@@ -430,9 +433,10 @@ class Navbar {
                 this.userName.textContent = this.currentUser.name || 'Usuario';
             }
             
-            // Navigation buttons for logged in users
-            if (this.loggedInNav) {
-                this.loggedInNav.style.display = 'flex';
+            // Navigation buttons for logged in users (removed from navbar, now in sidebar)
+            // Show global navigation section in sidebar
+            if (this.navSectionGlobal) {
+                this.navSectionGlobal.style.display = 'block';
             }
 
             // Mobile user info
@@ -446,8 +450,9 @@ class Navbar {
             if (this.userInfo) {
                 this.userInfo.style.display = 'none';
             }
-            if (this.loggedInNav) {
-                this.loggedInNav.style.display = 'none';
+            // Hide global navigation section in sidebar
+            if (this.navSectionGlobal) {
+                this.navSectionGlobal.style.display = 'none';
             }
             if (this.mobileUserInfo) {
                 this.mobileUserInfo.style.display = 'none';

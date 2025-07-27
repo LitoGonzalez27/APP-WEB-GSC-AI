@@ -141,7 +141,6 @@ body.dark-mode {
 body {
   font-family: 'Jost', sans-serif;
   min-height: 100vh;
-  padding: 100px var(--container-padding) var(--spacing-lg);
   max-width: var(--container-max-width);
   background: var(--body-bg);
   color: var(--text-color);
@@ -497,27 +496,37 @@ tr:hover td {
   max-width: 95%;
 }
 
+/* ✅ NUEVO: Overview Cards en horizontal */
+.overview-cards.overview-cards-horizontal {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+  gap: var(--spacing-xs) !important;
+  margin: var(--spacing-sm) auto !important;
+  max-width: 100% !important;
+  flex-wrap: nowrap !important;
+}
+
 .overview-card {
-  flex: 1 1 160px;
-  max-width: 200px;
+  flex: 1 1 140px;
+  max-width: 180px;
   background: transparent;
   border: none;
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
 
   .card-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 60px;
-    height: 60px;
+    width: 45px;
+    height: 45px;
     border-radius: var(--radius-full);
     margin-bottom: var(--spacing-xs);
-    font-size: 1.8rem;
+    font-size: 1.4rem;
   }
 
   .label {
@@ -544,23 +553,49 @@ tr:hover td {
   max-width: 95%;
 }
 
+/* ✅ NUEVO: Category Cards en horizontal */
+.category-cards.category-cards-horizontal {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  gap: var(--spacing-xs) !important;
+  margin: var(--spacing-sm) auto !important;
+  max-width: 100% !important;
+}
+
+/* ✅ NUEVO: Contenedores de bloques para keywords */
+.keywords-overview-block,
+.keywords-category-block {
+  
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Textos de sección eliminados por petición del usuario */
+
+/* ✅ NUEVO: Modo oscuro para bloques de keywords */
+[data-theme="dark"] .keywords-overview-block,
+[data-theme="dark"] .keywords-category-block {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(51, 65, 85, 0.5);
+}
+
 .category-card {
   text-align: center;
 
   .card-icon {
-    padding: 12px;
+    padding: 8px;
     background-color: rgba(230,95,43,0.1);
     border-radius: var(--radius-sm);
     color: var(--cta-bg);
-    font-size: 1.6rem;
-    margin-bottom: var(--spacing-sm);
+    font-size: 1.3rem;
+    margin-bottom: var(--spacing-xs);
   }
 
   .value {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--cta-bg);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
   }
 
   .subtitle {
@@ -578,9 +613,9 @@ tr:hover td {
 /* Summary Cards */
 #summaryBlock {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--spacing-md);
-  margin: var(--spacing-xl) auto;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+  margin: var(--spacing-lg) auto;
   max-width: 95%;
 }
 
@@ -597,9 +632,9 @@ tr:hover td {
     top: var(--spacing-sm);
     left: 50%;
     transform: translateX(-50%);
-    font-size: 1.8rem;
-    width: 60px;
-    height: 60px;
+    font-size: 1.5rem;
+    width: 50px;
+    height: 50px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -608,13 +643,13 @@ tr:hover td {
 
   strong {
     display: block;
-    font-size: 1.25rem;
-    margin: var(--spacing-sm) 0 12px;
+    font-size: 1.1rem;
+    margin: var(--spacing-sm) 0 8px;
     color: var(--heading);
   }
 
   .summary-content {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -847,7 +882,7 @@ tr:hover td {
 /* ===== DESKTOP LARGE (1201px+) ===== */
 @media (min-width: 1201px) {
   body {
-    padding: 100px 60px 50px;
+    padding: 100px 30px 50px;
   }
 }
 
@@ -879,7 +914,6 @@ tr:hover td {
 /* Contenedor principal de la página */
 .page-container {
   max-width: 1600px;
-  margin: 40px auto;
 }
 
 /* Header de la página */

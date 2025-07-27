@@ -12,22 +12,18 @@ let currentSiteUrl = null;
 export function initStickyActions() {
     console.log('🎯 Inicializando botones sticky...');
     
-    if (!elems.stickyDownloadBtn || !elems.stickyAIBtn) {
-        console.warn('Elementos sticky no encontrados');
+    if (!elems.stickyAIBtn) {
+        console.warn('Elemento sticky AI no encontrado');
         return;
     }
 
-    // Event listener para descarga Excel
-    elems.stickyDownloadBtn.addEventListener('click', handleStickyExcelDownload);
-    
     // Event listener para análisis IA
     elems.stickyAIBtn.addEventListener('click', handleStickyAIAnalysis);
 
-    // Tooltips para móvil
-    elems.stickyDownloadBtn.setAttribute('data-tooltip', 'Descargar Excel');
+    // Tooltip para móvil
     elems.stickyAIBtn.setAttribute('data-tooltip', 'Execute AI Analysis');
 
-    console.log('✅ Botones sticky inicializados correctamente');
+    console.log('✅ Botón sticky AI inicializado correctamente');
 }
 
 /**
@@ -78,122 +74,7 @@ export function updateStickyData(keywordData, siteUrl) {
     }
 }
 
-/**
- * Maneja el click en el botón de descarga Excel
- */
-async function handleStickyExcelDownload() {
-    console.log('📥 Iniciando descarga Excel desde botón sticky');
-    
-    if (!window.currentData || !window.currentData.pages) {
-        alert('No hay datos para descargar. Por favor, ejecuta primero una consulta.');
-        return;
-    }
-
-    // Cambiar estado del botón a loading
-    setStickyButtonLoading(elems.stickyDownloadBtn, true);
-
-    try {
-        // ✅ SOLUCIÓN ROBUSTA: Manejar diferentes estructuras de datos AI Overview
-        let aiOverviewDataToDownload = null;
-        
-        if (window.currentAIOverviewData) {
-            console.log('🔍 Procesando datos AI Overview para descarga...', window.currentAIOverviewData);
-            
-            // Caso 1: La estructura tiene 'analysis' que contiene 'results' y 'summary'
-            if (window.currentAIOverviewData.analysis) {
-                aiOverviewDataToDownload = {
-                    results: window.currentAIOverviewData.analysis.results || 
-                             window.currentAIOverviewData.keywordResults || 
-                             [],
-                    summary: window.currentAIOverviewData.analysis.summary || 
-                             window.currentAIOverviewData.summary || 
-                             {}
-                };
-                console.log('✅ Estructura detectada: analysis.results/summary');
-            }
-            // Caso 2: La estructura ya tiene 'results' y 'summary' directamente
-            else if (window.currentAIOverviewData.results && window.currentAIOverviewData.summary) {
-                aiOverviewDataToDownload = {
-                    results: window.currentAIOverviewData.results,
-                    summary: window.currentAIOverviewData.summary
-                };
-                console.log('✅ Estructura detectada: results/summary directa');
-            }
-            // Caso 3: Intento de rescate con keywordResults
-            else if (window.currentAIOverviewData.keywordResults) {
-                aiOverviewDataToDownload = {
-                    results: window.currentAIOverviewData.keywordResults,
-                    summary: window.currentAIOverviewData.summary || {}
-                };
-                console.log('✅ Estructura detectada: keywordResults');
-            }
-            // Caso 4: Estructura no reconocida, intentar usar tal cual
-            else {
-                console.warn('⚠️ Estructura AI Overview no reconocida, usando tal cual');
-                aiOverviewDataToDownload = window.currentAIOverviewData;
-            }
-            
-            // Log de verificación
-            console.log('📊 Datos AI Overview preparados para descarga:', {
-                tieneResults: !!aiOverviewDataToDownload?.results,
-                resultsCount: aiOverviewDataToDownload?.results?.length || 0,
-                tieneSummary: !!aiOverviewDataToDownload?.summary,
-                summaryKeys: aiOverviewDataToDownload?.summary ? Object.keys(aiOverviewDataToDownload.summary) : []
-            });
-        } else {
-            console.log('ℹ️ No hay datos de AI Overview para incluir en el Excel');
-        }
-
-        const payload = {
-            data: window.currentData,
-            ai_overview_data: aiOverviewDataToDownload,
-            metadata: {
-                site_url: elems.siteUrlSelect ? elems.siteUrlSelect.value : '',
-                months: [...document.querySelectorAll('.chip.selected')].map(c => c.dataset.value),
-                generated_at: new Date().toISOString()
-            }
-        };
-
-        const resp = await fetch('/download-excel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!resp.ok) {
-            const errorData = await resp.json().catch(() => ({ error: "Error al parsear respuesta del servidor" }));
-            let alertMessage = `Error al generar Excel: ${errorData.error || resp.statusText}`;
-            if (errorData.reauth_required) {
-                alertMessage += "\nLa autenticación con Google ha fallado o expirado. Por favor, recarga la página para re-autenticar.";
-            }
-            alert(alertMessage);
-            return;
-        }
-
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        const hasAI = aiOverviewDataToDownload ? '_con_AI' : '';
-        a.download = `search_console_report${hasAI}_${timestamp}.xlsx`;
-
-        document.body.appendChild(a);
-        a.click();
-        URL.revokeObjectURL(url);
-        a.remove();
-
-        // Mostrar éxito temporal
-        showStickySuccess(elems.stickyDownloadBtn, 'Descargado!');
-
-    } catch (e) {
-        console.error("Error en la descarga de Excel:", e);
-        alert('Se produjo un error inesperado al intentar descargar el archivo Excel.');
-    } finally {
-        setStickyButtonLoading(elems.stickyDownloadBtn, false);
-    }
-}
+// ✅ Función de descarga Excel eliminada - ahora se maneja desde el sidebar
 
 /**
  * Maneja el click en el botón de análisis IA - Navega a la sección
@@ -201,8 +82,18 @@ async function handleStickyExcelDownload() {
 function handleStickyAIAnalysis() {
     console.log('🤖 Navegando a sección AI Overview desde botón sticky');
     
-    // Scroll suave a la sección de IA Overview
-    scrollToAISection();
+    // ✅ NUEVO: Usar el sistema de navegación del sidebar
+    if (window.showSection) {
+        console.log('📍 Navegando a AI Overview usando el sistema del sidebar');
+        window.showSection('ai-overview');
+        
+        // Scroll al top de la página
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        // Fallback al método anterior
+        console.log('📍 Fallback: Navegando usando scroll directo');
+        scrollToAISection();
+    }
 }
 
 /**
@@ -270,10 +161,10 @@ function showStickySuccess(button, message) {
 }
 
 /**
- * Añade efecto de pulso a un botón (para notificaciones)
+ * Añade efecto de pulso al botón AI (para notificaciones)
  */
-export function pulseStickyButton(buttonType, duration = 3000) {
-    const button = buttonType === 'ai' ? elems.stickyAIBtn : elems.stickyDownloadBtn;
+export function pulseStickyButton(buttonType = 'ai', duration = 3000) {
+    const button = elems.stickyAIBtn;
     if (!button) return;
     
     button.classList.add('pulse');

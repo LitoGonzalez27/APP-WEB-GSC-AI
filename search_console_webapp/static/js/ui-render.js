@@ -532,9 +532,16 @@ export function renderSummary(periodSummary) {
   }
 
   if (elems.summaryBlock) elems.summaryBlock.style.display = 'grid';
-  if (elems.performanceTitle) elems.performanceTitle.style.display = 'block';
-  if (elems.chartsBlock) elems.chartsBlock.style.display = 'none'; 
-  if (elems.performanceSection) elems.performanceSection.style.display = 'block';
+  
+  // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+      console.log('✅ Performance content ready - sidebar can show it when user navigates');
+    
+    // ✅ Notificar al sidebar que el contenido de performance está listo
+    if (window.sidebarOnContentReady) {
+      window.sidebarOnContentReady('performance');
+    }
+  
+  if (elems.chartsBlock) elems.chartsBlock.style.display = 'none';
 }
 
 // ✅ FUNCIÓN CORREGIDA para ui-render.js (reemplazar solo la función renderKeywords)
@@ -626,8 +633,8 @@ export function renderKeywords(keywordStats = {}) {
     });
   }
 
-  if (elems.keywordsSection) elems.keywordsSection.style.display = 'block';
-  if (elems.keywordsTitle) elems.keywordsTitle.style.display = 'block';
+  // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+  console.log('✅ Keywords content ready - sidebar can show it when user navigates');
 }
 
 // ✅ ACTUALIZADA: renderInsights para trabajar con períodos específicos
@@ -749,13 +756,13 @@ export function renderInsights(periodData) {
   const insightsSection = document.getElementById('insightsSection');
   const insightsTitle = document.getElementById('insightsTitle');
   
-  if (insightsSection) {
-    insightsSection.style.display = 'block';
-  }
-  
-  if (insightsTitle) {
-    insightsTitle.style.display = 'block';
-  }
+  // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+      console.log('✅ Insights content ready - sidebar can show it when user navigates');
+    
+    // ✅ Notificar al sidebar que el contenido de insights está listo
+    if (window.sidebarOnContentReady) {
+      window.sidebarOnContentReady('insights');
+    }
 
   console.log('✅ Insights renderizados correctamente');
 }
@@ -1077,8 +1084,8 @@ export async function renderTable(pages) {
   if (!pages || !pages.length) {
     console.log('⚠️ No hay datos de páginas para mostrar');
     if (elems.tableBody) elems.tableBody.innerHTML = '<tr><td colspan="14">No hay datos para la tabla.</td></tr>';
-    if (elems.resultsSection) elems.resultsSection.style.display = 'block';
-    if (elems.resultsTitle) elems.resultsTitle.style.display = 'block';
+    // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+    console.log('✅ Pages content ready - sidebar can show it when user navigates');
     if (elems.resultsTitle) elems.resultsTitle.textContent = 'URLs Performance';
     
     // ✅ NUEVO: Mostrar subtítulo también cuando no hay datos
@@ -1334,14 +1341,12 @@ export async function renderTable(pages) {
     urlsDataTable = null;
   }
 
-  // ✅ MEJORADO: Mostrar sección con logging
-  if (elems.resultsSection) {
-    elems.resultsSection.style.display = 'block';
-    console.log('✅ Sección de resultados mostrada');
-  }
+  // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+  console.log('✅ Pages content ready - sidebar can show it when user navigates');
   
   if (elems.resultsTitle) {
-    elems.resultsTitle.style.display = 'block';
+    // ✅ SIDEBAR: No mostrar automáticamente, pero sí actualizar el contenido
+    // elems.resultsTitle.style.display = 'block';
     
     // ✅ NUEVO: Título simple y consistente como keywords
     elems.resultsTitle.textContent = 'URLs Performance';
@@ -1363,16 +1368,18 @@ export async function renderTable(pages) {
     const resultsTitle = document.getElementById('resultsTitle') || elems.resultsTitle;
     const tableElement = document.getElementById('resultsTable');
     
-    if (resultsSection && resultsSection.style.display !== 'block') {
-      console.warn('⚠️ Sección de resultados no visible, forzando visibilidad...');
-      resultsSection.style.display = 'block';
-    }
+    // ✅ SIDEBAR: Las secciones se muestran solo cuando el usuario navega a ellas desde el sidebar
+    // if (resultsSection && resultsSection.style.display !== 'block') {
+    //   console.warn('⚠️ Sección de resultados no visible, forzando visibilidad...');
+    //   resultsSection.style.display = 'block';
+    // }
     
-    if (resultsTitle && resultsTitle.style.display !== 'block') {
-      console.warn('⚠️ Título de resultados no visible, forzando visibilidad...');
-      resultsTitle.style.display = 'block';
-      resultsTitle.textContent = 'URLs Performance';
-    }
+    // ✅ SIDEBAR: Las secciones se muestran solo cuando el usuario navega a ellas desde el sidebar
+    // if (resultsTitle && resultsTitle.style.display !== 'block') {
+    //   console.warn('⚠️ Título de resultados no visible, forzando visibilidad...');
+    //   resultsTitle.style.display = 'block';
+    //   resultsTitle.textContent = 'URLs Performance';
+    // }
     
     if (tableElement && !tableElement.offsetParent) {
       console.warn('⚠️ Tabla no visible, verificando estructura...');
@@ -1395,13 +1402,12 @@ export function renderTableError() {
     elems.tableBody.innerHTML = '<tr><td colspan="14">Error al procesar la solicitud.</td></tr>';
   }
   
-  if (elems.resultsSection) {
-    elems.resultsSection.style.display = 'block';
-    console.log('✅ Sección de resultados mostrada (estado error)');
-  }
+  // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
+  console.log('✅ Pages content ready - sidebar can show it when user navigates (error state)');
   
   if (elems.resultsTitle) {
-    elems.resultsTitle.style.display = 'block';
+    // ✅ SIDEBAR: No mostrar automáticamente, pero sí actualizar el contenido
+    // elems.resultsTitle.style.display = 'block';
     elems.resultsTitle.textContent = 'URLs Performance';
     console.log('✅ Título actualizado (estado error)');
   }
