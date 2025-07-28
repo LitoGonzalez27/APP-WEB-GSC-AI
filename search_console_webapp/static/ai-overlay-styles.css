@@ -496,6 +496,17 @@ body.dark-mode .ai-shimmer::after {
     min-width: 180px;
   }
   
+  /* Dropdown responsive */
+  #keywordCountSelect {
+    min-width: 120px;
+    font-size: 0.85em;
+    padding: 6px 10px;
+  }
+  
+  .ai-keyword-count-selector label {
+    font-size: 0.9em;
+  }
+  
   .ai-progress-container {
     padding: 2rem 1.5rem;
   }
@@ -538,6 +549,21 @@ body.dark-mode .ai-shimmer::after {
     min-width: 160px;
   }
   
+  /* Dropdown extra responsive */
+  #keywordCountSelect {
+    min-width: 110px;
+    font-size: 0.8em;
+    padding: 6px 8px;
+  }
+  
+  .ai-keyword-count-selector {
+    margin: 1.2em 0;
+  }
+  
+  .ai-keyword-count-selector label {
+    font-size: 0.85em;
+  }
+  
   .ai-progress-circle {
     width: 80px;
     height: 80px;
@@ -556,6 +582,84 @@ body.dark-mode .ai-shimmer::after {
     gap: 0.5rem;
     text-align: center;
   }
+}
+
+/* ========================================
+   DROPDOWN SELECTOR DE KEYWORDS
+   ======================================== */
+
+.ai-keyword-count-selector {
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+.ai-keyword-count-selector label {
+  display: block;
+  margin-bottom: 0.5em;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: color 0.3s ease;
+}
+
+body.dark-mode .ai-keyword-count-selector label {
+  color: #7c8ff4;
+}
+
+#keywordCountSelect {
+  padding: 8px 12px;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  background: white;
+  color: #333;
+  font-weight: 600;
+  min-width: 140px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9em;
+  outline: none;
+  position: relative;
+}
+
+body.dark-mode #keywordCountSelect {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border-color: #7c8ff4;
+}
+
+#keywordCountSelect:hover {
+  border-color: #5a6fd8;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
+}
+
+body.dark-mode #keywordCountSelect:hover {
+  border-color: #8da0f5;
+  box-shadow: 0 2px 8px rgba(124, 143, 244, 0.3);
+}
+
+#keywordCountSelect:focus {
+  border-color: #4c63d2;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: translateY(-1px);
+}
+
+body.dark-mode #keywordCountSelect:focus {
+  border-color: #6b7ff0;
+  box-shadow: 0 0 0 3px rgba(124, 143, 244, 0.2);
+}
+
+/* Estilos para las opciones del select */
+#keywordCountSelect option {
+  background: white;
+  color: #333;
+  padding: 8px;
+  font-weight: 500;
+}
+
+body.dark-mode #keywordCountSelect option {
+  background: var(--card-bg);
+  color: var(--text-color);
 }
 
 /* ========================================

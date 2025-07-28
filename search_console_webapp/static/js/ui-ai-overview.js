@@ -84,7 +84,7 @@ function getCountryForAIAnalysis() {
 /**
  * Nueva función para el fetch de análisis AI
  */
-async function analyzeAIOverview(keywords, siteUrl) {
+async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
     // Usar la lógica de país principal del negocio
     const countryToUse = window.getCountryToUse ? window.getCountryToUse() : 'esp';
     
@@ -92,6 +92,12 @@ async function analyzeAIOverview(keywords, siteUrl) {
         keywords: keywords,
         site_url: siteUrl
     };
+    
+    // Añadir cantidad de keywords si se especifica
+    if (keywordCount) {
+        payload.keyword_count = keywordCount;
+        console.log(`🔢 Enviando solicitud para analizar ${keywordCount} keywords`);
+    }
     
     // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
     if (countryToUse) {
@@ -172,16 +178,19 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
       console.warn('⚠️ Elemento elems.aiOverviewSection no encontrado');
     }
     
-    // ✅ SIMPLIFICADO: Paso único - seleccionar top keywords y analizar
-    console.log('[AI OVERVIEW] 📊 Seleccionando top keywords por clics...');
-    if (statusElement) statusElement.textContent = 'Seleccionando keywords con más tráfico...';
+    // ✅ NUEVO: Obtener cantidad seleccionada por usuario
+    const keywordCountSelect = document.getElementById('keywordCountSelect');
+    const selectedCount = keywordCountSelect ? parseInt(keywordCountSelect.value) : 50;
+    
+    console.log(`[AI OVERVIEW] 📊 Usuario seleccionó analizar ${selectedCount} keywords`);
+    if (statusElement) statusElement.textContent = `Seleccionando top ${selectedCount} keywords por clics...`;
 
-    // Ordenar por clics descendente y tomar las top 30
+    // Ordenar por clics descendente y tomar la cantidad seleccionada
     const topKeywords = keywordData
       .sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
-      .slice(0, 30);
+      .slice(0, selectedCount);
 
-    console.log('[AI OVERVIEW] ✅ Top keywords seleccionadas:', topKeywords.length);
+    console.log(`[AI OVERVIEW] ✅ Top ${selectedCount} keywords seleccionadas:`, topKeywords.length);
 
     // Verificar si hay keywords
     if (topKeywords.length === 0) {
@@ -216,11 +225,11 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
     }
 
     // ✅ DIRECTO: Análisis de AI Overview sin filtrado previo
-    console.log('[AI OVERVIEW] 🤖 Iniciando análisis SERP directo...');
+    console.log(`[AI OVERVIEW] 🤖 Iniciando análisis SERP directo de ${topKeywords.length} keywords...`);
     if (statusElement) statusElement.textContent = `Analizando ${topKeywords.length} keywords...`;
     
-    // ✅ LLAMADA AL ANÁLISIS REAL
-    const analysisData = await analyzeAIOverview(topKeywords, siteUrl);
+    // ✅ LLAMADA AL ANÁLISIS REAL con cantidad seleccionada
+    const analysisData = await analyzeAIOverview(topKeywords, siteUrl, selectedCount);
 
     if (analysisData.error) {
       throw new Error(analysisData.error);
