@@ -222,12 +222,36 @@ body.dark-mode .ai-progress-overlay {
   margin-bottom: 2rem;
 }
 
-/* Barra de progreso circular */
+/* Barra de progreso circular con burbujas animadas */
 .ai-progress-circle {
   position: relative;
   width: 120px;
   height: 120px;
   margin: 0 auto 2rem;
+}
+
+/* 🆕 NUEVO: Anillo pulsante como en el modal principal */
+.ai-progress-pulse-ring {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 50%;
+  animation: ai-pulse-ring 2s infinite;
+}
+
+@keyframes ai-pulse-ring {
+  0% { 
+    transform: translate(-50%, -50%) scale(0.8); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: translate(-50%, -50%) scale(1.1); 
+    opacity: 0; 
+  }
 }
 
 .ai-progress-circle svg {
@@ -301,6 +325,18 @@ body.dark-mode .ai-progress-circle .progress-bg {
 .ai-progress-step.active {
   background: #667eea;
   transform: scale(1.2);
+  animation: ai-step-pulse 1.5s infinite alternate;
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+}
+
+/* 🆕 NUEVO: Animación pulsante para pasos activos */
+@keyframes ai-step-pulse {
+  0% { 
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4); 
+  }
+  100% { 
+    box-shadow: 0 0 16px rgba(102, 126, 234, 0.8); 
+  }
 }
 
 .ai-progress-step.completed {
@@ -470,6 +506,68 @@ body.dark-mode .ai-shimmer::after {
 }
 
 /* ========================================
+   PARTÍCULAS FLOTANTES ANIMADAS
+   ======================================== */
+
+/* 🆕 NUEVO: Contenedor de partículas flotantes */
+.ai-progress-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* 🆕 NUEVO: Partículas individuales */
+.ai-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 50%;
+  animation: ai-float-particle 15s linear infinite;
+  opacity: 0;
+}
+
+/* 🆕 NUEVO: Diferentes posiciones y delays para las partículas */
+.ai-particle-1 { animation-delay: 0s; left: 15%; }
+.ai-particle-2 { animation-delay: 2s; left: 35%; }
+.ai-particle-3 { animation-delay: 4s; left: 55%; }
+.ai-particle-4 { animation-delay: 6s; left: 75%; }
+.ai-particle-5 { animation-delay: 8s; left: 25%; }
+.ai-particle-6 { animation-delay: 10s; left: 65%; }
+
+/* 🆕 NUEVO: Animación de partículas flotantes */
+@keyframes ai-float-particle {
+  0% { 
+    transform: translateY(100vh); 
+    opacity: 0; 
+  }
+  10% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.8; 
+  }
+  90% { 
+    opacity: 0.3; 
+  }
+  100% { 
+    transform: translateY(-10vh); 
+    opacity: 0; 
+  }
+}
+
+/* 🆕 NUEVO: Mejora visual del contenedor de progreso */
+.ai-progress-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ========================================
    RESPONSIVE DESIGN
    ======================================== */
 
@@ -570,6 +668,17 @@ body.dark-mode .ai-shimmer::after {
     margin-top: 0.6em !important;
   }
   
+  /* 🆕 NUEVO: Burbujas optimizadas para móvil */
+  .ai-particle {
+    width: 4px !important;
+    height: 4px !important;
+  }
+  
+  .ai-progress-pulse-ring {
+    width: 140px !important;
+    height: 140px !important;
+  }
+  
   .ai-progress-circle {
     width: 80px;
     height: 80px;
@@ -610,6 +719,29 @@ body.dark-mode .ai-shimmer::after {
 
 body.dark-mode .ai-keyword-count-selector label {
   color: #7c8ff4;
+}
+
+/* 🆕 NUEVO: Dark mode para burbujas animadas */
+body.dark-mode .ai-progress-pulse-ring {
+  border-color: rgba(79, 172, 254, 0.3);
+}
+
+body.dark-mode .ai-particle {
+  background: rgba(79, 172, 254, 0.4);
+}
+
+body.dark-mode .ai-progress-step.active {
+  background: #4facfe;
+  animation: ai-step-pulse-dark 1.5s infinite alternate;
+}
+
+@keyframes ai-step-pulse-dark {
+  0% { 
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.4); 
+  }
+  100% { 
+    box-shadow: 0 0 16px rgba(79, 172, 254, 0.8); 
+  }
 }
 
 #keywordCountSelect {

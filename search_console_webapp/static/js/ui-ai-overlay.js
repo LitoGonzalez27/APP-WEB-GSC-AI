@@ -175,43 +175,49 @@ function startRealisticProgress(keywordCount) {
     startTime = Date.now();
     currentPhase = 0;
     
-    // Definir fases proporcionales al trabajo real
+    // 🔄 MEJORADO: Fases más fluidas sin estancamiento
     const phases = [
         { 
-            percentage: 12, 
+            percentage: 8, 
             message: 'Preparing analysis...', 
             details: `Configuring analysis for ${keywordCount} keywords`,
-            duration: totalEstimatedTime * 0.08 // 8% del tiempo total
+            duration: totalEstimatedTime * 0.06 // 6% del tiempo
         },
         { 
-            percentage: 25, 
+            percentage: 18, 
             message: 'Connecting to APIs...', 
             details: 'Authenticating and establishing connections',
-            duration: totalEstimatedTime * 0.10 // 10% del tiempo total
+            duration: totalEstimatedTime * 0.08 // 8% del tiempo
         },
         { 
-            percentage: 65, 
+            percentage: 35, 
             message: 'Querying SERPs...', 
             details: `Processing ${keywordCount} keywords in parallel`,
-            duration: totalEstimatedTime * 0.55 // 55% del tiempo total (la mayor parte)
+            duration: totalEstimatedTime * 0.25 // 25% del tiempo (reducido)
         },
         { 
-            percentage: 80, 
+            percentage: 55, 
+            message: 'Analyzing results...', 
+            details: 'Processing SERP data and rankings',
+            duration: totalEstimatedTime * 0.20 // 20% del tiempo
+        },
+        { 
+            percentage: 75, 
             message: 'Detecting AI Overview...', 
             details: 'Analyzing AI presence in results',
-            duration: totalEstimatedTime * 0.15 // 15% del tiempo total
+            duration: totalEstimatedTime * 0.18 // 18% del tiempo
         },
         { 
-            percentage: 92, 
+            percentage: 88, 
             message: 'Processing results...', 
             details: 'Calculating metrics and statistics',
-            duration: totalEstimatedTime * 0.10 // 10% del tiempo total
+            duration: totalEstimatedTime * 0.15 // 15% del tiempo
         },
         { 
-            percentage: 98, 
+            percentage: 96, 
             message: 'Finalizing analysis...', 
             details: 'Preparing data visualization',
-            duration: totalEstimatedTime * 0.02 // 2% del tiempo total
+            duration: totalEstimatedTime * 0.08 // 8% del tiempo
         }
     ];
     
