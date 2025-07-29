@@ -25,12 +25,29 @@ class Navbar {
         this.mobileThemeText = document.getElementById('mobileThemeText');
         
         // Elementos de usuario
-        this.userInfo = document.getElementById('userInfo');
-        this.userName = document.getElementById('userName');
+        this.userInfo = document.getElementById('userInfo'); // mantener por compatibilidad
+        this.userName = document.getElementById('userName'); // mantener por compatibilidad
         this.loggedInNav = document.getElementById('loggedInNav');
         this.mobileUserInfo = document.getElementById('mobileUserInfo');
         this.mobileUserName = document.getElementById('mobileUserName');
         this.mobileUserEmail = document.getElementById('mobileUserEmail');
+        
+        // Nuevos elementos del dropdown de usuario
+        this.userDropdown = document.getElementById('userDropdown');
+        this.userDropdownBtn = document.getElementById('userDropdownBtn');
+        this.userDropdownMenu = document.getElementById('userDropdownMenu');
+        this.userNameDropdown = document.getElementById('userNameDropdown');
+        this.userNameLarge = document.getElementById('userNameLarge');
+        this.userEmailDropdown = document.getElementById('userEmailDropdown');
+        this.userAvatarSmall = document.getElementById('userAvatarSmall');
+        this.userAvatarLarge = document.getElementById('userAvatarLarge');
+        this.authButtons = document.getElementById('authButtons');
+        
+        // Botones del dropdown
+        this.dropdownThemeToggle = document.getElementById('dropdownThemeToggle');
+        this.dropdownThemeIcon = document.getElementById('dropdownThemeIcon');
+        this.dropdownThemeText = document.getElementById('dropdownThemeText');
+        this.dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
         
         // Sidebar navigation
         this.navSectionGlobal = document.getElementById('navSectionGlobal');
@@ -40,6 +57,7 @@ class Navbar {
         this.currentUser = null;
         this.isScrolled = false;
         this.isMobileMenuOpen = false;
+        this.isUserDropdownOpen = false;
         
         this.init();
     }
@@ -105,6 +123,35 @@ class Navbar {
             this.mobileToggleModeBtn.addEventListener('click', () => this.handleThemeToggle());
         }
 
+        // Nuevo botón de tema en dropdown
+        if (this.dropdownThemeToggle) {
+            this.dropdownThemeToggle.addEventListener('click', () => this.handleThemeToggle());
+        }
+
+        // User dropdown functionality
+        if (this.userDropdownBtn) {
+            this.userDropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleUserDropdown();
+            });
+        }
+
+        // Dropdown logout button
+        if (this.dropdownLogoutBtn) {
+            this.dropdownLogoutBtn.addEventListener('click', () => {
+                this.closeUserDropdown();
+                this.handleLogout();
+            });
+        }
+
+        // Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (this.isUserDropdownOpen && 
+                !this.userDropdown.contains(e.target)) {
+                this.closeUserDropdown();
+            }
+        });
+
         // Cerrar menú móvil al hacer click en enlaces internos
         document.addEventListener('click', (e) => {
             if (this.isMobileMenuOpen && !this.navbarMenu.contains(e.target) && !this.navbarToggle.contains(e.target)) {
@@ -156,10 +203,16 @@ class Navbar {
         if (this.mobileThemeIcon) {
             this.mobileThemeIcon.className = `fas ${iconClass}`;
         }
+        if (this.dropdownThemeIcon) {
+            this.dropdownThemeIcon.className = `fas ${iconClass}`;
+        }
 
-        // Actualizar texto móvil
+        // Actualizar texto móvil y dropdown
         if (this.mobileThemeText) {
             this.mobileThemeText.textContent = themeText;
+        }
+        if (this.dropdownThemeText) {
+            this.dropdownThemeText.textContent = themeText;
         }
 
         // Actualizar aria-label
@@ -274,6 +327,64 @@ class Navbar {
         
         // Actualizar aria-expanded
         this.navbarToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    // ================================
+    // AVATAR MANAGEMENT
+    // ================================
+
+    // Actualizar avatar con foto de perfil de Google
+    updateAvatar(avatarElement, userPicture = null) {
+        if (!avatarElement) return;
+        
+        if (userPicture) {
+            // Si hay foto de perfil, crear elemento img
+            avatarElement.innerHTML = `<img src="${userPicture}" alt="Avatar" />`;
+        } else {
+            // Si no hay foto, usar icono por defecto
+            avatarElement.innerHTML = '<i class="fas fa-user-circle"></i>';
+        }
+    }
+
+    // ================================
+    // USER DROPDOWN FUNCTIONALITY
+    // ================================
+
+    // Toggle del dropdown de usuario
+    toggleUserDropdown() {
+        this.isUserDropdownOpen = !this.isUserDropdownOpen;
+        
+        if (this.isUserDropdownOpen) {
+            this.openUserDropdown();
+        } else {
+            this.closeUserDropdown();
+        }
+    }
+
+    // Abrir dropdown de usuario
+    openUserDropdown() {
+        this.isUserDropdownOpen = true;
+        if (this.userDropdownMenu) {
+            this.userDropdownMenu.classList.add('show');
+        }
+        
+        // Actualizar aria-expanded
+        if (this.userDropdownBtn) {
+            this.userDropdownBtn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    // Cerrar dropdown de usuario
+    closeUserDropdown() {
+        this.isUserDropdownOpen = false;
+        if (this.userDropdownMenu) {
+            this.userDropdownMenu.classList.remove('show');
+        }
+        
+        // Actualizar aria-expanded
+        if (this.userDropdownBtn) {
+            this.userDropdownBtn.setAttribute('aria-expanded', 'false');
+        }
     }
 
     // Verificar estado de autenticación
@@ -401,7 +512,18 @@ class Navbar {
 
     // Actualizar botones de autenticación
     updateAuthButtons() {
-        // Botones desktop
+        // Mostrar/ocultar dropdown de usuario vs botones de auth
+        if (this.userDropdown && this.authButtons) {
+            if (this.isLoggedIn) {
+                this.userDropdown.style.display = 'block';
+                this.authButtons.style.display = 'none';
+            } else {
+                this.userDropdown.style.display = 'none';
+                this.authButtons.style.display = 'flex';
+            }
+        }
+
+        // Mantener funcionalidad para elementos legacy (por compatibilidad)
         if (this.loginBtn && this.logoutBtn) {
             if (this.isLoggedIn) {
                 this.loginBtn.style.display = 'none';
@@ -427,13 +549,27 @@ class Navbar {
     // Actualizar información del usuario
     updateUserInfo() {
         if (this.isLoggedIn && this.currentUser) {
-            // Desktop user info
+            // Nuevo dropdown de usuario
+            if (this.userNameDropdown) {
+                this.userNameDropdown.textContent = this.currentUser.name || 'Usuario';
+            }
+            if (this.userNameLarge) {
+                this.userNameLarge.textContent = this.currentUser.name || 'Usuario';
+            }
+            if (this.userEmailDropdown) {
+                this.userEmailDropdown.textContent = this.currentUser.email || 'usuario@email.com';
+            }
+
+            // Actualizar avatares con foto de perfil de Google
+            this.updateAvatar(this.userAvatarSmall, this.currentUser.picture);
+            this.updateAvatar(this.userAvatarLarge, this.currentUser.picture);
+
+            // Desktop user info (legacy - mantener por compatibilidad)
             if (this.userInfo && this.userName) {
                 this.userInfo.style.display = 'flex';
                 this.userName.textContent = this.currentUser.name || 'Usuario';
             }
             
-            // Navigation buttons for logged in users (removed from navbar, now in sidebar)
             // Show global navigation section in sidebar
             if (this.navSectionGlobal) {
                 this.navSectionGlobal.style.display = 'block';
@@ -456,6 +592,11 @@ class Navbar {
             }
             if (this.mobileUserInfo) {
                 this.mobileUserInfo.style.display = 'none';
+            }
+            
+            // Cerrar dropdown si está abierto
+            if (this.isUserDropdownOpen) {
+                this.closeUserDropdown();
             }
         }
     }

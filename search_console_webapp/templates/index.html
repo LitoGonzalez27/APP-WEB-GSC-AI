@@ -5,14 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clicandseo</title>
 
-  <!-- Favicons -->
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
   <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
-
-
 
   <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
@@ -25,77 +22,91 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='serp-modal.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
-  
-  <!-- ✅ NUEVO: Agregar estilos del selector de fechas -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='date-selector.css') }}">
-  <!-- ✅ NUEVO: Agregar estilos del modo de análisis -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='analysis-mode-styles.css') }}">
-  <!-- ✅ NUEVO: Agregar estilos del overlay IA -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-overlay-styles.css') }}">
-  <!-- ✅ NUEVO: Sistema responsive mejorado -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='feedback-button.css') }}">
-  
-  <!-- ✅ NUEVO: Estilos del gráfico de tipología AI Overview - ÚLTIMO PARA MÁXIMA PRIORIDAD -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-typology-chart.css') }}">
-  <!-- ✅ NUEVO: Estilos del sidebar de navegación -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
 
   <nav class="navbar" id="navbar">
     <div class="navbar-container">
-      <!-- Logo/Brand Section -->
+
       <div class="navbar-brand">
           <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
                alt="Clicandseo Logo" 
                class="logo-image">
       </div>
 
-      <!-- Desktop Actions (visible en desktop) -->
       <div class="navbar-desktop-actions">
-        <div class="navbar-user-section">
-          <!-- User avatar/info cuando esté logueado -->
-          <div class="user-info" id="userInfo" style="display: none;">
-            <div class="user-avatar">
+
+        <div class="navbar-user-dropdown" id="userDropdown" style="display: none;">
+          <button class="user-dropdown-btn" id="userDropdownBtn">
+            <div class="user-avatar-small" id="userAvatarSmall">
               <i class="fas fa-user-circle"></i>
             </div>
-            <span class="user-name" id="userName">Usuario</span>
-          </div>
-          
-          <!-- Auth buttons -->
-          <div class="auth-buttons">
-            <button type="button" class="btn-auth btn-login" id="loginBtn">
-              <i class="fas fa-sign-in-alt"></i>
-              <span>Iniciar Sesión</span>
+            <span class="user-name-small" id="userNameDropdown">Usuario</span>
+            <i class="fas fa-chevron-down dropdown-chevron"></i>
+          </button>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-avatar-large" id="userAvatarLarge">
+                <i class="fas fa-user-circle"></i>
+              </div>
+              <div class="user-details">
+                <div class="user-name-large" id="userNameLarge">Usuario</div>
+                <div class="user-email" id="userEmailDropdown">usuario@email.com</div>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="/profile" class="dropdown-item">
+              <i class="fas fa-user-circle"></i>
+              <span>Mi Perfil</span>
+            </a>
+            <a href="/dashboard" class="dropdown-item">
+              <i class="fas fa-home"></i>
+              <span>Dashboard</span>
+            </a>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" id="dropdownThemeToggle">
+              <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+              <span id="dropdownThemeText">Modo Oscuro</span>
             </button>
-            
-            <!-- Navigation buttons removed - now in sidebar -->
-
-            <button type="button" class="btn-auth btn-logout" id="logoutBtn" style="display: none;">
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
               <i class="fas fa-sign-out-alt"></i>
               <span>Cerrar Sesión</span>
             </button>
           </div>
         </div>
 
-        <!-- Theme toggle en desktop -->
-        <div class="theme-section">
-          <button type="button" class="btn-theme" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema">
+        <div class="auth-buttons" id="authButtons">
+          <button type="button" class="btn-auth btn-login" id="loginBtn">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Iniciar Sesión</span>
+          </button>
+
+          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema">
             <i class="fas fa-moon" id="themeIcon"></i>
-            <span class="theme-text">Modo Oscuro</span>
           </button>
         </div>
       </div>
 
-      <!-- Mobile Menu Button -->
       <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
       </button>
 
-      <!-- Mobile Menu -->
       <div class="navbar-mobile-menu" id="navbarMenu">
         <div class="mobile-menu-header">
           <div class="mobile-brand">
@@ -110,7 +121,7 @@
         </div>
 
         <div class="mobile-menu-content">
-          <!-- User section en móvil -->
+
           <div class="mobile-user-section">
             <div class="mobile-user-info" id="mobileUserInfo" style="display: none;">
               <div class="mobile-user-avatar">
@@ -123,7 +134,6 @@
             </div>
           </div>
 
-          <!-- Auth actions en móvil -->
           <div class="mobile-auth-section">
             <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn">
               <i class="fas fa-sign-in-alt"></i>
@@ -136,7 +146,6 @@
             </button>
           </div>
 
-          <!-- Theme toggle en móvil -->
           <div class="mobile-theme-section">
             <div class="mobile-theme-toggle">
               <span class="mobile-theme-label">Tema de la aplicación</span>
@@ -151,24 +160,19 @@
       </div>
     </div>
 
-    <!-- Mobile Menu Overlay -->
     <div class="navbar-overlay" id="navbarOverlay"></div>
   </nav>
 
-  
-
-  <!-- Overlay para móviles -->
   <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
 
-  <!-- Layout principal con sidebar -->
   <div class="app-layout">
-    <!-- Sidebar de navegación -->
+
     <aside class="sidebar-container" id="sidebarContainer">
       <div class="sidebar-header">
       </div>
-      
+
       <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
-        <!-- Sección de análisis -->
+
         <div class="nav-section nav-section-analysis">
           <div class="nav-section-title">Análisis</div>
           <button type="button" class="nav-item active" id="navConfiguration" data-section="configuration">
@@ -180,7 +184,7 @@
               <div class="status-dot status-ready" id="statusConfiguration"></div>
             </div>
           </button>
-          
+
           <button type="button" class="nav-item disabled" id="navPerformance" data-section="performance">
             <div class="nav-icon">
               <i class="fas fa-tachometer-alt"></i>
@@ -190,7 +194,7 @@
               <div class="status-dot status-disabled" id="statusPerformance"></div>
             </div>
           </button>
-          
+
           <button type="button" class="nav-item disabled" id="navKeywords" data-section="keywords">
             <div class="nav-icon">
               <i class="fas fa-key"></i>
@@ -200,7 +204,7 @@
               <div class="status-dot status-disabled" id="statusKeywords"></div>
             </div>
           </button>
-          
+
           <button type="button" class="nav-item disabled" id="navPages" data-section="pages">
             <div class="nav-icon">
               <i class="fas fa-file-alt"></i>
@@ -210,7 +214,7 @@
               <div class="status-dot status-disabled" id="statusPages"></div>
             </div>
           </button>
-          
+
           <button type="button" class="nav-item disabled" id="navAI" data-section="ai-overview">
             <div class="nav-icon">
               <i class="fas fa-robot"></i>
@@ -221,26 +225,10 @@
             </div>
           </button>
         </div>
-        
-        <!-- Sección de navegación global (visible solo cuando el usuario está logueado) -->
+
         <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
-          <div class="nav-section-title">Navegación</div>
-          
-          <a href="/dashboard" class="nav-item nav-item-link">
-            <div class="nav-icon">
-              <i class="fas fa-home"></i>
-            </div>
-            <div class="nav-text">Dashboard</div>
-          </a>
-          
-          <a href="/profile" class="nav-item nav-item-link">
-            <div class="nav-icon">
-              <i class="fas fa-user-circle"></i>
-            </div>
-            <div class="nav-text">Mi Perfil</div>
-          </a>
-          
-          <!-- Botón de descarga Excel -->
+          <div class="nav-section-title">Herramientas</div>
+
           <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;">
             <i class="fas fa-download"></i>
             <span>Descargar Excel</span>
@@ -252,7 +240,6 @@
       </nav>
     </aside>
 
-    <!-- Área de contenido principal -->
     <main class="main-content-area">
       <div id="stickyActions" class="sticky-actions" style="display: none;">
         <div class="sticky-actions-container">
@@ -266,11 +253,10 @@
         </div>
       </div>
 
-            <!-- SECCIÓN 0: CONFIGURACIÓN (siempre visible por defecto) -->
       <div class="content-section active" id="configurationContent" data-section="configuration">
         <div class="page-container">
           <form id="urlForm" class="search-form">
-            
+
             <div class="form-header">
               <h1>Search Results Performance</h1>
               <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
@@ -283,7 +269,7 @@
                   <option value="" disabled selected>Loading properties...</option>
                 </select>
               </div>
-              
+
               <div class="form-group form-group-half">
                 <label for="countrySelect">
                   Country
@@ -305,26 +291,25 @@
                 </label>
                 <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
               </div>
-              
+
               <div class="form-group form-group-small">
                 <label for="matchTypeGroup">Match Type</label>
                 <div class="match-type-group" id="matchTypeGroup">
                   <input type="radio" id="matchContains" name="match_type" value="contains" checked>
                   <label for="matchContains" class="match-type-btn">Contains</label>
-                  
+
                   <input type="radio" id="matchEquals" name="match_type" value="equals">
                   <label for="matchEquals" class="match-type-btn">Equals</label>
-                  
+
                   <input type="radio" id="matchNotContains" name="match_type" value="notContains">
                   <label for="matchNotContains" class="match-type-btn">Not Contains</label>
                 </div>
               </div>
             </div>
 
-            <!-- ✅ ACTUALIZADO: Selector de fechas ahora es un modal elegante -->
             <div class="form-row">
               <div class="form-group form-group-full">
-                <!-- ✅ IMPORTANTE: El contenido será reemplazado por el botón modal y selector de fechas -->
+
                 <div id="monthChips" role="group" aria-labelledby="monthChipsLabel"></div>
               </div>
             </div>
@@ -343,13 +328,11 @@
         </div>
       </div>
 
-      <!-- Loader centralizado -->
       <div id="loader" style="display:none; text-align:center; margin:20px;" role="status" aria-live="polite">
         <div class="spinner"></div>
         <p>Processing data for specific periods...</p>
       </div>
 
-      <!-- SECCIÓN 1: PERFORMANCE OVERVIEW -->
       <div class="content-section" id="performanceContent" data-section="performance">
         <section id="insightsSection" class="glass-effect">
           <h2 id="insightsTitle">Performance Overview</h2>
@@ -360,7 +343,7 @@
         <section id="performanceSection" class="glass-effect">
           <h2 id="performanceTitle">Selected Periods Performance</h2>
           <div id="summaryBlock" class="summary-block">
-            <!-- Cards permanecen igual -->
+
             <div class="summary-card" id="summaryClicks">
               <div class="card-icon"><i class="fas fa-mouse-pointer"></i></div>
               <strong>Clicks</strong>
@@ -385,18 +368,15 @@
         </section>
       </div>
 
-      <!-- SECCIÓN 2: KEYWORDS -->
       <div class="content-section" id="keywordsContent" data-section="keywords">
         <section id="keywordsSection" class="glass-effect">
           <h2 id="keywordsTitle" class="keywords-title-compact">Keyword Performance</h2> 
           <div class="keywords-overview-subtitle">Performance comparison between selected periods</div>
-          
-          <!-- ✅ NUEVO: Bloque 1 - Iconos principales en horizontal -->
+
           <div class="keywords-overview-block">
             <div id="keyword-overview" class="overview-cards overview-cards-horizontal"></div>
           </div>
-          
-          <!-- ✅ NUEVO: Bloque 2 - Agrupaciones por rango en horizontal -->
+
           <div class="keywords-category-block">
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
           </div>
@@ -426,7 +406,6 @@
         </section>
       </div>
 
-      <!-- SECCIÓN 3: PAGES/URLS -->
       <div class="content-section" id="pagesContent" data-section="pages">
         <section id="resultsSection" class="glass-effect">
           <h2 id="resultsTitle">URLs Performance</h2>
@@ -457,14 +436,12 @@
         </section>
       </div>
 
-      <!-- SECCIÓN 4: AI OVERVIEW -->
       <div class="content-section" id="aiOverviewContent" data-section="ai-overview">
         <section id="aiOverviewSection" class="glass-effect">
           <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
-          
-          <!-- Contenedor principal con overlay -->
+
           <div class="ai-content-wrapper blurred" id="aiContentWrapper">
-            <!-- Datos placeholder que se muestran inicialmente -->
+
             <div class="ai-placeholder-data" id="aiPlaceholderData">
               <div class="ai-placeholder-summary">
                 <h3><i class="fas fa-chart-line"></i> AI Analysis Summary</h3>
@@ -487,7 +464,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <div class="ai-placeholder-table">
                 <div class="ai-placeholder-table-header">
                   <i class="fas fa-table"></i> Top Keywords by AI Impact
@@ -516,13 +493,11 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Contenedor real de resultados (inicialmente oculto) -->
+
             <div id="aiAnalysisMessage" class="ai-analysis-message" style="display: none;"></div>
             <div id="aiOverviewResultsContainer" class="ai-overview-results-container" style="display: none;"></div>
           </div>
-          
-          <!-- Overlay con botón de ejecutar análisis -->
+
           <div class="ai-overlay" id="aiOverlay">
             <div class="ai-overlay-content">
               <i class="fas fa-robot ai-overlay-icon"></i>
@@ -530,8 +505,7 @@
             <p class="ai-overlay-subtitle">
               Analyze the impact of AI Overview on your keywords and discover visibility opportunities
             </p>
-              
-              <!-- Dropdown de cantidad de keywords -->
+
               <div class="ai-keyword-count-selector">
                 <label for="keywordCountSelect">
                   <i class="fas fa-list-ol"></i> Keywords to analyze:
@@ -543,18 +517,17 @@
                   <option value="150">150 keywords</option>
                 </select>
               </div>
-              
+
               <button class="btn-execute-ai" id="executeAIBtn" disabled>
                 <i class="fas fa-play"></i>
                 Start AI Analysis
               </button>
             </div>
           </div>
-          
-          <!-- Overlay de progreso -->
+
           <div class="ai-progress-overlay" id="aiProgressOverlay">
             <div class="ai-progress-container">
-              <!-- 🆕 NUEVO: Partículas flotantes animadas -->
+
               <div class="ai-progress-particles">
                 <div class="ai-particle ai-particle-1"></div>
                 <div class="ai-particle ai-particle-2"></div>
@@ -563,12 +536,12 @@
                 <div class="ai-particle ai-particle-5"></div>
                 <div class="ai-particle ai-particle-6"></div>
               </div>
-              
+
               <h3 class="ai-progress-title">Analyzing AI Overview</h3>
               <p class="ai-progress-subtitle">Processing keywords and SERPs...</p>
-              
+
               <div class="ai-progress-circle">
-                <!-- 🆕 NUEVO: Anillo pulsante -->
+
                 <div class="ai-progress-pulse-ring"></div>
                 <svg viewBox="0 0 100 100">
                   <defs>
@@ -582,11 +555,10 @@
                 </svg>
                 <div class="ai-progress-percentage" id="progressPercentage">0%</div>
               </div>
-              
+
               <div class="ai-progress-status" id="progressStatus">Starting analysis...</div>
               <div class="ai-progress-details" id="progressDetails">Preparing keyword data</div>
-              
-              <!-- Tiempo restante estimado -->
+
               <div class="ai-progress-time-remaining" id="timeRemaining" style="
                 margin-top: 0.8em;
                 text-align: center;
@@ -595,7 +567,7 @@
                 font-weight: 500;
                 opacity: 0.9;
               ">Calculating time...</div>
-              
+
               <div class="ai-progress-steps">
                 <div class="ai-progress-step" id="step1"></div>
                 <div class="ai-progress-step" id="step2"></div>
@@ -606,11 +578,10 @@
           </div>
         </section>
       </div>
-      
+
     </main>
   </div>
 
-  <!-- Modales permanecen igual -->
   <div id="serpModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -627,7 +598,7 @@
   <div id="progressModal" class="modal" role="dialog" aria-labelledby="progressModalTitle" aria-describedby="progressModalDesc">
     <div class="modal-dialog">
       <div class="progress-modal-content">
-        <!-- Header with branding -->
+
         <div class="progress-modal-header">
           <div class="progress-brand">
             <div class="progress-logo" aria-hidden="true">
@@ -644,9 +615,8 @@
           </div>
         </div>
 
-        <!-- Main progress section -->
         <div class="progress-main-section">
-          <!-- Circular progress indicator -->
+
           <div class="progress-circle-container">
             <svg class="progress-circle-svg" viewBox="0 0 120 120">
               <defs>
@@ -683,12 +653,10 @@
             <div class="progress-pulse-ring"></div>
           </div>
 
-          <!-- Status and current step -->
           <div class="progress-status-section">
             <h4 class="progress-current-step" id="progressCurrentStep" aria-live="polite">Initializing analysis...</h4>
             <p class="progress-current-detail" id="progressCurrentDetail" aria-live="polite">Preparing to fetch your Search Console data</p>
-            
-            <!-- Fun facts section -->
+
             <div class="progress-fun-fact" id="progressFunFact" role="note">
               <i class="fas fa-lightbulb" aria-hidden="true"></i>
               <span>Did you know? Google processes over 8.5 billion searches per day!</span>
@@ -696,7 +664,6 @@
           </div>
         </div>
 
-        <!-- Steps indicator -->
         <div class="progress-steps-section">
           <div class="progress-steps-header">
             <span class="steps-label">Analysis Steps</span>
@@ -705,11 +672,10 @@
             </span>
           </div>
           <div class="progress-steps-container" id="progressStepsContainer" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Analysis progress">
-            <!-- Steps will be dynamically generated -->
+
           </div>
         </div>
 
-        <!-- Floating particles for visual appeal -->
         <div class="progress-particles">
           <div class="particle particle-1"></div>
           <div class="particle particle-2"></div>
@@ -721,19 +687,17 @@
     </div>
   </div>
 
-  <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- Estilos para navegación de usuarios logueados -->
   <style>
     .logged-in-nav {
       display: flex;
       gap: 0.5rem;
       align-items: center;
     }
-    
+
     .btn-nav {
       display: inline-flex;
       align-items: center;
@@ -748,7 +712,7 @@
       transition: all 0.3s ease;
       border: 1px solid #dee2e6;
     }
-    
+
     .btn-nav:hover {
       background: #e9ecef;
       color: #333;
@@ -756,29 +720,28 @@
       transform: translateY(-1px);
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
+
     .btn-nav i {
       font-size: 0.875rem;
     }
-    
+
     /* Responsive para móviles */
     @media (max-width: 768px) {
       .logged-in-nav {
         gap: 0.25rem;
       }
-      
+
       .btn-nav {
         padding: 0.375rem 0.75rem;
         font-size: 0.8rem;
       }
-      
+
       .btn-nav span {
         display: none; /* Ocultar texto en móvil, solo iconos */
       }
     }
   </style>
 
-  <!-- Botón de Feedback Beta Tester - Sticky -->
   <div class="feedback-button-container">
     <a href="https://docs.google.com/forms/d/e/1FAIpQLSfVN-ZILnx6wzfaxaZ6dwSJNgG4CSSyuctaNOoVdsWnFE4GFw/viewform?usp=sharing&ouid=107199513026819931698" 
        target="_blank" 
@@ -789,22 +752,20 @@
     </a>
   </div>
 
-  <!-- ✅ NUEVO: Detector de dispositivos móviles del lado del cliente -->
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
   <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-  
-  <!-- ✅ NUEVO: Sistema de gestión de sesiones con detección de inactividad -->
+
   <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
-  <!-- ✅ NUEVO: Inicializador centralizado para evitar conflictos -->
+
   <script src="{{ url_for('static', filename='js/session-init.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
-  <!-- ✅ NUEVO: Importar el selector de fechas antes de app.js -->
+
   <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
-  <!-- ✅ NUEVO: Sistema de navegación del sidebar -->
+
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>

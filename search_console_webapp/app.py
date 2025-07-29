@@ -1107,7 +1107,7 @@ def get_serp_raw_json():
     if not site_url_param:
         return jsonify({'error':'site_url es requerido para determinar geolocalización'}), 400
     if not api_key_val:
-        return jsonify({'error':'API key de SerpAPI no configurada'}), 500
+        return jsonify({'error':'Unexpected error, please contact support'}), 500
     
     # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
     country_to_use = country_param if country_param else None
@@ -1136,7 +1136,7 @@ def get_serp_position():
     if not keyword_val or not site_url_val:
         return jsonify({'error': 'keyword y site_url son requeridos'}), 400
     if not api_key_serp:
-        return jsonify({'error': 'API key de SerpAPI no configurada'}), 500
+        return jsonify({'error': 'Unexpected error, please contact support'}), 500
     
     # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
     country_to_use = country_param if country_param else None
@@ -1219,7 +1219,7 @@ def get_serp_screenshot_route():
         return jsonify({'error': 'keyword y site_url son requeridos'}), 400
     if not api_key_env:
          logger.error("API key de SerpAPI no configurada para screenshot.")
-         return jsonify({'error': 'API key de SerpAPI no configurada en el servidor'}), 500
+         return jsonify({'error': 'Unexpected error, please contact support'}), 500
     
     # ✅ NUEVA LÓGICA: Si no hay país, usar None para activar detección dinámica
     country_to_use = country_param if country_param else None
@@ -1450,7 +1450,7 @@ def analyze_ai_overview_route():
         serpapi_key = os.getenv('SERPAPI_KEY')
         if not serpapi_key:
             logger.error("SERPAPI_KEY no configurada para ruta analyze-ai-overview")
-            return jsonify({'error': 'API key de SerpAPI no configurada en el servidor'}), 500
+            return jsonify({'error': 'Unexpected error, please contact support'}), 500
         
         original_count = len(keywords_data_list)
         

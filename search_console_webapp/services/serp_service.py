@@ -52,7 +52,7 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     """
     if not api_key:
         logger.error("API Key de SerpAPI no proporcionada para get_page_screenshot.")
-        return Response("API Key de SerpAPI no configurada", status=500, mimetype='text/plain')
+        return Response("Unexpected error, please contact support", status=500, mimetype='text/plain')
 
     # ✅ NUEVA LÓGICA: Si no hay país específico y tenemos site_url, determinar dinámicamente
     if not country and site_url:
