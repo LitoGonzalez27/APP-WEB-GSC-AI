@@ -1411,7 +1411,18 @@ def analyze_ai_overview_route():
         site_url_req = request_payload.get('site_url', '')
         country_req = request_payload.get('country', '')
         
-        logger.info("=== INICIANDO ANÁLISIS AI OVERVIEW ===")
+        # 🆕 NUEVO: Obtener cantidad solicitada por usuario
+        requested_count = request_payload.get('keyword_count', 50)  # Default 50
+        
+        # 🆕 NUEVO: Validar límites razonables
+        if requested_count > 200:  # Límite máximo de seguridad
+            logger.warning(f"Cantidad solicitada {requested_count} excede límite máximo. Usando 200.")
+            requested_count = 200
+        elif requested_count < 10:  # Límite mínimo
+            logger.warning(f"Cantidad solicitada {requested_count} es muy baja. Usando 10.")
+            requested_count = 10
+        
+        logger.info(f"=== INICIANDO ANÁLISIS AI OVERVIEW - {requested_count} KEYWORDS ===")
 
         # 🔍 DEBUGGING: ¿Qué país se está usando?
         logger.info(f"=== AI OVERVIEW COUNTRY DEBUG ===")
@@ -1442,18 +1453,22 @@ def analyze_ai_overview_route():
             return jsonify({'error': 'API key de SerpAPI no configurada en el servidor'}), 500
         
         original_count = len(keywords_data_list)
-        keywords_to_process_list = keywords_data_list[:30] # Aumentado a 30 para permitir más pruebas
-        if original_count > 30:
-            logger.warning(f"Se truncaron {original_count - 30} keywords. Analizando solo las primeras 30.")
         
-        # Optimizar workers basado en el número de keywords
+        # 🔄 MODIFICADO: Usar cantidad solicitada
+        keywords_to_process_list = keywords_data_list[:requested_count]
+        if original_count > requested_count:
+            logger.warning(f"Se truncaron {original_count - requested_count} keywords. Analizando solo las primeras {requested_count}.")
+        
+        # 🆕 MODIFICADO: Optimizar workers basado en cantidad solicitada
         num_keywords = len(keywords_to_process_list)
-        if num_keywords <= 10:
+        if num_keywords <= 25:
             max_workers = 2  # Análisis pequeño
-        elif num_keywords <= 20:
+        elif num_keywords <= 75:
             max_workers = 3  # Análisis medio
+        elif num_keywords <= 125:
+            max_workers = 4  # Análisis grande
         else:
-            max_workers = 4  # Análisis grande (máximo para evitar rate limiting)
+            max_workers = 5  # Análisis muy grande (máximo para evitar rate limiting)
             
         logger.info(f"🚀 Iniciando análisis paralelo de {num_keywords} keywords con {max_workers} workers")
         
@@ -1479,7 +1494,8 @@ def analyze_ai_overview_route():
                 if r_item.get('delta_clicks_absolute', 0) < 0
             )),
             'analysis_timestamp': time.time(),
-            'country_analyzed': country_req # NUEVO: País analizado
+            'country_analyzed': country_req, # NUEVO: País analizado
+            'requested_keyword_count': requested_count  # 🆕 NUEVO: registrar cantidad solicitada
         }
 
         # ✅ NUEVO: Guardar análisis en la base de datos

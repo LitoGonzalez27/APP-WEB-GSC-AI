@@ -464,7 +464,7 @@ function displayDetailedResults(results, container) {
     container.insertAdjacentHTML('beforeend', `
       <div style="text-align: center; padding: 2em; color: var(--text-color); opacity: 0.7;">
         <i class="fas fa-info-circle" style="font-size: 2em; margin-bottom: 0.5em;"></i>
-        <p>No se encontraron resultados detallados para mostrar.</p>
+        <p>No detailed results found to display.</p>
       </div>
     `);
     return;
@@ -591,7 +591,7 @@ function createResultRowAIO(result) {
         <i class="fas fa-search serp-icon"
            data-keyword="${escapeHtml(result.keyword)}"
            data-url="${escapeHtml(result.url || '')}"
-           title="Ver SERP para ${escapeHtml(result.keyword)}"
+           title="View SERP for ${escapeHtml(result.keyword)}"
            style="cursor:pointer;"></i>
       </td>
       <td class="dt-body-left kw-cell">${escapeHtml(result.keyword || 'N/A')}</td>

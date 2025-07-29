@@ -467,11 +467,11 @@
             <!-- Datos placeholder que se muestran inicialmente -->
             <div class="ai-placeholder-data" id="aiPlaceholderData">
               <div class="ai-placeholder-summary">
-                <h3><i class="fas fa-chart-line"></i> Resumen de Análisis IA</h3>
+                <h3><i class="fas fa-chart-line"></i> AI Analysis Summary</h3>
                 <div class="ai-placeholder-metrics">
                   <div class="ai-placeholder-metric ai-shimmer">
                     <div class="ai-placeholder-metric-value">24</div>
-                    <div class="ai-placeholder-metric-label">Keywords Analizadas</div>
+                    <div class="ai-placeholder-metric-label">Keywords Analyzed</div>
                   </div>
                   <div class="ai-placeholder-metric ai-shimmer">
                     <div class="ai-placeholder-metric-value">18</div>
@@ -490,7 +490,7 @@
               
               <div class="ai-placeholder-table">
                 <div class="ai-placeholder-table-header">
-                  <i class="fas fa-table"></i> Top Keywords por Impacto IA
+                  <i class="fas fa-table"></i> Top Keywords by AI Impact
                 </div>
                 <div class="ai-placeholder-rows">
                   <div class="ai-placeholder-row">
@@ -526,13 +526,27 @@
           <div class="ai-overlay" id="aiOverlay">
             <div class="ai-overlay-content">
               <i class="fas fa-robot ai-overlay-icon"></i>
-              <h3 class="ai-overlay-title">Execute AI Analysis</h3>
-              <p class="ai-overlay-subtitle">
-                Analiza el impacto de AI Overview en tus keywords y descubre oportunidades de visibilidad
-              </p>
+                          <h3 class="ai-overlay-title">Execute AI Analysis</h3>
+            <p class="ai-overlay-subtitle">
+              Analyze the impact of AI Overview on your keywords and discover visibility opportunities
+            </p>
+              
+              <!-- Dropdown de cantidad de keywords -->
+              <div class="ai-keyword-count-selector">
+                <label for="keywordCountSelect">
+                  <i class="fas fa-list-ol"></i> Keywords to analyze:
+                </label>
+                <select id="keywordCountSelect">
+                  <option value="25">25 keywords</option>
+                  <option value="50" selected>50 keywords</option>
+                  <option value="100">100 keywords</option>
+                  <option value="150">150 keywords</option>
+                </select>
+              </div>
+              
               <button class="btn-execute-ai" id="executeAIBtn" disabled>
                 <i class="fas fa-play"></i>
-                Ejecutar Análisis IA
+                Start AI Analysis
               </button>
             </div>
           </div>
@@ -540,8 +554,8 @@
           <!-- Overlay de progreso -->
           <div class="ai-progress-overlay" id="aiProgressOverlay">
             <div class="ai-progress-container">
-              <h3 class="ai-progress-title">Analizando AI Overview</h3>
-              <p class="ai-progress-subtitle">Procesando keywords y SERPs...</p>
+              <h3 class="ai-progress-title">Analyzing AI Overview</h3>
+              <p class="ai-progress-subtitle">Processing keywords and SERPs...</p>
               
               <div class="ai-progress-circle">
                 <svg viewBox="0 0 100 100">
@@ -557,8 +571,18 @@
                 <div class="ai-progress-percentage" id="progressPercentage">0%</div>
               </div>
               
-              <div class="ai-progress-status" id="progressStatus">Iniciando análisis...</div>
-              <div class="ai-progress-details" id="progressDetails">Preparando datos de keywords</div>
+              <div class="ai-progress-status" id="progressStatus">Starting analysis...</div>
+              <div class="ai-progress-details" id="progressDetails">Preparing keyword data</div>
+              
+              <!-- Tiempo restante estimado -->
+              <div class="ai-progress-time-remaining" id="timeRemaining" style="
+                margin-top: 0.8em;
+                text-align: center;
+                font-size: 0.9em;
+                color: #667eea;
+                font-weight: 500;
+                opacity: 0.9;
+              ">Calculating time...</div>
               
               <div class="ai-progress-steps">
                 <div class="ai-progress-step" id="step1"></div>

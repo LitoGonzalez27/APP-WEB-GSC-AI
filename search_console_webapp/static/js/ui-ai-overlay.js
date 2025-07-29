@@ -7,6 +7,11 @@ import { runAIOverviewAnalysis } from './ui-ai-overview.js';
 let currentKeywordData = null;
 let currentSiteUrl = null;
 let isAnalysisRunning = false;
+// 🆕 NUEVO: Variables para progreso fidedigno
+let aiProgressTimer = null;
+let totalEstimatedTime = 0;
+let currentPhase = 0;
+let startTime = 0;
 
 /**
  * Inicializa la funcionalidad del overlay AI
@@ -47,12 +52,12 @@ export function updateAIOverlayData(keywordData, siteUrl) {
         executeBtn.disabled = !hasValidData || isAnalysisRunning;
         
         if (!hasValidData) {
-            executeBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Datos requeridos';
-        } else if (isAnalysisRunning) {
-            executeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analizando...';
-        } else {
-            executeBtn.innerHTML = '<i class="fas fa-play"></i> Ejecutar Análisis IA';
-        }
+                    executeBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Data Required';
+    } else if (isAnalysisRunning) {
+        executeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    } else {
+        executeBtn.innerHTML = '<i class="fas fa-play"></i> Start AI Analysis';
+    }
     }
     
     // Mostrar la sección AI Overview cuando hay datos válidos
@@ -122,21 +127,122 @@ function showProgressOverlay() {
 }
 
 /**
- * Inicia el progreso simple y controlado
+ * 🆕 NUEVA: Calcula tiempo estimado basado en cantidad de keywords
  */
-function startSimpleProgress() {
-    // Solo progreso inicial básico
-    updateProgress(5, 'Seleccionando keywords prioritarias...', 'Analizando clics y rendimiento', 1);
+function calculateAIAnalysisTime(keywordCount) {
+    // Tiempo base por keyword (basado en experiencia real)
+    const baseTimePerKeyword = 1.5; // 1.5 segundos por keyword
+    const overheadTime = 8; // tiempo fijo de conexión y setup
+    const parallelFactor = 0.7; // factor de paralelización (30% más eficiente)
     
-    setTimeout(() => {
-        updateProgress(15, 'Preparando análisis...', 'Iniciando consultas SERP', 2);
-    }, 1000);
+    const totalTime = ((keywordCount * baseTimePerKeyword) + overheadTime) * parallelFactor;
     
-    // El resto del progreso será manejado por la función del análisis real
+    console.log(`⏱️ Tiempo estimado para ${keywordCount} keywords: ${Math.round(totalTime)}s`);
+    return Math.round(totalTime);
 }
 
 /**
- * Actualiza la barra de progreso
+ * 🆕 NUEVA: Formatea tiempo en formato amigable
+ */
+function formatEstimatedTime(seconds) {
+    if (seconds < 60) {
+        return `~${seconds} seconds`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (remainingSeconds === 0) {
+        return `~${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+    
+    return `~${minutes}m ${remainingSeconds}s`;
+}
+
+/**
+ * 🔄 MODIFICADA: Inicia progreso realista basado en cantidad de keywords
+ */
+function startRealisticProgress(keywordCount) {
+    console.log(`🚀 Iniciando progreso realista para ${keywordCount} keywords`);
+    
+    // Limpiar cualquier timer anterior
+    if (aiProgressTimer) {
+        clearTimeout(aiProgressTimer);
+        aiProgressTimer = null;
+    }
+    
+    // Calcular tiempo total estimado
+    totalEstimatedTime = calculateAIAnalysisTime(keywordCount) * 1000; // en milisegundos
+    startTime = Date.now();
+    currentPhase = 0;
+    
+    // Definir fases proporcionales al trabajo real
+    const phases = [
+        { 
+            percentage: 12, 
+            message: 'Preparing analysis...', 
+            details: `Configuring analysis for ${keywordCount} keywords`,
+            duration: totalEstimatedTime * 0.08 // 8% del tiempo total
+        },
+        { 
+            percentage: 25, 
+            message: 'Connecting to APIs...', 
+            details: 'Authenticating and establishing connections',
+            duration: totalEstimatedTime * 0.10 // 10% del tiempo total
+        },
+        { 
+            percentage: 65, 
+            message: 'Querying SERPs...', 
+            details: `Processing ${keywordCount} keywords in parallel`,
+            duration: totalEstimatedTime * 0.55 // 55% del tiempo total (la mayor parte)
+        },
+        { 
+            percentage: 80, 
+            message: 'Detecting AI Overview...', 
+            details: 'Analyzing AI presence in results',
+            duration: totalEstimatedTime * 0.15 // 15% del tiempo total
+        },
+        { 
+            percentage: 92, 
+            message: 'Processing results...', 
+            details: 'Calculating metrics and statistics',
+            duration: totalEstimatedTime * 0.10 // 10% del tiempo total
+        },
+        { 
+            percentage: 98, 
+            message: 'Finalizing analysis...', 
+            details: 'Preparing data visualization',
+            duration: totalEstimatedTime * 0.02 // 2% del tiempo total
+        }
+    ];
+    
+    // Función para ejecutar cada fase
+    function executePhase(phaseIndex) {
+        if (phaseIndex >= phases.length) {
+            console.log('✅ Todas las fases de progreso completadas');
+            return;
+        }
+        
+        const phase = phases[phaseIndex];
+        currentPhase = phaseIndex;
+        
+        console.log(`📊 Fase ${phaseIndex + 1}: ${phase.message} (${phase.percentage}%)`);
+        updateProgress(phase.percentage, phase.message, phase.details, Math.min(phaseIndex + 1, 4));
+        
+        // Programar siguiente fase
+        aiProgressTimer = setTimeout(() => {
+            executePhase(phaseIndex + 1);
+        }, phase.duration);
+    }
+    
+    // Iniciar con progreso inicial inmediato
+    updateProgress(5, 'Starting analysis...', `Analyzing ${keywordCount} selected keywords`, 1);
+    
+    // Comenzar las fases después de un breve delay
+    setTimeout(() => executePhase(0), 800);
+}
+
+/**
+ * 🔄 MODIFICADA: Actualiza progreso con información más detallada
  */
 function updateProgress(percentage, status, details, activeStep) {
     const progressCircle = document.getElementById('progressCircle');
@@ -151,7 +257,7 @@ function updateProgress(percentage, status, details, activeStep) {
     }
     
     if (progressPercentage) {
-        progressPercentage.textContent = `${percentage}%`;
+        progressPercentage.textContent = `${Math.round(percentage)}%`;
     }
     
     if (progressStatus) {
@@ -160,6 +266,22 @@ function updateProgress(percentage, status, details, activeStep) {
     
     if (progressDetails) {
         progressDetails.textContent = details;
+    }
+    
+    // 🆕 NUEVO: Actualizar tiempo restante estimado
+    const timeRemainingElement = document.getElementById('timeRemaining');
+    if (timeRemainingElement && totalEstimatedTime > 0) {
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, totalEstimatedTime - elapsedTime);
+        const remainingSeconds = Math.ceil(remainingTime / 1000);
+        
+        if (remainingSeconds > 0) {
+            timeRemainingElement.textContent = `${formatEstimatedTime(remainingSeconds)} remaining`;
+            timeRemainingElement.style.color = '#667eea';
+        } else {
+            timeRemainingElement.textContent = 'Almost done...';
+            timeRemainingElement.style.color = '#28a745';
+        }
     }
     
     // Actualizar pasos
@@ -177,25 +299,45 @@ function updateProgress(percentage, status, details, activeStep) {
 }
 
 /**
- * Actualiza el progreso desde el análisis real (función exportada)
+ * 🔄 MODIFICADA: Inicia progreso simple considerando cantidad de keywords
  */
-export function updateRealProgress(percentage, message) {
-    // Actualizar con datos reales (tiene preferencia sobre progreso automático)
-    const step = percentage < 25 ? 1 : percentage < 50 ? 2 : percentage < 75 ? 3 : 4;
-    updateProgress(percentage, message || 'Procesando...', 'Análisis en curso', step);
+function startSimpleProgress() {
+    // Obtener cantidad de keywords seleccionada del dropdown
+    const keywordCountSelect = document.getElementById('keywordCountSelect');
+    const selectedCount = keywordCountSelect ? parseInt(keywordCountSelect.value) : 50;
+    
+    console.log(`🎯 Iniciando progreso para ${selectedCount} keywords seleccionadas`);
+    
+    // Mostrar tiempo estimado en la UI
+    const estimatedSeconds = calculateAIAnalysisTime(selectedCount);
+    const progressDetails = document.getElementById('progressDetails');
+    if (progressDetails) {
+        progressDetails.textContent = `Estimated analysis: ${formatEstimatedTime(estimatedSeconds)}`;
+    }
+    
+    // Progreso inicial inmediato
+    updateProgress(3, 'Validating configuration...', `Preparing analysis of ${selectedCount} keywords`, 1);
+    
+    // Iniciar progreso realista
+    setTimeout(() => {
+        startRealisticProgress(selectedCount);
+    }, 500);
 }
 
 /**
- * Completa el progreso
+ * 🔄 MODIFICADA: Completa progreso con cleanup mejorado
  */
 async function completeProgress() {
-    // Detener cualquier progreso simulado
-    if (window.aiProgressTimeout) {
-        clearTimeout(window.aiProgressTimeout);
+    console.log('🏁 Completando progreso...');
+    
+    // Limpiar cualquier timer de progreso
+    if (aiProgressTimer) {
+        clearTimeout(aiProgressTimer);
+        aiProgressTimer = null;
     }
     
-    // Completar al 100%
-    updateProgress(100, 'Análisis completado!', 'Preparando resultados...', 4);
+    // Progreso final
+    updateProgress(100, 'Analysis completed!', 'Preparing results visualization...', 4);
     
     // Marcar todos los pasos como completados
     for (let i = 1; i <= 4; i++) {
@@ -206,14 +348,36 @@ async function completeProgress() {
         }
     }
     
-    // Esperar un momento antes de ocultar
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Actualizar tiempo final
+    const timeRemainingElement = document.getElementById('timeRemaining');
+    if (timeRemainingElement) {
+        timeRemainingElement.textContent = 'Complete!';
+        timeRemainingElement.style.color = '#28a745';
+    }
+    
+    // Esperar un momento antes de ocultar (permitir que usuario vea el 100%)
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Ocultar overlay de progreso
     const progressOverlay = document.getElementById('aiProgressOverlay');
     if (progressOverlay) {
         progressOverlay.classList.remove('active');
     }
+    
+    // Limpiar variables
+    totalEstimatedTime = 0;
+    currentPhase = 0;
+    startTime = 0;
+}
+
+/**
+ * 🔄 REEXPORTADA: Actualiza el progreso desde el análisis real (función exportada)
+ */
+export function updateRealProgress(percentage, message) {
+    // Actualizar con datos reales (tiene preferencia sobre progreso automático)
+    const step = percentage < 25 ? 1 : percentage < 50 ? 2 : percentage < 75 ? 3 : 4;
+    const details = message ? 'Analysis in progress' : `Processing keywords...`;
+    updateProgress(percentage, message || 'Processing...', details, step);
 }
 
 /**
@@ -263,11 +427,11 @@ function showErrorState(errorMessage) {
         overlay.innerHTML = `
             <div class="ai-overlay-content">
                 <i class="fas fa-exclamation-triangle ai-overlay-icon" style="color: #f44336;"></i>
-                <h3 class="ai-overlay-title">Error en el Análisis</h3>
+                <h3 class="ai-overlay-title">Analysis Error</h3>
                 <p class="ai-overlay-subtitle">${errorMessage}</p>
                 <button class="btn-execute-ai" onclick="location.reload()">
                     <i class="fas fa-refresh"></i>
-                    Reintentar
+                    Retry
                 </button>
             </div>
         `;
@@ -287,13 +451,24 @@ export function resetAIOverlay() {
     const overlay = document.getElementById('aiOverlay');
     const progressOverlay = document.getElementById('aiProgressOverlay');
     
-    // Limpiar intervalos y timeouts de progreso
+    // 🆕 NUEVO: Limpiar timers y variables de progreso fidedigno
+    if (aiProgressTimer) {
+        clearTimeout(aiProgressTimer);
+        aiProgressTimer = null;
+    }
+    
+    // Limpiar intervalos y timeouts de progreso (legacy)
     if (window.aiProgressInterval) {
         clearInterval(window.aiProgressInterval);
     }
     if (window.aiProgressTimeout) {
         clearTimeout(window.aiProgressTimeout);
     }
+    
+    // 🆕 NUEVO: Resetear variables de progreso fidedigno
+    totalEstimatedTime = 0;
+    currentPhase = 0;
+    startTime = 0;
     
     // Resetear estados
     if (contentWrapper) {
@@ -319,13 +494,27 @@ export function resetAIOverlay() {
         overlay.innerHTML = `
             <div class="ai-overlay-content">
                 <i class="fas fa-robot ai-overlay-icon"></i>
-                <h3 class="ai-overlay-title">Análisis AI Overview</h3>
+                <h3 class="ai-overlay-title">Execute AI Analysis</h3>
                 <p class="ai-overlay-subtitle">
-                    Analiza el impacto de AI Overview en tus keywords y descubre oportunidades de visibilidad
+                    Analyze the impact of AI Overview on your keywords and discover visibility opportunities
                 </p>
+                
+                <!-- Dropdown de cantidad de keywords -->
+                <div class="ai-keyword-count-selector">
+                    <label for="keywordCountSelect">
+                        <i class="fas fa-list-ol"></i> Keywords to analyze:
+                    </label>
+                    <select id="keywordCountSelect">
+                        <option value="25">25 keywords</option>
+                        <option value="50" selected>50 keywords</option>
+                        <option value="100">100 keywords</option>
+                        <option value="150">150 keywords</option>
+                    </select>
+                </div>
+                
                 <button class="btn-execute-ai" id="executeAIBtn" disabled>
                     <i class="fas fa-play"></i>
-                    Ejecutar Análisis IA
+                    Start AI Analysis
                 </button>
             </div>
         `;
@@ -347,34 +536,19 @@ export function resetAIOverlay() {
 }
 
 /**
- * Ejecuta el análisis IA con actualizaciones de progreso más realistas
+ * 🔄 MODIFICADA: Ejecuta el análisis con progreso fidedigno
  */
 async function runAIOverviewAnalysisWithProgress(keywordData, siteUrl) {
-    // Progreso secuencial simple sin competencia
+    console.log(`🚀 Ejecutando análisis con progreso fidedigno para ${keywordData.length} keywords`);
     
     // Limpiar cualquier progreso anterior
-    if (window.aiProgressTimeout) {
-        clearTimeout(window.aiProgressTimeout);
+    if (aiProgressTimer) {
+        clearTimeout(aiProgressTimer);
+        aiProgressTimer = null;
     }
     
-    // Progreso controlado durante el análisis
-    setTimeout(() => {
-        updateProgress(30, 'Conectando con APIs...', `Analizando ${keywordData.length} keywords`, 2);
-    }, 2000);
-    
-    setTimeout(() => {
-        updateProgress(50, 'Consultando SERPs...', 'Obteniendo resultados de búsqueda', 2);
-    }, 4000);
-    
-    setTimeout(() => {
-        updateProgress(70, 'Detectando AI Overview...', 'Analizando presencia de IA', 3);
-    }, 8000);
-    
-    setTimeout(() => {
-        updateProgress(85, 'Procesando resultados...', 'Calculando métricas finales', 4);
-    }, 12000);
-    
-    // Ejecutar el análisis real
+    // El progreso ya se inició en startSimpleProgress(), 
+    // aquí solo ejecutamos el análisis real
     const result = await runAIOverviewAnalysis(currentKeywordData, currentSiteUrl);
     
     return result;

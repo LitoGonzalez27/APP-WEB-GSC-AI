@@ -18,10 +18,10 @@ export function enableAIOverviewAnalysis(keywordData, siteUrl) {
       elems.aiAnalysisMessage.innerHTML = `
         <div class="ai-analysis-controls">
           <div>
-            <i class="fas fa-info-circle"></i> No hay datos de keywords disponibles para el análisis de AI Overview
+            <i class="fas fa-info-circle"></i> No keyword data available for AI Overview analysis
           </div>
           <p style="margin-top: 1em; color: var(--text-color); opacity: 0.7;">
-            Ejecuta primero una consulta con URLs para obtener datos de keywords y poder analizar el impacto de AI Overview.
+            First run a query with URLs to get keyword data and analyze AI Overview impact.
           </p>
         </div>
       `;
@@ -35,7 +35,7 @@ export function enableAIOverviewAnalysis(keywordData, siteUrl) {
       elems.aiAnalysisMessage.innerHTML = `
         <div class="ai-analysis-controls">
           <div>
-            <i class="fas fa-exclamation-triangle"></i> Se requiere seleccionar un dominio para el análisis
+            <i class="fas fa-exclamation-triangle"></i> Domain selection required for analysis
           </div>
         </div>
       `;
@@ -84,7 +84,7 @@ function getCountryForAIAnalysis() {
 /**
  * Nueva función para el fetch de análisis AI
  */
-async function analyzeAIOverview(keywords, siteUrl) {
+async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
     // Usar la lógica de país principal del negocio
     const countryToUse = window.getCountryToUse ? window.getCountryToUse() : 'esp';
     
@@ -92,6 +92,12 @@ async function analyzeAIOverview(keywords, siteUrl) {
         keywords: keywords,
         site_url: siteUrl
     };
+    
+    // Añadir cantidad de keywords si se especifica
+    if (keywordCount) {
+        payload.keyword_count = keywordCount;
+        console.log(`🔢 Enviando solicitud para analizar ${keywordCount} keywords`);
+    }
     
     // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
     if (countryToUse) {
@@ -143,14 +149,14 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
 
   // Validaciones iniciales
   if (!keywordData || !Array.isArray(keywordData) || keywordData.length === 0) {
-    const errorMsg = 'No hay datos de keywords para analizar';
+    const errorMsg = 'No keyword data available to analyze';
     console.error('[AI OVERVIEW] ❌', errorMsg);
     if (statusElement) statusElement.textContent = errorMsg;
     throw new Error(errorMsg);
   }
 
   if (!siteUrl) {
-    const errorMsg = 'Se requiere un site_url válido';
+    const errorMsg = 'Valid site_url required';
     console.error('[AI OVERVIEW] ❌', errorMsg);
     if (statusElement) statusElement.textContent = errorMsg;
     throw new Error(errorMsg);
@@ -172,21 +178,24 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
       console.warn('⚠️ Elemento elems.aiOverviewSection no encontrado');
     }
     
-    // ✅ SIMPLIFICADO: Paso único - seleccionar top keywords y analizar
-    console.log('[AI OVERVIEW] 📊 Seleccionando top keywords por clics...');
-    if (statusElement) statusElement.textContent = 'Seleccionando keywords con más tráfico...';
+    // ✅ NUEVO: Obtener cantidad seleccionada por usuario
+    const keywordCountSelect = document.getElementById('keywordCountSelect');
+    const selectedCount = keywordCountSelect ? parseInt(keywordCountSelect.value) : 50;
+    
+    console.log(`[AI OVERVIEW] 📊 Usuario seleccionó analizar ${selectedCount} keywords`);
+    if (statusElement) statusElement.textContent = `Selecting top ${selectedCount} keywords by clicks...`;
 
-    // Ordenar por clics descendente y tomar las top 30
+    // Ordenar por clics descendente y tomar la cantidad seleccionada
     const topKeywords = keywordData
       .sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
-      .slice(0, 30);
+      .slice(0, selectedCount);
 
-    console.log('[AI OVERVIEW] ✅ Top keywords seleccionadas:', topKeywords.length);
+    console.log(`[AI OVERVIEW] ✅ Top ${selectedCount} keywords seleccionadas:`, topKeywords.length);
 
     // Verificar si hay keywords
     if (topKeywords.length === 0) {
       console.log('[AI OVERVIEW] ⚠️ No se encontraron keywords para análisis');
-      if (statusElement) statusElement.textContent = 'No se encontraron keywords';
+      if (statusElement) statusElement.textContent = 'No keywords found';
       
       // Mostrar mensaje en la UI
       displayAIOverviewResults({
@@ -202,8 +211,8 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
       if (elems.aiOverviewResultsContainer) {
         elems.aiOverviewResultsContainer.insertAdjacentHTML('afterbegin', `
           <div class="ai-overview-summary" style="margin-bottom: 2em; padding: 1.5em; background: rgba(255,193,7,0.1); border-radius: 8px; border-left: 4px solid #ffc107;">
-            <h3 style="color: #ffc107;"><i class="fas fa-info-circle"></i> Sin keywords para análisis</h3>
-            <p>No se encontraron keywords con suficiente tráfico para analizar.</p>
+            <h3 style="color: #ffc107;"><i class="fas fa-info-circle"></i> No keywords for analysis</h3>
+            <p>No keywords with sufficient traffic were found to analyze.</p>
           </div>
         `);
       }
@@ -216,11 +225,11 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
     }
 
     // ✅ DIRECTO: Análisis de AI Overview sin filtrado previo
-    console.log('[AI OVERVIEW] 🤖 Iniciando análisis SERP directo...');
-    if (statusElement) statusElement.textContent = `Analizando ${topKeywords.length} keywords...`;
+    console.log(`[AI OVERVIEW] 🤖 Iniciando análisis SERP directo de ${topKeywords.length} keywords...`);
+    if (statusElement) statusElement.textContent = `Analyzing ${topKeywords.length} keywords...`;
     
-    // ✅ LLAMADA AL ANÁLISIS REAL
-    const analysisData = await analyzeAIOverview(topKeywords, siteUrl);
+    // ✅ LLAMADA AL ANÁLISIS REAL con cantidad seleccionada
+    const analysisData = await analyzeAIOverview(topKeywords, siteUrl, selectedCount);
 
     if (analysisData.error) {
       throw new Error(analysisData.error);
@@ -233,7 +242,7 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
         total_candidates: topKeywords.length,
         top_candidates: topKeywords,
         criteria_summary: {
-          criteria: ['Top keywords por clics (sin filtros adicionales)'],
+          criteria: ['Top keywords by clicks (no additional filters)'],
           total_evaluated: keywordData.length
         }
       },
@@ -254,7 +263,7 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
 
     displayAIOverviewResults(displayData);
     
-    if (statusElement) statusElement.textContent = 'Análisis completo';
+    if (statusElement) statusElement.textContent = 'Analysis complete';
     
     return displayData;
       
@@ -274,11 +283,11 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
                 margin-bottom: 2em;
             ">
                 <h3 style="text-align: center; color: #dc3545; margin-bottom: 1em;">
-                    <i class="fas fa-exclamation-triangle"></i> Error en el análisis
+                    <i class="fas fa-exclamation-triangle"></i> Analysis Error
                 </h3>
                 <p style="text-align: center;">${error.message}</p>
                 <p style="text-align: center; margin-top: 1em; font-size: 0.9em; opacity: 0.8;">
-                    Por favor, verifica tu conexión a internet e inténtalo nuevamente.
+                    Please check your internet connection and try again.
                 </p>
             </div>
         `);
@@ -289,7 +298,7 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
       elems.aiOverviewSection.style.display = 'block';
     }
     
-    if (statusElement) statusElement.textContent = 'Error en el análisis';
+    if (statusElement) statusElement.textContent = 'Analysis error';
 
     throw error;
   } finally {

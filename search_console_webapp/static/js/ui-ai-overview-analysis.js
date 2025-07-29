@@ -64,7 +64,7 @@ function createProgressBar() {
                 align-items: center;
             ">
                 <span>
-                    <span class="ai-progress-current">0</span> de <span class="ai-progress-total">0</span> keywords procesadas
+                    <span class="ai-progress-current">0</span> of <span class="ai-progress-total">0</span> keywords processed
                 </span>
                 <span class="ai-progress-spinner" style="
                     display: inline-block;
@@ -105,7 +105,7 @@ function updateProgressBar(current, total, status = '') {
     const progressCurrent = document.querySelector('.ai-progress-current');
     const progressTotal = document.querySelector('.ai-progress-total');
     
-    if (progressText) progressText.textContent = status || `Analizando keywords en paralelo...`;
+    if (progressText) progressText.textContent = status || `Analyzing keywords in parallel...`;
     if (progressPercentage) progressPercentage.textContent = `${percentage}%`;
     if (progressFill) progressFill.style.width = `${percentage}%`;
     if (progressCurrent) progressCurrent.textContent = current;
@@ -124,9 +124,9 @@ function completeProgressBar(analysisData = null) {
             const summary = analysisData.summary;
             const withAI = summary.keywords_with_ai_overview || 0;
             const total = summary.total_keywords_analyzed || 0;
-            progressText.textContent = `¡Análisis completado! ${withAI}/${total} keywords con AI Overview detectado`;
+            progressText.textContent = `Analysis completed! ${withAI}/${total} keywords with AI Overview detected`;
         } else {
-            progressText.textContent = '¡Análisis completado exitosamente!';
+            progressText.textContent = 'Analysis completed successfully!';
         }
     }
     
@@ -189,7 +189,7 @@ async function analyzeAIOverview(keywords, siteUrl) {
     } catch (error) {
         clearTimeout(timeoutId);
         if (error.name === 'AbortError') {
-            throw new Error('El análisis ha tardado demasiado tiempo. Intenta con menos keywords.');
+            throw new Error('Analysis took too long. Try with fewer keywords.');
         }
         throw error;
     }
@@ -217,7 +217,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
   const siteUrl = analyzeBtn.dataset.siteUrl;
   
   if (!keywordData || !siteUrl) {
-    showToast('No hay datos disponibles para análisis', 'error');
+    showToast('No data available for analysis', 'error');
     return;
   }
 
@@ -226,21 +226,21 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
     parsedKeywordData = JSON.parse(keywordData);
   } catch (e) {
     console.error('Error parseando datos de keywords:', e);
-    showToast('Error en los datos de keywords', 'error');
+    showToast('Error in keyword data', 'error');
     return;
   }
 
   if (!parsedKeywordData.length) {
-    showToast('No hay datos de keywords para analizar', 'warning');
+    showToast('No keyword data to analyze', 'warning');
     return;
   }
 
   const originalText = analyzeBtn.innerHTML;
   analyzeBtn.disabled = true;
-  analyzeBtn.innerHTML = `${createSpinner()} Analizando...`;
+  analyzeBtn.innerHTML = `${createSpinner()} Analyzing...`;
   
   if (statusSpan) {
-    statusSpan.textContent = 'Seleccionando top keywords por tráfico...';
+    statusSpan.textContent = 'Selecting top keywords by traffic...';
     statusSpan.style.color = '#17a2b8';
   }
 
@@ -267,7 +267,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
     console.log(`[AI DEBUG] Analizando top keywords de ${parsedKeywordData.length} total`, parsedKeywordData);
     
     // Actualizar progreso: seleccionando keywords
-    updateProgressBar(0, 30, 'Seleccionando top keywords por clics...');
+            updateProgressBar(0, 30, 'Selecting top keywords by clicks...');
     
     // Ordenar por clics descendente y tomar las top 30
     const topKeywords = parsedKeywordData
@@ -277,7 +277,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
     console.log('[AI DEBUG] Top keywords seleccionadas:', topKeywords);
 
     if (statusSpan) {
-      statusSpan.textContent = `Analizando ${topKeywords.length} keywords en paralelo (optimizado)...`;
+      statusSpan.textContent = `Analyzing ${topKeywords.length} keywords in parallel (optimized)...`;
       statusSpan.style.color = '#17a2b8';
     }
 
@@ -289,10 +289,10 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
     console.log(`[AI DEBUG] Enviando a análisis top ${topKeywords.length} keywords:`, topKeywords.map(k => k.keyword).slice(0, 5), '...');
 
     // Actualizar progreso: iniciando análisis
-    updateProgressBar(0, topKeywords.length, `Iniciando análisis paralelo de ${topKeywords.length} keywords...`);
+    updateProgressBar(0, topKeywords.length, `Starting parallel analysis of ${topKeywords.length} keywords...`);
     
     // Notificación de inicio
-    showToast(`Iniciando análisis paralelo de ${topKeywords.length} keywords`, 'info', 3000);
+    showToast(`Starting parallel analysis of ${topKeywords.length} keywords`, 'info', 3000);
     
     // Simular progreso durante el análisis
     const progressInterval = setInterval(() => {
@@ -302,7 +302,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
       );
       const nextValue = parseInt(current) + Math.floor(Math.random() * 3) + 1;
       if (nextValue < topKeywords.length) {
-        updateProgressBar(nextValue, topKeywords.length, 'Procesando keywords en paralelo...');
+                    updateProgressBar(nextValue, topKeywords.length, 'Processing keywords in parallel...');
       }
     }, 1000);
 
@@ -320,9 +320,9 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
       const summary = analysisData.summary;
       const withAI = summary.keywords_with_ai_overview || 0;
       const total = summary.total_keywords_analyzed || 0;
-      showToast(`Análisis completado: ${withAI}/${total} keywords con AI Overview`, 'success', 4000);
+              showToast(`Analysis completed: ${withAI}/${total} keywords with AI Overview`, 'success', 4000);
     } else {
-      showToast('Análisis de AI Overview completado exitosamente', 'success');
+              showToast('AI Overview analysis completed successfully', 'success');
     }
 
     console.log('[AI DEBUG] Datos recibidos del análisis:', analysisData);
@@ -337,7 +337,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
         total_candidates: topKeywords.length,
         top_candidates: topKeywords,
         criteria_summary: {
-          criteria: ['Top keywords por clics (sin filtros adicionales)'],
+          criteria: ['Top keywords by clicks (no additional filters)'],
           total_evaluated: parsedKeywordData.length
         }
       },
@@ -405,7 +405,7 @@ function handleNoKeywordsFound(setAIOverviewResults, statusSpan, resultsContaine
       total_candidates: 0,
       top_candidates: [],
       criteria_summary: {
-        criteria: ['Top keywords por clics'],
+                  criteria: ['Top keywords by clicks'],
         total_evaluated: 0
       }
     }, 
@@ -422,10 +422,10 @@ function handleNoKeywordsFound(setAIOverviewResults, statusSpan, resultsContaine
   setAIOverviewResults(results);
   displayAIOverviewResults(results);
   if (statusSpan) {
-    statusSpan.textContent = 'No se encontraron keywords para analizar.';
+    statusSpan.textContent = 'No keywords found to analyze.';
     statusSpan.style.color = '#17a2b8';
   }
-  showToast('No hay keywords disponibles para análisis AI Overview', 'info');
+      showToast('No keywords available for AI Overview analysis', 'info');
 }
 
 function handleAnalysisError(error, statusSpan, resultsContainer) {
@@ -440,9 +440,9 @@ function handleAnalysisError(error, statusSpan, resultsContainer) {
       border: 1px solid rgba(220, 53, 69, 0.2);
       margin: 1em 0;
     ">
-      <h4><i class="fas fa-exclamation-triangle"></i> Error en el análisis</h4>
+              <h4><i class="fas fa-exclamation-triangle"></i> Analysis Error</h4>
       <p>${error.message}</p>
-      <p><small>Por favor, verifica tu conexión y vuelve a intentarlo.</small></p>
+              <p><small>Please check your connection and try again.</small></p>
     </div>
   `;
   

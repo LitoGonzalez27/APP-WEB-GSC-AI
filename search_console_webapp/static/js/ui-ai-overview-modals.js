@@ -141,7 +141,7 @@ function createElementsListHTML(aiElements) {
       <div style="text-align: center; padding: 2em; color: #28a745;">
         <i class="fas fa-check-circle" style="font-size: 2.5em; margin-bottom: 0.8em;"></i>
         <h4 style="font-size: 1.1em;">No se detectaron rich snippets</h4>
-        <p style="font-size: 0.9em;">Esta keyword no muestra señales de interferencia por AI Overview.</p>
+                  <p style="font-size: 0.9em;">This keyword shows no signs of AI Overview interference.</p>
       </div>
     `;
   }
@@ -213,7 +213,7 @@ function createModalHTML(result, debugSection, impactSummaryHTML, elementsListHT
       ">
         <h3 style="margin: 0; display: flex; align-items: center; font-size: 1.2em;">
           <i class="fas fa-robot" style="margin-right: 10px;"></i>
-          Análisis AI: "${escapeHtml(result.keyword)}"
+          AI Analysis: "${escapeHtml(result.keyword)}"
           ${result.analysis_successful === false ? '<span style="background: rgba(255,193,7,0.8); color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7em; margin-left: 10px;">⚠️ VERIFICAR</span>' : ''}
         </h3>
         <span class="close-ai-modal" style="
