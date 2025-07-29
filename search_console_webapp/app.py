@@ -1323,6 +1323,30 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
         
         raise Exception(f"Error analizando {keyword_arg}: {str(e_single_keyword)}")
 
+def calculate_average_ai_position(results_list):
+    """
+    Calcula la posición promedio del dominio en AI Overview
+    Solo considera keywords donde el dominio aparece como fuente (domain_is_ai_source = True)
+    """
+    valid_positions = []
+    
+    for result in results_list:
+        ai_analysis = result.get('ai_analysis', {})
+        domain_is_source = ai_analysis.get('domain_is_ai_source', False)
+        position = ai_analysis.get('domain_ai_source_position')
+        
+        # Solo incluir si el dominio es fuente AI y tiene una posición válida
+        if domain_is_source and position is not None and position > 0:
+            valid_positions.append(position)
+    
+    if not valid_positions:
+        return None  # No hay posiciones válidas
+    
+    # Calcular promedio y redondear a 1 decimal
+    average = sum(valid_positions) / len(valid_positions)
+    return round(average, 1)
+
+
 def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max_workers=3):
     """
     Analiza múltiples keywords en paralelo para mejorar la velocidad del análisis de AI Overview.
@@ -1495,7 +1519,8 @@ def analyze_ai_overview_route():
             )),
             'analysis_timestamp': time.time(),
             'country_analyzed': country_req, # NUEVO: País analizado
-            'requested_keyword_count': requested_count  # 🆕 NUEVO: registrar cantidad solicitada
+            'requested_keyword_count': requested_count,  # 🆕 NUEVO: registrar cantidad solicitada
+            'average_ai_position': calculate_average_ai_position(results_list_overview)  # 🆕 NUEVO: Posición promedio en AIO
         }
 
         # ✅ NUEVO: Guardar análisis en la base de datos

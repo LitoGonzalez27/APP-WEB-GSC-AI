@@ -366,6 +366,9 @@ function displaySummary(summary, container) {
   // Calcular peso AIO en SERPs
   const pesoAIOPercentage = totalKeywords > 0 ? ((keywordsWithAIO / totalKeywords) * 100).toFixed(1) : '0.0';
   
+  // 🆕 NUEVO: Obtener posición promedio en AIO
+  const averageAIOPosition = summary.average_ai_position;
+  
   const summaryHTML = `
     <div class="ai-overview-summary" style="
       /* Eliminamos el background linear-gradient y el border directos
@@ -448,6 +451,21 @@ function displaySummary(summary, container) {
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">% Visibility in AIO</div>
         </div>
+        ${averageAIOPosition !== null && averageAIOPosition !== undefined ? `
+        <div class="summary-metric" style="
+          text-align: center; 
+          padding: 1em; 
+          background: var(--card-bg); 
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        ">
+          <div style="font-size: 2em; font-weight: bold; color: ${averageAIOPosition <= 2 ? 'var(--success-color)' : averageAIOPosition <= 4 ? 'var(--warning-color)' : 'var(--error-color)'};">
+            ${averageAIOPosition}
+          </div>
+          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
+        </div>
+        ` : ''}
       </div>
     </div>
   `;
