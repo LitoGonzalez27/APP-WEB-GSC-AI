@@ -395,16 +395,16 @@ function displaySummary(summary, container) {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
           <div class="metric-icon" style="
-            width: 32px; 
-            height: 32px; 
+            width: 50px; 
+            height: 50px; 
             background: #D8F9B8; 
-            border-radius: 6px; 
+            border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-search" style="color: #161616; font-size: 14px;"></i>
+            <i class="fas fa-search" style="color: #161616; font-size: 20px;"></i>
           </div>
           <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(totalKeywords)}
@@ -420,16 +420,16 @@ function displaySummary(summary, container) {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
           <div class="metric-icon" style="
-            width: 32px; 
-            height: 32px; 
+            width: 50px; 
+            height: 50px; 
             background: #D8F9B8; 
-            border-radius: 6px; 
+            border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-robot" style="color: #161616; font-size: 14px;"></i>
+            <i class="fas fa-robot" style="color: #161616; font-size: 20px;"></i>
           </div>
           <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(keywordsWithAIO)}
@@ -445,16 +445,16 @@ function displaySummary(summary, container) {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
           <div class="metric-icon" style="
-            width: 32px; 
-            height: 32px; 
+            width: 50px; 
+            height: 50px; 
             background: #D8F9B8; 
-            border-radius: 6px; 
+            border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-chart-pie" style="color: #161616; font-size: 14px;"></i>
+            <i class="fas fa-chart-pie" style="color: #161616; font-size: 20px;"></i>
           </div>
           <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${pesoAIOPercentage}%
@@ -470,16 +470,16 @@ function displaySummary(summary, container) {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
           <div class="metric-icon" style="
-            width: 32px; 
-            height: 32px; 
+            width: 50px; 
+            height: 50px; 
             background: #D8F9B8; 
-            border-radius: 6px; 
+            border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-hashtag" style="color: #161616; font-size: 14px;"></i>
+            <i class="fas fa-hashtag" style="color: #161616; font-size: 20px;"></i>
           </div>
           <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(mentionsInAIO)}
@@ -495,16 +495,16 @@ function displaySummary(summary, container) {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
           <div class="metric-icon" style="
-            width: 32px; 
-            height: 32px; 
+            width: 50px; 
+            height: 50px; 
             background: #D8F9B8; 
-            border-radius: 6px; 
+            border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-eye" style="color: #161616; font-size: 14px;"></i>
+            <i class="fas fa-eye" style="color: #161616; font-size: 20px;"></i>
           </div>
           <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${visibilityPercentage}%
@@ -520,16 +520,16 @@ function displaySummary(summary, container) {
             transition: transform 0.2s ease, box-shadow 0.2s ease;
           ">
             <div class="metric-icon" style="
-              width: 32px; 
-              height: 32px; 
+              width: 50px; 
+              height: 50px; 
               background: #D8F9B8; 
-              border-radius: 6px; 
+              border-radius: 150px; 
               display: flex; 
               align-items: center; 
               justify-content: center; 
               margin: 0 auto 0.5em;
             ">
-              <i class="fas fa-map-marker-alt" style="color: #161616; font-size: 14px;"></i>
+              <i class="fas fa-map-marker-alt" style="color: #161616; font-size: 20px;"></i>
             </div>
             <div style="font-size: 2em; font-weight: bold; color: #161616;">
               ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}

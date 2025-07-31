@@ -285,13 +285,40 @@ function createCompetitorDonutChart(competitorResults) {
         return null;
     }
 
+    // Función helper para truncar dominios largos
+    function truncateDomain(domain, maxLength = 20) {
+        if (domain.length <= maxLength) return domain;
+        return domain.substring(0, maxLength - 3) + '...';
+    }
+
+    // Función para determinar el tipo de dominio
+    function getDomainType(domain, index) {
+        if (index === 0) return 'Your Domain';
+        return `Competitor ${index}`;
+    }
+
     // Crear contenedor del gráfico
     const chartContainer = document.createElement('div');
     chartContainer.className = 'competitor-chart-container';
+    
+    // Crear leyenda
+    const legendHTML = chartData.map((item, index) => `
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: ${item.color};"></div>
+            <div class="legend-label">
+                <strong>${getDomainType(item.label, index)}</strong><br>
+                <span style="font-size: 0.8em; opacity: 0.8;">${truncateDomain(item.label)}</span>
+            </div>
+        </div>
+    `).join('');
+    
     chartContainer.innerHTML = `
         <h4><i class="fas fa-chart-pie"></i> Visibility Distribution</h4>
         <div class="chart-wrapper">
-            <canvas id="competitorDonutChart" width="200" height="200"></canvas>
+            <canvas id="competitorDonutChart" width="300" height="250"></canvas>
+        </div>
+        <div class="chart-legend">
+            ${legendHTML}
         </div>
     `;
 
@@ -317,13 +344,35 @@ function createCompetitorDonutChart(competitorResults) {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false // Ocultamos la leyenda por defecto, usaremos tooltip
+                            display: false // Usamos nuestra leyenda personalizada
                         },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#ffffff',
+                            borderWidth: 1,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            padding: 12,
                             callbacks: {
+                                title: function(context) {
+                                    const item = chartData[context[0].dataIndex];
+                                    const domainType = getDomainType(item.label, context[0].dataIndex);
+                                    return domainType;
+                                },
                                 label: function(context) {
                                     const item = chartData[context.dataIndex];
-                                    return `${item.label}: ${item.value} mentions (${item.percentage}%)`;
+                                    return [
+                                        `Domain: ${item.label}`,
+                                        `Mentions: ${item.value}`,
+                                        `Visibility: ${item.percentage}%`
+                                    ];
                                 }
                             }
                         }

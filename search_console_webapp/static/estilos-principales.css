@@ -650,12 +650,12 @@ body.dark-mode .domain-validation-error div {
 }
 
 .competitor-chart-column {
-  flex: 0 0 30%;
-  min-height: 300px;
+  flex: 0 0 50%;
+  min-height: 350px;
 }
 
 .competitor-table-column {
-  flex: 1;
+  flex: 0 0 50%;
 }
 
 /* Competitor chart container */
@@ -681,9 +681,37 @@ body.dark-mode .domain-validation-error div {
 
 .chart-wrapper {
   position: relative;
-  height: 200px;
-  margin: 0 auto;
-  max-width: 200px;
+  height: 250px;
+  margin: 0 auto 1.5rem;
+  max-width: 300px;
+}
+
+/* Chart legend styles */
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  color: var(--text-color);
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 /* Competitor results table */
@@ -796,6 +824,15 @@ body.dark-mode .competitor-table th {
   background: rgba(15, 23, 42, 0.6);
 }
 
+body.dark-mode .competitor-chart-container {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .legend-label {
+  color: var(--text-color);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .competitor-fields-container {
@@ -809,12 +846,17 @@ body.dark-mode .competitor-table th {
   
   .competitor-chart-column {
     flex: none;
-    max-width: 250px;
+    max-width: 350px;
     margin: 0 auto;
   }
   
   .competitor-table-column {
     flex: none;
+  }
+  
+  .chart-wrapper {
+    max-width: 280px;
+    height: 220px;
   }
   
   .competitor-table {
