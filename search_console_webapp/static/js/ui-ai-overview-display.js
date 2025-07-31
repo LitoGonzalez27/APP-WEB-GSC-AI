@@ -481,10 +481,20 @@ function displaySummary(summary, container) {
  */
 function displayCompetitorResults(competitorResults, container) {
   if (!competitorResults || competitorResults.length === 0) {
+    console.warn('⚠️ No hay resultados de competidores para mostrar');
     return;
   }
 
-  console.log('📊 Mostrando resultados de competidores:', competitorResults);
+  console.log('📊 Datos de competidores recibidos:');
+  console.table(competitorResults);
+  
+  // Log detallado de cada dominio
+  competitorResults.forEach((result, index) => {
+    console.log(`🏢 Dominio ${index + 1}: ${result.domain}`);
+    console.log(`   📊 Menciones: ${result.mentions}`);
+    console.log(`   👁️ Visibilidad: ${result.visibility_percentage}%`);
+    console.log(`   📍 Posición media: ${result.average_position || 'N/A'}`);
+  });
 
   // Crear tabla de competidores usando la función del módulo CompetitorAnalysis
   if (window.CompetitorAnalysis) {

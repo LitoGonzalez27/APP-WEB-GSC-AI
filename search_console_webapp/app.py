@@ -1351,17 +1351,20 @@ def analyze_competitor_domains(results_list, competitor_domains):
     Analiza las métricas de competidores en AI Overview
     """
     if not competitor_domains or not results_list:
+        logger.info("[COMPETITOR] No hay dominios o resultados para analizar")
         return []
     
     competitor_stats = []
     
     for domain in competitor_domains:
+        logger.info(f"[COMPETITOR] Analizando dominio: {domain}")
         domain_mentions = 0
         domain_positions = []
         total_keywords_with_ai = 0
         
         # Analizar cada resultado de keyword
         for result in results_list:
+            keyword = result.get('keyword', 'unknown')
             ai_analysis = result.get('ai_analysis', {})
             has_ai_overview = ai_analysis.get('has_ai_overview', False)
             
@@ -1369,18 +1372,21 @@ def analyze_competitor_domains(results_list, competitor_domains):
                 total_keywords_with_ai += 1
                 
                 # Buscar el dominio en las fuentes AI
-                # Utilizar la misma lógica que detect_ai_overview_elements
                 if check_domain_in_ai_sources(ai_analysis, domain):
                     domain_mentions += 1
+                    logger.debug(f"[COMPETITOR] Dominio {domain} encontrado en keyword: {keyword}")
                     
                     # Obtener posición si está disponible
                     position = get_domain_position_in_ai(ai_analysis, domain)
                     if position and position > 0:
                         domain_positions.append(position)
+                        logger.debug(f"[COMPETITOR] Posición {position} para {domain} en keyword: {keyword}")
         
         # Calcular métricas
         visibility_percentage = (domain_mentions / total_keywords_with_ai * 100) if total_keywords_with_ai > 0 else 0
         average_position = (sum(domain_positions) / len(domain_positions)) if domain_positions else None
+        
+        logger.info(f"[COMPETITOR] Dominio {domain}: {domain_mentions} menciones, {visibility_percentage:.1f}% visibilidad, posición media: {average_position}")
         
         competitor_stats.append({
             'domain': domain,
@@ -1394,51 +1400,90 @@ def analyze_competitor_domains(results_list, competitor_domains):
 def check_domain_in_ai_sources(ai_analysis, target_domain):
     """
     Verifica si un dominio aparece en las fuentes de AI Overview
-    Utiliza la misma lógica que services/ai_analysis.py
+    Utiliza la misma lógica que services/ai_analysis.py pero para cualquier dominio
     """
-    from services.utils import urls_match
+    from services.utils import urls_match, normalize_search_console_url
     
-    # Buscar en debug_info si hay fuentes detectadas
+    # Normalizar el dominio objetivo
+    normalized_target = normalize_search_console_url(target_domain)
+    if not normalized_target:
+        logger.info(f"[COMPETITOR] No se pudo normalizar dominio: {target_domain}")
+        return False
+    
+    logger.info(f"[COMPETITOR] Buscando dominio {target_domain} → {normalized_target}")
+    
+    # Si es el dominio principal, usar la información ya calculada
+    if ai_analysis.get('domain_is_ai_source', False):
+        # Comparar con el dominio del análisis principal
+        debug_info = ai_analysis.get('debug_info', {})
+        site_url_normalized = debug_info.get('site_url_normalized', '')
+        if site_url_normalized and urls_match(site_url_normalized, normalized_target):
+            logger.info(f"[COMPETITOR] Match encontrado con dominio principal: {site_url_normalized}")
+            return True
+    
+    # Buscar en referencias encontradas en debug_info
     debug_info = ai_analysis.get('debug_info', {})
     references = debug_info.get('references_found', [])
     
-    for ref in references:
+    logger.info(f"[COMPETITOR] Revisando {len(references)} referencias")
+    
+    for i, ref in enumerate(references):
         ref_link = ref.get('link', '')
-        if ref_link and urls_match(ref_link, target_domain):
+        ref_source = ref.get('source', '')
+        ref_title = ref.get('title', '')
+        
+        logger.info(f"[COMPETITOR] Ref {i}: link={ref_link[:50] if ref_link else 'None'}... source={ref_source[:30] if ref_source else 'None'}...")
+        
+        # Verificar link directo
+        if ref_link and urls_match(ref_link, normalized_target):
+            logger.info(f"[COMPETITOR] ✅ Match encontrado en link: {ref_link}")
+            return True
+        
+        # Verificar en source y title 
+        if (ref_source and normalized_target.lower() in ref_source.lower()) or \
+           (ref_title and normalized_target.lower() in ref_title.lower()):
+            logger.info(f"[COMPETITOR] ✅ Match encontrado en source/title: {ref_source or ref_title}")
             return True
     
-    # También buscar en organic results si están disponibles
-    organic_matches = debug_info.get('organic_matches', [])
-    for match in organic_matches:
-        match_link = match.get('link', '')
-        if match_link and urls_match(match_link, target_domain):
-            return True
-    
+    logger.info(f"[COMPETITOR] No se encontró {normalized_target} en ninguna referencia")
     return False
 
 def get_domain_position_in_ai(ai_analysis, target_domain):
     """
     Obtiene la posición de un dominio específico en AI Overview
     """
-    from services.utils import urls_match
+    from services.utils import urls_match, normalize_search_console_url
     
-    # Buscar en debug_info
+    # Normalizar el dominio objetivo
+    normalized_target = normalize_search_console_url(target_domain)
+    if not normalized_target:
+        return None
+    
+    # Si es el dominio principal, usar la posición ya calculada
+    if ai_analysis.get('domain_is_ai_source', False):
+        debug_info = ai_analysis.get('debug_info', {})
+        site_url_normalized = debug_info.get('site_url_normalized', '')
+        if site_url_normalized and urls_match(site_url_normalized, normalized_target):
+            return ai_analysis.get('domain_ai_source_position')
+    
+    # Buscar en referencias encontradas
     debug_info = ai_analysis.get('debug_info', {})
     references = debug_info.get('references_found', [])
     
     for ref in references:
         ref_link = ref.get('link', '')
+        ref_source = ref.get('source', '')
+        ref_title = ref.get('title', '')
         ref_index = ref.get('index')
-        if ref_link and urls_match(ref_link, target_domain) and ref_index is not None:
+        
+        # Verificar link directo
+        if ref_link and urls_match(ref_link, normalized_target) and ref_index is not None:
             return ref_index + 1  # Posición 1-based
-    
-    # Buscar en organic matches
-    organic_matches = debug_info.get('organic_matches', [])
-    for match in organic_matches:
-        match_link = match.get('link', '')
-        match_position = match.get('position')
-        if match_link and urls_match(match_link, target_domain) and match_position:
-            return match_position
+        
+        # Verificar en source y title
+        if ((ref_source and normalized_target.lower() in ref_source.lower()) or \
+           (ref_title and normalized_target.lower() in ref_title.lower())) and ref_index is not None:
+            return ref_index + 1  # Posición 1-based
     
     return None
 
