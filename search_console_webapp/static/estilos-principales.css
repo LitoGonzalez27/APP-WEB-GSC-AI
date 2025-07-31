@@ -540,3 +540,223 @@ body.dark-mode .domain-validation-error div {
     font-size: 12px;
   }
 }
+
+/*=============================================
+  6. COMPETITOR DOMAINS SECTION
+=============================================*/
+
+.competitor-domains-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.competitor-section-title {
+  font-size: 1.2rem;
+  color: var(--heading);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.competitor-section-title i {
+  color: var(--cta-bg);
+  margin-right: 0.5rem;
+}
+
+.competitor-section-description {
+  color: var(--text-color);
+  opacity: 0.8;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.competitor-fields-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.competitor-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.competitor-field-group label {
+  font-weight: 500;
+  color: var(--heading);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.competitor-input {
+  padding: 0.75rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  background: white;
+  color: var(--text-color);
+}
+
+.competitor-input:focus {
+  border-color: var(--cta-bg);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.competitor-input.valid {
+  border-color: var(--success-color);
+  background: rgba(46, 204, 113, 0.05);
+}
+
+.competitor-input.invalid {
+  border-color: var(--error-color);
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.competitor-validation {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  min-height: 1.2em;
+}
+
+.competitor-validation.valid {
+  color: var(--success-color);
+}
+
+.competitor-validation.invalid {
+  color: var(--error-color);
+}
+
+.competitor-validation.valid::before {
+  content: "✓ ";
+  font-weight: bold;
+}
+
+.competitor-validation.invalid::before {
+  content: "⚠ ";
+  font-weight: bold;
+}
+
+/* Competitor results table */
+.competitor-results-table {
+  margin-top: 2rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.competitor-results-table h4 {
+  padding: 1rem 1.5rem;
+  margin: 0;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--heading);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.competitor-results-table h4 i {
+  color: var(--cta-bg);
+  margin-right: 0.5rem;
+}
+
+.competitor-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.competitor-table th,
+.competitor-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.competitor-table th {
+  background: rgba(248, 249, 250, 0.8);
+  font-weight: 600;
+  color: var(--heading);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.competitor-table tbody tr:hover {
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.competitor-table .domain-cell {
+  font-weight: 600;
+  color: var(--cta-bg);
+}
+
+.competitor-table .mentions-cell {
+  font-weight: 600;
+  color: var(--warning-color);
+}
+
+.competitor-table .visibility-cell {
+  font-weight: 600;
+}
+
+.competitor-table .position-cell {
+  font-weight: 600;
+}
+
+/* Color coding for visibility percentages */
+.visibility-high { color: var(--success-color); }
+.visibility-medium { color: var(--warning-color); }
+.visibility-low { color: var(--error-color); }
+
+/* Color coding for average positions */
+.position-excellent { color: var(--success-color); }
+.position-good { color: var(--warning-color); }
+.position-poor { color: var(--error-color); }
+
+/* Dark mode support */
+body.dark-mode .competitor-domains-section {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(51, 65, 85, 0.8);
+}
+
+body.dark-mode .competitor-input {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+body.dark-mode .competitor-results-table {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .competitor-results-table h4 {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .competitor-table th {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .competitor-fields-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .competitor-table {
+    font-size: 0.85rem;
+  }
+  
+  .competitor-table th,
+  .competitor-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}

@@ -99,6 +99,20 @@ async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
         console.log(`🔢 Enviando solicitud para analizar ${keywordCount} keywords`);
     }
     
+    // 🆕 NUEVO: Añadir dominios de competidores si están disponibles
+    if (window.CompetitorAnalysis) {
+        const competitorDomains = window.CompetitorAnalysis.getValidCompetitorDomains();
+        if (competitorDomains.length > 0) {
+            payload.competitor_domains = competitorDomains;
+            console.log(`🥊 Incluyendo análisis de ${competitorDomains.length} competidores: ${competitorDomains.join(', ')}`);
+            
+            // Mostrar mensaje al usuario sobre el análisis de competidores
+            if (window.showToast) {
+                window.showToast(`Analyzing ${competitorDomains.length} competitor domain${competitorDomains.length > 1 ? 's' : ''} for comparison`, 'info', 3000);
+            }
+        }
+    }
+    
     // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
     if (countryToUse) {
         payload.country = countryToUse;

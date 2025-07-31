@@ -437,6 +437,49 @@
       </div>
 
       <div class="content-section" id="aiOverviewContent" data-section="ai-overview">
+        <!-- Competitor Domain Fields -->
+        <div class="competitor-domains-section" id="competitorDomainsSection">
+          <h3 class="competitor-section-title">
+            <i class="fas fa-users"></i> Competitor Analysis (Optional)
+          </h3>
+          <p class="competitor-section-description">Add up to 3 competitor domains to compare their AI Overview presence with yours</p>
+          
+          <div class="competitor-fields-container">
+            <div class="competitor-field-group">
+              <label for="competitor1">Competitor 1:</label>
+              <input 
+                type="text" 
+                id="competitor1" 
+                placeholder="e.g., example.com, https://blog.competitor.com" 
+                class="competitor-input"
+              />
+              <div class="competitor-validation" id="competitor1Validation"></div>
+            </div>
+            
+            <div class="competitor-field-group">
+              <label for="competitor2">Competitor 2:</label>
+              <input 
+                type="text" 
+                id="competitor2" 
+                placeholder="e.g., www.another-competitor.org" 
+                class="competitor-input"
+              />
+              <div class="competitor-validation" id="competitor2Validation"></div>
+            </div>
+            
+            <div class="competitor-field-group">
+              <label for="competitor3">Competitor 3:</label>
+              <input 
+                type="text" 
+                id="competitor3" 
+                placeholder="e.g., shop.thirdcompetitor.co.uk" 
+                class="competitor-input"
+              />
+              <div class="competitor-validation" id="competitor3Validation"></div>
+            </div>
+          </div>
+        </div>
+
         <section id="aiOverviewSection" class="glass-effect">
           <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
 
@@ -753,7 +796,8 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
 
   <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
 

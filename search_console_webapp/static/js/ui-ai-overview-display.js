@@ -468,7 +468,30 @@ function displaySummary(summary, container) {
     </div>
   `;
   
-  container.innerHTML = summaryHTML; 
+  container.innerHTML = summaryHTML;
+  
+  // 🆕 NUEVO: Mostrar tabla de competidores si está disponible
+  if (summary.competitor_analysis && summary.competitor_analysis.length > 0) {
+    displayCompetitorResults(summary.competitor_analysis, container);
+  }
+}
+
+/**
+ * Muestra los resultados de análisis de competidores
+ */
+function displayCompetitorResults(competitorResults, container) {
+  if (!competitorResults || competitorResults.length === 0) {
+    return;
+  }
+
+  console.log('📊 Mostrando resultados de competidores:', competitorResults);
+
+  // Crear tabla de competidores usando la función del módulo CompetitorAnalysis
+  if (window.CompetitorAnalysis) {
+    window.CompetitorAnalysis.displayCompetitorResults(competitorResults, container);
+  } else {
+    console.warn('⚠️ Módulo CompetitorAnalysis no disponible para mostrar resultados');
+  }
 }
 
 function displayDetailedResults(results, container) {

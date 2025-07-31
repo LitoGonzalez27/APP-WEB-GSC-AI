@@ -1346,6 +1346,102 @@ def calculate_average_ai_position(results_list):
     average = sum(valid_positions) / len(valid_positions)
     return round(average, 1)
 
+def analyze_competitor_domains(results_list, competitor_domains):
+    """
+    Analiza las métricas de competidores en AI Overview
+    """
+    if not competitor_domains or not results_list:
+        return []
+    
+    competitor_stats = []
+    
+    for domain in competitor_domains:
+        domain_mentions = 0
+        domain_positions = []
+        total_keywords_with_ai = 0
+        
+        # Analizar cada resultado de keyword
+        for result in results_list:
+            ai_analysis = result.get('ai_analysis', {})
+            has_ai_overview = ai_analysis.get('has_ai_overview', False)
+            
+            if has_ai_overview:
+                total_keywords_with_ai += 1
+                
+                # Buscar el dominio en las fuentes AI
+                # Utilizar la misma lógica que detect_ai_overview_elements
+                if check_domain_in_ai_sources(ai_analysis, domain):
+                    domain_mentions += 1
+                    
+                    # Obtener posición si está disponible
+                    position = get_domain_position_in_ai(ai_analysis, domain)
+                    if position and position > 0:
+                        domain_positions.append(position)
+        
+        # Calcular métricas
+        visibility_percentage = (domain_mentions / total_keywords_with_ai * 100) if total_keywords_with_ai > 0 else 0
+        average_position = (sum(domain_positions) / len(domain_positions)) if domain_positions else None
+        
+        competitor_stats.append({
+            'domain': domain,
+            'mentions': domain_mentions,
+            'visibility_percentage': round(visibility_percentage, 1),
+            'average_position': round(average_position, 1) if average_position else None
+        })
+    
+    return competitor_stats
+
+def check_domain_in_ai_sources(ai_analysis, target_domain):
+    """
+    Verifica si un dominio aparece en las fuentes de AI Overview
+    Utiliza la misma lógica que services/ai_analysis.py
+    """
+    from services.utils import urls_match
+    
+    # Buscar en debug_info si hay fuentes detectadas
+    debug_info = ai_analysis.get('debug_info', {})
+    references = debug_info.get('references_found', [])
+    
+    for ref in references:
+        ref_link = ref.get('link', '')
+        if ref_link and urls_match(ref_link, target_domain):
+            return True
+    
+    # También buscar en organic results si están disponibles
+    organic_matches = debug_info.get('organic_matches', [])
+    for match in organic_matches:
+        match_link = match.get('link', '')
+        if match_link and urls_match(match_link, target_domain):
+            return True
+    
+    return False
+
+def get_domain_position_in_ai(ai_analysis, target_domain):
+    """
+    Obtiene la posición de un dominio específico en AI Overview
+    """
+    from services.utils import urls_match
+    
+    # Buscar en debug_info
+    debug_info = ai_analysis.get('debug_info', {})
+    references = debug_info.get('references_found', [])
+    
+    for ref in references:
+        ref_link = ref.get('link', '')
+        ref_index = ref.get('index')
+        if ref_link and urls_match(ref_link, target_domain) and ref_index is not None:
+            return ref_index + 1  # Posición 1-based
+    
+    # Buscar en organic matches
+    organic_matches = debug_info.get('organic_matches', [])
+    for match in organic_matches:
+        match_link = match.get('link', '')
+        match_position = match.get('position')
+        if match_link and urls_match(match_link, target_domain) and match_position:
+            return match_position
+    
+    return None
+
 
 def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max_workers=3):
     """
@@ -1435,6 +1531,9 @@ def analyze_ai_overview_route():
         site_url_req = request_payload.get('site_url', '')
         country_req = request_payload.get('country', '')
         
+        # 🆕 NUEVO: Obtener dominios de competidores
+        competitor_domains = request_payload.get('competitor_domains', [])
+        
         # 🆕 NUEVO: Obtener cantidad solicitada por usuario
         requested_count = request_payload.get('keyword_count', 50)  # Default 50
         
@@ -1506,6 +1605,25 @@ def analyze_ai_overview_route():
         results_list_overview.sort(key=lambda x_item_sort: x_item_sort.get('delta_clicks_absolute', 0))
 
         total_analyzed_overview = len(results_list_overview)
+        # 🆕 NUEVO: Analizar competidores incluyendo el dominio principal
+        competitor_analysis = []
+        domains_to_analyze = []
+        
+        # Añadir dominio principal normalizado
+        from services.utils import normalize_search_console_url
+        main_domain = normalize_search_console_url(site_url_req)
+        if main_domain:
+            domains_to_analyze.append(main_domain)
+        
+        # Añadir competidores si se proporcionaron
+        if competitor_domains:
+            domains_to_analyze.extend(competitor_domains)
+        
+        if domains_to_analyze:
+            logger.info(f"[COMPETITOR] Analizando {len(domains_to_analyze)} dominios (principal + competidores): {domains_to_analyze}")
+            competitor_analysis = analyze_competitor_domains(results_list_overview, domains_to_analyze)
+            logger.info(f"[COMPETITOR] Análisis completado para {len(competitor_analysis)} dominios")
+
         summary_overview_stats = {
             'total_keywords_analyzed': total_analyzed_overview,
             'successful_analyses': successful_analyses_overview,
@@ -1520,7 +1638,8 @@ def analyze_ai_overview_route():
             'analysis_timestamp': time.time(),
             'country_analyzed': country_req, # NUEVO: País analizado
             'requested_keyword_count': requested_count,  # 🆕 NUEVO: registrar cantidad solicitada
-            'average_ai_position': calculate_average_ai_position(results_list_overview)  # 🆕 NUEVO: Posición promedio en AIO
+            'average_ai_position': calculate_average_ai_position(results_list_overview),  # 🆕 NUEVO: Posición promedio en AIO
+            'competitor_analysis': competitor_analysis  # 🆕 NUEVO: Análisis de competidores
         }
 
         # ✅ NUEVO: Guardar análisis en la base de datos
