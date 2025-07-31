@@ -536,7 +536,7 @@ class SidebarNavigation {
         console.log(`🎯 Section ${section}: ENABLED (found in available sections)`);
       } else {
         // ✅ NUEVO: Verificar si la sección ya está habilitada antes de deshabilitarla
-        const navItem = this.elementsMap[section]?.navItem;
+        const navItem = this.navItems[section];
         const isAlreadyEnabled = navItem && !navItem.classList.contains('disabled');
         
         if (isAlreadyEnabled) {
