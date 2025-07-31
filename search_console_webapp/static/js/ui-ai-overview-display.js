@@ -451,7 +451,6 @@ function displaySummary(summary, container) {
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">% Visibility in AIO</div>
         </div>
-        ${averageAIOPosition !== null && averageAIOPosition !== undefined ? `
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
@@ -460,12 +459,11 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: ${averageAIOPosition <= 2 ? 'var(--success-color)' : averageAIOPosition <= 4 ? 'var(--warning-color)' : 'var(--error-color)'};">
-            ${averageAIOPosition}
+          <div style="font-size: 2em; font-weight: bold; color: ${averageAIOPosition !== null && averageAIOPosition !== undefined ? (averageAIOPosition <= 2 ? 'var(--success-color)' : averageAIOPosition <= 4 ? 'var(--warning-color)' : 'var(--error-color)') : 'gray'};">
+            ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
         </div>
-        ` : ''}
       </div>
     </div>
   `;
