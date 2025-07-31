@@ -261,28 +261,32 @@ function initializeCompetitorValidation() {
 }
 
 /**
- * Creates the competitor donut chart using Chart.js
+ * Creates the competitor bar chart using Chart.js
  * @param {Array<Object>} competitorResults - Array of competitor analysis results
  * @returns {HTMLElement} - Chart container element
  */
-function createCompetitorDonutChart(competitorResults) {
-    if (!competitorResults || competitorResults.length === 0) {
-        return null;
-    }
-
+function createCompetitorBarChart(competitorResults) {
     // Definir colores para usuario y competidores
     const colors = ['#D9FAB9', '#F2B9FA', '#FADBB9', '#B9E8FA'];
     
-    // Preparar datos para el gráfico
-    const chartData = competitorResults.map((result, index) => ({
-        label: result.domain,
-        value: result.mentions,
-        percentage: result.visibility_percentage,
-        color: colors[index] || '#CCCCCC'
-    })).filter(item => item.value > 0); // Solo mostrar dominios con menciones
-
-    if (chartData.length === 0) {
-        return null;
+    // Preparar datos para el gráfico - siempre mostrar todos los dominios
+    let chartData = [];
+    
+    if (competitorResults && competitorResults.length > 0) {
+        chartData = competitorResults.map((result, index) => ({
+            label: result.domain,
+            value: result.mentions,
+            percentage: result.visibility_percentage || 0,
+            color: colors[index] || '#CCCCCC'
+        }));
+    } else {
+        // Si no hay datos, mostrar un placeholder
+        chartData = [{
+            label: 'No data available',
+            value: 0,
+            percentage: 0,
+            color: '#CCCCCC'
+        }];
     }
 
     // Función helper para truncar dominios largos
@@ -313,9 +317,9 @@ function createCompetitorDonutChart(competitorResults) {
     `).join('');
     
     chartContainer.innerHTML = `
-        <h4><i class="fas fa-chart-pie"></i> Visibility Distribution</h4>
+        <h4><i class="fas fa-chart-bar"></i> Visibility Distribution</h4>
         <div class="chart-wrapper">
-            <canvas id="competitorDonutChart" width="300" height="250"></canvas>
+            <canvas id="competitorBarChart" width="300" height="250"></canvas>
         </div>
         <div class="chart-legend">
             ${legendHTML}
@@ -324,24 +328,41 @@ function createCompetitorDonutChart(competitorResults) {
 
     // Configurar el gráfico cuando se añada al DOM
     setTimeout(() => {
-        const canvas = document.getElementById('competitorDonutChart');
+        const canvas = document.getElementById('competitorBarChart');
         if (canvas && window.Chart) {
             const ctx = canvas.getContext('2d');
             
             new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
-                    labels: chartData.map(item => item.label),
+                    labels: chartData.map(item => truncateDomain(item.label, 15)),
                     datasets: [{
-                        data: chartData.map(item => item.value),
+                        label: 'Visibility %',
+                        data: chartData.map(item => item.percentage),
                         backgroundColor: chartData.map(item => item.color),
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
+                        borderColor: chartData.map(item => item.color),
+                        borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Visibility %'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Domains'
+                            }
+                        }
+                    },
                     plugins: {
                         legend: {
                             display: false // Usamos nuestra leyenda personalizada
@@ -371,7 +392,7 @@ function createCompetitorDonutChart(competitorResults) {
                                     return [
                                         `Domain: ${item.label}`,
                                         `Mentions: ${item.value}`,
-                                        `Visibility: ${item.percentage}%`
+                                        `Visibility: ${context.parsed.y}%`
                                     ];
                                 }
                             }
@@ -480,7 +501,7 @@ function displayCompetitorResults(competitorResults, container) {
     }
 
     // Create the main layout with chart and table
-    const chartElement = createCompetitorDonutChart(competitorResults);
+    const chartElement = createCompetitorBarChart(competitorResults);
     const tableHTML = createCompetitorResultsTable(competitorResults);
     
     // Build the combined layout

@@ -18,8 +18,12 @@ export function displayAIOverviewResults(data) {
   const aiSection = document.getElementById('aiOverviewSection');
   if (aiSection) aiSection.style.display = 'block';
 
+  // Obtener el keyword count del selector
+  const keywordCountSelect = document.getElementById('keywordCountSelect');
+  const selectedKeywordCount = keywordCountSelect ? parseInt(keywordCountSelect.value) : null;
+
   // 1️⃣ Mostrar resumen
-  displaySummary(data.summary, resultsContainer);
+  displaySummary(data.summary, resultsContainer, selectedKeywordCount);
   
   // 2️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ARRIBA)
   displayTypologyChart(resultsContainer, data);
@@ -356,7 +360,7 @@ function createAIOPositionTable(keywordResults) {
   console.log('✅ AIO position table created');
 }
 
-function displaySummary(summary, container) {
+function displaySummary(summary, container, keywordCount = null) {
   // Calcular % de visibilidad en AIO
   const keywordsWithAIO = summary.keywords_with_ai_overview || 0;
   const mentionsInAIO = summary.keywords_as_ai_source || 0;
@@ -369,6 +373,9 @@ function displaySummary(summary, container) {
   // 🆕 NUEVO: Obtener posición promedio en AIO
   const averageAIOPosition = summary.average_ai_position;
   
+  // Determinar el número de keywords dinámicamente
+  const keywordCountText = keywordCount || totalKeywords || 50;
+  
   const summaryHTML = `
     <div class="ai-overview-summary" style="
       /* Eliminamos el background linear-gradient y el border directos
@@ -377,40 +384,19 @@ function displaySummary(summary, container) {
       margin-bottom: 2em;
       border-radius: 12px; /* Mantenemos el border-radius para las métricas internas */
     ">
-      <h3 style="text-align: center; color: var(--heading); margin-bottom: 1em;">
-        <i class="fas fa-chart-line"></i> AI Overview Analysis Summary
+      <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.5em; font-size: 1.5em; font-weight: 600;">
+        AI Overview Analysis
       </h3>
+      <p style="text-align: center; color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 1.5em;">
+        based on the ${keywordCountText} most clicked keywords
+      </p>
       <div style="
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 1em;
         margin-bottom: 1em;
       ">
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); 
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div class="metric-icon" style="
-            width: 50px; 
-            height: 50px; 
-            background: #D8F9B8; 
-            border-radius: 150px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 0.5em;
-          ">
-            <i class="fas fa-search" style="color: #161616; font-size: 20px;"></i>
-          </div>
-          <div style="font-size: 2em; font-weight: bold; color: #161616;">
-            ${formatNumber(totalKeywords)}
-          </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Keywords Analyzed</div>
-        </div>
+
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
