@@ -681,37 +681,42 @@ body.dark-mode .domain-validation-error div {
 
 .chart-wrapper {
   position: relative;
-  height: 250px;
+  height: 350px;
   margin: 0 auto 1.5rem;
-  max-width: 300px;
+  max-width: 450px;
 }
 
 /* Chart legend styles */
 .chart-legend {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+  justify-content: center;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
 .legend-label {
   color: var(--text-color);
   word-break: break-word;
-  line-height: 1.3;
+  line-height: 1.2;
+  font-size: 0.8rem;
 }
 
 /* Competitor results table */
@@ -855,8 +860,18 @@ body.dark-mode .legend-label {
   }
   
   .chart-wrapper {
-    max-width: 280px;
-    height: 220px;
+    max-width: 350px;
+    height: 280px;
+  }
+  
+  .chart-legend {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .legend-item {
+    flex: none;
+    justify-content: flex-start;
   }
   
   .competitor-table {

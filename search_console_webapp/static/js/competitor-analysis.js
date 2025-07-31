@@ -319,7 +319,7 @@ function createCompetitorBarChart(competitorResults) {
     chartContainer.innerHTML = `
         <h4><i class="fas fa-chart-bar"></i> Visibility Distribution</h4>
         <div class="chart-wrapper">
-            <canvas id="competitorBarChart" width="300" height="250"></canvas>
+            <canvas id="competitorBarChart" width="450" height="350"></canvas>
         </div>
         <div class="chart-legend">
             ${legendHTML}

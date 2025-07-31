@@ -388,7 +388,7 @@ function displaySummary(summary, container, keywordCount = null) {
         AI Overview Analysis
       </h3>
       <p style="text-align: center; color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 1.5em;">
-        based on the ${keywordCountText} most clicked keywords
+        based on the <span style="text-decoration: underline; text-decoration-color: #D8F9B8; text-decoration-thickness: 2px; font-weight: 500;">${keywordCountText} most clicked keywords</span>
       </p>
       <div style="
         display: grid;
