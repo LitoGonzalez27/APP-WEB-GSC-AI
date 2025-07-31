@@ -261,6 +261,84 @@ function initializeCompetitorValidation() {
 }
 
 /**
+ * Creates the competitor donut chart using Chart.js
+ * @param {Array<Object>} competitorResults - Array of competitor analysis results
+ * @returns {HTMLElement} - Chart container element
+ */
+function createCompetitorDonutChart(competitorResults) {
+    if (!competitorResults || competitorResults.length === 0) {
+        return null;
+    }
+
+    // Definir colores para usuario y competidores
+    const colors = ['#D9FAB9', '#F2B9FA', '#FADBB9', '#B9E8FA'];
+    
+    // Preparar datos para el gráfico
+    const chartData = competitorResults.map((result, index) => ({
+        label: result.domain,
+        value: result.mentions,
+        percentage: result.visibility_percentage,
+        color: colors[index] || '#CCCCCC'
+    })).filter(item => item.value > 0); // Solo mostrar dominios con menciones
+
+    if (chartData.length === 0) {
+        return null;
+    }
+
+    // Crear contenedor del gráfico
+    const chartContainer = document.createElement('div');
+    chartContainer.className = 'competitor-chart-container';
+    chartContainer.innerHTML = `
+        <h4><i class="fas fa-chart-pie"></i> Visibility Distribution</h4>
+        <div class="chart-wrapper">
+            <canvas id="competitorDonutChart" width="200" height="200"></canvas>
+        </div>
+    `;
+
+    // Configurar el gráfico cuando se añada al DOM
+    setTimeout(() => {
+        const canvas = document.getElementById('competitorDonutChart');
+        if (canvas && window.Chart) {
+            const ctx = canvas.getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.map(item => item.label),
+                    datasets: [{
+                        data: chartData.map(item => item.value),
+                        backgroundColor: chartData.map(item => item.color),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false // Ocultamos la leyenda por defecto, usaremos tooltip
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = chartData[context.dataIndex];
+                                    return `${item.label}: ${item.value} mentions (${item.percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            console.warn('Chart.js not available or canvas not found');
+        }
+    }, 100);
+
+    return chartContainer;
+}
+
+/**
  * Creates the competitor results table HTML
  * @param {Array<Object>} competitorResults - Array of competitor analysis results
  * @returns {string} - HTML string for the results table
@@ -270,13 +348,14 @@ function createCompetitorResultsTable(competitorResults) {
         return '';
     }
 
-    const tableRows = competitorResults.map(result => {
+    const tableRows = competitorResults.map((result, index) => {
         const visibilityClass = getVisibilityClass(result.visibility_percentage);
         const positionClass = getPositionClass(result.average_position);
+        const domainClass = index === 0 ? 'user-domain' : 'competitor-domain'; // Primera fila es el usuario
         
         return `
             <tr>
-                <td class="domain-cell">${result.domain}</td>
+                <td class="domain-cell ${domainClass}">${result.domain}</td>
                 <td class="mentions-cell">${result.mentions}</td>
                 <td class="visibility-cell ${visibilityClass}">${result.visibility_percentage}%</td>
                 <td class="position-cell ${positionClass}">${result.average_position || 'N/A'}</td>
@@ -343,9 +422,7 @@ function displayCompetitorResults(competitorResults, container) {
         return;
     }
 
-    const tableHTML = createCompetitorResultsTable(competitorResults);
-    
-    // Find existing competitor table or create new container
+    // Find existing competitor container or create new one
     let competitorContainer = container.querySelector('.competitor-results-container');
     if (!competitorContainer) {
         competitorContainer = document.createElement('div');
@@ -353,8 +430,34 @@ function displayCompetitorResults(competitorResults, container) {
         container.appendChild(competitorContainer);
     }
 
-    competitorContainer.innerHTML = tableHTML;
-    console.log(`✅ Displayed competitor results for ${competitorResults.length} domains`);
+    // Create the main layout with chart and table
+    const chartElement = createCompetitorDonutChart(competitorResults);
+    const tableHTML = createCompetitorResultsTable(competitorResults);
+    
+    // Build the combined layout
+    let layoutHTML = '<div class="competitor-analysis-layout">';
+    
+    if (chartElement) {
+        layoutHTML += '<div class="competitor-chart-column"></div>';
+    }
+    
+    layoutHTML += `
+        <div class="competitor-table-column">
+            ${tableHTML}
+        </div>
+    </div>`;
+    
+    competitorContainer.innerHTML = layoutHTML;
+    
+    // Add the chart element if it exists
+    if (chartElement) {
+        const chartColumn = competitorContainer.querySelector('.competitor-chart-column');
+        if (chartColumn) {
+            chartColumn.appendChild(chartElement);
+        }
+    }
+    
+    console.log(`✅ Displayed competitor results for ${competitorResults.length} domains with ${chartElement ? 'chart and' : ''} table`);
 }
 
 // Export functions for use in other modules

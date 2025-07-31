@@ -389,12 +389,24 @@ function displaySummary(summary, container) {
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
-          background: var(--card-bg); /* Usar variable CSS para el fondo de la tarjeta */
+          background: var(--card-bg); 
           border-radius: 8px;
-          border: 1px solid var(--border-color); /* Añadir borde */
+          border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--cta-bg);">
+          <div class="metric-icon" style="
+            width: 32px; 
+            height: 32px; 
+            background: #D8F9B8; 
+            border-radius: 6px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-search" style="color: #161616; font-size: 14px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(totalKeywords)}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Keywords Analyzed</div>
@@ -407,7 +419,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--error-color);">
+          <div class="metric-icon" style="
+            width: 32px; 
+            height: 32px; 
+            background: #D8F9B8; 
+            border-radius: 6px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-robot" style="color: #161616; font-size: 14px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(keywordsWithAIO)}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">With AI Overview</div>
@@ -420,7 +444,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: ${parseFloat(pesoAIOPercentage) >= 75 ? 'var(--error-color)' : parseFloat(pesoAIOPercentage) >= 50 ? 'var(--warning-color)' : parseFloat(pesoAIOPercentage) >= 25 ? 'var(--info-color)' : 'var(--success-color)'};">
+          <div class="metric-icon" style="
+            width: 32px; 
+            height: 32px; 
+            background: #D8F9B8; 
+            border-radius: 6px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-chart-pie" style="color: #161616; font-size: 14px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${pesoAIOPercentage}%
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">AIO Weight in SERPs</div>
@@ -433,7 +469,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--warning-color);">
+          <div class="metric-icon" style="
+            width: 32px; 
+            height: 32px; 
+            background: #D8F9B8; 
+            border-radius: 6px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-hashtag" style="color: #161616; font-size: 14px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(mentionsInAIO)}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Mentions of Your Brand</div>
@@ -446,24 +494,48 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: ${parseFloat(visibilityPercentage) >= 50 ? 'var(--success-color)' : parseFloat(visibilityPercentage) >= 25 ? 'var(--warning-color)' : 'var(--error-color)'};">
+          <div class="metric-icon" style="
+            width: 32px; 
+            height: 32px; 
+            background: #D8F9B8; 
+            border-radius: 6px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-eye" style="color: #161616; font-size: 14px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${visibilityPercentage}%
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">% Visibility in AIO</div>
         </div>
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); 
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div style="font-size: 2em; font-weight: bold; color: ${averageAIOPosition !== null && averageAIOPosition !== undefined ? (averageAIOPosition <= 2 ? 'var(--success-color)' : averageAIOPosition <= 4 ? 'var(--warning-color)' : 'var(--error-color)') : 'gray'};">
-            ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
+                  <div class="summary-metric" style="
+            text-align: center; 
+            padding: 1em; 
+            background: var(--card-bg); 
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+          ">
+            <div class="metric-icon" style="
+              width: 32px; 
+              height: 32px; 
+              background: #D8F9B8; 
+              border-radius: 6px; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              margin: 0 auto 0.5em;
+            ">
+              <i class="fas fa-map-marker-alt" style="color: #161616; font-size: 14px;"></i>
+            </div>
+            <div style="font-size: 2em; font-weight: bold; color: #161616;">
+              ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
+            </div>
+            <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
           </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
-        </div>
       </div>
     </div>
   `;
