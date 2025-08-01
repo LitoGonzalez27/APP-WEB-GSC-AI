@@ -18,8 +18,12 @@ export function displayAIOverviewResults(data) {
   const aiSection = document.getElementById('aiOverviewSection');
   if (aiSection) aiSection.style.display = 'block';
 
+  // Obtener el keyword count del selector
+  const keywordCountSelect = document.getElementById('keywordCountSelect');
+  const selectedKeywordCount = keywordCountSelect ? parseInt(keywordCountSelect.value) : null;
+
   // 1️⃣ Mostrar resumen
-  displaySummary(data.summary, resultsContainer);
+  displaySummary(data.summary, resultsContainer, selectedKeywordCount);
   
   // 2️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ARRIBA)
   displayTypologyChart(resultsContainer, data);
@@ -55,13 +59,9 @@ export function displayTypologyChart(container, analysisData) {
   const chartHTML = `
     <div class="ai-typology-section">
       <div class="ai-typology-header">
-        <h3 class="ai-typology-title">
-          <i class="fas fa-chart-bar"></i>
-          AI Overview Analysis by Keyword Length & Position
-        </h3>
-        <div class="ai-typology-subtitle">
-          Based on current analysis of ${analysisData.keywordResults.length} keywords
-        </div>
+                  <h3 class="ai-typology-title" style="text-align: center;">
+            Keyword Length & Position
+          </h3>
       </div>
       
       <div class="ai-typology-main-container">
@@ -356,7 +356,7 @@ function createAIOPositionTable(keywordResults) {
   console.log('✅ AIO position table created');
 }
 
-function displaySummary(summary, container) {
+function displaySummary(summary, container, keywordCount = null) {
   // Calcular % de visibilidad en AIO
   const keywordsWithAIO = summary.keywords_with_ai_overview || 0;
   const mentionsInAIO = summary.keywords_as_ai_source || 0;
@@ -369,6 +369,9 @@ function displaySummary(summary, container) {
   // 🆕 NUEVO: Obtener posición promedio en AIO
   const averageAIOPosition = summary.average_ai_position;
   
+  // Determinar el número de keywords dinámicamente
+  const keywordCountText = keywordCount || totalKeywords || 50;
+  
   const summaryHTML = `
     <div class="ai-overview-summary" style="
       /* Eliminamos el background linear-gradient y el border directos
@@ -377,28 +380,19 @@ function displaySummary(summary, container) {
       margin-bottom: 2em;
       border-radius: 12px; /* Mantenemos el border-radius para las métricas internas */
     ">
-      <h3 style="text-align: center; color: var(--heading); margin-bottom: 1em;">
-        <i class="fas fa-chart-line"></i> AI Overview Analysis Summary
+      <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.5em; font-size: 1.5em; font-weight: 600;">
+        AI Overview Analysis
       </h3>
+      <p style="text-align: center; color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 1.5em;">
+        based on the <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">${keywordCountText} most clicked keywords</span>
+      </p>
       <div style="
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 1em;
         margin-bottom: 1em;
       ">
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); /* Usar variable CSS para el fondo de la tarjeta */
-          border-radius: 8px;
-          border: 1px solid var(--border-color); /* Añadir borde */
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--cta-bg);">
-            ${formatNumber(totalKeywords)}
-          </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Keywords Analyzed</div>
-        </div>
+
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
@@ -407,7 +401,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--error-color);">
+          <div class="metric-icon" style="
+            width: 50px; 
+            height: 50px; 
+            background: #D8F9B8; 
+            border-radius: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-robot" style="color: #161616; font-size: 20px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(keywordsWithAIO)}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">With AI Overview</div>
@@ -420,7 +426,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: ${parseFloat(pesoAIOPercentage) >= 75 ? 'var(--error-color)' : parseFloat(pesoAIOPercentage) >= 50 ? 'var(--warning-color)' : parseFloat(pesoAIOPercentage) >= 25 ? 'var(--info-color)' : 'var(--success-color)'};">
+          <div class="metric-icon" style="
+            width: 50px; 
+            height: 50px; 
+            background: #D8F9B8; 
+            border-radius: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-chart-pie" style="color: #161616; font-size: 20px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${pesoAIOPercentage}%
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">AIO Weight in SERPs</div>
@@ -433,7 +451,19 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: var(--warning-color);">
+          <div class="metric-icon" style="
+            width: 50px; 
+            height: 50px; 
+            background: #D8F9B8; 
+            border-radius: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-hashtag" style="color: #161616; font-size: 20px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${formatNumber(mentionsInAIO)}
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Mentions of Your Brand</div>
@@ -446,31 +476,86 @@ function displaySummary(summary, container) {
           border: 1px solid var(--border-color);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         ">
-          <div style="font-size: 2em; font-weight: bold; color: ${parseFloat(visibilityPercentage) >= 50 ? 'var(--success-color)' : parseFloat(visibilityPercentage) >= 25 ? 'var(--warning-color)' : 'var(--error-color)'};">
+          <div class="metric-icon" style="
+            width: 50px; 
+            height: 50px; 
+            background: #D8F9B8; 
+            border-radius: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 0 auto 0.5em;
+          ">
+            <i class="fas fa-eye" style="color: #161616; font-size: 20px;"></i>
+          </div>
+          <div style="font-size: 2em; font-weight: bold; color: #161616;">
             ${visibilityPercentage}%
           </div>
           <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">% Visibility in AIO</div>
         </div>
-        ${averageAIOPosition !== null && averageAIOPosition !== undefined ? `
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); 
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div style="font-size: 2em; font-weight: bold; color: ${averageAIOPosition <= 2 ? 'var(--success-color)' : averageAIOPosition <= 4 ? 'var(--warning-color)' : 'var(--error-color)'};">
-            ${averageAIOPosition}
+                  <div class="summary-metric" style="
+            text-align: center; 
+            padding: 1em; 
+            background: var(--card-bg); 
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+          ">
+            <div class="metric-icon" style="
+              width: 50px; 
+              height: 50px; 
+              background: #D8F9B8; 
+              border-radius: 150px; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              margin: 0 auto 0.5em;
+            ">
+              <i class="fas fa-map-marker-alt" style="color: #161616; font-size: 20px;"></i>
+            </div>
+            <div style="font-size: 2em; font-weight: bold; color: #161616;">
+              ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
+            </div>
+            <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
           </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
-        </div>
-        ` : ''}
       </div>
     </div>
   `;
   
-  container.innerHTML = summaryHTML; 
+  container.innerHTML = summaryHTML;
+  
+  // 🆕 NUEVO: Mostrar tabla de competidores si está disponible
+  if (summary.competitor_analysis && summary.competitor_analysis.length > 0) {
+    displayCompetitorResults(summary.competitor_analysis, container);
+  }
+}
+
+/**
+ * Muestra los resultados de análisis de competidores
+ */
+function displayCompetitorResults(competitorResults, container) {
+  if (!competitorResults || competitorResults.length === 0) {
+    console.warn('⚠️ No hay resultados de competidores para mostrar');
+    return;
+  }
+
+  console.log('📊 Datos de competidores recibidos:');
+  console.table(competitorResults);
+  
+  // Log detallado de cada dominio
+  competitorResults.forEach((result, index) => {
+    console.log(`🏢 Dominio ${index + 1}: ${result.domain}`);
+    console.log(`   📊 Menciones: ${result.mentions}`);
+    console.log(`   👁️ Visibilidad: ${result.visibility_percentage}%`);
+    console.log(`   📍 Posición media: ${result.average_position || 'N/A'}`);
+  });
+
+  // Crear tabla de competidores usando la función del módulo CompetitorAnalysis
+  if (window.CompetitorAnalysis) {
+    window.CompetitorAnalysis.displayCompetitorResults(competitorResults, container);
+  } else {
+    console.warn('⚠️ Módulo CompetitorAnalysis no disponible para mostrar resultados');
+  }
 }
 
 function displayDetailedResults(results, container) {
@@ -492,7 +577,7 @@ function displayDetailedResults(results, container) {
   const tableHTML = `
     <div class="ai-results-table-container" style="margin-top: 2em;">
       <h3 style="text-align: center; margin-bottom: 1em; color: var(--heading);">
-        <i class="fas fa-table"></i> Detailed Results by Keyword
+        Detailed Results by Keyword
       </h3>
       <div class="table-responsive-container">
         <table id="aiOverviewTable" class="dataTable display" style="width:100%">

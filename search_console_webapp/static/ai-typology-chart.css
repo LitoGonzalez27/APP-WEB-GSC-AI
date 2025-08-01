@@ -31,7 +31,6 @@
    ======================================== */
 
 .ai-typology-header {
-  display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
   margin-bottom: 1.5rem !important;
@@ -41,13 +40,12 @@
 
 .ai-typology-title {
   color: #1A1A1A !important;
-  margin: 0 !important;
   font-size: 1.5rem !important;
   font-weight: 600 !important;
-  display: flex !important;
   align-items: center !important;
   gap: 0.75rem !important;
   font-family: 'Jost', 'Inter', sans-serif !important;
+  margin-top:80px;
 }
 
 .ai-typology-title i {

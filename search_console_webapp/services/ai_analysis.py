@@ -299,7 +299,10 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'has_official_references': bool(references),
         'has_organic_fallback': bool(organic_results and total_reference_indexes),
         'used_aggressive_search': detection_method in ['aggressive_search', 'aggressive_source_title'],
-        'position_correction_applied': detection_method in ['aggressive_search', 'aggressive_source_title']
+        'position_correction_applied': detection_method in ['aggressive_search', 'aggressive_source_title'],
+        # 🆕 NUEVO: Guardar referencias para análisis de competidores
+        'references_found': references,
+        'organic_matches': []  # Se llenará si se usan organic results con reference_indexes
     }
     
     # Log del resultado final
