@@ -3,6 +3,7 @@
 import { escapeHtml, formatNumber, showToast } from './ui-ai-overview-utils.js';
 import { showAIDetailsModalImproved } from './ui-ai-overview-modals.js';
 import { openSerpModal } from './ui-serp-modal.js'; // IMPORTANTE: Importar la función del modal SERP
+import { createAIOverviewGridTable } from './ui-ai-overview-gridjs.js'; // Grid.js table
 
 export function displayAIOverviewResults(data) {
   const resultsContainer = document.getElementById('aiOverviewResultsContainer');
@@ -28,7 +29,15 @@ export function displayAIOverviewResults(data) {
   // 2️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ARRIBA)
   displayTypologyChart(resultsContainer, data);
   
-  // 3️⃣ Mostrar tabla detallada de keywords (MOVIDO ABAJO)
+  // 3️⃣ Mostrar análisis de competidores si hay datos
+  if (data.summary && data.summary.competitor_analysis) {
+    displayCompetitorResults(data.summary.competitor_analysis, resultsContainer);
+  }
+  
+  // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview
+  displayAIOverviewGridTable(data, resultsContainer);
+  
+  // 5️⃣ Mostrar tabla detallada de keywords (MOVIDO ABAJO)
   displayDetailedResults(data.keywordResults, resultsContainer);
   
   showToast('AI Overview analysis complete', 'success');
@@ -354,6 +363,56 @@ function createAIOPositionTable(keywordResults) {
   container.innerHTML = tableHTML;
   
   console.log('✅ AIO position table created');
+}
+
+/**
+ * Muestra la tabla Grid.js con keywords de AI Overview
+ * @param {Object} data - Datos completos del análisis
+ * @param {HTMLElement} container - Contenedor donde mostrar la tabla
+ */
+function displayAIOverviewGridTable(data, container) {
+  console.log('🏗️ Displaying AI Overview Grid.js table');
+  
+  if (!data || !data.keywordResults) {
+    console.warn('⚠️ No keyword results available for Grid.js table');
+    return;
+  }
+
+  // Obtener dominios de competidores del resumen
+  const competitorAnalysis = data.summary?.competitor_analysis || [];
+  const competitorDomains = competitorAnalysis
+    .slice(1) // Saltar el primer elemento (dominio principal)
+    .map(comp => comp.domain);
+
+  console.log('📊 Grid.js table data:', {
+    totalKeywords: data.keywordResults.length,
+    competitorDomains: competitorDomains
+  });
+
+  // Crear contenedor para la tabla Grid.js
+  const gridContainer = document.createElement('div');
+  gridContainer.className = 'ai-overview-grid-section';
+  gridContainer.style.marginTop = '2rem';
+  
+  // Añadir al contenedor principal
+  container.appendChild(gridContainer);
+  
+  // Crear la tabla Grid.js
+  try {
+    const grid = createAIOverviewGridTable(
+      data.keywordResults, 
+      competitorDomains, 
+      gridContainer
+    );
+    
+    if (grid) {
+      console.log('✅ Grid.js table created successfully');
+    } else {
+      console.warn('⚠️ Grid.js table creation failed');
+    }
+  } catch (error) {
+    console.error('❌ Error creating Grid.js table:', error);
+  }
 }
 
 function displaySummary(summary, container, keywordCount = null) {

@@ -733,6 +733,10 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Grid.js para tablas avanzadas -->
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
 
   <style>
     .logged-in-nav {
@@ -798,6 +802,7 @@
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
 
   <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
 

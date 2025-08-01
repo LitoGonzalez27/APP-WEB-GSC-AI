@@ -887,3 +887,219 @@ body.dark-mode .legend-label {
     padding: 0.75rem 0.5rem;
   }
 }
+
+/* ====================================
+   AI OVERVIEW GRID.JS TABLE STYLES  
+   ================================== */
+
+.ai-overview-grid-section {
+  margin: 2rem 0;
+}
+
+.ai-overview-grid-title {
+  text-align: center;
+  color: var(--heading);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.ai-overview-grid-container {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+}
+
+.ai-overview-grid-wrapper {
+  width: 100%;
+}
+
+/* Estilos específicos para Grid.js */
+.gridjs-wrapper {
+  border: none !important;
+}
+
+.gridjs-head {
+  background: rgba(248, 249, 250, 0.8) !important;
+}
+
+.gridjs-th {
+  background: rgba(248, 249, 250, 0.8) !important;
+  color: var(--heading) !important;
+  font-weight: 600 !important;
+  border-color: var(--border-color) !important;
+  padding: 12px 8px !important;
+  font-size: 0.9rem !important;
+}
+
+.gridjs-td {
+  padding: 10px 8px !important;
+  border-color: var(--border-color) !important;
+  font-size: 0.85rem !important;
+  vertical-align: middle !important;
+}
+
+.gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(248, 249, 250, 0.3) !important;
+}
+
+.gridjs-tr:hover .gridjs-td {
+  background: rgba(52, 152, 219, 0.05) !important;
+}
+
+/* Botón SERP */
+.serp-view-btn {
+  background: var(--cta-bg);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s ease;
+}
+
+.serp-view-btn:hover {
+  background: var(--cta-hover);
+}
+
+.serp-view-btn i {
+  font-size: 0.9rem;
+}
+
+/* Estados de presencia en AIO */
+.aio-status {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.aio-yes {
+  background: #d4edda;
+  color: #155724;
+}
+
+.aio-no {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.aio-na {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.aio-position {
+  font-weight: 600;
+  color: var(--cta-bg);
+}
+
+/* Mensaje sin AIO */
+.no-aio-message {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.no-aio-message i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--cta-bg);
+}
+
+.no-aio-message h3 {
+  margin: 1rem 0 0.5rem;
+  color: var(--heading);
+}
+
+.no-aio-message p {
+  margin: 0;
+}
+
+/* Paginación Grid.js */
+.gridjs-pagination {
+  color: var(--text-color) !important;
+}
+
+.gridjs-pagination .gridjs-pages button {
+  color: var(--cta-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+.gridjs-pagination .gridjs-pages button:hover {
+  background: var(--cta-bg) !important;
+  color: white !important;
+}
+
+.gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--cta-bg) !important;
+  color: white !important;
+}
+
+/* Búsqueda Grid.js */
+.gridjs-search {
+  margin-bottom: 1rem;
+}
+
+.gridjs-search input {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  color: var(--text-color) !important;
+}
+
+.gridjs-search input:focus {
+  border-color: var(--cta-bg) !important;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2) !important;
+  outline: none !important;
+}
+
+/* Responsive para Grid.js */
+@media (max-width: 768px) {
+  .ai-overview-grid-container {
+    padding: 1rem;
+    margin: 0 -1rem;
+    border-radius: 0;
+  }
+  
+  .gridjs-th,
+  .gridjs-td {
+    padding: 8px 4px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .ai-overview-grid-title {
+    font-size: 1.1rem;
+  }
+  
+  .serp-view-btn {
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+}
+
+/* Modo oscuro para Grid.js */
+body.dark-mode .ai-overview-grid-container {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .gridjs-th {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: var(--text-color) !important;
+}
+
+body.dark-mode .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+body.dark-mode .gridjs-search input {
+  background: var(--card-bg) !important;
+  color: var(--text-color) !important;
+}
