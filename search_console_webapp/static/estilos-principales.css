@@ -846,6 +846,63 @@ body.dark-mode .legend-label {
 }
 
 /* Responsive design */
+
+/* Pantallas medianas (laptops 14") - 1440px */
+@media (max-width: 1440px) {
+  .competitor-analysis-layout {
+    gap: 1.5rem;
+  }
+  
+  .chart-wrapper {
+    max-width: 400px;
+    height: 320px;
+  }
+  
+  .competitor-chart-container {
+    padding: 1.2rem;
+  }
+}
+
+/* Pantallas pequeñas (laptops 13") - 1200px */
+@media (max-width: 1200px) {
+  .competitor-analysis-layout {
+    gap: 1rem;
+  }
+  
+  .chart-wrapper {
+    max-width: 350px;
+    height: 300px;
+  }
+  
+  .competitor-chart-container {
+    padding: 1rem;
+  }
+  
+  .competitor-table {
+    font-size: 0.9rem;
+  }
+}
+
+/* Tablets grandes - 992px */
+@media (max-width: 992px) {
+  .competitor-analysis-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .competitor-chart-column {
+    max-width: 100%;
+    margin: 0;
+  }
+  
+  .chart-wrapper {
+    max-width: 100%;
+    height: 350px;
+    margin: 0 auto;
+  }
+}
+
+/* Tablets y móviles - 768px */
 @media (max-width: 768px) {
   .competitor-fields-container {
     grid-template-columns: 1fr;

@@ -39,7 +39,7 @@ export function createAIOverviewGridTable(keywordResults, competitorDomains = []
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
     tableContainer.innerHTML = `
-        <h3 class="ai-overview-grid-title">Competitor keywords with AIO</h3>
+        <h3 class="ai-overview-grid-title">Details of keywords with AIO</h3>
         <div id="ai-overview-grid-table" class="ai-overview-grid-wrapper"></div>
     `;
 

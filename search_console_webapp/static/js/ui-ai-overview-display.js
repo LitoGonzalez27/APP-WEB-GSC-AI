@@ -4,6 +4,7 @@ import { escapeHtml, formatNumber, showToast } from './ui-ai-overview-utils.js';
 import { showAIDetailsModalImproved } from './ui-ai-overview-modals.js';
 import { openSerpModal } from './ui-serp-modal.js'; // IMPORTANTE: Importar la función del modal SERP
 import { createAIOverviewGridTable } from './ui-ai-overview-gridjs.js'; // Grid.js table
+import { createDetailedResultsGridTable } from './ui-detailed-results-gridjs.js'; // Detailed Grid.js table
 
 export function displayAIOverviewResults(data) {
   const resultsContainer = document.getElementById('aiOverviewResultsContainer');
@@ -34,11 +35,11 @@ export function displayAIOverviewResults(data) {
     displayCompetitorResults(data.summary.competitor_analysis, resultsContainer);
   }
   
-  // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview
+  // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview (debajo de competidores)
   displayAIOverviewGridTable(data, resultsContainer);
   
-  // 5️⃣ Mostrar tabla detallada de keywords (MOVIDO ABAJO)
-  displayDetailedResults(data.keywordResults, resultsContainer);
+  // 5️⃣ Mostrar tabla detallada de keywords usando Grid.js
+  createDetailedResultsGridTable(data.keywordResults, resultsContainer);
   
   showToast('AI Overview analysis complete', 'success');
 }
@@ -455,27 +456,29 @@ function displaySummary(summary, container, keywordCount = null) {
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
-          background: var(--card-bg); 
+          background: linear-gradient(135deg, #D8F9B8 0%, #C3F5A4 100%); 
           border-radius: 8px;
-          border: 1px solid var(--border-color);
+          border: 2px solid #B8E8A3;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: 0 4px 15px rgba(216, 249, 184, 0.3);
+          transform: translateY(-2px);
         ">
           <div class="metric-icon" style="
             width: 50px; 
             height: 50px; 
-            background: #D8F9B8; 
+            background: #2C2D2E; 
             border-radius: 150px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-robot" style="color: #161616; font-size: 20px;"></i>
+            <i class="fas fa-robot" style="color: #D8F9B8; font-size: 20px;"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #161616;">
+          <div style="font-size: 2em; font-weight: bold; color: #2C2D2E;">
             ${formatNumber(keywordsWithAIO)}
           </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">With AI Overview</div>
+          <div style="color: #2C2D2E; font-size: 0.9em; opacity: 0.8; font-weight: 600;">With AI Overview</div>
         </div>
         <div class="summary-metric" style="
           text-align: center; 
@@ -505,10 +508,12 @@ function displaySummary(summary, container, keywordCount = null) {
         <div class="summary-metric" style="
           text-align: center; 
           padding: 1em; 
-          background: var(--card-bg); 
+          background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); 
           border-radius: 8px;
-          border: 1px solid var(--border-color);
+          border: 2px solid #4A4B4C;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
+          transform: translateY(-2px);
         ">
           <div class="metric-icon" style="
             width: 50px; 
@@ -520,12 +525,12 @@ function displaySummary(summary, container, keywordCount = null) {
             justify-content: center; 
             margin: 0 auto 0.5em;
           ">
-            <i class="fas fa-hashtag" style="color: #161616; font-size: 20px;"></i>
+            <i class="fas fa-hashtag" style="color: #2C2D2E; font-size: 20px;"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #161616;">
+          <div style="font-size: 2em; font-weight: bold; color: #D8F9B8;">
             ${formatNumber(mentionsInAIO)}
           </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Mentions of Your Brand</div>
+          <div style="color: #D8F9B8; font-size: 0.9em; opacity: 0.9; font-weight: 600;">Mentions of Your Brand</div>
         </div>
         <div class="summary-metric" style="
           text-align: center; 
@@ -555,27 +560,29 @@ function displaySummary(summary, container, keywordCount = null) {
                   <div class="summary-metric" style="
             text-align: center; 
             padding: 1em; 
-            background: var(--card-bg); 
+            background: linear-gradient(135deg, #D8F9B8 0%, #C3F5A4 100%); 
             border-radius: 8px;
-            border: 1px solid var(--border-color);
+            border: 2px solid #B8E8A3;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(216, 249, 184, 0.3);
+            transform: translateY(-2px);
           ">
             <div class="metric-icon" style="
               width: 50px; 
               height: 50px; 
-              background: #D8F9B8; 
+              background: #2C2D2E; 
               border-radius: 150px; 
               display: flex; 
               align-items: center; 
               justify-content: center; 
               margin: 0 auto 0.5em;
             ">
-              <i class="fas fa-map-marker-alt" style="color: #161616; font-size: 20px;"></i>
+              <i class="fas fa-map-marker-alt" style="color: #D8F9B8; font-size: 20px;"></i>
             </div>
-            <div style="font-size: 2em; font-weight: bold; color: #161616;">
+            <div style="font-size: 2em; font-weight: bold; color: #2C2D2E;">
               ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
             </div>
-            <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">Avg Position in AIO</div>
+            <div style="color: #2C2D2E; font-size: 0.9em; opacity: 0.8; font-weight: 600;">Avg Position in AIO</div>
           </div>
       </div>
     </div>
