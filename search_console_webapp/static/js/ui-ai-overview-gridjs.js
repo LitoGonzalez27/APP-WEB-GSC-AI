@@ -39,7 +39,7 @@ export function createAIOverviewGridTable(keywordResults, competitorDomains = []
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
     tableContainer.innerHTML = `
-        <h3 class="ai-overview-grid-title">AI Overview Keywords Analysis</h3>
+        <h3 class="ai-overview-grid-title">Competitor keywords with AIO</h3>
         <div id="ai-overview-grid-table" class="ai-overview-grid-wrapper"></div>
     `;
 
@@ -51,35 +51,10 @@ export function createAIOverviewGridTable(keywordResults, competitorDomains = []
     const grid = new gridjs.Grid({
         columns: columns,
         data: data,
-        pagination: {
-            enabled: true,
-            limit: 25,
-            summary: true
-        },
+        pagination: true,
         sort: true,
-        search: {
-            enabled: true,
-            placeholder: 'Search keywords...'
-        },
-        resizable: true,
-        className: {
-            table: 'ai-overview-grid-table',
-            header: 'ai-overview-grid-header',
-            tbody: 'ai-overview-grid-tbody'
-        },
-        language: {
-            search: {
-                placeholder: 'Search keywords...'
-            },
-            pagination: {
-                previous: 'Previous',
-                next: 'Next',
-                showing: 'Showing',
-                results: () => 'Keywords',
-                of: 'of',
-                to: 'to'
-            }
-        }
+        search: true,
+        resizable: true
     });
 
     // Renderizar la tabla
@@ -144,7 +119,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             sort: true
         },
         {
-            name: 'Your Domain in AIO',
+            name: gridjs.html('Your Domain<br>in AIO'),
             width: '120px',
             sort: true,
             formatter: (cell) => {
@@ -157,7 +132,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             }
         },
         {
-            name: 'Your Position in AIO',
+            name: gridjs.html('Your Position<br>in AIO'),
             width: '120px',
             sort: true,
             formatter: (cell) => {
@@ -176,7 +151,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         
         // Columna de presencia del competidor
         columns.push({
-            name: `${truncatedDomain} in AIO`,
+            name: gridjs.html(`${truncatedDomain}<br>in AIO`),
             width: '120px',
             sort: true,
             formatter: (cell) => {
@@ -191,7 +166,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
 
         // Columna de posición del competidor
         columns.push({
-            name: `Position of ${truncatedDomain}`,
+            name: gridjs.html(`Position of<br>${truncatedDomain}`),
             width: '120px',
             sort: true,
             formatter: (cell) => {
