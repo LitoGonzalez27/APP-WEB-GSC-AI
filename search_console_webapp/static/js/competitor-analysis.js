@@ -317,12 +317,8 @@ function createCompetitorBarChart(competitorResults) {
     `).join('');
     
     chartContainer.innerHTML = `
-        <h4><i class="fas fa-chart-bar"></i> Visibility Distribution</h4>
         <div class="chart-wrapper">
             <canvas id="competitorBarChart" width="450" height="350"></canvas>
-        </div>
-        <div class="chart-legend">
-            ${legendHTML}
         </div>
     `;
 
@@ -435,7 +431,6 @@ function createCompetitorResultsTable(competitorResults) {
 
     return `
         <div class="competitor-results-table">
-            <h4><i class="fas fa-chart-bar"></i> Domain Comparison</h4>
             <table class="competitor-table">
                 <thead>
                     <tr>
@@ -504,18 +499,20 @@ function displayCompetitorResults(competitorResults, container) {
     const chartElement = createCompetitorBarChart(competitorResults);
     const tableHTML = createCompetitorResultsTable(competitorResults);
     
-    // Build the combined layout
-    let layoutHTML = '<div class="competitor-analysis-layout">';
+    // Build the combined layout with title
+    let layoutHTML = `
+        <h3 class="competitor-analysis-title">Competitor Analysis</h3>
+        <div class="competitor-analysis-layout">`;
     
     if (chartElement) {
         layoutHTML += '<div class="competitor-chart-column"></div>';
     }
     
     layoutHTML += `
-        <div class="competitor-table-column">
-            ${tableHTML}
-        </div>
-    </div>`;
+            <div class="competitor-table-column">
+                ${tableHTML}
+            </div>
+        </div>`;
     
     competitorContainer.innerHTML = layoutHTML;
     

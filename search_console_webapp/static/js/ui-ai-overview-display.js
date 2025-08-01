@@ -59,13 +59,9 @@ export function displayTypologyChart(container, analysisData) {
   const chartHTML = `
     <div class="ai-typology-section">
       <div class="ai-typology-header">
-        <h3 class="ai-typology-title">
-          <i class="fas fa-chart-bar"></i>
-          AI Overview Analysis by Keyword Length & Position
-        </h3>
-        <div class="ai-typology-subtitle">
-          Based on current analysis of ${analysisData.keywordResults.length} keywords
-        </div>
+                  <h3 class="ai-typology-title" style="text-align: center;">
+            Keyword Length & Position
+          </h3>
       </div>
       
       <div class="ai-typology-main-container">
@@ -388,7 +384,7 @@ function displaySummary(summary, container, keywordCount = null) {
         AI Overview Analysis
       </h3>
       <p style="text-align: center; color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 1.5em;">
-        based on the <span style="text-decoration: underline; text-decoration-color: #D8F9B8; text-decoration-thickness: 2px; font-weight: 500;">${keywordCountText} most clicked keywords</span>
+        based on the <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">${keywordCountText} most clicked keywords</span>
       </p>
       <div style="
         display: grid;
