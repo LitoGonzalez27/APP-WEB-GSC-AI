@@ -577,7 +577,7 @@ function displayDetailedResults(results, container) {
   const tableHTML = `
     <div class="ai-results-table-container" style="margin-top: 2em;">
       <h3 style="text-align: center; margin-bottom: 1em; color: var(--heading);">
-        <i class="fas fa-table"></i> Detailed Results by Keyword
+        Detailed Results by Keyword
       </h3>
       <div class="table-responsive-container">
         <table id="aiOverviewTable" class="dataTable display" style="width:100%">
