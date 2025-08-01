@@ -134,7 +134,14 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         {
             name: gridjs.html('Your Position<br>in AIO'),
             width: '120px',
-            sort: true,
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
             formatter: (cell) => {
                 if (cell === 'N/A') {
                     return gridjs.html('<span class="aio-na">N/A</span>');
@@ -168,7 +175,14 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         columns.push({
             name: gridjs.html(`Position of<br>${truncatedDomain}`),
             width: '120px',
-            sort: true,
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
             formatter: (cell) => {
                 if (cell === 'N/A') {
                     return gridjs.html('<span class="aio-na">N/A</span>');

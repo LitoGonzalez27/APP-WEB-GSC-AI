@@ -120,10 +120,17 @@ function processDetailedDataForGrid(keywordResults) {
         {
             name: gridjs.html('Organic<br>Position'),
             width: '120px',
-            sort: true,
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = typeof a === 'number' ? a : (a === 'Not found' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'Not found' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
             formatter: (cell) => {
                 if (typeof cell === 'number') {
-                    return cell === 0 ? '#0 (Featured)' : `#${cell}`;
+                    return cell === 0 ? '0 (Featured)' : `${cell}`;
                 }
                 return cell;
             }
@@ -144,10 +151,17 @@ function processDetailedDataForGrid(keywordResults) {
         {
             name: gridjs.html('AIO<br>Position'),
             width: '100px',
-            sort: true,
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = typeof a === 'number' ? a : (a === 'No' || a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'No' || b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
             formatter: (cell) => {
                 if (typeof cell === 'number' && cell > 0) {
-                    return gridjs.html(`<span class="aio-position">#${cell}</span>`);
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
                 }
                 return gridjs.html(`<span class="aio-na">${cell}</span>`);
             }

@@ -35,7 +35,7 @@
 }
 
 .gridjs-head {
-  background: rgba(248, 249, 250, 0.8) !important;
+  background: transparent !important;
 }
 
 .gridjs-th {
@@ -70,22 +70,24 @@
 
 /* Botón SERP */
 .serp-view-btn {
-  background: var(--cta-bg);
-  color: white;
+  background: #D8F9B8;
+  color: #161616;
   border: none;
   border-radius: 4px;
   padding: 6px 8px;
   cursor: pointer;
   font-size: 0.8rem;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .serp-view-btn:hover {
-  background: var(--cta-hover);
+  background: #C3F5A4;
+  transform: scale(1.05);
 }
 
 .serp-view-btn i {
   font-size: 0.9rem;
+  color: #161616;
 }
 
 /* Estados de presencia en AIO */
@@ -140,6 +142,10 @@
 }
 
 /* =============== PAGINACIÓN GRID.JS =============== */
+.gridjs-footer {
+  padding: 25px 24px !important;
+}
+
 .gridjs-pagination {
   color: var(--text-color) !important;
 }
