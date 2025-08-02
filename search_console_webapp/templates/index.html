@@ -437,88 +437,120 @@
       </div>
 
       <div class="content-section" id="aiOverviewContent" data-section="ai-overview">
-        <!-- Competitor Domain Fields -->
-        <div class="competitor-domains-section" id="competitorDomainsSection">
-          <h3 class="competitor-section-title">
-            <i class="fas fa-users"></i> Competitor Analysis (Optional)
-          </h3>
-          <p class="competitor-section-description">Add up to 3 competitor domains to compare their AI Overview presence with yours</p>
-          
-          <div class="competitor-fields-container">
-            <div class="competitor-field-group">
-              <label for="competitor1">Competitor 1:</label>
-              <input 
-                type="text" 
-                id="competitor1" 
-                placeholder="e.g., example.com, https://blog.competitor.com" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor1Validation"></div>
-            </div>
-            
-            <div class="competitor-field-group">
-              <label for="competitor2">Competitor 2:</label>
-              <input 
-                type="text" 
-                id="competitor2" 
-                placeholder="e.g., www.another-competitor.org" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor2Validation"></div>
-            </div>
-            
-            <div class="competitor-field-group">
-              <label for="competitor3">Competitor 3:</label>
-              <input 
-                type="text" 
-                id="competitor3" 
-                placeholder="e.g., shop.thirdcompetitor.co.uk" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor3Validation"></div>
-            </div>
+        <!-- Advanced Analysis Options -->
+        <div class="advanced-analysis-section" id="advancedAnalysisSection">
+          <div class="section-header">
+            <h3 class="section-main-title">
+              <i class="fas fa-cogs"></i> Advanced Analysis Options
+            </h3>
+            <p class="section-main-description">Configure competitor analysis and keyword exclusions to refine your AI Overview insights</p>
           </div>
-        </div>
 
-        <!-- Keyword Exclusion Section -->
-        <div class="keyword-exclusion-section" id="keywordExclusionSection">
-          <h3 class="exclusion-section-title">
-            <i class="fas fa-filter"></i> Keyword Exclusions (Optional)
-          </h3>
-          <p class="exclusion-section-description">Exclude brand terms or irrelevant keywords from AI Overview analysis</p>
-          
-          <div class="exclusion-container">
-            <div class="exclusion-method-selector">
-              <label for="exclusionMethod">Exclusion Method:</label>
-              <select id="exclusionMethod" class="exclusion-method-select">
-                <option value="contains">Contains (keyword contains text)</option>
-                <option value="equals">Equals (exact match)</option>
-                <option value="startsWith">Starts with</option>
-                <option value="endsWith">Ends with</option>
-              </select>
+          <!-- Competitor Analysis Collapsible -->
+          <div class="collapsible-section" id="competitorSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('competitor')">
+              <div class="collapsible-title">
+                <i class="fas fa-users"></i>
+                <span>Competitor Analysis</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="competitorSummary">
+                Click to add competitor domains
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="competitorArrow"></i>
             </div>
             
-            <div class="exclusion-input-group">
-              <div class="exclusion-field-container">
-                <label for="exclusionTerms">Terms to exclude:</label>
-                <textarea 
-                  id="exclusionTerms" 
-                  placeholder="Enter terms separated by commas or new lines&#10;e.g., brand name, company, logo, official"
-                  class="exclusion-textarea"
-                  rows="3"
-                ></textarea>
-                <div class="exclusion-help">
-                  <i class="fas fa-info-circle"></i>
-                  <span>Separate multiple terms with commas or new lines. Case insensitive.</span>
+            <div class="collapsible-content" id="competitorContent">
+              <p class="collapsible-description">Add up to 3 competitor domains to compare their AI Overview presence with yours</p>
+              
+              <div class="competitor-fields-container">
+                <div class="competitor-field-group">
+                  <label for="competitor1">Competitor 1:</label>
+                  <input 
+                    type="text" 
+                    id="competitor1" 
+                    placeholder="e.g., example.com, https://blog.competitor.com" 
+                    class="competitor-input"
+                  />
+                  <div class="competitor-validation" id="competitor1Validation"></div>
+                </div>
+                
+                <div class="competitor-field-group">
+                  <label for="competitor2">Competitor 2:</label>
+                  <input 
+                    type="text" 
+                    id="competitor2" 
+                    placeholder="e.g., www.another-competitor.org" 
+                    class="competitor-input"
+                  />
+                  <div class="competitor-validation" id="competitor2Validation"></div>
+                </div>
+                
+                <div class="competitor-field-group">
+                  <label for="competitor3">Competitor 3:</label>
+                  <input 
+                    type="text" 
+                    id="competitor3" 
+                    placeholder="e.g., shop.thirdcompetitor.co.uk" 
+                    class="competitor-input"
+                  />
+                  <div class="competitor-validation" id="competitor3Validation"></div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Keyword Exclusions Collapsible -->
+          <div class="collapsible-section" id="exclusionSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('exclusion')">
+              <div class="collapsible-title">
+                <i class="fas fa-filter"></i>
+                <span>Keyword Exclusions</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="exclusionSummary">
+                Click to exclude brand terms or irrelevant keywords
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="exclusionArrow"></i>
+            </div>
+            
+            <div class="collapsible-content" id="exclusionContent">
+              <p class="collapsible-description">Exclude brand terms or irrelevant keywords from AI Overview analysis</p>
               
-              <div class="exclusion-preview">
-                <div class="exclusion-preview-title">
-                  <i class="fas fa-eye"></i> Preview
+              <div class="exclusion-container">
+                <div class="exclusion-method-selector">
+                  <label for="exclusionMethod">Exclusion Method:</label>
+                  <select id="exclusionMethod" class="exclusion-method-select">
+                    <option value="contains">Contains (keyword contains text)</option>
+                    <option value="equals">Equals (exact match)</option>
+                    <option value="startsWith">Starts with</option>
+                    <option value="endsWith">Ends with</option>
+                  </select>
                 </div>
-                <div id="exclusionPreview" class="exclusion-preview-content">
-                  <em>Enter terms to see preview</em>
+                
+                <div class="exclusion-input-group">
+                  <div class="exclusion-field-container">
+                    <label for="exclusionTerms">Terms to exclude:</label>
+                    <textarea 
+                      id="exclusionTerms" 
+                      placeholder="Enter terms separated by commas or new lines&#10;e.g., brand name, company, logo, official"
+                      class="exclusion-textarea"
+                      rows="3"
+                    ></textarea>
+                    <div class="exclusion-help">
+                      <i class="fas fa-info-circle"></i>
+                      <span>Separate multiple terms with commas or new lines. Case insensitive.</span>
+                    </div>
+                  </div>
+                  
+                  <div class="exclusion-preview">
+                    <div class="exclusion-preview-title">
+                      <i class="fas fa-eye"></i> Preview
+                    </div>
+                    <div id="exclusionPreview" class="exclusion-preview-content">
+                      <em>Enter terms to see preview</em>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -849,6 +881,7 @@
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
 <script src="{{ url_for('static', filename='js/keyword-exclusion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/collapsible-sections.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-detailed-results-gridjs.js') }}"></script>
 

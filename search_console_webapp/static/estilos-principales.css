@@ -845,8 +845,8 @@ body.dark-mode .legend-label {
   color: var(--text-color);
 }
 
-/* =============== KEYWORD EXCLUSION SECTION =============== */
-.keyword-exclusion-section {
+/* =============== ADVANCED ANALYSIS SECTIONS (COLLAPSIBLE) =============== */
+.advanced-analysis-section {
   background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -855,27 +855,117 @@ body.dark-mode .legend-label {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.exclusion-section-title {
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-main-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--heading);
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   margin: 0 0 0.5rem 0;
 }
 
-.exclusion-section-title i {
+.section-main-title i {
   color: var(--cta-bg);
 }
 
-.exclusion-section-description {
+.section-main-description {
   color: var(--text-color);
   opacity: 0.8;
-  margin: 0 0 1.5rem 0;
+  margin: 0;
   font-size: 0.9rem;
 }
 
+/* Secciones colapsables */
+.collapsible-section {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.collapsible-section:hover {
+  border-color: var(--cta-bg);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  background: rgba(248, 249, 250, 0.5);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: var(--heading);
+  font-size: 1rem;
+}
+
+.collapsible-title i {
+  color: var(--cta-bg);
+  font-size: 1.1rem;
+}
+
+.optional-badge {
+  background: rgba(52, 152, 219, 0.1);
+  color: var(--cta-bg);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.collapsible-summary {
+  flex: 1;
+  margin: 0 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 0.9rem;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.collapsible-arrow {
+  color: var(--cta-bg);
+  font-size: 0.9rem;
+  transition: transform 0.3s ease;
+}
+
+.collapsible-content {
+  padding: 0 1.2rem 1.2rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--card-bg);
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.collapsible-description {
+  color: var(--text-color);
+  opacity: 0.8;
+  margin: 1rem 0 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* =============== STYLES ESPECÍFICOS DENTRO DE COLLAPSIBLES =============== */
+
+/* Competidores (movidos dentro de collapsible) */
 .exclusion-container {
   display: flex;
   flex-direction: column;
@@ -1010,8 +1100,30 @@ body.dark-mode .legend-label {
   font-weight: 500;
 }
 
-/* Responsive para exclusión */
+/* =============== RESPONSIVE PARA SISTEMA COLAPSABLE =============== */
 @media (max-width: 768px) {
+  .advanced-analysis-section {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .collapsible-header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .collapsible-summary {
+    margin: 0.5rem 0 0 0;
+    order: 3;
+    width: 100%;
+    font-size: 0.8rem;
+  }
+  
+  .collapsible-content {
+    padding: 0 1rem 1rem;
+  }
+  
   .exclusion-input-group {
     grid-template-columns: 1fr;
     gap: 1rem;
