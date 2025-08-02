@@ -480,6 +480,51 @@
           </div>
         </div>
 
+        <!-- Keyword Exclusion Section -->
+        <div class="keyword-exclusion-section" id="keywordExclusionSection">
+          <h3 class="exclusion-section-title">
+            <i class="fas fa-filter"></i> Keyword Exclusions (Optional)
+          </h3>
+          <p class="exclusion-section-description">Exclude brand terms or irrelevant keywords from AI Overview analysis</p>
+          
+          <div class="exclusion-container">
+            <div class="exclusion-method-selector">
+              <label for="exclusionMethod">Exclusion Method:</label>
+              <select id="exclusionMethod" class="exclusion-method-select">
+                <option value="contains">Contains (keyword contains text)</option>
+                <option value="equals">Equals (exact match)</option>
+                <option value="startsWith">Starts with</option>
+                <option value="endsWith">Ends with</option>
+              </select>
+            </div>
+            
+            <div class="exclusion-input-group">
+              <div class="exclusion-field-container">
+                <label for="exclusionTerms">Terms to exclude:</label>
+                <textarea 
+                  id="exclusionTerms" 
+                  placeholder="Enter terms separated by commas or new lines&#10;e.g., brand name, company, logo, official"
+                  class="exclusion-textarea"
+                  rows="3"
+                ></textarea>
+                <div class="exclusion-help">
+                  <i class="fas fa-info-circle"></i>
+                  <span>Separate multiple terms with commas or new lines. Case insensitive.</span>
+                </div>
+              </div>
+              
+              <div class="exclusion-preview">
+                <div class="exclusion-preview-title">
+                  <i class="fas fa-eye"></i> Preview
+                </div>
+                <div id="exclusionPreview" class="exclusion-preview-content">
+                  <em>Enter terms to see preview</em>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <section id="aiOverviewSection" class="glass-effect">
           <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
 
@@ -803,6 +848,7 @@
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
+<script src="{{ url_for('static', filename='js/keyword-exclusion.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-detailed-results-gridjs.js') }}"></script>
 
