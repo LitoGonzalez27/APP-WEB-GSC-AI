@@ -700,18 +700,33 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
             ai_analysis = result.get('ai_analysis', {})
             
             if ai_analysis.get('has_ai_overview'):
-                ai_sources = ai_analysis.get('ai_overview_sources', [])
+                # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
+                logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - AI Analysis keys: {list(ai_analysis.keys())}")
+                
+                # Intentar diferentes nombres de campos donde podrían estar las fuentes
+                ai_sources = (
+                    ai_analysis.get('ai_overview_sources', []) or
+                    ai_analysis.get('sources', []) or
+                    ai_analysis.get('aio_sources', []) or
+                    ai_analysis.get('competitors', []) or
+                    []
+                )
                 
                 # 🔍 DEBUG: Log específico para cada keyword con AIO
                 if ai_sources:
-                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' tiene {len(ai_sources)} fuentes AI")
+                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' tiene {len(ai_sources)} fuentes AI: {ai_sources}")
+                else:
+                    logger.warning(f"[COMPETITORS DEBUG] Keyword '{keyword}' con AIO pero SIN fuentes - ai_analysis completo: {ai_analysis}")
                 
                 for source in ai_sources:
-                    domain = source.get('domain', '')
-                    position = source.get('position', 0)
+                    # 🔍 DEBUG: Log estructura completa de cada fuente
+                    logger.info(f"[COMPETITORS DEBUG] Fuente completa: {source}")
+                    
+                    domain = source.get('domain', '') or source.get('url', '') or source.get('site', '')
+                    position = source.get('position', 0) or source.get('rank', 0) or source.get('pos', 0)
                     
                     # 🔍 DEBUG: Log cada fuente encontrada
-                    logger.info(f"[COMPETITORS DEBUG] Fuente encontrada: {domain} (posición: {position})")
+                    logger.info(f"[COMPETITORS DEBUG] Fuente procesada: {domain} (posición: {position})")
                     
                     if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
                         if domain not in competitors_data:
