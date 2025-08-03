@@ -148,8 +148,8 @@ def create_keyword_position_sheets(writer, data, country_info, header_format):
     ranges_config = [
         {'range': 'top3', 'title': 'Keywords Posiciones 1-3', 'description': 'Posiciones 1 a 3'},
         {'range': 'top10', 'title': 'Keywords Posiciones 4-10', 'description': 'Posiciones 4 a 10'},
-        {'range': 'top20', 'title': 'Keywords Posiciones 11-20', 'description': 'Posiciones 11 a 20'},
-        {'range': 'top20plus', 'title': 'Keywords Posiciones 20+', 'description': 'Posiciones 20 o más'}
+        {'range': 'top20', 'title': 'Keywords Posiciones 11-20', 'description': 'Posiciones 11 a 20'}
+        # ❌ ELIMINADO: 'top20plus' (Keywords Posiciones 20+) - no se requiere
     ]
     
     all_keywords = data.get('keyword_comparison_data', [])
@@ -260,8 +260,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
             'border': 1
         })
 
-        # ✅ NUEVO: Hoja 1 - Executive Dashboard
-        create_executive_dashboard(writer, data, ai_overview_data, header_format, country_info)
+        # ❌ ELIMINADO: Executive Dashboard (no se requiere)
 
         # ✅ MODIFICADO: Hoja 2 - Información del análisis (SIN información de AI Overview)
         info_data = [
@@ -426,113 +425,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
     return output
 
 
-def create_executive_dashboard(writer, data, ai_overview_data, header_format, country_info):
-    """
-    Crea la hoja Executive Dashboard con métricas clave y insights automatizados
-    """
-    try:
-        # Datos básicos
-        pages = data.get('pages', [])
-        keywords = data.get('keyword_comparison_data', [])
-        
-        # Calcular métricas ejecutivas
-        total_clicks_p1 = sum(k.get('clicks_m1', 0) for k in keywords)
-        total_impressions_p1 = sum(k.get('impressions_m1', 0) for k in keywords)
-        avg_position_p1 = sum(k.get('position_m1', 0) for k in keywords if k.get('position_m1', 0) > 0) / max(len([k for k in keywords if k.get('position_m1', 0) > 0]), 1)
-        avg_ctr_p1 = (total_clicks_p1 / total_impressions_p1 * 100) if total_impressions_p1 > 0 else 0
-        
-        # Comparación período anterior si existe
-        has_comparison = any(k.get('clicks_m2') is not None for k in keywords)
-        comparison_metrics = []
-        
-        if has_comparison:
-            total_clicks_p2 = sum(k.get('clicks_m2', 0) for k in keywords)
-            delta_clicks = ((total_clicks_p1 - total_clicks_p2) / max(total_clicks_p2, 1)) * 100
-            total_impressions_p2 = sum(k.get('impressions_m2', 0) for k in keywords)
-            delta_impressions = ((total_impressions_p1 - total_impressions_p2) / max(total_impressions_p2, 1)) * 100
-            
-            comparison_metrics = [
-                ['', ''],
-                ['COMPARACIÓN TEMPORAL', ''],
-                ['Variación Clics (%)', f"{delta_clicks:.1f}%"],
-                ['Variación Impresiones (%)', f"{delta_impressions:.1f}%"],
-                ['Tendencia', 'Positiva' if delta_clicks > 0 else 'Negativa' if delta_clicks < 0 else 'Estable']
-            ]
-        
-        # Top y Bottom performers
-        top_keywords = sorted(keywords, key=lambda x: x.get('clicks_m1', 0), reverse=True)[:5]
-        bottom_keywords = sorted([k for k in keywords if k.get('clicks_m1', 0) > 0], key=lambda x: x.get('clicks_m1', 0))[:5]
-        
-        # AI Overview metrics si están disponibles
-        ai_metrics = []
-        if ai_overview_data:
-            summary = ai_overview_data.get('summary', {})
-            ai_metrics = [
-                ['', ''],
-                ['AI OVERVIEW IMPACT', ''],
-                ['Keywords con AIO', summary.get('keywords_with_ai_overview', 0)],
-                ['Tu dominio mencionado', summary.get('keywords_as_ai_source', 0)],
-                ['Clics perdidos estimados', summary.get('total_estimated_clicks_lost', 0)],
-                ['Impacto en visibilidad', f"{(summary.get('keywords_as_ai_source', 0) / max(summary.get('keywords_with_ai_overview', 1), 1) * 100):.1f}%"]
-            ]
-        
-        # Estructurar datos del dashboard
-        dashboard_data = [
-            ['Métrica', 'Valor'],
-            ['MÉTRICAS PRINCIPALES', ''],
-            ['País analizado', country_info],
-            ['Total Keywords', len(keywords)],
-            ['Total URLs', len(pages)],
-            ['Total Clics', f"{total_clicks_p1:,}"],
-            ['Total Impresiones', f"{total_impressions_p1:,}"],
-            ['CTR Promedio (%)', f"{avg_ctr_p1:.2f}%"],
-            ['Posición Media', f"{avg_position_p1:.1f}"],
-        ] + comparison_metrics + ai_metrics + [
-            ['', ''],
-            ['TOP 5 KEYWORDS (por clics)', ''],
-        ]
-        
-        # Añadir top keywords
-        for i, kw in enumerate(top_keywords, 1):
-            dashboard_data.append([f"{i}. {kw.get('keyword', '')[:50]}", f"{kw.get('clicks_m1', 0)} clics"])
-        
-        dashboard_data.extend([
-            ['', ''],
-            ['KEYWORDS CON MENOR RENDIMIENTO', ''],
-        ])
-        
-        # Añadir bottom keywords
-        for i, kw in enumerate(bottom_keywords, 1):
-            dashboard_data.append([f"{i}. {kw.get('keyword', '')[:50]}", f"{kw.get('clicks_m1', 0)} clics"])
-        
-        # Crear DataFrame y exportar
-        df_dashboard = pd.DataFrame(dashboard_data[1:], columns=dashboard_data[0])
-        df_dashboard.to_excel(writer, sheet_name='Executive Dashboard', index=False)
-        
-        # Formatear hoja
-        worksheet = writer.sheets['Executive Dashboard']
-        worksheet.set_column('A:A', 40)  # Métrica
-        worksheet.set_column('B:B', 20)  # Valor
-        
-        # Aplicar formatos especiales
-        workbook = writer.book
-        section_format = workbook.add_format({'bold': True, 'bg_color': '#E7E6E6', 'border': 1})
-        
-        # Formatear secciones
-        section_rows = []
-        for i, row in enumerate(dashboard_data[1:], start=1):
-            if row[0] in ['MÉTRICAS PRINCIPALES', 'COMPARACIÓN TEMPORAL', 'AI OVERVIEW IMPACT', 'TOP 5 KEYWORDS (por clics)', 'KEYWORDS CON MENOR RENDIMIENTO']:
-                section_rows.append(i)
-        
-        for row_num in section_rows:
-            worksheet.set_row(row_num, None, section_format)
-        
-        # Aplicar header format
-        for col_num, col_name in enumerate(['A', 'B']):
-            worksheet.write(f'{col_name}1', df_dashboard.columns[col_num], header_format)
-            
-    except Exception as e:
-        logger.error(f"Error creando Executive Dashboard: {e}")
+# ❌ FUNCIÓN ELIMINADA: create_executive_dashboard (no se requiere)
 
 
 def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selected_country):
@@ -649,10 +542,10 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         posiciones_section.extend([['', ''], ['', '']])  # Espaciado
         
-        # 4) TABLA COMPLETA DE KEYWORDS
+        # 4) TABLA COMPLETA DE KEYWORDS CON DATOS EXPANDIDOS
         keywords_section = [
-            ['DETALLE COMPLETO POR KEYWORD', ''],
-            ['Keyword', 'With AIO', 'Organic Position', 'Your Domain in AIO', 'AIO Position'],
+            ['DETALLE COMPLETO POR KEYWORD', '', '', '', '', '', '', '', '', ''],
+            ['Keyword', 'With AIO', 'Your Domain in AIO', 'AIO Position', 'Organic Position', 'Clicks (P1)', 'Impressions (P1)', 'CTR (P1)', 'Competitors in AIO', 'Competitor Positions'],
         ]
         
         for result in keyword_results:
@@ -663,27 +556,71 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             domain_in_aio = 'Sí' if ai_analysis.get('domain_is_ai_source', False) else 'No'
             aio_position = ai_analysis.get('domain_ai_source_position', '') or 'N/A'
             
-            keywords_section.append([keyword, has_ai_overview, organic_position, domain_in_aio, aio_position])
+            # ✅ NUEVO: Datos de tráfico
+            clicks_p1 = result.get('clicks_p1') or result.get('clicks_m1', 0)
+            impressions_p1 = result.get('impressions_p1') or result.get('impressions_m1', 0)
+            ctr_p1 = result.get('ctr_p1') or result.get('ctr_m1', 0)
+            if isinstance(ctr_p1, (int, float)) and ctr_p1 > 0:
+                ctr_formatted = f"{(ctr_p1 * 100):.2f}%" if ctr_p1 < 1 else f"{ctr_p1:.2f}%"
+            else:
+                ctr_formatted = "0.00%"
+            
+            # ✅ NUEVO: Datos de competidores en AIO
+            competitors_list = []
+            competitor_positions = []
+            
+            if ai_analysis.get('has_ai_overview'):
+                # Buscar fuentes de AIO que no sean el dominio propio
+                ai_sources = ai_analysis.get('ai_overview_sources', [])
+                for source in ai_sources:
+                    source_domain = source.get('domain', '')
+                    source_position = source.get('position', '')
+                    
+                    # Solo incluir si no es el dominio propio (esto se determinaría en el backend)
+                    # Por ahora incluimos todas las fuentes
+                    if source_domain and source_domain != result.get('site_domain', ''):
+                        competitors_list.append(source_domain)
+                        competitor_positions.append(str(source_position) if source_position else 'N/A')
+            
+            competitors_str = '; '.join(competitors_list[:3])  # Máximo 3 competidores
+            positions_str = '; '.join(competitor_positions[:3])
+            
+            if not competitors_str:
+                competitors_str = 'No competitors found'
+                positions_str = 'N/A'
+            
+            keywords_section.append([
+                keyword, 
+                has_ai_overview, 
+                domain_in_aio, 
+                aio_position, 
+                organic_position,
+                clicks_p1,
+                impressions_p1,
+                ctr_formatted,
+                competitors_str,
+                positions_str
+            ])
         
         # ===== COMBINAR TODAS LAS SECCIONES =====
-        # Normalizar todas las secciones a 5 columnas para que coincidan con la tabla final
+        # Normalizar todas las secciones a 10 columnas para que coincidan con la tabla final expandida
         
-        def normalize_to_5_columns(section):
+        def normalize_to_10_columns(section):
             normalized = []
             for row in section:
-                if len(row) < 5:
-                    # Rellenar con strings vacíos hasta 5 columnas
-                    row_normalized = row + [''] * (5 - len(row))
+                if len(row) < 10:
+                    # Rellenar con strings vacíos hasta 10 columnas
+                    row_normalized = row + [''] * (10 - len(row))
                 else:
-                    row_normalized = row[:5]  # Truncar si tiene más de 5
+                    row_normalized = row[:10]  # Truncar si tiene más de 10
                 normalized.append(row_normalized)
             return normalized
         
         # Normalizar cada sección
-        executive_normalized = normalize_to_5_columns(executive_section)
-        tipologia_normalized = normalize_to_5_columns(tipologia_section)
-        posiciones_normalized = normalize_to_5_columns(posiciones_section)
-        keywords_normalized = normalize_to_5_columns(keywords_section)
+        executive_normalized = normalize_to_10_columns(executive_section)
+        tipologia_normalized = normalize_to_10_columns(tipologia_section)
+        posiciones_normalized = normalize_to_10_columns(posiciones_section)
+        keywords_normalized = normalize_to_10_columns(keywords_section)
         
         # Combinar todas las secciones
         all_data = executive_normalized + tipologia_normalized + posiciones_normalized + keywords_normalized
@@ -692,13 +629,18 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         df_aio = pd.DataFrame(all_data[1:], columns=all_data[0])
         df_aio.to_excel(writer, sheet_name='AI Overview Analysis', index=False)
         
-        # Formatear hoja
+        # Formatear hoja expandida
         worksheet = writer.sheets['AI Overview Analysis']
-        worksheet.set_column('A:A', 45)  # Más ancho para keywords
-        worksheet.set_column('B:B', 18)  
-        worksheet.set_column('C:C', 18)  
-        worksheet.set_column('D:D', 20)  
-        worksheet.set_column('E:E', 15)  
+        worksheet.set_column('A:A', 35)  # Keyword
+        worksheet.set_column('B:B', 12)  # With AIO
+        worksheet.set_column('C:C', 18)  # Your Domain in AIO
+        worksheet.set_column('D:D', 15)  # AIO Position
+        worksheet.set_column('E:E', 18)  # Organic Position
+        worksheet.set_column('F:F', 12)  # Clicks P1
+        worksheet.set_column('G:G', 15)  # Impressions P1
+        worksheet.set_column('H:H', 12)  # CTR P1
+        worksheet.set_column('I:I', 30)  # Competitors in AIO
+        worksheet.set_column('J:J', 20)  # Competitor Positions
         
         # Aplicar formatos especiales
         workbook = writer.book
@@ -713,11 +655,167 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         for row_num in section_rows:
             worksheet.set_row(row_num, None, section_format)
         
-        # Aplicar header format
-        for col_num, col_name in enumerate(['A', 'B', 'C', 'D', 'E']):
+        # Aplicar header format para las 10 columnas
+        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+        for col_num, col_name in enumerate(column_letters):
             if col_num < len(df_aio.columns):
                 worksheet.write(f'{col_name}1', df_aio.columns[col_num], header_format)
+        
+        # ✅ NUEVA HOJA: Análisis detallado de competidores
+        create_competitors_analysis_sheet(writer, ai_overview_data, header_format)
+        
+        # ❌ ELIMINADO: AIO Impact Analysis (no se requiere)
                 
     except Exception as e:
         logger.error(f"Error creando hoja consolidada AIO: {e}")
         # No fallar silenciosamente, pero continuar con el resto del Excel
+
+
+def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
+    """
+    Crea una hoja específica para análisis detallado de competidores en AI Overview
+    """
+    if not ai_overview_data or not ai_overview_data.get('results'):
+        return
+    
+    try:
+        keyword_results = ai_overview_data.get('results', [])
+        
+        # Recopilar todos los competidores únicos y sus métricas
+        competitors_data = {}
+        
+        for result in keyword_results:
+            keyword = result.get('keyword', '')
+            ai_analysis = result.get('ai_analysis', {})
+            
+            if ai_analysis.get('has_ai_overview'):
+                ai_sources = ai_analysis.get('ai_overview_sources', [])
+                
+                for source in ai_sources:
+                    domain = source.get('domain', '')
+                    position = source.get('position', 0)
+                    
+                    if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
+                        if domain not in competitors_data:
+                            competitors_data[domain] = {
+                                'total_appearances': 0,
+                                'total_position_sum': 0,
+                                'keywords': [],
+                                'positions': [],
+                                'avg_position': 0
+                            }
+                        
+                        competitors_data[domain]['total_appearances'] += 1
+                        if position and position > 0:
+                            competitors_data[domain]['total_position_sum'] += position
+                            competitors_data[domain]['positions'].append(position)
+                        
+                        competitors_data[domain]['keywords'].append({
+                            'keyword': keyword,
+                            'position': position or 'N/A'
+                        })
+        
+        # Calcular métricas finales para cada competidor
+        for domain, data in competitors_data.items():
+            if data['positions']:
+                data['avg_position'] = data['total_position_sum'] / len(data['positions'])
+            else:
+                data['avg_position'] = 0
+        
+        # Ordenar competidores por número de apariciones (más relevantes primero)
+        sorted_competitors = sorted(competitors_data.items(), 
+                                  key=lambda x: x[1]['total_appearances'], 
+                                  reverse=True)
+        
+        # ===== ESTRUCTURA DE LA HOJA DE COMPETIDORES =====
+        
+        # Resumen de competidores
+        competitors_summary = [
+            ['ANÁLISIS DE COMPETIDORES EN AI OVERVIEW', '', '', ''],
+            ['', '', '', ''],
+            ['Dominio Competidor', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
+        ]
+        
+        total_keywords_with_aio = len([r for r in keyword_results if r.get('ai_analysis', {}).get('has_ai_overview')])
+        
+        for domain, data in sorted_competitors[:10]:  # Top 10 competidores
+            presence_percentage = (data['total_appearances'] / total_keywords_with_aio * 100) if total_keywords_with_aio > 0 else 0
+            avg_pos_formatted = f"{data['avg_position']:.1f}" if data['avg_position'] > 0 else 'N/A'
+            
+            competitors_summary.append([
+                domain,
+                data['total_appearances'],
+                avg_pos_formatted,
+                f"{presence_percentage:.1f}%"
+            ])
+        
+        # Espaciado
+        competitors_summary.extend([['', '', '', ''], ['', '', '', '']])
+        
+        # Detalle por keyword - Solo para top 5 competidores para evitar hoja muy grande
+        detail_section = [
+            ['DETALLE POR KEYWORD - TOP 5 COMPETIDORES', '', '', ''],
+            ['Competidor', 'Keyword', 'Posición en AIO', 'Notas'],
+        ]
+        
+        for domain, data in sorted_competitors[:5]:
+            detail_section.append([f"=== {domain} ===", '', '', ''])
+            
+            # Ordenar keywords de este competidor por posición
+            sorted_keywords = sorted(data['keywords'], 
+                                   key=lambda x: x['position'] if isinstance(x['position'], (int, float)) and x['position'] > 0 else 999)
+            
+            for kw_data in sorted_keywords[:20]:  # Máximo 20 keywords por competidor
+                detail_section.append([
+                    domain,
+                    kw_data['keyword'],
+                    kw_data['position'],
+                    'Competencia directa' if isinstance(kw_data['position'], (int, float)) and kw_data['position'] <= 3 else ''
+                ])
+            
+            detail_section.append(['', '', '', ''])  # Espaciado entre competidores
+        
+        # Combinar secciones
+        all_competitors_data = competitors_summary + detail_section
+        
+        # Crear DataFrame y exportar
+        df_competitors = pd.DataFrame(all_competitors_data[1:], columns=all_competitors_data[0])
+        df_competitors.to_excel(writer, sheet_name='AIO Competitors Analysis', index=False)
+        
+        # Formatear hoja
+        worksheet = writer.sheets['AIO Competitors Analysis']
+        worksheet.set_column('A:A', 40)  # Dominio/Competidor
+        worksheet.set_column('B:B', 30)  # Keyword/Apariciones
+        worksheet.set_column('C:C', 18)  # Posición
+        worksheet.set_column('D:D', 20)  # Notas/Presencia
+        
+        # Aplicar formatos especiales
+        workbook = writer.book
+        section_format = workbook.add_format({'bold': True, 'bg_color': '#E6F3FF', 'border': 1})
+        competitor_format = workbook.add_format({'bold': True, 'bg_color': '#F0F0F0', 'border': 1})
+        
+        # Encontrar filas de sección para formatear
+        section_rows = []
+        competitor_rows = []
+        for i, row in enumerate(all_competitors_data[1:], start=1):
+            if row[0] in ['ANÁLISIS DE COMPETIDORES EN AI OVERVIEW', 'DETALLE POR KEYWORD - TOP 5 COMPETIDORES']:
+                section_rows.append(i)
+            elif row[0].startswith('=== ') and row[0].endswith(' ==='):
+                competitor_rows.append(i)
+        
+        for row_num in section_rows:
+            worksheet.set_row(row_num, None, section_format)
+        
+        for row_num in competitor_rows:
+            worksheet.set_row(row_num, None, competitor_format)
+        
+        # Aplicar header format
+        for col_num, col_name in enumerate(['A', 'B', 'C', 'D']):
+            if col_num < len(df_competitors.columns):
+                worksheet.write(f'{col_name}1', df_competitors.columns[col_num], header_format)
+                
+    except Exception as e:
+        logger.error(f"Error creando hoja de análisis de competidores: {e}")
+
+
+# ❌ FUNCIÓN ELIMINADA: create_aio_organic_correlation_sheet (AIO Impact Analysis - no se requiere)

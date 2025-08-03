@@ -84,7 +84,7 @@ export function createDetailedResultsGridTable(keywordResults, container) {
 function processDetailedDataForGrid(keywordResults) {
     console.log('🔄 Procesando datos detallados para Grid.js...');
 
-    // Definir columnas
+    // Definir columnas - REORDENADAS según especificación del usuario
     const columns = [
         {
             name: 'View SERP',
@@ -120,6 +120,37 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            name: gridjs.html('Your Domain<br>in AIO'),
+            width: '120px',
+            sort: true,
+            formatter: (cell) => {
+                const isPresent = cell === 'Yes';
+                return gridjs.html(`
+                    <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                        ${cell}
+                    </span>
+                `);
+            }
+        },
+        {
+            name: gridjs.html('AIO<br>Position'),
+            width: '100px',
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación - N/A como valor más negativo
+                    const numA = typeof a === 'number' ? a : (a === 'No' || a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'No' || b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
+                    return numA - numB;
+                }
+            },
+            formatter: (cell) => {
+                if (typeof cell === 'number' && cell > 0) {
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
+                }
+                return gridjs.html(`<span class="aio-na">${cell}</span>`);
+            }
+        },
+        {
             name: gridjs.html('Organic<br>Position'),
             width: '120px',
             sort: {
@@ -138,19 +169,6 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
-            name: gridjs.html('Your Domain<br>in AIO'),
-            width: '120px',
-            sort: true,
-            formatter: (cell) => {
-                const isPresent = cell === 'Yes';
-                return gridjs.html(`
-                    <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
-                        ${cell}
-                    </span>
-                `);
-            }
-        },
-{
             name: gridjs.html('Clicks<br>(P1)'),
             width: '100px',
             sort: {
@@ -173,24 +191,6 @@ function processDetailedDataForGrid(keywordResults) {
                     return numA - numB;
                 }
             }
-        },
-        {
-            name: gridjs.html('AIO<br>Position'),
-            width: '100px',
-            sort: {
-                compare: (a, b) => {
-                    // Convertir a números para comparación
-                    const numA = typeof a === 'number' ? a : (a === 'No' || a === 'N/A' ? Infinity : parseInt(a) || Infinity);
-                    const numB = typeof b === 'number' ? b : (b === 'No' || b === 'N/A' ? Infinity : parseInt(b) || Infinity);
-                    return numA - numB;
-                }
-            },
-            formatter: (cell) => {
-                if (typeof cell === 'number' && cell > 0) {
-                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
-                }
-                return gridjs.html(`<span class="aio-na">${cell}</span>`);
-            }
         }
     ];
 
@@ -211,12 +211,12 @@ function processDetailedDataForGrid(keywordResults) {
 return [
             '', // View SERP (manejado por formatter)
             result.keyword || 'N/A',
-            hasAIOverview ? 'Yes' : 'No',
-            organicPosition,
-            isDomainInAI ? 'Yes' : 'No',
-            formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // ✅ TAREA 3: Clics (P1)
-            formatInteger(result.impressions_p1 || result.impressions_m1 || 0), // ✅ TAREA 3: Impresiones (P1)
-            aiPosition
+            hasAIOverview ? 'Yes' : 'No', // With AIO
+            isDomainInAI ? 'Yes' : 'No', // Your Domain in AIO
+            aiPosition, // AIO Position
+            organicPosition, // Organic Position
+            formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // Clics (P1)
+            formatInteger(result.impressions_p1 || result.impressions_m1 || 0) // Impresiones (P1)
         ];
     });
 
