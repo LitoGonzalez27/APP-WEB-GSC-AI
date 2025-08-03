@@ -100,10 +100,10 @@ def format_ai_summary_data(ai_overview_results):
         {'Métrica': 'Total Keywords Analizadas', 'Valor': summary.get('total_keywords_analyzed', 0)},
         {'Métrica': 'Keywords con AI Overview', 'Valor': summary.get('keywords_with_ai_overview', 0)},
         {'Métrica': 'Keywords como Fuente AI', 'Valor': summary.get('keywords_as_ai_source', 0)},
-        {'Métrica': 'Clics Perdidos Estimados', 'Valor': summary.get('total_estimated_clicks_lost', 0)},
+        # ❌ ELIMINADO: Clics Perdidos Estimados (no se requiere)
         {'Métrica': 'Análisis Exitosos', 'Valor': summary.get('successful_analyses', 0)},
         {'Métrica': 'Total Candidatos Filtrados', 'Valor': candidates.get('total_candidates', 0) if candidates else 0},
-        {'Métrica': 'Fecha Análisis', 'Valor': pd.Timestamp.fromtimestamp(summary.get('analysis_timestamp', pd.Timestamp.now().timestamp())).strftime('%Y-%m-%d %H:%M:%S')},
+        {'Métrica': 'Fecha Análisis', 'Valor': pd.Timestamp.fromtimestamp(summary.get('analysis_timestamp', pd.Timestamp.now().timestamp())).strftime('%Y-%m-%d')},
         {'Métrica': 'País Analizado', 'Valor': get_country_name(summary.get('country_analyzed', ''))} # NUEVO: País analizado
     ]
     
@@ -267,7 +267,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
             ['Parámetro', 'Valor'],
             ['País/Región analizada', country_info],
             ['Contexto del país', country_context],
-            ['Fecha de generación', pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')],
+            ['Fecha de generación', pd.Timestamp.now().strftime('%Y-%m-%d')],
             ['Total páginas analizadas', len(data.get('pages', []))],
             ['Total keywords comparadas', len(data.get('keyword_comparison_data', []))],
             ['', ''], # Separador
@@ -440,7 +440,15 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         keyword_results = ai_overview_data.get('results', [])
         summary = ai_overview_data.get('summary', {})
         country_analyzed = summary.get('country_analyzed', selected_country)
-        country_analyzed_name = get_country_name(country_analyzed) if country_analyzed else 'No especificado'
+        
+        # ✅ MEJORADO: Si no hay país específico, intentar obtener país principal del negocio
+        if not country_analyzed:
+            # Intentar obtener el país principal desde los datos AI Overview
+            main_country = summary.get('main_business_country')
+            if main_country:
+                country_analyzed = main_country
+                
+        country_analyzed_name = get_country_name(country_analyzed) if country_analyzed else 'País principal del negocio detectado automáticamente'
         
         # ===== CALCULAR DATOS DE TIPOLOGÍA =====
         categories = {
@@ -497,9 +505,9 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             ['Total Keywords Analizadas', summary.get('total_keywords_analyzed', 0)],
             ['Keywords con AI Overview', summary.get('keywords_with_ai_overview', 0)],
             ['Tu dominio como Fuente AI', summary.get('keywords_as_ai_source', 0)],
-            ['Clics Perdidos Estimados', summary.get('total_estimated_clicks_lost', 0)],
+            # ❌ ELIMINADO: Clics Perdidos Estimados (no se requiere)
             ['País Analizado', country_analyzed_name],
-            ['Fecha Análisis', pd.Timestamp.fromtimestamp(summary.get('analysis_timestamp', pd.Timestamp.now().timestamp())).strftime('%Y-%m-%d %H:%M:%S')],
+            ['Fecha Análisis', pd.Timestamp.fromtimestamp(summary.get('analysis_timestamp', pd.Timestamp.now().timestamp())).strftime('%Y-%m-%d')],
             ['', ''],
         ]
         
@@ -681,6 +689,9 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
     try:
         keyword_results = ai_overview_data.get('results', [])
         
+        # 🔍 DEBUG: Log para investigar por qué no se exportan competidores
+        logger.info(f"[COMPETITORS DEBUG] Total keywords analizadas: {len(keyword_results)}")
+        
         # Recopilar todos los competidores únicos y sus métricas
         competitors_data = {}
         
@@ -691,9 +702,16 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
             if ai_analysis.get('has_ai_overview'):
                 ai_sources = ai_analysis.get('ai_overview_sources', [])
                 
+                # 🔍 DEBUG: Log específico para cada keyword con AIO
+                if ai_sources:
+                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' tiene {len(ai_sources)} fuentes AI")
+                
                 for source in ai_sources:
                     domain = source.get('domain', '')
                     position = source.get('position', 0)
+                    
+                    # 🔍 DEBUG: Log cada fuente encontrada
+                    logger.info(f"[COMPETITORS DEBUG] Fuente encontrada: {domain} (posición: {position})")
                     
                     if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
                         if domain not in competitors_data:
@@ -721,6 +739,11 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                 data['avg_position'] = data['total_position_sum'] / len(data['positions'])
             else:
                 data['avg_position'] = 0
+        
+        # 🔍 DEBUG: Log final de competidores encontrados
+        logger.info(f"[COMPETITORS DEBUG] Competidores únicos encontrados: {len(competitors_data)}")
+        for domain, data in competitors_data.items():
+            logger.info(f"[COMPETITORS DEBUG] - {domain}: {data['total_appearances']} apariciones")
         
         # Ordenar competidores por número de apariciones (más relevantes primero)
         sorted_competitors = sorted(competitors_data.items(), 
