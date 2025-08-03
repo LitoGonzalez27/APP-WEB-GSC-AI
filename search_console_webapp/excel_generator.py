@@ -1,6 +1,7 @@
 import pandas as pd
 from io import BytesIO
 import logging
+from urllib.parse import urlparse
 from services.country_config import get_country_name # Importar la función get_country_name
 
 logger = logging.getLogger(__name__)
@@ -703,14 +704,33 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                 # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
                 logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - AI Analysis keys: {list(ai_analysis.keys())}")
                 
-                # Intentar diferentes nombres de campos donde podrían estar las fuentes
-                ai_sources = (
-                    ai_analysis.get('ai_overview_sources', []) or
-                    ai_analysis.get('sources', []) or
-                    ai_analysis.get('aio_sources', []) or
-                    ai_analysis.get('competitors', []) or
-                    []
-                )
+                # 🎯 ESTRUCTURA REAL: Las fuentes están en debug_info.references_found
+                debug_info = ai_analysis.get('debug_info', {})
+                references_found = debug_info.get('references_found', [])
+                logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - references_found count: {len(references_found)}")
+                
+                # Convertir references_found al formato esperado
+                ai_sources = []
+                if references_found:
+                    for ref in references_found:
+                        # Extraer dominio del link
+                        link = ref.get('link', '')
+                        if link:
+                            # Extraer dominio de la URL
+                            try:
+                                parsed = urlparse(link)
+                                domain = parsed.netloc.replace('www.', '')
+                                
+                                ai_sources.append({
+                                    'domain': domain,
+                                    'position': ref.get('index', 0) + 1,  # +1 porque index empieza en 0
+                                    'link': link,
+                                    'source_name': ref.get('source', ''),
+                                    'title': ref.get('title', '')
+                                })
+                            except Exception as e:
+                                logger.warning(f"[COMPETITORS DEBUG] Error parsing URL {link}: {e}")
+                                continue
                 
                 # 🔍 DEBUG: Log específico para cada keyword con AIO
                 if ai_sources:
@@ -722,11 +742,12 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                     # 🔍 DEBUG: Log estructura completa de cada fuente
                     logger.info(f"[COMPETITORS DEBUG] Fuente completa: {source}")
                     
-                    domain = source.get('domain', '') or source.get('url', '') or source.get('site', '')
-                    position = source.get('position', 0) or source.get('rank', 0) or source.get('pos', 0)
+                    domain = source.get('domain', '')
+                    position = source.get('position', 0)
+                    source_name = source.get('source_name', '')
                     
                     # 🔍 DEBUG: Log cada fuente encontrada
-                    logger.info(f"[COMPETITORS DEBUG] Fuente procesada: {domain} (posición: {position})")
+                    logger.info(f"[COMPETITORS DEBUG] Fuente procesada: {domain} ({source_name}) (posición: {position})")
                     
                     if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
                         if domain not in competitors_data:
