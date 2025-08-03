@@ -93,9 +93,11 @@ function processDetailedDataForGrid(keywordResults) {
             formatter: (cell, row) => {
                 const keyword = row.cells[1].data; // Keyword está en la segunda columna
                 return gridjs.html(`
-                    <button class="serp-view-btn" onclick="window.openSerpModalFromGrid('${escapeForAttribute(keyword)}')">
-                        <i class="fas fa-search"></i>
-                    </button>
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                        <button class="serp-view-btn" onclick="window.openSerpModalFromGrid('${escapeForAttribute(keyword)}')">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
                 `);
             }
         },
@@ -148,6 +150,30 @@ function processDetailedDataForGrid(keywordResults) {
                 `);
             }
         },
+{
+            name: gridjs.html('Clicks<br>(P1)'),
+            width: '100px',
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = parseInteger(a);
+                    const numB = parseInteger(b);
+                    return numA - numB;
+                }
+            }
+        },
+        {
+            name: gridjs.html('Impressions<br>(P1)'),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    // Convertir a números para comparación
+                    const numA = parseInteger(a);
+                    const numB = parseInteger(b);
+                    return numA - numB;
+                }
+            }
+        },
         {
             name: gridjs.html('AIO<br>Position'),
             width: '100px',
@@ -182,12 +208,14 @@ function processDetailedDataForGrid(keywordResults) {
             ? aiAnalysis.domain_ai_source_position
             : 'No';
 
-        return [
+return [
             '', // View SERP (manejado por formatter)
             result.keyword || 'N/A',
             hasAIOverview ? 'Yes' : 'No',
             organicPosition,
             isDomainInAI ? 'Yes' : 'No',
+            formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // ✅ TAREA 3: Clics (P1)
+            formatInteger(result.impressions_p1 || result.impressions_m1 || 0), // ✅ TAREA 3: Impresiones (P1)
             aiPosition
         ];
     });
@@ -204,6 +232,27 @@ function processDetailedDataForGrid(keywordResults) {
 function escapeForAttribute(str) {
     if (!str) return '';
     return str.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Función auxiliar para parsear enteros de string formateado
+ * @param {string} str - String con número formateado
+ * @returns {number} - Número parseado
+ */
+function parseInteger(str) {
+    if (!str || str === '0' || str === '-') return 0;
+    return parseInt(str.replace(/[,.]/g, '')) || 0;
+}
+
+/**
+ * Función auxiliar para formatear enteros
+ * @param {number|string} value - Valor a formatear
+ * @returns {string} - Valor formateado
+ */
+function formatInteger(value) {
+    if (!value || value === 0) return '0';
+    const num = typeof value === 'string' ? parseInt(value.replace(/[,.]/g, '')) : value;
+    return num.toLocaleString('es-ES');
 }
 
 // Función global para abrir modal SERP desde Grid.js

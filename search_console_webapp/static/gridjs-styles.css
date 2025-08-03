@@ -118,6 +118,22 @@
   color: var(--cta-bg);
 }
 
+/* Estilos para deltas en Grid.js */
+.delta-positive {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.delta-negative {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.delta-neutral {
+  color: #2C2D2E;
+  font-weight: 600;
+}
+
 /* Mensaje sin AIO */
 .no-aio-message {
   text-align: center;
@@ -147,22 +163,30 @@
 }
 
 .gridjs-pagination {
-  color: var(--text-color) !important;
+  color: #2C2D2E !important;
 }
 
 .gridjs-pagination .gridjs-pages button {
-  color: var(--cta-bg) !important;
+  color: #2C2D2E !important;
   border-color: var(--border-color) !important;
+  background: rgba(216, 249, 184, 0.4) !important; /* Más translúcido para mayor contraste */
 }
 
 .gridjs-pagination .gridjs-pages button:hover {
-  background: var(--cta-bg) !important;
-  color: white !important;
+  background: #C3F5A4 !important;
+  color: #2C2D2E !important;
+  border-color: #C3F5A4 !important;
 }
 
 .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
-  background: var(--cta-bg) !important;
-  color: white !important;
+  background: #C3F5A4 !important;
+  color: #2C2D2E !important;
+  font-weight: 600 !important;
+}
+
+/* Texto de información de paginación */
+.gridjs-pagination .gridjs-summary {
+  color: #2C2D2E !important;
 }
 
 /* =============== BÚSQUEDA GRID.JS =============== */
@@ -231,4 +255,31 @@ body.dark-mode .gridjs-tr:nth-child(even) .gridjs-td {
 body.dark-mode .gridjs-search input {
   background: var(--card-bg) !important;
   color: var(--text-color) !important;
+}
+
+/* Paginación en modo oscuro */
+body.dark-mode .gridjs-pagination {
+  color: #2C2D2E !important;
+}
+
+body.dark-mode .gridjs-pagination .gridjs-pages button {
+  color: #2C2D2E !important;
+  background: rgba(216, 249, 184, 0.4) !important; /* Más translúcido para mayor contraste */
+  border-color: rgba(216, 249, 184, 0.4) !important;
+}
+
+body.dark-mode .gridjs-pagination .gridjs-pages button:hover {
+  background: #C3F5A4 !important;
+  color: #2C2D2E !important;
+  border-color: #C3F5A4 !important;
+}
+
+body.dark-mode .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: #C3F5A4 !important;
+  color: #2C2D2E !important;
+  font-weight: 600 !important;
+}
+
+body.dark-mode .gridjs-pagination .gridjs-summary {
+  color: #2C2D2E !important;
 }

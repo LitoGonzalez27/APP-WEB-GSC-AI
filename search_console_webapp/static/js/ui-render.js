@@ -13,16 +13,26 @@ import {
   registerDataTableSortingTypes,
   escapeHtml as escapeHtmlUtil
 } from './number-utils.js';
+import { createUrlsGridTable } from './ui-urls-gridjs.js';
+import { createUrlKeywordsGridTable } from './ui-url-keywords-gridjs.js';
 
-// Variable para almacenar la instancia de DataTable de URLs
-let urlsDataTable = null;
+// Variable para almacenar la instancia de Grid.js de URLs (migrado desde DataTable)
+let urlsGridTable = null;
 
-// ✅ NUEVA: Función para resetear completamente el estado de la tabla de URLs
+// ✅ ACTUALIZADA: Función para resetear completamente el estado de la tabla de URLs (Grid.js)
 export function resetUrlsTableState() {
   console.log('🔄 Reseteando estado completo de la tabla de URLs...');
   
-  // Resetear variable global
-  urlsDataTable = null;
+  // Resetear variable global de Grid.js
+  if (urlsGridTable && urlsGridTable.destroy) {
+    try {
+      urlsGridTable.destroy();
+      console.log('✅ Grid.js anterior destruido en reset');
+    } catch (e) {
+      console.warn('⚠️ Error destruyendo Grid.js en reset:', e);
+    }
+  }
+  urlsGridTable = null;
   
   // Limpiar datos globales relacionados
   window.currentData = null;
@@ -597,9 +607,32 @@ export function renderKeywords(keywordStats = {}) {
     const buildModernCatCard = (title, stat = { current: 0, new: 0, lost: 0, stay: 0 }, dataRange) => {
       const hasComparison = (stat.new > 0 || stat.lost > 0);
       
+      // ✅ TAREA 2: Iconos de medallas según rango de posición
+      let iconClass = 'fas fa-layer-group'; // fallback
+      let iconColor = '#666';
+      
+      switch (dataRange) {
+        case 'top3':
+          iconClass = 'fas fa-trophy';
+          iconColor = '#FFD700'; // Oro
+          break;
+        case 'top10':
+          iconClass = 'fas fa-trophy';
+          iconColor = '#C0C0C0'; // Plata
+          break;
+        case 'top20':
+          iconClass = 'fas fa-trophy';
+          iconColor = '#CD7F32'; // Bronce
+          break;
+        case 'top20plus':
+          iconClass = 'fas fa-medal';
+          iconColor = '#808080'; // Gris neutro (medalla negra/sin color)
+          break;
+      }
+      
       return `
         <div class="category-card clickable-card" data-position-range="${dataRange}" style="cursor: pointer;">
-          <div class="card-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="card-icon"><i class="${iconClass}" style="color: ${iconColor};"></i></div>
           <div class="value">${formatInteger(stat.current ?? 0)}</div>
           <div class="subtitle">${title}</div>
           ${hasComparison ? `
@@ -899,9 +932,9 @@ function cleanupPreviousTable() {
     }
   }
   
-  // Siempre resetear la variable
-  urlsDataTable = null;
-  console.log('✅ Variable urlsDataTable reseteada');
+  // Siempre resetear la variable (actualizado para Grid.js)
+  urlsGridTable = null;
+  console.log('✅ Variable urlsGridTable reseteada');
   
   // 2. Limpiar completamente el DOM de la tabla
   if (table) {
@@ -1053,42 +1086,51 @@ function ensureTableStructure() {
   return true;
 }
 
-// ✅ COMPLETAMENTE NUEVA: renderTable para manejar comparación de URLs
+// ✅ MIGRADO A GRID.JS: renderTable para manejar comparación de URLs
 export async function renderTable(pages) {
-  console.log('🔄 Actualizando tabla de URLs con nuevos datos...', { 
+  console.log('🚀 Renderizando tabla de URLs con Grid.js...', { 
     pagesCount: pages?.length, 
     pagesType: typeof pages, 
     pagesData: pages ? pages.slice(0, 2) : 'null' 
   });
   
-  // ✅ MEJORADO: Limpieza completa de la tabla anterior
-  cleanupPreviousTable();
-  
-  // ✅ NUEVO: Asegurar que la estructura HTML existe
-  if (!ensureTableStructure()) {
-    console.error('❌ No se pudo asegurar la estructura de la tabla');
-    return;
+  // ✅ Limpiar tabla Grid.js anterior si existe
+  if (urlsGridTable && urlsGridTable.destroy) {
+    try {
+      urlsGridTable.destroy();
+      console.log('✅ Grid.js anterior destruido');
+    } catch (e) {
+      console.warn('⚠️ Error destruyendo Grid.js anterior:', e);
+    }
+    urlsGridTable = null;
   }
   
-  // ✅ CRÍTICO: Re-obtener referencias DOM después de posible recreación
-  elems.tableBody = document.querySelector('#resultsTable tbody');
+  // ✅ Obtener contenedor para Grid.js
   elems.resultsSection = document.getElementById('resultsBlock');
   elems.resultsTitle = document.querySelector('.results-title');
   
-  if (!elems.tableBody) {
-    console.error('❌ No se pudo obtener referencia al tbody después de recreación');
+  if (!elems.resultsSection) {
+    console.error('❌ No se pudo obtener contenedor para Grid.js');
     return;
   }
-  console.log('✅ Referencias DOM actualizadas después de estructura verificada');
   
   if (!pages || !pages.length) {
     console.log('⚠️ No hay datos de páginas para mostrar');
-    if (elems.tableBody) elems.tableBody.innerHTML = '<tr><td colspan="14">No hay datos para la tabla.</td></tr>';
-    // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
-    console.log('✅ Pages content ready - sidebar can show it when user navigates');
+    
+    // Mostrar mensaje con Grid.js
+    const emptyContainer = document.createElement('div');
+    emptyContainer.className = 'no-aio-message';
+    emptyContainer.innerHTML = `
+      <i class="fas fa-info-circle"></i>
+      <h3>No URLs Found</h3>
+      <p>No URL data available to display for the selected period.</p>
+    `;
+    
+    elems.resultsSection.innerHTML = '';
+    elems.resultsSection.appendChild(emptyContainer);
+    
     if (elems.resultsTitle) elems.resultsTitle.textContent = 'URLs Performance';
     
-    // ✅ NUEVO: Mostrar subtítulo también cuando no hay datos
     const urlsSubtitle = document.querySelector('.urls-overview-subtitle');
     if (urlsSubtitle) {
       urlsSubtitle.style.display = 'block';
@@ -1101,245 +1143,46 @@ export async function renderTable(pages) {
   // ✅ Procesar datos de URLs
   const urlsData = processUrlsData(pages);
   
-  // ✅ CORREGIDO: Pasar información de períodos para determinar el tipo correcto
+  // ✅ Determinar tipo de análisis
   const periods = window.currentData && window.currentData.periods ? window.currentData.periods : null;
   const analysisType = getUrlAnalysisType(pages, periods);
   
   console.log(`📊 Tipo de análisis URLs: ${analysisType}, URLs: ${urlsData.length}`);
   console.log('📋 Datos procesados:', urlsData.slice(0, 3)); // Log primeros 3 para debugging
-  
-  // ✅ Actualizar headers según el tipo
-  updateUrlTableHeaders(analysisType);
 
-  // ✅ NUEVO: Limpiar tbody antes de añadir nuevos datos
-  if (elems.tableBody) {
-    elems.tableBody.innerHTML = '';
-    console.log('🧹 Tbody limpiado antes de añadir nuevos datos');
-  }
-  
-  // ✅ Renderizar filas
-  console.log(`🔄 Añadiendo ${urlsData.length} filas al tbody...`);
-  urlsData.forEach((row, index) => {
-    const deltaClicksClass =
-      (row.delta_clicks_percent === 'Infinity' || (typeof row.delta_clicks_percent === 'number' && row.delta_clicks_percent > 0))
-        ? 'positive-change'
-        : (typeof row.delta_clicks_percent === 'number' && row.delta_clicks_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaImprClass   =
-      (row.delta_impressions_percent === 'Infinity' || (typeof row.delta_impressions_percent === 'number' && row.delta_impressions_percent > 0))
-        ? 'positive-change'
-        : (typeof row.delta_impressions_percent === 'number' && row.delta_impressions_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaCtrClass    =
-      (row.delta_ctr_percent === 'Infinity' || (typeof row.delta_ctr_percent === 'number' && row.delta_ctr_percent > 0))
-        ? 'positive-change'
-        : (typeof row.delta_ctr_percent === 'number' && row.delta_ctr_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaPosClass    =
-      (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0)) // Pos delta: negative is good (better position)
-        ? 'positive-change'
-        : (row.delta_position_absolute === 'Lost' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute > 0))
-          ? 'negative-change'
-          : '';
-
-    const tr = document.createElement('tr');
-    
-    // ✅ Ajustar visibilidad de columnas según el tipo
-    const p2ColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
-    const deltaColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
-
-    tr.innerHTML = `
-      <td class="dt-body-center">
-        <i class="fas fa-list keywords-icon"
-           data-url="${escapeHtmlUtil(row.url)}"
-           title="Ver keywords para esta URL"
-           style="cursor:pointer; color: #007bff;"></i>
-      </td>
-      <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
-      <td>${formatInteger(row.clicks_p1 ?? 0)}</td>
-      <td ${p2ColumnsStyle}>${formatInteger(row.clicks_p2 ?? 0)}</td>
-      <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_clicks_percent)}</td>
-      <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
-      <td ${p2ColumnsStyle}>${formatInteger(row.impressions_p2 ?? 0)}</td>
-      <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-      <td>${formatPercentage(row.ctr_p1)}</td>
-      <td ${p2ColumnsStyle}>${formatPercentage(row.ctr_p2)}</td>
-      <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
-      <td>${formatPosition(row.position_p1)}</td>
-      <td ${p2ColumnsStyle}>${formatPosition(row.position_p2)}</td>
-      <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2)}</td>
-    `;
-    
-    if (elems.tableBody) {
-      elems.tableBody.appendChild(tr);
-      if (index < 3) { // Log solo las primeras 3 para debugging
-        console.log(`✅ Fila ${index + 1} añadida: ${row.url}`);
-      }
-    } else {
-      console.error(`❌ No se pudo añadir fila ${index + 1}: tbody no disponible`);
-    }
-  });
-  
-  console.log(`✅ ${urlsData.length} filas añadidas al tbody. Filas en DOM: ${elems.tableBody ? elems.tableBody.children.length : 'N/A'}`);
-
-  // ✅ ACTUALIZADO: Usar configuración estandarizada del módulo centralizado
-  registerDataTableSortingTypes(); // Asegurar que los tipos estén registrados
-  const dtConfig = getStandardUrlTableConfig(analysisType);
-
+  // ✅ CREAR TABLA GRID.JS
   try {
-    console.log('🔧 Creando nueva DataTable...', { 
+    console.log('🔧 Creando tabla Grid.js...', { 
       analysisType, 
-      rowsCount: urlsData.length,
-      configReady: !!dtConfig
+      rowsCount: urlsData.length
     });
     
-    // ✅ VERIFICACIÓN EXHAUSTIVA: La tabla debe existir y estar lista
-    const table = document.getElementById('resultsTable');
-    if (!table) {
-      throw new Error('Tabla #resultsTable no encontrada después de verificación de estructura');
-    }
+    // Crear Grid.js table
+    urlsGridTable = createUrlsGridTable(urlsData, analysisType, elems.resultsSection);
     
-    // Verificar que no hay instancias DataTable residuales
-    if (window.DataTable && window.DataTable.isDataTable('#resultsTable')) {
-      console.warn('⚠️ Se detectó DataTable residual justo antes de crear nueva instancia, limpiando...');
-      try {
-        if (window.$ && window.$.fn.DataTable.isDataTable('#resultsTable')) {
-          window.$('#resultsTable').DataTable().destroy(false);
-        }
-      } catch (e) {
-        console.warn('⚠️ Error limpiando DataTable residual, continuando...', e);
-      }
-    }
-    
-    // Verificar que la estructura es correcta
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
-    if (!thead || !tbody) {
-      console.warn('⚠️ Estructura de tabla incompleta, recreando...');
-      ensureTableStructure();
-    }
-    
-    // ✅ MEJORADO: Verificación exhaustiva y limpieza final
-    let finalCleanupAttempts = 0;
-    while (window.DataTable && window.DataTable.isDataTable('#resultsTable') && finalCleanupAttempts < 3) {
-      finalCleanupAttempts++;
-      console.warn(`⚠️ DataTable aún detectada después de limpieza, intento ${finalCleanupAttempts}/3...`);
-      
-      try {
-        // Intentar destrucción completa
-        if (window.$ && window.$.fn.DataTable && window.$.fn.DataTable.isDataTable('#resultsTable')) {
-          window.$('#resultsTable').DataTable().destroy(true); // true = remover del DOM
-          console.log('✅ Destrucción completa con jQuery');
-        } else {
-          new DataTable('#resultsTable').destroy(true);
-          console.log('✅ Destrucción completa con API nativa');
-        }
-        
-        // Forzar recreación de estructura si se removió del DOM
-        if (!document.getElementById('resultsTable')) {
-          ensureTableStructure();
-          console.log('✅ Estructura de tabla recreada después de destrucción completa');
-        }
-        
-        break; // Salir del loop si tuvo éxito
-      } catch (e) {
-        console.warn(`⚠️ Error en destrucción final intento ${finalCleanupAttempts}:`, e);
-        
-        if (finalCleanupAttempts >= 3) {
-          // Último recurso: recrear la tabla completamente
-          console.warn('🆘 Forzando recreación completa de la tabla...');
-          const resultsBlock = document.getElementById('resultsBlock');
-          if (resultsBlock) {
-            // Remover tabla antigua completamente
-            const oldTable = document.getElementById('resultsTable');
-            if (oldTable) {
-              oldTable.remove();
-            }
-            
-            // Recrear estructura
-            ensureTableStructure();
-            console.log('✅ Tabla recreada completamente como último recurso');
-          }
-        }
-      }
-    }
-    
-    // ✅ VERIFICACIÓN FINAL: Asegurar que la tabla tiene datos antes de crear DataTable
-    const finalTableBody = document.querySelector('#resultsTable tbody');
-    const finalRowCount = finalTableBody ? finalTableBody.children.length : 0;
-    console.log(`🔍 Verificación pre-DataTable: ${finalRowCount} filas en tbody`);
-    
-    if (finalRowCount === 0) {
-      console.warn('⚠️ No hay filas en tbody antes de crear DataTable');
-      
-      // Intentar re-añadir los datos
-      console.log('🔄 Re-intentando añadir datos al tbody...');
-      if (finalTableBody && urlsData && urlsData.length > 0) {
-        urlsData.forEach((row, index) => {
-          // Usar el mismo HTML de antes pero simplificado para este reintento
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td class="dt-body-center">
-              <i class="fas fa-list keywords-icon" data-url="${escapeHtmlUtil(row.url)}" title="Ver keywords para esta URL" style="cursor:pointer; color: #007bff;"></i>
-            </td>
-            <td class="dt-body-left url-cell" title="${row.url}">${row.url}</td>
-            <td>${formatInteger(row.clicks_p1 ?? 0)}</td>
-            <td>${formatInteger(row.clicks_p2 ?? 0)}</td>
-            <td>${formatPercentageChange(row.delta_clicks_percent)}</td>
-            <td>${formatInteger(row.impressions_p1 ?? 0)}</td>
-            <td>${formatInteger(row.impressions_p2 ?? 0)}</td>
-            <td>${formatPercentageChange(row.delta_impressions_percent)}</td>
-            <td>${formatPercentage(row.ctr_p1)}</td>
-            <td>${formatPercentage(row.ctr_p2)}</td>
-            <td>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
-            <td>${formatPosition(row.position_p1)}</td>
-            <td>${formatPosition(row.position_p2)}</td>
-            <td>${formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2)}</td>
-          `;
-          finalTableBody.appendChild(tr);
-        });
-        console.log(`✅ Re-añadidas ${urlsData.length} filas. Total en DOM: ${finalTableBody.children.length}`);
-      }
-    }
-    
-    // ✅ NUEVO: Pequeño delay para asegurar estabilidad del DOM
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    urlsDataTable = new DataTable('#resultsTable', dtConfig);
-    
-    console.log('✅ Nueva DataTable creada exitosamente');
-    
-    // ✅ NUEVO: Forzar un redraw para asegurar que se muestren los datos
-    if (urlsDataTable && urlsDataTable.draw) {
-      urlsDataTable.draw();
-      console.log('✅ Forzado redraw de DataTable');
+    if (urlsGridTable) {
+      console.log('✅ Tabla Grid.js creada exitosamente');
+    } else {
+      console.warn('⚠️ No se pudo crear tabla Grid.js');
     }
     
   } catch (error) {
-    console.error('❌ Error al crear DataTable:', error);
+    console.error('❌ Error al crear tabla Grid.js:', error);
     
-    // ✅ MEJORADO: Fallback más robusto
-    console.log('🔄 Implementando fallback - tabla básica sin DataTable...');
+    // Fallback - mostrar mensaje de error
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'no-aio-message';
+    errorContainer.innerHTML = `
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Error Loading Table</h3>
+      <p>There was an error loading the URLs table. Please try refreshing the page.</p>
+    `;
     
-    // Asegurar que la tabla sea visible y funcional
-    if (elems.tableBody && urlsData.length > 0) {
-      console.log(`📊 Tabla básica fallback con ${urlsData.length} filas`);
-      
-      // La tabla ya está renderizada arriba, solo asegurar visibilidad
-      const table = document.getElementById('resultsTable');
-      if (table) {
-        table.style.display = '';
-        table.style.width = '100%';
-        console.log('✅ Tabla básica configurada como fallback');
-      }
-    }
-    
-    // Resetear variable por seguridad
-    urlsDataTable = null;
+    elems.resultsSection.innerHTML = '';
+    elems.resultsSection.appendChild(errorContainer);
   }
+  
+
 
   // ✅ SIDEBAR: El contenido está listo, notificar al sidebar que puede mostrar la sección
   console.log('✅ Pages content ready - sidebar can show it when user navigates');
@@ -2083,7 +1926,7 @@ async function fetchUrlKeywords(url, periods) {
   return response.json();
 }
 
-// ✅ NUEVO: Función para renderizar los datos en el modal
+// ✅ MIGRADO A GRID.JS: Función para renderizar los datos en el modal
 function renderUrlKeywordsData(data) {
   const modalBody = document.getElementById('keywordModalBody-url');
   if (!modalBody) return;
@@ -2101,72 +1944,39 @@ function renderUrlKeywordsData(data) {
     return;
   }
   
-  // Crear tabla
-  const tableHTML = `
+  // Crear información de la URL
+  const infoHTML = `
     <div class="url-keywords-info" style="margin-bottom: 1em; padding: 1em; background: #f8f9fa; border-radius: 5px;">
       <p><strong>URL analizada:</strong> ${escapeHtml(data.url)}</p>
       <p><strong>Keywords encontradas:</strong> ${keywords.length}</p>
       <p><strong>Período:</strong> ${data.periods.current.label}</p>
       ${hasComparison ? `<p><strong>Comparando con:</strong> ${data.periods.comparison.label}</p>` : ''}
     </div>
-    
-    <div class="table-responsive-container">
-      <table id="keywordModalTable-url" class="display" style="width:100%;">
-        <thead>
-          <tr>
-            <th>View SERP</th>
-            <th>Keyword</th>
-            <th>Clicks P1</th>
-            ${hasComparison ? '<th>Clicks P2</th>' : ''}
-            ${hasComparison ? '<th>ΔClicks (%)</th>' : ''}
-            <th>Impressions P1</th>
-            ${hasComparison ? '<th>Impressions P2</th>' : ''}
-            ${hasComparison ? '<th>ΔImp. (%)</th>' : ''}
-            <th>CTR P1 (%)</th>
-            ${hasComparison ? '<th>CTR P2 (%)</th>' : ''}
-            ${hasComparison ? '<th>ΔCTR (%)</th>' : ''}
-            <th>Pos P1</th>
-            ${hasComparison ? '<th>Pos P2</th>' : ''}
-            ${hasComparison ? '<th>ΔPos</th>' : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${keywords.map(keyword => createUrlKeywordRow(keyword, hasComparison)).join('')}
-        </tbody>
-      </table>
-    </div>
   `;
   
-  modalBody.innerHTML = tableHTML;
+  // Crear contenedor para Grid.js
+  const gridContainer = document.createElement('div');
+  gridContainer.innerHTML = infoHTML;
   
-  // Inicializar DataTable
-  if (window.DataTable) {
-    const columnDefs = [
-      { targets: '_all', className: 'dt-body-right' },
-      { targets: [0, 1], className: 'dt-body-left' },
-      { targets: 0, orderable: false }
-    ];
+  modalBody.innerHTML = '';
+  modalBody.appendChild(gridContainer);
+  
+  // Crear tabla Grid.js para keywords del modal
+  try {
+    createUrlKeywordsGridTable(keywords, hasComparison, modalBody);
+    console.log('✅ Grid.js para modal de keywords creado exitosamente');
+  } catch (error) {
+    console.error('❌ Error al crear Grid.js para modal de keywords:', error);
     
-    new DataTable('#keywordModalTable-url', {
-      pageLength: 10,
-      lengthMenu: [10, 25, 50, 100],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
-      scrollX: true,
-      responsive: false,
-      columnDefs: columnDefs,
-      order: [[2, 'desc']] // Ordenar por clicks
-    });
+    // Fallback - mostrar mensaje de error
+    modalBody.innerHTML = infoHTML + `
+      <div class="no-aio-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Error Loading Keywords</h3>
+        <p>There was an error loading the keywords table. Please try again.</p>
+      </div>
+    `;
   }
-  
-  // Añadir event listeners para SERP
-  const serpIcons = modalBody.querySelectorAll('.serp-icon');
-  serpIcons.forEach(icon => {
-    icon.addEventListener('click', () => {
-      if (typeof openSerpModal === 'function') {
-        openSerpModal(icon.dataset.keyword, icon.dataset.url);
-      }
-    });
-  });
 }
 
 // ✅ NUEVO: Función para crear filas de keywords
@@ -2235,3 +2045,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+// ✅ NUEVO: Hacer funciones disponibles globalmente
+window.openUrlKeywordsModal = openUrlKeywordsModal;
