@@ -165,32 +165,13 @@ function getCompetitorSummary() {
  * @returns {Object} Información sobre las exclusiones
  */
 function getExclusionSummary() {
-    const textarea = document.getElementById('exclusionTerms');
-    const methodSelect = document.getElementById('exclusionMethod');
-    
-    if (!textarea || !textarea.value.trim()) {
-        return { count: 0, method: '', preview: '' };
+    // Usar la función del sistema de tags si está disponible
+    if (window.getExclusionSummaryInfo) {
+        return window.getExclusionSummaryInfo();
     }
     
-    // Procesar términos
-    const terms = textarea.value
-        .split(/[,\n]/)
-        .map(term => term.trim())
-        .filter(term => term.length > 0);
-    
-    const method = methodSelect ? methodSelect.value : 'contains';
-    
-    // Crear preview (máximo 3 términos)
-    let preview = terms.slice(0, 3).join(', ');
-    if (terms.length > 3) {
-        preview += '...';
-    }
-    
-    return {
-        count: terms.length,
-        method: method,
-        preview: preview
-    };
+    // Fallback por si acaso
+    return { count: 0, method: '', preview: '' };
 }
 
 /**
@@ -241,25 +222,8 @@ function setupSummaryUpdateListeners() {
         }
     }
     
-    // Listeners para exclusiones
-    const exclusionTextarea = document.getElementById('exclusionTerms');
-    const exclusionMethod = document.getElementById('exclusionMethod');
-    
-    if (exclusionTextarea) {
-        exclusionTextarea.addEventListener('input', () => {
-            if (!collapsibleState.exclusion) {
-                updateCollapsibleSummary('exclusion');
-            }
-        });
-    }
-    
-    if (exclusionMethod) {
-        exclusionMethod.addEventListener('change', () => {
-            if (!collapsibleState.exclusion) {
-                updateCollapsibleSummary('exclusion');
-            }
-        });
-    }
+    // Los listeners para exclusiones ahora se manejan en keyword-exclusion.js
+    // mediante el sistema de tags que llama automáticamente a updateCollapsibleSummary()
 }
 
 /**

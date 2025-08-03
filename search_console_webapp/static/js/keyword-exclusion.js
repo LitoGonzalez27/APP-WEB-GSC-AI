@@ -1,10 +1,10 @@
 /* ==============================================
-   KEYWORD EXCLUSION SYSTEM
-   Lógica para filtrar keywords no deseadas del análisis de AI Overview
+   KEYWORD EXCLUSION SYSTEM WITH TAGS
+   Lógica para filtrar keywords no deseadas del análisis de AI Overview usando un sistema de tags/burbujas
    ============================================== */
 
 /**
- * Clase para manejar las exclusiones de keywords
+ * Clase para manejar las exclusiones de keywords con sistema de tags
  */
 class KeywordExclusion {
     constructor() {
@@ -17,97 +17,202 @@ class KeywordExclusion {
      * Inicializar event listeners
      */
     init() {
-        const exclusionTextarea = document.getElementById('exclusionTerms');
+        const exclusionInput = document.getElementById('exclusionTerms');
         const exclusionMethodSelect = document.getElementById('exclusionMethod');
 
-        if (exclusionTextarea) {
-            exclusionTextarea.addEventListener('input', () => this.updatePreview());
+        if (exclusionInput) {
+            // Cambiar comportamiento para manejar tags
+            exclusionInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+            exclusionInput.addEventListener('input', (e) => this.handleInput(e));
         }
 
         if (exclusionMethodSelect) {
             exclusionMethodSelect.addEventListener('change', (e) => {
                 this.exclusionMethod = e.target.value;
-                this.updatePreview();
+                this.updateMethodDescription();
+                this.updateCollapsibleSummary();
             });
         }
 
-        // Actualizar preview inicial
-        this.updatePreview();
+        // Inicializar descripción del método
+        this.updateMethodDescription();
+
+        // Configurar botón "Clear All"
+        this.setupClearAllButton();
+
+        // Renderizar tags vacíos inicialmente
+        this.renderTags();
+        console.log('✅ Sistema de exclusión con tags inicializado');
     }
 
     /**
-     * Actualizar el preview de términos de exclusión
+     * Manejar eventos de teclado en el input
+     * @param {KeyboardEvent} e - Evento de teclado
      */
-    updatePreview() {
-        const exclusionTextarea = document.getElementById('exclusionTerms');
-        const previewContainer = document.getElementById('exclusionPreview');
-        
-        if (!exclusionTextarea || !previewContainer) return;
+    handleKeyDown(e) {
+        const input = e.target;
+        const value = input.value.trim();
 
-        const inputText = exclusionTextarea.value.trim();
+        // Crear tag al presionar coma o Enter
+        if ((e.key === ',' || e.key === 'Enter') && value) {
+            e.preventDefault();
+            this.addTag(value);
+            input.value = '';
+        }
         
-        if (!inputText) {
-            previewContainer.innerHTML = '<em>Enter terms to see preview</em>';
-            this.exclusionTerms = [];
+        // Eliminar último tag con Backspace en input vacío
+        if (e.key === 'Backspace' && !value && this.exclusionTerms.length > 0) {
+            e.preventDefault();
+            this.removeTag(this.exclusionTerms.length - 1);
+        }
+    }
+
+    /**
+     * Manejar eventos de input (para detectar comas pegadas)
+     * @param {InputEvent} e - Evento de input
+     */
+    handleInput(e) {
+        const input = e.target;
+        const value = input.value;
+
+        // Si el usuario pegó texto con comas, procesarlo
+        if (value.includes(',')) {
+            const parts = value.split(',');
+            const lastPart = parts.pop(); // La última parte permanece en el input
+            
+            // Añadir todas las partes excepto la última como tags
+            parts.forEach(part => {
+                const trimmed = part.trim();
+                if (trimmed) {
+                    this.addTag(trimmed);
+                }
+            });
+            
+            // Mantener la última parte en el input
+            input.value = lastPart.trim();
+        }
+    }
+
+    /**
+     * Añadir un nuevo tag
+     * @param {string} term - Término a añadir
+     */
+    addTag(term) {
+        const cleanTerm = term.trim().toLowerCase();
+        
+        // Evitar términos vacíos o duplicados
+        if (!cleanTerm || this.exclusionTerms.includes(cleanTerm)) {
             return;
         }
 
-        // Procesar términos de exclusión
-        this.exclusionTerms = this.parseExclusionTerms(inputText);
+        this.exclusionTerms.push(cleanTerm);
+        this.renderTags();
+        this.updateCollapsibleSummary();
         
+        console.log(`🏷️ Tag añadido: "${cleanTerm}"`);
+    }
+
+    /**
+     * Eliminar un tag por índice
+     * @param {number} index - Índice del tag a eliminar
+     */
+    removeTag(index) {
+        if (index >= 0 && index < this.exclusionTerms.length) {
+            const removedTerm = this.exclusionTerms.splice(index, 1)[0];
+            this.renderTags();
+            this.updateCollapsibleSummary();
+            
+            console.log(`🗑️ Tag eliminado: "${removedTerm}"`);
+        }
+    }
+
+    /**
+     * Renderizar todos los tags en el contenedor
+     */
+    renderTags() {
+        const container = document.getElementById('exclusionTagsContainer');
+        const countElement = document.getElementById('exclusionCount');
+        const clearAllElement = document.getElementById('clearAllTags');
+        
+        if (!container) return;
+
+        // Actualizar contador
+        if (countElement) {
+            countElement.textContent = this.exclusionTerms.length;
+        }
+
+        // Mostrar/ocultar botón "Clear All"
+        if (clearAllElement) {
+            clearAllElement.style.display = this.exclusionTerms.length > 0 ? 'block' : 'none';
+        }
+
         if (this.exclusionTerms.length === 0) {
-            previewContainer.innerHTML = '<em>No valid terms found</em>';
+            container.innerHTML = '';
             return;
         }
 
-        // Generar preview HTML
-        const methodText = this.getMethodDescription();
-        const termTags = this.exclusionTerms
-            .map(term => `<span class="exclusion-term-tag">${this.escapeHtml(term)}</span>`)
-            .join('');
+        const tagsHTML = this.exclusionTerms.map((term, index) => `
+            <div class="exclusion-tag">
+                <span class="exclusion-tag-text">${this.escapeHtml(term)}</span>
+                <span class="exclusion-tag-remove" onclick="window.keywordExclusion.removeTag(${index})">
+                    <i class="fas fa-times"></i>
+                </span>
+            </div>
+        `).join('');
 
-        previewContainer.innerHTML = `
-            <div>
-                <strong>Method:</strong> ${methodText}
-            </div>
-            <div>
-                <strong>Terms (${this.exclusionTerms.length}):</strong>
-            </div>
-            <div class="exclusion-term-list">
-                ${termTags}
-            </div>
-        `;
+        container.innerHTML = tagsHTML;
     }
 
     /**
-     * Parsear términos de exclusión del input del usuario
-     * @param {string} inputText - Texto de entrada
-     * @returns {Array} Array de términos limpios
+     * Actualizar descripción del método seleccionado
      */
-    parseExclusionTerms(inputText) {
-        // Dividir por comas o saltos de línea
-        const terms = inputText
-            .split(/[,\n]/)
-            .map(term => term.trim())
-            .filter(term => term.length > 0)
-            .map(term => term.toLowerCase()); // Case insensitive
+    updateMethodDescription() {
+        const descriptionElement = document.getElementById('methodDescription');
+        if (!descriptionElement) return;
 
-        // Remover duplicados
-        return [...new Set(terms)];
-    }
-
-    /**
-     * Obtener descripción del método de exclusión
-     * @returns {string} Descripción del método
-     */
-    getMethodDescription() {
         const descriptions = {
-            'contains': 'Keywords containing any of these terms',
+            'contains': 'Keywords containing these terms',
             'equals': 'Keywords exactly matching these terms',
             'startsWith': 'Keywords starting with these terms',
             'endsWith': 'Keywords ending with these terms'
         };
-        return descriptions[this.exclusionMethod] || 'Unknown method';
+
+        descriptionElement.textContent = descriptions[this.exclusionMethod] || 'Unknown method';
+    }
+
+    /**
+     * Configurar botón "Clear All"
+     */
+    setupClearAllButton() {
+        const clearAllBtn = document.querySelector('.clear-all-btn');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => {
+                this.clearAllTags();
+            });
+        }
+    }
+
+    /**
+     * Limpiar todos los tags
+     */
+    clearAllTags() {
+        if (this.exclusionTerms.length === 0) return;
+        
+        this.exclusionTerms = [];
+        this.renderTags();
+        this.updateCollapsibleSummary();
+        
+        console.log('🗑️ Todos los tags eliminados');
+    }
+
+    /**
+     * Actualizar el resumen del sistema colapsable
+     */
+    updateCollapsibleSummary() {
+        // Esta función se llama desde collapsible-sections.js
+        if (window.updateCollapsibleSummary) {
+            window.updateCollapsibleSummary('exclusion');
+        }
     }
 
     /**
@@ -172,6 +277,32 @@ class KeywordExclusion {
     }
 
     /**
+     * Obtener resumen para el sistema colapsable
+     * @returns {Object} Información del resumen
+     */
+    getSummaryInfo() {
+        if (this.exclusionTerms.length === 0) {
+            return { 
+                count: 0, 
+                method: '', 
+                preview: '' 
+            };
+        }
+
+        // Crear preview (máximo 3 términos)
+        let preview = this.exclusionTerms.slice(0, 3).join(', ');
+        if (this.exclusionTerms.length > 3) {
+            preview += '...';
+        }
+
+        return {
+            count: this.exclusionTerms.length,
+            method: this.exclusionMethod,
+            preview: preview
+        };
+    }
+
+    /**
      * Escapar HTML para prevenir XSS
      * @param {string} text - Texto a escapar
      * @returns {string} Texto escapado
@@ -186,11 +317,11 @@ class KeywordExclusion {
      * Resetear exclusiones
      */
     reset() {
-        const exclusionTextarea = document.getElementById('exclusionTerms');
+        const exclusionInput = document.getElementById('exclusionTerms');
         const exclusionMethodSelect = document.getElementById('exclusionMethod');
         
-        if (exclusionTextarea) {
-            exclusionTextarea.value = '';
+        if (exclusionInput) {
+            exclusionInput.value = '';
         }
         
         if (exclusionMethodSelect) {
@@ -199,7 +330,9 @@ class KeywordExclusion {
         
         this.exclusionTerms = [];
         this.exclusionMethod = 'contains';
-        this.updatePreview();
+        this.renderTags();
+        this.updateMethodDescription();
+        this.updateCollapsibleSummary();
     }
 
     /**
@@ -234,4 +367,9 @@ window.getKeywordExclusionConfig = function() {
 // Función para filtrar keywords (para uso en otras partes del código)
 window.filterKeywordsWithExclusion = function(keywords) {
     return window.keywordExclusion.filterKeywords(keywords);
+};
+
+// Función para obtener resumen (para el sistema colapsable)
+window.getExclusionSummaryInfo = function() {
+    return window.keywordExclusion.getSummaryInfo();
 };

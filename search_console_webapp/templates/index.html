@@ -441,7 +441,7 @@
         <div class="advanced-analysis-section" id="advancedAnalysisSection">
           <div class="section-header">
             <h3 class="section-main-title">
-              <i class="fas fa-cogs"></i> Advanced Analysis Options
+            Advanced Analysis Options
             </h3>
             <p class="section-main-description">Configure competitor analysis and keyword exclusions to refine your AI Overview insights</p>
           </div>
@@ -461,40 +461,69 @@
             </div>
             
             <div class="collapsible-content" id="competitorContent">
-              <p class="collapsible-description">Add up to 3 competitor domains to compare their AI Overview presence with yours</p>
-              
-              <div class="competitor-fields-container">
-                <div class="competitor-field-group">
-                  <label for="competitor1">Competitor 1:</label>
-                  <input 
-                    type="text" 
-                    id="competitor1" 
-                    placeholder="e.g., example.com, https://blog.competitor.com" 
-                    class="competitor-input"
-                  />
-                  <div class="competitor-validation" id="competitor1Validation"></div>
+              <div class="competitor-container">
+                <div class="competitor-grid">
+                  <!-- Column 1: Competitor 1 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 1
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor1" 
+                        placeholder="e.g., example.com"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor1Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Competitor 2 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 2
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor2" 
+                        placeholder="e.g., competitor.org"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor2Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Competitor 3 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 3
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor3" 
+                        placeholder="e.g., rival.co.uk"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor3Validation"></div>
+                    </div>
+                  </div>
                 </div>
                 
-                <div class="competitor-field-group">
-                  <label for="competitor2">Competitor 2:</label>
-                  <input 
-                    type="text" 
-                    id="competitor2" 
-                    placeholder="e.g., www.another-competitor.org" 
-                    class="competitor-input"
-                  />
-                  <div class="competitor-validation" id="competitor2Validation"></div>
-                </div>
-                
-                <div class="competitor-field-group">
-                  <label for="competitor3">Competitor 3:</label>
-                  <input 
-                    type="text" 
-                    id="competitor3" 
-                    placeholder="e.g., shop.thirdcompetitor.co.uk" 
-                    class="competitor-input"
-                  />
-                  <div class="competitor-validation" id="competitor3Validation"></div>
+                <!-- Clear All Competitors Button -->
+                <div class="competitor-actions">
+                  <button type="button" class="clear-competitors-btn" id="clearCompetitors">
+                    <i class="fas fa-eraser"></i>
+                    Clear All Competitors
+                  </button>
                 </div>
               </div>
             </div>
@@ -515,40 +544,64 @@
             </div>
             
             <div class="collapsible-content" id="exclusionContent">
-              <p class="collapsible-description">Exclude brand terms or irrelevant keywords from AI Overview analysis</p>
-              
               <div class="exclusion-container">
-                <div class="exclusion-method-selector">
-                  <label for="exclusionMethod">Exclusion Method:</label>
-                  <select id="exclusionMethod" class="exclusion-method-select">
-                    <option value="contains">Contains (keyword contains text)</option>
-                    <option value="equals">Equals (exact match)</option>
-                    <option value="startsWith">Starts with</option>
-                    <option value="endsWith">Ends with</option>
-                  </select>
-                </div>
-                
-                <div class="exclusion-input-group">
-                  <div class="exclusion-field-container">
-                    <label for="exclusionTerms">Terms to exclude:</label>
-                    <textarea 
-                      id="exclusionTerms" 
-                      placeholder="Enter terms separated by commas or new lines&#10;e.g., brand name, company, logo, official"
-                      class="exclusion-textarea"
-                      rows="3"
-                    ></textarea>
-                    <div class="exclusion-help">
-                      <i class="fas fa-info-circle"></i>
-                      <span>Separate multiple terms with commas or new lines. Case insensitive.</span>
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-filter"></i>
+                      Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="exclusionMethod" class="exclusion-method-select">
+                        <option value="contains">Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="startsWith">Starts With</option>
+                        <option value="endsWith">Ends With</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="methodDescription">Keywords containing these terms</span>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div class="exclusion-preview">
-                    <div class="exclusion-preview-title">
-                      <i class="fas fa-eye"></i> Preview
+
+                  <!-- Column 2: Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Terms
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="exclusionTerms" 
+                        placeholder="Type term, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Use comma (,) or Enter to add</span>
+                      </div>
                     </div>
-                    <div id="exclusionPreview" class="exclusion-preview-content">
-                      <em>Enter terms to see preview</em>
+                  </div>
+
+                  <!-- Column 3: Active Tags -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-tags"></i>
+                      Active Exclusions
+                      <span class="exclusion-count" id="exclusionCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="exclusion-tags-container" id="exclusionTagsContainer">
+                        <!-- Tags will be dynamically added here -->
+                      </div>
+                      <div class="exclusion-clear-all" id="clearAllTags" style="display: none;">
+                        <button type="button" class="clear-all-btn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

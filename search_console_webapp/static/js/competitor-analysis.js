@@ -541,11 +541,56 @@ window.CompetitorAnalysis = {
     displayCompetitorResults
 };
 
+/**
+ * Configurar botón "Clear All Competitors"
+ */
+function setupClearCompetitorsButton() {
+    const clearBtn = document.getElementById('clearCompetitors');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            clearAllCompetitors();
+        });
+    }
+}
+
+/**
+ * Limpiar todos los campos de competidores
+ */
+function clearAllCompetitors() {
+    const competitorInputs = ['competitor1', 'competitor2', 'competitor3'];
+    let cleared = false;
+    
+    competitorInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        const validation = document.getElementById(inputId + 'Validation');
+        
+        if (input && input.value.trim()) {
+            input.value = '';
+            cleared = true;
+        }
+        
+        if (validation) {
+            validation.textContent = '';
+            validation.className = 'competitor-validation';
+        }
+    });
+    
+    if (cleared) {
+        console.log('🗑️ Todos los competidores eliminados');
+        
+        // Actualizar resumen del sistema colapsable
+        if (window.updateCollapsibleSummary) {
+            window.updateCollapsibleSummary('competitor');
+        }
+    }
+}
+
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Small delay to ensure all elements are rendered
     setTimeout(() => {
         initializeCompetitorValidation();
+        setupClearCompetitorsButton();
     }, 100);
 });
 
