@@ -678,6 +678,7 @@ class SidebarNavigation {
           if (window.currentAIOverviewData) {
               console.log('✅ window.currentAIOverviewData existe');
               console.log('📊 Estructura completa:', window.currentAIOverviewData);
+              console.log('📊 Datos que se enviarían al Excel:', aiOverviewDataToDownload);
               
               const results = window.currentAIOverviewData.analysis?.results || 
                              window.currentAIOverviewData.results || 
@@ -704,7 +705,28 @@ class SidebarNavigation {
           }
           console.log('=== 🔍 FIN DEBUG ===');
       };
-      console.log('🔧 Función window.debugCompetitorsData() creada. Ejecútala después del análisis AI.');
+      
+      // 🔧 DEBUG: Crear función adicional para debuggear payload del Excel
+      window.debugExcelPayload = function() {
+          console.log('=== 📊 DEBUGGING EXCEL PAYLOAD ===');
+          const payload = {
+              data: window.currentData,
+              ai_overview_data: aiOverviewDataToDownload,
+              metadata: {
+                  site_url: siteUrlSelect ? siteUrlSelect.value : '',
+                  months: [...document.querySelectorAll('.chip.selected')].map(c => c.dataset.value),
+                  generated_at: new Date().toISOString()
+              }
+          };
+          console.log('📤 Payload completo que se envía al servidor:', payload);
+          console.log('🎯 ai_overview_data específico:', payload.ai_overview_data);
+          if (payload.ai_overview_data && payload.ai_overview_data.summary) {
+              console.log('🏆 competitor_analysis en summary:', payload.ai_overview_data.summary.competitor_analysis);
+          }
+          console.log('=== 📊 FIN DEBUG PAYLOAD ===');
+      };
+      
+      console.log('🔧 Funciones window.debugCompetitorsData() y window.debugExcelPayload() creadas. Ejecútalas después del análisis AI.');
 
       // Obtener elementos DOM necesarios para metadatos
       const siteUrlSelect = document.getElementById('siteUrlSelect');

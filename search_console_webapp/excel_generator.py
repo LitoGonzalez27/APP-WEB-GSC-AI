@@ -708,18 +708,49 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
     - Posición media
     - Tabla detallada de competidores
     """
-    if not ai_overview_data or not ai_overview_data.get('results'):
+    logger.info("[COMPETITORS DEBUG] 🚀 Iniciando creación de hoja 'AIO Competitors Analysis'")
+    
+    if not ai_overview_data:
+        logger.warning("[COMPETITORS DEBUG] No hay datos de AI Overview")
         return
     
     try:
-        keyword_results = ai_overview_data.get('results', [])
+        # 🚀 MEJORADO: Manejar diferentes estructuras de datos
+        keyword_results = []
+        
+        # Intentar diferentes estructuras posibles
+        if ai_overview_data.get('results'):
+            keyword_results = ai_overview_data.get('results', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.results: {len(keyword_results)}")
+        elif ai_overview_data.get('analysis', {}).get('results'):
+            keyword_results = ai_overview_data.get('analysis', {}).get('results', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.analysis.results: {len(keyword_results)}")
+        elif ai_overview_data.get('keywordResults'):
+            keyword_results = ai_overview_data.get('keywordResults', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.keywordResults: {len(keyword_results)}")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontraron results en ninguna estructura. Keys disponibles: {list(ai_overview_data.keys())}")
+            return
+        
+        if not keyword_results:
+            logger.warning("[COMPETITORS DEBUG] keyword_results está vacío después de búsqueda")
+            return
         
         # 🔍 DEBUG: Log para investigar estructura de datos
         logger.info(f"[COMPETITORS DEBUG] Total keywords analizadas: {len(keyword_results)}")
         logger.info(f"[COMPETITORS DEBUG] Estructura ai_overview_data keys: {list(ai_overview_data.keys())}")
         
         # 🚀 MEJORA: Verificar si tenemos competitor_analysis ya procesado en summary
-        summary = ai_overview_data.get('summary', {})
+        summary = {}
+        if ai_overview_data.get('summary'):
+            summary = ai_overview_data.get('summary', {})
+            logger.info(f"[COMPETITORS DEBUG] Summary encontrado en structure.summary")
+        elif ai_overview_data.get('analysis', {}).get('summary'):
+            summary = ai_overview_data.get('analysis', {}).get('summary', {})
+            logger.info(f"[COMPETITORS DEBUG] Summary encontrado en structure.analysis.summary")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontró summary en ninguna estructura")
+        
         competitor_analysis_processed = summary.get('competitor_analysis', [])
         
         logger.info(f"[COMPETITORS DEBUG] Summary keys: {list(summary.keys())}")
@@ -733,6 +764,7 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         # 🚀 MEJORADO: Usar datos procesados de competitor_analysis si están disponibles
         if competitor_analysis_processed:
             logger.info("[COMPETITORS DEBUG] Usando datos ya procesados de competitor_analysis")
+            logger.info(f"[COMPETITORS DEBUG] Datos procesados: {competitor_analysis_processed}")
             
             # Convertir formato del backend al formato esperado por el Excel
             competitors_data = {}
@@ -744,6 +776,7 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                         'avg_position': comp_data.get('average_position', 0) or 0,
                         'visibility_percentage': comp_data.get('visibility_percentage', 0)
                     }
+                    logger.info(f"[COMPETITORS DEBUG] Añadido competidor: {domain} - {comp_data}")
             
             # Ordenar competidores por número de apariciones (más relevantes primero)
             sorted_competitors = sorted(competitors_data.items(), 
@@ -751,6 +784,11 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                                       reverse=True)
             
             logger.info(f"[COMPETITORS DEBUG] Procesados {len(sorted_competitors)} competidores desde summary")
+            
+            # ✅ FORZAR CREACIÓN: Crear la hoja incluso si no hay competidores
+            if not sorted_competitors:
+                logger.warning("[COMPETITORS DEBUG] No hay competidores procesados, pero continuando con creación de hoja")
+                sorted_competitors = []
             
         else:
             # Fallback: Procesamiento manual (código original)
@@ -980,9 +1018,11 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         for col_num in range(min(num_columns, len(df_competitors.columns))):
             col_letter = chr(ord('A') + col_num)
             worksheet.write(f'{col_letter}1', df_competitors.columns[col_num], header_format)
+        
+        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con {len(all_competitors_data)} filas")
                 
     except Exception as e:
-        logger.error(f"Error creando hoja de análisis de competidores: {e}")
+        logger.error(f"[COMPETITORS DEBUG] ❌ Error creando hoja de análisis de competidores: {e}", exc_info=True)
 
 
 # ❌ FUNCIÓN ELIMINADA: create_aio_organic_correlation_sheet (AIO Impact Analysis - no se requiere)
