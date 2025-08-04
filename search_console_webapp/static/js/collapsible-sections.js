@@ -257,14 +257,19 @@ window.collapseAllSections = collapseAllSections;
 document.addEventListener('DOMContentLoaded', initCollapsibleSections);
 
 /**
- * Prevenir que el click en el icono de información active el toggle
+ * Prevenir que el click en los iconos de información active otros comportamientos
  */
 document.addEventListener('DOMContentLoaded', function() {
-    const competitorInfoIcon = document.querySelector('.competitor-info-icon');
-    if (competitorInfoIcon) {
-        competitorInfoIcon.addEventListener('click', function(event) {
+    const infoIcons = document.querySelectorAll('.analysis-info-icon');
+    infoIcons.forEach(icon => {
+        icon.addEventListener('click', function(event) {
             event.stopPropagation();
             event.preventDefault();
         });
-    }
+        
+        // Mejora para móviles - también funciona con touch
+        icon.addEventListener('touchstart', function(event) {
+            event.stopPropagation();
+        });
+    });
 });

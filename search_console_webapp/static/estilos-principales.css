@@ -955,89 +955,79 @@ body.dark-mode .legend-label {
 }
 
 /* ========================================
-   COMPETITOR INFO ICON & TOOLTIP
+   ANALYSIS INFO ICONS (same pattern as existing icons)
    ======================================== */
 
-.competitor-info-icon {
-  color: #6366F1 !important;
-  background: rgba(99, 102, 241, 0.1) !important;
-  font-size: 0.7rem !important;
-  padding: 6px !important;
-  border-radius: 50% !important;
-  cursor: help !important;
-  transition: all 0.2s ease !important;
+.analysis-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  margin-left: 0.25rem;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: all var(--transition-base);
+  width: 18px;
+  height: 18px;
+  opacity: 0.7;
 }
 
-.competitor-info-icon:hover {
-  background: rgba(99, 102, 241, 0.2) !important;
-  color: #4F46E5 !important;
+.analysis-info-icon:hover {
+  color: #161616;
+  opacity: 1;
+}
+
+.analysis-info-icon i {
+  font-size: 14px;
+  transition: transform var(--transition-base);
+}
+
+.analysis-info-icon:hover i {
   transform: scale(1.1);
 }
 
-/* Tooltip Styles - Modal estilo para que no se corte */
-.competitor-info-icon::after {
+/* Tooltip usando el mismo sistema que feedback button */
+.analysis-info-icon::before {
   content: attr(data-tooltip);
-  position: fixed;
-  top: 20%;
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(26, 26, 26, 0.95);
-  color: white;
-  padding: 20px 24px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  line-height: 1.6;
-  width: 380px;
-  max-width: 90vw;
-  text-align: left;
+  background: #161616;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
-  z-index: 9999;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(99, 102, 241, 0.4);
-  backdrop-filter: blur(15px);
-  pointer-events: none;
+  z-index: 1000;
+  width: 280px;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #161616;
+  margin-bottom: 8px;
 }
 
-.competitor-info-icon::before {
-  content: '';
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* Overlay de fondo para el tooltip modal */
-.competitor-info-icon:hover::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  opacity: 1;
-  visibility: visible;
-  z-index: 9998;
-  backdrop-filter: blur(2px);
-}
-
-.competitor-info-icon:hover::after {
+.analysis-info-icon:hover::before {
   opacity: 1;
   visibility: visible;
 }
 
 /* Dark mode support */
-body.dark-mode .competitor-info-icon::after {
-  background: rgba(255, 255, 255, 0.95);
-  color: #1A1A1A;
-  border-color: rgba(99, 102, 241, 0.4);
+body.dark-mode .analysis-info-icon {
+  color: var(--text-color);
 }
 
-body.dark-mode .competitor-info-icon:hover::before {
-  background: rgba(0, 0, 0, 0.5);
+body.dark-mode .analysis-info-icon:hover {
+  color: var(--cta-bg);
+}
+
+body.dark-mode .analysis-info-icon::before {
+  background: #2a2a2a;
+  color: #F3F2F1;
+  border-color: #F3F2F1;
 }
 
 .collapsible-summary {
