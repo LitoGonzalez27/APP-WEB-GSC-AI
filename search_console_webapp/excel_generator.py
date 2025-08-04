@@ -892,7 +892,6 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         
         # 1) RESUMEN DE COMPETIDORES (Dominio, apariciones, posición promedio, presencia %)
         competitors_summary = [
-            ['RESUMEN COMPETIDORES', '', '', ''],
             ['Dominio', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
         ]
         
@@ -927,7 +926,6 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         
         # Crear la tabla
         aio_table_section = [
-            ['DETAILS OF KEYWORDS WITH AIO', ''] + [''] * (len(aio_table_headers) - 2),
             aio_table_headers
         ]
         
@@ -957,7 +955,6 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                 link = ref.get('link', '')
                 if link:
                     try:
-                        from urllib.parse import urlparse
                         parsed = urlparse(link)
                         domain = parsed.netloc.replace('www.', '')
                         position = ref.get('index', 0) + 1  # +1 porque index empieza en 0
@@ -976,15 +973,20 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
             
             aio_table_section.append(row_data)
         
-        # Combinar secciones
-        all_competitors_data = competitors_summary + aio_table_section
+        # Crear la hoja con secciones separadas
+        sheet_name = 'AIO Competitors Analysis'
         
-        # Crear DataFrame y exportar
-        df_competitors = pd.DataFrame(all_competitors_data[1:], columns=all_competitors_data[0])
-        df_competitors.to_excel(writer, sheet_name='AIO Competitors Analysis', index=False)
+        # Escribir resumen
+        df_summary = pd.DataFrame(competitors_summary[1:], columns=competitors_summary[0])
+        df_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
+        
+        # Escribir tabla detallada
+        startrow_table = len(df_summary) + 4  # data rows + header + 3 para espacio y título
+        df_table = pd.DataFrame(aio_table_section[1:], columns=aio_table_section[0])
+        df_table.to_excel(writer, sheet_name=sheet_name, index=False, startrow=startrow_table)
         
         # Formatear hoja - dinámico según número de columnas
-        worksheet = writer.sheets['AIO Competitors Analysis']
+        worksheet = writer.sheets[sheet_name]
         
         # Calcular número de columnas total
         num_columns = len(aio_table_headers)
@@ -1005,21 +1007,24 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         workbook = writer.book
         section_format = workbook.add_format({'bold': True, 'bg_color': '#E6F3FF', 'border': 1})
         
-        # Encontrar filas de sección para formatear
-        section_rows = []
-        for i, row in enumerate(all_competitors_data[1:], start=1):
-            if row[0] in ['RESUMEN COMPETIDORES', 'DETAILS OF KEYWORDS WITH AIO']:
-                section_rows.append(i)
+        # Escribir títulos de secciones
+        worksheet.write('A1', 'RESUMEN COMPETIDORES', section_format)
+        worksheet.write(f'A{startrow_table}', 'DETAILS OF KEYWORDS WITH AIO', section_format)
         
-        for row_num in section_rows:
-            worksheet.set_row(row_num, None, section_format)
-        
-        # Aplicar header format para todas las columnas necesarias
-        for col_num in range(min(num_columns, len(df_competitors.columns))):
+        # Aplicar header format para headers de summary (row 1, pero startrow=1 escribe header en row 1 (0-based row 1))
+        # Ajustar según indexing 0-based
+        summary_header_row = 1  # 0-based
+        for col_num in range(4):
             col_letter = chr(ord('A') + col_num)
-            worksheet.write(f'{col_letter}1', df_competitors.columns[col_num], header_format)
+            worksheet.write(summary_header_row, col_num, df_summary.columns[col_num], header_format)
         
-        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con {len(all_competitors_data)} filas")
+        # Para table header
+        table_header_row = startrow_table  # 0-based
+        for col_num in range(min(num_columns, len(df_table.columns))):
+            col_letter = chr(ord('A') + col_num)
+            worksheet.write(table_header_row, col_num, df_table.columns[col_num], header_format)
+        
+        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con resumen y tabla detallada")
                 
     except Exception as e:
         logger.error(f"[COMPETITORS DEBUG] ❌ Error creando hoja de análisis de competidores: {e}", exc_info=True)
