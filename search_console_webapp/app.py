@@ -1346,6 +1346,97 @@ def calculate_average_ai_position(results_list):
     average = sum(valid_positions) / len(valid_positions)
     return round(average, 1)
 
+def detect_top_competitor_domains(results_list, site_url, min_competitors=4):
+    """
+    Detecta automáticamente los dominios que más aparecen en AI Overview.
+    Esta función se usa cuando el usuario no ha proporcionado competidores manualmente.
+    
+    IMPORTANTE: Esta función ya recibe results_list filtrado por exclusiones de keywords,
+    por lo que automáticamente respeta las keywords excluidas por el usuario.
+    
+    Args:
+        results_list: Lista de resultados de análisis de keywords (ya filtrada por exclusiones)
+        site_url: URL del sitio principal (para excluirlo de competidores)
+        min_competitors: Número mínimo de competidores a devolver
+    
+    Returns:
+        List: Lista de dominios competidores ordenados por frecuencia de aparición
+    """
+    if not results_list:
+        logger.info("[AUTO-COMPETITOR] No hay resultados para analizar")
+        return []
+    
+    logger.info(f"[AUTO-COMPETITOR] 🔍 Iniciando detección automática de competidores (mínimo {min_competitors})")
+    
+    # Normalizar el dominio principal para excluirlo
+    from services.utils import normalize_search_console_url
+    main_domain = normalize_search_console_url(site_url)
+    
+    # Recopilar todos los dominios y sus métricas
+    competitors_data = {}
+    
+    for result in results_list:
+        keyword = result.get('keyword', '')
+        ai_analysis = result.get('ai_analysis', {})
+        
+        if ai_analysis.get('has_ai_overview'):
+            # Extraer referencias de AI Overview usando la misma lógica del Excel
+            debug_info = ai_analysis.get('debug_info', {})
+            references_found = debug_info.get('references_found', [])
+            
+            for ref in references_found:
+                link = ref.get('link', '')
+                if link:
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(link)
+                        domain = parsed.netloc.replace('www.', '').lower()
+                        
+                        # Excluir dominio principal y dominios vacíos
+                        if domain and domain != main_domain:
+                            if domain not in competitors_data:
+                                competitors_data[domain] = {
+                                    'total_appearances': 0,
+                                    'total_position_sum': 0,
+                                    'positions': [],
+                                    'keywords': []
+                                }
+                            
+                            competitors_data[domain]['total_appearances'] += 1
+                            position = ref.get('index', 0) + 1  # +1 porque index empieza en 0
+                            
+                            if position > 0:
+                                competitors_data[domain]['total_position_sum'] += position
+                                competitors_data[domain]['positions'].append(position)
+                            
+                            competitors_data[domain]['keywords'].append(keyword)
+                            
+                    except Exception as e:
+                        logger.warning(f"[AUTO-COMPETITOR] Error parsing URL {link}: {e}")
+                        continue
+    
+    # Ordenar competidores por número de apariciones (más relevantes primero)
+    sorted_competitors = sorted(competitors_data.items(), 
+                              key=lambda x: x[1]['total_appearances'], 
+                              reverse=True)
+    
+    # Obtener los dominios más frecuentes
+    top_competitors = [domain for domain, data in sorted_competitors[:min_competitors * 2]]  # x2 para tener margen
+    
+    # Filtrar para obtener exactamente min_competitors o más si están disponibles
+    selected_competitors = top_competitors[:max(min_competitors, len(top_competitors))]
+    
+    logger.info(f"[AUTO-COMPETITOR] ✅ Detectados {len(competitors_data)} dominios únicos")
+    logger.info(f"[AUTO-COMPETITOR] 🎯 Seleccionados top {len(selected_competitors)} como competidores:")
+    
+    for i, domain in enumerate(selected_competitors, 1):
+        if domain in competitors_data:
+            appearances = competitors_data[domain]['total_appearances']
+            avg_pos = competitors_data[domain]['total_position_sum'] / len(competitors_data[domain]['positions']) if competitors_data[domain]['positions'] else 0
+            logger.info(f"[AUTO-COMPETITOR]   {i}. {domain} - {appearances} apariciones, pos. promedio: {avg_pos:.1f}")
+    
+    return selected_competitors
+
 def analyze_competitor_domains(results_list, competitor_domains):
     """
     Analiza las métricas de competidores en AI Overview
@@ -1698,15 +1789,38 @@ def analyze_ai_overview_route():
         if main_domain:
             domains_to_analyze.append(main_domain)
         
-        # Añadir competidores si se proporcionaron
+        # 🚀 NUEVA FUNCIONALIDAD: Detección automática de competidores
         if competitor_domains:
+            # Caso 1: Competidores proporcionados manualmente
             domains_to_analyze.extend(competitor_domains)
+            logger.info(f"[COMPETITOR] 👤 Usando competidores manuales: {competitor_domains}")
+        else:
+            # Caso 2: Detección automática de competidores
+            logger.info("[AUTO-COMPETITOR] 🤖 No se proporcionaron competidores manuales. Iniciando detección automática...")
+            auto_competitors = detect_top_competitor_domains(results_list_overview, site_url_req, min_competitors=4)
+            
+            if auto_competitors:
+                domains_to_analyze.extend(auto_competitors)
+                logger.info(f"[AUTO-COMPETITOR] ✅ Detectados automáticamente {len(auto_competitors)} competidores: {auto_competitors}")
+                
+                # Actualizar competitor_domains para el resumen final
+                competitor_domains = auto_competitors
+            else:
+                logger.warning("[AUTO-COMPETITOR] ⚠️ No se pudieron detectar competidores automáticamente")
         
         if domains_to_analyze:
-            logger.info(f"[COMPETITOR] Analizando {len(domains_to_analyze)} dominios (principal + competidores): {domains_to_analyze}")
+            total_domains = len(domains_to_analyze)
+            manual_count = len(competitor_domains) if competitor_domains else 0
+            logger.info(f"[COMPETITOR] 📊 Analizando {total_domains} dominios total (1 principal + {manual_count} competidores)")
+            logger.info(f"[COMPETITOR] 🔍 Dominios a analizar: {domains_to_analyze}")
+            
             competitor_analysis = analyze_competitor_domains(results_list_overview, domains_to_analyze)
-            logger.info(f"[COMPETITOR] Análisis completado para {len(competitor_analysis)} dominios")
+            logger.info(f"[COMPETITOR] ✅ Análisis completado para {len(competitor_analysis)} dominios")
 
+        # 🚀 NUEVA INFO: Determinar si los competidores fueron detectados automáticamente
+        original_competitor_domains = request_payload.get('competitor_domains', [])
+        competitors_auto_detected = len(original_competitor_domains) == 0 and len(competitor_domains) > 0
+        
         summary_overview_stats = {
             'total_keywords_analyzed': total_analyzed_overview,
             'successful_analyses': successful_analyses_overview,
@@ -1722,7 +1836,9 @@ def analyze_ai_overview_route():
             'country_analyzed': country_req, # NUEVO: País analizado
             'requested_keyword_count': requested_count,  # 🆕 NUEVO: registrar cantidad solicitada
             'average_ai_position': calculate_average_ai_position(results_list_overview),  # 🆕 NUEVO: Posición promedio en AIO
-            'competitor_analysis': competitor_analysis  # 🆕 NUEVO: Análisis de competidores
+            'competitor_analysis': competitor_analysis,  # 🆕 NUEVO: Análisis de competidores
+            'competitors_auto_detected': competitors_auto_detected,  # 🚀 NUEVA FUNCIONALIDAD: Indica si fueron auto-detectados
+            'competitor_domains_analyzed': competitor_domains if competitor_domains else []  # 🚀 NUEVA FUNCIONALIDAD: Lista de dominios competidores
         }
 
         # ✅ NUEVO: Guardar análisis en la base de datos

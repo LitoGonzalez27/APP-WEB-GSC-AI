@@ -255,3 +255,16 @@ window.collapseAllSections = collapseAllSections;
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', initCollapsibleSections);
+
+/**
+ * Prevenir que el click en el icono de información active el toggle
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const competitorInfoIcon = document.querySelector('.competitor-info-icon');
+    if (competitorInfoIcon) {
+        competitorInfoIcon.addEventListener('click', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+        });
+    }
+});

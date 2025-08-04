@@ -954,6 +954,83 @@ body.dark-mode .legend-label {
   letter-spacing: 0.5px;
 }
 
+/* ========================================
+   COMPETITOR INFO ICON & TOOLTIP
+   ======================================== */
+
+.competitor-info-icon {
+  color: #6366F1 !important;
+  background: rgba(99, 102, 241, 0.1) !important;
+  font-size: 0.7rem !important;
+  padding: 6px !important;
+  border-radius: 50% !important;
+  cursor: help !important;
+  transition: all 0.2s ease !important;
+  position: relative;
+  margin-left: 0.25rem;
+}
+
+.competitor-info-icon:hover {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #4F46E5 !important;
+  transform: scale(1.1);
+}
+
+/* Tooltip Styles */
+.competitor-info-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 26, 0.95);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+  width: 320px;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.competitor-info-icon::before {
+  content: '';
+  position: absolute;
+  bottom: 112%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(26, 26, 26, 0.95);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.competitor-info-icon:hover::after,
+.competitor-info-icon:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Dark mode support */
+body.dark-mode .competitor-info-icon::after {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1A1A1A;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+body.dark-mode .competitor-info-icon::before {
+  border-top-color: rgba(255, 255, 255, 0.95);
+}
+
 .collapsible-summary {
   flex: 1;
   margin: 0 1rem;
