@@ -236,9 +236,22 @@ class AIResetManager {
       this.aiContentWrapper.classList.add('blurred');
     }
 
-    // Mostrar overlay de nuevo
-    if (this.aiOverlay) {
-      this.aiOverlay.style.display = 'flex';
+    // ✅ MEJORADO: Usar la función resetAIOverlay existente que restaura completamente el overlay
+    if (window.resetAIOverlay) {
+      window.resetAIOverlay();
+      console.log('🔄 AI Overlay restaurado con función nativa');
+      
+      // Después del reset, reactivar el overlay con datos existentes si están disponibles
+      setTimeout(() => {
+        this.reactivateOverlayData();
+      }, 100); // Pequeño delay para asegurar que el DOM esté actualizado
+      
+    } else {
+      // Fallback manual si la función no está disponible
+      if (this.aiOverlay) {
+        this.aiOverlay.style.display = 'flex';
+      }
+      console.warn('⚠️ resetAIOverlay function not available, using fallback');
     }
 
     // Limpiar datos globales
@@ -294,6 +307,39 @@ class AIResetManager {
       this.showResetButton();
     } else {
       this.hideResetButton();
+    }
+  }
+
+  // ✅ NUEVO: Reactivar overlay con datos existentes
+  reactivateOverlayData() {
+    try {
+      // Obtener datos globales de keywords si están disponibles
+      let keywordData = null;
+      let siteUrl = null;
+
+      // Intentar obtener datos desde window.currentData (datos del análisis principal)
+      if (window.currentData && window.currentData.keyword_comparison_data) {
+        keywordData = window.currentData.keyword_comparison_data;
+        console.log('📊 Datos de keywords obtenidos desde currentData:', keywordData?.length);
+      }
+
+      // Obtener siteUrl desde el selector
+      const siteUrlSelect = document.getElementById('siteUrlSelect');
+      if (siteUrlSelect && siteUrlSelect.value) {
+        siteUrl = siteUrlSelect.value;
+        console.log('🌐 SiteUrl obtenido desde selector:', siteUrl);
+      }
+
+      // Si tenemos datos válidos, reactivar el overlay
+      if (keywordData && keywordData.length > 0 && siteUrl && window.updateAIOverlayData) {
+        window.updateAIOverlayData(keywordData, siteUrl);
+        console.log('✅ Overlay reactivado con datos existentes');
+      } else {
+        console.log('ℹ️ No hay datos válidos para reactivar el overlay');
+      }
+
+    } catch (error) {
+      console.error('❌ Error reactivando overlay data:', error);
     }
   }
 }
