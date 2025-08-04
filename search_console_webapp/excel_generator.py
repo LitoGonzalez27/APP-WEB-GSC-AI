@@ -303,7 +303,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
             info_data.extend([
                 ['', ''], # Separador
                 ['ANÁLISIS AI OVERVIEW', ''],
-                ['Total Keywords Analizadas en AIO', total_keywords_aio],
+                ['Keywords con AIO', total_keywords_aio],
                 ['Total Keywords en el análisis', len(keyword_results_aio)],
                 ['Porcentaje con AI Overview', f"{(total_keywords_aio / len(keyword_results_aio) * 100):.1f}%" if len(keyword_results_aio) > 0 else "0.0%"]
             ])
@@ -714,18 +714,55 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
     try:
         keyword_results = ai_overview_data.get('results', [])
         
-        # 🔍 DEBUG: Log para investigar por qué no se exportan competidores
+        # 🔍 DEBUG: Log para investigar estructura de datos
         logger.info(f"[COMPETITORS DEBUG] Total keywords analizadas: {len(keyword_results)}")
+        logger.info(f"[COMPETITORS DEBUG] Estructura ai_overview_data keys: {list(ai_overview_data.keys())}")
         
-        # Recopilar todos los competidores únicos y sus métricas
-        competitors_data = {}
+        # 🚀 MEJORA: Verificar si tenemos competitor_analysis ya procesado en summary
+        summary = ai_overview_data.get('summary', {})
+        competitor_analysis_processed = summary.get('competitor_analysis', [])
         
-        for result in keyword_results:
-            keyword = result.get('keyword', '')
-            ai_analysis = result.get('ai_analysis', {})
+        logger.info(f"[COMPETITORS DEBUG] Summary keys: {list(summary.keys())}")
+        logger.info(f"[COMPETITORS DEBUG] Competitor analysis procesado: {len(competitor_analysis_processed)} dominios")
+        
+        if competitor_analysis_processed:
+            logger.info(f"[COMPETITORS DEBUG] Datos procesados encontrados: {competitor_analysis_processed}")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontró competitor_analysis en summary")
+        
+        # 🚀 MEJORADO: Usar datos procesados de competitor_analysis si están disponibles
+        if competitor_analysis_processed:
+            logger.info("[COMPETITORS DEBUG] Usando datos ya procesados de competitor_analysis")
             
-            if ai_analysis.get('has_ai_overview'):
-                # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
+            # Convertir formato del backend al formato esperado por el Excel
+            competitors_data = {}
+            for comp_data in competitor_analysis_processed:
+                domain = comp_data.get('domain', '')
+                if domain:
+                    competitors_data[domain] = {
+                        'total_appearances': comp_data.get('mentions', 0),
+                        'avg_position': comp_data.get('average_position', 0) or 0,
+                        'visibility_percentage': comp_data.get('visibility_percentage', 0)
+                    }
+            
+            # Ordenar competidores por número de apariciones (más relevantes primero)
+            sorted_competitors = sorted(competitors_data.items(), 
+                                      key=lambda x: x[1]['total_appearances'], 
+                                      reverse=True)
+            
+            logger.info(f"[COMPETITORS DEBUG] Procesados {len(sorted_competitors)} competidores desde summary")
+            
+        else:
+            # Fallback: Procesamiento manual (código original)
+            logger.info("[COMPETITORS DEBUG] No hay datos procesados, usando procesamiento manual")
+            competitors_data = {}
+            
+            for result in keyword_results:
+                keyword = result.get('keyword', '')
+                ai_analysis = result.get('ai_analysis', {})
+                
+                if ai_analysis.get('has_ai_overview'):
+                    # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
                 logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - AI Analysis keys: {list(ai_analysis.keys())}")
                 
                 # 🎯 ESTRUCTURA REAL: Las fuentes están en debug_info.references_found
@@ -793,22 +830,24 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
                             'position': position or 'N/A'
                         })
         
-        # Calcular métricas finales para cada competidor
-        for domain, data in competitors_data.items():
-            if data['positions']:
-                data['avg_position'] = data['total_position_sum'] / len(data['positions'])
-            else:
-                data['avg_position'] = 0
-        
-        # 🔍 DEBUG: Log final de competidores encontrados
-        logger.info(f"[COMPETITORS DEBUG] Competidores únicos encontrados: {len(competitors_data)}")
-        for domain, data in competitors_data.items():
-            logger.info(f"[COMPETITORS DEBUG] - {domain}: {data['total_appearances']} apariciones")
-        
-        # Ordenar competidores por número de apariciones (más relevantes primero)
-        sorted_competitors = sorted(competitors_data.items(), 
-                                  key=lambda x: x[1]['total_appearances'], 
-                                  reverse=True)
+            # Calcular métricas finales para cada competidor
+            for domain, data in competitors_data.items():
+                if data['positions']:
+                    data['avg_position'] = data['total_position_sum'] / len(data['positions'])
+                else:
+                    data['avg_position'] = 0
+            
+            # 🔍 DEBUG: Log final de competidores encontrados
+            logger.info(f"[COMPETITORS DEBUG] Competidores únicos encontrados: {len(competitors_data)}")
+            for domain, data in competitors_data.items():
+                logger.info(f"[COMPETITORS DEBUG] - {domain}: {data['total_appearances']} apariciones")
+            
+            # Ordenar competidores por número de apariciones (más relevantes primero)
+            sorted_competitors = sorted(competitors_data.items(), 
+                                      key=lambda x: x[1]['total_appearances'], 
+                                      reverse=True)
+            
+            logger.info(f"[COMPETITORS DEBUG] Procesamiento manual completado: {len(sorted_competitors)} competidores")
         
         # ===== ESTRUCTURA DE LA HOJA DE COMPETIDORES =====
         # 🚀 NUEVO: Solo información solicitada por el usuario
