@@ -644,9 +644,67 @@ class SidebarNavigation {
               tieneSummary: !!aiOverviewDataToDownload?.summary,
               summaryKeys: aiOverviewDataToDownload?.summary ? Object.keys(aiOverviewDataToDownload.summary) : []
           });
+          
+          // 🔍 DEBUG COMPETIDORES: Log detallado de estructura de datos
+          if (aiOverviewDataToDownload?.results?.length > 0) {
+              console.log('🔍 DEBUG COMPETIDORES: Estructura de resultados para Excel');
+              const firstResult = aiOverviewDataToDownload.results[0];
+              console.log('🔍 DEBUG COMPETIDORES: Primer resultado:', firstResult);
+              console.log('🔍 DEBUG COMPETIDORES: Claves disponibles:', Object.keys(firstResult));
+              
+              if (firstResult.ai_analysis) {
+                  console.log('🔍 DEBUG COMPETIDORES: ai_analysis keys:', Object.keys(firstResult.ai_analysis));
+                  console.log('🔍 DEBUG COMPETIDORES: ai_overview_sources:', firstResult.ai_analysis.ai_overview_sources);
+              }
+              
+              // Buscar resultados con AI Overview para investigar estructura
+              const withAIO = aiOverviewDataToDownload.results.filter(r => r.ai_analysis?.has_ai_overview);
+              console.log(`🔍 DEBUG COMPETIDORES: ${withAIO.length} keywords con AI Overview`);
+              
+              if (withAIO.length > 0) {
+                  console.log('🔍 DEBUG COMPETIDORES: Ejemplo keyword con AIO:', withAIO[0]);
+                  if (withAIO[0].ai_analysis?.ai_overview_sources) {
+                      console.log('🔍 DEBUG COMPETIDORES: Fuentes AIO ejemplo:', withAIO[0].ai_analysis.ai_overview_sources);
+                  }
+              }
+          }
       } else {
           console.log('ℹ️ No hay datos de AI Overview para incluir en el Excel');
       }
+      
+      // 🔧 DEBUG: Crear función global para debugging manual
+      window.debugCompetitorsData = function() {
+          console.log('=== 🔍 DEBUGGING COMPETITORS DATA ===');
+          if (window.currentAIOverviewData) {
+              console.log('✅ window.currentAIOverviewData existe');
+              console.log('📊 Estructura completa:', window.currentAIOverviewData);
+              
+              const results = window.currentAIOverviewData.analysis?.results || 
+                             window.currentAIOverviewData.results || 
+                             window.currentAIOverviewData.keywordResults || [];
+                             
+              console.log(`📋 Total resultados: ${results.length}`);
+              
+              const withAIO = results.filter(r => r.ai_analysis?.has_ai_overview);
+              console.log(`🤖 Keywords con AI Overview: ${withAIO.length}`);
+              
+              if (withAIO.length > 0) {
+                  console.log('🎯 Primer keyword con AIO:', withAIO[0]);
+                  
+                  withAIO.forEach((result, index) => {
+                      const keyword = result.keyword;
+                      const ai_analysis = result.ai_analysis || {};
+                      const sources = ai_analysis.ai_overview_sources || ai_analysis.sources || [];
+                      
+                      console.log(`🔗 ${index + 1}. "${keyword}" - ${sources.length} fuentes:`, sources);
+                  });
+              }
+          } else {
+              console.log('❌ window.currentAIOverviewData NO existe');
+          }
+          console.log('=== 🔍 FIN DEBUG ===');
+      };
+      console.log('🔧 Función window.debugCompetitorsData() creada. Ejecútala después del análisis AI.');
 
       // Obtener elementos DOM necesarios para metadatos
       const siteUrlSelect = document.getElementById('siteUrlSelect');

@@ -381,27 +381,7 @@
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
           </div>
           <div id="keywordComparisonBlock" class="table-responsive-container">
-            <table id="keywordComparisonTable" class="display" style="width:100%;">
-              <thead>
-                <tr>
-                  <th>View SERP</th>
-                  <th>Keyword</th>
-                  <th>Clicks P1</th>
-                  <th>Clicks P2</th>
-                  <th>&Delta;Clicks (%)</th>
-                  <th>Impresiones P1</th>
-                  <th>Impresiones P2</th>
-                  <th>&Delta;Imp. (%)</th>
-                  <th>CTR P1 (%)</th>
-                  <th>CTR P2 (%)</th>
-                  <th>&Delta;CTR (%)</th>
-                  <th>Pos P1</th>
-                  <th>Pos P2</th>
-                  <th>&Delta;Pos</th>
-                </tr>
-              </thead>
-              <tbody id="keywordComparisonTableBody"></tbody>
-            </table>
+            <!-- Grid.js table will be inserted here -->
           </div>
         </section>
       </div>
@@ -437,45 +417,175 @@
       </div>
 
       <div class="content-section" id="aiOverviewContent" data-section="ai-overview">
-        <!-- Competitor Domain Fields -->
-        <div class="competitor-domains-section" id="competitorDomainsSection">
-          <h3 class="competitor-section-title">
-            <i class="fas fa-users"></i> Competitor Analysis (Optional)
-          </h3>
-          <p class="competitor-section-description">Add up to 3 competitor domains to compare their AI Overview presence with yours</p>
-          
-          <div class="competitor-fields-container">
-            <div class="competitor-field-group">
-              <label for="competitor1">Competitor 1:</label>
-              <input 
-                type="text" 
-                id="competitor1" 
-                placeholder="e.g., example.com, https://blog.competitor.com" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor1Validation"></div>
+        <!-- Advanced Analysis Options -->
+        <div class="advanced-analysis-section" id="advancedAnalysisSection">
+          <div class="section-header">
+            <h3 class="section-main-title">
+            Advanced Analysis Options
+            </h3>
+            <p class="section-main-description">Configure competitor analysis and keyword exclusions to refine your AI Overview insights</p>
+          </div>
+
+          <!-- Competitor Analysis Collapsible -->
+          <div class="collapsible-section" id="competitorSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('competitor')">
+              <div class="collapsible-title">
+                <i class="fas fa-users"></i>
+                <span>Competitor Analysis</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="competitorSummary">
+                Click to add competitor domains
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="competitorArrow"></i>
             </div>
             
-            <div class="competitor-field-group">
-              <label for="competitor2">Competitor 2:</label>
-              <input 
-                type="text" 
-                id="competitor2" 
-                placeholder="e.g., www.another-competitor.org" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor2Validation"></div>
+            <div class="collapsible-content" id="competitorContent">
+              <div class="competitor-container">
+                <div class="competitor-grid">
+                  <!-- Column 1: Competitor 1 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 1
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor1" 
+                        placeholder="e.g., example.com"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor1Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Competitor 2 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 2
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor2" 
+                        placeholder="e.g., competitor.org"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor2Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Competitor 3 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 3
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor3" 
+                        placeholder="e.g., rival.co.uk"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor3Validation"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Clear All Competitors Button -->
+                <div class="competitor-actions">
+                  <button type="button" class="clear-competitors-btn" id="clearCompetitors">
+                    <i class="fas fa-eraser"></i>
+                    Clear All Competitors
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Keyword Exclusions Collapsible -->
+          <div class="collapsible-section" id="exclusionSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('exclusion')">
+              <div class="collapsible-title">
+                <i class="fas fa-filter"></i>
+                <span>Keyword Exclusions</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="exclusionSummary">
+                Click to exclude brand terms or irrelevant keywords
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="exclusionArrow"></i>
             </div>
             
-            <div class="competitor-field-group">
-              <label for="competitor3">Competitor 3:</label>
-              <input 
-                type="text" 
-                id="competitor3" 
-                placeholder="e.g., shop.thirdcompetitor.co.uk" 
-                class="competitor-input"
-              />
-              <div class="competitor-validation" id="competitor3Validation"></div>
+            <div class="collapsible-content" id="exclusionContent">
+              <div class="exclusion-container">
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-filter"></i>
+                      Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="exclusionMethod" class="exclusion-method-select">
+                        <option value="contains">Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="startsWith">Starts With</option>
+                        <option value="endsWith">Ends With</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="methodDescription">Keywords containing these terms</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Terms
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="exclusionTerms" 
+                        placeholder="Type term, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Use comma (,) or Enter to add</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Active Tags -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-tags"></i>
+                      Active Exclusions
+                      <span class="exclusion-count" id="exclusionCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="exclusion-tags-container" id="exclusionTagsContainer">
+                        <!-- Tags will be dynamically added here -->
+                      </div>
+                      <div class="exclusion-clear-all" id="clearAllTags" style="display: none;">
+                        <button type="button" class="clear-all-btn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -803,6 +913,8 @@
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
+<script src="{{ url_for('static', filename='js/keyword-exclusion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/collapsible-sections.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-detailed-results-gridjs.js') }}"></script>
 
@@ -813,7 +925,8 @@
   <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keywords-gridjs.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
 

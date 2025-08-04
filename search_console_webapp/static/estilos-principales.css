@@ -163,6 +163,23 @@
     gap: var(--spacing-xs) !important;
     margin: var(--spacing-xs) auto !important;
   }
+
+  /* Estilo especial para tarjeta única de keywords sin comparación */
+  .overview-card.single-period {
+    min-width: 300px !important;
+    max-width: 400px !important;
+    flex: 0 0 auto !important;
+    padding: 24px !important;
+    text-align: center !important;
+  }
+
+  .overview-card.single-period .subtitle {
+    font-size: 0.85em !important;
+    color: var(--text-color) !important;
+    opacity: 0.7 !important;
+    margin-top: 8px !important;
+    font-style: italic !important;
+  }
   
   /* Keywords: Ajustar título para consistencia con Performance */
   #keywordsContent .keywords-title-compact {
@@ -344,7 +361,7 @@
 #summaryCTR .card-icon-modern { background: linear-gradient(135deg, #F59E0B20, #F59E0B40); color: #F59E0B; }
 #summaryPosition .card-icon-modern { background: linear-gradient(135deg, #EF444420, #EF444440); color: #EF4444; }
 .card-title-modern { font-size: 1.25rem; font-weight: 600; color: var(--heading); margin: 0; }
-.period-values-modern { padding: 20px 24px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
+.period-values-modern { padding: 20px 5px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
 .period-value-line { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(248, 250, 252, 0.8); border-radius: 12px; border: 1px solid rgba(226, 232, 240, 0.6); }
 .period-date { font-size: 12px !important; margin-right:20px; font-weight: 500; color: var(--text-color); opacity: 0.85; flex: 1; }
 .period-metric { font-size: 22px !important; font-weight: 700; color: var(--heading); text-align: right; }
@@ -843,6 +860,616 @@ body.dark-mode .competitor-chart-container {
 
 body.dark-mode .legend-label {
   color: var(--text-color);
+}
+
+/* =============== ADVANCED ANALYSIS SECTIONS (COLLAPSIBLE) =============== */
+.advanced-analysis-section {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-main-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.section-main-title i {
+  color: var(--cta-bg);
+}
+
+.section-main-description {
+  color: var(--text-color);
+  opacity: 0.8;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* Secciones colapsables */
+.collapsible-section {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.collapsible-section:hover {
+  border-color: #D8F9B8;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  background: rgba(248, 249, 250, 0.5);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: rgba(216, 249, 184, 0.2);
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: var(--heading);
+  font-size: 1rem;
+}
+
+.collapsible-title i {
+  color: #2C2D2E;
+  font-size: 0.8rem;
+  background: #d8f9b882;
+  padding: 10px;
+  border-radius: 200px;
+}
+
+.optional-badge {
+  color: #161616;
+  background: #d8f9b882;
+  border: 1px solid #D8F9B8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.collapsible-summary {
+  flex: 1;
+  margin: 0 1rem;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-size: 0.9rem;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.collapsible-arrow {
+  color: #2C2D2E;
+  font-size: 0.9rem;
+  transition: transform 0.3s ease;
+}
+
+.collapsible-content {
+  padding: 0 1.2rem 1.2rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--card-bg);
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.collapsible-description {
+  color: var(--text-color);
+  opacity: 0.8;
+  margin: 1rem 0 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* =============== STYLES ESPECÍFICOS DENTRO DE COLLAPSIBLES =============== */
+
+/* =============== COMPETITOR SYSTEM - 3 COLUMNS LAYOUT =============== */
+.competitor-container {
+  padding: 1.5rem;
+  background: rgba(248, 249, 250, 0.3);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.competitor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Competitor Column Base Styles */
+.competitor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 120px;
+}
+
+/* Competitor Column Titles */
+.competitor-column-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #161616;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #D8F9B8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.competitor-column-title i {
+  color: #161616;
+  font-size: 1.1rem;
+}
+
+/* Competitor Input Wrappers */
+.competitor-input-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.competitor-input {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border: 2px solid #D8F9B8;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.competitor-input:focus {
+  outline: none;
+  border-color: #161616;
+  box-shadow: 0 0 0 3px rgba(216, 249, 184, 0.3);
+  background: #d8f9b820;
+}
+
+.competitor-input::placeholder {
+  color: var(--text-color);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.competitor-input-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #161616;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: #d8f9b840;
+  border: 1px solid #D8F9B8;
+  border-radius: 6px;
+  text-align: center;
+  font-style: italic;
+}
+
+.competitor-input-hint i {
+  color: #161616;
+  font-size: 0.8rem;
+}
+
+/* Competitor Validation Messages */
+.competitor-validation {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.competitor-validation.valid {
+  color: #161616;
+  background: #d8f9b840;
+  border: 1px solid #D8F9B8;
+}
+
+.competitor-validation.invalid {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* Competitor Actions */
+.competitor-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.clear-competitors-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: #161616;
+  border: 1px solid #D8F9B8;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.clear-competitors-btn:hover {
+  background: #d8f9b882;
+  border-color: #161616;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.clear-competitors-btn i {
+  font-size: 0.8rem;
+}
+
+/* =============== EXCLUSION SYSTEM - 3 COLUMNS LAYOUT =============== */
+.exclusion-container {
+  padding: 1.5rem;
+  background: rgba(248, 249, 250, 0.3);
+  border-radius: 12px;
+}
+
+.exclusion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Column Base Styles */
+.exclusion-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 120px;
+}
+
+/* Column Titles */
+.exclusion-column-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #161616;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #D8F9B8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.exclusion-column-title i {
+  color: #161616;
+  font-size: 1.1rem;
+}
+
+.exclusion-count {
+  background: #d8f9b882;
+  color: #161616;
+  border: 1px solid #D8F9B8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: auto;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Column 1: Method Selection */
+.exclusion-method-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.exclusion-method-select {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border: 2px solid #D8F9B8;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.exclusion-method-select:focus {
+  outline: none;
+  border-color: #161616;
+  box-shadow: 0 0 0 3px rgba(216, 249, 184, 0.3);
+  background: #d8f9b820;
+}
+
+.exclusion-method-description {
+  padding: 0.5rem 0.75rem;
+  color: #161616;
+  font-size: 0.8rem;
+  font-style: italic;
+  text-align: left;
+}
+
+/* Column 2: Input */
+.exclusion-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exclusion-input {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border: 2px solid #D8F9B8;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.exclusion-input:focus {
+  outline: none;
+  border-color: #161616;
+  box-shadow: 0 0 0 3px rgba(216, 249, 184, 0.3);
+  background: #d8f9b820;
+}
+
+.exclusion-input::placeholder {
+  color: var(--text-color);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.exclusion-input-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #161616;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.exclusion-input-hint i {
+  color: #161616;
+  font-size: 0.8rem;
+}
+
+/* Column 3: Tags and Clear */
+.exclusion-tags-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.exclusion-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 60px;
+  padding: 0.75rem;
+  border: 2px solid #D8F9B8;
+  border-radius: 8px;
+  background: rgba(216, 249, 184, 0.1);
+  transition: all 0.2s ease;
+  align-content: flex-start;
+}
+
+.exclusion-tags-container:empty::after {
+  content: "No exclusions yet...";
+  color: #161616;
+  opacity: 0.6;
+  font-size: 0.8rem;
+  font-style: italic;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exclusion-clear-all {
+  margin-top: auto;
+}
+
+.clear-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: #161616;
+  border: 1px solid #D8F9B8;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.clear-all-btn:hover {
+  background: #d8f9b882;
+  border-color: #161616;
+  transform: translateY(-1px);
+}
+
+.clear-all-btn i {
+  font-size: 0.7rem;
+}
+
+.exclusion-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #d8f9b882;
+  color: #161616;
+  border: 1px solid #D8F9B8;
+  padding: 0.4rem 0.7rem;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: default;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.exclusion-tag:hover {
+  background: #D8F9B8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  border-color: #161616;
+}
+
+.exclusion-tag-text {
+  color: #161616;
+  font-weight: 600;
+}
+
+.exclusion-tag-remove {
+  color: #161616;
+  cursor: pointer;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(22, 22, 22, 0.15);
+  margin-left: 0.2rem;
+}
+
+.exclusion-tag-remove:hover {
+  opacity: 1;
+  background: rgba(22, 22, 22, 0.3);
+  transform: scale(1.1);
+}
+
+/* =============== RESPONSIVE FOR 3-COLUMN LAYOUTS =============== */
+@media (max-width: 1200px) {
+  .competitor-grid,
+  .exclusion-grid {
+    gap: 1.5rem;
+  }
+  
+  .competitor-column-title,
+  .exclusion-column-title {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .competitor-grid,
+  .exclusion-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  
+  .competitor-column:last-child,
+  .exclusion-tags-column {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .competitor-container,
+  .exclusion-container {
+    padding: 1rem;
+  }
+  
+  .competitor-grid,
+  .exclusion-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .competitor-column,
+  .exclusion-column {
+    min-height: auto;
+  }
+  
+  .competitor-column-title,
+  .exclusion-column-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .competitor-actions {
+    margin-top: 1.5rem;
+  }
+}
+
+/* =============== RESPONSIVE PARA SISTEMA COLAPSABLE =============== */
+@media (max-width: 768px) {
+  .advanced-analysis-section {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .collapsible-header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .collapsible-summary {
+    margin: 0.5rem 0 0 0;
+    order: 3;
+    width: 100%;
+    font-size: 0.8rem;
+  }
+  
+  .collapsible-content {
+    padding: 0 1rem 1rem;
+  }
+  
+
 }
 
 /* Responsive design */

@@ -1589,6 +1589,10 @@ def analyze_ai_overview_route():
         # 🆕 NUEVO: Obtener dominios de competidores
         competitor_domains = request_payload.get('competitor_domains', [])
         
+        # 🔍 NUEVO: Obtener configuración de exclusión de keywords
+        keyword_exclusions = request_payload.get('keyword_exclusions', {})
+        exclusions_enabled = keyword_exclusions.get('enabled', False)
+        
         # 🆕 NUEVO: Obtener cantidad solicitada por usuario
         requested_count = request_payload.get('keyword_count', 50)  # Default 50
         
@@ -1601,6 +1605,15 @@ def analyze_ai_overview_route():
             requested_count = 10
         
         logger.info(f"=== INICIANDO ANÁLISIS AI OVERVIEW - {requested_count} KEYWORDS ===")
+        
+        # 🔍 NUEVO: Logging de exclusiones
+        if exclusions_enabled:
+            exclusion_terms = keyword_exclusions.get('terms', [])
+            exclusion_method = keyword_exclusions.get('method', 'contains')
+            logger.info(f"[AI ANALYSIS] 🔍 Exclusiones habilitadas: {len(exclusion_terms)} términos con método '{exclusion_method}'")
+            logger.info(f"[AI ANALYSIS] 🔍 Términos a excluir: {exclusion_terms[:5]}{'...' if len(exclusion_terms) > 5 else ''}")
+        else:
+            logger.info(f"[AI ANALYSIS] ⚪ Sin exclusiones de keywords")
 
         # 🔍 DEBUGGING: ¿Qué país se está usando?
         logger.info(f"=== AI OVERVIEW COUNTRY DEBUG ===")
@@ -1631,6 +1644,21 @@ def analyze_ai_overview_route():
             return jsonify({'error': 'Unexpected error, please contact support'}), 500
         
         original_count = len(keywords_data_list)
+        
+        # 🔍 NUEVO: Aplicar exclusiones de keywords si están habilitadas
+        if exclusions_enabled:
+            exclusion_terms = keyword_exclusions.get('terms', [])
+            exclusion_method = keyword_exclusions.get('method', 'contains')
+            
+            keywords_before_exclusion = len(keywords_data_list)
+            keywords_data_list = apply_keyword_exclusions(keywords_data_list, exclusion_terms, exclusion_method)
+            keywords_after_exclusion = len(keywords_data_list)
+            excluded_count = keywords_before_exclusion - keywords_after_exclusion
+            
+            logger.info(f"[AI ANALYSIS] 🔍 Exclusiones aplicadas: {keywords_before_exclusion} → {keywords_after_exclusion} (excluidas: {excluded_count})")
+            
+            # Actualizar el recuento original después de las exclusiones
+            original_count = len(keywords_data_list)
         
         # 🔄 MODIFICADO: Usar cantidad solicitada
         keywords_to_process_list = keywords_data_list[:requested_count]
@@ -2424,6 +2452,67 @@ def debug_ai_detection():
             'error': f'Error interno: {str(e)}',
             'success': False
         }), 500
+
+# ====================================
+# FUNCIONES DE UTILIDAD PARA EXCLUSIONES
+# ====================================
+
+def apply_keyword_exclusions(keywords_list, exclusion_terms, exclusion_method='contains'):
+    """
+    Aplica exclusiones a una lista de keywords basado en términos y método especificados.
+    
+    Args:
+        keywords_list (list): Lista de keywords (objetos con atributo 'keyword')
+        exclusion_terms (list): Lista de términos a excluir (case insensitive)
+        exclusion_method (str): Método de exclusión ('contains', 'equals', 'startsWith', 'endsWith')
+    
+    Returns:
+        list: Lista filtrada de keywords
+    """
+    if not keywords_list or not exclusion_terms:
+        return keywords_list
+    
+    # Normalizar términos de exclusión (case insensitive)
+    exclusion_terms_lower = [term.lower() for term in exclusion_terms]
+    
+    filtered_keywords = []
+    excluded_count = 0
+    
+    for keyword_obj in keywords_list:
+        # Obtener el texto de la keyword
+        keyword_text = keyword_obj.get('keyword', '') if isinstance(keyword_obj, dict) else str(keyword_obj)
+        keyword_text_lower = keyword_text.lower()
+        
+        # Verificar si debe ser excluida
+        should_exclude = False
+        
+        for exclusion_term in exclusion_terms_lower:
+            if exclusion_method == 'contains':
+                if exclusion_term in keyword_text_lower:
+                    should_exclude = True
+                    break
+            elif exclusion_method == 'equals':
+                if keyword_text_lower == exclusion_term:
+                    should_exclude = True
+                    break
+            elif exclusion_method == 'startsWith':
+                if keyword_text_lower.startswith(exclusion_term):
+                    should_exclude = True
+                    break
+            elif exclusion_method == 'endsWith':
+                if keyword_text_lower.endswith(exclusion_term):
+                    should_exclude = True
+                    break
+        
+        if should_exclude:
+            excluded_count += 1
+            logger.debug(f"[EXCLUSION] Excluyendo keyword: '{keyword_text}' (método: {exclusion_method})")
+        else:
+            filtered_keywords.append(keyword_obj)
+    
+    logger.info(f"[EXCLUSION] Filtrado completado: {len(keywords_list)} → {len(filtered_keywords)} (excluidas: {excluded_count})")
+    
+    return filtered_keywords
 
 if __name__ == '__main__':
     # Railway proporciona el puerto automáticamente

@@ -113,6 +113,20 @@ async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
         }
     }
     
+    // 🔍 NUEVO: Añadir configuración de exclusión de keywords
+    if (window.getKeywordExclusionConfig) {
+        const exclusionConfig = window.getKeywordExclusionConfig();
+        if (exclusionConfig.enabled) {
+            payload.keyword_exclusions = exclusionConfig;
+            console.log(`🔍 Incluyendo exclusiones: ${exclusionConfig.terms.length} términos con método "${exclusionConfig.method}"`);
+            
+            // Mostrar mensaje al usuario sobre las exclusiones
+            if (window.showToast) {
+                window.showToast(`Applying ${exclusionConfig.terms.length} keyword exclusion${exclusionConfig.terms.length > 1 ? 's' : ''} (${exclusionConfig.method})`, 'info', 3000);
+            }
+        }
+    }
+    
     // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
     if (countryToUse) {
         payload.country = countryToUse;
@@ -200,11 +214,46 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
     if (statusElement) statusElement.textContent = `Selecting top ${selectedCount} keywords by clicks...`;
 
     // Ordenar por clics descendente y tomar la cantidad seleccionada
-    const topKeywords = keywordData
+    let topKeywords = keywordData
       .sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
       .slice(0, selectedCount);
 
-    console.log(`[AI OVERVIEW] ✅ Top ${selectedCount} keywords seleccionadas:`, topKeywords.length);
+    console.log(`[AI OVERVIEW] ✅ Top ${selectedCount} keywords seleccionadas antes de exclusiones:`, topKeywords.length);
+
+    // 🔍 APLICAR EXCLUSIONES DE KEYWORDS
+    const exclusionConfig = window.getKeywordExclusionConfig ? window.getKeywordExclusionConfig() : { enabled: false };
+    
+    if (exclusionConfig.enabled && exclusionConfig.terms.length > 0) {
+        console.log(`[AI OVERVIEW] 🔍 Aplicando exclusiones: ${exclusionConfig.terms.length} términos con método "${exclusionConfig.method}"`);
+        
+        const beforeExclusion = topKeywords.length;
+        topKeywords = window.filterKeywordsWithExclusion ? window.filterKeywordsWithExclusion(topKeywords) : topKeywords;
+        const afterExclusion = topKeywords.length;
+        const excluded = beforeExclusion - afterExclusion;
+        
+        console.log(`[AI OVERVIEW] ✅ Exclusiones aplicadas: ${beforeExclusion} → ${afterExclusion} (excluidas: ${excluded})`);
+        
+        // Si después de las exclusiones tenemos menos keywords, completar hasta el límite original
+        if (topKeywords.length < selectedCount && keywordData.length > selectedCount) {
+            console.log(`[AI OVERVIEW] 🔄 Completando keywords después de exclusiones...`);
+            
+            // Obtener keywords adicionales que no estén excluidas
+            const remainingKeywords = keywordData
+                .sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
+                .slice(selectedCount) // Tomar las que siguen después del límite original
+                .filter(keyword => !window.keywordExclusion.shouldExcludeKeyword(keyword.keyword));
+            
+            const needed = selectedCount - topKeywords.length;
+            const additional = remainingKeywords.slice(0, needed);
+            
+            topKeywords = topKeywords.concat(additional);
+            console.log(`[AI OVERVIEW] ✅ Añadidas ${additional.length} keywords adicionales. Total: ${topKeywords.length}`);
+        }
+    } else {
+        console.log(`[AI OVERVIEW] ⚪ Sin exclusiones configuradas`);
+    }
+
+    console.log(`[AI OVERVIEW] ✅ Keywords finales para análisis:`, topKeywords.length);
 
     // Verificar si hay keywords
     if (topKeywords.length === 0) {
