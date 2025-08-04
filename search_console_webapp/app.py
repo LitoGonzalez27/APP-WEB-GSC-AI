@@ -1420,11 +1420,11 @@ def detect_top_competitor_domains(results_list, site_url, min_competitors=4):
                               key=lambda x: x[1]['total_appearances'], 
                               reverse=True)
     
-    # Obtener los dominios más frecuentes
-    top_competitors = [domain for domain, data in sorted_competitors[:min_competitors * 2]]  # x2 para tener margen
+    # Obtener exactamente min_competitors dominios más frecuentes
+    top_competitors = [domain for domain, data in sorted_competitors]
     
-    # Filtrar para obtener exactamente min_competitors o más si están disponibles
-    selected_competitors = top_competitors[:max(min_competitors, len(top_competitors))]
+    # Seleccionar exactamente min_competitors (no más)
+    selected_competitors = top_competitors[:min_competitors]
     
     logger.info(f"[AUTO-COMPETITOR] ✅ Detectados {len(competitors_data)} dominios únicos")
     logger.info(f"[AUTO-COMPETITOR] 🎯 Seleccionados top {len(selected_competitors)} como competidores:")

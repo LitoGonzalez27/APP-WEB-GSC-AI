@@ -616,15 +616,13 @@ function displayCompetitorResults(competitorResults, container) {
     console.log(`   📍 Posición media: ${result.average_position || 'N/A'}`);
   });
 
-  // 🚀 NUEVA FUNCIONALIDAD: Mostrar mensaje si los competidores fueron auto-detectados
+  // 🚀 NUEVA FUNCIONALIDAD: Log de competidores auto-detectados (sin toast)
   const aiOverviewData = window.currentAIOverviewData;
   const summary = aiOverviewData?.summary || aiOverviewData?.analysis?.summary;
   const autoDetected = summary?.competitors_auto_detected;
   const competitorDomains = summary?.competitor_domains_analyzed || [];
   
   if (autoDetected && competitorDomains.length > 0) {
-    const autoDetectedCount = competitorDomains.length;
-    showToast(`🤖 Auto-detected ${autoDetectedCount} top competitor${autoDetectedCount > 1 ? 's' : ''} based on AI Overview presence`, 'info', 4000);
     console.log(`🤖 Competidores auto-detectados: ${competitorDomains.join(', ')}`);
   }
 
