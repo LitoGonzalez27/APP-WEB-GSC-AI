@@ -541,6 +541,10 @@ export function resetAIOverlay() {
     console.log('🔄 AI Overlay reiniciado');
 }
 
+// ✅ NUEVO: Hacer las funciones disponibles globalmente
+window.resetAIOverlay = resetAIOverlay;
+window.updateAIOverlayData = updateAIOverlayData;
+
 /**
  * 🔄 MODIFICADA: Ejecuta el análisis con progreso fidedigno
  */

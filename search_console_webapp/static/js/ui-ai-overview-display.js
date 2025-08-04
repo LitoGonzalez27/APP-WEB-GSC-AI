@@ -616,6 +616,16 @@ function displayCompetitorResults(competitorResults, container) {
     console.log(`   📍 Posición media: ${result.average_position || 'N/A'}`);
   });
 
+  // 🚀 NUEVA FUNCIONALIDAD: Log de competidores auto-detectados (sin toast)
+  const aiOverviewData = window.currentAIOverviewData;
+  const summary = aiOverviewData?.summary || aiOverviewData?.analysis?.summary;
+  const autoDetected = summary?.competitors_auto_detected;
+  const competitorDomains = summary?.competitor_domains_analyzed || [];
+  
+  if (autoDetected && competitorDomains.length > 0) {
+    console.log(`🤖 Competidores auto-detectados: ${competitorDomains.join(', ')}`);
+  }
+
   // Crear tabla de competidores usando la función del módulo CompetitorAnalysis
   if (window.CompetitorAnalysis) {
     window.CompetitorAnalysis.displayCompetitorResults(competitorResults, container);

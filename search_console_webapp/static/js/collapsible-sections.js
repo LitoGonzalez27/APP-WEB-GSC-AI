@@ -255,3 +255,21 @@ window.collapseAllSections = collapseAllSections;
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', initCollapsibleSections);
+
+/**
+ * Prevenir que el click en los iconos de información active otros comportamientos
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const infoIcons = document.querySelectorAll('.analysis-info-icon');
+    infoIcons.forEach(icon => {
+        icon.addEventListener('click', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        
+        // Mejora para móviles - también funciona con touch
+        icon.addEventListener('touchstart', function(event) {
+            event.stopPropagation();
+        });
+    });
+});

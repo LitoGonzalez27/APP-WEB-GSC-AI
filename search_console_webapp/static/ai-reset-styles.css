@@ -1,0 +1,101 @@
+/* ========================================
+   AI OVERVIEW HEADER & RESET BUTTON
+   ======================================== */
+
+.ai-overview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5em;
+  padding: 0 0.5em;
+}
+
+.ai-overview-header h2 {
+  margin: 0;
+  flex-grow: 1;
+}
+
+.btn-reset-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  opacity: 0.9;
+}
+
+.btn-reset-ai:hover {
+  background: linear-gradient(135deg, #ee5a52, #ff6b6b);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+  opacity: 1;
+}
+
+.btn-reset-ai:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+}
+
+.btn-reset-ai i {
+  font-size: 1em;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-reset-ai:hover i {
+  transform: rotate(-45deg);
+}
+
+.btn-reset-ai span {
+  font-size: 0.95em;
+}
+
+/* Animation para el fade out/in del módulo */
+.ai-module-fadeout {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-module-fadein {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode support para reset button */
+body.dark-mode .btn-reset-ai {
+  background: linear-gradient(135deg, #d63384, #c5516d);
+  box-shadow: 0 2px 8px rgba(214, 51, 132, 0.3);
+}
+
+body.dark-mode .btn-reset-ai:hover {
+  background: linear-gradient(135deg, #c5516d, #d63384);
+  box-shadow: 0 4px 12px rgba(214, 51, 132, 0.4);
+}
+
+/* Responsive design para el header */
+@media (max-width: 768px) {
+  .ai-overview-header {
+    flex-direction: column;
+    gap: 1em;
+    align-items: flex-start;
+  }
+  
+  .btn-reset-ai {
+    align-self: flex-end;
+    font-size: 0.8em;
+    padding: 8px 12px;
+  }
+  
+  .btn-reset-ai span {
+    display: none;
+  }
+}

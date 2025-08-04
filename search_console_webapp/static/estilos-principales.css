@@ -954,6 +954,82 @@ body.dark-mode .legend-label {
   letter-spacing: 0.5px;
 }
 
+/* ========================================
+   ANALYSIS INFO ICONS (same pattern as existing icons)
+   ======================================== */
+
+.analysis-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: all var(--transition-base);
+  width: 18px;
+  height: 18px;
+  opacity: 0.7;
+}
+
+.analysis-info-icon:hover {
+  color: #161616;
+  opacity: 1;
+}
+
+.analysis-info-icon i {
+  font-size: 14px;
+  transition: transform var(--transition-base);
+}
+
+.analysis-info-icon:hover i {
+  transform: scale(1.1);
+}
+
+/* Tooltip usando el mismo sistema que feedback button */
+.analysis-info-icon::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #161616;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  width: 280px;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #161616;
+  margin-bottom: 8px;
+}
+
+.analysis-info-icon:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Dark mode support */
+body.dark-mode .analysis-info-icon {
+  color: var(--text-color);
+}
+
+body.dark-mode .analysis-info-icon:hover {
+  color: var(--cta-bg);
+}
+
+body.dark-mode .analysis-info-icon::before {
+  background: #2a2a2a;
+  color: #F3F2F1;
+  border-color: #F3F2F1;
+}
+
 .collapsible-summary {
   flex: 1;
   margin: 0 1rem;

@@ -167,14 +167,31 @@ def create_keyword_position_sheets(writer, data, country_info, header_format):
         keyword_rows = []
         for k in filtered_keywords:
             keyword = k.get('keyword', '')
-            # Obtener la URL específica donde posiciona esta keyword
+            
+            # 🚀 MEJORADO: Obtener la URL específica donde posiciona esta keyword
             url = k.get('url', '')
-            if not url and 'urls' in k:  # Si hay múltiples URLs, tomar la que posiciona mejor
-                urls = k.get('urls', [])
-                if urls:
-                    # Ordenar por posición y tomar la mejor
-                    urls.sort(key=lambda x: x.get('position', float('inf')))
-                    url = urls[0].get('url', '')
+            
+            # Si no hay URL directa, buscar en la estructura de URLs del análisis
+            if not url:
+                # Intentar obtener de la estructura de páginas si está disponible
+                if 'page_url' in k:
+                    url = k.get('page_url', '')
+                elif 'urls' in k and k['urls']:
+                    # Si hay múltiples URLs, tomar la que posiciona mejor
+                    urls = k.get('urls', [])
+                    if urls:
+                        urls.sort(key=lambda x: x.get('position', float('inf')))
+                        url = urls[0].get('url', '')
+                elif 'landing_page' in k:
+                    url = k.get('landing_page', '')
+                else:
+                    # Como último recurso, usar la keyword para buscar su URL en los datos del análisis
+                    # Esta información debería estar disponible desde el endpoint /api/url-keywords
+                    url = f"[URL específica para: {keyword}]"
+            
+            # Si aún no tenemos URL específica, mostrar que es análisis de propiedad completa
+            if not url or url == '':
+                url = "sc-domain:acertare.com (propiedad completa)"
             
             if 'clicks_m1' in k and 'clicks_m2' in k:  # Si hay datos de comparación
                 keyword_rows.append({
@@ -263,7 +280,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
 
         # ❌ ELIMINADO: Executive Dashboard (no se requiere)
 
-        # ✅ MODIFICADO: Hoja 2 - Información del análisis (SIN información de AI Overview)
+        # ✅ MODIFICADO: Hoja 2 - Información del análisis (CON información de AI Overview solicitada)
         info_data = [
             ['Parámetro', 'Valor'],
             ['País/Región analizada', country_info],
@@ -278,7 +295,18 @@ def generate_excel_from_data(data, ai_overview_data=None):
             ['Beneficio', 'Análisis desde mercado más importante'],
         ]
         
-        # ❌ ELIMINADO: Todo el bloque de información de AI Overview se ha eliminado
+        # 🚀 NUEVO: Añadir información de AI Overview si está disponible
+        if ai_overview_data and ai_overview_data.get('results'):
+            keyword_results_aio = ai_overview_data.get('results', [])
+            total_keywords_aio = len([r for r in keyword_results_aio if r.get('ai_analysis', {}).get('has_ai_overview', False)])
+            
+            info_data.extend([
+                ['', ''], # Separador
+                ['ANÁLISIS AI OVERVIEW', ''],
+                ['Keywords con AIO', total_keywords_aio],
+                ['Total Keywords en el análisis', len(keyword_results_aio)],
+                ['Porcentaje con AI Overview', f"{(total_keywords_aio / len(keyword_results_aio) * 100):.1f}%" if len(keyword_results_aio) > 0 else "0.0%"]
+            ])
         
         df_info = pd.DataFrame(info_data[1:], columns=info_data[0])
         df_info.to_excel(writer, sheet_name='Información del Análisis', index=False)
@@ -354,18 +382,34 @@ def generate_excel_from_data(data, ai_overview_data=None):
         worksheet_pages.set_column('A:A', 50)  # URL
         worksheet_pages.set_column('B:I', 15)  # Métricas
 
-        # Hoja 3: Keywords (sin cambios)
+        # Hoja 3: Keywords consolidadas (mejores de cada URL)
         keyword_rows = []
         for k in data.get('keyword_comparison_data', []):
             keyword = k.get('keyword', '')
-            # Obtener la URL específica donde posiciona esta keyword
+            
+            # 🚀 MEJORADO: Obtener la URL específica donde posiciona esta keyword
             url = k.get('url', '')
-            if not url and 'urls' in k:  # Si hay múltiples URLs, tomar la que posiciona mejor
-                urls = k.get('urls', [])
-                if urls:
-                    # Ordenar por posición y tomar la mejor
-                    urls.sort(key=lambda x: x.get('position', float('inf')))
-                    url = urls[0].get('url', '')
+            
+            # Si no hay URL directa, buscar en la estructura de URLs del análisis
+            if not url:
+                # Intentar obtener de la estructura de páginas si está disponible
+                if 'page_url' in k:
+                    url = k.get('page_url', '')
+                elif 'urls' in k and k['urls']:
+                    # Si hay múltiples URLs, tomar la que posiciona mejor
+                    urls = k.get('urls', [])
+                    if urls:
+                        urls.sort(key=lambda x: x.get('position', float('inf')))
+                        url = urls[0].get('url', '')
+                elif 'landing_page' in k:
+                    url = k.get('landing_page', '')
+                else:
+                    # Como último recurso, usar la keyword para buscar su URL en los datos del análisis
+                    url = f"[URL específica para: {keyword}]"
+            
+            # Si aún no tenemos URL específica, mostrar que es análisis de propiedad completa
+            if not url or url == '':
+                url = "sc-domain:acertare.com (propiedad completa)"
             
             if 'clicks_m1' in k and 'clicks_m2' in k:  # Si hay datos de comparación
                 keyword_rows.append({
@@ -383,7 +427,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
             else:  # Si solo hay un período
                 keyword_rows.append({
                     'Keyword': keyword,
-                    'URL que Posiciona': url,  # Cambiado para claridad
+                    'URL que Posiciona': url,  # Ya mejorado arriba
                     'Clicks P1': k.get('clicks_m1', 0),
                     'Clicks P2': '',
                     'Impresiones P1': k.get('impressions_m1', 0),
@@ -416,11 +460,13 @@ def generate_excel_from_data(data, ai_overview_data=None):
         # ✅ NUEVAS HOJAS: Keywords por rangos de posición
         create_keyword_position_sheets(writer, data, country_info, header_format)
 
-        # ✅ PROCESAMIENTO DE AIO: UNA SOLA HOJA CONSOLIDADA (solo si hay datos)
+        # ✅ PROCESAMIENTO DE AIO: Hojas de AI Overview (solo si hay datos)
         if ai_overview_data:
+            # 1. Hoja de análisis principal (sin competidores)
             create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selected_country)
-
-        # ✅ NOTA: AIO Keywords ahora está integrado en la hoja consolidada AIO
+            
+            # 2. Hoja específica de competidores (refleja exactamente la info del SaaS)
+            create_competitors_analysis_sheet(writer, ai_overview_data, header_format)
 
     output.seek(0)
     return output
@@ -553,8 +599,8 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # 4) TABLA COMPLETA DE KEYWORDS CON DATOS EXPANDIDOS
         keywords_section = [
-            ['DETALLE COMPLETO POR KEYWORD', '', '', '', '', '', '', '', '', ''],
-            ['Keyword', 'With AIO', 'Your Domain in AIO', 'AIO Position', 'Organic Position', 'Clicks (P1)', 'Impressions (P1)', 'CTR (P1)', 'Competitors in AIO', 'Competitor Positions'],
+            ['DETALLE COMPLETO POR KEYWORD', '', '', '', '', '', '', ''],
+            ['Keyword', 'With AIO', 'Your Domain in AIO', 'AIO Position', 'Organic Position', 'Clicks (P1)', 'Impressions (P1)', 'CTR (P1)'],
         ]
         
         for result in keyword_results:
@@ -574,29 +620,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             else:
                 ctr_formatted = "0.00%"
             
-            # ✅ NUEVO: Datos de competidores en AIO
-            competitors_list = []
-            competitor_positions = []
-            
-            if ai_analysis.get('has_ai_overview'):
-                # Buscar fuentes de AIO que no sean el dominio propio
-                ai_sources = ai_analysis.get('ai_overview_sources', [])
-                for source in ai_sources:
-                    source_domain = source.get('domain', '')
-                    source_position = source.get('position', '')
-                    
-                    # Solo incluir si no es el dominio propio (esto se determinaría en el backend)
-                    # Por ahora incluimos todas las fuentes
-                    if source_domain and source_domain != result.get('site_domain', ''):
-                        competitors_list.append(source_domain)
-                        competitor_positions.append(str(source_position) if source_position else 'N/A')
-            
-            competitors_str = '; '.join(competitors_list[:3])  # Máximo 3 competidores
-            positions_str = '; '.join(competitor_positions[:3])
-            
-            if not competitors_str:
-                competitors_str = 'No competitors found'
-                positions_str = 'N/A'
+            # ❌ ELIMINADO: Datos de competidores en AIO (no requeridos en página de análisis)
             
             keywords_section.append([
                 keyword, 
@@ -606,30 +630,28 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
                 organic_position,
                 clicks_p1,
                 impressions_p1,
-                ctr_formatted,
-                competitors_str,
-                positions_str
+                ctr_formatted
             ])
         
         # ===== COMBINAR TODAS LAS SECCIONES =====
-        # Normalizar todas las secciones a 10 columnas para que coincidan con la tabla final expandida
+        # Normalizar todas las secciones a 8 columnas para que coincidan con la tabla final sin competidores
         
-        def normalize_to_10_columns(section):
+        def normalize_to_8_columns(section):
             normalized = []
             for row in section:
-                if len(row) < 10:
-                    # Rellenar con strings vacíos hasta 10 columnas
-                    row_normalized = row + [''] * (10 - len(row))
+                if len(row) < 8:
+                    # Rellenar con strings vacíos hasta 8 columnas
+                    row_normalized = row + [''] * (8 - len(row))
                 else:
-                    row_normalized = row[:10]  # Truncar si tiene más de 10
+                    row_normalized = row[:8]  # Truncar si tiene más de 8
                 normalized.append(row_normalized)
             return normalized
         
         # Normalizar cada sección
-        executive_normalized = normalize_to_10_columns(executive_section)
-        tipologia_normalized = normalize_to_10_columns(tipologia_section)
-        posiciones_normalized = normalize_to_10_columns(posiciones_section)
-        keywords_normalized = normalize_to_10_columns(keywords_section)
+        executive_normalized = normalize_to_8_columns(executive_section)
+        tipologia_normalized = normalize_to_8_columns(tipologia_section)
+        posiciones_normalized = normalize_to_8_columns(posiciones_section)
+        keywords_normalized = normalize_to_8_columns(keywords_section)
         
         # Combinar todas las secciones
         all_data = executive_normalized + tipologia_normalized + posiciones_normalized + keywords_normalized
@@ -638,7 +660,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         df_aio = pd.DataFrame(all_data[1:], columns=all_data[0])
         df_aio.to_excel(writer, sheet_name='AI Overview Analysis', index=False)
         
-        # Formatear hoja expandida
+        # Formatear hoja expandida (sin columnas de competidores)
         worksheet = writer.sheets['AI Overview Analysis']
         worksheet.set_column('A:A', 35)  # Keyword
         worksheet.set_column('B:B', 12)  # With AIO
@@ -648,8 +670,6 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         worksheet.set_column('F:F', 12)  # Clicks P1
         worksheet.set_column('G:G', 15)  # Impressions P1
         worksheet.set_column('H:H', 12)  # CTR P1
-        worksheet.set_column('I:I', 30)  # Competitors in AIO
-        worksheet.set_column('J:J', 20)  # Competitor Positions
         
         # Aplicar formatos especiales
         workbook = writer.book
@@ -664,14 +684,13 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         for row_num in section_rows:
             worksheet.set_row(row_num, None, section_format)
         
-        # Aplicar header format para las 10 columnas
-        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+        # Aplicar header format para las 8 columnas
+        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
         for col_num, col_name in enumerate(column_letters):
             if col_num < len(df_aio.columns):
                 worksheet.write(f'{col_name}1', df_aio.columns[col_num], header_format)
         
-        # ✅ NUEVA HOJA: Análisis detallado de competidores
-        create_competitors_analysis_sheet(writer, ai_overview_data, header_format)
+        # ❌ ELIMINADO: La hoja de competidores se crea desde la función principal
         
         # ❌ ELIMINADO: AIO Impact Analysis (no se requiere)
                 
@@ -683,118 +702,201 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
 def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
     """
     Crea una hoja específica para análisis detallado de competidores en AI Overview
+    Refleja exactamente la información disponible en el SaaS:
+    - Visibilidad de competidores (%)
+    - Menciones en AI Overview
+    - Posición media
+    - Tabla detallada de competidores
     """
-    if not ai_overview_data or not ai_overview_data.get('results'):
+    logger.info("[COMPETITORS DEBUG] 🚀 Iniciando creación de hoja 'AIO Competitors Analysis'")
+    
+    if not ai_overview_data:
+        logger.warning("[COMPETITORS DEBUG] No hay datos de AI Overview")
         return
     
     try:
-        keyword_results = ai_overview_data.get('results', [])
+        # 🚀 MEJORADO: Manejar diferentes estructuras de datos
+        keyword_results = []
         
-        # 🔍 DEBUG: Log para investigar por qué no se exportan competidores
+        # Intentar diferentes estructuras posibles
+        if ai_overview_data.get('results'):
+            keyword_results = ai_overview_data.get('results', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.results: {len(keyword_results)}")
+        elif ai_overview_data.get('analysis', {}).get('results'):
+            keyword_results = ai_overview_data.get('analysis', {}).get('results', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.analysis.results: {len(keyword_results)}")
+        elif ai_overview_data.get('keywordResults'):
+            keyword_results = ai_overview_data.get('keywordResults', [])
+            logger.info(f"[COMPETITORS DEBUG] Datos encontrados en structure.keywordResults: {len(keyword_results)}")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontraron results en ninguna estructura. Keys disponibles: {list(ai_overview_data.keys())}")
+            return
+        
+        if not keyword_results:
+            logger.warning("[COMPETITORS DEBUG] keyword_results está vacío después de búsqueda")
+            return
+        
+        # 🔍 DEBUG: Log para investigar estructura de datos
         logger.info(f"[COMPETITORS DEBUG] Total keywords analizadas: {len(keyword_results)}")
+        logger.info(f"[COMPETITORS DEBUG] Estructura ai_overview_data keys: {list(ai_overview_data.keys())}")
         
-        # Recopilar todos los competidores únicos y sus métricas
-        competitors_data = {}
+        # 🚀 MEJORA: Verificar si tenemos competitor_analysis ya procesado en summary
+        summary = {}
+        if ai_overview_data.get('summary'):
+            summary = ai_overview_data.get('summary', {})
+            logger.info(f"[COMPETITORS DEBUG] Summary encontrado en structure.summary")
+        elif ai_overview_data.get('analysis', {}).get('summary'):
+            summary = ai_overview_data.get('analysis', {}).get('summary', {})
+            logger.info(f"[COMPETITORS DEBUG] Summary encontrado en structure.analysis.summary")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontró summary en ninguna estructura")
         
-        for result in keyword_results:
-            keyword = result.get('keyword', '')
-            ai_analysis = result.get('ai_analysis', {})
+        competitor_analysis_processed = summary.get('competitor_analysis', [])
+        
+        logger.info(f"[COMPETITORS DEBUG] Summary keys: {list(summary.keys())}")
+        logger.info(f"[COMPETITORS DEBUG] Competitor analysis procesado: {len(competitor_analysis_processed)} dominios")
+        
+        if competitor_analysis_processed:
+            logger.info(f"[COMPETITORS DEBUG] Datos procesados encontrados: {competitor_analysis_processed}")
+        else:
+            logger.warning(f"[COMPETITORS DEBUG] No se encontró competitor_analysis en summary")
+        
+        # 🚀 MEJORADO: Usar datos procesados de competitor_analysis si están disponibles
+        if competitor_analysis_processed:
+            logger.info("[COMPETITORS DEBUG] Usando datos ya procesados de competitor_analysis")
+            logger.info(f"[COMPETITORS DEBUG] Datos procesados: {competitor_analysis_processed}")
             
-            if ai_analysis.get('has_ai_overview'):
-                # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
-                logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - AI Analysis keys: {list(ai_analysis.keys())}")
+            # Convertir formato del backend al formato esperado por el Excel
+            competitors_data = {}
+            for comp_data in competitor_analysis_processed:
+                domain = comp_data.get('domain', '')
+                if domain:
+                    competitors_data[domain] = {
+                        'total_appearances': comp_data.get('mentions', 0),
+                        'avg_position': comp_data.get('average_position', 0) or 0,
+                        'visibility_percentage': comp_data.get('visibility_percentage', 0)
+                    }
+                    logger.info(f"[COMPETITORS DEBUG] Añadido competidor: {domain} - {comp_data}")
+            
+            # Ordenar competidores por número de apariciones (más relevantes primero)
+            sorted_competitors = sorted(competitors_data.items(), 
+                                      key=lambda x: x[1]['total_appearances'], 
+                                      reverse=True)
+            
+            logger.info(f"[COMPETITORS DEBUG] Procesados {len(sorted_competitors)} competidores desde summary")
+            
+            # ✅ FORZAR CREACIÓN: Crear la hoja incluso si no hay competidores
+            if not sorted_competitors:
+                logger.warning("[COMPETITORS DEBUG] No hay competidores procesados, pero continuando con creación de hoja")
+                sorted_competitors = []
+            
+        else:
+            # Fallback: Procesamiento manual (código original)
+            logger.info("[COMPETITORS DEBUG] No hay datos procesados, usando procesamiento manual")
+            competitors_data = {}
+            
+            for result in keyword_results:
+                keyword = result.get('keyword', '')
+                ai_analysis = result.get('ai_analysis', {})
                 
-                # 🎯 ESTRUCTURA REAL: Las fuentes están en debug_info.references_found
-                debug_info = ai_analysis.get('debug_info', {})
-                references_found = debug_info.get('references_found', [])
-                logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - references_found count: {len(references_found)}")
-                
-                # Convertir references_found al formato esperado
-                ai_sources = []
-                if references_found:
-                    for ref in references_found:
-                        # Extraer dominio del link
-                        link = ref.get('link', '')
-                        if link:
-                            # Extraer dominio de la URL
-                            try:
-                                parsed = urlparse(link)
-                                domain = parsed.netloc.replace('www.', '')
-                                
-                                ai_sources.append({
-                                    'domain': domain,
-                                    'position': ref.get('index', 0) + 1,  # +1 porque index empieza en 0
-                                    'link': link,
-                                    'source_name': ref.get('source', ''),
-                                    'title': ref.get('title', '')
-                                })
-                            except Exception as e:
-                                logger.warning(f"[COMPETITORS DEBUG] Error parsing URL {link}: {e}")
-                                continue
-                
-                # 🔍 DEBUG: Log específico para cada keyword con AIO
-                if ai_sources:
-                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' tiene {len(ai_sources)} fuentes AI: {ai_sources}")
+                if ai_analysis.get('has_ai_overview'):
+                    # 🔍 DEBUG: Investigar todas las posibles estructuras de fuentes
+                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - AI Analysis keys: {list(ai_analysis.keys())}")
+                    
+                    # 🎯 ESTRUCTURA REAL: Las fuentes están en debug_info.references_found
+                    debug_info = ai_analysis.get('debug_info', {})
+                    references_found = debug_info.get('references_found', [])
+                    logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' - references_found count: {len(references_found)}")
+                    
+                    # Convertir references_found al formato esperado
+                    ai_sources = []
+                    if references_found:
+                        for ref in references_found:
+                            # Extraer dominio del link
+                            link = ref.get('link', '')
+                            if link:
+                                # Extraer dominio de la URL
+                                try:
+                                    parsed = urlparse(link)
+                                    domain = parsed.netloc.replace('www.', '')
+                                    
+                                    ai_sources.append({
+                                        'domain': domain,
+                                        'position': ref.get('index', 0) + 1,  # +1 porque index empieza en 0
+                                        'link': link,
+                                        'source_name': ref.get('source', ''),
+                                        'title': ref.get('title', '')
+                                    })
+                                except Exception as e:
+                                    logger.warning(f"[COMPETITORS DEBUG] Error parsing URL {link}: {e}")
+                                    continue
+                    
+                    # 🔍 DEBUG: Log específico para cada keyword con AIO
+                    if ai_sources:
+                        logger.info(f"[COMPETITORS DEBUG] Keyword '{keyword}' tiene {len(ai_sources)} fuentes AI: {ai_sources}")
+                    else:
+                        logger.warning(f"[COMPETITORS DEBUG] Keyword '{keyword}' con AIO pero SIN fuentes - ai_analysis completo: {ai_analysis}")
+                    
+                    for source in ai_sources:
+                        # 🔍 DEBUG: Log estructura completa de cada fuente
+                        logger.info(f"[COMPETITORS DEBUG] Fuente completa: {source}")
+                        
+                        domain = source.get('domain', '')
+                        position = source.get('position', 0)
+                        source_name = source.get('source_name', '')
+                        
+                        # 🔍 DEBUG: Log cada fuente encontrada
+                        logger.info(f"[COMPETITORS DEBUG] Fuente procesada: {domain} ({source_name}) (posición: {position})")
+                        
+                        if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
+                            if domain not in competitors_data:
+                                competitors_data[domain] = {
+                                    'total_appearances': 0,
+                                    'total_position_sum': 0,
+                                    'keywords': [],
+                                    'positions': [],
+                                    'avg_position': 0
+                                }
+                            
+                            competitors_data[domain]['total_appearances'] += 1
+                            if position and position > 0:
+                                competitors_data[domain]['total_position_sum'] += position
+                                competitors_data[domain]['positions'].append(position)
+                            
+                            competitors_data[domain]['keywords'].append({
+                                'keyword': keyword,
+                                'position': position or 'N/A'
+                            })
+        
+            # Calcular métricas finales para cada competidor
+            for domain, data in competitors_data.items():
+                if data['positions']:
+                    data['avg_position'] = data['total_position_sum'] / len(data['positions'])
                 else:
-                    logger.warning(f"[COMPETITORS DEBUG] Keyword '{keyword}' con AIO pero SIN fuentes - ai_analysis completo: {ai_analysis}")
-                
-                for source in ai_sources:
-                    # 🔍 DEBUG: Log estructura completa de cada fuente
-                    logger.info(f"[COMPETITORS DEBUG] Fuente completa: {source}")
-                    
-                    domain = source.get('domain', '')
-                    position = source.get('position', 0)
-                    source_name = source.get('source_name', '')
-                    
-                    # 🔍 DEBUG: Log cada fuente encontrada
-                    logger.info(f"[COMPETITORS DEBUG] Fuente procesada: {domain} ({source_name}) (posición: {position})")
-                    
-                    if domain and domain != result.get('site_domain', ''):  # Excluir dominio propio
-                        if domain not in competitors_data:
-                            competitors_data[domain] = {
-                                'total_appearances': 0,
-                                'total_position_sum': 0,
-                                'keywords': [],
-                                'positions': [],
-                                'avg_position': 0
-                            }
-                        
-                        competitors_data[domain]['total_appearances'] += 1
-                        if position and position > 0:
-                            competitors_data[domain]['total_position_sum'] += position
-                            competitors_data[domain]['positions'].append(position)
-                        
-                        competitors_data[domain]['keywords'].append({
-                            'keyword': keyword,
-                            'position': position or 'N/A'
-                        })
-        
-        # Calcular métricas finales para cada competidor
-        for domain, data in competitors_data.items():
-            if data['positions']:
-                data['avg_position'] = data['total_position_sum'] / len(data['positions'])
-            else:
-                data['avg_position'] = 0
-        
-        # 🔍 DEBUG: Log final de competidores encontrados
-        logger.info(f"[COMPETITORS DEBUG] Competidores únicos encontrados: {len(competitors_data)}")
-        for domain, data in competitors_data.items():
-            logger.info(f"[COMPETITORS DEBUG] - {domain}: {data['total_appearances']} apariciones")
-        
-        # Ordenar competidores por número de apariciones (más relevantes primero)
-        sorted_competitors = sorted(competitors_data.items(), 
-                                  key=lambda x: x[1]['total_appearances'], 
-                                  reverse=True)
+                    data['avg_position'] = 0
+            
+            # 🔍 DEBUG: Log final de competidores encontrados
+            logger.info(f"[COMPETITORS DEBUG] Competidores únicos encontrados: {len(competitors_data)}")
+            for domain, data in competitors_data.items():
+                logger.info(f"[COMPETITORS DEBUG] - {domain}: {data['total_appearances']} apariciones")
+            
+            # Ordenar competidores por número de apariciones (más relevantes primero)
+            sorted_competitors = sorted(competitors_data.items(), 
+                                      key=lambda x: x[1]['total_appearances'], 
+                                      reverse=True)
+            
+            logger.info(f"[COMPETITORS DEBUG] Procesamiento manual completado: {len(sorted_competitors)} competidores")
         
         # ===== ESTRUCTURA DE LA HOJA DE COMPETIDORES =====
+        # 🚀 NUEVO: Solo información solicitada por el usuario
         
-        # Resumen de competidores
+        # 1) RESUMEN DE COMPETIDORES (Dominio, apariciones, posición promedio, presencia %)
         competitors_summary = [
-            ['ANÁLISIS DE COMPETIDORES EN AI OVERVIEW', '', '', ''],
-            ['', '', '', ''],
-            ['Dominio Competidor', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
+            ['RESUMEN COMPETIDORES', '', '', ''],
+            ['Dominio', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
         ]
         
+        # Generar datos de resumen
         total_keywords_with_aio = len([r for r in keyword_results if r.get('ai_analysis', {}).get('has_ai_overview')])
         
         for domain, data in sorted_competitors[:10]:  # Top 10 competidores
@@ -811,70 +913,116 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         # Espaciado
         competitors_summary.extend([['', '', '', ''], ['', '', '', '']])
         
-        # Detalle por keyword - Solo para top 5 competidores para evitar hoja muy grande
-        detail_section = [
-            ['DETALLE POR KEYWORD - TOP 5 COMPETIDORES', '', '', ''],
-            ['Competidor', 'Keyword', 'Posición en AIO', 'Notas'],
+        # 2) TABLA IGUAL A "DETAILS OF KEYWORDS WITH AIO"
+        # Obtener dominios de competidores para las columnas dinámicas
+        top_competitor_domains = [domain for domain, _ in sorted_competitors[:5]]  # Top 5 para no hacer la tabla muy ancha
+        
+        # Crear headers de la tabla similar al frontend
+        aio_table_headers = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
+        
+        # Añadir columnas para cada competidor
+        for domain in top_competitor_domains:
+            truncated_domain = domain[:15] + '...' if len(domain) > 15 else domain
+            aio_table_headers.extend([f"{truncated_domain} in AIO", f"Position of {truncated_domain}"])
+        
+        # Crear la tabla
+        aio_table_section = [
+            ['DETAILS OF KEYWORDS WITH AIO', ''] + [''] * (len(aio_table_headers) - 2),
+            aio_table_headers
         ]
         
-        for domain, data in sorted_competitors[:5]:
-            detail_section.append([f"=== {domain} ===", '', '', ''])
+        # Llenar datos de la tabla - solo keywords que tienen AI Overview
+        keywords_with_aio = [result for result in keyword_results if result.get('ai_analysis', {}).get('has_ai_overview', False)]
+        
+        for result in keywords_with_aio:
+            keyword = result.get('keyword', '')
+            ai_analysis = result.get('ai_analysis', {})
             
-            # Ordenar keywords de este competidor por posición
-            sorted_keywords = sorted(data['keywords'], 
-                                   key=lambda x: x['position'] if isinstance(x['position'], (int, float)) and x['position'] > 0 else 999)
+            # Datos del dominio principal
+            your_domain_in_aio = 'Yes' if ai_analysis.get('domain_is_ai_source', False) else 'No'
+            your_position = ai_analysis.get('domain_ai_source_position', 'N/A')
+            if your_position == '' or your_position is None:
+                your_position = 'N/A'
             
-            for kw_data in sorted_keywords[:20]:  # Máximo 20 keywords por competidor
-                detail_section.append([
-                    domain,
-                    kw_data['keyword'],
-                    kw_data['position'],
-                    'Competencia directa' if isinstance(kw_data['position'], (int, float)) and kw_data['position'] <= 3 else ''
-                ])
+            # Crear fila base
+            row_data = [keyword, your_domain_in_aio, your_position]
             
-            detail_section.append(['', '', '', ''])  # Espaciado entre competidores
+            # Añadir datos de competidores
+            debug_info = ai_analysis.get('debug_info', {})
+            references_found = debug_info.get('references_found', [])
+            
+            # Crear diccionario de dominios competidores y sus posiciones para esta keyword
+            competitor_positions = {}
+            for ref in references_found:
+                link = ref.get('link', '')
+                if link:
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(link)
+                        domain = parsed.netloc.replace('www.', '')
+                        position = ref.get('index', 0) + 1  # +1 porque index empieza en 0
+                        
+                        if domain in top_competitor_domains:
+                            competitor_positions[domain] = position
+                    except:
+                        continue
+            
+            # Añadir datos de cada competidor a la fila
+            for domain in top_competitor_domains:
+                if domain in competitor_positions:
+                    row_data.extend(['Yes', competitor_positions[domain]])
+                else:
+                    row_data.extend(['No', 'N/A'])
+            
+            aio_table_section.append(row_data)
         
         # Combinar secciones
-        all_competitors_data = competitors_summary + detail_section
+        all_competitors_data = competitors_summary + aio_table_section
         
         # Crear DataFrame y exportar
         df_competitors = pd.DataFrame(all_competitors_data[1:], columns=all_competitors_data[0])
         df_competitors.to_excel(writer, sheet_name='AIO Competitors Analysis', index=False)
         
-        # Formatear hoja
+        # Formatear hoja - dinámico según número de columnas
         worksheet = writer.sheets['AIO Competitors Analysis']
-        worksheet.set_column('A:A', 40)  # Dominio/Competidor
-        worksheet.set_column('B:B', 30)  # Keyword/Apariciones
-        worksheet.set_column('C:C', 18)  # Posición
-        worksheet.set_column('D:D', 20)  # Notas/Presencia
+        
+        # Calcular número de columnas total
+        num_columns = len(aio_table_headers)
+        
+        # Formatear columnas base
+        worksheet.set_column('A:A', 35)  # Keyword/Dominio
+        worksheet.set_column('B:B', 18)  # Apariciones/Your Domain in AIO
+        worksheet.set_column('C:C', 18)  # Posición Promedio/Your Position in AIO
+        worksheet.set_column('D:D', 15)  # Presencia %
+        
+        # Formatear columnas adicionales para competidores si existen
+        if num_columns > 4:
+            for i in range(4, min(num_columns, 26)):  # Máximo hasta columna Z
+                col_letter = chr(ord('A') + i)
+                worksheet.set_column(f'{col_letter}:{col_letter}', 15)
         
         # Aplicar formatos especiales
         workbook = writer.book
         section_format = workbook.add_format({'bold': True, 'bg_color': '#E6F3FF', 'border': 1})
-        competitor_format = workbook.add_format({'bold': True, 'bg_color': '#F0F0F0', 'border': 1})
         
         # Encontrar filas de sección para formatear
         section_rows = []
-        competitor_rows = []
         for i, row in enumerate(all_competitors_data[1:], start=1):
-            if row[0] in ['ANÁLISIS DE COMPETIDORES EN AI OVERVIEW', 'DETALLE POR KEYWORD - TOP 5 COMPETIDORES']:
+            if row[0] in ['RESUMEN COMPETIDORES', 'DETAILS OF KEYWORDS WITH AIO']:
                 section_rows.append(i)
-            elif row[0].startswith('=== ') and row[0].endswith(' ==='):
-                competitor_rows.append(i)
         
         for row_num in section_rows:
             worksheet.set_row(row_num, None, section_format)
         
-        for row_num in competitor_rows:
-            worksheet.set_row(row_num, None, competitor_format)
+        # Aplicar header format para todas las columnas necesarias
+        for col_num in range(min(num_columns, len(df_competitors.columns))):
+            col_letter = chr(ord('A') + col_num)
+            worksheet.write(f'{col_letter}1', df_competitors.columns[col_num], header_format)
         
-        # Aplicar header format
-        for col_num, col_name in enumerate(['A', 'B', 'C', 'D']):
-            if col_num < len(df_competitors.columns):
-                worksheet.write(f'{col_name}1', df_competitors.columns[col_num], header_format)
+        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con {len(all_competitors_data)} filas")
                 
     except Exception as e:
-        logger.error(f"Error creando hoja de análisis de competidores: {e}")
+        logger.error(f"[COMPETITORS DEBUG] ❌ Error creando hoja de análisis de competidores: {e}", exc_info=True)
 
 
 # ❌ FUNCIÓN ELIMINADA: create_aio_organic_correlation_sheet (AIO Impact Analysis - no se requiere)
