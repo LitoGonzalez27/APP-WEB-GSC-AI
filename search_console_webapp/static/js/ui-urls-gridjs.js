@@ -53,7 +53,7 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
         },
         sort: {
             multiColumn: false,
-            sortColumn: 2, // Columna Clics P1 (índice 2)
+            sortColumn: 2, // Clicks P1 siempre (índice 2)
             sortDirection: 'desc' // De mayor a menor
         },
         search: {
@@ -113,6 +113,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
     // Definir columnas base
     const columns = [
         {
+            id: 'keywords_btn',
             name: 'Keywords',
             width: '80px',
             sort: false,
@@ -132,6 +133,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             }
         },
         {
+            id: 'url',
             name: 'URL',
             width: '350px',
             sort: true,
@@ -177,12 +179,11 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             }
         },
         {
+            id: 'clicks_p1',
             name: gridjs.html('Clicks<br>P1'),
             width: '100px',
             sort: {
-                compare: (a, b) => {
-                    return parseInteger(a) - parseInteger(b);
-                }
+                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
             }
         }
     ];
@@ -191,21 +192,19 @@ function processUrlsDataForGrid(urlsData, analysisType) {
     if (analysisType === 'comparison') {
         columns.push(
             {
+                id: 'clicks_p2',
                 name: gridjs.html('Clicks<br>P2'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parseInteger(a) - parseInteger(b);
-                    }
+                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
                 }
             },
             {
+                id: 'delta_clicks',
                 name: gridjs.html('ΔClicks<br>(%)'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parsePercentageForSort(a) - parsePercentageForSort(b);
-                    }
+                    compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 },
                 formatter: (cell) => {
                     return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
@@ -216,12 +215,11 @@ function processUrlsDataForGrid(urlsData, analysisType) {
 
     columns.push(
         {
+            id: 'impressions_p1',
             name: gridjs.html('Impressions<br>P1'),
             width: '120px',
             sort: {
-                compare: (a, b) => {
-                    return parseInteger(a) - parseInteger(b);
-                }
+                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
             }
         }
     );
@@ -229,21 +227,19 @@ function processUrlsDataForGrid(urlsData, analysisType) {
     if (analysisType === 'comparison') {
         columns.push(
             {
+                id: 'impressions_p2',
                 name: gridjs.html('Impressions<br>P2'),
                 width: '120px',
                 sort: {
-                    compare: (a, b) => {
-                        return parseInteger(a) - parseInteger(b);
-                    }
+                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
                 }
             },
             {
+                id: 'delta_impressions',
                 name: gridjs.html('ΔImp.<br>(%)'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parsePercentageForSort(a) - parsePercentageForSort(b);
-                    }
+                    compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 },
                 formatter: (cell) => {
                     return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
@@ -257,9 +253,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             name: gridjs.html('CTR<br>P1 (%)'),
             width: '100px',
             sort: {
-                compare: (a, b) => {
-                    return parsePercentageForSort(a) - parsePercentageForSort(b);
-                }
+                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
             }
         }
     );
@@ -267,21 +261,19 @@ function processUrlsDataForGrid(urlsData, analysisType) {
     if (analysisType === 'comparison') {
         columns.push(
             {
+                id: 'ctr_p2',
                 name: gridjs.html('CTR<br>P2 (%)'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parsePercentageForSort(a) - parsePercentageForSort(b);
-                    }
+                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
                 }
             },
             {
+                id: 'delta_ctr',
                 name: gridjs.html('ΔCTR<br>(%)'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parsePercentageForSort(a) - parsePercentageForSort(b);
-                    }
+                    compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 },
                 formatter: (cell) => {
                     return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
@@ -292,12 +284,11 @@ function processUrlsDataForGrid(urlsData, analysisType) {
 
     columns.push(
         {
+            id: 'position_p1',
             name: gridjs.html('Position<br>P1'),
             width: '100px',
             sort: {
-                compare: (a, b) => {
-                    return parseFloat(a) - parseFloat(b);
-                }
+                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
             }
         }
     );
@@ -305,21 +296,19 @@ function processUrlsDataForGrid(urlsData, analysisType) {
     if (analysisType === 'comparison') {
         columns.push(
             {
+                id: 'position_p2',
                 name: gridjs.html('Position<br>P2'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parseFloat(a) - parseFloat(b);
-                    }
+                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
                 }
             },
             {
+                id: 'delta_position',
                 name: gridjs.html('ΔPos'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => {
-                        return parseFloat(a) - parseFloat(b);
-                    }
+                    compare: (a, b) => compareDeltaPositionImproved(a, b) // New → negativo → 0 → positivo
                 },
                 formatter: (cell) => {
                     return gridjs.html(`<span class="${getDeltaClassPosition(cell)}">${cell}</span>`);
@@ -421,6 +410,17 @@ function parsePercentageForSort(str) {
  */
 function getDeltaClass(value) {
     if (!value || value === '-') return '';
+    
+    // ✅ NUEVA: Identificar URLs nuevas (verde como mejoras)
+    if (value === 'New' || value === 'Infinity' || (typeof value === 'string' && value.includes('New'))) {
+        return 'delta-positive';
+    }
+    
+    // ✅ NUEVA: Identificar URLs perdidas (rojo como empeoramientos)
+    if (value === 'Lost' || (typeof value === 'string' && value.includes('Lost'))) {
+        return 'delta-negative';
+    }
+    
     const numValue = parseFloat(value.replace(/[%+]/g, ''));
     // Solo negro si es exactamente 0
     if (numValue === 0) return 'delta-neutral';
@@ -437,6 +437,17 @@ function getDeltaClass(value) {
  */
 function getDeltaClassPosition(value) {
     if (!value || value === '-') return '';
+    
+    // ✅ NUEVA: Identificar URLs nuevas en posiciones (verde como mejoras)
+    if (value === 'New' || value === 'Infinity' || (typeof value === 'string' && value.includes('New'))) {
+        return 'delta-positive';
+    }
+    
+    // ✅ NUEVA: Identificar URLs perdidas en posiciones (rojo como empeoramientos)
+    if (value === 'Lost' || (typeof value === 'string' && value.includes('Lost'))) {
+        return 'delta-negative';
+    }
+    
     const numValue = parseFloat(value.replace(/[%+]/g, ''));
     // Solo negro si es exactamente 0
     if (numValue === 0) return 'delta-neutral';
@@ -444,6 +455,135 @@ function getDeltaClassPosition(value) {
     if (numValue > 0) return 'delta-negative'; // Empeora posición = rojo
     if (numValue < 0) return 'delta-positive'; // Mejora posición = verde
     return '';
+}
+
+/**
+ * Función auxiliar para parsear valores numéricos de strings formateados (MEJORADA)
+ * @param {*} value - Valor a parsear
+ * @returns {number} - Número parseado
+ */
+function parseNumericValue(value) {
+    if (value === null || value === undefined || value === '' || value === '-') return 0;
+    if (typeof value === 'number') return value;
+    
+    let str = String(value).trim();
+    
+    // Manejar casos especiales
+    if (str === 'New' || str.includes('New') || str.includes('Nuevo')) return Infinity;
+    if (str === 'Lost' || str.includes('Lost') || str.includes('Perdido')) return -Infinity;
+    if (str.includes('∞')) return str.includes('+') ? Infinity : -Infinity;
+    
+    // Limpiar HTML tags si existen
+    str = str.replace(/<[^>]*>/g, '');
+    
+    // Preservar el signo negativo
+    const isNegative = str.startsWith('-');
+    
+    // Remover todos los símbolos excepto números y separadores decimales
+    str = str.replace(/[^\d,.]/g, '');
+    
+    // Manejar formato español: si hay tanto punto como coma, el último es decimal
+    if (str.includes('.') && str.includes(',')) {
+        const lastDot = str.lastIndexOf('.');
+        const lastComma = str.lastIndexOf(',');
+        
+        if (lastComma > lastDot) {
+            // Coma es decimal: 1.234,56 → 1234.56
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+            // Punto es decimal: 1,234.56 → 1234.56
+            str = str.replace(/,/g, '');
+        }
+    } else if (str.includes(',')) {
+        // Solo coma: asumir decimal español: 5,67 → 5.67
+        const commaCount = (str.match(/,/g) || []).length;
+        if (commaCount === 1) {
+            str = str.replace(',', '.');
+        } else {
+            // Múltiples comas: separadores de miles
+            str = str.replace(/,/g, '');
+        }
+    }
+    
+    const num = parseFloat(str);
+    const result = isNaN(num) ? 0 : (isNegative ? -Math.abs(num) : num);
+    
+    return result;
+}
+
+/**
+ * Compara valores de delta para ordenamiento MEJORADO con DEBUG
+ * Orden: Mayor mejora → menor mejora → 0 → menor pérdida → mayor pérdida
+ * @param {*} a - Primer valor
+ * @param {*} b - Segundo valor  
+ * @returns {number} - Resultado de comparación
+ */
+function compareDeltaValuesImproved(a, b) {
+    const valA = String(a || '');
+    const valB = String(b || '');
+    
+    // Manejar valores especiales
+    const isNewA = valA === 'New' || valA.includes('New') || valA.includes('Nuevo');
+    const isNewB = valB === 'New' || valB.includes('New') || valB.includes('Nuevo');
+    const isLostA = valA === 'Lost' || valA.includes('Lost') || valA.includes('Perdido');
+    const isLostB = valB === 'Lost' || valB.includes('Lost') || valB.includes('Perdido');
+    
+    // New va al final del ordenamiento (mejor caso)
+    if (isNewA && !isNewB) return 1;
+    if (!isNewA && isNewB) return -1;
+    if (isNewA && isNewB) return 0;
+    
+    // Lost va al final (peor caso, después de New)
+    if (isLostA && !isLostB) return 1;
+    if (!isLostA && isLostB) return -1;
+    if (isLostA && isLostB) return 0;
+    
+    // Para valores numéricos: parsear y comparar
+    const numA = parseNumericValue(valA);
+    const numB = parseNumericValue(valB);
+    
+    // Debug logging (comentar en producción)
+    if (window.debugSort) {
+        console.log(`🔍 Comparando: "${valA}" (${numA}) vs "${valB}" (${numB}) → ${numB - numA}`);
+    }
+    
+    // Ordenar de mayor a menor: +300% → +150% → +100% → 0% → -5% → -30% → -80%
+    return numB - numA;
+}
+
+/**
+ * Compara valores de delta de posición para ordenamiento MEJORADO (lógica invertida)
+ * Orden: New → mejor mejora (más negativo) → 0 → peor empeoramiento (más positivo)
+ * @param {*} a - Primer valor
+ * @param {*} b - Segundo valor
+ * @returns {number} - Resultado de comparación
+ */
+function compareDeltaPositionImproved(a, b) {
+    const valA = String(a || '');
+    const valB = String(b || '');
+    
+    // Manejar valores especiales
+    const isNewA = valA === 'New' || valA.includes('New');
+    const isNewB = valB === 'New' || valB.includes('New');
+    const isLostA = valA === 'Lost' || valA.includes('Lost');
+    const isLostB = valB === 'Lost' || valB.includes('Lost');
+    
+    // New va primero (mejor caso para posiciones)
+    if (isNewA && !isNewB) return -1;
+    if (!isNewA && isNewB) return 1;
+    if (isNewA && isNewB) return 0;
+    
+    // Lost va al final
+    if (isLostA && !isLostB) return 1;
+    if (!isLostA && isLostB) return -1;
+    if (isLostA && isLostB) return 0;
+    
+    // Para posiciones: negativo es mejor, positivo es peor
+    // Orden: -70 → -40 → -10 → 0 → +2 → +10 → +30
+    const numA = parseNumericValue(valA);
+    const numB = parseNumericValue(valB);
+    
+    return numA - numB; // Orden ascendente: más negativo primero
 }
 
 // Funciones globales para eventos

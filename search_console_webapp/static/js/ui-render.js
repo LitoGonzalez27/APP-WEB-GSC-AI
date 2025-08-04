@@ -563,38 +563,50 @@ export function renderKeywords(keywordStats = {}) {
     // ✅ Adaptar mensajes según si hay comparación o no
     const hasComparison = (ov.improved > 0 || ov.worsened > 0 || ov.lost > 0);
     
-    elems.keywordOverviewDiv.innerHTML = `
-      <div class="overview-card total-kws">
-        <div class="card-icon"><i class="fas fa-search"></i></div>
-        <div class="label">Total KWs</div>
-        <div class="value">${formatInteger(ov.total ?? 0)}</div>
-      </div>
-      <div class="overview-card improved">
-        <div class="card-icon"><i class="fas fa-arrow-trend-up"></i></div>
-        <div class="label">${hasComparison ? 'Improve positions' : 'Top 1-3'}</div>
-        <div class="value">${hasComparison ? '+' + formatInteger(ov.improved ?? 0) : formatInteger(keywordStats.top3?.current ?? 0)}</div>
-      </div>
-      <div class="overview-card declined">
-        <div class="card-icon"><i class="fas fa-arrow-trend-down"></i></div>
-        <div class="label">${hasComparison ? 'Decline positions' : 'Pos 4-10'}</div>
-        <div class="value">${hasComparison ? '-' + formatInteger(ov.worsened ?? 0) : formatInteger(keywordStats.top10?.current ?? 0)}</div>
-      </div>
-      <div class="overview-card same-pos">
-        <div class="card-icon"><i class="fas fa-equals"></i></div>
-        <div class="label">Same pos.</div>
-        <div class="value">${hasComparison ? formatInteger(ov.same ?? 0) : formatInteger(keywordStats.top20?.current ?? 0)}</div>
-      </div>
-      <div class="overview-card added">
-        <div class="card-icon"><i class="fas fa-plus-circle"></i></div>
-        <div class="label">${hasComparison ? 'New' : 'Pos 20+'}</div>
-        <div class="value">${hasComparison ? '+' + formatInteger(ov.new ?? 0) : formatInteger(keywordStats.top20plus?.current ?? 0)}</div>
-      </div>
-      <div class="overview-card removed">
-        <div class="card-icon"><i class="fas fa-minus-circle"></i></div>
-        <div class="label">${hasComparison ? 'Lost' : 'Current period'}</div>
-        <div class="value">${hasComparison ? '-' + formatInteger(ov.lost ?? 0) : '📊'}</div>
-      </div>
-    `;
+    if (hasComparison) {
+      // Mostrar iconos completos cuando hay comparación de períodos
+      elems.keywordOverviewDiv.innerHTML = `
+        <div class="overview-card total-kws">
+          <div class="card-icon"><i class="fas fa-search"></i></div>
+          <div class="label">Total KWs</div>
+          <div class="value">${formatInteger(ov.total ?? 0)}</div>
+        </div>
+        <div class="overview-card improved">
+          <div class="card-icon"><i class="fas fa-arrow-trend-up"></i></div>
+          <div class="label">Improve positions</div>
+          <div class="value">+${formatInteger(ov.improved ?? 0)}</div>
+        </div>
+        <div class="overview-card declined">
+          <div class="card-icon"><i class="fas fa-arrow-trend-down"></i></div>
+          <div class="label">Decline positions</div>
+          <div class="value">-${formatInteger(ov.worsened ?? 0)}</div>
+        </div>
+        <div class="overview-card same-pos">
+          <div class="card-icon"><i class="fas fa-equals"></i></div>
+          <div class="label">Same pos.</div>
+          <div class="value">${formatInteger(ov.same ?? 0)}</div>
+        </div>
+        <div class="overview-card added">
+          <div class="card-icon"><i class="fas fa-plus-circle"></i></div>
+          <div class="label">New</div>
+          <div class="value">+${formatInteger(ov.new ?? 0)}</div>
+        </div>
+        <div class="overview-card removed">
+          <div class="card-icon"><i class="fas fa-minus-circle"></i></div>
+          <div class="label">Lost</div>
+          <div class="value">-${formatInteger(ov.lost ?? 0)}</div>
+        </div>
+      `;
+    } else {
+      // Mostrar solo el total de keywords cuando no hay comparación
+      elems.keywordOverviewDiv.innerHTML = `
+        <div class="overview-card total-kws single-period">
+          <div class="card-icon"><i class="fas fa-search"></i></div>
+          <div class="label">Total Keywords</div>
+          <div class="value">${formatInteger(ov.total ?? 0)}</div>
+        </div>
+      `;
+    }
     elems.keywordOverviewDiv.style.display = 'flex';
     
     // ✅ NOTA: No se agregan event listeners a las tarjetas del overview
@@ -639,10 +651,7 @@ export function renderKeywords(keywordStats = {}) {
             <div class="entry">New: <strong>+${formatInteger(stat.new ?? 0)}</strong></div>
             <div class="exit">Lost: <strong>-${formatInteger(stat.lost ?? 0)}</strong></div>
             <div class="maintain">Maintained: <strong>${formatInteger(stat.stay ?? 0)}</strong></div>
-          ` : `
-            <div class="entry">Keywords in these positions</div>
-            <div class="maintain">Total of the selected period</div>
-          `}
+          ` : ``}
         </div>
       `;
     };
@@ -1286,12 +1295,12 @@ function filterKeywordsByPosition(keywordData, positionRange) {
   });
 }
 
-// ✅ NUEVO: Variables para almacenar datos pre-procesados y DataTables del modal
+// ✅ MIGRADO A GRID.JS: Variables para almacenar datos pre-procesados y Grid.js del modal
 let preProcessedModalData = {
-  top3: { keywords: [], dataTable: null, analysisType: 'single' },
-  top10: { keywords: [], dataTable: null, analysisType: 'single' },
-  top20: { keywords: [], dataTable: null, analysisType: 'single' },
-  top20plus: { keywords: [], dataTable: null, analysisType: 'single' }
+  top3: { keywords: [], gridTable: null, analysisType: 'single' },
+  top10: { keywords: [], gridTable: null, analysisType: 'single' },
+  top20: { keywords: [], gridTable: null, analysisType: 'single' },
+  top20plus: { keywords: [], gridTable: null, analysisType: 'single' }
 };
 
 let modalContainersCreated = false;
@@ -1471,10 +1480,13 @@ function openKeywordModal(positionRange, label) {
     return;
   }
   
-  // Verificar que la DataTable está lista
-  if (!data.dataTable && data.keywords.length > 0) {
-    console.log('🔄 DataTable no está lista, creando...');
-    createDataTableForRange(positionRange, data.keywords, data.analysisType);
+  // Verificar que la Grid.js tabla está lista
+  if (!data.gridTable && data.keywords.length > 0) {
+    console.log('🔄 Grid.js tabla no está lista, creando...');
+    // No usar await aquí para mantener la apertura instantánea del modal
+    createGridTableForRange(positionRange, data.keywords, data.analysisType).catch(error => {
+      console.error(`❌ Error al crear Grid.js tabla para ${positionRange}:`, error);
+    });
   }
   
   // Mostrar el modal instantáneamente
@@ -1511,28 +1523,8 @@ function createAllModalContainers() {
               <i class="fas fa-info-circle"></i>
               <span>Información: Estas son las keywords que se posicionan en el rango seleccionado. Haz clic en el icono de búsqueda para ver el SERP.</span>
             </div>
-            <div class="table-responsive-container">
-              <table id="keywordModalTable-${range}" class="display" style="width:100%;">
-                <thead>
-                  <tr>
-                    <th>View SERP</th>
-                    <th>Keyword</th>
-                    <th>Clicks P1</th>
-                    <th>Clicks P2</th>
-                    <th>ΔClicks (%)</th>
-                    <th>Impressions P1</th>
-                    <th>Impressions P2</th>
-                    <th>ΔImp. (%)</th>
-                    <th>CTR P1 (%)</th>
-                    <th>CTR P2 (%)</th>
-                    <th>ΔCTR (%)</th>
-                    <th>Pos P1</th>
-                    <th>Pos P2</th>
-                    <th>ΔPos</th>
-                  </tr>
-                </thead>
-                <tbody id="keywordModalTableBody-${range}"></tbody>
-              </table>
+            <div id="keywordModalTableContainer-${range}" class="table-responsive-container">
+              <!-- Grid.js table will be inserted here -->
             </div>
           </div>
         </div>
@@ -1556,148 +1548,70 @@ function createAllModalContainers() {
   console.log('✅ Contenedores de modales creados para todos los rangos');
 }
 
-// ✅ NUEVO: Función para crear DataTable para un rango específico
-function createDataTableForRange(range, keywords, analysisType) {
-  // Destruir DataTable anterior si existe
-  if (preProcessedModalData[range].dataTable) {
-    preProcessedModalData[range].dataTable.destroy();
-    preProcessedModalData[range].dataTable = null;
+// ✅ MIGRADO A GRID.JS: Función para crear Grid.js table para un rango específico
+async function createGridTableForRange(range, keywords, analysisType) {
+  // Destruir Grid.js anterior si existe
+  if (preProcessedModalData[range].gridTable && preProcessedModalData[range].gridTable.destroy) {
+    try {
+      preProcessedModalData[range].gridTable.destroy();
+      console.log(`✅ Grid.js anterior destruido para ${range}`);
+    } catch (e) {
+      console.warn(`⚠️ Error destruyendo Grid.js anterior para ${range}:`, e);
+    }
+    preProcessedModalData[range].gridTable = null;
   }
 
-  const tableId = `keywordModalTable-${range}`;
-  const tableBodyId = `keywordModalTableBody-${range}`;
-  const modalTableBody = document.getElementById(tableBodyId);
+  const containerId = `keywordModalTableContainer-${range}`;
+  const container = document.getElementById(containerId);
   
-  if (!modalTableBody) {
-    console.error(`❌ No se encontró el tbody para ${range}`);
+  if (!container) {
+    console.error(`❌ No se encontró el contenedor para ${range}`);
     return;
   }
 
-  // Limpiar tabla
-  modalTableBody.innerHTML = '';
+  console.log(`🔄 Creando Grid.js tabla para ${range} con ${keywords.length} keywords...`);
+  const startTime = performance.now();
   
   if (keywords.length === 0) {
-    modalTableBody.innerHTML = '<tr><td colspan="14">No se encontraron keywords en este rango de posiciones.</td></tr>';
+    container.innerHTML = `
+      <div class="no-aio-message">
+        <i class="fas fa-search"></i>
+        <h3>No Keywords Found</h3>
+        <p>No se encontraron keywords en este rango de posiciones.</p>
+      </div>
+    `;
     return;
   }
 
-  console.log(`🔄 Creando DataTable para ${range} con ${keywords.length} keywords...`);
-  const startTime = performance.now();
-
-  // Llenar la tabla con las keywords
-  keywords.forEach(keyword => {
-    // Calcular clases CSS para deltas
-    const deltaClicksClass =
-      (keyword.delta_clicks_percent === 'Infinity' || (typeof keyword.delta_clicks_percent === 'number' && keyword.delta_clicks_percent > 0))
-        ? 'positive-change'
-        : (typeof keyword.delta_clicks_percent === 'number' && keyword.delta_clicks_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaImprClass =
-      (keyword.delta_impressions_percent === 'Infinity' || (typeof keyword.delta_impressions_percent === 'number' && keyword.delta_impressions_percent > 0))
-        ? 'positive-change'
-        : (typeof keyword.delta_impressions_percent === 'number' && keyword.delta_impressions_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaCtrClass =
-      (keyword.delta_ctr_percent === 'Infinity' || (typeof keyword.delta_ctr_percent === 'number' && keyword.delta_ctr_percent > 0))
-        ? 'positive-change'
-        : (typeof keyword.delta_ctr_percent === 'number' && keyword.delta_ctr_percent < 0)
-          ? 'negative-change'
-          : '';
-    const deltaPosClass =
-      (keyword.delta_position_absolute === 'New' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute < 0))
-        ? 'positive-change'
-        : (keyword.delta_position_absolute === 'Lost' || (typeof keyword.delta_position_absolute === 'number' && keyword.delta_position_absolute > 0))
-          ? 'negative-change'
-          : '';
-
-    const tr = document.createElement('tr');
+  // ✅ CREAR TABLA GRID.JS usando el módulo creado
+  try {
+    // Limpiar completamente el contenedor antes de crear la tabla
+    container.innerHTML = '';
     
-    // Configurar visibilidad de columnas según el tipo
-    const p2ColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
-    const deltaColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
+    // Importar dinámicamente para evitar dependencias circulares
+    const { createKeywordsGridTable } = await import('./ui-keywords-gridjs.js');
     
-    tr.innerHTML = `
-      <td class="dt-body-center">
-        <i class="fas fa-search serp-icon"
-           data-keyword="${escapeHtmlUtil(keyword.keyword)}"
-           data-url="${escapeHtmlUtil(keyword.url || '')}"
-           title="Ver SERP para ${escapeHtmlUtil(keyword.keyword)}"
-           style="cursor:pointer;"></i>
-      </td>
-      <td class="dt-body-left kw-cell">${escapeHtmlUtil(keyword.keyword || 'N/A')}</td>
-      <td>${formatInteger(keyword.clicks_m1 ?? 0)}</td>
-      <td ${p2ColumnsStyle}>${formatInteger(keyword.clicks_m2 ?? 0)}</td>
-      <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_clicks_percent)}</td>
-      <td>${formatInteger(keyword.impressions_m1 ?? 0)}</td>
-      <td ${p2ColumnsStyle}>${formatInteger(keyword.impressions_m2 ?? 0)}</td>
-      <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_impressions_percent)}</td>
-      <td>${formatPercentage(keyword.ctr_m1)}</td>
-      <td ${p2ColumnsStyle}>${formatPercentage(keyword.ctr_m2)}</td>
-      <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(keyword.delta_ctr_percent, true)}</td>
-      <td>${formatPosition(keyword.position_m1)}</td>
-      <td ${p2ColumnsStyle}>${formatPosition(keyword.position_m2)}</td>
-      <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(keyword.delta_position_absolute, keyword.position_m1, keyword.position_m2)}</td>
+    // Crear Grid.js table
+    preProcessedModalData[range].gridTable = createKeywordsGridTable(keywords, analysisType, container);
+    
+    if (preProcessedModalData[range].gridTable) {
+      const endTime = performance.now();
+      console.log(`✅ Grid.js tabla para ${range} creada en ${(endTime - startTime).toFixed(2)}ms`);
+    } else {
+      console.warn(`⚠️ No se pudo crear Grid.js tabla para ${range}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error al crear Grid.js tabla para ${range}:`, error);
+    
+    // Fallback - mostrar mensaje de error
+    container.innerHTML = `
+      <div class="no-aio-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Error Loading Keywords</h3>
+        <p>There was an error loading the keywords table. Please try again.</p>
+      </div>
     `;
-    modalTableBody.appendChild(tr);
-  });
-
-  // Agregar event listeners para los iconos de SERP
-  const serpIcons = modalTableBody.querySelectorAll('.serp-icon');
-  serpIcons.forEach(icon => {
-    icon.addEventListener('click', () => {
-      if (typeof openSerpModal === 'function') {
-        openSerpModal(icon.dataset.keyword, icon.dataset.url);
-      }
-    });
-  });
-
-  // Actualizar headers según el tipo de análisis
-  updateModalTableHeadersForRange(range, analysisType);
-
-  // Configurar columnas para DataTable
-  const columnDefs = [
-    { targets: '_all', className: 'dt-body-right' },
-    { targets: [0, 1], className: 'dt-body-left' },
-    { targets: 0, orderable: false },
-    { targets: [2, 3], type: 'spanish-integer' },
-    { targets: [4], type: 'spanish-delta' },
-    { targets: [5, 6], type: 'spanish-integer' },
-    { targets: [7], type: 'spanish-delta' },
-    { targets: [8, 9], type: 'spanish-percentage' },
-    { targets: [10], type: 'spanish-delta' },
-    { targets: [11, 12], type: 'spanish-decimal' },
-    { targets: [13], type: 'spanish-delta' }
-  ];
-
-  // Ocultar columnas para período único
-  if (analysisType === 'single') {
-    columnDefs.push(
-      { targets: [3, 4, 6, 7, 9, 10, 12, 13], visible: false }
-    );
-  }
-
-  // ✅ CORREGIDO: Usar el registro centralizado de tipos de ordenamiento
-  registerDataTableSortingTypes();
-
-  // Inicializar DataTable
-  if (window.DataTable) {
-    preProcessedModalData[range].dataTable = new DataTable(`#${tableId}`, {
-      pageLength: 10,
-      lengthMenu: [10, 25, 50, 100],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json' },
-      scrollX: true,
-      responsive: false,
-      columnDefs: columnDefs,
-      order: [[2, 'desc']], // Ordenar por clicks M1 de mayor a menor
-      drawCallback: () => {
-        if (window.jQuery && window.jQuery.fn.tooltip) window.jQuery('[data-toggle="tooltip"]').tooltip();
-      }
-    });
-    
-    const endTime = performance.now();
-    console.log(`✅ DataTable para ${range} creado en ${(endTime - startTime).toFixed(2)}ms`);
   }
 }
 
@@ -1733,9 +1647,13 @@ function preprocessKeywordDataByRanges(keywordData) {
     // Limpiar datos existentes
     Object.keys(preProcessedModalData).forEach(range => {
       preProcessedModalData[range].keywords = [];
-      if (preProcessedModalData[range].dataTable) {
-        preProcessedModalData[range].dataTable.destroy();
-        preProcessedModalData[range].dataTable = null;
+      if (preProcessedModalData[range].gridTable && preProcessedModalData[range].gridTable.destroy) {
+        try {
+          preProcessedModalData[range].gridTable.destroy();
+        } catch (e) {
+          console.warn(`⚠️ Error al limpiar Grid.js anterior para ${range}:`, e);
+        }
+        preProcessedModalData[range].gridTable = null;
       }
     });
     return;
@@ -1785,12 +1703,12 @@ function preprocessKeywordDataByRanges(keywordData) {
     analysisType: analysisType
   });
 
-  // Pre-crear las DataTables para cada rango
-  createPreloadedDataTables();
+  // Pre-crear las Grid.js tables para cada rango
+  createPreloadedGridTables();
 }
 
-// ✅ NUEVO: Función para crear DataTables pre-cargadas
-function createPreloadedDataTables() {
+// ✅ MIGRADO A GRID.JS: Función para crear Grid.js tables pre-cargadas
+function createPreloadedGridTables() {
   if (!modalContainersCreated) {
     createAllModalContainers();
   }
@@ -1798,7 +1716,9 @@ function createPreloadedDataTables() {
   Object.keys(preProcessedModalData).forEach(range => {
     const data = preProcessedModalData[range];
     if (data.keywords.length > 0) {
-      createDataTableForRange(range, data.keywords, data.analysisType);
+      createGridTableForRange(range, data.keywords, data.analysisType).catch(error => {
+        console.error(`❌ Error al crear Grid.js tabla para ${range} en precarga:`, error);
+      });
     }
   });
 }

@@ -1,21 +1,17 @@
-// ui-keyword-comparison-table.js — CÓDIGO CORREGIDO (reemplaza completamente el archivo existente)
+// ui-keyword-comparison-table.js — MIGRADO A GRID.JS (reemplaza completamente el archivo existente)
 
 import { elems } from './utils.js';
-import { openSerpModal } from './ui-serp-modal.js';
-import { enhanceTable, setupTableRedrawEnhancements } from './ui-table-enhancements.js';
+import { createKeywordsGridTable } from './ui-keywords-gridjs.js';
 import { 
   formatInteger, 
   formatPercentage, 
   formatPosition, 
   formatPercentageChange, 
   formatPositionDelta,
-  getStandardKeywordTableConfig,
-  registerDataTableSortingTypes,
   escapeHtml as escapeHtmlUtil
 } from './number-utils.js';
 
-
-let keywordComparisonDataTable = null;
+let keywordComparisonGridTable = null;
 
 // ✅ REMOVIDO: Funciones duplicadas - ahora se usan las del módulo centralizado number-utils.js
 
@@ -103,115 +99,89 @@ function updateTableHeaders(analysisType) {
 // ✅ REMOVIDO: Funciones de parsing duplicadas - ahora se usan las del módulo centralizado
 
 export function renderKeywordComparisonTable(keywordData, periods = null) {
-  if (!elems.keywordComparisonTableBody) return;
+  const container = document.getElementById('keywordComparisonBlock');
+  if (!container) return;
 
-  if (keywordComparisonDataTable) {
-    keywordComparisonDataTable.destroy();
-    keywordComparisonDataTable = null;
+  // ✅ Limpiar Grid.js anterior si existe
+  if (keywordComparisonGridTable && keywordComparisonGridTable.destroy) {
+    try {
+      keywordComparisonGridTable.destroy();
+      console.log('✅ Grid.js anterior destruido');
+    } catch (e) {
+      console.warn('⚠️ Error destruyendo Grid.js anterior:', e);
+    }
+    keywordComparisonGridTable = null;
   }
-
-  elems.keywordComparisonTableBody.innerHTML = '';
 
   // ✅ Determinar tipo de análisis
   const analysisType = getAnalysisType(keywordData, periods);
   console.log(`📊 Tipo de análisis: ${analysisType}, Keywords: ${keywordData ? keywordData.length : 0}`);
 
   if (!keywordData || keywordData.length === 0) {
-    elems.keywordComparisonTableBody.innerHTML =
-      `<tr><td colspan="14">No keyword data for the selected URLs and period.</td></tr>`;
-  } else {
-    // ✅ Actualizar headers según el tipo
-    updateTableHeaders(analysisType);
-
-    keywordData.forEach(row => {
-      const deltaClicksClass =
-        (row.delta_clicks_percent === 'Infinity' || (typeof row.delta_clicks_percent === 'number' && row.delta_clicks_percent > 0))
-          ? 'positive-change'
-          : (typeof row.delta_clicks_percent === 'number' && row.delta_clicks_percent < 0)
-            ? 'negative-change'
-            : '';
-      const deltaImprClass   =
-        (row.delta_impressions_percent === 'Infinity' || (typeof row.delta_impressions_percent === 'number' && row.delta_impressions_percent > 0))
-          ? 'positive-change'
-          : (typeof row.delta_impressions_percent === 'number' && row.delta_impressions_percent < 0)
-            ? 'negative-change'
-            : '';
-      const deltaCtrClass    =
-        (row.delta_ctr_percent === 'Infinity' || (typeof row.delta_ctr_percent === 'number' && row.delta_ctr_percent > 0))
-          ? 'positive-change'
-          : (typeof row.delta_ctr_percent === 'number' && row.delta_ctr_percent < 0)
-            ? 'negative-change'
-            : '';
-      const deltaPosClass    =
-        (row.delta_position_absolute === 'New' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute < 0))
-          ? 'positive-change'
-          : (row.delta_position_absolute === 'Lost' || (typeof row.delta_position_absolute === 'number' && row.delta_position_absolute > 0))
-            ? 'negative-change'
-            : '';
-
-      const tr = document.createElement('tr');
-      
-      // ✅ CORREGIDO: Ajustar visibilidad de columnas según el tipo
-      const p2ColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
-      const deltaColumnsStyle = analysisType === 'single' ? 'style="display: none;"' : '';
-
-      // ✅ CORREGIDO: Para período único, usar siempre _m1 (que contiene los datos reales)
-      // Para comparación, usar _m1 para período actual y _m2 para período de comparación
-      tr.innerHTML = `
-        <td class="dt-body-center">
-          <i class="fas fa-search serp-icon"
-             data-keyword="${escapeHtmlUtil(row.keyword)}"
-             data-url="${escapeHtmlUtil(row.url || '')}"
-             title="Ver SERP para ${escapeHtmlUtil(row.keyword)}"
-             style="cursor:pointer;"></i>
-        </td>
-        <td class="dt-body-left kw-cell">${escapeHtmlUtil(row.keyword || 'N/A')}</td>
-        <td>${formatInteger(row.clicks_m1 ?? 0)}</td>
-        <td ${p2ColumnsStyle}>${formatInteger(row.clicks_m2 ?? 0)}</td>
-        <td class="${deltaClicksClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_clicks_percent)}</td>
-        <td>${formatInteger(row.impressions_m1 ?? 0)}</td>
-        <td ${p2ColumnsStyle}>${formatInteger(row.impressions_m2 ?? 0)}</td>
-        <td class="${deltaImprClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_impressions_percent)}</td>
-        <td>${formatPercentage(row.ctr_m1)}</td>
-        <td ${p2ColumnsStyle}>${formatPercentage(row.ctr_m2)}</td>
-        <td class="${deltaCtrClass}" ${deltaColumnsStyle}>${formatPercentageChange(row.delta_ctr_percent, true)}</td>
-        <td>${formatPosition(row.position_m1)}</td>
-        <td ${p2ColumnsStyle}>${formatPosition(row.position_m2)}</td>
-        <td class="${deltaPosClass}" ${deltaColumnsStyle}>${formatPositionDelta(row.delta_position_absolute, row.position_m1, row.position_m2)}</td>
-      `;
-      
-      elems.keywordComparisonTableBody.appendChild(tr);
-
-      const icon = tr.querySelector('.serp-icon');
-      if (icon) {
-        icon.addEventListener('click', () => openSerpModal(icon.dataset.keyword, icon.dataset.url));
-        icon.addEventListener('mouseenter', () => icon.classList.add('hover'));
-        icon.addEventListener('mouseleave', () => icon.classList.remove('hover'));
-      }
-    });
-
-    // ✅ ACTUALIZADO: Usar configuración estandarizada del módulo centralizado
-    registerDataTableSortingTypes(); // Asegurar que los tipos estén registrados
-    const dtConfig = getStandardKeywordTableConfig(analysisType);
-    keywordComparisonDataTable = new DataTable(elems.keywordComparisonTable, dtConfig);
+    // Mostrar mensaje de no hay datos
+    container.innerHTML = `
+      <div class="no-aio-message">
+        <i class="fas fa-search"></i>
+        <h3>No Keywords Found</h3>
+        <p>No keyword data for the selected URLs and period.</p>
+      </div>
+    `;
+    return;
   }
 
-  if (elems.keywordComparisonTableTitle) {
-    elems.keywordComparisonTableTitle.style.display = 'block';
+  // ✅ CREAR TABLA GRID.JS
+  try {
+    console.log('🔧 Creando tabla Grid.js...', { 
+      analysisType, 
+      rowsCount: keywordData.length
+    });
     
-    // ✅ Actualizar título según el tipo
-    if (analysisType === 'single') {
-      elems.keywordComparisonTableTitle.textContent = 'Keyword Comparison Between Periods';
+    // Crear Grid.js table
+    keywordComparisonGridTable = createKeywordsGridTable(keywordData, analysisType, container);
+    
+    if (keywordComparisonGridTable) {
+      console.log('✅ Tabla Grid.js de keywords creada exitosamente');
     } else {
-      elems.keywordComparisonTableTitle.textContent = 'Comparación de Keywords entre Períodos';
+      console.warn('⚠️ No se pudo crear tabla Grid.js de keywords');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error al crear tabla Grid.js de keywords:', error);
+    
+    // Fallback - mostrar mensaje de error
+    container.innerHTML = `
+      <div class="no-aio-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Error Loading Table</h3>
+        <p>There was an error loading the keywords table. Please try refreshing the page.</p>
+      </div>
+    `;
+  }
+
+  // ✅ Actualizar título de la sección si existe
+  const titleElement = document.querySelector('#keywordsSection h2');
+  if (titleElement) {
+    if (analysisType === 'single') {
+      titleElement.textContent = 'Keyword Performance - Single Period';
+    } else {
+      titleElement.textContent = 'Keyword Performance';
     }
   }
 }
 
 export function clearKeywordComparisonTable() {
-  if (keywordComparisonDataTable) {
-    keywordComparisonDataTable.destroy();
-    keywordComparisonDataTable = null;
+  if (keywordComparisonGridTable && keywordComparisonGridTable.destroy) {
+    try {
+      keywordComparisonGridTable.destroy();
+      console.log('✅ Grid.js de keywords limpiado');
+    } catch (e) {
+      console.warn('⚠️ Error al limpiar Grid.js de keywords:', e);
+    }
+    keywordComparisonGridTable = null;
   }
-  if (elems.keywordComparisonTableBody) elems.keywordComparisonTableBody.innerHTML = '';
+  
+  const container = document.getElementById('keywordComparisonBlock');
+  if (container) {
+    container.innerHTML = '';
+  }
 }

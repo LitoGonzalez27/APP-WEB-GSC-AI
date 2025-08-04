@@ -381,27 +381,7 @@
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
           </div>
           <div id="keywordComparisonBlock" class="table-responsive-container">
-            <table id="keywordComparisonTable" class="display" style="width:100%;">
-              <thead>
-                <tr>
-                  <th>View SERP</th>
-                  <th>Keyword</th>
-                  <th>Clicks P1</th>
-                  <th>Clicks P2</th>
-                  <th>&Delta;Clicks (%)</th>
-                  <th>Impresiones P1</th>
-                  <th>Impresiones P2</th>
-                  <th>&Delta;Imp. (%)</th>
-                  <th>CTR P1 (%)</th>
-                  <th>CTR P2 (%)</th>
-                  <th>&Delta;CTR (%)</th>
-                  <th>Pos P1</th>
-                  <th>Pos P2</th>
-                  <th>&Delta;Pos</th>
-                </tr>
-              </thead>
-              <tbody id="keywordComparisonTableBody"></tbody>
-            </table>
+            <!-- Grid.js table will be inserted here -->
           </div>
         </section>
       </div>
@@ -945,7 +925,8 @@
   <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keywords-gridjs.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
 

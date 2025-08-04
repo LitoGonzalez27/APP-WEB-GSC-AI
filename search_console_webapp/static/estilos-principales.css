@@ -163,6 +163,23 @@
     gap: var(--spacing-xs) !important;
     margin: var(--spacing-xs) auto !important;
   }
+
+  /* Estilo especial para tarjeta única de keywords sin comparación */
+  .overview-card.single-period {
+    min-width: 300px !important;
+    max-width: 400px !important;
+    flex: 0 0 auto !important;
+    padding: 24px !important;
+    text-align: center !important;
+  }
+
+  .overview-card.single-period .subtitle {
+    font-size: 0.85em !important;
+    color: var(--text-color) !important;
+    opacity: 0.7 !important;
+    margin-top: 8px !important;
+    font-style: italic !important;
+  }
   
   /* Keywords: Ajustar título para consistencia con Performance */
   #keywordsContent .keywords-title-compact {
@@ -344,7 +361,7 @@
 #summaryCTR .card-icon-modern { background: linear-gradient(135deg, #F59E0B20, #F59E0B40); color: #F59E0B; }
 #summaryPosition .card-icon-modern { background: linear-gradient(135deg, #EF444420, #EF444440); color: #EF4444; }
 .card-title-modern { font-size: 1.25rem; font-weight: 600; color: var(--heading); margin: 0; }
-.period-values-modern { padding: 20px 24px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
+.period-values-modern { padding: 20px 5px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
 .period-value-line { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(248, 250, 252, 0.8); border-radius: 12px; border: 1px solid rgba(226, 232, 240, 0.6); }
 .period-date { font-size: 12px !important; margin-right:20px; font-weight: 500; color: var(--text-color); opacity: 0.85; flex: 1; }
 .period-metric { font-size: 22px !important; font-weight: 700; color: var(--heading); text-align: right; }

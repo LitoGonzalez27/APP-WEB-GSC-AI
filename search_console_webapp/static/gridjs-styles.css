@@ -134,6 +134,8 @@
   font-weight: 600;
 }
 
+/* Clase delta-new eliminada - ahora New = verde, Lost = rojo */
+
 /* Mensaje sin AIO */
 .no-aio-message {
   text-align: center;
@@ -282,4 +284,77 @@ body.dark-mode .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
 
 body.dark-mode .gridjs-pagination .gridjs-summary {
   color: #2C2D2E !important;
+}
+
+/* =============== BOTONES SERP =============== */
+/* Estilo con colores correctos: fondo verde claro y lupa negra */
+.serp-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background-color: #D8F9B8 !important;
+  background: #D8F9B8 !important;
+  color: #161616 !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  font-size: 14px !important;
+  border: 2px solid transparent !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  text-decoration: none !important;
+  position: relative !important;
+  z-index: 1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 auto !important;
+}
+
+.serp-btn:hover {
+  background-color: #C5F5A0 !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(216, 249, 184, 0.4) !important;
+  border-color: rgba(22, 22, 22, 0.1) !important;
+  color: #161616 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.serp-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* Usar ::before para el icono igual que en URLs */
+.serp-btn::before {
+  content: '\f002' !important;
+  font-family: 'Font Awesome 6 Free' !important;
+  font-weight: 900 !important;
+  font-size: 14px !important;
+  color: #161616 !important;
+}
+
+/* Ocultar el <i> dentro del botón */
+.serp-btn i {
+  display: none !important;
+}
+
+/* Centrar botones SERP en las celdas de Grid.js */
+.keywords-grid-table .gridjs-td:first-child,
+.urls-grid-table .gridjs-td:first-child,
+.ai-overview-grid-table .gridjs-td:first-child {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* Asegurar que los botones SERP mantengan el estilo verde */
+.gridjs-td .serp-btn {
+  background-color: #D8F9B8 !important;
+  color: #161616 !important;
+}
+
+.gridjs-td .serp-btn:hover {
+  background-color: #C5F5A0 !important;
+  color: #161616 !important;
 }
