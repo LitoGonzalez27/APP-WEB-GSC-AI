@@ -35,6 +35,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-typology-chart.css') }}">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai-reset-styles.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
 
@@ -601,7 +602,13 @@
         </div>
 
         <section id="aiOverviewSection" class="glass-effect">
-          <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
+          <div class="ai-overview-header">
+            <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
+            <button id="resetAIAnalysisBtn" class="btn-reset-ai" style="display: none;" title="Reset AI Analysis">
+              <i class="fas fa-refresh"></i>
+              <span>Reset Analysis</span>
+            </button>
+          </div>
 
           <div class="ai-content-wrapper blurred" id="aiContentWrapper">
 
@@ -945,6 +952,7 @@
   <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
 
 </body>
 </html>
