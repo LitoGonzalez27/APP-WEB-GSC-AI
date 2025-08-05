@@ -191,6 +191,27 @@ def analyze_project(project_id):
         logger.error(f"Error analyzing project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@manual_ai_bp.route('/api/projects/<int:project_id>/results', methods=['GET'])
+@auth_required
+def get_project_results(project_id):
+    """Obtener resultados de análisis de un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    days_param = request.args.get('days', '30')
+    try:
+        days = int(days_param)
+    except ValueError:
+        days = 30
+    
+    results = get_project_analysis_results(project_id, days)
+    return jsonify({
+        'success': True,
+        'results': results
+    })
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/stats', methods=['GET'])
 @auth_required
 def get_project_stats(project_id):
@@ -542,6 +563,38 @@ def create_project_event(project_id: int, event_type: str, event_title: str,
     conn.commit()
     cur.close()
     conn.close()
+
+def get_project_analysis_results(project_id: int, days: int = 30) -> List[Dict]:
+    """Obtener resultados de análisis de un proyecto"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+    
+    cur.execute("""
+        SELECT 
+            r.analysis_date,
+            r.keyword,
+            r.has_ai_overview,
+            r.domain_mentioned,
+            r.domain_position,
+            r.ai_elements_count,
+            r.impact_score,
+            k.is_active
+        FROM manual_ai_results r
+        JOIN manual_ai_keywords k ON r.keyword_id = k.id
+        WHERE r.project_id = %s 
+        AND r.analysis_date >= %s 
+        AND r.analysis_date <= %s
+        ORDER BY r.analysis_date DESC, r.keyword
+    """, (project_id, start_date, end_date))
+    
+    results = [dict(row) for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    
+    return results
 
 def get_project_statistics(project_id: int, days: int = 30) -> Dict:
     """Obtener estadísticas completas de un proyecto para gráficos"""
