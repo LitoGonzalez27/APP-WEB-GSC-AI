@@ -903,23 +903,32 @@ class ManualAISystem {
         document.getElementById('visibilityPercentage').textContent = 
             stats.main_stats.visibility_percentage ? 
             Math.round(stats.main_stats.visibility_percentage) + '%' : '0%';
+        document.getElementById('averagePosition').textContent = 
+            stats.main_stats.avg_position ? 
+            Math.round(stats.main_stats.avg_position * 10) / 10 : '-';
+        document.getElementById('aioWeight').textContent = 
+            stats.main_stats.aio_weight_percentage ? 
+            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%';
 
         // Show charts container
         this.hideElement(this.elements.analyticsContent);
         this.showElement(this.elements.chartsContainer);
 
-        // Render charts
-        this.renderVisibilityChart(stats.visibility_chart);
-        this.renderPositionsChart(stats.positions_chart);
+        // Render charts with events annotations
+        this.renderVisibilityChart(stats.visibility_chart, stats.events);
+        this.renderPositionsChart(stats.positions_chart, stats.events);
     }
 
-    renderVisibilityChart(data) {
+    renderVisibilityChart(data, events = []) {
         const ctx = document.getElementById('visibilityChart').getContext('2d');
         
         // Destroy existing chart
         if (this.charts.visibility) {
             this.charts.visibility.destroy();
         }
+
+        // Create annotations for events
+        const annotations = this.createEventAnnotations(data, events);
 
         this.charts.visibility = new Chart(ctx, {
             type: 'line',
@@ -956,18 +965,31 @@ class ManualAISystem {
                             }
                         }
                     }
+                },
+                // Add event annotations
+                onHover: (event, elements, chart) => {
+                    this.showEventAnnotations(chart, annotations);
                 }
-            }
+            },
+            plugins: [{
+                id: 'eventAnnotations',
+                afterDraw: (chart) => {
+                    this.drawEventAnnotations(chart, annotations);
+                }
+            }]
         });
     }
 
-    renderPositionsChart(data) {
+    renderPositionsChart(data, events = []) {
         const ctx = document.getElementById('positionsChart').getContext('2d');
         
         // Destroy existing chart
         if (this.charts.positions) {
             this.charts.positions.destroy();
         }
+
+        // Create annotations for events
+        const annotations = this.createEventAnnotations(data, events);
 
         this.charts.positions = new Chart(ctx, {
             type: 'line',
@@ -1018,8 +1040,95 @@ class ManualAISystem {
                         intersect: false
                     }
                 }
-            }
+            },
+            plugins: [{
+                id: 'eventAnnotations',
+                afterDraw: (chart) => {
+                    this.drawEventAnnotations(chart, annotations);
+                }
+            }]
         });
+    }
+
+    // ================================
+    // EVENT ANNOTATIONS
+    // ================================
+
+    createEventAnnotations(chartData, events) {
+        if (!events || events.length === 0) return [];
+        
+        const chartDates = chartData.map(d => new Date(d.analysis_date).toDateString());
+        
+        return events.map(event => {
+            const eventDate = new Date(event.event_date).toDateString();
+            const dateIndex = chartDates.indexOf(eventDate);
+            
+            if (dateIndex === -1) return null;
+            
+            return {
+                x: dateIndex,
+                title: event.event_title,
+                type: event.event_type,
+                keywords: event.keywords_affected,
+                date: eventDate
+            };
+        }).filter(Boolean);
+    }
+
+    drawEventAnnotations(chart, annotations) {
+        if (!annotations || annotations.length === 0) return;
+        
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        
+        annotations.forEach(annotation => {
+            const xPos = chart.scales.x.getPixelForValue(annotation.x);
+            
+            // Draw vertical line
+            ctx.save();
+            ctx.strokeStyle = this.getEventColor(annotation.type);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(xPos, chartArea.top);
+            ctx.lineTo(xPos, chartArea.bottom);
+            ctx.stroke();
+            
+            // Draw icon at top
+            ctx.fillStyle = this.getEventColor(annotation.type);
+            ctx.font = '12px "Font Awesome 5 Free"';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.getEventIcon(annotation.type), xPos, chartArea.top - 5);
+            
+            ctx.restore();
+        });
+    }
+
+    getEventColor(eventType) {
+        const colors = {
+            'keywords_added': '#10B981',     // Green
+            'keywords_removed': '#EF4444',  // Red
+            'project_created': '#4F46E5',   // Blue
+            'daily_analysis': '#6B7280',    // Gray
+            'analysis_failed': '#F59E0B'    // Orange
+        };
+        return colors[eventType] || '#6B7280';
+    }
+
+    getEventIcon(eventType) {
+        const icons = {
+            'keywords_added': '+',
+            'keywords_removed': '−',
+            'project_created': '⭐',
+            'daily_analysis': '📊',
+            'analysis_failed': '⚠'
+        };
+        return icons[eventType] || '•';
+    }
+
+    showEventAnnotations(chart, annotations) {
+        // This could be expanded to show tooltips on hover
+        // For now, the annotations are always visible
     }
 
     // ================================

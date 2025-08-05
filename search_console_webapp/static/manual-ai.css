@@ -450,9 +450,30 @@
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--manual-ai-spacing-lg);
   margin-bottom: var(--manual-ai-spacing-xl);
+}
+
+/* Responsive adjustments for summary cards */
+@media (max-width: 1200px) {
+  .summary-cards {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--manual-ai-spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--manual-ai-spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .summary-card {

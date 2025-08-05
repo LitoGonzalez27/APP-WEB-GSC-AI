@@ -836,7 +836,9 @@ def get_project_statistics(project_id: int, days: int = 30) -> Dict:
             COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as total_mentions,
             AVG(CASE WHEN r.domain_position IS NOT NULL THEN r.domain_position END) as avg_position,
             (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END)::float / 
-             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END), 0)::float * 100) as visibility_percentage
+             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END), 0)::float * 100) as visibility_percentage,
+            (COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END)::float / 
+             NULLIF(COUNT(DISTINCT r.id), 0)::float * 100) as aio_weight_percentage
         FROM manual_ai_keywords k
         LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
             AND r.analysis_date >= %s AND r.analysis_date <= %s
