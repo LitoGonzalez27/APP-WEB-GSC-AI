@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+      <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clicandseo</title>
+
+  <!-- Favicon y Apple Touch Icons -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+</head>
+<body data-authenticated="false">
+    <div class="login-container">
+        <!-- Background decorativo -->
+        <div class="login-background">
+            <div class="background-circles">
+                <div class="circle circle-1"></div>
+                <div class="circle circle-2"></div>
+                <div class="circle circle-3"></div>
+            </div>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="login-content">
+            <!-- Header mobile con logo y nombre - Solo visible en mobile -->
+            <div class="mobile-header">
+                <div class="brand-logo">
+                    <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                         alt="Clicandseo Logo" 
+                         class="logo-image-signup">
+                </div>
+            </div>
+
+            <!-- Panel izquierdo - Branding -->
+            <div class="login-branding">
+                <div class="branding-content">
+                    <div class="brand-logo">
+                        <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                             alt="Clicandseo Logo" 
+                             class="logo-image-signup">
+                    </div>
+                    
+                    <div class="branding-text">
+                        <h2>Únete a Clicandseo</h2>
+                        <p>Crea tu cuenta y empieza a analizar el rendimiento de tu sitio web con nuestras herramientas avanzadas de SEO.</p>
+                    </div>
+
+                    <div class="branding-features">
+                        <div class="feature">
+                            <i class="fas fa-search"></i>
+                            <span>Análisis profundo de palabras clave</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-robot"></i>
+                            <span>Detección de AI Overview</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Métricas detalladas de rendimiento</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-globe"></i>
+                            <span>Análisis por países</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel derecho - Formulario de registro -->
+            <div class="login-form-panel">
+                <div class="login-form-content">
+                    <!-- Header del formulario -->
+                    <div class="form-header">
+                        <h3>Crear cuenta</h3>
+                        <p>Regístrate con Google para acceder a todas las funcionalidades de Clicandseo</p>
+                    </div>
+
+                    <!-- Área de notificaciones -->
+                    <div id="signupNotifications" class="login-notifications" style="display: none;"></div>
+
+                    <!-- Registro con Google únicamente -->
+                    <div class="signup-form">
+                        <div class="google-signup-content">
+                            <button type="button" id="googleSignupBtn" class="google-login-btn">
+                                <div class="google-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                </div>
+                                <span class="login-text">Registrarse con Google</span>
+                                <div class="login-spinner" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                            </button>
+                            
+                        </div>
+                    </div>
+
+                    <!-- Footer del formulario -->
+                    <div class="form-footer">
+                        <div class="login-link">
+                            <p>¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
+                        </div>
+                        <div class="footer-links">
+                            <a href="#" class="footer-link">Política de Privacidad</a>
+                            <span class="footer-separator">•</span>
+                            <a href="#" class="footer-link">Términos de Servicio</a>
+                        </div>
+                        <p class="footer-note">
+                            Al registrarte, aceptas nuestros términos de servicio y política de privacidad.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notifications = document.getElementById('signupNotifications');
+            const iconMap = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+
+            notifications.innerHTML = `
+                <div class="notification notification-${type}">
+                    <i class="${iconMap[type]}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            notifications.style.display = 'block';
+
+            // Auto-hide después de 5 segundos para mensajes de éxito
+            if (type === 'success') {
+                setTimeout(() => {
+                    notifications.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Manejar registro con Google
+        document.getElementById('googleSignupBtn').addEventListener('click', function() {
+            const btn = this;
+            const spinner = btn.querySelector('.login-spinner');
+            const text = btn.querySelector('.login-text');
+            
+            // Mostrar loading state
+            btn.disabled = true;
+            btn.classList.add('loading');
+            spinner.style.display = 'block';
+            text.textContent = 'Conectando...';
+            
+            // Mostrar notificación
+            showNotification('Redirigiendo a Google para registro...', 'info');
+            
+            // Redirigir después de un breve delay
+            setTimeout(() => {
+                window.location.href = '/auth/signup';
+            }, 1000);
+            
+            // Timeout de seguridad
+            setTimeout(() => {
+                if (btn.disabled) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    spinner.style.display = 'none';
+                    text.textContent = 'Registrarse con Google';
+                    showNotification('Error en la redirección. Por favor, intenta de nuevo.', 'error');
+                }
+            }, 10000);
+        });
+
+        // Manejar notificaciones de URL
+        function handleUrlNotifications() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('google_signup') === 'true') {
+                showNotification('Haz clic en "Registrarse con Google" para crear tu cuenta.', 'info');
+            }
+            
+            // Manejar errores de autenticación
+            const authError = urlParams.get('auth_error');
+            if (authError) {
+                let errorMessage = 'Error en el registro. Por favor, intenta de nuevo.';
+                
+                switch (authError) {
+                    case 'user_creation_failed':
+                        errorMessage = 'Error creando tu cuenta. Por favor, intenta de nuevo.';
+                        break;
+                    case 'registration_failed':
+                        errorMessage = 'Error en el registro. Por favor, intenta de nuevo.';
+                        break;
+                    case 'user_already_exists':
+                        errorMessage = 'Ya tienes una cuenta creada. <a href="/login" style="color: #667eea; text-decoration: underline;">Iniciar sesión</a>';
+                        break;
+                    case 'oauth_config':
+                        errorMessage = 'Error de configuración. Contacta con soporte.';
+                        break;
+                    case 'access_denied':
+                        errorMessage = 'Acceso denegado. Necesitas permitir el acceso para continuar.';
+                        break;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+            
+            // Limpiar URL
+            if (urlParams.toString()) {
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Manejar notificaciones de URL
+            handleUrlNotifications();
+            
+            // Animación de entrada
+            setTimeout(() => {
+                document.body.classList.add('loaded');
+            }, 100);
+            
+            // Verificar si ya está autenticado
+            fetch('/auth/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.authenticated && data.user && data.user.is_active) {
+                        showNotification('Ya tienes una cuenta activa. Redirigiendo...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/dashboard';
+                        }, 1500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error verificando autenticación:', error);
+                });
+        });
+
+        // Efecto de partículas en el fondo
+        function createFloatingElements() {
+            const background = document.querySelector('.login-background');
+            
+            for (let i = 0; i < 6; i++) {
+                const element = document.createElement('div');
+                element.className = 'floating-element';
+                element.style.left = Math.random() * 100 + '%';
+                element.style.animationDelay = Math.random() * 4 + 's';
+                element.style.animationDuration = (Math.random() * 3 + 4) + 's';
+                background.appendChild(element);
+            }
+        }
+
+        // Crear elementos flotantes después de cargar
+        setTimeout(createFloatingElements, 500);
+    </script>
+</body>
+</html> 
