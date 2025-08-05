@@ -225,6 +225,16 @@
               <div class="status-dot status-disabled" id="statusAI"></div>
             </div>
           </button>
+
+          <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
+            <div class="nav-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="nav-text">Manual AI Analysis</div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusManualAI"></div>
+            </div>
+          </button>
         </div>
 
         <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
@@ -953,6 +963,14 @@
   <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
+
+  <!-- Manual AI Analysis - Independent functionality -->
+  <script>
+    function openManualAI() {
+      // Navigate to Manual AI Analysis in same tab
+      window.location.href = '/manual-ai/';
+    }
+  </script>
 
 </body>
 </html>

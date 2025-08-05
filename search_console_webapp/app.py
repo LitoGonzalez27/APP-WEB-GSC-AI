@@ -2630,6 +2630,20 @@ def apply_keyword_exclusions(keywords_list, exclusion_terms, exclusion_method='c
     
     return filtered_keywords
 
+# ================================
+# MANUAL AI ANALYSIS SYSTEM - INDEPENDENT REGISTRATION
+# ================================
+
+# Register Manual AI Analysis Blueprint (completely independent)
+try:
+    from manual_ai_system import manual_ai_bp
+    app.register_blueprint(manual_ai_bp)
+    logger.info("✅ Manual AI Analysis system registered successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Manual AI Analysis system not available: {e}")
+except Exception as e:
+    logger.error(f"❌ Error registering Manual AI Analysis system: {e}")
+
 if __name__ == '__main__':
     # Railway proporciona el puerto automáticamente
     port = int(os.environ.get('PORT', 5001))
