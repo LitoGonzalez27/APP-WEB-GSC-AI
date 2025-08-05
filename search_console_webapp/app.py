@@ -2648,7 +2648,28 @@ def register_manual_ai_system():
         logger.error(f"❌ Error registering Manual AI Analysis system: {e}")
         return False
 
+def initialize_database_on_startup():
+    """Initialize database on application startup"""
+    try:
+        logger.info("🚀 Inicializando base de datos en startup...")
+        from init_database import main as init_db_main
+        
+        if init_db_main():
+            logger.info("✅ Base de datos inicializada correctamente")
+            return True
+        else:
+            logger.error("❌ Error inicializando base de datos")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Error crítico inicializando BD: {e}")
+        return False
+
 if __name__ == '__main__':
+    # Initialize database first
+    if not initialize_database_on_startup():
+        logger.error("❌ No se pudo inicializar la base de datos. Cerrando aplicación.")
+        sys.exit(1)
+    
     # Register Manual AI Analysis Blueprint only when running the app
     register_manual_ai_system()
     
