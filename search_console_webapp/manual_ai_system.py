@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, jsonify
 from datetime import datetime, date, timedelta
 import logging
 import json
+import time
 from typing import List, Dict, Any, Optional
 
 # Reutilizar servicios existentes (sin modificarlos)
@@ -13,6 +14,8 @@ from auth import auth_required, get_current_user
 from services.serp_service import get_serp_json
 from services.ai_analysis import detect_ai_overview_elements
 from services.utils import extract_domain, normalize_search_console_url
+from services.ai_cache import ai_cache
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +252,25 @@ def export_project_data(project_id):
     })
 
 # ================================
+# SERP UTILITY FUNCTIONS - USAR SISTEMA EXISTENTE
+# ================================
+
+def convert_iso_to_internal_country(country_code: str) -> str:
+    """Convertir códigos ISO a códigos internos del sistema"""
+    country_mapping = {
+        'US': 'usa',
+        'GB': 'gbr', 
+        'ES': 'esp',
+        'FR': 'fra',
+        'DE': 'deu',
+        'MX': 'mex',
+        'AR': 'arg',
+        'CO': 'col',
+        'CL': 'chl'
+    }
+    return country_mapping.get(country_code, 'esp')  # Default a España
+
+# ================================
 # FUNCIONES DE BASE DE DATOS
 # ================================
 
@@ -432,7 +454,7 @@ def run_project_analysis(project_id: int) -> List[Dict]:
     conn = get_db_connection()
     cur = conn.cursor()
     
-    logger.info(f"Starting analysis for project {project_id} with {len(keywords)} keywords")
+    logger.info(f"🚀 Starting MANUAL analysis for project {project_id} with {len(keywords)} user-defined keywords")
     
     for keyword_data in keywords:
         keyword = keyword_data['keyword']
@@ -449,17 +471,70 @@ def run_project_analysis(project_id: int) -> List[Dict]:
                 logger.debug(f"Analysis already exists for keyword '{keyword}' on {today}")
                 continue
             
-            # Usar servicios existentes para obtener datos SERP
-            serp_data = get_serp_json(keyword, project['country_code'])
-            
-            if not serp_data:
-                logger.warning(f"No SERP data for keyword '{keyword}'")
+            # ✅ USAR LÓGICA SIMILAR AL AUTOMÁTICO (ADAPTADA AL CONTEXTO MANUAL)
+            # DIFERENCIAS vs Sistema Automático:
+            # - País fijo del proyecto (no detección dinámica por GSC)
+            # - Keywords definidas por usuario (no top keywords de GSC)
+            # - Dominio fijo del proyecto (no múltiples sitios)
+            try:
+                # 1. Verificar caché primero (igual que sistema automático)
+                internal_country = convert_iso_to_internal_country(project['country_code'])
+                cached_result = ai_cache.get_cached_analysis(keyword, project['domain'], internal_country)
+                
+                if cached_result and cached_result.get('analysis'):
+                    logger.info(f"💾 Using cached result for '{keyword}'")
+                    ai_result = cached_result['analysis'].get('ai_analysis', {})
+                else:
+                    # 2. Obtener SERP usando función existente (igual que sistema automático)
+                    api_key = os.getenv('SERPAPI_KEY')
+                    if not api_key:
+                        logger.error("SERPAPI_KEY not configured")
+                        continue
+                    
+                    # 3. Construir parámetros SERP para sistema manual (sin detección dinámica)
+                    # En sistema manual: país fijo del proyecto, sin GSC data
+                    from services.country_config import get_country_config
+                    
+                    serp_params = {
+                        'engine': 'google',
+                        'q': keyword,
+                        'api_key': api_key,
+                        'num': 20
+                    }
+                    
+                    # Aplicar configuración del país seleccionado en el proyecto
+                    country_config = get_country_config(internal_country)
+                    if country_config:
+                        serp_params.update({
+                            'location': country_config['serp_location'],
+                            'gl': country_config['serp_gl'],
+                            'hl': country_config['serp_hl'],
+                            'google_domain': country_config['google_domain']
+                        })
+                        logger.debug(f"Using {country_config['name']} config for '{keyword}'")
+                    
+                    serp_data = get_serp_json(serp_params)
+                    
+                    if not serp_data or serp_data.get('error'):
+                        logger.warning(f"No SERP data for keyword '{keyword}': {serp_data.get('error', 'Unknown error')}")
+                        continue
+                    
+                    # 4. Analizar AI Overview usando servicio existente
+                    ai_result = detect_ai_overview_elements(serp_data, project['domain'])
+                    
+                    # 5. Guardar en caché (igual que sistema automático)
+                    ai_cache.cache_analysis(keyword, project['domain'], internal_country, {
+                        'keyword': keyword,
+                        'ai_analysis': ai_result,
+                        'timestamp': time.time(),
+                        'country_analyzed': internal_country
+                    })
+                    
+            except Exception as serp_error:
+                logger.error(f"Error analyzing keyword '{keyword}': {serp_error}")
                 continue
             
-            # Usar servicio existente para análisis AI Overview
-            ai_result = detect_ai_overview_elements(serp_data, project['domain'])
-            
-            # Guardar resultado
+            # Guardar resultado en base de datos
             cur.execute("""
                 INSERT INTO manual_ai_results (
                     project_id, keyword_id, analysis_date, keyword, domain,
@@ -497,7 +572,7 @@ def run_project_analysis(project_id: int) -> List[Dict]:
     cur.close()
     conn.close()
     
-    logger.info(f"Completed analysis for project {project_id}: {len(results)} keywords processed")
+    logger.info(f"✅ Completed MANUAL analysis for project {project_id}: {len(results)}/{len(keywords)} user keywords processed")
     return results
 
 def create_daily_snapshot(project_id: int) -> None:
