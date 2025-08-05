@@ -450,7 +450,7 @@
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--manual-ai-spacing-lg);
   margin-bottom: var(--manual-ai-spacing-xl);
 }
@@ -486,23 +486,7 @@
   gap: var(--manual-ai-spacing-md);
 }
 
-.summary-card .card-icon {
-  font-size: 1.5rem;
-  color: var(--manual-ai-accent);
-}
-
-.summary-card h3 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: var(--manual-ai-gray-900);
-  margin: 0;
-}
-
-.summary-card p {
-  color: var(--manual-ai-gray-600);
-  margin: 0;
-  font-size: 0.875rem;
-}
+/* Card icon and content styles moved to ICON AND TEXT ALIGNMENT FIXES section */
 
 .charts-grid {
   display: grid;
@@ -1747,11 +1731,13 @@
   .input-group {
     flex-direction: column;
     align-items: stretch;
+    gap: var(--manual-ai-spacing-sm);
   }
   
-  .input-group .btn-primary {
-    margin-top: var(--manual-ai-spacing-sm);
+  .input-group .btn-primary,
+  .input-group .btn-secondary {
     align-self: stretch;
+    min-width: auto;
   }
   
   .keyword-item {
@@ -1774,7 +1760,7 @@
    ICON AND TEXT ALIGNMENT FIXES
    ============================================= */
 
-/* Explicit styles for card content to prevent overlap */
+/* Explicit styles for summary cards to prevent icon-text overlap */
 .summary-card .card-content {
   display: flex;
   flex-direction: column;
@@ -1783,7 +1769,8 @@
   flex: 1;
 }
 
-.summary-card .card-content h3 {
+.summary-card .card-content h3,
+.summary-card h3 {
   line-height: 1.2;
   margin: 0;
   font-size: 1.75rem;
@@ -1794,7 +1781,8 @@
   text-overflow: ellipsis;
 }
 
-.summary-card .card-content p {
+.summary-card .card-content p,
+.summary-card p {
   line-height: 1.3;
   margin: 0;
   font-size: 0.875rem;
@@ -1805,16 +1793,17 @@
   text-overflow: ellipsis;
 }
 
-/* Icon spacing improvements */
+/* Icon spacing improvements with priority */
 .summary-card .card-icon {
-  font-size: 1.5rem;
-  color: var(--manual-ai-accent);
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1.5rem !important;
+  color: var(--manual-ai-accent) !important;
+  flex-shrink: 0 !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-right: var(--manual-ai-spacing-md) !important;
 }
 
 /* Project card improvements */
@@ -1858,24 +1847,24 @@
   flex-shrink: 0;
 }
 
-/* Input group improvements */
+/* Input group improvements - stack vertically */
 .input-group {
   display: flex;
-  gap: var(--manual-ai-spacing-sm);
-  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--manual-ai-spacing-md);
+  align-items: stretch;
 }
 
 .input-group .form-input,
 .input-group .form-textarea {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  margin-bottom: 0;
 }
 
 .input-group .btn-primary,
 .input-group .btn-secondary {
-  flex-shrink: 0;
-  align-self: flex-end;
-  min-width: auto;
+  align-self: flex-start;
+  min-width: 120px;
 }
 
 /* Section header improvements */
@@ -1915,6 +1904,17 @@
   margin-top: var(--manual-ai-spacing-xs);
   display: block;
   line-height: 1.4;
+}
+
+/* Save section for modal settings */
+.save-section {
+  margin-top: var(--manual-ai-spacing-lg);
+  padding-top: var(--manual-ai-spacing-md);
+  border-top: 1px solid var(--manual-ai-gray-200);
+}
+
+.save-section .btn-primary {
+  margin-bottom: 0;
 }
 
 /* Modal nav tab improvements */
@@ -1994,5 +1994,168 @@
   .modal-nav-tab {
     justify-content: flex-start;
     padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  }
+}
+
+/* =============================================
+   USER DROPDOWN (REUSED FROM MAIN APP)
+   ============================================= */
+
+.navbar-user-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-right: var(--manual-ai-spacing-md);
+}
+
+.user-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-sm);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  border-radius: var(--manual-ai-border-radius);
+  transition: all 0.2s ease;
+  color: var(--manual-ai-gray-700);
+}
+
+.user-dropdown-btn:hover {
+  background: var(--manual-ai-gray-100);
+}
+
+.user-avatar-small i {
+  font-size: 1.5rem;
+  color: var(--manual-ai-gray-600);
+}
+
+.user-name-small {
+  font-weight: 500;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-chevron {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.user-dropdown-btn[aria-expanded="true"] .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid var(--manual-ai-gray-200);
+  border-radius: var(--manual-ai-border-radius-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 280px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+}
+
+.user-dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.user-dropdown-header {
+  padding: var(--manual-ai-spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-md);
+}
+
+.user-avatar-large i {
+  font-size: 2.5rem;
+  color: var(--manual-ai-gray-600);
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name-large {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--manual-ai-gray-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: var(--manual-ai-gray-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--manual-ai-gray-200);
+  margin: var(--manual-ai-spacing-xs) 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-sm);
+  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-lg);
+  color: var(--manual-ai-gray-700);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: var(--manual-ai-gray-50);
+  color: var(--manual-ai-gray-900);
+}
+
+.dropdown-item i {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.logout-item {
+  color: #EF4444;
+}
+
+.logout-item:hover {
+  background: #FEF2F2;
+  color: #DC2626;
+}
+
+/* Responsive adjustments for user dropdown */
+@media (max-width: 768px) {
+  .navbar-user-dropdown {
+    margin-right: var(--manual-ai-spacing-sm);
+  }
+  
+  .user-dropdown-menu {
+    min-width: 250px;
+    right: -10px;
+  }
+  
+  .user-name-small {
+    max-width: 100px;
   }
 }

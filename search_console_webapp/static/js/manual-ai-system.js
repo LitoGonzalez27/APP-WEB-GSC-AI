@@ -1543,10 +1543,16 @@ class ManualAISystem {
     }
 
     loadModalSettings(project) {
-        // Load project name into modal settings
+        // Load project name and description into modal settings
         const modalProjectName = document.getElementById('modalProjectName');
+        const modalProjectDescription = document.getElementById('modalProjectDescription');
+        
         if (modalProjectName) {
             modalProjectName.value = project.name || '';
+        }
+        
+        if (modalProjectDescription) {
+            modalProjectDescription.value = project.description || '';
         }
     }
 
@@ -1629,8 +1635,9 @@ class ManualAISystem {
         }
     }
 
-    async updateProjectNameFromModal() {
+    async updateProjectFromModal() {
         const newName = document.getElementById('modalProjectName').value.trim();
+        const newDescription = document.getElementById('modalProjectDescription').value.trim();
         
         if (!newName) {
             this.showError('Project name cannot be empty');
@@ -1642,8 +1649,10 @@ class ManualAISystem {
             return;
         }
 
-        if (newName === this.currentModalProject.name) {
-            this.showSuccess('Project name is already up to date');
+        // Check if anything actually changed
+        if (newName === this.currentModalProject.name && 
+            newDescription === (this.currentModalProject.description || '')) {
+            this.showSuccess('Project is already up to date');
             return;
         }
 
@@ -1651,16 +1660,20 @@ class ManualAISystem {
             const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName })
+                body: JSON.stringify({ 
+                    name: newName,
+                    description: newDescription 
+                })
             });
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.message || 'Failed to update project name');
+                throw new Error(error.message || 'Failed to update project');
             }
 
             // Update current project data
             this.currentModalProject.name = newName;
+            this.currentModalProject.description = newDescription;
             
             // Update modal title
             document.getElementById('projectModalTitle').textContent = `${newName} - Settings`;
@@ -1668,11 +1681,11 @@ class ManualAISystem {
             // Refresh projects list
             await this.loadProjects();
             
-            this.showSuccess('Project name updated successfully');
+            this.showSuccess('Project updated successfully');
             
         } catch (error) {
-            console.error('Error updating project name:', error);
-            this.showError(`Failed to update project name: ${error.message}`);
+            console.error('Error updating project:', error);
+            this.showError(`Failed to update project: ${error.message}`);
         }
     }
 
@@ -1705,4 +1718,101 @@ class ManualAISystem {
 // Auto-initialize if we're on the manual AI page
 if (window.location.pathname.includes('/manual-ai/')) {
     console.log('📍 Manual AI page detected - ready for initialization');
+    
+    // Initialize user dropdown functionality
+    initializeUserDropdown();
+}
+
+// ================================
+// USER DROPDOWN FUNCTIONALITY (REUSED FROM MAIN APP)
+// ================================
+
+function initializeUserDropdown() {
+    const userDropdownBtn = document.getElementById('userDropdownBtn');
+    const userDropdownMenu = document.getElementById('userDropdownMenu');
+    const dropdownThemeToggle = document.getElementById('dropdownThemeToggle');
+    const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+
+    if (!userDropdownBtn || !userDropdownMenu) return;
+
+    // Toggle dropdown
+    userDropdownBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = userDropdownMenu.classList.contains('show');
+        
+        if (isOpen) {
+            closeUserDropdown();
+        } else {
+            openUserDropdown();
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!userDropdownBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+            closeUserDropdown();
+        }
+    });
+
+    // Theme toggle
+    if (dropdownThemeToggle) {
+        dropdownThemeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleTheme();
+        });
+    }
+
+    // Logout functionality
+    if (dropdownLogoutBtn) {
+        dropdownLogoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleLogout();
+        });
+    }
+
+    function openUserDropdown() {
+        userDropdownMenu.classList.add('show');
+        userDropdownBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeUserDropdown() {
+        userDropdownMenu.classList.remove('show');
+        userDropdownBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleTheme() {
+        // Basic theme toggle - you can extend this based on your app's theme system
+        const isDark = document.body.classList.contains('dark-theme');
+        const themeIcon = document.getElementById('dropdownThemeIcon');
+        const themeText = document.getElementById('dropdownThemeText');
+        
+        if (isDark) {
+            document.body.classList.remove('dark-theme');
+            if (themeIcon) themeIcon.className = 'fas fa-moon';
+            if (themeText) themeText.textContent = 'Modo Oscuro';
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.body.classList.add('dark-theme');
+            if (themeIcon) themeIcon.className = 'fas fa-sun';
+            if (themeText) themeText.textContent = 'Modo Claro';
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+
+    function handleLogout() {
+        if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+            // Redirect to logout endpoint
+            window.location.href = '/logout';
+        }
+    }
+
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        const themeIcon = document.getElementById('dropdownThemeIcon');
+        const themeText = document.getElementById('dropdownThemeText');
+        if (themeIcon) themeIcon.className = 'fas fa-sun';
+        if (themeText) themeText.textContent = 'Modo Claro';
+    }
 }

@@ -33,11 +33,48 @@
                     <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
                 </div>
                 <div class="header-right">
-                    <div class="user-info">
-                        <i class="fas fa-user-circle"></i>
-                        <span>{{ user.name or user.email }}</span>
+                    <!-- User Dropdown -->
+                    <div class="navbar-user-dropdown" id="userDropdown">
+                        <button class="user-dropdown-btn" id="userDropdownBtn">
+                            <div class="user-avatar-small" id="userAvatarSmall">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                            <i class="fas fa-chevron-down dropdown-chevron"></i>
+                        </button>
+                        <div class="user-dropdown-menu" id="userDropdownMenu">
+                            <div class="user-dropdown-header">
+                                <div class="user-avatar-large" id="userAvatarLarge">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                                <div class="user-details">
+                                    <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                    <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="/profile" class="dropdown-item">
+                                <i class="fas fa-user-circle"></i>
+                                <span>Mi Perfil</span>
+                            </a>
+                            <a href="https://clicandseo.up.railway.app/app" class="dropdown-item">
+                                <i class="fas fa-home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item" id="dropdownThemeToggle">
+                                <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+                                <span id="dropdownThemeText">Modo Oscuro</span>
+                            </button>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        </div>
                     </div>
-                    <a href="/#ai-overview" class="btn-back-dashboard" title="Go Back">
+
+                    <a href="https://clicandseo.up.railway.app/app" class="btn-back-dashboard" title="Go Back">
                         <i class="fas fa-arrow-left"></i>
                         <span>Go Back</span>
                     </a>
@@ -56,10 +93,10 @@
                     <i class="fas fa-chart-line"></i>
                     Analytics
                 </button>
-                <button type="button" class="nav-tab" data-tab="settings">
-                    <i class="fas fa-cog"></i>
-                    Settings
-                </button>
+                            <button type="button" class="nav-tab" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                Global Settings
+            </button>
             </div>
         </nav>
 
@@ -253,7 +290,7 @@
             <!-- Settings Tab -->
             <section class="tab-content" id="settingsTab">
                 <div class="settings-content">
-                    <h2>Settings</h2>
+                    <h2>Global Settings</h2>
                     <div class="settings-grid">
                         <div class="setting-group">
                             <h3>Analysis Configuration</h3>
@@ -573,7 +610,7 @@ keyword 3"></textarea>
                     </button>
                     <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="manualAI.switchModalTab('settings')">
                         <i class="fas fa-cog"></i>
-                        Settings
+                        Global Settings
                     </button>
                 </div>
 
@@ -613,17 +650,24 @@ keyword 3"></textarea>
                 <!-- Settings Tab -->
                 <div class="modal-tab-content" id="modalSettingsTab">
                     <div class="tab-section">
-                        <h4>Project Information</h4>
                         <div class="setting-group">
                             <label for="modalProjectName">Project Name</label>
-                            <div class="input-group">
-                                <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
-                                <button type="button" class="btn-primary" onclick="manualAI.updateProjectNameFromModal()">
-                                    <i class="fas fa-save"></i>
-                                    Save
-                                </button>
-                            </div>
+                            <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
                             <small class="form-help">Choose a descriptive name for your project</small>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <label for="modalProjectDescription">Project Description</label>
+                            <textarea id="modalProjectDescription" class="form-textarea" 
+                                      placeholder="Enter project description (optional)..." rows="3"></textarea>
+                            <small class="form-help">Add a description to help identify this project</small>
+                        </div>
+
+                        <div class="save-section">
+                            <button type="button" class="btn-primary" onclick="manualAI.updateProjectFromModal()">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
                         </div>
                     </div>
 

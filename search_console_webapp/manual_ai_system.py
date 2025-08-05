@@ -117,6 +117,8 @@ def update_project(project_id):
             return jsonify({'success': False, 'error': 'Project name is required'}), 400
             
         name = data['name'].strip()
+        description = data.get('description', '').strip()
+        
         if not name:
             return jsonify({'success': False, 'error': 'Project name cannot be empty'}), 400
             
@@ -129,12 +131,12 @@ def update_project(project_id):
         if cur.fetchone():
             return jsonify({'success': False, 'error': 'Project name already exists'}), 400
         
-        # Actualizar proyecto
+        # Actualizar proyecto (nombre y descripción)
         cur.execute("""
             UPDATE manual_ai_projects 
-            SET name = %s, updated_at = NOW()
+            SET name = %s, description = %s, updated_at = NOW()
             WHERE id = %s AND user_id = %s
-        """, (name, project_id, user['id']))
+        """, (name, description, project_id, user['id']))
         
         if cur.rowcount == 0:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
