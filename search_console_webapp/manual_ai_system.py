@@ -652,5 +652,4 @@ def handle_404(e):
 def handle_500(e):
     return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-# Logging para debugging
-logger.info("Manual AI System loaded successfully")
+# Manual AI System ready for registration
