@@ -37,9 +37,9 @@
                         <i class="fas fa-user-circle"></i>
                         <span>{{ user.name or user.email }}</span>
                     </div>
-                    <a href="/" class="btn-back-dashboard" title="Back to Dashboard">
+                    <a href="/#ai-overview" class="btn-back-dashboard" title="Go Back">
                         <i class="fas fa-arrow-left"></i>
-                        <span>Back to Dashboard</span>
+                        <span>Go Back</span>
                     </a>
                 </div>
             </div>
@@ -131,6 +131,7 @@
                 <div class="charts-container" id="chartsContainer" style="display: none;">
                     <!-- Summary cards -->
                     <div class="summary-cards">
+                        <!-- 1. Total Keywords -->
                         <div class="summary-card">
                             <div class="card-icon">
                                 <i class="fas fa-key"></i>
@@ -140,6 +141,7 @@
                                 <p>Total Keywords</p>
                             </div>
                         </div>
+                        <!-- 2. AI Overview Results -->
                         <div class="summary-card">
                             <div class="card-icon">
                                 <i class="fas fa-robot"></i>
@@ -149,6 +151,17 @@
                                 <p>AI Overview Results</p>
                             </div>
                         </div>
+                        <!-- 3. AI Overview Weight -->
+                        <div class="summary-card">
+                            <div class="card-icon">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="aioWeight">-</h3>
+                                <p>AI Overview Weight</p>
+                            </div>
+                        </div>
+                        <!-- 4. Domain Mentions -->
                         <div class="summary-card">
                             <div class="card-icon">
                                 <i class="fas fa-eye"></i>
@@ -158,31 +171,24 @@
                                 <p>Domain Mentions</p>
                             </div>
                         </div>
+                        <!-- 5. Visibility -->
                         <div class="summary-card">
                             <div class="card-icon">
                                 <i class="fas fa-percentage"></i>
                             </div>
                             <div class="card-content">
                                 <h3 id="visibilityPercentage">-</h3>
-                                <p>Visibility %</p>
+                                <p>Visibility</p>
                             </div>
                         </div>
+                        <!-- 6. Average Position -->
                         <div class="summary-card">
                             <div class="card-icon">
                                 <i class="fas fa-sort-numeric-down"></i>
                             </div>
                             <div class="card-content">
                                 <h3 id="averagePosition">-</h3>
-                                <p>Avg Position</p>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon">
-                                <i class="fas fa-chart-pie"></i>
-                            </div>
-                            <div class="card-content">
-                                <h3 id="aioWeight">-</h3>
-                                <p>AIO Weight %</p>
+                                <p>Average Position</p>
                             </div>
                         </div>
                     </div>
@@ -196,6 +202,49 @@
                         <div class="chart-container">
                             <h3>Position Distribution</h3>
                             <canvas id="positionsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Top Domains Section -->
+                    <div class="top-domains-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-trophy"></i>
+                                Most Visible Domains
+                            </h3>
+                            <div class="tooltip-container">
+                                <i class="fas fa-info-circle tooltip-trigger"></i>
+                                <div class="tooltip-content">
+                                    Domain visibility = appearance frequency + average position in AI Overview results
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="domains-container">
+                            <div class="domains-table-wrapper">
+                                <table class="domains-table" id="topDomainsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Domain</th>
+                                            <th>Appearances</th>
+                                            <th>Avg Position</th>
+                                            <th>Visibility Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topDomainsBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="no-domains-message" id="noDomainsMessage" style="display: none;">
+                                <div class="empty-state">
+                                    <i class="fas fa-search"></i>
+                                    <p>No domain data available yet</p>
+                                    <small>Run analysis to see competitor domains in AI Overview</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -380,7 +429,33 @@
                 <div class="detail-content" id="settingsDetailTab">
                     <div class="project-settings">
                         <h4>Project Settings</h4>
-                        <!-- Project settings form will be here -->
+                        
+                        <!-- Project Name Settings -->
+                        <div class="setting-group">
+                            <label for="projectNameEdit">Project Name</label>
+                            <div class="input-group">
+                                <input type="text" id="projectNameEdit" class="form-input" placeholder="Enter project name...">
+                                <button type="button" class="btn-primary" onclick="manualAI.updateProjectName()">
+                                    <i class="fas fa-save"></i>
+                                    Save
+                                </button>
+                            </div>
+                            <small class="form-help">Choose a descriptive name for your project</small>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        <div class="setting-group danger-zone">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+                            <p class="danger-text">These actions cannot be undone. Please be certain.</p>
+                            
+                            <div class="danger-actions">
+                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProject()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Project
+                                </button>
+                                <small class="form-help">This will permanently delete the project, all keywords, and historical data.</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -437,6 +512,135 @@ keyword 3"></textarea>
                 </div>
                 <div class="progress-text">
                     <span id="progressPercent">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Confirmation Modal -->
+    <div class="modal-overlay" id="deleteProjectModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle text-danger"></i> Delete Project</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideDeleteProjectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center"><strong>Are you absolutely sure?</strong></p>
+                <p class="text-muted text-center">
+                    This action cannot be undone. This will permanently delete the project 
+                    "<span id="deleteProjectName" class="text-primary"></span>", 
+                    all its keywords, analysis results, and historical data.
+                </p>
+                
+                <div class="confirmation-input">
+                    <label for="deleteConfirmInput">
+                        Type <strong>DELETE</strong> to confirm:
+                    </label>
+                    <input type="text" id="deleteConfirmInput" class="form-input" 
+                           placeholder="Type DELETE here..." autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="manualAI.hideDeleteProjectModal()">
+                    Cancel
+                </button>
+                <button type="button" class="btn-danger" id="confirmDeleteBtn" 
+                        onclick="manualAI.executeDeleteProject()" disabled>
+                    <i class="fas fa-trash"></i>
+                    Delete Project
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Management Modal -->
+    <div class="modal-overlay" id="projectModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideProjectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Modal Navigation Tabs -->
+                <div class="modal-nav-tabs">
+                    <button type="button" class="modal-nav-tab active" data-modal-tab="keywords" onclick="manualAI.switchModalTab('keywords')">
+                        <i class="fas fa-key"></i>
+                        Keywords
+                    </button>
+                    <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="manualAI.switchModalTab('settings')">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                </div>
+
+                <!-- Keywords Tab -->
+                <div class="modal-tab-content active" id="modalKeywordsTab">
+                    <div class="tab-section">
+                        <h4>Add Keywords</h4>
+                        <div class="keywords-input-section">
+                            <div class="input-group">
+                                <textarea id="modalKeywordsInput" class="form-textarea" 
+                                          placeholder="Enter keywords, one per line or separated by commas..."
+                                          rows="4"></textarea>
+                                <button type="button" class="btn-primary" onclick="manualAI.addKeywordsFromModal()">
+                                    <i class="fas fa-plus"></i>
+                                    Add Keywords
+                                </button>
+                            </div>
+                            <small class="form-help">You can add multiple keywords at once, separated by commas or new lines</small>
+                        </div>
+                    </div>
+
+                    <div class="tab-section">
+                        <h4>Current Keywords</h4>
+                        <div class="keywords-list-container">
+                            <div id="modalKeywordsList" class="keywords-list">
+                                <!-- Keywords will be loaded here -->
+                            </div>
+                            <div id="modalNoKeywords" class="empty-state" style="display: none;">
+                                <i class="fas fa-key"></i>
+                                <p>No keywords added yet</p>
+                                <small>Add some keywords above to get started</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="modal-tab-content" id="modalSettingsTab">
+                    <div class="tab-section">
+                        <h4>Project Information</h4>
+                        <div class="setting-group">
+                            <label for="modalProjectName">Project Name</label>
+                            <div class="input-group">
+                                <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
+                                <button type="button" class="btn-primary" onclick="manualAI.updateProjectNameFromModal()">
+                                    <i class="fas fa-save"></i>
+                                    Save
+                                </button>
+                            </div>
+                            <small class="form-help">Choose a descriptive name for your project</small>
+                        </div>
+                    </div>
+
+                    <div class="tab-section">
+                        <div class="danger-zone">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+                            <p class="danger-text">These actions cannot be undone. Please be certain.</p>
+                            
+                            <div class="danger-actions">
+                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProjectFromModal()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Project
+                                </button>
+                                <small class="form-help">This will permanently delete the project, all keywords, and historical data.</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

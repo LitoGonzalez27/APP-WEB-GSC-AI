@@ -98,6 +98,135 @@ def get_project_details(project_id):
         'project': project
     })
 
+@manual_ai_bp.route('/api/projects/<int:project_id>', methods=['PUT'])
+@auth_required
+def update_project(project_id):
+    """Actualizar un proyecto (nombre, configuración, etc.)"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.get_json()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Validar datos requeridos
+        if 'name' not in data:
+            return jsonify({'success': False, 'error': 'Project name is required'}), 400
+            
+        name = data['name'].strip()
+        if not name:
+            return jsonify({'success': False, 'error': 'Project name cannot be empty'}), 400
+            
+        # Verificar que el nombre no esté siendo usado por otro proyecto del usuario
+        cur.execute("""
+            SELECT id FROM manual_ai_projects 
+            WHERE user_id = %s AND name = %s AND id != %s
+        """, (user['id'], name, project_id))
+        
+        if cur.fetchone():
+            return jsonify({'success': False, 'error': 'Project name already exists'}), 400
+        
+        # Actualizar proyecto
+        cur.execute("""
+            UPDATE manual_ai_projects 
+            SET name = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+        """, (name, project_id, user['id']))
+        
+        if cur.rowcount == 0:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        # Registrar evento de cambio de nombre
+        cur.execute("""
+            INSERT INTO manual_ai_events (project_id, event_type, event_title, description, event_date)
+            VALUES (%s, 'project_updated', 'Project Renamed', %s, NOW())
+        """, (project_id, f'Project renamed to "{name}"'))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Project {project_id} updated successfully")
+        return jsonify({'success': True, 'message': 'Project updated successfully'})
+        
+    except Exception as e:
+        logger.error(f"Error updating project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
+@auth_required
+def delete_project(project_id):
+    """Eliminar completamente un proyecto y todos sus datos"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Obtener nombre del proyecto antes de eliminarlo
+        cur.execute("SELECT name FROM manual_ai_projects WHERE id = %s", (project_id,))
+        project_data = cur.fetchone()
+        if not project_data:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_name = project_data[0]
+        
+        # Eliminar en orden inverso de dependencias
+        # 1. Eliminar eventos
+        cur.execute("DELETE FROM manual_ai_events WHERE project_id = %s", (project_id,))
+        events_deleted = cur.rowcount
+        
+        # 2. Eliminar snapshots
+        cur.execute("DELETE FROM manual_ai_snapshots WHERE project_id = %s", (project_id,))
+        snapshots_deleted = cur.rowcount
+        
+        # 3. Eliminar resultados de análisis
+        cur.execute("""
+            DELETE FROM manual_ai_results 
+            WHERE keyword_id IN (
+                SELECT id FROM manual_ai_keywords WHERE project_id = %s
+            )
+        """, (project_id,))
+        results_deleted = cur.rowcount
+        
+        # 4. Eliminar keywords
+        cur.execute("DELETE FROM manual_ai_keywords WHERE project_id = %s", (project_id,))
+        keywords_deleted = cur.rowcount
+        
+        # 5. Eliminar proyecto
+        cur.execute("DELETE FROM manual_ai_projects WHERE id = %s AND user_id = %s", 
+                   (project_id, user['id']))
+        
+        if cur.rowcount == 0:
+            return jsonify({'success': False, 'error': 'Project not found or unauthorized'}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Project '{project_name}' (ID: {project_id}) deleted successfully. "
+                   f"Removed: {keywords_deleted} keywords, {results_deleted} results, "
+                   f"{snapshots_deleted} snapshots, {events_deleted} events")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Project "{project_name}" deleted successfully',
+            'stats': {
+                'keywords_deleted': keywords_deleted,
+                'results_deleted': results_deleted,
+                'snapshots_deleted': snapshots_deleted,
+                'events_deleted': events_deleted
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords', methods=['GET'])
 @auth_required
 def get_project_keywords(project_id):
@@ -235,6 +364,25 @@ def get_project_stats(project_id):
         'success': True,
         'stats': stats
     })
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/top-domains', methods=['GET'])
+@auth_required
+def get_top_domains(project_id):
+    """Obtener dominios más visibles para un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        domains = get_project_top_domains(project_id)
+        return jsonify({
+            'success': True,
+            'domains': domains
+        })
+    except Exception as e:
+        logger.error(f"Error getting top domains for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
 @auth_required
@@ -903,6 +1051,133 @@ def get_project_statistics(project_id: int, days: int = 30) -> Dict:
             'end': str(end_date)
         }
     }
+
+def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
+    """
+    Obtener los dominios más visibles para un proyecto específico.
+    Calcula la visibilidad basada en frecuencia de aparición y posición promedio.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Obtener dominios de AI Overview que no sean el dominio del proyecto
+        cur.execute("""
+            SELECT 
+                p.domain as project_domain
+            FROM manual_ai_projects p
+            WHERE p.id = %s
+        """, (project_id,))
+        
+        project_data = cur.fetchone()
+        if not project_data:
+            return []
+        
+        project_domain = project_data[0]
+        
+        # Obtener análisis de dominios en AI Overview (excluyendo el dominio del proyecto)
+        cur.execute("""
+            SELECT 
+                LOWER(TRIM(BOTH '/' FROM 
+                    CASE 
+                        WHEN r.ai_overview_data->'sources' IS NOT NULL THEN
+                            unnested_source->>'url'
+                        ELSE NULL
+                    END
+                )) as clean_url,
+                r.domain_position,
+                r.analysis_date
+            FROM manual_ai_results r
+            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            LEFT JOIN LATERAL jsonb_array_elements(r.ai_overview_data->'sources') AS unnested_source ON true
+            WHERE k.project_id = %s 
+                AND r.has_ai_overview = true
+                AND r.ai_overview_data IS NOT NULL
+                AND r.ai_overview_data->'sources' IS NOT NULL
+                AND unnested_source->>'url' IS NOT NULL
+                AND unnested_source->>'url' != ''
+                AND r.analysis_date >= NOW() - INTERVAL '30 days'
+        """, (project_id,))
+        
+        results = cur.fetchall()
+        
+        # Procesar URLs para extraer dominios
+        domain_stats = {}
+        
+        for url, position, analysis_date in results:
+            if not url:
+                continue
+                
+            # Extraer dominio de la URL
+            domain = extract_domain_from_url(url)
+            
+            # Filtrar el dominio del proyecto y dominios inválidos
+            if not domain or domain == project_domain or domain in ['', 'localhost', 'example.com']:
+                continue
+            
+            # Acumular estadísticas por dominio
+            if domain not in domain_stats:
+                domain_stats[domain] = {
+                    'domain': domain,
+                    'appearances': 0,
+                    'positions': [],
+                    'dates': set()
+                }
+            
+            domain_stats[domain]['appearances'] += 1
+            if position:
+                domain_stats[domain]['positions'].append(position)
+            domain_stats[domain]['dates'].add(str(analysis_date.date()) if analysis_date else None)
+        
+        # Calcular promedios y scores
+        domain_list = []
+        for domain, stats in domain_stats.items():
+            avg_position = sum(stats['positions']) / len(stats['positions']) if stats['positions'] else None
+            
+            # Solo incluir dominios con datos válidos
+            if stats['appearances'] > 0:
+                domain_list.append({
+                    'domain': domain,
+                    'appearances': stats['appearances'],
+                    'avg_position': round(avg_position, 1) if avg_position else None,
+                    'unique_dates': len([d for d in stats['dates'] if d])
+                })
+        
+        # Ordenar por número de apariciones (descendente) y luego por posición promedio (ascendente)
+        domain_list.sort(key=lambda x: (-x['appearances'], x['avg_position'] or 999))
+        
+        # Retornar los top N dominios
+        return domain_list[:limit]
+        
+    except Exception as e:
+        logger.error(f"Error getting top domains for project {project_id}: {e}")
+        return []
+    finally:
+        conn.close()
+
+def extract_domain_from_url(url: str) -> str:
+    """Extraer dominio de una URL"""
+    try:
+        if not url:
+            return None
+            
+        # Añadir https:// si no tiene esquema
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            
+        # Usar urlparse para extraer el dominio
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        
+        # Remover www. si existe
+        if domain.startswith('www.'):
+            domain = domain[4:]
+            
+        return domain if domain else None
+        
+    except Exception:
+        return None
 
 # ================================
 # FUNCIONES DE UTILIDAD

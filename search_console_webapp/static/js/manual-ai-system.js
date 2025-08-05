@@ -152,6 +152,8 @@ class ManualAISystem {
             this.loadProjectKeywords(this.currentProject.id);
         } else if (tabName === 'results' && this.currentProject) {
             this.loadProjectResults(this.currentProject.id);
+        } else if (tabName === 'settings' && this.currentProject) {
+            this.loadProjectSettings(this.currentProject);
         }
     }
 
@@ -197,9 +199,9 @@ class ManualAISystem {
                 <div class="project-header">
                     <h3>${this.escapeHtml(project.name)}</h3>
                     <div class="project-actions">
-                        <button type="button" class="btn-icon" onclick="manualAI.showProjectDetails(${project.id})"
-                                title="View details">
-                            <i class="fas fa-eye"></i>
+                        <button type="button" class="btn-icon" onclick="manualAI.showProjectModal(${project.id})"
+                                title="Project settings">
+                            <i class="fas fa-cog"></i>
                         </button>
                         <button type="button" class="btn-icon" onclick="manualAI.analyzeProject(${project.id})"
                                 title="Run analysis">
@@ -917,6 +919,9 @@ class ManualAISystem {
         // Render charts with events annotations
         this.renderVisibilityChart(stats.visibility_chart, stats.events);
         this.renderPositionsChart(stats.positions_chart, stats.events);
+
+        // Load and render top domains
+        this.loadTopDomains(stats.project_id || this.currentProject?.id);
     }
 
     renderVisibilityChart(data, events = []) {
@@ -1188,6 +1193,512 @@ class ManualAISystem {
     toggleKeyword(keywordId) {
         // TODO: Implement keyword toggle functionality
         console.log('Toggle keyword:', keywordId);
+    }
+
+    // ================================
+    // TOP DOMAINS MANAGEMENT
+    // ================================
+
+    async loadTopDomains(projectId) {
+        if (!projectId) {
+            this.showNoDomainsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/top-domains`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoDomainsMessage();
+                    return;
+                }
+                throw new Error('Failed to load top domains data');
+            }
+
+            const data = await response.json();
+            this.renderTopDomains(data.domains || []);
+
+        } catch (error) {
+            console.error('Error loading top domains:', error);
+            this.showNoDomainsMessage();
+        }
+    }
+
+    renderTopDomains(domains) {
+        const tableBody = document.getElementById('topDomainsBody');
+        const noDomainsMessage = document.getElementById('noDomainsMessage');
+        const topDomainsTable = document.getElementById('topDomainsTable');
+
+        if (!domains || domains.length === 0) {
+            this.showNoDomainsMessage();
+            return;
+        }
+
+        // Hide no domains message and show table
+        noDomainsMessage.style.display = 'none';
+        topDomainsTable.style.display = 'table';
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        // Render each domain row
+        domains.forEach((domain, index) => {
+            const row = document.createElement('tr');
+            
+            // Calculate visibility score (appearances weighted by position)
+            const visibilityScore = this.calculateVisibilityScore(domain.appearances, domain.avg_position);
+            const scoreClass = this.getScoreClass(visibilityScore);
+            
+            row.innerHTML = `
+                <td class="rank-cell">${index + 1}</td>
+                <td class="domain-cell" title="${domain.domain}">${domain.domain}</td>
+                <td class="appearances-cell">${domain.appearances}</td>
+                <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
+                <td class="score-cell ${scoreClass}">${visibilityScore.toFixed(1)}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+
+    calculateVisibilityScore(appearances, avgPosition) {
+        if (!appearances || !avgPosition) return 0;
+        
+        // Score = appearances × (weight based on position)
+        // Better positions (lower numbers) get higher weights
+        const positionWeight = Math.max(0, (21 - avgPosition) / 20);
+        return appearances * positionWeight * 10; // Scale to 0-100 range
+    }
+
+    getScoreClass(score) {
+        if (score >= 80) return 'score-excellent';
+        if (score >= 60) return 'score-good';
+        if (score >= 30) return 'score-average';
+        return 'score-poor';
+    }
+
+    showNoDomainsMessage() {
+        const tableBody = document.getElementById('topDomainsBody');
+        const noDomainsMessage = document.getElementById('noDomainsMessage');
+        const topDomainsTable = document.getElementById('topDomainsTable');
+
+        if (tableBody) tableBody.innerHTML = '';
+        if (topDomainsTable) topDomainsTable.style.display = 'none';
+        if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    }
+
+    // ================================
+    // PROJECT SETTINGS MANAGEMENT
+    // ================================
+
+    async updateProjectName() {
+        const newName = document.getElementById('projectNameEdit').value.trim();
+        const currentProject = this.getCurrentProject();
+        
+        if (!newName) {
+            this.showError('Project name cannot be empty');
+            return;
+        }
+
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        if (newName === currentProject.name) {
+            this.showSuccess('Project name is already up to date');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to update project name');
+            }
+
+            // Update current project data
+            currentProject.name = newName;
+            
+            // Refresh project list and UI
+            await this.loadProjects();
+            this.updateProjectUI();
+            
+            this.showSuccess('Project name updated successfully');
+            
+        } catch (error) {
+            console.error('Error updating project name:', error);
+            this.showError(`Failed to update project name: ${error.message}`);
+        }
+    }
+
+    confirmDeleteProject() {
+        const currentProject = this.getCurrentProject();
+        
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        // Set project name in modal
+        document.getElementById('deleteProjectName').textContent = currentProject.name;
+        
+        // Reset confirmation input
+        const confirmInput = document.getElementById('deleteConfirmInput');
+        confirmInput.value = '';
+        document.getElementById('confirmDeleteBtn').disabled = true;
+        
+        // Add input listener for enabling delete button
+        confirmInput.oninput = (e) => {
+            const deleteBtn = document.getElementById('confirmDeleteBtn');
+            deleteBtn.disabled = e.target.value !== 'DELETE';
+        };
+        
+        // Show modal
+        this.showElement(document.getElementById('deleteProjectModal'));
+    }
+
+    hideDeleteProjectModal() {
+        this.hideElement(document.getElementById('deleteProjectModal'));
+        document.getElementById('deleteConfirmInput').value = '';
+        document.getElementById('confirmDeleteBtn').disabled = true;
+    }
+
+    async executeDeleteProject() {
+        const currentProject = this.getCurrentProject();
+        const confirmText = document.getElementById('deleteConfirmInput').value;
+        
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        if (confirmText !== 'DELETE') {
+            this.showError('Please type DELETE to confirm');
+            return;
+        }
+
+        try {
+            this.showProgress('Deleting project...');
+            
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to delete project');
+            }
+
+            this.hideProgress();
+            this.hideDeleteProjectModal();
+            
+            // Show success message
+            this.showSuccess('Project deleted successfully');
+            
+            // Redirect to projects list after short delay
+            setTimeout(() => {
+                this.showTab('projects');
+                this.loadProjects();
+            }, 1500);
+            
+        } catch (error) {
+            this.hideProgress();
+            console.error('Error deleting project:', error);
+            this.showError(`Failed to delete project: ${error.message}`);
+        }
+    }
+
+    getCurrentProject() {
+        const projectSelect = this.elements.keywordsProjectSelect;
+        if (!projectSelect || !projectSelect.value) return null;
+        
+        return this.projects.find(p => p.id == projectSelect.value);
+    }
+
+    updateProjectUI() {
+        // Update project name in detail view header if open
+        const currentProject = this.getCurrentProject();
+        if (currentProject && this.elements.projectDetailView.style.display !== 'none') {
+            const projectTitle = document.querySelector('#projectDetailView h3');
+            if (projectTitle) {
+                projectTitle.textContent = `Project: ${currentProject.name}`;
+            }
+        }
+    }
+
+    loadProjectSettings(project) {
+        // Load project name into edit field
+        const projectNameEdit = document.getElementById('projectNameEdit');
+        if (projectNameEdit) {
+            projectNameEdit.value = project.name || '';
+        }
+    }
+
+    // ================================
+    // PROJECT MODAL MANAGEMENT
+    // ================================
+
+    showProjectModal(projectId) {
+        // Find project data
+        const project = this.projects.find(p => p.id === projectId);
+        if (!project) {
+            this.showError('Project not found');
+            return;
+        }
+
+        // Set current modal project
+        this.currentModalProject = project;
+
+        // Update modal title
+        document.getElementById('projectModalTitle').textContent = `${project.name} - Settings`;
+
+        // Load project data into modal
+        this.loadProjectIntoModal(project);
+
+        // Show modal
+        this.showElement(document.getElementById('projectModal'));
+    }
+
+    hideProjectModal() {
+        this.hideElement(document.getElementById('projectModal'));
+        this.currentModalProject = null;
+        
+        // Reset modal to keywords tab
+        this.switchModalTab('keywords');
+    }
+
+    switchModalTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.modal-nav-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.modalTab === tabName);
+        });
+
+        // Update tab contents
+        document.querySelectorAll('.modal-tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `modal${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`);
+        });
+
+        // Load specific tab data
+        if (tabName === 'keywords' && this.currentModalProject) {
+            this.loadModalKeywords(this.currentModalProject.id);
+        } else if (tabName === 'settings' && this.currentModalProject) {
+            this.loadModalSettings(this.currentModalProject);
+        }
+    }
+
+    loadProjectIntoModal(project) {
+        // Load into both tabs
+        this.loadModalKeywords(project.id);
+        this.loadModalSettings(project);
+    }
+
+    async loadModalKeywords(projectId) {
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/keywords`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to load keywords');
+            }
+
+            const data = await response.json();
+            this.renderModalKeywords(data.keywords || []);
+
+        } catch (error) {
+            console.error('Error loading modal keywords:', error);
+            this.showError('Failed to load keywords');
+        }
+    }
+
+    renderModalKeywords(keywords) {
+        const keywordsList = document.getElementById('modalKeywordsList');
+        const noKeywords = document.getElementById('modalNoKeywords');
+
+        if (!keywords || keywords.length === 0) {
+            keywordsList.innerHTML = '';
+            noKeywords.style.display = 'block';
+            return;
+        }
+
+        noKeywords.style.display = 'none';
+        keywordsList.innerHTML = keywords.map(keyword => `
+            <div class="keyword-item" data-keyword-id="${keyword.id}">
+                <div class="keyword-text">${this.escapeHtml(keyword.keyword)}</div>
+                <div class="keyword-meta">${keyword.is_active ? 'Active' : 'Inactive'}</div>
+                <button type="button" class="btn-remove-keyword" 
+                        onclick="manualAI.removeKeywordFromModal(${keyword.id})"
+                        title="Remove keyword">
+                    <i class="fas fa-trash"></i>
+                    Remove
+                </button>
+            </div>
+        `).join('');
+    }
+
+    loadModalSettings(project) {
+        // Load project name into modal settings
+        const modalProjectName = document.getElementById('modalProjectName');
+        if (modalProjectName) {
+            modalProjectName.value = project.name || '';
+        }
+    }
+
+    async addKeywordsFromModal() {
+        const keywordsInput = document.getElementById('modalKeywordsInput');
+        const keywordsText = keywordsInput.value.trim();
+        
+        if (!keywordsText) {
+            this.showError('Please enter some keywords');
+            return;
+        }
+
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            // Parse keywords (split by newlines or commas)
+            const keywords = keywordsText
+                .split(/[,\n]/)
+                .map(k => k.trim())
+                .filter(k => k.length > 0);
+
+            if (keywords.length === 0) {
+                this.showError('No valid keywords found');
+                return;
+            }
+
+            const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}/keywords`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keywords })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to add keywords');
+            }
+
+            // Clear input and reload keywords
+            keywordsInput.value = '';
+            await this.loadModalKeywords(this.currentModalProject.id);
+            await this.loadProjects(); // Refresh projects list
+            
+            this.showSuccess(`Added ${keywords.length} keyword(s) successfully`);
+
+        } catch (error) {
+            console.error('Error adding keywords:', error);
+            this.showError(`Failed to add keywords: ${error.message}`);
+        }
+    }
+
+    async removeKeywordFromModal(keywordId) {
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}/keywords/${keywordId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to remove keyword');
+            }
+
+            // Reload keywords and projects
+            await this.loadModalKeywords(this.currentModalProject.id);
+            await this.loadProjects();
+            
+            this.showSuccess('Keyword removed successfully');
+
+        } catch (error) {
+            console.error('Error removing keyword:', error);
+            this.showError(`Failed to remove keyword: ${error.message}`);
+        }
+    }
+
+    async updateProjectNameFromModal() {
+        const newName = document.getElementById('modalProjectName').value.trim();
+        
+        if (!newName) {
+            this.showError('Project name cannot be empty');
+            return;
+        }
+
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        if (newName === this.currentModalProject.name) {
+            this.showSuccess('Project name is already up to date');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to update project name');
+            }
+
+            // Update current project data
+            this.currentModalProject.name = newName;
+            
+            // Update modal title
+            document.getElementById('projectModalTitle').textContent = `${newName} - Settings`;
+            
+            // Refresh projects list
+            await this.loadProjects();
+            
+            this.showSuccess('Project name updated successfully');
+            
+        } catch (error) {
+            console.error('Error updating project name:', error);
+            this.showError(`Failed to update project name: ${error.message}`);
+        }
+    }
+
+    confirmDeleteProjectFromModal() {
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        // Set project name in delete modal
+        document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
+        
+        // Hide project modal and show delete confirmation
+        this.hideProjectModal();
+        this.showElement(document.getElementById('deleteProjectModal'));
+        
+        // Reset confirmation input
+        const confirmInput = document.getElementById('deleteConfirmInput');
+        confirmInput.value = '';
+        document.getElementById('confirmDeleteBtn').disabled = true;
+        
+        // Add input listener for enabling delete button
+        confirmInput.oninput = (e) => {
+            const deleteBtn = document.getElementById('confirmDeleteBtn');
+            deleteBtn.disabled = e.target.value !== 'DELETE';
+        };
     }
 }
 
