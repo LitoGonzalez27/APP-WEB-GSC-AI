@@ -34,10 +34,14 @@
                 </div>
                 <div class="header-right">
                     <!-- User Dropdown -->
-                    <div class="navbar-user-dropdown" id="userDropdown">
+                    <div class="navbar-user-dropdown enhanced-dropdown" id="userDropdown">
                         <button class="user-dropdown-btn" id="userDropdownBtn">
                             <div class="user-avatar-small" id="userAvatarSmall">
-                                <i class="fas fa-user-circle"></i>
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="User Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
                             </div>
                             <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
                             <i class="fas fa-chevron-down dropdown-chevron"></i>
@@ -45,7 +49,11 @@
                         <div class="user-dropdown-menu" id="userDropdownMenu">
                             <div class="user-dropdown-header">
                                 <div class="user-avatar-large" id="userAvatarLarge">
-                                    <i class="fas fa-user-circle"></i>
+                                    {% if user.picture %}
+                                        <img src="{{ user.picture }}" alt="User Avatar" class="user-avatar-img user-avatar-img-large">
+                                    {% else %}
+                                        <i class="fas fa-user-circle"></i>
+                                    {% endif %}
                                 </div>
                                 <div class="user-details">
                                     <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
@@ -145,14 +153,26 @@
                 <div class="analytics-header">
                     <h2>Analytics Dashboard</h2>
                     <div class="analytics-controls">
-                        <select id="analyticsProjectSelect" class="form-select">
-                            <option value="">Select a project...</option>
-                        </select>
-                        <select id="analyticsTimeRange" class="form-select">
-                            <option value="7">Last 7 days</option>
-                            <option value="30" selected>Last 30 days</option>
-                            <option value="90">Last 90 days</option>
-                        </select>
+                        <div class="project-selector-highlight">
+                            <label for="analyticsProjectSelect" class="selector-label">
+                                <i class="fas fa-project-diagram"></i>
+                                Choose Project to Analyze
+                            </label>
+                            <select id="analyticsProjectSelect" class="form-select featured-select">
+                                <option value="">🎯 Select a project to view analytics...</option>
+                            </select>
+                        </div>
+                        <div class="time-range-selector">
+                            <label for="analyticsTimeRange" class="selector-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Time Range
+                            </label>
+                            <select id="analyticsTimeRange" class="form-select">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -170,7 +190,7 @@
                     <div class="summary-cards">
                         <!-- 1. Total Keywords -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-key"></i>
                             </div>
                             <div class="card-content">
@@ -180,7 +200,7 @@
                         </div>
                         <!-- 2. AI Overview Results -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-robot"></i>
                             </div>
                             <div class="card-content">
@@ -190,7 +210,7 @@
                         </div>
                         <!-- 3. AI Overview Weight -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-chart-pie"></i>
                             </div>
                             <div class="card-content">
@@ -200,7 +220,7 @@
                         </div>
                         <!-- 4. Domain Mentions -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-eye"></i>
                             </div>
                             <div class="card-content">
@@ -210,7 +230,7 @@
                         </div>
                         <!-- 5. Visibility -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-percentage"></i>
                             </div>
                             <div class="card-content">
@@ -220,7 +240,7 @@
                         </div>
                         <!-- 6. Average Position -->
                         <div class="summary-card">
-                            <div class="card-icon">
+                            <div class="summary-card-icon">
                                 <i class="fas fa-sort-numeric-down"></i>
                             </div>
                             <div class="card-content">
@@ -359,49 +379,132 @@
 
     <!-- Create Project Modal -->
     <div class="modal-overlay" id="createProjectModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Project</h3>
+        <div class="modal-content create-project-modal">
+            <div class="modal-header create-header">
+                <div class="header-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="header-text">
+                    <h3>Create New AI Analysis Project</h3>
+                    <p>Set up a new project to track AI Overview visibility</p>
+                </div>
                 <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <form id="createProjectForm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="projectName">Project Name *</label>
-                        <input type="text" id="projectName" name="name" required maxlength="255" 
-                               placeholder="Enter project name...">
+                <div class="modal-body create-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectName" class="enhanced-label">
+                                <i class="fas fa-tag"></i>
+                                Project Name *
+                            </label>
+                            <input type="text" id="projectName" name="name" required maxlength="255" 
+                                   class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
+                            <small class="form-help">Choose a memorable name for your project</small>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="projectDescription">Description</label>
-                        <textarea id="projectDescription" name="description" rows="3"
-                                  placeholder="Optional project description..."></textarea>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectDescription" class="enhanced-label">
+                                <i class="fas fa-align-left"></i>
+                                Description
+                            </label>
+                            <textarea id="projectDescription" name="description" rows="3"
+                                      class="enhanced-textarea" 
+                                      placeholder="Optional description about this project..."></textarea>
+                            <small class="form-help">Add details about what you want to analyze</small>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="projectDomain">Domain *</label>
-                        <input type="text" id="projectDomain" name="domain" required
-                               placeholder="yourdomain.com">
-                        <small class="form-help">Enter your domain without http:// or www</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="projectCountry">Country</label>
-                        <select id="projectCountry" name="country_code">
-                            <option value="ES" selected>Spain</option>
-                            <option value="US">United States</option>
-                            <option value="GB">United Kingdom</option>
-                            <option value="FR">France</option>
-                            <option value="DE">Germany</option>
-                            <option value="MX">Mexico</option>
-                        </select>
+                    
+                    <div class="form-row form-row-split">
+                        <div class="form-group">
+                            <label for="projectDomain" class="enhanced-label">
+                                <i class="fas fa-globe"></i>
+                                Target Domain *
+                            </label>
+                            <input type="text" id="projectDomain" name="domain" required
+                                   class="enhanced-input" placeholder="example.com">
+                            <small class="form-help">Domain to track in AI Overview results</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="projectCountry" class="enhanced-label">
+                                <i class="fas fa-flag"></i>
+                                Target Country
+                            </label>
+                            <select id="projectCountry" name="country_code" class="enhanced-select">
+                                <option value="ES" selected>🇪🇸 Spain</option>
+                                <option value="US">🇺🇸 United States</option>
+                                <option value="GB">🇬🇧 United Kingdom</option>
+                                <option value="FR">🇫🇷 France</option>
+                                <option value="DE">🇩🇪 Germany</option>
+                                <option value="IT">🇮🇹 Italy</option>
+                                <option value="PT">🇵🇹 Portugal</option>
+                                <option value="NL">🇳🇱 Netherlands</option>
+                                <option value="BE">🇧🇪 Belgium</option>
+                                <option value="CH">🇨🇭 Switzerland</option>
+                                <option value="AT">🇦🇹 Austria</option>
+                                <option value="SE">🇸🇪 Sweden</option>
+                                <option value="NO">🇳🇴 Norway</option>
+                                <option value="DK">🇩🇰 Denmark</option>
+                                <option value="FI">🇫🇮 Finland</option>
+                                <option value="PL">🇵🇱 Poland</option>
+                                <option value="CZ">🇨🇿 Czech Republic</option>
+                                <option value="HU">🇭🇺 Hungary</option>
+                                <option value="RO">🇷🇴 Romania</option>
+                                <option value="BG">🇧🇬 Bulgaria</option>
+                                <option value="GR">🇬🇷 Greece</option>
+                                <option value="HR">🇭🇷 Croatia</option>
+                                <option value="SI">🇸🇮 Slovenia</option>
+                                <option value="SK">🇸🇰 Slovakia</option>
+                                <option value="CA">🇨🇦 Canada</option>
+                                <option value="MX">🇲🇽 Mexico</option>
+                                <option value="AR">🇦🇷 Argentina</option>
+                                <option value="BR">🇧🇷 Brazil</option>
+                                <option value="CL">🇨🇱 Chile</option>
+                                <option value="CO">🇨🇴 Colombia</option>
+                                <option value="PE">🇵🇪 Peru</option>
+                                <option value="AU">🇦🇺 Australia</option>
+                                <option value="NZ">🇳🇿 New Zealand</option>
+                                <option value="JP">🇯🇵 Japan</option>
+                                <option value="KR">🇰🇷 South Korea</option>
+                                <option value="SG">🇸🇬 Singapore</option>
+                                <option value="MY">🇲🇾 Malaysia</option>
+                                <option value="TH">🇹🇭 Thailand</option>
+                                <option value="PH">🇵🇭 Philippines</option>
+                                <option value="ID">🇮🇩 Indonesia</option>
+                                <option value="VN">🇻🇳 Vietnam</option>
+                                <option value="IN">🇮🇳 India</option>
+                                <option value="PK">🇵🇰 Pakistan</option>
+                                <option value="BD">🇧🇩 Bangladesh</option>
+                                <option value="ZA">🇿🇦 South Africa</option>
+                                <option value="NG">🇳🇬 Nigeria</option>
+                                <option value="EG">🇪🇬 Egypt</option>
+                                <option value="KE">🇰🇪 Kenya</option>
+                                <option value="MA">🇲🇦 Morocco</option>
+                                <option value="TN">🇹🇳 Tunisia</option>
+                                <option value="DZ">🇩🇿 Algeria</option>
+                                <option value="IL">🇮🇱 Israel</option>
+                                <option value="AE">🇦🇪 UAE</option>
+                                <option value="SA">🇸🇦 Saudi Arabia</option>
+                                <option value="TR">🇹🇷 Turkey</option>
+                                <option value="RU">🇷🇺 Russia</option>
+                                <option value="UA">🇺🇦 Ukraine</option>
+                            </select>
+                            <small class="form-help">Search location for analysis</small>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="manualAI.hideCreateProject()">
+                <div class="modal-footer create-footer">
+                    <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
+                        <i class="fas fa-times"></i>
                         Cancel
                     </button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-plus"></i>
+                    <button type="submit" class="btn-primary btn-enhanced btn-create">
+                        <i class="fas fa-rocket"></i>
                         Create Project
                     </button>
                 </div>
