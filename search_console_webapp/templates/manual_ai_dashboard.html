@@ -201,13 +201,33 @@
                                     <option value="MX">Mexico</option>
                                 </select>
                             </div>
-                            <div class="setting-item">
-                                <label>Auto-analyze frequency</label>
-                                <select id="autoAnalyzeFreq" class="form-select">
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="manual">Manual only</option>
-                                </select>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h3>🕒 Daily Cron Analysis</h3>
+                            <div class="cron-info">
+                                <div class="setting-item">
+                                    <label>Automatic Daily Analysis</label>
+                                    <div class="cron-status">
+                                        <span class="status-indicator status-active">●</span>
+                                        <span>Active - Runs daily at 2:00 AM</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Last Execution</label>
+                                    <div id="lastCronExecution" class="cron-last-run">
+                                        <i class="fas fa-clock"></i>
+                                        <span>Loading...</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Manual Trigger (Testing)</label>
+                                    <button type="button" class="btn-secondary" onclick="manualAI.triggerDailyCron()" id="triggerCronBtn">
+                                        <i class="fas fa-play"></i>
+                                        Run Daily Analysis Now
+                                    </button>
+                                    <small class="form-help">⚠️ Only use for testing. May take 30+ minutes for projects with many keywords.</small>
+                                </div>
                             </div>
                         </div>
                         <div class="setting-group">

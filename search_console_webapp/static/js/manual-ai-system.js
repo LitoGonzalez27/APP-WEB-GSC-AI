@@ -108,6 +108,9 @@ class ManualAISystem {
     async loadInitialData() {
         await this.loadProjects();
         this.populateAnalyticsProjectSelect();
+        
+        // Load cron execution status
+        this.updateLastCronExecution();
     }
 
     // ================================
@@ -128,6 +131,8 @@ class ManualAISystem {
         // Load specific tab data
         if (tabName === 'analytics') {
             this.loadAnalytics();
+        } else if (tabName === 'settings') {
+            this.updateLastCronExecution();
         }
     }
 
@@ -592,16 +597,60 @@ class ManualAISystem {
         }
 
         this.showProgress('Running analysis...', 
-            `Analyzing ${project.keyword_count} keywords for AI Overview visibility`);
+            `Analyzing ${project.keyword_count} keywords for AI Overview visibility. This may take several minutes.`);
+
+        // Start a backup polling system in case main request fails
+        const startTime = Date.now();
+        const backupPolling = setInterval(async () => {
+            try {
+                await this.loadProjects();
+                const updatedProject = this.projects.find(p => p.id === projectId);
+                
+                // Check if project has new analysis data (very basic check)
+                if (updatedProject && updatedProject.total_results > project.total_results) {
+                    console.log('📡 Backup polling detected analysis completion');
+                    clearInterval(backupPolling);
+                    this.hideProgress();
+                    this.showSuccess('Analysis completed! Results detected via backup monitoring.');
+                    
+                    // Refresh analytics if needed
+                    if (this.elements.analyticsProjectSelect.value == projectId) {
+                        await this.loadAnalytics();
+                    }
+                }
+                
+                // Stop polling after 10 minutes
+                if (Date.now() - startTime > 600000) {
+                    clearInterval(backupPolling);
+                }
+            } catch (pollError) {
+                console.error('Backup polling error:', pollError);
+            }
+        }, 30000); // Check every 30 seconds
 
         try {
+            // Create AbortController for timeout management
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1800000); // 30 minutes timeout for up to 200 keywords
+            
             const response = await fetch(`/manual-ai/api/projects/${projectId}/analyze`, {
-                method: 'POST'
+                method: 'POST',
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
+            
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
 
             const data = await response.json();
 
             if (data.success) {
+                clearInterval(backupPolling); // Stop backup polling
                 this.showSuccess(`Analysis completed! Processed ${data.results_count} keywords`);
                 await this.loadProjects(); // Refresh project stats
                 
@@ -614,9 +663,178 @@ class ManualAISystem {
             }
         } catch (error) {
             console.error('Error running analysis:', error);
-            this.showError(error.message || 'Analysis failed');
+            
+            // Handle different types of errors
+            let errorMessage = 'Analysis failed';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Analysis timeout (30 minutes). This usually indicates a server or network issue. Consider running the analysis during off-peak hours.';
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('ERR_NETWORK_CHANGED')) {
+                // Network error - check if analysis actually completed
+                console.log('🔍 Network error detected, checking if analysis completed...');
+                try {
+                    // Wait a moment and check if we have new results
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await this.loadProjects(); // Refresh project stats
+                    
+                    // If analytics tab is active, refresh it too
+                    if (this.elements.analyticsProjectSelect.value == projectId) {
+                        await this.loadAnalytics();
+                    }
+                    
+                    this.showSuccess('Analysis may have completed despite network error. Please check the Results tab.');
+                    return; // Don't show error if we managed to refresh
+                } catch (refreshError) {
+                    console.error('Failed to refresh after network error:', refreshError);
+                }
+                errorMessage = 'Network connection lost during analysis. Analysis might have completed - please check the Results tab.';
+            } else if (error.message.includes('HTTP')) {
+                errorMessage = `Server error: ${error.message}`;
+            } else {
+                errorMessage = error.message || 'Analysis failed';
+            }
+            
+            this.showError(errorMessage);
         } finally {
+            clearInterval(backupPolling); // Stop backup polling in all cases
             this.hideProgress();
+        }
+    }
+
+    // ================================
+    // CRON SYSTEM
+    // ================================
+
+    async triggerDailyCron() {
+        const btn = document.getElementById('triggerCronBtn');
+        
+        if (!btn || btn.disabled) return;
+        
+        const originalHTML = btn.innerHTML;
+        
+        try {
+            // Disable button and show loading state
+            btn.disabled = true;
+            btn.classList.add('running');
+            btn.innerHTML = '<i class="fas fa-cog"></i> Running Daily Analysis...';
+            
+            this.showProgress('Running daily cron...', 
+                'Analyzing ALL active projects. This may take 30+ minutes for projects with many keywords.');
+            
+            const response = await fetch('/manual-ai/api/cron/daily-analysis', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showSuccess(`Daily analysis completed! 
+                    Total: ${data.total_projects || 0} projects, 
+                    Successful: ${data.successful || 0}, 
+                    Failed: ${data.failed || 0}, 
+                    Skipped: ${data.skipped || 0}`);
+                
+                // Refresh project list to show updated data
+                await this.loadProjects();
+                
+                // Update last execution display
+                this.updateLastCronExecution();
+                
+            } else {
+                throw new Error(data.error || 'Cron execution failed');
+            }
+            
+        } catch (error) {
+            console.error('Error running daily cron:', error);
+            
+            let errorMessage = 'Failed to run daily analysis';
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Network error. The analysis may still be running in the background.';
+            } else {
+                errorMessage = error.message || 'Unknown error occurred';
+            }
+            
+            this.showError(errorMessage);
+            
+        } finally {
+            // Restore button state
+            btn.disabled = false;
+            btn.classList.remove('running');
+            btn.innerHTML = originalHTML;
+            this.hideProgress();
+        }
+    }
+
+    async updateLastCronExecution() {
+        const lastCronElement = document.getElementById('lastCronExecution');
+        
+        if (!lastCronElement) return;
+        
+        try {
+            // For now, we'll use the most recent analysis from any project as proxy
+            // In a real implementation, you'd want a specific cron execution log table
+            const response = await fetch('/manual-ai/api/projects');
+            const data = await response.json();
+            
+            if (data.success && data.projects.length > 0) {
+                // Find the most recent analysis across all projects
+                let mostRecentDate = null;
+                
+                data.projects.forEach(project => {
+                    if (project.last_analysis && project.total_results > 0) {
+                        const analysisDate = new Date(project.last_analysis);
+                        if (!mostRecentDate || analysisDate > mostRecentDate) {
+                            mostRecentDate = analysisDate;
+                        }
+                    }
+                });
+                
+                if (mostRecentDate) {
+                    const now = new Date();
+                    const diffHours = (now - mostRecentDate) / (1000 * 60 * 60);
+                    
+                    let statusClass = 'recent';
+                    let statusText = mostRecentDate.toLocaleString();
+                    
+                    if (diffHours > 48) {
+                        statusClass = 'very-old';
+                        statusText += ' (⚠️ More than 2 days ago)';
+                    } else if (diffHours > 30) {
+                        statusClass = 'old';
+                        statusText += ' (⚠️ More than 30 hours ago)';
+                    } else {
+                        statusText += ' (✅ Recent)';
+                    }
+                    
+                    lastCronElement.className = `cron-last-run ${statusClass}`;
+                    lastCronElement.innerHTML = `
+                        <i class="fas fa-clock"></i>
+                        <span>${statusText}</span>
+                    `;
+                } else {
+                    lastCronElement.className = 'cron-last-run very-old';
+                    lastCronElement.innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>No recent analysis found</span>
+                    `;
+                }
+            } else {
+                lastCronElement.className = 'cron-last-run very-old';
+                lastCronElement.innerHTML = `
+                    <i class="fas fa-question-circle"></i>
+                    <span>Unable to check execution status</span>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Error updating last cron execution:', error);
+            lastCronElement.className = 'cron-last-run very-old';
+            lastCronElement.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Error checking status</span>
+            `;
         }
     }
 

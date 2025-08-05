@@ -575,6 +575,154 @@ def run_project_analysis(project_id: int) -> List[Dict]:
     logger.info(f"✅ Completed MANUAL analysis for project {project_id}: {len(results)}/{len(keywords)} user keywords processed")
     return results
 
+# ================================
+# SISTEMA CRON DIARIO
+# ================================
+
+def run_daily_analysis_for_all_projects():
+    """
+    Ejecutar análisis diario para todos los proyectos activos.
+    Esta función está destinada a ser ejecutada por cron job diario.
+    """
+    logger.info("🕒 === INICIANDO ANÁLISIS DIARIO AUTOMÁTICO ===")
+    
+    try:
+        # Obtener todos los proyectos activos
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
+                   COUNT(k.id) as keyword_count
+            FROM manual_ai_projects p
+            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id
+            WHERE p.is_active = true
+            GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
+            HAVING COUNT(k.id) > 0
+            ORDER BY p.id
+        """)
+        
+        projects = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        if not projects:
+            logger.info("⏭️ No active projects found for daily analysis")
+            return {"success": True, "message": "No active projects", "processed": 0}
+        
+        logger.info(f"📊 Found {len(projects)} active projects for daily analysis")
+        
+        successful_analyses = 0
+        failed_analyses = 0
+        skipped_analyses = 0
+        
+        for project in projects:
+            project_dict = {
+                'id': project[0],
+                'name': project[1], 
+                'domain': project[2],
+                'country_code': project[3],
+                'user_id': project[4],
+                'keyword_count': project[5]
+            }
+            
+            try:
+                # Verificar si ya se ejecutó hoy
+                today = date.today()
+                conn = get_db_connection()
+                cur = conn.cursor()
+                
+                cur.execute("""
+                    SELECT COUNT(*) as count
+                    FROM manual_ai_results 
+                    WHERE project_id = %s AND analysis_date = %s
+                """, (project_dict['id'], today))
+                
+                existing_results = cur.fetchone()[0]
+                cur.close()
+                conn.close()
+                
+                if existing_results > 0:
+                    logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) already analyzed today, skipping")
+                    skipped_analyses += 1
+                    continue
+                
+                logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} ({project_dict['name']}) - {project_dict['keyword_count']} keywords")
+                
+                # Ejecutar análisis
+                results = run_project_analysis(project_dict['id'])
+                
+                # Crear snapshot diario
+                create_daily_snapshot(project_dict['id'])
+                
+                # Crear evento
+                create_project_event(
+                    project_id=project_dict['id'],
+                    event_type='daily_analysis',
+                    event_title='Daily automated analysis completed',
+                    keywords_affected=len(results),
+                    user_id=project_dict['user_id']
+                )
+                
+                logger.info(f"✅ Completed daily analysis for project {project_dict['id']}: {len(results)} keywords processed")
+                successful_analyses += 1
+                
+            except Exception as e:
+                logger.error(f"❌ Failed daily analysis for project {project_dict['id']} ({project_dict['name']}): {e}")
+                failed_analyses += 1
+                
+                # Crear evento de error
+                try:
+                    create_project_event(
+                        project_id=project_dict['id'],
+                        event_type='analysis_failed',
+                        event_title=f'Daily analysis failed: {str(e)[:100]}',
+                        keywords_affected=0,
+                        user_id=project_dict['user_id']
+                    )
+                except Exception as event_error:
+                    logger.error(f"Failed to create error event: {event_error}")
+        
+        # Resumen final
+        total_projects = len(projects)
+        logger.info(f"🏁 === ANÁLISIS DIARIO COMPLETADO ===")
+        logger.info(f"📊 Total proyectos: {total_projects}")
+        logger.info(f"✅ Exitosos: {successful_analyses}")
+        logger.info(f"❌ Fallidos: {failed_analyses}")
+        logger.info(f"⏭️ Omitidos (ya analizados): {skipped_analyses}")
+        
+        return {
+            "success": True,
+            "message": "Daily analysis completed",
+            "total_projects": total_projects,
+            "successful": successful_analyses,
+            "failed": failed_analyses,
+            "skipped": skipped_analyses
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Critical error in daily analysis: {e}")
+        return {"success": False, "error": str(e)}
+
+@manual_ai_bp.route('/api/cron/daily-analysis', methods=['POST'])
+def trigger_daily_analysis():
+    """
+    Endpoint para ejecutar manualmente el análisis diario.
+    Útil para testing y ejecución manual del cron.
+    """
+    try:
+        # Solo admin o para testing (puedes agregar autenticación específica aquí)
+        result = run_daily_analysis_for_all_projects()
+        
+        if result["success"]:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+            
+    except Exception as e:
+        logger.error(f"Error in manual daily analysis trigger: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 def create_daily_snapshot(project_id: int) -> None:
     """Crear snapshot diario con métricas del proyecto"""
     conn = get_db_connection()

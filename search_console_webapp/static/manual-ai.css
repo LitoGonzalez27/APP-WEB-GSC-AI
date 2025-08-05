@@ -1055,3 +1055,123 @@
   background: rgba(107, 114, 128, 0.1);
   color: var(--manual-ai-gray-500);
 }
+
+/* ================================
+   CRON SYSTEM STYLES
+   ================================ */
+
+.cron-info {
+  background: var(--manual-ai-gray-50);
+  border-radius: var(--manual-ai-border-radius);
+  padding: var(--manual-ai-spacing-lg);
+  margin-top: var(--manual-ai-spacing-sm);
+}
+
+.cron-status {
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-sm);
+  padding: var(--manual-ai-spacing-sm) 0;
+}
+
+.status-indicator {
+  font-size: 12px;
+  display: inline-block;
+  margin-right: var(--manual-ai-spacing-xs);
+}
+
+.status-indicator.status-active {
+  color: var(--manual-ai-success);
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.status-inactive {
+  color: var(--manual-ai-error);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.cron-last-run {
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-sm);
+  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  background: white;
+  border-radius: var(--manual-ai-border-radius);
+  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 0.875rem;
+  margin-top: var(--manual-ai-spacing-xs);
+}
+
+.cron-last-run i {
+  color: var(--manual-ai-gray-400);
+}
+
+.cron-last-run.recent {
+  border-color: var(--manual-ai-success);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.cron-last-run.old {
+  border-color: var(--manual-ai-warning);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.cron-last-run.very-old {
+  border-color: var(--manual-ai-error);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+#triggerCronBtn {
+  margin-top: var(--manual-ai-spacing-sm);
+  position: relative;
+}
+
+#triggerCronBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#triggerCronBtn.running {
+  background: var(--manual-ai-info);
+  color: white;
+}
+
+#triggerCronBtn.running i {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.setting-group h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--manual-ai-gray-900);
+  margin: 0 0 var(--manual-ai-spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-xs);
+}
+
+.setting-item {
+  margin-bottom: var(--manual-ai-spacing-md);
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.setting-item label {
+  display: block;
+  font-weight: 500;
+  color: var(--manual-ai-gray-700);
+  margin-bottom: var(--manual-ai-spacing-xs);
+  font-size: 0.875rem;
+}
