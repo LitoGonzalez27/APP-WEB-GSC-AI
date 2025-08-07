@@ -2664,14 +2664,14 @@ def initialize_database_on_startup():
         logger.error(f"❌ Error crítico inicializando BD: {e}")
         return False
 
+# Registrar Manual AI System siempre (no solo en __main__)
+register_manual_ai_system()
+
 if __name__ == '__main__':
     # Initialize database first
     if not initialize_database_on_startup():
         logger.error("❌ No se pudo inicializar la base de datos. Cerrando aplicación.")
         sys.exit(1)
-    
-    # Register Manual AI Analysis Blueprint only when running the app
-    register_manual_ai_system()
     
     # Railway proporciona el puerto automáticamente
     port = int(os.environ.get('PORT', 5001))

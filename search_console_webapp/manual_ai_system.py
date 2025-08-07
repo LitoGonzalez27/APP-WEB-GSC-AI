@@ -739,6 +739,11 @@ def run_daily_analysis_for_all_projects():
     try:
         # Obtener todos los proyectos activos
         conn = get_db_connection()
+        if not conn:
+            error_msg = "No se pudo conectar a la base de datos"
+            logger.error(f"❌ {error_msg}")
+            return {"success": False, "error": error_msg}
+            
         cur = conn.cursor()
         
         cur.execute("""
@@ -855,22 +860,35 @@ def run_daily_analysis_for_all_projects():
         return {"success": False, "error": str(e)}
 
 @manual_ai_bp.route('/api/cron/daily-analysis', methods=['POST'])
+@auth_required
 def trigger_daily_analysis():
     """
     Endpoint para ejecutar manualmente el análisis diario.
     Útil para testing y ejecución manual del cron.
     """
     try:
-        # Solo admin o para testing (puedes agregar autenticación específica aquí)
+        user = get_current_user()
+        logger.info(f"🔧 Manual cron trigger by user: {user.get('email', 'unknown')}")
+        
+        # Verificar conexión a la base de datos primero
+        conn = get_db_connection()
+        if not conn:
+            error_msg = "Database connection failed"
+            logger.error(f"❌ {error_msg}")
+            return jsonify({"success": False, "error": error_msg}), 500
+        conn.close()
+        
         result = run_daily_analysis_for_all_projects()
         
         if result["success"]:
             return jsonify(result), 200
         else:
-            return jsonify(result), 500
+            return jsonify(result), 400  # Cambiar a 400 para errores de negocio
             
     except Exception as e:
-        logger.error(f"Error in manual daily analysis trigger: {e}")
+        logger.error(f"❌ Error in manual daily analysis trigger: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 def create_daily_snapshot(project_id: int) -> None:

@@ -852,7 +852,7 @@ class SidebarNavigation {
 let sidebarNavigation = null;
 
 // Función de inicialización
-export function initSidebarNavigation() {
+function initSidebarNavigation() {
   if (!sidebarNavigation) {
     sidebarNavigation = new SidebarNavigation();
     
