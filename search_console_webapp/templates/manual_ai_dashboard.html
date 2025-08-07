@@ -14,20 +14,237 @@
     <!-- CSS específico para Manual AI -->
     <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
     
+    <!-- CSS para navbar principal -->
+    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
+    
+    <!-- CSS para sidebar navigation -->
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <!-- Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body data-authenticated="{{ 'true' if user else 'false' }}">
+    <!-- Navbar principal del SaaS -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" alt="Clicandseo Logo" class="logo-image">
+            </div>
+
+            <div class="navbar-desktop-actions">
+                <div class="navbar-user-dropdown" id="userDropdown" style="display: block;">
+                    <button class="user-dropdown-btn" id="userDropdownBtn" aria-expanded="false">
+                        <div class="user-avatar-small" id="userAvatarSmall">
+                            {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                            {% else %}
+                                <i class="fas fa-user-circle"></i>
+                            {% endif %}
+                        </div>
+                        <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                        <i class="fas fa-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <div class="user-avatar-large" id="userAvatarLarge">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="/dashboard" class="dropdown-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="dropdownThemeToggle">
+                            <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+                            <span id="dropdownThemeText">Modo Oscuro</span>
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="auth-buttons" id="authButtons" style="display: none;">
+                    <button type="button" class="btn-auth btn-login" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Iniciar Sesión</span>
+                    </button>
+
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+
+            <div class="navbar-mobile-menu" id="navbarMenu">
+                <div class="mobile-menu-header">
+                    <div class="mobile-brand">
+                        <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" alt="Clicandseo Logo" class="logo-image">
+                        <span>Clicandseo</span>
+                    </div>
+                    <button class="mobile-menu-close" id="mobileMenuClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-section">
+                        <div class="mobile-user-info" id="mobileUserInfo" style="display: flex;">
+                            <div class="mobile-user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="mobile-user-details">
+                                <span class="mobile-user-name" id="mobileUserName">{{ user.name or user.email }}</span>
+                                <span class="mobile-user-email" id="mobileUserEmail">{{ user.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-auth-section">
+                        <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn" style="display: none;">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Iniciar Sesión con Google</span>
+                        </button>
+
+                        <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: flex;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+
+                    <div class="mobile-theme-section">
+                        <div class="mobile-theme-toggle">
+                            <span class="mobile-theme-label">Tema de la aplicación</span>
+                            <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
+                                <i class="fas fa-moon" id="mobileThemeIcon"></i>
+                                <span id="mobileThemeText">Modo Oscuro</span>
+                                <i class="fas fa-chevron-right mobile-chevron"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-overlay" id="navbarOverlay"></div>
+    </nav>
+
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar-container" id="sidebarContainer">
+            <div class="sidebar-header">
+            </div>
+
+            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+                <div class="nav-section nav-section-analysis">
+                    <div class="nav-section-title">Análisis</div>
+                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
+                        <div class="nav-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="nav-text">Configuration</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
+                        <div class="nav-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="nav-text">Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPerformance"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
+                        <div class="nav-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="nav-text">Keywords</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusKeywords"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
+                        <div class="nav-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="nav-text">Pages</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPages"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">AI Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusAI"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item active" id="navManualAI">
+                        <div class="nav-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="nav-text">Manual AI Analysis</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusManualAI"></div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
+                    <div class="nav-section-title">Herramientas</div>
+                    <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;">
+                        <i class="fas fa-download"></i>
+                        <span>Descargar Excel</span>
+                        <div class="download-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content-area">
     <div class="manual-ai-app">
         <!-- Header independiente -->
         <header class="manual-ai-header">
             <div class="header-content">
                 <div class="header-left">
                     <h1>
-                        <i class="fas fa-robot"></i>
                         Manual AI Overview Analysis
                     </h1>
                     <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
@@ -65,7 +282,7 @@
                                 <i class="fas fa-user-circle"></i>
                                 <span>Mi Perfil</span>
                             </a>
-                            <a href="https://clicandseo.up.railway.app/app" class="dropdown-item">
+                            <a href="/app" class="dropdown-item">
                                 <i class="fas fa-home"></i>
                                 <span>Dashboard</span>
                             </a>
@@ -82,7 +299,7 @@
                         </div>
                     </div>
 
-                    <a href="https://clicandseo.up.railway.app/app" class="btn-back-dashboard" title="Go Back">
+                    <a href="/app" class="btn-back-dashboard" title="Go Back">
                         <i class="fas fa-arrow-left"></i>
                         <span>Go Back</span>
                     </a>
@@ -381,9 +598,6 @@
     <div class="modal-overlay" id="createProjectModal">
         <div class="modal-content create-project-modal">
             <div class="modal-header create-header">
-                <div class="header-icon">
-                    <i class="fas fa-rocket"></i>
-                </div>
                 <div class="header-text">
                     <h3>Create New AI Analysis Project</h3>
                     <p>Set up a new project to track AI Overview visibility</p>
@@ -397,8 +611,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="projectName" class="enhanced-label">
-                                <i class="fas fa-tag"></i>
-                                Project Name *
+        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
+                               
                             </label>
                             <input type="text" id="projectName" name="name" required maxlength="255" 
                                    class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
@@ -409,8 +623,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="projectDescription" class="enhanced-label">
-                                <i class="fas fa-align-left"></i>
-                                Description
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Description</span>
                             </label>
                             <textarea id="projectDescription" name="description" rows="3"
                                       class="enhanced-textarea" 
@@ -422,8 +635,7 @@
                     <div class="form-row form-row-split">
                         <div class="form-group">
                             <label for="projectDomain" class="enhanced-label">
-                                <i class="fas fa-globe"></i>
-                                Target Domain *
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
                             </label>
                             <input type="text" id="projectDomain" name="domain" required
                                    class="enhanced-input" placeholder="example.com">
@@ -432,8 +644,7 @@
                         
                         <div class="form-group">
                             <label for="projectCountry" class="enhanced-label">
-                                <i class="fas fa-flag"></i>
-                                Target Country
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
                             </label>
                             <select id="projectCountry" name="country_code" class="enhanced-select">
                                 <option value="ES" selected>🇪🇸 Spain</option>
@@ -791,16 +1002,125 @@ keyword 3"></textarea>
                 </div>
             </div>
         </div>
+        </main>
     </div>
 
     <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
+        // Funciones de navegación entre secciones
+        function navigateToConfiguration() {
+            console.log('🔄 Navegando a Configuration desde Manual AI');
+            // Guardar estado actual de Manual AI
+            const manualAIState = {
+                source: 'manual-ai',
+                timestamp: Date.now(),
+                returnUrl: window.location.href
+            };
+            sessionStorage.setItem('manualAIReturnState', JSON.stringify(manualAIState));
+            
+            // Navegar a la página principal manteniendo estado
+            window.location.href = '/app';
+        }
+
+        function navigateToSection(section) {
+            // Solo permitir navegación si hay datos de análisis cargados
+            const hasAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            
+            console.log('🎯 Intentando navegar a:', section);
+            console.log('📊 Datos de análisis disponibles:', !!hasAnalysisData);
+            console.log('🔄 Estado de navegación:', navigationState);
+            
+            if (hasAnalysisData || navigationState.hasAnalysisData) {
+                // Guardar estado actual de Manual AI
+                const manualAIState = {
+                    currentSection: 'manual-ai',
+                    targetSection: section,
+                    timestamp: Date.now(),
+                    returnUrl: window.location.href
+                };
+                sessionStorage.setItem('manualAIState', JSON.stringify(manualAIState));
+                
+                console.log('✅ Navegando a:', section);
+                // Navegar a la sección con datos
+                window.location.href = `/app#${section}`;
+            } else {
+                console.log('❌ No hay datos de análisis - Navegación bloqueada');
+                // Mostrar mensaje de que no hay datos
+                alert('No hay datos de análisis disponibles. Ejecuta un análisis primero desde Configuration.');
+            }
+        }
+
+        // Verificar estado de análisis al cargar la página
+        function checkAnalysisState() {
+            console.log('🔍 Verificando estado de análisis en Manual AI...');
+            
+            // Verificar estado de navegación guardado
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            const analysisData = sessionStorage.getItem('analysisData');
+            const lastAnalysisData = localStorage.getItem('lastAnalysisData');
+            const hasAnalysisData = analysisData || lastAnalysisData || navigationState.hasAnalysisData;
+            
+            console.log('📊 Estado de datos:', {
+                sessionAnalysisData: !!analysisData,
+                localAnalysisData: !!lastAnalysisData,
+                navigationHasData: navigationState.hasAnalysisData,
+                navigationSource: navigationState.source,
+                currentURL: window.location.href
+            });
+            
+            if (hasAnalysisData || navigationState.source === 'main-app') {
+                console.log('🟢 Habilitando navegación del sidebar...');
+                
+                // Habilitar navegación en sidebar
+                const statusConfig = document.getElementById('statusConfiguration');
+                const navConfig = document.getElementById('navConfiguration');
+                if (statusConfig && navConfig) {
+                    statusConfig.className = 'status-dot status-ready';
+                    navConfig.classList.remove('disabled');
+                }
+                
+                // Habilitar otras secciones si hay datos de análisis
+                if (hasAnalysisData) {
+                    const sections = ['Performance', 'Keywords', 'Pages', 'AI'];
+                    sections.forEach(section => {
+                        const statusElement = document.getElementById(`status${section}`);
+                        const navElement = document.getElementById(`nav${section}`);
+                        if (statusElement && navElement) {
+                            statusElement.className = 'status-dot status-ready';
+                            navElement.classList.remove('disabled');
+                        }
+                    });
+                    
+                    console.log('✅ Todas las secciones habilitadas - Datos de análisis detectados');
+                } else {
+                    console.log('⚠️ Solo Configuration habilitado - Sin datos de análisis');
+                }
+            } else {
+                console.log('🔴 Navegación deshabilitada - Sin datos ni estado de navegación');
+            }
+            
+            // Información de sincronización
+            if (navigationState.source === 'main-app') {
+                console.log('🔄 Sincronización completada desde aplicación principal');
+                console.log('📝 Datos del formulario:', navigationState.formData);
+            }
+        }
+
         // Inicializar sistema cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar que estamos en la página correcta
             if (window.location.pathname.includes('/manual-ai/')) {
                 window.manualAI = new ManualAISystem();
+                
+                // Verificar estado de análisis
+                checkAnalysisState();
+                
+                // Marcar Manual AI como activo en el sidebar
+                document.getElementById('navManualAI').classList.add('active');
             }
         });
     </script>

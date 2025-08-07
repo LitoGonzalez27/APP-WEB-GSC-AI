@@ -967,6 +967,42 @@
   <!-- Manual AI Analysis - Independent functionality -->
   <script>
     function openManualAI() {
+      console.log('🚀 Abriendo Manual AI desde aplicación principal...');
+      
+      // Guardar estado actual del análisis antes de navegar
+      const currentAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
+      const currentFormData = {
+        siteUrl: document.getElementById('siteUrlSelect')?.value || '',
+        country: document.getElementById('countrySelect')?.value || '',
+        startDate: document.getElementById('startDate')?.value || '',
+        endDate: document.getElementById('endDate')?.value || '',
+        comparisonStartDate: document.getElementById('comparisonStartDate')?.value || '',
+        comparisonEndDate: document.getElementById('comparisonEndDate')?.value || ''
+      };
+      
+      console.log('💾 Guardando estado actual:', {
+        hasAnalysisData: !!currentAnalysisData,
+        formData: currentFormData,
+        currentSection: window.sidebarNav?.currentSection || 'configuration',
+        currentURL: window.location.href
+      });
+      
+      // Guardar estado de navegación
+      const navigationState = {
+        source: 'main-app',
+        currentSection: window.sidebarNav?.currentSection || 'configuration',
+        analysisState: window.sidebarNav?.analysisState || 'pending',
+        formData: currentFormData,
+        hasAnalysisData: !!currentAnalysisData,
+        timestamp: Date.now(),
+        originalUrl: window.location.href
+      };
+      
+      // Guardar en sessionStorage para preservar entre páginas
+      sessionStorage.setItem('navigationState', JSON.stringify(navigationState));
+      
+      console.log('🔄 Navegando a Manual AI con estado sincronizado');
+      
       // Navigate to Manual AI Analysis in same tab
       window.location.href = '/manual-ai/';
     }

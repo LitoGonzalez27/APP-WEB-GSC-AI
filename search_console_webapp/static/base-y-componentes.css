@@ -279,7 +279,6 @@ p {
 /* Remover estilos del formulario antiguo */
 form:not(.search-form) {
   max-width: 700px;
-  margin: var(--spacing-xl) auto;
 }
 
 /* Actualizar labels que NO están en el nuevo formulario */
@@ -313,7 +312,7 @@ input:focus:not(.search-form input),
 textarea:focus:not(.search-form textarea),
 select:focus:not(.search-form select) {
   outline: none;
-  border-color: var(--cta-bg);
+  border-color: #D8F9B8;
   background: var(--input-focus-bg);
 }
 
@@ -971,7 +970,7 @@ tr:hover td {
 
 /* Configuraciones de grid para diferentes filas */
 .form-row:nth-child(1) {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
 }
 
 .form-row:nth-child(2) {
