@@ -289,6 +289,10 @@ def add_keywords_to_project(project_id):
         logger.error(f"Error adding keywords: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ================================
+# PROJECT ANALYSIS ENDPOINTS
+# ================================
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/analyze', methods=['POST'])
 @auth_required
 def analyze_project(project_id):
@@ -299,8 +303,8 @@ def analyze_project(project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:
-        # Ejecutar análisis
-        results = run_project_analysis(project_id)
+        # Ejecutar análisis manual con sobreescritura forzada
+        results = run_project_analysis(project_id, force_overwrite=True)
         
         # Crear snapshot del día
         create_daily_snapshot(project_id)
@@ -308,8 +312,8 @@ def analyze_project(project_id):
         # Crear evento
         create_project_event(
             project_id=project_id,
-            event_type='analysis_completed',
-            event_title='Daily analysis completed',
+            event_type='manual_analysis_completed',
+            event_title='Manual analysis completed (with overwrite)',
             keywords_affected=len(results),
             user_id=user['id']
         )
@@ -589,8 +593,15 @@ def add_keywords_to_project_db(project_id: int, keywords_list: List[str]) -> int
     
     return added_count
 
-def run_project_analysis(project_id: int) -> List[Dict]:
-    """Ejecutar análisis completo de todas las keywords activas de un proyecto"""
+def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List[Dict]:
+    """
+    Ejecutar análisis completo de todas las keywords activas de un proyecto
+    
+    Args:
+        project_id: ID del proyecto a analizar
+        force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
+                        Si False, omite keywords ya analizadas hoy (para análisis automático)
+    """
     # Obtener proyecto y keywords
     project = get_project_with_details(project_id)
     keywords = [k for k in get_keywords_for_project(project_id) if k['is_active']]
@@ -605,7 +616,8 @@ def run_project_analysis(project_id: int) -> List[Dict]:
     conn = get_db_connection()
     cur = conn.cursor()
     
-    logger.info(f"🚀 Starting MANUAL analysis for project {project_id} with {len(keywords)} user-defined keywords")
+    analysis_mode = "MANUAL (with overwrite)" if force_overwrite else "AUTOMATIC (skip existing)"
+    logger.info(f"🚀 Starting {analysis_mode} analysis for project {project_id} with {len(keywords)} user-defined keywords")
     
     for keyword_data in keywords:
         keyword = keyword_data['keyword']
@@ -618,9 +630,20 @@ def run_project_analysis(project_id: int) -> List[Dict]:
                 WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
             """, (project_id, keyword_id, today))
             
-            if cur.fetchone():
-                logger.debug(f"Analysis already exists for keyword '{keyword}' on {today}")
+            existing_analysis = cur.fetchone()
+            
+            if existing_analysis and not force_overwrite:
+                # Análisis automático: omitir si ya existe
+                logger.debug(f"Analysis already exists for keyword '{keyword}' on {today}, skipping (auto mode)")
                 continue
+            elif existing_analysis and force_overwrite:
+                # Análisis manual: eliminar resultado existente para sobreescribir
+                cur.execute("""
+                    DELETE FROM manual_ai_results 
+                    WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
+                """, (project_id, keyword_id, today))
+                logger.info(f"🔄 Overwriting existing analysis for keyword '{keyword}' (manual mode)")
+            # Si no existe, continuar normalmente
             
             # ✅ USAR LÓGICA SIMILAR AL AUTOMÁTICO (ADAPTADA AL CONTEXTO MANUAL)
             # DIFERENCIAS vs Sistema Automático:
@@ -728,7 +751,8 @@ def run_project_analysis(project_id: int) -> List[Dict]:
     cur.close()
     conn.close()
     
-    logger.info(f"✅ Completed MANUAL analysis for project {project_id}: {len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed")
+    overwrite_info = " (with overwrite)" if force_overwrite else " (skipping existing)"
+    logger.info(f"✅ Completed {analysis_mode} analysis for project {project_id}: {len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed{overwrite_info}")
     if failed_keywords > 0:
         logger.warning(f"⚠️ {failed_keywords} keywords failed analysis (check SERPAPI_KEY configuration)")
     return results
@@ -818,8 +842,8 @@ def run_daily_analysis_for_all_projects():
                 
                 logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} ({project_dict['name']}) - {project_dict['keyword_count']} keywords")
                 
-                # Ejecutar análisis
-                results = run_project_analysis(project_dict['id'])
+                # Ejecutar análisis automático (sin sobreescritura)
+                results = run_project_analysis(project_dict['id'], force_overwrite=False)
                 
                 # Crear snapshot diario
                 create_daily_snapshot(project_dict['id'])
