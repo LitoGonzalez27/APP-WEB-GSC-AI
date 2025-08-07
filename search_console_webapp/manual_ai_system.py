@@ -599,6 +599,7 @@ def run_project_analysis(project_id: int) -> List[Dict]:
         return []
     
     results = []
+    failed_keywords = 0
     today = date.today()
     
     conn = get_db_connection()
@@ -638,7 +639,9 @@ def run_project_analysis(project_id: int) -> List[Dict]:
                     # 2. Obtener SERP usando función existente (igual que sistema automático)
                     api_key = os.getenv('SERPAPI_KEY')
                     if not api_key:
-                        logger.error("SERPAPI_KEY not configured")
+                        logger.error(f"❌ SERPAPI_KEY not configured for keyword '{keyword}' in project {project_id}")
+                        logger.error(f"❌ Available env vars: {', '.join([k for k in os.environ.keys() if 'API' in k or 'KEY' in k])}")
+                        failed_keywords += 1
                         continue
                     
                     # 3. Construir parámetros SERP para sistema manual (sin detección dinámica)
@@ -667,6 +670,7 @@ def run_project_analysis(project_id: int) -> List[Dict]:
                     
                     if not serp_data or serp_data.get('error'):
                         logger.warning(f"No SERP data for keyword '{keyword}': {serp_data.get('error', 'Unknown error')}")
+                        failed_keywords += 1
                         continue
                     
                     # 4. Analizar AI Overview usando servicio existente
@@ -682,6 +686,7 @@ def run_project_analysis(project_id: int) -> List[Dict]:
                     
             except Exception as serp_error:
                 logger.error(f"Error analyzing keyword '{keyword}': {serp_error}")
+                failed_keywords += 1
                 continue
             
             # Guardar resultado en base de datos
@@ -716,13 +721,16 @@ def run_project_analysis(project_id: int) -> List[Dict]:
             
         except Exception as e:
             logger.error(f"Error analyzing keyword '{keyword}': {e}")
+            failed_keywords += 1
             continue
     
     conn.commit()
     cur.close()
     conn.close()
     
-    logger.info(f"✅ Completed MANUAL analysis for project {project_id}: {len(results)}/{len(keywords)} user keywords processed")
+    logger.info(f"✅ Completed MANUAL analysis for project {project_id}: {len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed")
+    if failed_keywords > 0:
+        logger.warning(f"⚠️ {failed_keywords} keywords failed analysis (check SERPAPI_KEY configuration)")
     return results
 
 # ================================
