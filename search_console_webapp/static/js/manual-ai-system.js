@@ -745,6 +745,7 @@ class ManualAISystem {
                 this.updateLastCronExecution();
                 
             } else {
+                // Error 400 o error de negocio
                 throw new Error(data.error || 'Cron execution failed');
             }
             
@@ -752,10 +753,19 @@ class ManualAISystem {
             console.error('Error running daily cron:', error);
             
             let errorMessage = 'Failed to run daily analysis';
+            
+            // Verificar si es un error HTTP específico
             if (error.message.includes('Failed to fetch')) {
                 errorMessage = 'Network error. The analysis may still be running in the background.';
+            } else if (error.message.includes('Database connection failed')) {
+                errorMessage = 'Database connection failed. Please try again in a few minutes.';
+            } else if (error.message.includes('No active projects')) {
+                errorMessage = 'No active projects found. Create a project with keywords first.';
+            } else if (error.message && error.message !== 'Cron execution failed') {
+                errorMessage = error.message;
             } else {
-                errorMessage = error.message || 'Unknown error occurred';
+                // Error genérico - mostrar mensaje más útil
+                errorMessage = 'Analysis failed. Please check that you have projects with keywords configured.';
             }
             
             this.showError(errorMessage);
