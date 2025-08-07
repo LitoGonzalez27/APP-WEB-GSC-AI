@@ -772,14 +772,19 @@ def run_daily_analysis_for_all_projects():
         skipped_analyses = 0
         
         for project in projects:
-            project_dict = {
-                'id': project[0],
-                'name': project[1], 
-                'domain': project[2],
-                'country_code': project[3],
-                'user_id': project[4],
-                'keyword_count': project[5]
-            }
+            # Convertir el resultado del cursor a diccionario si es necesario
+            if isinstance(project, (tuple, list)):
+                project_dict = {
+                    'id': project[0],
+                    'name': project[1], 
+                    'domain': project[2],
+                    'country_code': project[3],
+                    'user_id': project[4],
+                    'keyword_count': project[5]
+                }
+            else:
+                # Ya es un diccionario (RealDictRow)
+                project_dict = dict(project)
             
             try:
                 # Verificar si ya se ejecutó hoy
@@ -793,7 +798,8 @@ def run_daily_analysis_for_all_projects():
                     WHERE project_id = %s AND analysis_date = %s
                 """, (project_dict['id'], today))
                 
-                existing_results = cur.fetchone()[0]
+                result_row = cur.fetchone()
+                existing_results = result_row['count'] if result_row else 0
                 cur.close()
                 conn.close()
                 
@@ -824,6 +830,9 @@ def run_daily_analysis_for_all_projects():
                 
             except Exception as e:
                 logger.error(f"❌ Failed daily analysis for project {project_dict['id']} ({project_dict['name']}): {e}")
+                logger.error(f"❌ Error type: {type(e)}")
+                import traceback
+                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                 failed_analyses += 1
                 
                 # Crear evento de error
@@ -857,6 +866,9 @@ def run_daily_analysis_for_all_projects():
         
     except Exception as e:
         logger.error(f"❌ Critical error in daily analysis: {e}")
+        logger.error(f"❌ Error type: {type(e)}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
         return {"success": False, "error": str(e)}
 
 @manual_ai_bp.route('/api/cron/daily-analysis', methods=['POST'])
