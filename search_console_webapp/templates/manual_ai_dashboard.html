@@ -250,54 +250,7 @@
                     <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
                 </div>
                 <div class="header-right">
-                    <!-- User Dropdown -->
-                    <div class="navbar-user-dropdown enhanced-dropdown" id="userDropdown">
-                        <button class="user-dropdown-btn" id="userDropdownBtn">
-                            <div class="user-avatar-small" id="userAvatarSmall">
-                                {% if user.picture %}
-                                    <img src="{{ user.picture }}" alt="User Avatar" class="user-avatar-img">
-                                {% else %}
-                                    <i class="fas fa-user-circle"></i>
-                                {% endif %}
-                            </div>
-                            <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
-                            <i class="fas fa-chevron-down dropdown-chevron"></i>
-                        </button>
-                        <div class="user-dropdown-menu" id="userDropdownMenu">
-                            <div class="user-dropdown-header">
-                                <div class="user-avatar-large" id="userAvatarLarge">
-                                    {% if user.picture %}
-                                        <img src="{{ user.picture }}" alt="User Avatar" class="user-avatar-img user-avatar-img-large">
-                                    {% else %}
-                                        <i class="fas fa-user-circle"></i>
-                                    {% endif %}
-                                </div>
-                                <div class="user-details">
-                                    <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
-                                    <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
-                                </div>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a href="/profile" class="dropdown-item">
-                                <i class="fas fa-user-circle"></i>
-                                <span>Mi Perfil</span>
-                            </a>
-                            <a href="/app" class="dropdown-item">
-                                <i class="fas fa-home"></i>
-                                <span>Dashboard</span>
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <button class="dropdown-item" id="dropdownThemeToggle">
-                                <i class="fas fa-moon" id="dropdownThemeIcon"></i>
-                                <span id="dropdownThemeText">Modo Oscuro</span>
-                            </button>
-                            <div class="dropdown-divider"></div>
-                            <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
-                                <i class="fas fa-sign-out-alt"></i>
-                                <span>Cerrar Sesión</span>
-                            </button>
-                        </div>
-                    </div>
+
 
                     <a href="/app" class="btn-back-dashboard" title="Go Back">
                         <i class="fas fa-arrow-left"></i>
@@ -561,14 +514,7 @@
                                         <span>Loading...</span>
                                     </div>
                                 </div>
-                                <div class="setting-item">
-                                    <label>Manual Trigger (Testing)</label>
-                                    <button type="button" class="btn-secondary" onclick="manualAI.triggerDailyCron()" id="triggerCronBtn">
-                                        <i class="fas fa-play"></i>
-                                        Run Daily Analysis Now
-                                    </button>
-                                    <small class="form-help">⚠️ Only use for testing. May take 30+ minutes for projects with many keywords.</small>
-                                </div>
+
                             </div>
                         </div>
                         <div class="setting-group">

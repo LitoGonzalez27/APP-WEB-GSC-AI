@@ -289,6 +289,131 @@ def add_keywords_to_project(project_id):
         logger.error(f"Error adding keywords: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['DELETE'])
+@auth_required
+def delete_project_keyword(project_id, keyword_id):
+    """Eliminar una keyword específica de un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Verificar que la keyword existe y pertenece al proyecto
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id, keyword FROM manual_ai_keywords 
+            WHERE id = %s AND project_id = %s AND is_active = true
+        """, (keyword_id, project_id))
+        
+        keyword_data = cur.fetchone()
+        if not keyword_data:
+            return jsonify({'success': False, 'error': 'Keyword not found'}), 404
+        
+        # Marcar como inactiva (soft delete)
+        cur.execute("""
+            UPDATE manual_ai_keywords 
+            SET is_active = false, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND project_id = %s
+        """, (keyword_id, project_id))
+        
+        # Eliminar resultados asociados
+        cur.execute("""
+            DELETE FROM manual_ai_results 
+            WHERE keyword_id = %s AND project_id = %s
+        """, (keyword_id, project_id))
+        
+        conn.commit()
+        conn.close()
+        
+        # Crear evento
+        create_project_event(
+            project_id=project_id,
+            event_type='keyword_deleted',
+            event_title=f'Keyword deleted: {keyword_data["keyword"]}',
+            keywords_affected=1,
+            user_id=user['id']
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Keyword "{keyword_data["keyword"]}" deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting keyword: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['PUT'])
+@auth_required
+def update_project_keyword(project_id, keyword_id):
+    """Actualizar una keyword específica de un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    new_keyword = data.get('keyword', '').strip()
+    
+    if not new_keyword:
+        return jsonify({'success': False, 'error': 'Keyword cannot be empty'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Verificar que la keyword existe
+        cur.execute("""
+            SELECT keyword FROM manual_ai_keywords 
+            WHERE id = %s AND project_id = %s AND is_active = true
+        """, (keyword_id, project_id))
+        
+        old_keyword_data = cur.fetchone()
+        if not old_keyword_data:
+            return jsonify({'success': False, 'error': 'Keyword not found'}), 404
+        
+        old_keyword = old_keyword_data['keyword']
+        
+        # Verificar que no existe otra keyword con el mismo texto en el proyecto
+        cur.execute("""
+            SELECT id FROM manual_ai_keywords 
+            WHERE project_id = %s AND keyword = %s AND is_active = true AND id != %s
+        """, (project_id, new_keyword, keyword_id))
+        
+        if cur.fetchone():
+            return jsonify({'success': False, 'error': 'Keyword already exists in this project'}), 400
+        
+        # Actualizar la keyword
+        cur.execute("""
+            UPDATE manual_ai_keywords 
+            SET keyword = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND project_id = %s
+        """, (new_keyword, keyword_id, project_id))
+        
+        conn.commit()
+        conn.close()
+        
+        # Crear evento
+        create_project_event(
+            project_id=project_id,
+            event_type='keyword_updated',
+            event_title=f'Keyword updated: "{old_keyword}" → "{new_keyword}"',
+            keywords_affected=1,
+            user_id=user['id']
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Keyword updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating keyword: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ================================
 # PROJECT ANALYSIS ENDPOINTS
 # ================================
