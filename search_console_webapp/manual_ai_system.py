@@ -893,8 +893,27 @@ def run_daily_analysis_for_all_projects():
     Esta función está destinada a ser ejecutada por cron job diario.
     """
     logger.info("🕒 === INICIANDO ANÁLISIS DIARIO AUTOMÁTICO ===")
-    
+
+    # ---------- Lock de concurrencia por día (PostgreSQL advisory lock) ----------
+    lock_conn = None
+    lock_cur = None
+    lock_acquired = False
+    lock_class_id = 4242
+    lock_object_id = int(date.today().strftime('%Y%m%d'))
+
     try:
+        lock_conn = get_db_connection()
+        if not lock_conn:
+            logger.error("❌ No se pudo conectar a la base de datos para adquirir el lock")
+            return {"success": False, "error": "DB connection failed for lock"}
+        lock_cur = lock_conn.cursor()
+        lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s)", (lock_class_id, lock_object_id))
+        lock_acquired = bool(lock_cur.fetchone()[0])
+
+        if not lock_acquired:
+            logger.info("🔒 Otro análisis diario ya está en ejecución. Saliendo sin hacer nada")
+            lock_cur.close(); lock_conn.close()
+            return {"success": True, "message": "Another daily run in progress (skipped)", "skipped": 0, "failed": 0, "successful": 0, "total_projects": 0}
         # Obtener todos los proyectos activos
         conn = get_db_connection()
         if not conn:
@@ -1028,6 +1047,21 @@ def run_daily_analysis_for_all_projects():
         import traceback
         logger.error(f"❌ Full traceback: {traceback.format_exc()}")
         return {"success": False, "error": str(e)}
+    finally:
+        # Liberar el lock
+        try:
+            if lock_acquired and lock_conn and lock_cur:
+                lock_cur.execute("SELECT pg_advisory_unlock(%s, %s)", (lock_class_id, lock_object_id))
+                lock_conn.commit()
+        except Exception as unlock_err:
+            logger.error(f"⚠️ Error liberando el lock de cron: {unlock_err}")
+        finally:
+            try:
+                if lock_cur:
+                    lock_cur.close()
+            finally:
+                if lock_conn:
+                    lock_conn.close()
 
 @manual_ai_bp.route('/api/cron/daily-analysis', methods=['POST'])
 @cron_or_auth_required
