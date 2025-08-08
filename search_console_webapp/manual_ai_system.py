@@ -7,6 +7,7 @@ import logging
 import json
 import time
 from typing import List, Dict, Any, Optional
+import threading
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
@@ -1049,10 +1050,31 @@ def trigger_daily_analysis():
             logger.error(f"❌ {error_msg}")
             return jsonify({"success": False, "error": error_msg}), 500
         conn.close()
-        
+
+        # Modo asíncrono opcional para evitar timeouts
+        async_flag = (
+            str(request.args.get('async', '')).lower() in ('1', 'true', 'yes') or
+            str(request.headers.get('X-Async', '')).lower() in ('1', 'true', 'yes')
+        )
+
+        if async_flag:
+            logger.info("🚀 Async daily analysis requested. Launching background job...")
+
+            def _run_job():
+                try:
+                    run_daily_analysis_for_all_projects()
+                    logger.info("✅ Async daily analysis finished")
+                except Exception as e:
+                    logger.error(f"❌ Error in async daily analysis: {e}")
+
+            t = threading.Thread(target=_run_job, daemon=True)
+            t.start()
+            return jsonify({"success": True, "started": True, "mode": "async"}), 202
+
+        # Modo síncrono (por defecto)
         result = run_daily_analysis_for_all_projects()
-        
-        if result["success"]:
+
+        if result.get("success"):
             return jsonify(result), 200
         else:
             return jsonify(result), 400  # Cambiar a 400 para errores de negocio
