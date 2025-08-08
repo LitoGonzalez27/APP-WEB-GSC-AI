@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Optional
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
-from auth import auth_required, get_current_user
+from auth import auth_required, cron_or_auth_required, get_current_user
 from services.serp_service import get_serp_json
 from services.ai_analysis import detect_ai_overview_elements
 from services.utils import extract_domain, normalize_search_console_url
@@ -1029,7 +1029,7 @@ def run_daily_analysis_for_all_projects():
         return {"success": False, "error": str(e)}
 
 @manual_ai_bp.route('/api/cron/daily-analysis', methods=['POST'])
-@auth_required
+@cron_or_auth_required
 def trigger_daily_analysis():
     """
     Endpoint para ejecutar manualmente el análisis diario.

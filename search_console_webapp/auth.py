@@ -169,6 +169,28 @@ def auth_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def cron_or_auth_required(f):
+    """Decorador que permite:
+    - Acceso con token de cron vía header Authorization: Bearer <CRON_TOKEN>
+    - O bien, acceso con sesión autenticada normal (fallback a auth_required)
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 1) Intentar autenticar por token de cron
+        try:
+            auth_header = request.headers.get('Authorization', '') or ''
+            token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
+            cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
+            if cron_secret and token and secrets.compare_digest(token, cron_secret):
+                return f(*args, **kwargs)
+        except Exception:
+            # En caso de cualquier problema con el header, continuar con auth normal
+            pass
+
+        # 2) Fallback a autenticación habitual
+        return auth_required(f)(*args, **kwargs)
+    return decorated_function
+
 def admin_required(f):
     """Decorador que requiere privilegios de administrador"""
     @wraps(f)
