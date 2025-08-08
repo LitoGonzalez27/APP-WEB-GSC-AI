@@ -22,6 +22,12 @@ class SidebarNavigation {
   }
 
   init() {
+    // Verificar si está deshabilitado (ej: en Manual AI)
+    if (window.DISABLE_SIDEBAR_NAVIGATION) {
+      console.log('🚫 SidebarNavigation deshabilitado por configuración');
+      return;
+    }
+    
     // Esperar a que el DOM esté listo
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.setup());

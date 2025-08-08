@@ -833,10 +833,10 @@ keyword 3"></textarea>
                 
                 <div class="confirmation-input">
                     <label for="deleteConfirmInput">
-                        Type <strong>DELETE</strong> to confirm:
+                        Type the project name <strong><span id="deleteProjectNamePrompt"></span></strong> to confirm:
                     </label>
                     <input type="text" id="deleteConfirmInput" class="form-input" 
-                           placeholder="Type DELETE here..." autocomplete="off">
+                           placeholder="Type the project name here..." autocomplete="off">
                 </div>
             </div>
             <div class="modal-footer">
@@ -953,9 +953,11 @@ keyword 3"></textarea>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
+        // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos
+        window.DISABLE_SIDEBAR_NAVIGATION = true;
+        
         // Funciones de navegación entre secciones
         function navigateToConfiguration() {
             console.log('🔄 Navegando a Configuration desde Manual AI');
@@ -1056,17 +1058,35 @@ keyword 3"></textarea>
             }
         }
 
+        // Función para manejar sidebar en Manual AI
+        function initManualAISidebar() {
+            console.log('🎯 Inicializando sidebar específico para Manual AI...');
+            
+            // Remover clase active de todos los elementos de navegación
+            const allNavItems = document.querySelectorAll('.nav-item');
+            allNavItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Verificar estado de análisis para habilitar navegación
+            checkAnalysisState();
+            
+            // Solo marcar Manual AI como activo si existe el elemento
+            const navManualAI = document.getElementById('navManualAI');
+            if (navManualAI) {
+                navManualAI.classList.add('active');
+                console.log('✅ Manual AI marcado como activo en sidebar');
+            }
+        }
+
         // Inicializar sistema cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar que estamos en la página correcta
             if (window.location.pathname.includes('/manual-ai/')) {
                 window.manualAI = new ManualAISystem();
                 
-                // Verificar estado de análisis
-                checkAnalysisState();
-                
-                // Marcar Manual AI como activo en el sidebar
-                document.getElementById('navManualAI').classList.add('active');
+                // Inicializar sidebar específico para Manual AI
+                initManualAISidebar();
             }
         });
     </script>

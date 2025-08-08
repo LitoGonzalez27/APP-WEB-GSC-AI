@@ -1212,6 +1212,7 @@ class ManualAISystem {
 
         // Set project name in modal
         document.getElementById('deleteProjectName').textContent = currentProject.name;
+        document.getElementById('deleteProjectNamePrompt').textContent = currentProject.name;
         
         // Reset confirmation input
         const confirmInput = document.getElementById('deleteConfirmInput');
@@ -1221,7 +1222,7 @@ class ManualAISystem {
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== 'DELETE';
+            deleteBtn.disabled = e.target.value !== currentProject.name;
         };
         
         // Show modal
@@ -1243,8 +1244,8 @@ class ManualAISystem {
             return;
         }
 
-        if (confirmText !== 'DELETE') {
-            this.showError('Please type DELETE to confirm');
+        if (confirmText !== currentProject.name) {
+            this.showError('Please type the project name exactly to confirm');
             return;
         }
 
@@ -1561,6 +1562,7 @@ class ManualAISystem {
 
         // Set project name in delete modal
         document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
+        document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
         
         // Hide project modal and show delete confirmation
         this.hideProjectModal();
@@ -1574,7 +1576,7 @@ class ManualAISystem {
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== 'DELETE';
+            deleteBtn.disabled = e.target.value !== this.currentModalProject.name;
         };
     }
 }
