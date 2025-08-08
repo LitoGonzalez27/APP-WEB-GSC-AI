@@ -1037,7 +1037,10 @@ def trigger_daily_analysis():
     """
     try:
         user = get_current_user()
-        logger.info(f"🔧 Manual cron trigger by user: {user.get('email', 'unknown')}")
+        if user:
+            logger.info(f"🔧 Manual cron trigger by user: {user.get('email', 'unknown')}")
+        else:
+            logger.info("🔧 Manual cron trigger by CRON TOKEN")
         
         # Verificar conexión a la base de datos primero
         conn = get_db_connection()
