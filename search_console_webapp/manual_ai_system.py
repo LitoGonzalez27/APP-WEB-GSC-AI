@@ -932,7 +932,7 @@ def run_daily_analysis_for_all_projects():
             SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
                    COUNT(k.id) as keyword_count
             FROM manual_ai_projects p
-            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id
+            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
             GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
             HAVING COUNT(k.id) > 0
@@ -948,6 +948,12 @@ def run_daily_analysis_for_all_projects():
             return {"success": True, "message": "No active projects", "processed": 0}
         
         logger.info(f"📊 Found {len(projects)} active projects for daily analysis")
+        for i, project in enumerate(projects):
+            project_data = project if isinstance(project, dict) else {
+                'id': project[0], 'name': project[1], 'domain': project[2], 
+                'country_code': project[3], 'user_id': project[4], 'keyword_count': project[5]
+            }
+            logger.info(f"📋 Project {i+1}: ID={project_data['id']}, Name='{project_data['name']}', Domain='{project_data['domain']}', Keywords={project_data['keyword_count']}")
         
         successful_analyses = 0
         failed_analyses = 0
@@ -986,7 +992,7 @@ def run_daily_analysis_for_all_projects():
                 conn.close()
                 
                 if existing_results > 0:
-                    logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) already analyzed today, skipping")
+                    logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) already analyzed today with {existing_results} results, skipping")
                     skipped_analyses += 1
                     continue
                 
