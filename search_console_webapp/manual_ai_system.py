@@ -1234,34 +1234,45 @@ def get_project_statistics(project_id: int, days: int = 30) -> Dict:
     end_date = date.today()
     start_date = end_date - timedelta(days=days)
     
-    # Estadísticas principales
+    # Estadísticas principales - CORREGIDO: Solo cuenta resultados más recientes por keyword
     cur.execute("""
+        WITH latest_results AS (
+            SELECT DISTINCT ON (k.id) 
+                k.id as keyword_id,
+                k.is_active,
+                r.has_ai_overview,
+                r.domain_mentioned,
+                r.domain_position,
+                r.analysis_date
+            FROM manual_ai_keywords k
+            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                AND r.analysis_date >= %s AND r.analysis_date <= %s
+            WHERE k.project_id = %s
+            ORDER BY k.id, r.analysis_date DESC
+        )
         SELECT 
-            COUNT(DISTINCT k.id) as total_keywords,
-            COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keywords,
-            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END) as total_ai_keywords,
-            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as total_mentions,
-            AVG(CASE WHEN r.domain_position IS NOT NULL THEN r.domain_position END) as avg_position,
-            (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END)::float / 
-             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END), 0)::float * 100) as visibility_percentage,
-            (COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END)::float / 
-             NULLIF(COUNT(DISTINCT r.id), 0)::float * 100) as aio_weight_percentage
-        FROM manual_ai_keywords k
-        LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
-            AND r.analysis_date >= %s AND r.analysis_date <= %s
-        WHERE k.project_id = %s
+            COUNT(*) as total_keywords,
+            COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
+            COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+            COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+            AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
+            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+             NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
+            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+             NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage
+        FROM latest_results
     """, (start_date, end_date, project_id))
     
     main_stats = dict(cur.fetchone() or {})
     
-    # Datos para gráfico de visibilidad por día
+    # Datos para gráfico de visibilidad por día - CORREGIDO: Solo cuenta keywords únicas
     cur.execute("""
         SELECT 
             r.analysis_date,
-            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END) as ai_keywords,
-            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as mentions,
-            (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END)::float / 
-             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END), 0)::float * 100) as visibility_pct
+            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as ai_keywords,
+            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as mentions,
+            (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 
+             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END), 0)::float * 100) as visibility_pct
         FROM manual_ai_results r
         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
         GROUP BY r.analysis_date
@@ -1270,14 +1281,14 @@ def get_project_statistics(project_id: int, days: int = 30) -> Dict:
     
     visibility_data = [dict(row) for row in cur.fetchall()]
     
-    # Datos para gráfico de posiciones
+    # Datos para gráfico de posiciones - CORREGIDO: Cuenta keywords únicas por posición
     cur.execute("""
         SELECT 
             r.analysis_date,
-            COUNT(CASE WHEN r.domain_position BETWEEN 1 AND 3 THEN 1 END) as pos_1_3,
-            COUNT(CASE WHEN r.domain_position BETWEEN 4 AND 10 THEN 1 END) as pos_4_10,
-            COUNT(CASE WHEN r.domain_position BETWEEN 11 AND 20 THEN 1 END) as pos_11_20,
-            COUNT(CASE WHEN r.domain_position > 20 THEN 1 END) as pos_21_plus
+            COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 1 AND 3 THEN r.keyword_id END) as pos_1_3,
+            COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 4 AND 10 THEN r.keyword_id END) as pos_4_10,
+            COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 11 AND 20 THEN r.keyword_id END) as pos_11_20,
+            COUNT(DISTINCT CASE WHEN r.domain_position > 20 THEN r.keyword_id END) as pos_21_plus
         FROM manual_ai_results r
         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
             AND r.domain_mentioned = true
@@ -1334,41 +1345,38 @@ def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
         
         project_domain = project_data[0]
         
-        # Obtener análisis de dominios en AI Overview (excluyendo el dominio del proyecto)
+        # Obtener análisis de dominios en AI Overview (excluyendo el dominio del proyecto) - CORREGIDO
         cur.execute("""
             SELECT 
-                LOWER(TRIM(BOTH '/' FROM 
-                    CASE 
-                        WHEN r.ai_overview_data->'sources' IS NOT NULL THEN
-                            unnested_source->>'url'
-                        ELSE NULL
-                    END
-                )) as clean_url,
-                r.domain_position,
-                r.analysis_date
+                ref->>'link' as ref_link,
+                (ref->>'index')::int as ref_index,
+                ref->>'source' as ref_source,
+                ref->>'title' as ref_title,
+                r.analysis_date,
+                r.keyword
             FROM manual_ai_results r
             JOIN manual_ai_keywords k ON r.keyword_id = k.id
-            LEFT JOIN LATERAL jsonb_array_elements(r.ai_overview_data->'sources') AS unnested_source ON true
+            LEFT JOIN LATERAL jsonb_array_elements(r.ai_analysis_data->'debug_info'->'references_found') AS ref ON true
             WHERE k.project_id = %s 
                 AND r.has_ai_overview = true
-                AND r.ai_overview_data IS NOT NULL
-                AND r.ai_overview_data->'sources' IS NOT NULL
-                AND unnested_source->>'url' IS NOT NULL
-                AND unnested_source->>'url' != ''
+                AND r.ai_analysis_data IS NOT NULL
+                AND r.ai_analysis_data->'debug_info'->'references_found' IS NOT NULL
+                AND ref->>'link' IS NOT NULL
+                AND ref->>'link' != ''
                 AND r.analysis_date >= NOW() - INTERVAL '30 days'
         """, (project_id,))
         
         results = cur.fetchall()
         
-        # Procesar URLs para extraer dominios
+        # Procesar referencias para extraer dominios - CORREGIDO
         domain_stats = {}
         
-        for url, position, analysis_date in results:
-            if not url:
+        for ref_link, ref_index, ref_source, ref_title, analysis_date, keyword in results:
+            if not ref_link:
                 continue
                 
             # Extraer dominio de la URL
-            domain = extract_domain_from_url(url)
+            domain = extract_domain_from_url(ref_link)
             
             # Filtrar el dominio del proyecto y dominios inválidos
             if not domain or domain == project_domain or domain in ['', 'localhost', 'example.com']:
@@ -1380,15 +1388,18 @@ def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
                     'domain': domain,
                     'appearances': 0,
                     'positions': [],
-                    'dates': set()
+                    'dates': set(),
+                    'keywords': set()
                 }
             
             domain_stats[domain]['appearances'] += 1
-            if position:
-                domain_stats[domain]['positions'].append(position)
+            if ref_index is not None:
+                # Posición en AI Overview es index + 1 (SERPAPI usa índice 0-based)
+                domain_stats[domain]['positions'].append(ref_index + 1)
             domain_stats[domain]['dates'].add(str(analysis_date.date()) if analysis_date else None)
+            domain_stats[domain]['keywords'].add(keyword)
         
-        # Calcular promedios y scores
+        # Calcular promedios y scores - MEJORADO
         domain_list = []
         for domain, stats in domain_stats.items():
             avg_position = sum(stats['positions']) / len(stats['positions']) if stats['positions'] else None
@@ -1399,7 +1410,10 @@ def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
                     'domain': domain,
                     'appearances': stats['appearances'],
                     'avg_position': round(avg_position, 1) if avg_position else None,
-                    'unique_dates': len([d for d in stats['dates'] if d])
+                    'unique_dates': len([d for d in stats['dates'] if d]),
+                    'unique_keywords': len(stats['keywords']),
+                    'positions': stats['positions'],  # Para análisis detallado
+                    'visibility_score': stats['appearances'] / len(stats['keywords']) if stats['keywords'] else 0
                 })
         
         # Ordenar por número de apariciones (descendente) y luego por posición promedio (ascendente)

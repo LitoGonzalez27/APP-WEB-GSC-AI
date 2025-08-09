@@ -1250,10 +1250,24 @@ class ManualAISystem {
                 projectName: `"${projectName}"`,
                 inputLength: inputValue.length,
                 nameLength: projectName.length,
-                isMatch: isMatch
+                isMatch: isMatch,
+                currentProject: currentProject,
+                charCodes: {
+                    input: Array.from(inputValue).map(c => c.charCodeAt(0)),
+                    name: Array.from(projectName).map(c => c.charCodeAt(0))
+                }
             });
             
             deleteBtn.disabled = !isMatch;
+            
+            // Force visual update
+            if (isMatch) {
+                deleteBtn.style.opacity = '1';
+                deleteBtn.style.cursor = 'pointer';
+            } else {
+                deleteBtn.style.opacity = '0.5';
+                deleteBtn.style.cursor = 'not-allowed';
+            }
         };
         
         // Show modal
