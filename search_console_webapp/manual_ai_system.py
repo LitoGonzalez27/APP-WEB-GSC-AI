@@ -174,21 +174,30 @@ def delete_project(project_id):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Obtener nombre del proyecto antes de eliminarlo
+        # Obtener nombre del proyecto antes de eliminarlo (compatible con RealDictRow o tuplas)
         cur.execute("SELECT name FROM manual_ai_projects WHERE id = %s", (project_id,))
         project_data = cur.fetchone()
         if not project_data:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
-            
-        project_name = project_data[0]
+
+        try:
+            project_name = project_data['name'] if isinstance(project_data, dict) else project_data[0]
+        except Exception:
+            project_name = str(project_data)
         
         # Eliminar en orden inverso de dependencias
-        # 1. Eliminar eventos
-        cur.execute("DELETE FROM manual_ai_events WHERE project_id = %s", (project_id,))
+        # 1. Eliminar eventos (no críticos si no existen)
+        try:
+            cur.execute("DELETE FROM manual_ai_events WHERE project_id = %s", (project_id,))
+        except Exception as e:
+            logger.warning(f"No events deleted for project {project_id}: {e}")
         events_deleted = cur.rowcount
         
         # 2. Eliminar snapshots
-        cur.execute("DELETE FROM manual_ai_snapshots WHERE project_id = %s", (project_id,))
+        try:
+            cur.execute("DELETE FROM manual_ai_snapshots WHERE project_id = %s", (project_id,))
+        except Exception as e:
+            logger.warning(f"No snapshots deleted for project {project_id}: {e}")
         snapshots_deleted = cur.rowcount
         
         # 3. Eliminar resultados de análisis (más robusto por project_id)

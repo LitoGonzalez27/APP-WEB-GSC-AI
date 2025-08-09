@@ -1310,14 +1310,14 @@ class ManualAISystem {
         try {
             this.showProgress('Deleting project...');
             
-            const response = await fetch(`/manual-ai/api/projects/${projectToDelete.id}`, {
+            const response = await fetch(`/manual-ai/api/projects/${encodeURIComponent(projectToDelete.id)}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to delete project');
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || error.message || `Failed to delete project (HTTP ${response.status})`);
             }
 
             this.hideProgress();

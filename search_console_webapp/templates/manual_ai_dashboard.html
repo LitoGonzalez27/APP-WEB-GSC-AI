@@ -1087,30 +1087,26 @@ keyword 3"></textarea>
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
         }
+        /* No modificamos tamaños/line-height para que coincidan con el resto */
         .ai-overview-metric .summary-card-icon {
-            width: 50px;
-            height: 50px;
             background: #D8F9B8;
             border-radius: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 0.5em;
         }
         .ai-overview-metric .summary-card-icon i {
             color: #2C2D2E;
-            font-size: 20px;
         }
         .ai-overview-metric .card-content h3 {
-            font-size: 2em;
-            font-weight: bold;
             color: #D8F9B8;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
         }
         .ai-overview-metric .card-content p {
             color: #D8F9B8;
-            font-size: 0.9em;
             opacity: 0.9;
-            font-weight: 600;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
         }
         .ai-overview-metric:hover { transform: translateY(-2px); }
     </style>
