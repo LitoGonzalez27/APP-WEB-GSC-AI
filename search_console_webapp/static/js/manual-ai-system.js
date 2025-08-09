@@ -8,6 +8,8 @@ class ManualAISystem {
     constructor() {
         this.projects = [];
         this.currentProject = null;
+        this.currentModalProject = null;
+        this.projectToDelete = null;
         this.charts = {};
         this.isLoading = false;
         this.refreshInterval = null;
@@ -124,9 +126,6 @@ class ManualAISystem {
     async loadInitialData() {
         await this.loadProjects();
         this.populateAnalyticsProjectSelect();
-        
-        // Load cron execution status
-        this.updateLastCronExecution();
     }
 
     // ================================
@@ -1238,11 +1237,25 @@ class ManualAISystem {
         confirmInput.value = '';
         document.getElementById('confirmDeleteBtn').disabled = true;
         
+        // Store project reference for deletion
+        this.projectToDelete = currentProject;
+        
+        // Remove any existing event listener to prevent duplicates
+        confirmInput.oninput = null;
+        
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
             const inputValue = e.target.value.trim();
-            const projectName = currentProject.name.trim();
+            
+            // Use the stored project reference
+            if (!this.projectToDelete || !this.projectToDelete.name) {
+                console.error('❌ projectToDelete is null or has no name');
+                deleteBtn.disabled = true;
+                return;
+            }
+            
+            const projectName = this.projectToDelete.name.trim();
             const isMatch = inputValue === projectName;
             
             console.log('🔍 Delete button validation:', {
@@ -1251,7 +1264,6 @@ class ManualAISystem {
                 inputLength: inputValue.length,
                 nameLength: projectName.length,
                 isMatch: isMatch,
-                currentProject: currentProject,
                 charCodes: {
                     input: Array.from(inputValue).map(c => c.charCodeAt(0)),
                     name: Array.from(projectName).map(c => c.charCodeAt(0))
@@ -1281,15 +1293,15 @@ class ManualAISystem {
     }
 
     async executeDeleteProject() {
-        const currentProject = this.getCurrentProject();
+        const projectToDelete = this.projectToDelete;
         const confirmText = document.getElementById('deleteConfirmInput').value;
         
-        if (!currentProject) {
-            this.showError('No project selected');
+        if (!projectToDelete) {
+            this.showError('No project selected for deletion');
             return;
         }
 
-        if (confirmText.trim() !== currentProject.name.trim()) {
+        if (confirmText.trim() !== projectToDelete.name.trim()) {
             this.showError('Please type the project name exactly to confirm');
             return;
         }
@@ -1297,7 +1309,7 @@ class ManualAISystem {
         try {
             this.showProgress('Deleting project...');
             
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}`, {
+            const response = await fetch(`/manual-ai/api/projects/${projectToDelete.id}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -1609,6 +1621,9 @@ class ManualAISystem {
         document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
         document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
         
+        // Store project reference for deletion (use the same variable as the other function)
+        this.projectToDelete = this.currentModalProject;
+        
         // Hide project modal and show delete confirmation
         this.hideProjectModal();
         this.showElement(document.getElementById('deleteProjectModal'));
@@ -1618,11 +1633,22 @@ class ManualAISystem {
         confirmInput.value = '';
         document.getElementById('confirmDeleteBtn').disabled = true;
         
+        // Remove any existing event listener to prevent duplicates
+        confirmInput.oninput = null;
+        
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
             const inputValue = e.target.value.trim();
-            const projectName = this.currentModalProject.name.trim();
+            
+            // Safety check: ensure projectToDelete exists
+            if (!this.projectToDelete || !this.projectToDelete.name) {
+                console.error('❌ projectToDelete is null or has no name');
+                deleteBtn.disabled = true;
+                return;
+            }
+            
+            const projectName = this.projectToDelete.name.trim();
             const isMatch = inputValue === projectName;
             
             console.log('🔍 Delete button validation (modal):', {
@@ -1630,10 +1656,16 @@ class ManualAISystem {
                 projectName: `"${projectName}"`,
                 inputLength: inputValue.length,
                 nameLength: projectName.length,
-                isMatch: isMatch
+                isMatch: isMatch,
+                inputCharCodes: Array.from(inputValue).map(c => c.charCodeAt(0)),
+                nameCharCodes: Array.from(projectName).map(c => c.charCodeAt(0))
             });
             
             deleteBtn.disabled = !isMatch;
+            
+            // Visual feedback for debugging
+            deleteBtn.style.opacity = isMatch ? '1' : '0.5';
+            deleteBtn.style.cursor = isMatch ? 'pointer' : 'not-allowed';
         };
     }
 }
