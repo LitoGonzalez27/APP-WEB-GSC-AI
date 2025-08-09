@@ -164,7 +164,10 @@ def delete_project(project_id):
     """Eliminar completamente un proyecto y todos sus datos"""
     user = get_current_user()
     
+    logger.info(f"🗑️ Delete request for project {project_id} by user {user.get('id')}")
+    
     if not user_owns_project(user['id'], project_id):
+        logger.warning(f"🚫 Unauthorized delete attempt for project {project_id} by user {user.get('id')}")
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:

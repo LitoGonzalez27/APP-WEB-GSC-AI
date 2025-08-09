@@ -250,12 +250,7 @@
                     <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
                 </div>
                 <div class="header-right">
-
-
-                    <a href="/app" class="btn-back-dashboard" title="Go Back">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>Go Back</span>
-                    </a>
+                    <!-- Go Back button removed as requested -->
                 </div>
             </div>
         </header>
@@ -369,7 +364,7 @@
                             </div>
                         </div>
                         <!-- 2. AI Overview Results -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-robot"></i>
                             </div>
@@ -389,7 +384,7 @@
                             </div>
                         </div>
                         <!-- 4. Domain Mentions -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-eye"></i>
                             </div>
@@ -409,7 +404,7 @@
                             </div>
                         </div>
                         <!-- 6. Average Position -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-sort-numeric-down"></i>
                             </div>
@@ -1078,7 +1073,38 @@ keyword 3"></textarea>
                 console.log('✅ Manual AI marcado como activo en sidebar');
             }
         }
+    </script>
 
+    <!-- Estilos específicos para métricas de AI Overview (negro y verde) -->
+    <style>
+        .ai-overview-metric {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+            border: 1px solid #10b981 !important;
+            color: #10b981 !important;
+        }
+
+        .ai-overview-metric .summary-card-icon {
+            background: #10b981 !important;
+            color: #1a1a1a !important;
+        }
+
+        .ai-overview-metric .card-content h3 {
+            color: #10b981 !important;
+            font-weight: 700;
+        }
+
+        .ai-overview-metric .card-content p {
+            color: #a3a3a3 !important;
+        }
+
+        .ai-overview-metric:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.2) !important;
+            border-color: #059669 !important;
+        }
+    </style>
+
+    <script>
         // Inicializar sistema cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar que estamos en la página correcta
@@ -1087,6 +1113,12 @@ keyword 3"></textarea>
                 
                 // Inicializar sidebar específico para Manual AI
                 initManualAISidebar();
+                
+                // Asegurar que el navbar esté inicializado (para logout)
+                if (typeof Navbar !== 'undefined') {
+                    console.log('🔧 Inicializando navbar para Manual AI');
+                    window.navbar = new Navbar();
+                }
             }
         });
     </script>
