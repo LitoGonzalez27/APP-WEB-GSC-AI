@@ -191,13 +191,11 @@ def delete_project(project_id):
         cur.execute("DELETE FROM manual_ai_snapshots WHERE project_id = %s", (project_id,))
         snapshots_deleted = cur.rowcount
         
-        # 3. Eliminar resultados de análisis
-        cur.execute("""
-            DELETE FROM manual_ai_results 
-            WHERE keyword_id IN (
-                SELECT id FROM manual_ai_keywords WHERE project_id = %s
-            )
-        """, (project_id,))
+        # 3. Eliminar resultados de análisis (más robusto por project_id)
+        cur.execute(
+            "DELETE FROM manual_ai_results WHERE project_id = %s",
+            (project_id,)
+        )
         results_deleted = cur.rowcount
         
         # 4. Eliminar keywords

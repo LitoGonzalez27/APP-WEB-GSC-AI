@@ -147,7 +147,8 @@ class ManualAISystem {
         if (tabName === 'analytics') {
             this.loadAnalytics();
         } else if (tabName === 'settings') {
-            this.updateLastCronExecution();
+            // Evitar llamada a función inexistente
+            // this.updateLastCronExecution();
         }
     }
 
@@ -1754,10 +1755,17 @@ function initializeUserDropdown() {
         }
     }
 
-    function handleLogout() {
-        if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-            // Redirect to logout endpoint
-            window.location.href = '/logout';
+    async function handleLogout() {
+        try {
+            // Usar el mismo flujo que el navbar para consistencia
+            const response = await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            if (response.ok) {
+                setTimeout(() => { window.location.href = '/login?session_expired=true'; }, 300);
+            } else {
+                window.location.href = '/login?auth_error=logout_failed';
+            }
+        } catch (_) {
+            window.location.href = '/login?auth_error=logout_failed';
         }
     }
 

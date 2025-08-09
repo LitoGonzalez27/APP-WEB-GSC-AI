@@ -1077,31 +1077,42 @@ keyword 3"></textarea>
 
     <!-- Estilos específicos para métricas de AI Overview (negro y verde) -->
     <style>
+        /* Estilo alineado con AI Overview (verde/negro sutil) */
         .ai-overview-metric {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
-            border: 1px solid #10b981 !important;
-            color: #10b981 !important;
+            text-align: center;
+            padding: 1em;
+            background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%);
+            border-radius: 8px;
+            border: 2px solid #4A4B4C;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
         }
-
         .ai-overview-metric .summary-card-icon {
-            background: #10b981 !important;
-            color: #1a1a1a !important;
+            width: 50px;
+            height: 50px;
+            background: #D8F9B8;
+            border-radius: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5em;
         }
-
+        .ai-overview-metric .summary-card-icon i {
+            color: #2C2D2E;
+            font-size: 20px;
+        }
         .ai-overview-metric .card-content h3 {
-            color: #10b981 !important;
-            font-weight: 700;
+            font-size: 2em;
+            font-weight: bold;
+            color: #D8F9B8;
         }
-
         .ai-overview-metric .card-content p {
-            color: #a3a3a3 !important;
+            color: #D8F9B8;
+            font-size: 0.9em;
+            opacity: 0.9;
+            font-weight: 600;
         }
-
-        .ai-overview-metric:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.2) !important;
-            border-color: #059669 !important;
-        }
+        .ai-overview-metric:hover { transform: translateY(-2px); }
     </style>
 
     <script>
