@@ -907,14 +907,18 @@ def run_daily_analysis_for_all_projects():
             logger.error("❌ No se pudo conectar a la base de datos para adquirir el lock")
             return {"success": False, "error": "DB connection failed for lock"}
         lock_cur = lock_conn.cursor()
-        lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s)", (lock_class_id, lock_object_id))
+        lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s) as lock_acquired", (lock_class_id, lock_object_id))
         result = lock_cur.fetchone()
-        lock_acquired = bool(result[0]) if result else False
+        lock_acquired = bool(result['lock_acquired']) if result else False
+        
+        logger.info(f"🔐 Advisory lock attempt: class_id={lock_class_id}, object_id={lock_object_id}, acquired={lock_acquired}")
 
         if not lock_acquired:
             logger.info("🔒 Otro análisis diario ya está en ejecución. Saliendo sin hacer nada")
             lock_cur.close(); lock_conn.close()
             return {"success": True, "message": "Another daily run in progress (skipped)", "skipped": 0, "failed": 0, "successful": 0, "total_projects": 0}
+        
+        logger.info("✅ Advisory lock adquirido exitosamente. Continuando con análisis...")
         # Obtener todos los proyectos activos
         conn = get_db_connection()
         if not conn:

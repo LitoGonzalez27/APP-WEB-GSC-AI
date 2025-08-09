@@ -10,6 +10,7 @@ class ManualAISystem {
         this.currentProject = null;
         this.charts = {};
         this.isLoading = false;
+        this.refreshInterval = null;
         
         // Referencias DOM
         this.elements = {};
@@ -29,7 +30,22 @@ class ManualAISystem {
         // Cargamos datos iniciales
         this.loadInitialData();
         
+        // Configurar auto-refresh
+        this.setupAutoRefresh();
+        
         console.log('✅ Manual AI System initialized');
+    }
+
+    setupAutoRefresh() {
+        // Auto-refresh projects every 2 minutes to catch cron updates
+        this.refreshInterval = setInterval(() => {
+            if (this.currentTab === 'projects') {
+                console.log('🔄 Auto-refreshing projects...');
+                this.loadProjects();
+            }
+        }, 120000); // 2 minutos
+        
+        console.log('✅ Auto-refresh configurado cada 2 minutos');
     }
 
     cacheElements() {
@@ -167,12 +183,15 @@ class ManualAISystem {
         this.hideElement(this.elements.projectsEmptyState);
 
         try {
-            const response = await fetch('/manual-ai/api/projects');
+            // Añadir timestamp para evitar cache del navegador
+            const timestamp = new Date().getTime();
+            const response = await fetch(`/manual-ai/api/projects?_t=${timestamp}`);
             const data = await response.json();
 
             if (data.success) {
                 this.projects = data.projects;
                 this.renderProjects();
+                console.log('🔄 Projects loaded:', this.projects.length);
             } else {
                 throw new Error(data.error || 'Failed to load projects');
             }
