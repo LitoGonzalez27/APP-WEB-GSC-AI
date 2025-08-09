@@ -574,7 +574,7 @@ def get_user_projects(user_id: int) -> List[Dict]:
             MAX(r.analysis_date) as last_analysis_date
         FROM manual_ai_projects p
         LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
-        LEFT JOIN manual_ai_results r ON p.id = r.project_id AND r.analysis_date >= CURRENT_DATE - INTERVAL '30 days'
+        LEFT JOIN manual_ai_results r ON p.id = r.project_id
         WHERE p.user_id = %s AND p.is_active = true
         GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at
         ORDER BY p.created_at DESC
@@ -908,7 +908,8 @@ def run_daily_analysis_for_all_projects():
             return {"success": False, "error": "DB connection failed for lock"}
         lock_cur = lock_conn.cursor()
         lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s)", (lock_class_id, lock_object_id))
-        lock_acquired = bool(lock_cur.fetchone()[0])
+        result = lock_cur.fetchone()
+        lock_acquired = bool(result[0]) if result else False
 
         if not lock_acquired:
             logger.info("🔒 Otro análisis diario ya está en ejecución. Saliendo sin hacer nada")

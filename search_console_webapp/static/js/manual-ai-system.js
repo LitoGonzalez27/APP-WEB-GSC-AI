@@ -1222,7 +1222,19 @@ class ManualAISystem {
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== currentProject.name;
+            const inputValue = e.target.value.trim();
+            const projectName = currentProject.name.trim();
+            const isMatch = inputValue === projectName;
+            
+            console.log('🔍 Delete button validation:', {
+                inputValue: `"${inputValue}"`,
+                projectName: `"${projectName}"`,
+                inputLength: inputValue.length,
+                nameLength: projectName.length,
+                isMatch: isMatch
+            });
+            
+            deleteBtn.disabled = !isMatch;
         };
         
         // Show modal
@@ -1244,7 +1256,7 @@ class ManualAISystem {
             return;
         }
 
-        if (confirmText !== currentProject.name) {
+        if (confirmText.trim() !== currentProject.name.trim()) {
             this.showError('Please type the project name exactly to confirm');
             return;
         }
@@ -1576,7 +1588,19 @@ class ManualAISystem {
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== this.currentModalProject.name;
+            const inputValue = e.target.value.trim();
+            const projectName = this.currentModalProject.name.trim();
+            const isMatch = inputValue === projectName;
+            
+            console.log('🔍 Delete button validation (modal):', {
+                inputValue: `"${inputValue}"`,
+                projectName: `"${projectName}"`,
+                inputLength: inputValue.length,
+                nameLength: projectName.length,
+                isMatch: isMatch
+            });
+            
+            deleteBtn.disabled = !isMatch;
         };
     }
 }
