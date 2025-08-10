@@ -313,12 +313,24 @@ class ManualAISystem {
             if (data.success) {
                 this.hideCreateProject();
                 this.showSuccess('Project created successfully!');
+
+                // Refresh projects to include the new one
                 await this.loadProjects();
                 this.populateAnalyticsProjectSelect();
-                // If competitors were provided, pre-load them in settings
-                if (competitors.length) {
+
+                const newProjectId = data.project_id;
+
+                // Open the project modal directly in Settings to manage competitors
+                if (newProjectId) {
+                    this.showProjectModal(newProjectId);
+                    this.switchModalTab('settings');
+                    // Load competitors list (will show empty state if none)
+                    await this.loadCompetitors(newProjectId);
+                    // Update dashboard competitors preview as well
+                    await this.loadCompetitorsPreview(newProjectId);
+                } else {
+                    // Fallback: go to settings tab
                     this.switchTab('settings');
-                    this.loadCompetitors();
                 }
             } else {
                 throw new Error(data.error || 'Failed to create project');
@@ -1871,12 +1883,13 @@ class ManualAISystem {
             });
         }
 
-        // Load competitors when tab switches to settings
-        this.loadCompetitors();
+        // Ensure competitors are loaded when modal Settings is opened
+        // (actual load is triggered contextually in showProjectModal/switchModalTab)
     }
 
     async loadCompetitors(projectId = null) {
-        const project = projectId ? this.projects.find(p => p.id == projectId) : this.getCurrentProject();
+        // Prefer explicit projectId (e.g., from modal) otherwise fallback to current project context
+        const project = projectId ? this.projects.find(p => p.id == projectId) : (this.currentModalProject || this.getCurrentProject());
         if (!project) return;
 
         try {
@@ -2046,13 +2059,11 @@ class ManualAISystem {
             throw new Error(error.error || 'Failed to update competitors');
         }
 
-        // Reload competitors display in modal
-        await this.loadCompetitors(currentProject.id);
-        
-        // Also refresh competitors preview in main dashboard if this is the current project
-        if (this.currentProject && this.currentProject.id === currentProject.id) {
-            await this.loadCompetitorsPreview(currentProject.id);
-        }
+        // Reload competitors display in modal and dashboard preview
+        await Promise.all([
+            this.loadCompetitors(currentProject.id),
+            this.loadCompetitorsPreview(currentProject.id)
+        ]);
     }
 
     isValidDomain(domain) {
