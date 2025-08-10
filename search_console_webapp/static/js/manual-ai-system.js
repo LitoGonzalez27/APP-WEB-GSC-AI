@@ -826,6 +826,9 @@ class ManualAISystem {
         
         // Load and render comparative charts (project vs selected competitors)
         this.loadComparativeCharts(stats.project_id || this.currentProject?.id);
+        
+        // Load and render competitors preview
+        this.loadCompetitorsPreview(stats.project_id || this.currentProject?.id);
     }
 
     renderVisibilityChart(data, events = []) {
@@ -1788,6 +1791,67 @@ class ManualAISystem {
     }
 
     // ================================
+    // COMPETITORS PREVIEW (Dashboard Main) 
+    // ================================
+    
+    async loadCompetitorsPreview(projectId) {
+        if (!projectId) {
+            this.renderCompetitorsPreview([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.renderCompetitorsPreview([]);
+                    return;
+                }
+                throw new Error('Failed to load competitors');
+            }
+
+            const data = await response.json();
+            this.renderCompetitorsPreview(data.competitors || []);
+
+        } catch (error) {
+            console.error('Error loading competitors preview:', error);
+            this.renderCompetitorsPreview([]);
+        }
+    }
+
+    renderCompetitorsPreview(competitors) {
+        const competitorsCountEl = document.getElementById('competitorsCount');
+        const competitorsPreviewEl = document.getElementById('competitorsPreview');
+
+        if (!competitorsCountEl || !competitorsPreviewEl) return;
+
+        // Update count
+        competitorsCountEl.textContent = competitors.length;
+
+        // Clear preview
+        competitorsPreviewEl.innerHTML = '';
+
+        if (competitors.length === 0) {
+            competitorsPreviewEl.innerHTML = '<span style="color: var(--text-secondary); font-size: 12px;">No competitors selected</span>';
+            return;
+        }
+
+        // Add competitor logos
+        competitors.forEach(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const logoEl = document.createElement('img');
+            logoEl.src = logoUrl;
+            logoEl.alt = `${domain} logo`;
+            logoEl.className = 'competitor-logo-small';
+            logoEl.title = domain;
+            logoEl.onerror = function() {
+                this.outerHTML = `<div class="competitor-logo-placeholder" title="${domain}">${domain.charAt(0).toUpperCase()}</div>`;
+            };
+            competitorsPreviewEl.appendChild(logoEl);
+        });
+    }
+
+    // ================================
     // COMPETITORS MANAGEMENT FUNCTIONS
     // ================================
 
@@ -1811,38 +1875,45 @@ class ManualAISystem {
         this.loadCompetitors();
     }
 
-    async loadCompetitors() {
-        const currentProject = this.getCurrentProject();
-        if (!currentProject) return;
+    async loadCompetitors(projectId = null) {
+        const project = projectId ? this.projects.find(p => p.id == projectId) : this.getCurrentProject();
+        if (!project) return;
 
         try {
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
-            if (!response.ok) throw new Error('Failed to load competitors');
+            const response = await fetch(`/manual-ai/api/projects/${project.id}/competitors`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.renderCompetitors([]);
+                    return;
+                }
+                throw new Error('Failed to load competitors');
+            }
 
             const data = await response.json();
             this.renderCompetitors(data.competitors || []);
 
         } catch (error) {
             console.error('Error loading competitors:', error);
-            this.showError('Failed to load competitors');
+            this.renderCompetitors([]);
         }
     }
 
     renderCompetitors(competitors) {
         const competitorsList = document.getElementById('competitorsList');
-        if (!competitorsList) return;
+        const competitorEmptyState = document.getElementById('competitorEmptyState');
+        if (!competitorsList || !competitorEmptyState) return;
 
+        // Clear existing competitors
         competitorsList.innerHTML = '';
 
         if (competitors.length === 0) {
-            competitorsList.innerHTML = `
-                <div class="competitor-empty-state">
-                    <i class="fas fa-users"></i>
-                    <p>No competitors added yet</p>
-                    <small>Add competitor domains to compare in AI Overview analysis</small>
-                </div>
-            `;
-            return;
+            competitorsList.classList.remove('has-competitors');
+            competitorEmptyState.classList.remove('hidden');
+            competitorEmptyState.style.display = 'flex';
+        } else {
+            competitorsList.classList.add('has-competitors');
+            competitorEmptyState.classList.add('hidden');
+            competitorEmptyState.style.display = 'none';
         }
 
         competitors.forEach((domain, index) => {
@@ -1894,7 +1965,7 @@ class ManualAISystem {
             return;
         }
 
-        const currentProject = this.getCurrentProject();
+        const currentProject = this.currentModalProject;
         if (!currentProject) {
             this.showError('No project selected');
             return;
@@ -1935,7 +2006,7 @@ class ManualAISystem {
     }
 
     async removeCompetitor(domain) {
-        const currentProject = this.getCurrentProject();
+        const currentProject = this.currentModalProject;
         if (!currentProject) return;
 
         try {
@@ -1959,7 +2030,7 @@ class ManualAISystem {
     }
 
     async updateCompetitors(competitors) {
-        const currentProject = this.getCurrentProject();
+        const currentProject = this.currentModalProject;
         if (!currentProject) return;
 
         const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`, {
@@ -1975,8 +2046,13 @@ class ManualAISystem {
             throw new Error(error.error || 'Failed to update competitors');
         }
 
-        // Reload competitors display
-        await this.loadCompetitors();
+        // Reload competitors display in modal
+        await this.loadCompetitors(currentProject.id);
+        
+        // Also refresh competitors preview in main dashboard if this is the current project
+        if (this.currentProject && this.currentProject.id === currentProject.id) {
+            await this.loadCompetitorsPreview(currentProject.id);
+        }
     }
 
     isValidDomain(domain) {
@@ -2237,6 +2313,7 @@ class ManualAISystem {
             this.loadModalKeywords(this.currentModalProject.id);
         } else if (tabName === 'settings' && this.currentModalProject) {
             this.loadModalSettings(this.currentModalProject);
+            this.loadCompetitors(this.currentModalProject.id);
         }
     }
 
@@ -2244,6 +2321,7 @@ class ManualAISystem {
         // Load into both tabs
         this.loadModalKeywords(project.id);
         this.loadModalSettings(project);
+        this.loadCompetitors(project.id);
     }
 
     async loadModalKeywords(projectId) {
