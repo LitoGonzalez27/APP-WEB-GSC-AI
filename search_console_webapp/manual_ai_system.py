@@ -103,6 +103,9 @@ def manual_ai_health():
         logger.error(json.dumps({"event": "health_error", "error": str(e)}))
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+## (Eliminado) Migraciones runtime: se gestionan ahora con script dedicado
+
 # ================================
 # ROUTES - API y PÁGINAS
 # ================================
