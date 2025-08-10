@@ -841,6 +841,8 @@ def get_user_projects(user_id: int) -> List[Dict]:
             p.country_code,
             p.created_at,
             p.updated_at,
+            p.selected_competitors,
+            COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
             COUNT(DISTINCT k.id) as keyword_count,
             COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END) as ai_overview_count,
             COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as mentions_count,
@@ -849,7 +851,7 @@ def get_user_projects(user_id: int) -> List[Dict]:
         LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
         LEFT JOIN manual_ai_results r ON p.id = r.project_id
         WHERE p.user_id = %s AND p.is_active = true
-        GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at
+        GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at, p.selected_competitors
         ORDER BY p.created_at DESC
     """, (user_id,))
     

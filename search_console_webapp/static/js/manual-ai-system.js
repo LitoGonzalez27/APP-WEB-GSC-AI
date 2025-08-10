@@ -257,6 +257,10 @@ class ManualAISystem {
                         <span class="stat-number">${project.mentions_count || 0}</span>
                         <span class="stat-label">Mentions</span>
                     </div>
+                    <div class="stat">
+                        <span class="stat-number">${project.competitors_count || 0}</span>
+                        <span class="stat-label">Competitors</span>
+                    </div>
                 </div>
                 <div class="project-footer">
                     <small class="last-analysis">
@@ -328,10 +332,10 @@ class ManualAISystem {
                     await this.loadCompetitors(newProjectId);
                     // Update dashboard competitors preview as well
                     await this.loadCompetitorsPreview(newProjectId);
-                } else {
-                    // Fallback: go to settings tab
-                    this.switchTab('settings');
-                }
+        } else {
+            // Fallback: ensure at least competitors preview updates
+            this.switchTab('projects');
+        }
             } else {
                 throw new Error(data.error || 'Failed to create project');
             }
