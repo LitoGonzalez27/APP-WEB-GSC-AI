@@ -427,44 +427,78 @@
                         </div>
                     </div>
 
-                    <!-- Top Domains Section -->
-                    <div class="top-domains-section">
+                    <!-- Comparative Charts Section -->
+                    <div class="competitors-charts-section">
                         <div class="section-header">
                             <h3>
-                                <i class="fas fa-trophy"></i>
-                                Most Visible Domains
+                                <i class="fas fa-chart-line"></i>
+                                Competitive Analysis vs Selected Competitors
                             </h3>
                             <div class="tooltip-container">
                                 <i class="fas fa-info-circle tooltip-trigger"></i>
                                 <div class="tooltip-content">
-                                    Domain visibility = appearance frequency + average position in AI Overview results
+                                    Compare your domain performance against selected competitors in AI Overview results
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="competitors-charts-grid">
+                            <div class="chart-container">
+                                <h4>AI Overview Visibility Percentage</h4>
+                                <div class="chart-description">
+                                    <small>Percentage of keywords where each domain appears in AI Overview</small>
+                                </div>
+                                <canvas id="comparativeVisibilityChart"></canvas>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <h4>Average Position in AI Overview</h4>
+                                <div class="chart-description">
+                                    <small>Average position when appearing in AI Overview (lower is better)</small>
+                                </div>
+                                <canvas id="comparativePositionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Global Domains Ranking Section -->
+                    <div class="top-domains-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-globe"></i>
+                                Global AI Overview Domains Ranking
+                            </h3>
+                            <div class="tooltip-container">
+                                <i class="fas fa-info-circle tooltip-trigger"></i>
+                                <div class="tooltip-content">
+                                    Ranking of ALL domains detected in AI Overview for your keywords, with highlighting for your domain and selected competitors
                                 </div>
                             </div>
                         </div>
                         
                         <div class="domains-container">
                             <div class="domains-table-wrapper">
-                                <table class="domains-table" id="topDomainsTable">
+                                <table class="domains-table" id="globalDomainsTable">
                                     <thead>
                                         <tr>
                                             <th>Rank</th>
                                             <th>Domain</th>
                                             <th>Appearances</th>
                                             <th>Avg Position</th>
-                                            <th>Visibility Score</th>
+                                            <th>Visibility %</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="topDomainsBody">
+                                    <tbody id="globalDomainsBody">
                                         <!-- Dynamic content will be loaded here -->
                                     </tbody>
                                 </table>
                             </div>
                             
-                            <div class="no-domains-message" id="noDomainsMessage" style="display: none;">
+                            <div class="no-domains-message" id="noGlobalDomainsMessage" style="display: none;">
                                 <div class="empty-state">
                                     <i class="fas fa-search"></i>
-                                    <p>No domain data available yet</p>
-                                    <small>Run analysis to see competitor domains in AI Overview</small>
+                                    <p>No global domain data available yet</p>
+                                    <small>Run analysis to see all domains detected in AI Overview</small>
                                 </div>
                             </div>
                         </div>
@@ -512,6 +546,25 @@
 
                             </div>
                         </div>
+                        <div class="setting-group">
+                            <h3>Project Competitors</h3>
+                            <div class="setting-item">
+                                <label>Selected Competitors (Max 4)</label>
+                                <div class="competitors-manager" id="competitorsManager">
+                                    <div class="competitors-list" id="competitorsList">
+                                        <!-- Competitors will be loaded here -->
+                                    </div>
+                                    <div class="add-competitor-section">
+                                        <input type="text" id="newCompetitorInput" placeholder="Enter competitor domain (e.g., example.com)" class="form-input">
+                                        <button type="button" id="addCompetitorBtn" class="btn btn-secondary">Add Competitor</button>
+                                    </div>
+                                    <div class="competitors-help">
+                                        <small>Add up to 4 competitor domains to compare against your site in AI Overview analysis.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="setting-group">
                             <h3>Notifications</h3>
                             <div class="setting-item">
@@ -1107,6 +1160,292 @@ keyword 3"></textarea>
             font-size: inherit;
             font-weight: inherit;
             line-height: inherit;
+        }
+
+        /* Competitors Charts Styling */
+        .competitors-charts-section {
+            margin: 2rem 0;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .competitors-charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .competitors-charts-grid .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .competitors-charts-grid .chart-container h4 {
+            margin: 0 0 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .chart-description {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .chart-axis-label {
+            font-weight: 600;
+        }
+
+        .chart-divider {
+            color: #d1d5db;
+            font-weight: 300;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .legend-color.low-performance {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        }
+
+        .legend-color.low-conversion {
+            background: linear-gradient(135deg, #f87171, #ef4444);
+        }
+
+        .chart-brands-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        .chart-brands-legend .brand-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+
+        .chart-brands-legend .brand-color {
+            width: 16px;
+            height: 3px;
+            border-radius: 1.5px;
+        }
+
+        @media (max-width: 768px) {
+            .competitors-charts-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .chart-legend {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+        }
+
+        /* Domain logos styling */
+        .domain-cell-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .domain-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+        }
+
+        .domain-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .domains-table .domain-cell {
+            min-width: 200px;
+        }
+
+        /* Competitors Manager Styling */
+        .competitors-manager {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .competitors-list {
+            margin-bottom: 1rem;
+        }
+
+        .competitor-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .competitor-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .competitor-domain {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .competitor-remove-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .competitor-remove-btn:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .add-competitor-section {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .add-competitor-section input {
+            flex: 1;
+        }
+
+        .competitors-help {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .competitor-empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+        }
+
+        .competitor-empty-state i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        /* Global Domains Ranking Styling */
+        .domains-table .domain-row {
+            transition: background-color 0.2s ease;
+        }
+
+        .domains-table .domain-row:hover {
+            background-color: #f9fafb;
+        }
+
+        /* Domain type highlighting */
+        .domains-table .domain-row.project-domain {
+            background-color: #dbeafe !important; /* Light blue */
+            border-left: 4px solid #3b82f6;
+        }
+
+        .domains-table .domain-row.competitor-domain {
+            background-color: #fef3c7 !important; /* Light yellow */
+            border-left: 4px solid #f59e0b;
+        }
+
+        .domains-table .domain-row.other-domain {
+            background-color: transparent;
+            border-left: 4px solid transparent;
+        }
+
+        /* Domain badges */
+        .domain-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+
+        .domain-badge.project {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .domain-badge.competitor {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Enhanced domain cell for global ranking */
+        .global-domain-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .global-domain-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .global-domain-name {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .global-domain-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .ai-overview-metric:hover { transform: translateY(-2px); }
     </style>

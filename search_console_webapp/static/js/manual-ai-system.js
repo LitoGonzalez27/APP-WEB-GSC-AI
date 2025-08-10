@@ -35,6 +35,9 @@ class ManualAISystem {
         // Configurar auto-refresh
         this.setupAutoRefresh();
         
+        // Initialize competitors manager
+        this.initCompetitorsManager();
+        
         console.log('✅ Manual AI System initialized');
     }
 
@@ -147,8 +150,8 @@ class ManualAISystem {
         if (tabName === 'analytics') {
             this.loadAnalytics();
         } else if (tabName === 'settings') {
-            // Evitar llamada a función inexistente
-            // this.updateLastCronExecution();
+            // Load competitors when switching to settings
+            this.loadCompetitors();
         }
     }
 
@@ -803,8 +806,11 @@ class ManualAISystem {
         this.renderVisibilityChart(stats.visibility_chart, stats.events);
         this.renderPositionsChart(stats.positions_chart, stats.events);
 
-        // Load and render top domains
-        this.loadTopDomains(stats.project_id || this.currentProject?.id);
+        // Load and render global domains ranking
+        this.loadGlobalDomainsRanking(stats.project_id || this.currentProject?.id);
+        
+        // Load and render comparative charts (project vs selected competitors)
+        this.loadComparativeCharts(stats.project_id || this.currentProject?.id);
     }
 
     renderVisibilityChart(data, events = []) {
@@ -1133,9 +1139,18 @@ class ManualAISystem {
             const visibilityScore = this.calculateVisibilityScore(domain.appearances, domain.avg_position);
             const scoreClass = this.getScoreClass(visibilityScore);
             
+            // Get logo URL for domain
+            const logoUrl = this.getDomainLogoUrl(domain.domain);
+            
             row.innerHTML = `
                 <td class="rank-cell">${index + 1}</td>
-                <td class="domain-cell" title="${domain.domain}">${domain.domain}</td>
+                <td class="domain-cell" title="${domain.domain}">
+                    <div class="domain-cell-content">
+                        <img src="${logoUrl}" alt="${domain.domain} logo" class="domain-logo" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.domain.charAt(0).toUpperCase()}</text></svg>'">
+                        <span class="domain-name">${domain.domain}</span>
+                    </div>
+                </td>
                 <td class="appearances-cell">${domain.appearances}</td>
                 <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
                 <td class="score-cell ${scoreClass}">${visibilityScore.toFixed(1)}</td>
@@ -1143,6 +1158,19 @@ class ManualAISystem {
             
             tableBody.appendChild(row);
         });
+    }
+
+    getDomainLogoUrl(domain) {
+        // Multiple fallback services for domain logos/favicons
+        const logoServices = [
+            `https://logo.clearbit.com/${domain}`,                    // Clearbit - high quality
+            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`, // Google favicons
+            `https://favicongrabber.com/api/grab/${domain}?pretty=true`, // Favicon grabber
+            `https://${domain}/favicon.ico`                          // Direct favicon
+        ];
+        
+        // Return primary service (Clearbit) - fallback handled in onerror
+        return logoServices[0];
     }
 
     calculateVisibilityScore(appearances, avgPosition) {
@@ -1159,6 +1187,787 @@ class ManualAISystem {
         if (score >= 60) return 'score-good';
         if (score >= 30) return 'score-average';
         return 'score-poor';
+    }
+
+    // ================================
+    // COMPETITORS CHARTS FUNCTIONS
+    // ================================
+
+    async loadCompetitorsCharts(projectId) {
+        if (!projectId) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors-charts?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoCompetitorsChartsMessage();
+                    return;
+                }
+                throw new Error('Failed to load competitors charts data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render both charts
+            this.renderCompetitorsVisibilityChart(data.visibility_scatter || []);
+            this.renderCompetitorsPositionChart(data.position_evolution || {});
+
+        } catch (error) {
+            console.error('Error loading competitors charts:', error);
+            this.showNoCompetitorsChartsMessage();
+        }
+    }
+
+    renderCompetitorsVisibilityChart(scatterData) {
+        const ctx = document.getElementById('competitorsVisibilityChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.competitorsVisibility) {
+            this.charts.competitorsVisibility.destroy();
+        }
+
+        if (!scatterData || scatterData.length === 0) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        // Prepare data for scatter chart
+        const datasets = scatterData.map((item, index) => {
+            // Generate colors similar to the example image
+            const colors = [
+                { bg: '#3B82F6', border: '#2563EB' }, // Blue
+                { bg: '#EF4444', border: '#DC2626' }, // Red
+                { bg: '#10B981', border: '#059669' }, // Green
+                { bg: '#F59E0B', border: '#D97706' }, // Orange
+                { bg: '#8B5CF6', border: '#7C3AED' }, // Purple
+                { bg: '#06B6D4', border: '#0891B2' }  // Cyan
+            ];
+            
+            const color = colors[index % colors.length];
+            
+            return {
+                label: item.domain,
+                data: [{
+                    x: item.x,
+                    y: item.y,
+                    appearances: item.appearances,
+                    avg_position: item.avg_position,
+                    keywords_count: item.keywords_count
+                }],
+                backgroundColor: color.bg + '80', // Add transparency
+                borderColor: color.border,
+                borderWidth: 2,
+                pointRadius: 8,
+                pointHoverRadius: 10
+            };
+        });
+
+        this.charts.competitorsVisibility = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false // We'll create a custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].dataset.label;
+                            },
+                            label: function(context) {
+                                const data = context.raw;
+                                return [
+                                    `Visibility Score: ${data.x.toFixed(1)}`,
+                                    `Brand Likelihood: ${data.y.toFixed(1)}%`,
+                                    `Appearances: ${data.appearances}`,
+                                    `Avg Position: ${data.avg_position}`,
+                                    `Keywords: ${data.keywords_count}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Visibility Score (Brand Mentions)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Likelihood to buy (%)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create custom legend
+        this.createCompetitorsVisibilityLegend(scatterData);
+    }
+
+    createCompetitorsVisibilityLegend(scatterData) {
+        const legendContainer = document.querySelector('.competitors-charts-grid .chart-container:first-child .chart-legend');
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        legendContainer.innerHTML = '';
+
+        // Add quadrant labels
+        const quadrants = [
+            { label: 'Low performance', class: 'low-performance' },
+            { label: 'Low conversion', class: 'low-conversion' }
+        ];
+
+        quadrants.forEach(quadrant => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <span class="legend-color ${quadrant.class}"></span>
+                <span>${quadrant.label}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+    }
+
+    renderCompetitorsPositionChart(positionData) {
+        const ctx = document.getElementById('competitorsPositionChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.competitorsPosition) {
+            this.charts.competitorsPosition.destroy();
+        }
+
+        if (!positionData || !positionData.datasets || positionData.datasets.length === 0) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        this.charts.competitorsPosition = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: positionData.dates || [],
+                datasets: positionData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false // We'll create a custom legend
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: Position ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        reverse: true, // Position 1 should be at the top
+                        title: {
+                            display: true,
+                            text: 'Brand Position'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return value.toString();
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+
+        // Create custom legend for position chart
+        this.createCompetitorsPositionLegend(positionData.datasets || []);
+    }
+
+    createCompetitorsPositionLegend(datasets) {
+        const legendContainer = document.getElementById('positionChartLegend');
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        legendContainer.innerHTML = '';
+
+        datasets.forEach(dataset => {
+            const item = document.createElement('div');
+            item.className = 'brand-legend-item';
+            item.innerHTML = `
+                <span class="brand-color" style="background-color: ${dataset.borderColor};"></span>
+                <span>${dataset.label}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+    }
+
+    showNoCompetitorsChartsMessage() {
+        // Hide charts and show empty state message
+        const charts = ['competitorsVisibilityChart', 'competitorsPositionChart'];
+        charts.forEach(chartId => {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                canvas.style.display = 'none';
+            }
+        });
+
+        // You could add a "no data" message here if needed
+        console.log('No competitors charts data available');
+    }
+
+    // ================================
+    // GLOBAL DOMAINS RANKING FUNCTIONS
+    // ================================
+
+    async loadGlobalDomainsRanking(projectId) {
+        if (!projectId) {
+            this.showNoGlobalDomainsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoGlobalDomainsMessage();
+                    return;
+                }
+                throw new Error('Failed to load global domains ranking');
+            }
+
+            const data = await response.json();
+            this.renderGlobalDomainsRanking(data.domains || []);
+
+        } catch (error) {
+            console.error('Error loading global domains ranking:', error);
+            this.showNoGlobalDomainsMessage();
+        }
+    }
+
+    renderGlobalDomainsRanking(domains) {
+        const tableBody = document.getElementById('globalDomainsBody');
+        const noDomainsMessage = document.getElementById('noGlobalDomainsMessage');
+        const globalDomainsTable = document.getElementById('globalDomainsTable');
+
+        if (!domains || domains.length === 0) {
+            this.showNoGlobalDomainsMessage();
+            return;
+        }
+
+        // Hide no domains message and show table
+        noDomainsMessage.style.display = 'none';
+        globalDomainsTable.style.display = 'table';
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        // Render each domain row with highlighting
+        domains.forEach((domain, index) => {
+            const row = document.createElement('tr');
+            row.className = `domain-row ${domain.domain_type}-domain`;
+            
+            // Get logo URL
+            const logoUrl = this.getDomainLogoUrl(domain.detected_domain);
+            
+            // Create domain badge if needed
+            let domainBadge = '';
+            if (domain.domain_type === 'project') {
+                domainBadge = '<span class="domain-badge project">Your Domain</span>';
+            } else if (domain.domain_type === 'competitor') {
+                domainBadge = '<span class="domain-badge competitor">Competitor</span>';
+            }
+            
+            row.innerHTML = `
+                <td class="rank-cell">${domain.rank}</td>
+                <td class="domain-cell">
+                    <div class="global-domain-cell">
+                        <img src="${logoUrl}" alt="${domain.detected_domain} logo" class="domain-logo" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.detected_domain.charAt(0).toUpperCase()}</text></svg>'">
+                        <div class="global-domain-info">
+                            <div class="global-domain-label">
+                                <span class="global-domain-name">${domain.detected_domain}</span>
+                                ${domainBadge}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="appearances-cell">${domain.appearances}</td>
+                <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
+                <td class="visibility-cell">${domain.visibility_percentage ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+
+    showNoGlobalDomainsMessage() {
+        const tableBody = document.getElementById('globalDomainsBody');
+        const noDomainsMessage = document.getElementById('noGlobalDomainsMessage');
+        const globalDomainsTable = document.getElementById('globalDomainsTable');
+
+        if (tableBody) tableBody.innerHTML = '';
+        if (globalDomainsTable) globalDomainsTable.style.display = 'none';
+        if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    }
+
+    // ================================
+    // COMPARATIVE CHARTS FUNCTIONS (Project vs Selected Competitors)
+    // ================================
+
+    async loadComparativeCharts(projectId) {
+        if (!projectId) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoComparativeChartsMessage();
+                    return;
+                }
+                throw new Error('Failed to load comparative charts data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render both comparative charts
+            this.renderComparativeVisibilityChart(data.visibility_chart || {});
+            this.renderComparativePositionChart(data.position_chart || {});
+
+        } catch (error) {
+            console.error('Error loading comparative charts:', error);
+            this.showNoComparativeChartsMessage();
+        }
+    }
+
+    renderComparativeVisibilityChart(chartData) {
+        const ctx = document.getElementById('comparativeVisibilityChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.comparativeVisibility) {
+            this.charts.comparativeVisibility.destroy();
+        }
+
+        if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        this.charts.comparativeVisibility = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.dates || [],
+                datasets: chartData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw ? context.raw.toFixed(1) : 0}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Visibility Percentage (%)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+    }
+
+    renderComparativePositionChart(chartData) {
+        const ctx = document.getElementById('comparativePositionChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.comparativePosition) {
+            this.charts.comparativePosition.destroy();
+        }
+
+        if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        this.charts.comparativePosition = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.dates || [],
+                datasets: chartData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: Position ${context.raw ? context.raw.toFixed(1) : 'N/A'}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        reverse: true, // Lower position numbers should be at the top
+                        title: {
+                            display: true,
+                            text: 'Average Position in AI Overview'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        min: 1,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return '#' + value;
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+    }
+
+    showNoComparativeChartsMessage() {
+        // Hide charts and show empty state message
+        const charts = ['comparativeVisibilityChart', 'comparativePositionChart'];
+        charts.forEach(chartId => {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                canvas.style.display = 'none';
+            }
+        });
+
+        console.log('No comparative charts data available');
+    }
+
+    // ================================
+    // COMPETITORS MANAGEMENT FUNCTIONS
+    // ================================
+
+    initCompetitorsManager() {
+        const addBtn = document.getElementById('addCompetitorBtn');
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.addCompetitor());
+        }
+
+        if (newCompetitorInput) {
+            newCompetitorInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addCompetitor();
+                }
+            });
+        }
+
+        // Load competitors when tab switches to settings
+        this.loadCompetitors();
+    }
+
+    async loadCompetitors() {
+        const currentProject = this.getCurrentProject();
+        if (!currentProject) return;
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
+            if (!response.ok) throw new Error('Failed to load competitors');
+
+            const data = await response.json();
+            this.renderCompetitors(data.competitors || []);
+
+        } catch (error) {
+            console.error('Error loading competitors:', error);
+            this.showError('Failed to load competitors');
+        }
+    }
+
+    renderCompetitors(competitors) {
+        const competitorsList = document.getElementById('competitorsList');
+        if (!competitorsList) return;
+
+        competitorsList.innerHTML = '';
+
+        if (competitors.length === 0) {
+            competitorsList.innerHTML = `
+                <div class="competitor-empty-state">
+                    <i class="fas fa-users"></i>
+                    <p>No competitors added yet</p>
+                    <small>Add competitor domains to compare in AI Overview analysis</small>
+                </div>
+            `;
+            return;
+        }
+
+        competitors.forEach((domain, index) => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const competitorItem = document.createElement('div');
+            competitorItem.className = 'competitor-item';
+            competitorItem.innerHTML = `
+                <div class="competitor-info">
+                    <img src="${logoUrl}" alt="${domain}" class="domain-logo" 
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.charAt(0).toUpperCase()}</text></svg>'">
+                    <span class="competitor-domain">${domain}</span>
+                </div>
+                <button type="button" class="competitor-remove-btn" onclick="manualAI.removeCompetitor('${domain}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            competitorsList.appendChild(competitorItem);
+        });
+
+        // Update add button state
+        const addBtn = document.getElementById('addCompetitorBtn');
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+        
+        if (competitors.length >= 4) {
+            addBtn.disabled = true;
+            addBtn.textContent = 'Max 4 competitors';
+            newCompetitorInput.disabled = true;
+            newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
+        } else {
+            addBtn.disabled = false;
+            addBtn.textContent = 'Add Competitor';
+            newCompetitorInput.disabled = false;
+            newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
+        }
+    }
+
+    async addCompetitor() {
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+        const domain = newCompetitorInput.value.trim();
+
+        if (!domain) {
+            this.showError('Please enter a domain');
+            return;
+        }
+
+        // Basic domain validation
+        if (!this.isValidDomain(domain)) {
+            this.showError('Please enter a valid domain (e.g., example.com)');
+            return;
+        }
+
+        const currentProject = this.getCurrentProject();
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            // Get current competitors
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
+            if (!response.ok) throw new Error('Failed to get current competitors');
+
+            const data = await response.json();
+            const currentCompetitors = data.competitors || [];
+
+            // Check for duplicates
+            if (currentCompetitors.includes(domain.toLowerCase())) {
+                this.showError('This competitor is already added');
+                return;
+            }
+
+            // Check maximum limit
+            if (currentCompetitors.length >= 4) {
+                this.showError('Maximum 4 competitors allowed');
+                return;
+            }
+
+            // Add new competitor
+            const updatedCompetitors = [...currentCompetitors, domain.toLowerCase()];
+            await this.updateCompetitors(updatedCompetitors);
+
+            // Clear input
+            newCompetitorInput.value = '';
+            this.showSuccess('Competitor added successfully');
+
+        } catch (error) {
+            console.error('Error adding competitor:', error);
+            this.showError('Failed to add competitor');
+        }
+    }
+
+    async removeCompetitor(domain) {
+        const currentProject = this.getCurrentProject();
+        if (!currentProject) return;
+
+        try {
+            // Get current competitors
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
+            if (!response.ok) throw new Error('Failed to get current competitors');
+
+            const data = await response.json();
+            const currentCompetitors = data.competitors || [];
+
+            // Remove competitor
+            const updatedCompetitors = currentCompetitors.filter(comp => comp !== domain);
+            await this.updateCompetitors(updatedCompetitors);
+
+            this.showSuccess('Competitor removed successfully');
+
+        } catch (error) {
+            console.error('Error removing competitor:', error);
+            this.showError('Failed to remove competitor');
+        }
+    }
+
+    async updateCompetitors(competitors) {
+        const currentProject = this.getCurrentProject();
+        if (!currentProject) return;
+
+        const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ competitors })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update competitors');
+        }
+
+        // Reload competitors display
+        await this.loadCompetitors();
+    }
+
+    isValidDomain(domain) {
+        // Basic domain validation regex
+        const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.([a-zA-Z]{2,}\.?)+$/;
+        return domainRegex.test(domain);
     }
 
     showNoDomainsMessage() {

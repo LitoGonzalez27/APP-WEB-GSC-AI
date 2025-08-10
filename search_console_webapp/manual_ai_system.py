@@ -24,6 +24,86 @@ logger = logging.getLogger(__name__)
 manual_ai_bp = Blueprint('manual_ai', __name__, url_prefix='/manual-ai')
 
 # ================================
+# UTILIDADES DE OBSERVABILIDAD
+# ================================
+
+def now_utc_iso() -> str:
+    return datetime.utcnow().isoformat() + 'Z'
+
+def with_backoff(max_attempts: int = 3, base_delay_sec: float = 1.0):
+    """Decorador sencillo de reintentos con backoff exponencial y jitter pequeño.
+    Reintenta solo para errores transitorios; el callable debe lanzar Exception para reintentar.
+    """
+    def _decorator(func):
+        def _wrapper(*args, **kwargs):
+            attempt = 0
+            last_err = None
+            while attempt < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as err:  # noqa: BLE001
+                    last_err = err
+                    attempt += 1
+                    if attempt >= max_attempts:
+                        break
+                    delay = base_delay_sec * (2 ** (attempt - 1))
+                    # Pequeño jitter para evitar thundering herd
+                    time.sleep(delay + 0.05 * attempt)
+            raise last_err
+        return _wrapper
+    return _decorator
+
+
+# ================================
+# HEALTH-CHECK
+# ================================
+
+@manual_ai_bp.route('/api/health', methods=['GET'])
+def manual_ai_health():
+    """Health-check: confirma app viva, DB accesible, última ejecución y resultados del día."""
+    try:
+        # DB check
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"status": "error", "db": "down"}), 500
+        cur = conn.cursor()
+        today = date.today()
+        # Últimos eventos de cron (si existen)
+        try:
+            cur.execute(
+                """
+                SELECT event_date, event_type, event_title
+                FROM manual_ai_events
+                WHERE event_type IN ('daily_analysis')
+                ORDER BY event_date DESC
+                LIMIT 1
+                """
+            )
+            last = cur.fetchone()
+        except Exception:
+            last = None
+        # Conteos de hoy (agregados a nivel global)
+        cur.execute("SELECT COUNT(*) AS c FROM manual_ai_results WHERE analysis_date = %s", (today,))
+        results_today = cur.fetchone()[0]
+        try:
+            cur.execute("SELECT COUNT(*) AS c FROM manual_ai_global_domains WHERE analysis_date = %s", (today,))
+            global_today = cur.fetchone()[0]
+        except Exception:
+            global_today = 0
+        cur.close(); conn.close()
+        return jsonify({
+            "status": "ok",
+            "ts": now_utc_iso(),
+            "db": "ok",
+            "last_cron": (last['event_date'] if last and isinstance(last, dict) else (last[0] if last else None)),
+            "results_today": int(results_today),
+            "global_domains_today": int(global_today)
+        }), 200
+    except Exception as e:
+        logger.error(json.dumps({"event": "health_error", "error": str(e)}))
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ================================
 # ROUTES - API y PÁGINAS
 # ================================
 
@@ -63,7 +143,8 @@ def create_project():
             name=data['name'],
             description=data.get('description', ''),
             domain=data['domain'],
-            country_code=data.get('country_code', 'US')
+            country_code=data.get('country_code', 'US'),
+            competitors=data.get('competitors', [])
         )
         
         # Crear evento de creación
@@ -510,7 +591,7 @@ def get_project_stats(project_id):
 @manual_ai_bp.route('/api/projects/<int:project_id>/top-domains', methods=['GET'])
 @auth_required
 def get_top_domains(project_id):
-    """Obtener dominios más visibles para un proyecto"""
+    """Obtener dominios más visibles para un proyecto (versión anterior - mantenida por compatibilidad)"""
     user = get_current_user()
     
     if not user_owns_project(user['id'], project_id):
@@ -524,6 +605,185 @@ def get_top_domains(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting top domains for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/global-domains-ranking', methods=['GET'])
+@auth_required
+def get_global_domains_ranking(project_id):
+    """Obtener ranking global de TODOS los dominios detectados en AI Overview"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', 30))  # Parámetro opcional para rango de días
+        ranking = get_project_global_domains_ranking(project_id, days)
+        
+        return jsonify({
+            'success': True,
+            'domains': ranking,
+            'total_domains': len(ranking)
+        })
+    except Exception as e:
+        logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/competitors-charts', methods=['GET'])
+@auth_required
+def get_competitors_charts_data(project_id):
+    """Obtener datos para gráficas de competidores (Brand Visibility Index y Brand Position Over Time)"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', 30))  # Parámetro opcional para rango de días
+        charts_data = get_project_competitors_charts_data(project_id, days)
+
+        return jsonify({
+            'success': True,
+            'data': charts_data
+        })
+    except Exception as e:
+        logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/comparative-charts', methods=['GET'])
+@auth_required
+def get_comparative_charts_data(project_id):
+    """Obtener datos para gráficas comparativas: proyecto vs competidores seleccionados"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', 30))  # Parámetro opcional para rango de días
+        charts_data = get_project_comparative_charts_data(project_id, days)
+
+        return jsonify({
+            'success': True,
+            'data': charts_data
+        })
+    except Exception as e:
+        logger.error(f"Error getting comparative charts data for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/competitors', methods=['GET'])
+@auth_required
+def get_project_competitors(project_id):
+    """Obtener competidores seleccionados de un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT selected_competitors
+            FROM manual_ai_projects 
+            WHERE id = %s
+        """, (project_id,))
+        
+        result = cur.fetchone()
+        competitors = result[0] if result and result[0] else []
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'competitors': competitors
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting competitors for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/competitors', methods=['PUT'])
+@auth_required
+def update_project_competitors(project_id):
+    """Actualizar competidores seleccionados de un proyecto"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.get_json()
+        if not data or 'competitors' not in data:
+            return jsonify({'success': False, 'error': 'Missing competitors data'}), 400
+        
+        competitors = data['competitors']
+        
+        # Validaciones
+        if not isinstance(competitors, list):
+            return jsonify({'success': False, 'error': 'Competitors must be a list'}), 400
+        
+        if len(competitors) > 4:
+            return jsonify({'success': False, 'error': 'Maximum 4 competitors allowed'}), 400
+        
+        # Validar y normalizar dominios
+        validated_competitors = []
+        for competitor in competitors:
+            if not competitor or not isinstance(competitor, str):
+                continue
+                
+            # Normalizar dominio (remover protocolo, www, trailing slash)
+            normalized = normalize_search_console_url(competitor.strip())
+            if not normalized:
+                return jsonify({'success': False, 'error': f'Invalid domain: {competitor}'}), 400
+            
+            if normalized not in validated_competitors:
+                validated_competitors.append(normalized)
+        
+        # Obtener dominio del proyecto para evitar auto-competencia
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("SELECT domain FROM manual_ai_projects WHERE id = %s", (project_id,))
+        project_result = cur.fetchone()
+        if not project_result:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        project_domain = normalize_search_console_url(project_result[0])
+        
+        # Filtrar el dominio del proyecto si está en competidores
+        validated_competitors = [comp for comp in validated_competitors if comp != project_domain]
+        
+        # Actualizar competidores
+        cur.execute("""
+            UPDATE manual_ai_projects 
+            SET selected_competitors = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (json.dumps(validated_competitors), project_id))
+        
+        # Crear evento
+        create_project_event(
+            project_id=project_id,
+            event_type='competitors_updated',
+            event_title='Competitors list updated',
+            event_description=f'Updated to {len(validated_competitors)} competitors: {", ".join(validated_competitors)}',
+            user_id=user['id']
+        )
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'competitors': validated_competitors,
+            'message': f'Successfully updated {len(validated_competitors)} competitors'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating competitors for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
@@ -596,26 +856,36 @@ def get_user_projects(user_id: int) -> List[Dict]:
     
     return [dict(project) for project in projects]
 
-def create_new_project(user_id: int, name: str, description: str, domain: str, country_code: str) -> int:
+def create_new_project(user_id: int, name: str, description: str, domain: str, country_code: str, competitors: List[str] = None) -> int:
     """Crear un nuevo proyecto"""
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Normalizar dominio
+    # Normalizar dominio del proyecto
     normalized_domain = normalize_search_console_url(domain) or domain
     
+    # Procesar y validar competidores
+    validated_competitors = []
+    if competitors:
+        for competitor in competitors[:4]:  # Máximo 4
+            if competitor and isinstance(competitor, str):
+                normalized_comp = normalize_search_console_url(competitor.strip())
+                if normalized_comp and normalized_comp != normalized_domain:
+                    if normalized_comp not in validated_competitors:
+                        validated_competitors.append(normalized_comp)
+    
     cur.execute("""
-        INSERT INTO manual_ai_projects (user_id, name, description, domain, country_code)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO manual_ai_projects (user_id, name, description, domain, country_code, selected_competitors)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (user_id, name, description, normalized_domain, country_code))
+    """, (user_id, name, description, normalized_domain, country_code, json.dumps(validated_competitors)))
     
     project_id = cur.fetchone()['id']
     conn.commit()
     cur.close()
     conn.close()
     
-    logger.info(f"Created new project {project_id} for user {user_id}")
+    logger.info(f"Created new project {project_id} for user {user_id} with {len(validated_competitors)} competitors")
     return project_id
 
 def user_owns_project(user_id: int, project_id: int) -> bool:
@@ -795,44 +1065,42 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                     logger.info(f"💾 Using cached result for '{keyword}'")
                     ai_result = cached_result['analysis'].get('ai_analysis', {})
                 else:
-                    # 2. Obtener SERP usando función existente (igual que sistema automático)
+                    # 2. Obtener SERP con reintentos y backoff (tolerancia a 429/timeout)
                     api_key = os.getenv('SERPAPI_KEY')
                     if not api_key:
                         logger.error(f"❌ SERPAPI_KEY not configured for keyword '{keyword}' in project {project_id}")
                         logger.error(f"❌ Available env vars: {', '.join([k for k in os.environ.keys() if 'API' in k or 'KEY' in k])}")
                         failed_keywords += 1
                         continue
-                    
-                    # 3. Construir parámetros SERP para sistema manual (sin detección dinámica)
-                    # En sistema manual: país fijo del proyecto, sin GSC data
+
                     from services.country_config import get_country_config
-                    
-                    serp_params = {
+
+                    serp_params_base = {
                         'engine': 'google',
                         'q': keyword,
                         'api_key': api_key,
                         'num': 20
                     }
-                    
-                    # Aplicar configuración del país seleccionado en el proyecto
                     country_config = get_country_config(internal_country)
                     if country_config:
-                        serp_params.update({
+                        serp_params_base.update({
                             'location': country_config['serp_location'],
                             'gl': country_config['serp_gl'],
                             'hl': country_config['serp_hl'],
                             'google_domain': country_config['google_domain']
                         })
                         logger.debug(f"Using {country_config['name']} config for '{keyword}'")
-                    
-                    serp_data = get_serp_json(serp_params)
-                    
-                    if not serp_data or serp_data.get('error'):
-                        logger.warning(f"No SERP data for keyword '{keyword}': {serp_data.get('error', 'Unknown error')}")
-                        failed_keywords += 1
-                        continue
-                    
-                    # 4. Analizar AI Overview usando servicio existente
+
+                    @with_backoff(max_attempts=3, base_delay_sec=1.0)
+                    def fetch_serp():
+                        data = get_serp_json(dict(serp_params_base))
+                        if not data or data.get('error'):
+                            raise RuntimeError(data.get('error', 'SERP fetch error'))
+                        return data
+
+                    serp_data = fetch_serp()
+
+                    # 3. Analizar AI Overview usando servicio existente
                     ai_result = detect_ai_overview_elements(serp_data, project['domain'])
                     
                     # 5. Guardar en caché (igual que sistema automático)
@@ -868,6 +1136,19 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                 project['country_code']
             ))
             
+            # NUEVA FUNCIONALIDAD: Detectar y almacenar TODOS los dominios en AI Overview
+            if ai_result.get('has_ai_overview', False):
+                store_global_domains_detected(
+                    project_id=project_id,
+                    keyword_id=keyword_id,
+                    keyword=keyword,
+                    project_domain=project['domain'],
+                    ai_analysis_data=ai_result,
+                    analysis_date=today,
+                    country_code=project['country_code'],
+                    selected_competitors=project.get('selected_competitors', [])
+                )
+            
             results.append({
                 'keyword': keyword,
                 'has_ai_overview': ai_result.get('has_ai_overview', False),
@@ -902,7 +1183,13 @@ def run_daily_analysis_for_all_projects():
     Ejecutar análisis diario para todos los proyectos activos.
     Esta función está destinada a ser ejecutada por cron job diario.
     """
-    logger.info("🕒 === INICIANDO ANÁLISIS DIARIO AUTOMÁTICO ===")
+    job_id = f"cron-{int(time.time())}"
+    started_at = time.time()
+    logger.info(json.dumps({
+        "event": "cron_start",
+        "job_id": job_id,
+        "ts": now_utc_iso()
+    }))
 
     # ---------- Lock de concurrencia por día (PostgreSQL advisory lock) ----------
     lock_conn = None
@@ -924,7 +1211,11 @@ def run_daily_analysis_for_all_projects():
         logger.info(f"🔐 Advisory lock attempt: class_id={lock_class_id}, object_id={lock_object_id}, acquired={lock_acquired}")
 
         if not lock_acquired:
-            logger.info("🔒 Otro análisis diario ya está en ejecución. Saliendo sin hacer nada")
+            logger.info(json.dumps({
+                "event": "cron_skipped_lock",
+                "job_id": job_id,
+                "ts": now_utc_iso()
+            }))
             lock_cur.close(); lock_conn.close()
             return {"success": True, "message": "Another daily run in progress (skipped)", "skipped": 0, "failed": 0, "successful": 0, "total_projects": 0}
         
@@ -957,7 +1248,11 @@ def run_daily_analysis_for_all_projects():
             logger.info("⏭️ No active projects found for daily analysis")
             return {"success": True, "message": "No active projects", "processed": 0}
         
-        logger.info(f"📊 Found {len(projects)} active projects for daily analysis")
+        logger.info(json.dumps({
+            "event": "cron_projects_found",
+            "job_id": job_id,
+            "count": len(projects)
+        }))
         for i, project in enumerate(projects):
             project_data = project if isinstance(project, dict) else {
                 'id': project[0], 'name': project[1], 'domain': project[2], 
@@ -968,6 +1263,7 @@ def run_daily_analysis_for_all_projects():
         successful_analyses = 0
         failed_analyses = 0
         skipped_analyses = 0
+        total_keywords_processed = 0
         
         for project in projects:
             # Convertir el resultado del cursor a diccionario si es necesario
@@ -1010,6 +1306,7 @@ def run_daily_analysis_for_all_projects():
                 
                 # Ejecutar análisis automático (sin sobreescritura)
                 results = run_project_analysis(project_dict['id'], force_overwrite=False)
+                total_keywords_processed += len(results)
                 
                 # Crear snapshot diario
                 create_daily_snapshot(project_dict['id'])
@@ -1052,18 +1349,36 @@ def run_daily_analysis_for_all_projects():
         logger.info(f"✅ Exitosos: {successful_analyses}")
         logger.info(f"❌ Fallidos: {failed_analyses}")
         logger.info(f"⏭️ Omitidos (ya analizados): {skipped_analyses}")
-        
+        duration_ms = int((time.time() - started_at) * 1000)
+        logger.info(json.dumps({
+            "event": "cron_finished",
+            "job_id": job_id,
+            "duration_ms": duration_ms,
+            "projects": total_projects,
+            "successful": successful_analyses,
+            "failed": failed_analyses,
+            "skipped": skipped_analyses,
+            "keywords_processed": total_keywords_processed
+        }))
+
         return {
             "success": True,
             "message": "Daily analysis completed",
             "total_projects": total_projects,
             "successful": successful_analyses,
             "failed": failed_analyses,
-            "skipped": skipped_analyses
+            "skipped": skipped_analyses,
+            "keywords_processed": total_keywords_processed,
+            "duration_ms": duration_ms,
+            "job_id": job_id
         }
         
     except Exception as e:
-        logger.error(f"❌ Critical error in daily analysis: {e}")
+        logger.error(json.dumps({
+            "event": "cron_error",
+            "job_id": job_id,
+            "error": str(e)
+        }))
         logger.error(f"❌ Error type: {type(e)}")
         import traceback
         logger.error(f"❌ Full traceback: {traceback.format_exc()}")
@@ -1117,10 +1432,13 @@ def trigger_daily_analysis():
 
             def _run_job():
                 try:
-                    run_daily_analysis_for_all_projects()
-                    logger.info("✅ Async daily analysis finished")
+                    result = run_daily_analysis_for_all_projects()
+                    logger.info(json.dumps({
+                        "event": "cron_async_finished",
+                        "result": {k: result.get(k) for k in ("success","total_projects","successful","failed","skipped","keywords_processed","duration_ms","job_id")}
+                    }))
                 except Exception as e:
-                    logger.error(f"❌ Error in async daily analysis: {e}")
+                    logger.error(json.dumps({"event": "cron_async_error", "error": str(e)}))
 
             t = threading.Thread(target=_run_job, daemon=True)
             t.start()
@@ -1438,6 +1756,205 @@ def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
     finally:
         conn.close()
 
+def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
+    """
+    Obtener datos históricos de competidores para gráficas de visibilidad y evolución de posiciones.
+    Retorna datos para Brand Visibility Index (scatter) y Brand Position Over Time (líneas).
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener dominio del proyecto
+        cur.execute("SELECT domain FROM manual_ai_projects WHERE id = %s", (project_id,))
+        project_data = cur.fetchone()
+        if not project_data:
+            return {'visibility_scatter': [], 'position_evolution': [], 'domains': []}
+        
+        project_domain = project_data[0]
+        
+        # Obtener todos los datos de referencias históricas
+        cur.execute("""
+            SELECT 
+                ref->>'link' as ref_link,
+                (ref->>'index')::int as ref_index,
+                ref->>'source' as ref_source,
+                ref->>'title' as ref_title,
+                r.analysis_date,
+                r.keyword,
+                k.id as keyword_id
+            FROM manual_ai_results r
+            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            LEFT JOIN LATERAL jsonb_array_elements(r.ai_analysis_data->'debug_info'->'references_found') AS ref ON true
+            WHERE k.project_id = %s 
+                AND r.has_ai_overview = true
+                AND r.ai_analysis_data IS NOT NULL
+                AND r.ai_analysis_data->'debug_info'->'references_found' IS NOT NULL
+                AND ref->>'link' IS NOT NULL
+                AND ref->>'link' != ''
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+            ORDER BY r.analysis_date ASC
+        """, (project_id, start_date, end_date))
+        
+        results = cur.fetchall()
+        
+        # Procesar datos por dominio y fecha
+        domain_daily_data = {}
+        all_domains = set()
+        
+        for ref_link, ref_index, ref_source, ref_title, analysis_date, keyword, keyword_id in results:
+            if not ref_link:
+                continue
+                
+            domain = extract_domain_from_url(ref_link)
+            if not domain or domain == project_domain:
+                continue
+                
+            all_domains.add(domain)
+            date_str = str(analysis_date.date())
+            
+            if domain not in domain_daily_data:
+                domain_daily_data[domain] = {}
+            
+            if date_str not in domain_daily_data[domain]:
+                domain_daily_data[domain][date_str] = {
+                    'appearances': 0,
+                    'positions': [],
+                    'keywords': set(),
+                    'total_keywords_analyzed': set()  # Para calcular brand likelihood
+                }
+            
+            domain_daily_data[domain][date_str]['appearances'] += 1
+            if ref_index is not None:
+                domain_daily_data[domain][date_str]['positions'].append(ref_index + 1)
+            domain_daily_data[domain][date_str]['keywords'].add(keyword)
+        
+        # Obtener total de keywords analizadas por día para calcular Brand Likelihood
+        cur.execute("""
+            SELECT 
+                r.analysis_date,
+                COUNT(DISTINCT r.keyword_id) as total_keywords_with_ai
+            FROM manual_ai_results r
+            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            WHERE k.project_id = %s 
+                AND r.has_ai_overview = true
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+            GROUP BY r.analysis_date
+            ORDER BY r.analysis_date
+        """, (project_id, start_date, end_date))
+        
+        daily_totals = {str(row[0].date()): row[1] for row in cur.fetchall()}
+        
+        # Calcular métricas finales para cada dominio
+        visibility_scatter = []  # Para gráfica scatter de visibilidad
+        position_evolution = []  # Para gráfica de líneas de evolución
+        
+        # Ordenar dominios por total de apariciones para seleccionar top competitors
+        domain_totals = {}
+        for domain, daily_data in domain_daily_data.items():
+            total_appearances = sum(data['appearances'] for data in daily_data.values())
+            domain_totals[domain] = total_appearances
+        
+        # Seleccionar top 6 dominios más visibles
+        top_domains = sorted(domain_totals.items(), key=lambda x: x[1], reverse=True)[:6]
+        selected_domains = [domain for domain, _ in top_domains]
+        
+        # Generar datos para scatter chart (Brand Visibility Index)
+        for domain in selected_domains:
+            daily_data = domain_daily_data.get(domain, {})
+            
+            total_appearances = sum(data['appearances'] for data in daily_data.values())
+            all_positions = []
+            total_keywords = set()
+            
+            for data in daily_data.values():
+                all_positions.extend(data['positions'])
+                total_keywords.update(data['keywords'])
+            
+            if total_appearances > 0 and all_positions:
+                avg_position = sum(all_positions) / len(all_positions)
+                
+                # Brand Likelihood = apariciones / total keywords analizadas (%)
+                total_analyzed = sum(daily_totals.values()) if daily_totals else 1
+                brand_likelihood = (len(total_keywords) / total_analyzed) * 100 if total_analyzed > 0 else 0
+                
+                # Visibility Score = apariciones ponderadas por posición
+                visibility_score = total_appearances * (11 - min(avg_position, 10)) / 10
+                
+                visibility_scatter.append({
+                    'domain': domain,
+                    'x': visibility_score,  # Eje X: Visibility Score (Brand Mentions)
+                    'y': brand_likelihood,  # Eje Y: Likelihood to buy (%)
+                    'appearances': total_appearances,
+                    'avg_position': round(avg_position, 1),
+                    'keywords_count': len(total_keywords)
+                })
+        
+        # Generar datos para line chart (Brand Position Over Time)
+        date_range = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_range.append(str(current_date))
+            current_date += timedelta(days=1)
+        
+        position_evolution = {
+            'dates': date_range,
+            'datasets': []
+        }
+        
+        # Colores para las líneas de competidores
+        colors = [
+            '#3B82F6',  # Blue
+            '#EF4444',  # Red  
+            '#10B981',  # Green
+            '#F59E0B',  # Orange
+            '#8B5CF6',  # Purple
+            '#06B6D4'   # Cyan
+        ]
+        
+        for i, domain in enumerate(selected_domains):
+            daily_data = domain_daily_data.get(domain, {})
+            positions_by_date = []
+            
+            for date_str in date_range:
+                if date_str in daily_data and daily_data[date_str]['positions']:
+                    avg_pos = sum(daily_data[date_str]['positions']) / len(daily_data[date_str]['positions'])
+                    positions_by_date.append(round(avg_pos, 1))
+                else:
+                    positions_by_date.append(None)  # No data for this date
+            
+            position_evolution['datasets'].append({
+                'label': domain,
+                'data': positions_by_date,
+                'borderColor': colors[i % len(colors)],
+                'backgroundColor': colors[i % len(colors)] + '20',  # 20% opacity
+                'tension': 0.4,
+                'pointRadius': 3,
+                'pointHoverRadius': 5
+            })
+        
+        return {
+            'visibility_scatter': visibility_scatter,
+            'position_evolution': position_evolution,
+            'domains': selected_domains,
+            'date_range': {
+                'start': str(start_date),
+                'end': str(end_date)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
+        return {'visibility_scatter': [], 'position_evolution': [], 'domains': []}
+    finally:
+        cur.close()
+        conn.close()
+
 def extract_domain_from_url(url: str) -> str:
     """Extraer dominio de una URL"""
     try:
@@ -1461,6 +1978,381 @@ def extract_domain_from_url(url: str) -> str:
         
     except Exception:
         return None
+
+def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict:
+    """
+    Obtener datos para gráficas comparativas: dominio del proyecto vs competidores seleccionados.
+    
+    Retorna datos para:
+    1. Gráfica de % visibilidad en AI Overview (líneas por dominio)
+    2. Gráfica de posición media en AI Overview (líneas por dominio)
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener proyecto con competidores seleccionados
+        cur.execute("""
+            SELECT domain, selected_competitors 
+            FROM manual_ai_projects 
+            WHERE id = %s
+        """, (project_id,))
+        project_data = cur.fetchone()
+        
+        if not project_data:
+            return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
+        
+        project_domain = project_data[0]
+        selected_competitors = project_data[1] or []
+        
+        # Lista de dominios a comparar: proyecto + competidores seleccionados
+        domains_to_compare = [project_domain] + selected_competitors
+        
+        # Obtener datos de visibilidad y posición por fecha para cada dominio
+        visibility_chart_data = {'dates': [], 'datasets': []}
+        position_chart_data = {'dates': [], 'datasets': []}
+        
+        # Generar fechas del período
+        date_range = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_range.append(str(current_date))
+            current_date += timedelta(days=1)
+        
+        visibility_chart_data['dates'] = date_range
+        position_chart_data['dates'] = date_range
+        
+        # Colores consistentes para cada dominio
+        domain_colors = {
+            project_domain: '#3B82F6',  # Blue para dominio del proyecto
+        }
+        
+        competitor_colors = ['#EF4444', '#10B981', '#F59E0B', '#8B5CF6']  # Red, Green, Orange, Purple
+        for i, competitor in enumerate(selected_competitors):
+            if i < len(competitor_colors):
+                domain_colors[competitor] = competitor_colors[i]
+        
+        # Para cada dominio, obtener sus métricas por fecha
+        for domain in domains_to_compare:
+            # Datos de visibilidad (% de keywords donde aparece vs total keywords con AI Overview)
+            cur.execute("""
+                WITH daily_metrics AS (
+                    SELECT 
+                        gd.analysis_date,
+                        COUNT(DISTINCT gd.keyword_id) as domain_appearances,
+                        (
+                            SELECT COUNT(DISTINCT r.keyword_id)
+                            FROM manual_ai_results r
+                            WHERE r.project_id = %s 
+                            AND r.analysis_date = gd.analysis_date
+                            AND r.has_ai_overview = true
+                        ) as total_ai_keywords
+                    FROM manual_ai_global_domains gd
+                    WHERE gd.project_id = %s 
+                    AND gd.detected_domain = %s
+                    AND gd.analysis_date >= %s 
+                    AND gd.analysis_date <= %s
+                    GROUP BY gd.analysis_date
+                )
+                SELECT 
+                    analysis_date,
+                    CASE 
+                        WHEN total_ai_keywords > 0 
+                        THEN (domain_appearances::float / total_ai_keywords::float * 100) 
+                        ELSE 0 
+                    END as visibility_percentage
+                FROM daily_metrics
+                ORDER BY analysis_date
+            """, (project_id, project_id, domain, start_date, end_date))
+            
+            visibility_results = cur.fetchall()
+            visibility_by_date = {str(row[0]): row[1] for row in visibility_results}
+            
+            # Datos de posición media
+            cur.execute("""
+                SELECT 
+                    gd.analysis_date,
+                    AVG(gd.domain_position) as avg_position
+                FROM manual_ai_global_domains gd
+                WHERE gd.project_id = %s 
+                AND gd.detected_domain = %s
+                AND gd.analysis_date >= %s 
+                AND gd.analysis_date <= %s
+                GROUP BY gd.analysis_date
+                ORDER BY gd.analysis_date
+            """, (project_id, domain, start_date, end_date))
+            
+            position_results = cur.fetchall()
+            position_by_date = {str(row[0]): row[1] for row in position_results}
+            
+            # Preparar datos para las gráficas
+            visibility_data = []
+            position_data = []
+            
+            for date_str in date_range:
+                visibility_data.append(visibility_by_date.get(date_str, None))
+                position_data.append(position_by_date.get(date_str, None))
+            
+            # Determinar el label del dominio
+            if domain == project_domain:
+                domain_label = f"{domain} (Your Domain)"
+            else:
+                domain_label = domain
+            
+            # Dataset para gráfica de visibilidad
+            visibility_chart_data['datasets'].append({
+                'label': domain_label,
+                'data': visibility_data,
+                'borderColor': domain_colors.get(domain, '#6B7280'),
+                'backgroundColor': domain_colors.get(domain, '#6B7280') + '20',
+                'tension': 0.4,
+                'pointRadius': 3,
+                'pointHoverRadius': 5,
+                'borderWidth': domain == project_domain and 3 or 2  # Línea más gruesa para dominio del proyecto
+            })
+            
+            # Dataset para gráfica de posición
+            position_chart_data['datasets'].append({
+                'label': domain_label,
+                'data': position_data,
+                'borderColor': domain_colors.get(domain, '#6B7280'),
+                'backgroundColor': domain_colors.get(domain, '#6B7280') + '20',
+                'tension': 0.4,
+                'pointRadius': 3,
+                'pointHoverRadius': 5,
+                'borderWidth': domain == project_domain and 3 or 2
+            })
+        
+        return {
+            'visibility_chart': visibility_chart_data,
+            'position_chart': position_chart_data,
+            'domains': domains_to_compare,
+            'date_range': {
+                'start': str(start_date),
+                'end': str(end_date)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting comparative charts data for project {project_id}: {e}")
+        return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
+    finally:
+        cur.close()
+        conn.close()
+
+def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
+    """
+    Obtener ranking global de TODOS los dominios detectados en AI Overview.
+    
+    Incluye:
+    - Cualquier dominio detectado (no solo los seleccionados)
+    - Número de apariciones, porcentaje de visibilidad, posición media
+    - Resaltado si es dominio del proyecto o competidor seleccionado
+    - Ordenado por apariciones (desc) y posición media (asc)
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener proyecto con competidores seleccionados
+        cur.execute("""
+            SELECT domain, selected_competitors 
+            FROM manual_ai_projects 
+            WHERE id = %s
+        """, (project_id,))
+        project_data = cur.fetchone()
+        
+        if not project_data:
+            return []
+        
+        project_domain = project_data[0]
+        selected_competitors = project_data[1] or []
+        
+        # Obtener ranking global de dominios con métricas agregadas
+        cur.execute("""
+            WITH domain_metrics AS (
+                SELECT 
+                    gd.detected_domain,
+                    COUNT(DISTINCT gd.keyword_id) as appearances,
+                    AVG(gd.domain_position) as avg_position,
+                    COUNT(DISTINCT gd.analysis_date) as days_present,
+                    MIN(gd.analysis_date) as first_seen,
+                    MAX(gd.analysis_date) as last_seen,
+                    
+                    -- Calcular porcentaje de visibilidad
+                    (COUNT(DISTINCT gd.keyword_id)::float / 
+                     NULLIF((
+                         SELECT COUNT(DISTINCT r.keyword_id)
+                         FROM manual_ai_results r
+                         WHERE r.project_id = %s 
+                         AND r.analysis_date >= %s 
+                         AND r.analysis_date <= %s
+                         AND r.has_ai_overview = true
+                     ), 0)::float * 100) as visibility_percentage,
+                    
+                    -- Flags de identificación
+                    MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END) as is_project_domain,
+                    MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END) as is_selected_competitor
+                    
+                FROM manual_ai_global_domains gd
+                WHERE gd.project_id = %s
+                AND gd.analysis_date >= %s 
+                AND gd.analysis_date <= %s
+                GROUP BY gd.detected_domain
+            )
+            SELECT 
+                detected_domain,
+                appearances,
+                ROUND(avg_position, 1) as avg_position,
+                ROUND(visibility_percentage, 1) as visibility_percentage,
+                days_present,
+                first_seen,
+                last_seen,
+                is_project_domain::boolean,
+                is_selected_competitor::boolean
+            FROM domain_metrics
+            WHERE appearances > 0
+            ORDER BY 
+                appearances DESC,
+                avg_position ASC,
+                detected_domain ASC
+        """, (project_id, start_date, end_date, project_id, start_date, end_date))
+        
+        results = cur.fetchall()
+        
+        # Formatear resultados
+        ranking = []
+        for i, row in enumerate(results):
+            domain_data = dict(row)
+            domain_data['rank'] = i + 1
+            
+            # Determinar tipo de dominio para resaltado
+            if domain_data['is_project_domain']:
+                domain_data['domain_type'] = 'project'
+                domain_data['domain_label'] = f"{domain_data['detected_domain']} (Your Domain)"
+            elif domain_data['is_selected_competitor']:
+                domain_data['domain_type'] = 'competitor'
+                domain_data['domain_label'] = f"{domain_data['detected_domain']} (Competitor)"
+            else:
+                domain_data['domain_type'] = 'other'
+                domain_data['domain_label'] = domain_data['detected_domain']
+            
+            # Agregar datos para UI
+            domain_data['logo_url'] = f"https://logo.clearbit.com/{domain_data['detected_domain']}"
+            
+            ranking.append(domain_data)
+        
+        logger.debug(f"✅ Generated global ranking with {len(ranking)} domains for project {project_id}")
+        return ranking
+        
+    except Exception as e:
+        logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
+
+def store_global_domains_detected(project_id: int, keyword_id: int, keyword: str, 
+                                 project_domain: str, ai_analysis_data: Dict, 
+                                 analysis_date: date, country_code: str, 
+                                 selected_competitors: List[str]) -> None:
+    """
+    Almacenar TODOS los dominios detectados en AI Overview para detección global
+    
+    Esta función implementa el nuevo flujo solicitado:
+    1. Detección global automática: guarda todos los dominios encontrados en AI Overview
+    2. Marcado especial: identifica qué dominios son el del proyecto y cuáles son competidores seleccionados
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Limpiar datos existentes del día para evitar duplicados
+        cur.execute("""
+            DELETE FROM manual_ai_global_domains 
+            WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
+        """, (project_id, keyword_id, analysis_date))
+        
+        # Extraer todos los dominios de debug_info.references_found
+        debug_info = ai_analysis_data.get('debug_info', {})
+        references_found = debug_info.get('references_found', [])
+        
+        if not references_found:
+            logger.debug(f"No references found in AI Overview for keyword '{keyword}' in project {project_id}")
+            return
+        
+        # Normalizar dominio del proyecto y competidores para comparación
+        normalized_project_domain = normalize_search_console_url(project_domain) or project_domain.lower()
+        normalized_competitors = [
+            normalize_search_console_url(comp) or comp.lower() 
+            for comp in (selected_competitors or [])
+        ]
+        
+        domains_stored = 0
+        
+        for ref in references_found:
+            ref_link = ref.get('link', '')
+            ref_index = ref.get('index', 0)
+            ref_title = ref.get('title', '')
+            ref_source = ref.get('source', '')
+            
+            if not ref_link:
+                continue
+            
+            # Extraer dominio de la URL
+            detected_domain = extract_domain_from_url(ref_link)
+            if not detected_domain:
+                continue
+            
+            # Determinar flags
+            is_project_domain = (detected_domain == normalized_project_domain)
+            is_selected_competitor = (detected_domain in normalized_competitors)
+            
+            # Posición en AI Overview (index + 1 porque SERPAPI usa índice 0-based)
+            domain_position = ref_index + 1 if ref_index is not None else 1
+            
+            try:
+                # Insertar dominio detectado
+                cur.execute("""
+                    INSERT INTO manual_ai_global_domains (
+                        project_id, keyword_id, analysis_date, keyword, project_domain,
+                        detected_domain, domain_position, domain_title, domain_source_url,
+                        country_code, is_project_domain, is_selected_competitor
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (project_id, keyword_id, analysis_date, detected_domain) 
+                    DO UPDATE SET
+                        domain_position = EXCLUDED.domain_position,
+                        domain_title = EXCLUDED.domain_title,
+                        domain_source_url = EXCLUDED.domain_source_url,
+                        is_project_domain = EXCLUDED.is_project_domain,
+                        is_selected_competitor = EXCLUDED.is_selected_competitor
+                """, (
+                    project_id, keyword_id, analysis_date, keyword, project_domain,
+                    detected_domain, domain_position, ref_title, ref_link,
+                    country_code, is_project_domain, is_selected_competitor
+                ))
+                
+                domains_stored += 1
+                
+            except Exception as insert_error:
+                logger.warning(f"Error storing domain '{detected_domain}' for keyword '{keyword}': {insert_error}")
+                continue
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.debug(f"✅ Stored {domains_stored} global domains for keyword '{keyword}' in project {project_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error storing global domains for keyword '{keyword}' in project {project_id}: {e}")
+        # No re-raise para no afectar el análisis principal
 
 # ================================
 # FUNCIONES DE UTILIDAD
