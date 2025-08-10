@@ -1326,11 +1326,10 @@ class ManualAISystem {
             // Show success message
             this.showSuccess('Project deleted successfully');
             
-            // Redirect to projects list after short delay
+            // Mercado estándar: recargar para reflejar el cambio inmediatamente
             setTimeout(() => {
-                this.showTab('projects');
-                this.loadProjects();
-            }, 1500);
+                window.location.reload();
+            }, 600);
             
         } catch (error) {
             this.hideProgress();
