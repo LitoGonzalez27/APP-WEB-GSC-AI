@@ -287,6 +287,16 @@ class ManualAISystem {
         const formData = new FormData(e.target);
         const projectData = Object.fromEntries(formData.entries());
 
+        // Collect up to 4 competitors from inline inputs
+        const competitors = [];
+        ['competitor1','competitor2','competitor3','competitor4'].forEach((id) => {
+            const v = (formData.get(id) || '').toString().trim().toLowerCase();
+            if (v) competitors.push(v);
+        });
+        if (competitors.length) {
+            projectData.competitors = competitors;
+        }
+
         this.showProgress('Creating project...', 'Setting up your new AI analysis project');
 
         try {
@@ -305,6 +315,11 @@ class ManualAISystem {
                 this.showSuccess('Project created successfully!');
                 await this.loadProjects();
                 this.populateAnalyticsProjectSelect();
+                // If competitors were provided, pre-load them in settings
+                if (competitors.length) {
+                    this.switchTab('settings');
+                    this.loadCompetitors();
+                }
             } else {
                 throw new Error(data.error || 'Failed to create project');
             }

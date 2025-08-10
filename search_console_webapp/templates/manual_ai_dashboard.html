@@ -306,7 +306,7 @@
                     </div>
                     <h3>No projects yet</h3>
                     <p>Create your first manual AI analysis project to get started</p>
-                    <button type="button" class="btn-primary" onclick="manualAI.showCreateProject()">
+                    <button type="button" class="btn-primary btn-small mt-2" onclick="manualAI.showCreateProject()">
                         <i class="fas fa-plus"></i>
                         Create Your First Project
                     </button>
@@ -546,24 +546,7 @@
 
                             </div>
                         </div>
-                        <div class="setting-group">
-                            <h3>Project Competitors</h3>
-                            <div class="setting-item">
-                                <label>Selected Competitors (Max 4)</label>
-                                <div class="competitors-manager" id="competitorsManager">
-                                    <div class="competitors-list" id="competitorsList">
-                                        <!-- Competitors will be loaded here -->
-                                    </div>
-                                    <div class="add-competitor-section">
-                                        <input type="text" id="newCompetitorInput" placeholder="Enter competitor domain (e.g., example.com)" class="form-input">
-                                        <button type="button" id="addCompetitorBtn" class="btn btn-secondary">Add Competitor</button>
-                                    </div>
-                                    <div class="competitors-help">
-                                        <small>Add up to 4 competitor domains to compare against your site in AI Overview analysis.</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Project Competitors removed from Global Settings on purpose -->
                         
                         <div class="setting-group">
                             <h3>Notifications</h3>
@@ -700,6 +683,23 @@
                                 <option value="UA">🇺🇦 Ukraine</option>
                             </select>
                             <small class="form-help">Search location for analysis</small>
+                        </div>
+                    </div>
+
+                    <!-- Competitors (optional) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors (optional)</span>
+                                <small style="margin-left: 6px; color:#6b7280; font-weight:400;">Up to 4 domains</small>
+                            </label>
+                            <div class="competitors-inline-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <input type="text" id="competitor1" name="competitor1" class="enhanced-input" placeholder="example-competitor.com">
+                                <input type="text" id="competitor2" name="competitor2" class="enhanced-input" placeholder="another-competitor.com">
+                                <input type="text" id="competitor3" name="competitor3" class="enhanced-input" placeholder="optional">
+                                <input type="text" id="competitor4" name="competitor4" class="enhanced-input" placeholder="optional">
+                            </div>
+                            <small class="form-help">Introduce solo dominios (sin https:// ni rutas). Ej.: <strong>example.com</strong></small>
                         </div>
                     </div>
                 </div>
@@ -1448,6 +1448,14 @@ keyword 3"></textarea>
             gap: 0.5rem;
         }
         .ai-overview-metric:hover { transform: translateY(-2px); }
+
+        /* Small button variant and spacing */
+        .btn-small {
+            padding: 0.45rem 0.85rem;
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        .mt-2 { margin-top: 0.5rem; }
     </style>
 
     <script>
