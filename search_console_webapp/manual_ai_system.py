@@ -736,8 +736,21 @@ def get_project_competitors(project_id):
         })
         
     except Exception as e:
-        logger.error(f"Error getting competitors for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': 'Failed to retrieve competitors'}), 500
+        logger.error(f"Error getting competitors for project {project_id}: {type(e).__name__}: {e}")
+        logger.error(f"Error details: {repr(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Close connections if they exist
+        try:
+            if 'cur' in locals():
+                cur.close()
+            if 'conn' in locals():
+                conn.close()
+        except:
+            pass
+            
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/competitors', methods=['PUT'])
 @auth_required
@@ -817,8 +830,21 @@ def update_project_competitors(project_id):
         })
         
     except Exception as e:
-        logger.error(f"Error updating competitors for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"Error updating competitors for project {project_id}: {type(e).__name__}: {e}")
+        logger.error(f"Error details: {repr(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Close connections if they exist
+        try:
+            if 'cur' in locals():
+                cur.close()
+            if 'conn' in locals():
+                conn.close()
+        except:
+            pass
+            
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
 @auth_required
