@@ -84,10 +84,10 @@ def manual_ai_health():
             last = None
         # Conteos de hoy (agregados a nivel global)
         cur.execute("SELECT COUNT(*) AS c FROM manual_ai_results WHERE analysis_date = %s", (today,))
-        results_today = cur.fetchone()[0]
+        results_today = cur.fetchone()['c']
         try:
             cur.execute("SELECT COUNT(*) AS c FROM manual_ai_global_domains WHERE analysis_date = %s", (today,))
-            global_today = cur.fetchone()[0]
+            global_today = cur.fetchone()['c']
         except Exception:
             global_today = 0
         cur.close(); conn.close()
@@ -718,7 +718,7 @@ def get_project_competitors(project_id):
             conn.close()
             return jsonify({'success': False, 'error': 'Project not found'}), 404
         
-        competitors = result[0] if result[0] else []
+        competitors = result['selected_competitors'] if result['selected_competitors'] else []
         
         # Validar que competitors sea una lista
         if not isinstance(competitors, list):
@@ -798,7 +798,7 @@ def update_project_competitors(project_id):
         if not project_result:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
         
-        project_domain = normalize_search_console_url(project_result[0])
+        project_domain = normalize_search_console_url(project_result['domain'])
         
         # Filtrar el dominio del proyecto si está en competidores
         validated_competitors = [comp for comp in validated_competitors if comp != project_domain]
@@ -822,6 +822,9 @@ def update_project_competitors(project_id):
         conn.commit()
         cur.close()
         conn.close()
+        
+        # Sincronizar flags de competidores en datos históricos para mantener consistencia
+        sync_historical_competitor_flags(project_id, validated_competitors)
         
         return jsonify({
             'success': True,
@@ -1919,7 +1922,7 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             ORDER BY r.analysis_date
         """, (project_id, start_date, end_date))
         
-        daily_totals = {str(row[0].date()): row[1] for row in cur.fetchall()}
+        daily_totals = {str(row['analysis_date'].date()): row['total_keywords_with_ai'] for row in cur.fetchall()}
         
         # Calcular métricas finales para cada dominio
         visibility_scatter = []  # Para gráfica scatter de visibilidad
@@ -2076,8 +2079,8 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         if not project_data:
             return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
         
-        project_domain = project_data[0]
-        selected_competitors = project_data[1] or []
+        project_domain = project_data['domain']
+        selected_competitors = project_data['selected_competitors'] or []
         
         # Lista de dominios a comparar: proyecto + competidores seleccionados
         domains_to_compare = [project_domain] + selected_competitors
@@ -2140,7 +2143,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
             """, (project_id, project_id, domain, start_date, end_date))
             
             visibility_results = cur.fetchall()
-            visibility_by_date = {str(row[0]): row[1] for row in visibility_results}
+            visibility_by_date = {str(row['analysis_date']): row['visibility_percentage'] for row in visibility_results}
             
             # Datos de posición media
             cur.execute("""
@@ -2157,7 +2160,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
             """, (project_id, domain, start_date, end_date))
             
             position_results = cur.fetchall()
-            position_by_date = {str(row[0]): row[1] for row in position_results}
+            position_by_date = {str(row['analysis_date']): row['avg_position'] for row in position_results}
             
             # Preparar datos para las gráficas
             visibility_data = []
@@ -2441,6 +2444,72 @@ def init_manual_ai_system():
     except Exception as e:
         logger.error(f"Error initializing manual AI system: {e}")
         return False
+
+def sync_historical_competitor_flags(project_id: int, current_competitors: List[str]) -> None:
+    """
+    Sincronizar flags de competidores en datos históricos para mantener consistencia.
+    
+    Esta función actualiza el campo is_selected_competitor en la tabla manual_ai_global_domains
+    basándose en la lista actual de competidores del proyecto, asegurando que:
+    
+    1. Los dominios que YA NO son competidores se marquen como False
+    2. Los dominios que AHORA son competidores se marquen como True
+    3. Se mantenga sincronización total entre configuración actual y datos históricos
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Normalizar competidores actuales para comparación
+        normalized_current = [
+            normalize_search_console_url(comp) or comp.lower() 
+            for comp in (current_competitors or [])
+        ]
+        
+        logger.info(f"🔄 Syncing historical competitor flags for project {project_id}")
+        logger.info(f"📋 Current competitors: {normalized_current}")
+        
+        # 1. Marcar como FALSE todos los dominios que YA NO son competidores
+        cur.execute("""
+            UPDATE manual_ai_global_domains 
+            SET is_selected_competitor = FALSE
+            WHERE project_id = %s 
+            AND is_selected_competitor = TRUE
+            AND detected_domain NOT IN %s
+        """, (project_id, tuple(normalized_current) if normalized_current else ('',)))
+        
+        removed_count = cur.rowcount
+        
+        # 2. Marcar como TRUE todos los dominios que AHORA son competidores
+        if normalized_current:
+            cur.execute("""
+                UPDATE manual_ai_global_domains 
+                SET is_selected_competitor = TRUE
+                WHERE project_id = %s 
+                AND is_selected_competitor = FALSE
+                AND detected_domain IN %s
+                AND is_project_domain = FALSE
+            """, (project_id, tuple(normalized_current)))
+            
+            added_count = cur.rowcount
+        else:
+            added_count = 0
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.info(f"✅ Historical sync completed for project {project_id}: {removed_count} removed, {added_count} added")
+        
+    except Exception as e:
+        logger.error(f"Error syncing historical competitor flags for project {project_id}: {e}")
+        try:
+            if 'cur' in locals():
+                cur.close()
+            if 'conn' in locals():
+                conn.close()
+        except:
+            pass
 
 # Registrar rutas de error handling
 @manual_ai_bp.errorhandler(404)
