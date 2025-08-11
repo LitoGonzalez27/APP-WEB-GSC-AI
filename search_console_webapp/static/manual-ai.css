@@ -2559,7 +2559,7 @@
 
 .ai-overview-metric .card-content h3 {
     color: #D8F9B8;
-    font-size: inherit;
+    font-size: 1.75rem;
     font-weight: inherit;
     line-height: inherit;
 }
@@ -2567,7 +2567,6 @@
 .ai-overview-metric .card-content p {
     color: #D8F9B8;
     opacity: 0.9;
-    font-size: inherit;
     font-weight: inherit;
     line-height: inherit;
 }
@@ -3023,4 +3022,125 @@
         gap: 1rem;
         align-items: flex-start;
     }
+}
+
+/* ================================
+   COMPETITORS VISUALIZATION IN PROJECT CARDS
+   ================================ */
+
+.competitors-stat {
+    position: relative;
+}
+
+.competitors-stat .stat-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.competitors-preview-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.competitors-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.competitor-logo-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    transition: transform 0.2s ease;
+}
+
+.competitor-logo-preview:hover {
+    transform: scale(1.2);
+    z-index: 10;
+    position: relative;
+}
+
+.competitor-logo-fallback {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--background-secondary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    text-transform: uppercase;
+}
+
+.competitors-list-preview {
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.competitors-list-preview small {
+    line-height: 1.3;
+    display: block;
+    word-break: break-word;
+}
+
+.competitors-empty {
+    margin-top: 4px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.competitors-empty i {
+    opacity: 0.6;
+}
+
+/* Responsive adjustments for competitors */
+@media (max-width: 768px) {
+    .competitors-logos {
+        gap: 3px;
+    }
+    
+    .competitor-logo-preview {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .competitor-logo-fallback {
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
+    }
+    
+    .competitors-list-preview small {
+        font-size: 10px;
+    }
+}
+
+/* Enhanced project card for better competitor display */
+.project-card .project-stats {
+    gap: 16px;
+}
+
+.project-card .stat {
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
 }

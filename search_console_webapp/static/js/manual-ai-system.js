@@ -257,10 +257,7 @@ class ManualAISystem {
                         <span class="stat-number">${project.mentions_count || 0}</span>
                         <span class="stat-label">Mentions</span>
                     </div>
-                    <div class="stat">
-                        <span class="stat-number">${project.competitors_count || 0}</span>
-                        <span class="stat-label">Competitors</span>
-                    </div>
+                    ${this.renderProjectCompetitorsSection(project)}
                 </div>
                 <div class="project-footer">
                     <small class="last-analysis">
@@ -270,6 +267,59 @@ class ManualAISystem {
                 </div>
             </div>
         `).join('');
+    }
+
+    renderProjectCompetitorsSection(project) {
+        const competitorsData = project.selected_competitors || [];
+        const competitorsCount = Array.isArray(competitorsData) ? competitorsData.length : 0;
+        
+        if (competitorsCount === 0) {
+            return `
+                <div class="stat competitors-stat">
+                    <div class="stat-content">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Competitors</span>
+                    </div>
+                    <div class="competitors-empty">
+                        <small style="color: var(--text-secondary); font-size: 11px;">
+                            <i class="fas fa-users" style="margin-right: 4px;"></i>
+                            No competitors added yet
+                        </small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate competitor logos/previews
+        const competitorLogos = competitorsData.slice(0, 4).map(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            return `
+                <img src="${logoUrl}" 
+                     alt="${domain} logo" 
+                     class="competitor-logo-preview" 
+                     title="${domain}"
+                     onerror="this.outerHTML='<div class=\\"competitor-logo-fallback\\" title=\\"${domain}\\">${domain.charAt(0).toUpperCase()}</div>'">
+            `;
+        }).join('');
+
+        return `
+            <div class="stat competitors-stat">
+                <div class="stat-content">
+                    <span class="stat-number">${competitorsCount}</span>
+                    <span class="stat-label">Competitors</span>
+                </div>
+                <div class="competitors-preview-section">
+                    <div class="competitors-logos">
+                        ${competitorLogos}
+                    </div>
+                    <div class="competitors-list-preview">
+                        <small style="color: var(--text-secondary); font-size: 11px; font-weight: 500;">
+                            ${competitorsData.slice(0, 2).join(', ')}${competitorsCount > 2 ? ` +${competitorsCount - 2} more` : ''}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     // ================================
