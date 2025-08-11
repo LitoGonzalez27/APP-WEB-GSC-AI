@@ -41,6 +41,49 @@ class ManualAISystem {
         console.log('✅ Manual AI System initialized');
     }
 
+    // ================================
+    // AG Charts Theme
+    // ================================
+    getAgChartsTheme() {
+        return {
+            baseTheme: 'ag-default',
+            overrides: {
+                common: {
+                    background: { fill: '#FFFFFF' },
+                    title: { fontSize: 16, fontWeight: '600', color: '#111827' },
+                    subtitle: { fontSize: 12, color: '#6B7280' },
+                    legend: { item: { label: { color: '#374151', fontSize: 12 } } }
+                },
+                cartesian: {
+                    axes: {
+                        number: {
+                            line: { color: '#E5E7EB' },
+                            tick: { color: '#E5E7EB' },
+                            label: { color: '#6B7280' },
+                            gridStyle: [{ stroke: '#F3F4F6', lineDash: [4, 4] }]
+                        },
+                        time: {
+                            line: { color: '#E5E7EB' },
+                            tick: { color: '#E5E7EB' },
+                            label: { color: '#6B7280' },
+                            gridStyle: [{ stroke: '#F3F4F6', lineDash: [4, 4] }]
+                        }
+                    },
+                    series: {
+                        line: {
+                            strokeWidth: 2,
+                            marker: { size: 4 },
+                            highlightStyle: {
+                                series: { dimOpacity: 0.2 },
+                                item: { size: 6, strokeWidth: 2 }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
     setupAutoRefresh() {
         // Auto-refresh projects every 2 minutes to catch cron updates
         this.refreshInterval = setInterval(() => {
@@ -302,7 +345,7 @@ class ManualAISystem {
                     <img id="${logoId}" 
                          src="${logoUrl}" 
                          alt="${safeDomain} logo" 
-                         class="competitor-logo-preview" 
+                     class="competitor-logo-preview" 
                          style="display: block;"
                          onload="this.style.display='block';"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -956,133 +999,120 @@ class ManualAISystem {
     }
 
     renderVisibilityChart(data, events = []) {
-        const ctx = document.getElementById('visibilityChart').getContext('2d');
-        
-        // Destroy existing chart
-        if (this.charts.visibility) {
-            this.charts.visibility.destroy();
+        const agContainer = document.getElementById('visibilityChartAg');
+        const canvasEl = document.getElementById('visibilityChart');
+
+        // Fallback si no hay datos
+        if (!data || data.length === 0) {
+            if (canvasEl) canvasEl.style.display = 'none';
+            return;
         }
 
-        // Create annotations for events
-        const annotations = this.createEventAnnotations(data, events);
+        // Preferir AG Charts si está disponible
+        if (window.agCharts && agContainer) {
+            const rows = data.map(d => ({
+                date: new Date(d.analysis_date),
+                visibility: Number(d.visibility_pct || 0)
+            }));
 
+            if (this.charts.agVisibility && this.charts.agVisibility.destroy) {
+                this.charts.agVisibility.destroy();
+            }
+
+            this.charts.agVisibility = agCharts.AgChart.create({
+                container: agContainer,
+                data: rows,
+                theme: this.getAgChartsTheme(),
+                title: { text: 'Domain Visibility %', fontSize: 14 },
+                series: [{
+                    type: 'line', xKey: 'date', yKey: 'visibility', yName: 'Visibility %',
+                    stroke: '#4F46E5', marker: { enabled: true, size: 3 },
+                    tooltip: { renderer: ({ datum }) => ({
+                        title: new Date(datum.date).toLocaleDateString(),
+                        content: `Visibility: ${Math.round(datum.visibility)}%`
+                    })}
+                }],
+                axes: [
+                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
+                    { type: 'number', position: 'left', title: { text: 'Visibility (%)' }, min: 0, max: 100 }
+                ],
+                legend: { position: 'top' }
+            });
+            if (canvasEl) canvasEl.style.display = 'none';
+            return;
+        }
+
+        // Fallback Chart.js
+        if (!canvasEl) return;
+        const ctx = canvasEl.getContext('2d');
+        canvasEl.style.display = 'block';
+        if (this.charts.visibility) this.charts.visibility.destroy?.();
         this.charts.visibility = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
-                datasets: [{
-                    label: 'Domain Visibility %',
-                    data: data.map(d => d.visibility_pct || 0),
-                    borderColor: '#4F46E5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
+                datasets: [{ label: 'Domain Visibility %', data: data.map(d => d.visibility_pct || 0), borderColor: '#4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.4, fill: true }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `Visibility: ${Math.round(context.raw)}%`;
-                            }
-                        }
-                    }
-                },
-                // Add event annotations
-                onHover: (event, elements, chart) => {
-                    this.showEventAnnotations(chart, annotations);
-                }
-            },
-            plugins: [{
-                id: 'eventAnnotations',
-                afterDraw: (chart) => {
-                    this.drawEventAnnotations(chart, annotations);
-                }
-            }]
+            options: { responsive: true, maintainAspectRatio: false }
         });
     }
 
     renderPositionsChart(data, events = []) {
-        const ctx = document.getElementById('positionsChart').getContext('2d');
-        
-        // Destroy existing chart
-        if (this.charts.positions) {
-            this.charts.positions.destroy();
+        const agContainer = document.getElementById('positionsChartAg');
+        const canvasEl = document.getElementById('positionsChart');
+
+        if (!data || data.length === 0) { if (canvasEl) canvasEl.style.display = 'none'; return; }
+
+        if (window.agCharts && agContainer) {
+            const rows = data.map(d => ({
+                date: new Date(d.analysis_date),
+                pos_1_3: Number(d.pos_1_3 || 0),
+                pos_4_10: Number(d.pos_4_10 || 0),
+                pos_11_20: Number(d.pos_11_20 || 0),
+                pos_21_plus: Number(d.pos_21_plus || 0)
+            }));
+
+            if (this.charts.agPositions && this.charts.agPositions.destroy) {
+                this.charts.agPositions.destroy();
+            }
+
+            this.charts.agPositions = agCharts.AgChart.create({
+                container: agContainer,
+                data: rows,
+                theme: this.getAgChartsTheme(),
+                title: { text: 'Position Distribution', fontSize: 14 },
+                series: [
+                    { type: 'line', xKey: 'date', yKey: 'pos_1_3', yName: 'Position 1-3', stroke: '#10B981', marker: { enabled: true, size: 3 } },
+                    { type: 'line', xKey: 'date', yKey: 'pos_4_10', yName: 'Position 4-10', stroke: '#F59E0B', marker: { enabled: true, size: 3 } },
+                    { type: 'line', xKey: 'date', yKey: 'pos_11_20', yName: 'Position 11-20', stroke: '#EF4444', marker: { enabled: true, size: 3 } },
+                    { type: 'line', xKey: 'date', yKey: 'pos_21_plus', yName: 'Position 21+', stroke: '#6B7280', marker: { enabled: true, size: 3 } }
+                ],
+                axes: [
+                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
+                    { type: 'number', position: 'left', title: { text: 'Count' }, min: 0 }
+                ],
+                legend: { position: 'top' }
+            });
+            if (canvasEl) canvasEl.style.display = 'none';
+            return;
         }
 
-        // Create annotations for events
-        const annotations = this.createEventAnnotations(data, events);
-
+        if (!canvasEl) return;
+        const ctx = canvasEl.getContext('2d');
+        canvasEl.style.display = 'block';
+        if (this.charts.positions) this.charts.positions.destroy?.();
         this.charts.positions = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
                 datasets: [
-                    {
-                        label: 'Position 1-3',
-                        data: data.map(d => d.pos_1_3 || 0),
-                        borderColor: '#10B981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Position 4-10',
-                        data: data.map(d => d.pos_4_10 || 0),
-                        borderColor: '#F59E0B',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Position 11-20',
-                        data: data.map(d => d.pos_11_20 || 0),
-                        borderColor: '#EF4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Position 21+',
-                        data: data.map(d => d.pos_21_plus || 0),
-                        borderColor: '#6B7280',
-                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                        tension: 0.4
-                    }
+                    { label: 'Position 1-3', data: data.map(d => d.pos_1_3 || 0), borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4 },
+                    { label: 'Position 4-10', data: data.map(d => d.pos_4_10 || 0), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4 },
+                    { label: 'Position 11-20', data: data.map(d => d.pos_11_20 || 0), borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4 },
+                    { label: 'Position 21+', data: data.map(d => d.pos_21_plus || 0), borderColor: '#6B7280', backgroundColor: 'rgba(107,114,128,0.1)', tension: 0.4 }
                 ]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
-            },
-            plugins: [{
-                id: 'eventAnnotations',
-                afterDraw: (chart) => {
-                    this.drawEventAnnotations(chart, annotations);
-                }
-            }]
+            options: { responsive: true, maintainAspectRatio: false }
         });
     }
 
@@ -1768,8 +1798,9 @@ class ManualAISystem {
     }
 
     renderComparativeVisibilityChart(chartData) {
+        const agContainer = document.getElementById('comparativeVisibilityChartAg');
         const ctx = document.getElementById('comparativeVisibilityChart');
-        if (!ctx) return;
+        if (!agContainer && !ctx) return;
 
         // Destroy existing chart
         if (this.charts.comparativeVisibility) {
@@ -1781,76 +1812,66 @@ class ManualAISystem {
             return;
         }
 
-        this.charts.comparativeVisibility = new Chart(ctx, {
+        // Preferir AG Charts si está disponible
+        if (window.agCharts && agContainer) {
+            const dates = (chartData.dates || []).map(d => new Date(d));
+            const rows = dates.map((d, i) => {
+                const row = { date: d };
+                (chartData.datasets || []).forEach(ds => {
+                    row[ds.label] = ds.data && ds.data[i] != null ? Number(ds.data[i]) : null;
+                });
+                return row;
+            });
+
+            const series = (chartData.datasets || []).map(ds => ({
             type: 'line',
-            data: {
-                labels: chartData.dates || [],
-                datasets: chartData.datasets || []
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            title: function(context) {
-                                return new Date(context[0].label).toLocaleDateString();
-                            },
-                            label: function(context) {
-                                return `${context.dataset.label}: ${context.raw ? context.raw.toFixed(1) : 0}%`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Visibility Percentage (%)'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        },
-                        min: 0,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 3,
-                        hoverRadius: 6
-                    },
-                    line: {
-                        tension: 0.4
-                    }
-                }
+                xKey: 'date',
+                yKey: ds.label,
+                yName: ds.label,
+                stroke: ds.borderColor || '#2d2d2d',
+                marker: { enabled: true, size: 4 },
+                tooltip: { renderer: ({ datum, yKey, yName }) => ({
+                    title: new Date(datum.date).toLocaleDateString(),
+                    content: `${yName}: ${datum[yKey] != null ? Number(datum[yKey]).toFixed(1) : 0}%`
+                })}
+            }));
+
+            if (this.charts.agComparativeVisibility && this.charts.agComparativeVisibility.destroy) {
+                this.charts.agComparativeVisibility.destroy();
             }
-        });
+
+            this.charts.agComparativeVisibility = agCharts.AgChart.create({
+                container: agContainer,
+                data: rows,
+                theme: this.getAgChartsTheme(),
+                title: { text: 'Visibility %', fontSize: 14 },
+                series,
+                axes: [
+                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
+                    { type: 'number', position: 'left', title: { text: 'Visibility (%)' }, min: 0, max: 100 }
+                ],
+                legend: { position: 'top' }
+            });
+            if (ctx) ctx.style.display = 'none';
+            return;
+        }
+
+        // Fallback Chart.js
+        if (ctx) {
+            ctx.style.display = 'block';
+            if (this.charts.comparativeVisibility) this.charts.comparativeVisibility.destroy?.();
+            this.charts.comparativeVisibility = new Chart(ctx, {
+                type: 'line',
+                data: { labels: chartData.dates || [], datasets: chartData.datasets || [] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
     }
 
     renderComparativePositionChart(chartData) {
+        const agContainer = document.getElementById('comparativePositionChartAg');
         const ctx = document.getElementById('comparativePositionChart');
-        if (!ctx) return;
+        if (!agContainer && !ctx) return;
 
         // Destroy existing chart
         if (this.charts.comparativePosition) {
@@ -1862,72 +1883,58 @@ class ManualAISystem {
             return;
         }
 
-        this.charts.comparativePosition = new Chart(ctx, {
+        if (window.agCharts && agContainer) {
+            const dates = (chartData.dates || []).map(d => new Date(d));
+            const rows = dates.map((d, i) => {
+                const row = { date: d };
+                (chartData.datasets || []).forEach(ds => {
+                    row[ds.label] = ds.data && ds.data[i] != null ? Number(ds.data[i]) : null;
+                });
+                return row;
+            });
+
+            const series = (chartData.datasets || []).map(ds => ({
             type: 'line',
-            data: {
-                labels: chartData.dates || [],
-                datasets: chartData.datasets || []
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            title: function(context) {
-                                return new Date(context[0].label).toLocaleDateString();
-                            },
-                            label: function(context) {
-                                return `${context.dataset.label}: Position ${context.raw ? context.raw.toFixed(1) : 'N/A'}`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        }
-                    },
-                    y: {
-                        reverse: true, // Lower position numbers should be at the top
-                        title: {
-                            display: true,
-                            text: 'Average Position in AI Overview'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        },
-                        min: 1,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                return '#' + value;
-                            }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 3,
-                        hoverRadius: 6
-                    },
-                    line: {
-                        tension: 0.4
-                    }
-                }
+                xKey: 'date',
+                yKey: ds.label,
+                yName: ds.label,
+                stroke: ds.borderColor || '#2d2d2d',
+                marker: { enabled: true, size: 4 },
+                tooltip: { renderer: ({ datum, yKey, yName }) => ({
+                    title: new Date(datum.date).toLocaleDateString(),
+                    content: `${yName}: ${datum[yKey] != null ? Number(datum[yKey]).toFixed(1) : 'N/A'}`
+                })}
+            }));
+
+            if (this.charts.agComparativePosition && this.charts.agComparativePosition.destroy) {
+                this.charts.agComparativePosition.destroy();
             }
-        });
+
+            this.charts.agComparativePosition = agCharts.AgChart.create({
+                container: agContainer,
+                data: rows,
+                theme: this.getAgChartsTheme(),
+                title: { text: 'Average Position', fontSize: 14 },
+                series,
+                axes: [
+                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
+                    { type: 'number', position: 'left', title: { text: 'Position' }, reverse: true }
+                ],
+                legend: { position: 'top' }
+            });
+            if (ctx) ctx.style.display = 'none';
+            return;
+        }
+
+        if (ctx) {
+            ctx.style.display = 'block';
+            if (this.charts.comparativePosition) this.charts.comparativePosition.destroy?.();
+            this.charts.comparativePosition = new Chart(ctx, {
+                type: 'line',
+                data: { labels: chartData.dates || [], datasets: chartData.datasets || [] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
     }
 
     showNoComparativeChartsMessage() {
@@ -2051,7 +2058,7 @@ class ManualAISystem {
         console.log(`📊 Found ${competitors.length} competitors in project data:`, competitors);
         
         // Render the competitors immediately
-        this.renderCompetitors(competitors);
+                this.renderCompetitors(competitors);
     }
 
     renderCompetitors(competitors) {
@@ -2240,7 +2247,7 @@ class ManualAISystem {
         if (projectIndex !== -1) {
             this.projects[projectIndex].selected_competitors = competitors;
         }
-        
+
         // Reload competitors display in modal and dashboard preview
         await Promise.all([
             this.loadCompetitors(currentProject.id),

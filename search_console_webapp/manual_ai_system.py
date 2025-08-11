@@ -2245,8 +2245,9 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         if not project_data:
             return []
         
-        project_domain = project_data[0]
-        selected_competitors = project_data[1] or []
+        # Usar claves de diccionario por RealDictCursor
+        project_domain = project_data['domain']
+        selected_competitors = project_data['selected_competitors'] or []
         
         # Obtener ranking global de dominios con métricas agregadas
         cur.execute("""

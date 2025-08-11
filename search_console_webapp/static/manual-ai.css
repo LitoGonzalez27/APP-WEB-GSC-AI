@@ -374,6 +374,37 @@
   color:#161616;
 }
 
+/* Botón primario invertido: fondo verde claro y texto negro, y hover invertido */
+.btn-primary-inverted {
+  background: #D8F9B8;
+  color: #161616;
+  border: none;
+  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  border-radius: var(--manual-ai-border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--manual-ai-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-xs);
+  text-decoration: none;
+}
+
+.btn-primary-inverted:hover {
+  background: #161616;
+  color: #D8F9B8;
+  transform: translateY(-1px);
+  box-shadow: var(--manual-ai-shadow);
+}
+
+/* Subrayado verde para títulos/labels */
+.manual-ai-underline {
+  display: inline-block;
+  background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+  font-weight: 500;
+  padding: 2px 4px;
+}
+
 .btn-icon {
   background: none;
   border: none;
@@ -602,7 +633,7 @@
 }
 
 .modal-small {
-  max-width: 300px;
+  max-width: 600px;
 }
 
 .modal-header {
@@ -1322,7 +1353,7 @@
 
 /* Delete Confirmation Modal */
 .confirmation-input {
-  margin: var(--manual-ai-spacing-lg) 0;
+  margin-top: 60px;
 }
 
 .confirmation-input label {
