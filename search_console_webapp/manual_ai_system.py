@@ -2284,8 +2284,8 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
             SELECT 
                 detected_domain,
                 appearances,
-                ROUND(avg_position, 1) as avg_position,
-                ROUND(visibility_percentage, 1) as visibility_percentage,
+                ROUND(avg_position::numeric, 1) as avg_position,
+                ROUND(visibility_percentage::numeric, 1) as visibility_percentage,
                 days_present,
                 first_seen,
                 last_seen,

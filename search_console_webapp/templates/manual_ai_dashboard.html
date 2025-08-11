@@ -421,13 +421,11 @@
                     <div class="charts-grid">
                         <div class="chart-container">
                             <h3>Domain Visibility Over Time</h3>
-                            <div id="visibilityChartAg" class="ag-chart-container" style="height: 320px;"></div>
-                            <canvas id="visibilityChart" style="display:none;"></canvas>
+                            <canvas id="visibilityChart"></canvas>
                         </div>
                         <div class="chart-container">
                             <h3>Position Distribution</h3>
-                            <div id="positionsChartAg" class="ag-chart-container" style="height: 320px;"></div>
-                            <canvas id="positionsChart" style="display:none;"></canvas>
+                            <canvas id="positionsChart"></canvas>
                         </div>
                     </div>
 
@@ -452,10 +450,7 @@
                                 <div class="chart-description">
                                     <small>Percentage of keywords where each domain appears in AI Overview</small>
                                 </div>
-                                <!-- AG Charts container (preferido) -->
-                                <div id="comparativeVisibilityChartAg" class="ag-chart-container" style="height: 320px;"></div>
-                                <!-- Fallback Chart.js -->
-                                <canvas id="comparativeVisibilityChart" style="display:none;"></canvas>
+                                <canvas id="comparativeVisibilityChart"></canvas>
                             </div>
                             
                             <div class="chart-container">
@@ -463,10 +458,7 @@
                                 <div class="chart-description">
                                     <small>Average position when appearing in AI Overview (lower is better)</small>
                                 </div>
-                                <!-- AG Charts container (preferido) -->
-                                <div id="comparativePositionChartAg" class="ag-chart-container" style="height: 320px;"></div>
-                                <!-- Fallback Chart.js -->
-                                <canvas id="comparativePositionChart" style="display:none;"></canvas>
+                                <canvas id="comparativePositionChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -1038,8 +1030,6 @@ keyword 3"></textarea>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <!-- AG Charts (CDN) debe cargarse antes del sistema para que esté disponible -->
-    <script src="https://cdn.jsdelivr.net/npm/ag-charts-enterprise/dist/umd/ag-charts-enterprise.js"></script>
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
         // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos

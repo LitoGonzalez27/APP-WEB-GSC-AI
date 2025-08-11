@@ -42,43 +42,100 @@ class ManualAISystem {
     }
 
     // ================================
-    // AG Charts Theme
+    // Modern Chart.js Configuration
     // ================================
-    getAgChartsTheme() {
+    getModernChartConfig() {
         return {
-            baseTheme: 'ag-default',
-            overrides: {
-                common: {
-                    background: { fill: '#FFFFFF' },
-                    title: { fontSize: 16, fontWeight: '600', color: '#111827' },
-                    subtitle: { fontSize: 12, color: '#6B7280' },
-                    legend: { item: { label: { color: '#374151', fontSize: 12 } } }
-                },
-                cartesian: {
-                    axes: {
-                        number: {
-                            line: { color: '#E5E7EB' },
-                            tick: { color: '#E5E7EB' },
-                            label: { color: '#6B7280' },
-                            gridStyle: [{ stroke: '#F3F4F6', lineDash: [4, 4] }]
-                        },
-                        time: {
-                            line: { color: '#E5E7EB' },
-                            tick: { color: '#E5E7EB' },
-                            label: { color: '#6B7280' },
-                            gridStyle: [{ stroke: '#F3F4F6', lineDash: [4, 4] }]
-                        }
-                    },
-                    series: {
-                        line: {
-                            strokeWidth: 2,
-                            marker: { size: 4 },
-                            highlightStyle: {
-                                series: { dimOpacity: 0.2 },
-                                item: { size: 6, strokeWidth: 2 }
-                            }
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+                axis: 'x'
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'start',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 12,
+                            family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
                         }
                     }
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                    titleColor: '#F9FAFB',
+                    bodyColor: '#F3F4F6',
+                    borderColor: 'rgba(156, 163, 175, 0.3)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    padding: 12,
+                    titleFont: {
+                        size: 13,
+                        weight: '600'
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    filter: function(tooltipItem) {
+                        return tooltipItem.parsed.y !== null;
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(229, 231, 235, 0.4)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#6B7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(229, 231, 235, 0.4)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#6B7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    borderCapStyle: 'round',
+                    borderJoinStyle: 'round'
+                },
+                point: {
+                    radius: 3,
+                    hoverRadius: 6,
+                    hitRadius: 8,
+                    borderWidth: 2,
+                    hoverBorderWidth: 3
+                }
+            },
+            animations: {
+                tension: {
+                    duration: 1000,
+                    easing: 'easeInOutCubic',
+                    from: 1,
+                    to: 0.4,
+                    loop: false
                 }
             }
         };
@@ -999,152 +1056,200 @@ class ManualAISystem {
     }
 
     renderVisibilityChart(data, events = []) {
-        const agContainer = document.getElementById('visibilityChartAg');
         const canvasEl = document.getElementById('visibilityChart');
+        if (!canvasEl || !data || data.length === 0) return;
 
-        // Fallback si no hay datos
-        if (!data || data.length === 0) {
-            if (canvasEl) canvasEl.style.display = 'none';
-            return;
-        }
-
-        // Preferir AG Charts si está disponible
-        if (window.agCharts && agContainer) {
-            const rows = data.map(d => ({
-                date: new Date(d.analysis_date),
-                visibility: Number(d.visibility_pct || 0)
-            }));
-
-            if (this.charts.agVisibility && this.charts.agVisibility.destroy) {
-                this.charts.agVisibility.destroy();
-            }
-
-            const AgChart = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
-            if (!AgChart) {
-                console.warn('AG Charts no disponible. Usando Chart.js fallback para visibility.');
-                // Fallback inmediato
-                const ctx = canvasEl.getContext('2d');
-                canvasEl.style.display = 'block';
-                if (this.charts.visibility) this.charts.visibility.destroy?.();
-                this.charts.visibility = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()), datasets: [{ label: 'Domain Visibility %', data: data.map(d => d.visibility_pct || 0), borderColor: '#4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.4, fill: true }] },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-                return;
-            }
-            this.charts.agVisibility = AgChart.create({
-                container: agContainer,
-                data: rows,
-                theme: this.getAgChartsTheme(),
-                title: { text: 'Domain Visibility %', fontSize: 14 },
-                series: [{
-                    type: 'line', xKey: 'date', yKey: 'visibility', yName: 'Visibility %',
-                    stroke: '#4F46E5', marker: { enabled: true, size: 3 },
-                    tooltip: { renderer: ({ datum }) => ({
-                        title: new Date(datum.date).toLocaleDateString(),
-                        content: `Visibility: ${Math.round(datum.visibility)}%`
-                    })}
-                }],
-                axes: [
-                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
-                    { type: 'number', position: 'left', title: { text: 'Visibility (%)' }, min: 0, max: 100 }
-                ],
-                legend: { position: 'top' }
-            });
-            if (canvasEl) canvasEl.style.display = 'none';
-            return;
-        }
-
-        // Fallback Chart.js
-        if (!canvasEl) return;
         const ctx = canvasEl.getContext('2d');
-        canvasEl.style.display = 'block';
-        if (this.charts.visibility) this.charts.visibility.destroy?.();
+        
+        // Destroy existing chart
+        if (this.charts.visibility) {
+            this.charts.visibility.destroy();
+        }
+
+        // Modern Chart.js configuration
+        const config = this.getModernChartConfig();
+        
         this.charts.visibility = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
-                datasets: [{ label: 'Domain Visibility %', data: data.map(d => d.visibility_pct || 0), borderColor: '#4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.4, fill: true }]
+                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
+                datasets: [{
+                    label: 'Domain Visibility',
+                    data: data.map(d => d.visibility_pct || 0),
+                    borderColor: '#6366F1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    pointBackgroundColor: '#6366F1',
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: '#4F46E5',
+                    pointHoverBorderColor: '#FFFFFF',
+                    fill: true
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                ...config,
+                scales: {
+                    ...config.scales,
+                    y: {
+                        ...config.scales.y,
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Visibility (%)',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        },
+                        ticks: {
+                            ...config.scales.y.ticks,
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    }
+                },
+                plugins: {
+                    ...config.plugins,
+                    tooltip: {
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(data[context[0].dataIndex].analysis_date).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                return `Visibility: ${Math.round(context.raw)}%`;
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
     renderPositionsChart(data, events = []) {
-        const agContainer = document.getElementById('positionsChartAg');
         const canvasEl = document.getElementById('positionsChart');
+        if (!canvasEl || !data || data.length === 0) return;
 
-        if (!data || data.length === 0) { if (canvasEl) canvasEl.style.display = 'none'; return; }
-
-        if (window.agCharts && agContainer) {
-            const rows = data.map(d => ({
-                date: new Date(d.analysis_date),
-                pos_1_3: Number(d.pos_1_3 || 0),
-                pos_4_10: Number(d.pos_4_10 || 0),
-                pos_11_20: Number(d.pos_11_20 || 0),
-                pos_21_plus: Number(d.pos_21_plus || 0)
-            }));
-
-            if (this.charts.agPositions && this.charts.agPositions.destroy) {
-                this.charts.agPositions.destroy();
-            }
-
-            const AgChart2 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
-            if (!AgChart2) {
-                console.warn('AG Charts no disponible. Usando Chart.js fallback para positions.');
-                const ctx = canvasEl.getContext('2d');
-                canvasEl.style.display = 'block';
-                if (this.charts.positions) this.charts.positions.destroy?.();
-                this.charts.positions = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()), datasets: [
-                        { label: 'Position 1-3', data: data.map(d => d.pos_1_3 || 0), borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4 },
-                        { label: 'Position 4-10', data: data.map(d => d.pos_4_10 || 0), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4 },
-                        { label: 'Position 11-20', data: data.map(d => d.pos_11_20 || 0), borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4 },
-                        { label: 'Position 21+', data: data.map(d => d.pos_21_plus || 0), borderColor: '#6B7280', backgroundColor: 'rgba(107,114,128,0.1)', tension: 0.4 }
-                    ] },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-                return;
-            }
-            this.charts.agPositions = AgChart2.create({
-                container: agContainer,
-                data: rows,
-                theme: this.getAgChartsTheme(),
-                title: { text: 'Position Distribution', fontSize: 14 },
-                series: [
-                    { type: 'line', xKey: 'date', yKey: 'pos_1_3', yName: 'Position 1-3', stroke: '#10B981', marker: { enabled: true, size: 3 } },
-                    { type: 'line', xKey: 'date', yKey: 'pos_4_10', yName: 'Position 4-10', stroke: '#F59E0B', marker: { enabled: true, size: 3 } },
-                    { type: 'line', xKey: 'date', yKey: 'pos_11_20', yName: 'Position 11-20', stroke: '#EF4444', marker: { enabled: true, size: 3 } },
-                    { type: 'line', xKey: 'date', yKey: 'pos_21_plus', yName: 'Position 21+', stroke: '#6B7280', marker: { enabled: true, size: 3 } }
-                ],
-                axes: [
-                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
-                    { type: 'number', position: 'left', title: { text: 'Count' }, min: 0 }
-                ],
-                legend: { position: 'top' }
-            });
-            if (canvasEl) canvasEl.style.display = 'none';
-            return;
+        const ctx = canvasEl.getContext('2d');
+        
+        // Destroy existing chart
+        if (this.charts.positions) {
+            this.charts.positions.destroy();
         }
 
-        if (!canvasEl) return;
-        const ctx = canvasEl.getContext('2d');
-        canvasEl.style.display = 'block';
-        if (this.charts.positions) this.charts.positions.destroy?.();
+        // Modern Chart.js configuration with modern colors
+        const config = this.getModernChartConfig();
+        
         this.charts.positions = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
+                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
                 datasets: [
-                    { label: 'Position 1-3', data: data.map(d => d.pos_1_3 || 0), borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4 },
-                    { label: 'Position 4-10', data: data.map(d => d.pos_4_10 || 0), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4 },
-                    { label: 'Position 11-20', data: data.map(d => d.pos_11_20 || 0), borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4 },
-                    { label: 'Position 21+', data: data.map(d => d.pos_21_plus || 0), borderColor: '#6B7280', backgroundColor: 'rgba(107,114,128,0.1)', tension: 0.4 }
+                    {
+                        label: 'Position 1-3',
+                        data: data.map(d => d.pos_1_3 || 0),
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        pointBackgroundColor: '#059669',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#047857',
+                        pointHoverBorderColor: '#FFFFFF'
+                    },
+                    {
+                        label: 'Position 4-10',
+                        data: data.map(d => d.pos_4_10 || 0),
+                        borderColor: '#D97706',
+                        backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                        pointBackgroundColor: '#D97706',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#B45309',
+                        pointHoverBorderColor: '#FFFFFF'
+                    },
+                    {
+                        label: 'Position 11-20',
+                        data: data.map(d => d.pos_11_20 || 0),
+                        borderColor: '#DC2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        pointBackgroundColor: '#DC2626',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#B91C1C',
+                        pointHoverBorderColor: '#FFFFFF'
+                    },
+                    {
+                        label: 'Position 21+',
+                        data: data.map(d => d.pos_21_plus || 0),
+                        borderColor: '#6B7280',
+                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                        pointBackgroundColor: '#6B7280',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#4B5563',
+                        pointHoverBorderColor: '#FFFFFF'
+                    }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                ...config,
+                scales: {
+                    ...config.scales,
+                    y: {
+                        ...config.scales.y,
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Keywords',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    }
+                },
+                plugins: {
+                    ...config.plugins,
+                    tooltip: {
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(data[context[0].dataIndex].analysis_date).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw} keywords`;
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -1830,9 +1935,8 @@ class ManualAISystem {
     }
 
     renderComparativeVisibilityChart(chartData) {
-        const agContainer = document.getElementById('comparativeVisibilityChartAg');
         const ctx = document.getElementById('comparativeVisibilityChart');
-        if (!agContainer && !ctx) return;
+        if (!ctx) return;
 
         // Destroy existing chart
         if (this.charts.comparativeVisibility) {
@@ -1844,76 +1948,82 @@ class ManualAISystem {
             return;
         }
 
-        // Preferir AG Charts si está disponible
-        if (window.agCharts && agContainer) {
-            const dates = (chartData.dates || []).map(d => new Date(d));
-            const rows = dates.map((d, i) => {
-                const row = { date: d };
-                (chartData.datasets || []).forEach(ds => {
-                    row[ds.label] = ds.data && ds.data[i] != null ? Number(ds.data[i]) : null;
-                });
-                return row;
-            });
-
-            const series = (chartData.datasets || []).map(ds => ({
+        // Modern Chart.js configuration
+        const config = this.getModernChartConfig();
+        
+        this.charts.comparativeVisibility = new Chart(ctx, {
             type: 'line',
-                xKey: 'date',
-                yKey: ds.label,
-                yName: ds.label,
-                stroke: ds.borderColor || '#2d2d2d',
-                marker: { enabled: true, size: 4 },
-                tooltip: { renderer: ({ datum, yKey, yName }) => ({
-                    title: new Date(datum.date).toLocaleDateString(),
-                    content: `${yName}: ${datum[yKey] != null ? Number(datum[yKey]).toFixed(1) : 0}%`
-                })}
-            }));
-
-            if (this.charts.agComparativeVisibility && this.charts.agComparativeVisibility.destroy) {
-                this.charts.agComparativeVisibility.destroy();
-            }
-
-            const AgChart3 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
-            if (!AgChart3) {
-                console.warn('AG Charts no disponible. Usando Chart.js fallback para comparative visibility.');
-                if (ctx) {
-                    ctx.style.display = 'block';
-                    if (this.charts.comparativeVisibility) this.charts.comparativeVisibility.destroy?.();
-                    this.charts.comparativeVisibility = new Chart(ctx, { type: 'line', data: { labels: chartData.dates || [], datasets: chartData.datasets || [] }, options: { responsive: true, maintainAspectRatio: false } });
+            data: {
+                labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
+                datasets: chartData.datasets.map(dataset => ({
+                    ...dataset,
+                    pointBackgroundColor: dataset.borderColor,
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: dataset.borderColor,
+                    pointHoverBorderColor: '#FFFFFF',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.1)') : 'rgba(99, 102, 241, 0.1)'
+                }))
+            },
+            options: {
+                ...config,
+                scales: {
+                    ...config.scales,
+                    y: {
+                        ...config.scales.y,
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Visibility (%)',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        },
+                        ticks: {
+                            ...config.scales.y.ticks,
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    }
+                },
+                plugins: {
+                    ...config.plugins,
+                    tooltip: {
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${Math.round(context.raw)}%`;
+                            }
+                        }
+                    }
                 }
-                return;
             }
-            this.charts.agComparativeVisibility = AgChart3.create({
-                container: agContainer,
-                data: rows,
-                theme: this.getAgChartsTheme(),
-                title: { text: 'Visibility %', fontSize: 14 },
-                series,
-                axes: [
-                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
-                    { type: 'number', position: 'left', title: { text: 'Visibility (%)' }, min: 0, max: 100 }
-                ],
-                legend: { position: 'top' }
-            });
-            if (ctx) ctx.style.display = 'none';
-            return;
-        }
-
-        // Fallback Chart.js
-        if (ctx) {
-            ctx.style.display = 'block';
-            if (this.charts.comparativeVisibility) this.charts.comparativeVisibility.destroy?.();
-            this.charts.comparativeVisibility = new Chart(ctx, {
-                type: 'line',
-                data: { labels: chartData.dates || [], datasets: chartData.datasets || [] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
+        });
     }
 
     renderComparativePositionChart(chartData) {
-        const agContainer = document.getElementById('comparativePositionChartAg');
         const ctx = document.getElementById('comparativePositionChart');
-        if (!agContainer && !ctx) return;
+        if (!ctx) return;
 
         // Destroy existing chart
         if (this.charts.comparativePosition) {
@@ -1925,68 +2035,77 @@ class ManualAISystem {
             return;
         }
 
-        if (window.agCharts && agContainer) {
-            const dates = (chartData.dates || []).map(d => new Date(d));
-            const rows = dates.map((d, i) => {
-                const row = { date: d };
-                (chartData.datasets || []).forEach(ds => {
-                    row[ds.label] = ds.data && ds.data[i] != null ? Number(ds.data[i]) : null;
-                });
-                return row;
-            });
-
-            const series = (chartData.datasets || []).map(ds => ({
+        // Modern Chart.js configuration
+        const config = this.getModernChartConfig();
+        
+        this.charts.comparativePosition = new Chart(ctx, {
             type: 'line',
-                xKey: 'date',
-                yKey: ds.label,
-                yName: ds.label,
-                stroke: ds.borderColor || '#2d2d2d',
-                marker: { enabled: true, size: 4 },
-                tooltip: { renderer: ({ datum, yKey, yName }) => ({
-                    title: new Date(datum.date).toLocaleDateString(),
-                    content: `${yName}: ${datum[yKey] != null ? Number(datum[yKey]).toFixed(1) : 'N/A'}`
-                })}
-            }));
-
-            if (this.charts.agComparativePosition && this.charts.agComparativePosition.destroy) {
-                this.charts.agComparativePosition.destroy();
-            }
-
-            const AgChart4 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
-            if (!AgChart4) {
-                console.warn('AG Charts no disponible. Usando Chart.js fallback para comparative position.');
-                if (ctx) {
-                    ctx.style.display = 'block';
-                    if (this.charts.comparativePosition) this.charts.comparativePosition.destroy?.();
-                    this.charts.comparativePosition = new Chart(ctx, { type: 'line', data: { labels: chartData.dates || [], datasets: chartData.datasets || [] }, options: { responsive: true, maintainAspectRatio: false } });
+            data: {
+                labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
+                datasets: chartData.datasets.map(dataset => ({
+                    ...dataset,
+                    pointBackgroundColor: dataset.borderColor,
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: dataset.borderColor,
+                    pointHoverBorderColor: '#FFFFFF',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.1)') : 'rgba(99, 102, 241, 0.1)'
+                }))
+            },
+            options: {
+                ...config,
+                scales: {
+                    ...config.scales,
+                    y: {
+                        ...config.scales.y,
+                        reverse: true,
+                        title: {
+                            display: true,
+                            text: 'Average Position',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        },
+                        ticks: {
+                            ...config.scales.y.ticks,
+                            callback: function(value) {
+                                return '#' + Math.round(value);
+                            }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    }
+                },
+                plugins: {
+                    ...config.plugins,
+                    tooltip: {
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                const value = context.raw;
+                                return `${context.dataset.label}: Position ${value ? Math.round(value) : 'N/A'}`;
+                            }
+                        }
+                    }
                 }
-                return;
             }
-            this.charts.agComparativePosition = AgChart4.create({
-                container: agContainer,
-                data: rows,
-                theme: this.getAgChartsTheme(),
-                title: { text: 'Average Position', fontSize: 14 },
-                series,
-                axes: [
-                    { type: 'time', position: 'bottom', title: { text: 'Date' } },
-                    { type: 'number', position: 'left', title: { text: 'Position' }, reverse: true }
-                ],
-                legend: { position: 'top' }
-            });
-            if (ctx) ctx.style.display = 'none';
-            return;
-        }
-
-        if (ctx) {
-            ctx.style.display = 'block';
-            if (this.charts.comparativePosition) this.charts.comparativePosition.destroy?.();
-            this.charts.comparativePosition = new Chart(ctx, {
-                type: 'line',
-                data: { labels: chartData.dates || [], datasets: chartData.datasets || [] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
+        });
     }
 
     showNoComparativeChartsMessage() {
