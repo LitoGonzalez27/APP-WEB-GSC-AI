@@ -1889,12 +1889,15 @@ class ManualAISystem {
         const competitorsCountEl = document.getElementById('competitorsCount');
         const competitorsPreviewEl = document.getElementById('competitorsPreview');
 
-        if (!competitorsCountEl || !competitorsPreviewEl) return;
+        // Since we removed the Analytics chip, these elements no longer exist
+        // This function is kept for compatibility but does nothing
+        if (!competitorsCountEl || !competitorsPreviewEl) {
+            console.log('🗑️ Competitors preview elements not found (removed from UI)');
+            return;
+        }
 
-        // Update count
+        // Legacy code kept for potential future use
         competitorsCountEl.textContent = competitors.length;
-
-        // Clear preview
         competitorsPreviewEl.innerHTML = '';
 
         if (competitors.length === 0) {
@@ -1902,7 +1905,6 @@ class ManualAISystem {
             return;
         }
 
-        // Add competitor logos
         competitors.forEach(domain => {
             const logoUrl = this.getDomainLogoUrl(domain);
             const logoEl = document.createElement('img');
@@ -1944,20 +1946,35 @@ class ManualAISystem {
     async loadCompetitors(projectId = null) {
         // Prefer explicit projectId (e.g., from modal) otherwise fallback to current project context
         const project = projectId ? this.projects.find(p => p.id == projectId) : (this.currentModalProject || this.getCurrentProject());
-        if (!project) return;
+        if (!project) {
+            console.warn('No project found for loading competitors');
+            return;
+        }
+
+        console.log(`🔍 Loading competitors for project ${project.id}: ${project.name}`);
 
         try {
             const response = await fetch(`/manual-ai/api/projects/${project.id}/competitors`);
             if (!response.ok) {
                 if (response.status === 404) {
+                    console.log('No competitors endpoint found, rendering empty state');
                     this.renderCompetitors([]);
                     return;
                 }
-                throw new Error('Failed to load competitors');
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            this.renderCompetitors(data.competitors || []);
+            console.log('🎯 Competitors data received:', data);
+            
+            if (data.success) {
+                const competitors = data.competitors || [];
+                console.log(`📊 Rendering ${competitors.length} competitors:`, competitors);
+                this.renderCompetitors(competitors);
+            } else {
+                console.error('API returned error:', data.error);
+                this.renderCompetitors([]);
+            }
 
         } catch (error) {
             console.error('Error loading competitors:', error);
@@ -1966,18 +1983,31 @@ class ManualAISystem {
     }
 
     renderCompetitors(competitors) {
+        console.log('🎨 renderCompetitors called with:', competitors);
+        
         const competitorsList = document.getElementById('competitorsList');
         const competitorEmptyState = document.getElementById('competitorEmptyState');
-        if (!competitorsList || !competitorEmptyState) return;
+        
+        console.log('🔍 DOM elements found:', {
+            competitorsList: !!competitorsList,
+            competitorEmptyState: !!competitorEmptyState
+        });
+        
+        if (!competitorsList || !competitorEmptyState) {
+            console.warn('⚠️ Required DOM elements not found for competitors rendering');
+            return;
+        }
 
         // Clear existing competitors
         competitorsList.innerHTML = '';
 
         if (competitors.length === 0) {
+            console.log('📝 Showing empty state - no competitors');
             competitorsList.classList.remove('has-competitors');
             competitorEmptyState.classList.remove('hidden');
             competitorEmptyState.style.display = 'flex';
         } else {
+            console.log(`📝 Showing ${competitors.length} competitors`);
             competitorsList.classList.add('has-competitors');
             competitorEmptyState.classList.add('hidden');
             competitorEmptyState.style.display = 'none';
@@ -2118,6 +2148,9 @@ class ManualAISystem {
             this.loadCompetitors(currentProject.id),
             this.loadCompetitorsPreview(currentProject.id)
         ]);
+        
+        // Refresh the projects list to update the project cards with new competitor info
+        await this.loadProjects();
     }
 
     isValidDomain(domain) {
