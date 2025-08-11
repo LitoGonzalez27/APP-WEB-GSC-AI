@@ -1019,7 +1019,21 @@ class ManualAISystem {
                 this.charts.agVisibility.destroy();
             }
 
-            this.charts.agVisibility = agCharts.AgChart.create({
+            const AgChart = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
+            if (!AgChart) {
+                console.warn('AG Charts no disponible. Usando Chart.js fallback para visibility.');
+                // Fallback inmediato
+                const ctx = canvasEl.getContext('2d');
+                canvasEl.style.display = 'block';
+                if (this.charts.visibility) this.charts.visibility.destroy?.();
+                this.charts.visibility = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()), datasets: [{ label: 'Domain Visibility %', data: data.map(d => d.visibility_pct || 0), borderColor: '#4F46E5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.4, fill: true }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                return;
+            }
+            this.charts.agVisibility = AgChart.create({
                 container: agContainer,
                 data: rows,
                 theme: this.getAgChartsTheme(),
@@ -1076,7 +1090,25 @@ class ManualAISystem {
                 this.charts.agPositions.destroy();
             }
 
-            this.charts.agPositions = agCharts.AgChart.create({
+            const AgChart2 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
+            if (!AgChart2) {
+                console.warn('AG Charts no disponible. Usando Chart.js fallback para positions.');
+                const ctx = canvasEl.getContext('2d');
+                canvasEl.style.display = 'block';
+                if (this.charts.positions) this.charts.positions.destroy?.();
+                this.charts.positions = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()), datasets: [
+                        { label: 'Position 1-3', data: data.map(d => d.pos_1_3 || 0), borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.4 },
+                        { label: 'Position 4-10', data: data.map(d => d.pos_4_10 || 0), borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.4 },
+                        { label: 'Position 11-20', data: data.map(d => d.pos_11_20 || 0), borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.4 },
+                        { label: 'Position 21+', data: data.map(d => d.pos_21_plus || 0), borderColor: '#6B7280', backgroundColor: 'rgba(107,114,128,0.1)', tension: 0.4 }
+                    ] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                return;
+            }
+            this.charts.agPositions = AgChart2.create({
                 container: agContainer,
                 data: rows,
                 theme: this.getAgChartsTheme(),
@@ -1840,7 +1872,17 @@ class ManualAISystem {
                 this.charts.agComparativeVisibility.destroy();
             }
 
-            this.charts.agComparativeVisibility = agCharts.AgChart.create({
+            const AgChart3 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
+            if (!AgChart3) {
+                console.warn('AG Charts no disponible. Usando Chart.js fallback para comparative visibility.');
+                if (ctx) {
+                    ctx.style.display = 'block';
+                    if (this.charts.comparativeVisibility) this.charts.comparativeVisibility.destroy?.();
+                    this.charts.comparativeVisibility = new Chart(ctx, { type: 'line', data: { labels: chartData.dates || [], datasets: chartData.datasets || [] }, options: { responsive: true, maintainAspectRatio: false } });
+                }
+                return;
+            }
+            this.charts.agComparativeVisibility = AgChart3.create({
                 container: agContainer,
                 data: rows,
                 theme: this.getAgChartsTheme(),
@@ -1910,7 +1952,17 @@ class ManualAISystem {
                 this.charts.agComparativePosition.destroy();
             }
 
-            this.charts.agComparativePosition = agCharts.AgChart.create({
+            const AgChart4 = (window.agCharts && (agCharts.AgChart || agCharts.AgCharts)) ? (agCharts.AgChart || agCharts.AgCharts) : null;
+            if (!AgChart4) {
+                console.warn('AG Charts no disponible. Usando Chart.js fallback para comparative position.');
+                if (ctx) {
+                    ctx.style.display = 'block';
+                    if (this.charts.comparativePosition) this.charts.comparativePosition.destroy?.();
+                    this.charts.comparativePosition = new Chart(ctx, { type: 'line', data: { labels: chartData.dates || [], datasets: chartData.datasets || [] }, options: { responsive: true, maintainAspectRatio: false } });
+                }
+                return;
+            }
+            this.charts.agComparativePosition = AgChart4.create({
                 container: agContainer,
                 data: rows,
                 theme: this.getAgChartsTheme(),
