@@ -222,12 +222,12 @@ class ManualAISystem {
                     <h3>${this.escapeHtml(project.name)}</h3>
                     <div class="project-actions">
                         <button type="button" class="btn-icon" onclick="manualAI.showProjectModal(${project.id})"
-                                title="Project settings">
-                            <i class="fas fa-cog"></i>
+                                title="Project settings" aria-label="Open project settings">
+                            <i class="fas fa-cog" aria-hidden="true"></i>
                         </button>
                         <button type="button" class="btn-icon" onclick="manualAI.analyzeProject(${project.id})"
-                                title="Run analysis">
-                            <i class="fas fa-play"></i>
+                                title="Run analysis" aria-label="Run AI analysis for this project">
+                            <i class="fas fa-play" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -293,12 +293,14 @@ class ManualAISystem {
         // Generate competitor logos/previews
         const competitorLogos = competitorsData.slice(0, 4).map(domain => {
             const logoUrl = this.getDomainLogoUrl(domain);
+            const firstLetter = domain.charAt(0).toUpperCase();
+            const fallbackDiv = `<div class="competitor-logo-fallback" title="${domain}">${firstLetter}</div>`;
             return `
                 <img src="${logoUrl}" 
                      alt="${domain} logo" 
                      class="competitor-logo-preview" 
                      title="${domain}"
-                     onerror="this.outerHTML='<div class=\\"competitor-logo-fallback\\" title=\\"${domain}\\">${domain.charAt(0).toUpperCase()}</div>'">
+                     onerror="this.outerHTML='${fallbackDiv.replace(/'/g, '&apos;')}'">
             `;
         }).join('');
 
@@ -1151,6 +1153,18 @@ class ManualAISystem {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     // ================================
@@ -2017,16 +2031,41 @@ class ManualAISystem {
             const logoUrl = this.getDomainLogoUrl(domain);
             const competitorItem = document.createElement('div');
             competitorItem.className = 'competitor-item';
-            competitorItem.innerHTML = `
-                <div class="competitor-info">
-                    <img src="${logoUrl}" alt="${domain}" class="domain-logo" 
-                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.charAt(0).toUpperCase()}</text></svg>'">
-                    <span class="competitor-domain">${domain}</span>
-                </div>
-                <button type="button" class="competitor-remove-btn" onclick="manualAI.removeCompetitor('${domain}')">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+            
+            // Crear elementos de forma segura
+            const competitorInfo = document.createElement('div');
+            competitorInfo.className = 'competitor-info';
+            
+            const logoImg = document.createElement('img');
+            logoImg.src = logoUrl;
+            logoImg.alt = domain;
+            logoImg.className = 'domain-logo';
+            
+            // Fallback seguro para el logo
+            logoImg.onerror = () => {
+                logoImg.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'competitor-logo-fallback';
+                fallback.textContent = domain.charAt(0).toUpperCase();
+                fallback.title = domain;
+                competitorInfo.insertBefore(fallback, logoImg.nextSibling);
+            };
+            
+            const domainSpan = document.createElement('span');
+            domainSpan.className = 'competitor-domain';
+            domainSpan.textContent = domain;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'competitor-remove-btn';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = () => this.removeCompetitor(domain);
+            
+            competitorInfo.appendChild(logoImg);
+            competitorInfo.appendChild(domainSpan);
+            competitorItem.appendChild(competitorInfo);
+            competitorItem.appendChild(removeBtn);
+            
             competitorsList.appendChild(competitorItem);
         });
 

@@ -526,6 +526,13 @@ def analyze_project(project_id):
         # Ejecutar análisis manual con sobreescritura forzada
         results = run_project_analysis(project_id, force_overwrite=True)
         
+        if not results:
+            logger.warning(f"No results returned for project {project_id} analysis")
+            return jsonify({
+                'success': False, 
+                'error': 'No keywords available for analysis'
+            }), 400
+        
         # Crear snapshot del día
         create_daily_snapshot(project_id)
         
@@ -545,9 +552,15 @@ def analyze_project(project_id):
             'message': 'Analysis completed successfully'
         })
         
+    except ValueError as e:
+        logger.warning(f"Validation error analyzing project {project_id}: {e}")
+        return jsonify({'success': False, 'error': 'Invalid project data'}), 400
+    except ConnectionError as e:
+        logger.error(f"Connection error analyzing project {project_id}: {e}")
+        return jsonify({'success': False, 'error': 'Analysis service temporarily unavailable'}), 503
     except Exception as e:
-        logger.error(f"Error analyzing project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logger.error(f"Unexpected error analyzing project {project_id}: {e}")
+        return jsonify({'success': False, 'error': 'Analysis failed due to internal error'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/results', methods=['GET'])
 @auth_required
@@ -685,19 +698,37 @@ def get_project_competitors(project_id):
     
     try:
         conn = get_db_connection()
+        if not conn:
+            logger.error(f"Failed to get database connection for project {project_id} competitors")
+            return jsonify({'success': False, 'error': 'Database connection failed'}), 503
+            
         cur = conn.cursor()
         
         cur.execute("""
             SELECT selected_competitors
             FROM manual_ai_projects 
-            WHERE id = %s
+            WHERE id = %s AND is_active = true
         """, (project_id,))
         
         result = cur.fetchone()
-        competitors = result[0] if result and result[0] else []
+        
+        if not result:
+            logger.warning(f"Project {project_id} not found or inactive")
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        competitors = result[0] if result[0] else []
+        
+        # Validar que competitors sea una lista
+        if not isinstance(competitors, list):
+            logger.warning(f"Invalid competitors data type for project {project_id}: {type(competitors)}")
+            competitors = []
         
         cur.close()
         conn.close()
+        
+        logger.info(f"Retrieved {len(competitors)} competitors for project {project_id}")
         
         return jsonify({
             'success': True,
@@ -706,7 +737,7 @@ def get_project_competitors(project_id):
         
     except Exception as e:
         logger.error(f"Error getting competitors for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Failed to retrieve competitors'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/competitors', methods=['PUT'])
 @auth_required
@@ -830,36 +861,45 @@ def convert_iso_to_internal_country(country_code: str) -> str:
 def get_user_projects(user_id: int) -> List[Dict]:
     """Obtener todos los proyectos de un usuario con estadísticas básicas"""
     conn = get_db_connection()
+    if not conn:
+        logger.error("Failed to get database connection for user projects")
+        return []
+        
     cur = conn.cursor()
     
-    cur.execute("""
-        SELECT 
-            p.id,
-            p.name,
-            p.description,
-            p.domain,
-            p.country_code,
-            p.created_at,
-            p.updated_at,
-            p.selected_competitors,
-            COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
-            COUNT(DISTINCT k.id) as keyword_count,
-            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END) as ai_overview_count,
-            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as mentions_count,
-            MAX(r.analysis_date) as last_analysis_date
-        FROM manual_ai_projects p
-        LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
-        LEFT JOIN manual_ai_results r ON p.id = r.project_id
-        WHERE p.user_id = %s AND p.is_active = true
-        GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at, p.selected_competitors
-        ORDER BY p.created_at DESC
-    """, (user_id,))
-    
-    projects = cur.fetchall()
-    cur.close()
-    conn.close()
-    
-    return [dict(project) for project in projects]
+    try:
+        cur.execute("""
+            SELECT 
+                p.id,
+                p.name,
+                p.description,
+                p.domain,
+                p.country_code,
+                p.created_at,
+                p.updated_at,
+                p.selected_competitors,
+                COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
+                COUNT(DISTINCT k.id) as keyword_count,
+                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.id END) as ai_overview_count,
+                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.id END) as mentions_count,
+                MAX(r.analysis_date) as last_analysis_date
+            FROM manual_ai_projects p
+            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
+            LEFT JOIN manual_ai_results r ON p.id = r.project_id
+            WHERE p.user_id = %s AND p.is_active = true
+            GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at, p.selected_competitors
+            ORDER BY p.created_at DESC
+        """, (user_id,))
+        
+        projects = cur.fetchall()
+        return [dict(project) for project in projects]
+        
+    except Exception as e:
+        logger.error(f"Error fetching user projects for user {user_id}: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
 
 def create_new_project(user_id: int, name: str, description: str, domain: str, country_code: str, competitors: List[str] = None) -> int:
     """Crear un nuevo proyecto"""

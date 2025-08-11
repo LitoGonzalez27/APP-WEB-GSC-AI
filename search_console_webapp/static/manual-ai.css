@@ -1555,8 +1555,7 @@
 }
 
 .empty-state i {
-  font-size: 3rem;
-  color: var(--manual-ai-gray-300);
+  color: #D8F9B8;
 }
 
 .empty-state p {
@@ -2856,7 +2855,7 @@
 }
 
 .mt-2 { 
-    margin-top: 0.5rem; 
+    margin-top: 1.5rem; 
 }
 
 /* Competitors Card Styles */
@@ -3143,4 +3142,73 @@
     flex-direction: column;
     justify-content: center;
     position: relative;
+}
+
+/* ================================
+   COMPETITORS MODAL STYLES
+   ================================ */
+
+.competitor-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--card-bg);
+    transition: all 0.2s ease;
+}
+
+.competitor-item:hover {
+    border-color: var(--primary-color);
+    background: var(--background-secondary);
+}
+
+.competitor-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.domain-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.competitor-domain {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.competitor-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.competitor-remove-btn:hover {
+    background: var(--danger-bg);
+    color: var(--danger-color);
+}
+
+/* Competitor logo fallback in modal */
+.competitor-info .competitor-logo-fallback {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
