@@ -150,8 +150,8 @@ class ManualAISystem {
         if (tabName === 'analytics') {
             this.loadAnalytics();
         } else if (tabName === 'settings') {
-            // Load competitors when switching to settings
-            this.loadCompetitors();
+            // Load global settings data including project-based competitors
+            this.loadGlobalSettings();
         }
     }
 
@@ -281,8 +281,8 @@ class ManualAISystem {
                         <span class="stat-label">Competitors</span>
                     </div>
                     <div class="competitors-empty">
-                        <small style="color: var(--text-secondary); font-size: 11px;">
-                            <i class="fas fa-users" style="margin-right: 4px;"></i>
+                        <small style="color: var(--manual-ai-gray-500); font-size: 11px;">
+                            <i class="fas fa-users" style="margin-right: 4px; opacity: 0.6;"></i>
                             No competitors added yet
                         </small>
                     </div>
@@ -290,19 +290,32 @@ class ManualAISystem {
             `;
         }
 
-        // Generate competitor logos/previews
+        // Generate competitor logos/previews with improved error handling
         const competitorLogos = competitorsData.slice(0, 4).map(domain => {
             const logoUrl = this.getDomainLogoUrl(domain);
-            const firstLetter = domain.charAt(0).toUpperCase();
-            const fallbackDiv = `<div class="competitor-logo-fallback" title="${domain}">${firstLetter}</div>`;
+            const firstLetter = this.escapeHtml(domain.charAt(0).toUpperCase());
+            const safeDomain = this.escapeHtml(domain);
+            const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
+            
             return `
-                <img src="${logoUrl}" 
-                     alt="${domain} logo" 
-                     class="competitor-logo-preview" 
-                     title="${domain}"
-                     onerror="this.outerHTML='${fallbackDiv.replace(/'/g, '&apos;')}'">
+                <div class="competitor-logo-container" title="${safeDomain}">
+                    <img id="${logoId}" 
+                         src="${logoUrl}" 
+                         alt="${safeDomain} logo" 
+                         class="competitor-logo-preview" 
+                         style="display: block;"
+                         onload="this.style.display='block';"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="competitor-logo-fallback" style="display: none;" title="${safeDomain}">
+                        ${firstLetter}
+                    </div>
+                </div>
             `;
         }).join('');
+
+        // Generate competitor names with proper escaping
+        const competitorNames = competitorsData.slice(0, 2).map(domain => this.escapeHtml(domain)).join(', ');
+        const moreText = competitorsCount > 2 ? ` +${competitorsCount - 2} more` : '';
 
         return `
             <div class="stat competitors-stat">
@@ -315,8 +328,8 @@ class ManualAISystem {
                         ${competitorLogos}
                     </div>
                     <div class="competitors-list-preview">
-                        <small style="color: var(--text-secondary); font-size: 11px; font-weight: 500;">
-                            ${competitorsData.slice(0, 2).join(', ')}${competitorsCount > 2 ? ` +${competitorsCount - 2} more` : ''}
+                        <small style="color: var(--manual-ai-gray-600); font-size: 11px; font-weight: 500; line-height: 1.3;">
+                            ${competitorNames}${moreText}
                         </small>
                     </div>
                 </div>
@@ -867,36 +880,79 @@ class ManualAISystem {
     }
 
     renderAnalytics(stats) {
-        // Update summary cards
-        document.getElementById('totalKeywords').textContent = stats.main_stats.total_keywords || 0;
-        document.getElementById('aiKeywords').textContent = stats.main_stats.total_ai_keywords || 0;
-        document.getElementById('domainMentions').textContent = stats.main_stats.total_mentions || 0;
-        document.getElementById('visibilityPercentage').textContent = 
-            stats.main_stats.visibility_percentage ? 
-            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%';
-        document.getElementById('averagePosition').textContent = 
-            stats.main_stats.avg_position ? 
-            Math.round(stats.main_stats.avg_position * 10) / 10 : '-';
-        document.getElementById('aioWeight').textContent = 
-            stats.main_stats.aio_weight_percentage ? 
-            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%';
+        console.log('📊 Rendering analytics data:', stats);
+        
+        // Update summary cards with safe access
+        this.updateSummaryCard('totalKeywords', stats.main_stats?.total_keywords || 0);
+        this.updateSummaryCard('aiKeywords', stats.main_stats?.total_ai_keywords || 0);
+        this.updateSummaryCard('domainMentions', stats.main_stats?.total_mentions || 0);
+        this.updateSummaryCard('visibilityPercentage', 
+            stats.main_stats?.visibility_percentage ? 
+            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%');
+        this.updateSummaryCard('averagePosition', 
+            stats.main_stats?.avg_position ? 
+            Math.round(stats.main_stats.avg_position * 10) / 10 : '-');
+        this.updateSummaryCard('aioWeight', 
+            stats.main_stats?.aio_weight_percentage ? 
+            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%');
 
         // Show charts container
         this.hideElement(this.elements.analyticsContent);
         this.showElement(this.elements.chartsContainer);
 
-        // Render charts with events annotations
-        this.renderVisibilityChart(stats.visibility_chart, stats.events);
-        this.renderPositionsChart(stats.positions_chart, stats.events);
+        // Get project ID from stats or current selection
+        const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
 
-        // Load and render global domains ranking
-        this.loadGlobalDomainsRanking(stats.project_id || this.currentProject?.id);
+        if (!projectId) {
+            console.warn('No project ID available for analytics rendering');
+            return;
+        }
+
+        console.log(`📈 Loading analytics components for project ${projectId}`);
+
+        // Render main charts with events annotations
+        if (stats.visibility_chart && Array.isArray(stats.visibility_chart)) {
+            this.renderVisibilityChart(stats.visibility_chart, stats.events || []);
+        } else {
+            console.warn('No visibility chart data available');
+        }
+
+        if (stats.positions_chart && Array.isArray(stats.positions_chart)) {
+            this.renderPositionsChart(stats.positions_chart, stats.events || []);
+        } else {
+            console.warn('No positions chart data available');
+        }
+
+        // Load all competitive analysis components in parallel
+        this.loadAnalyticsComponents(projectId);
+    }
+
+    updateSummaryCard(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        } else {
+            console.warn(`Summary card element not found: ${elementId}`);
+        }
+    }
+
+    async loadAnalyticsComponents(projectId) {
+        console.log(`🔄 Loading analytics components for project ${projectId}`);
         
-        // Load and render comparative charts (project vs selected competitors)
-        this.loadComparativeCharts(stats.project_id || this.currentProject?.id);
-        
-        // Load and render competitors preview
-        this.loadCompetitorsPreview(stats.project_id || this.currentProject?.id);
+        try {
+            // Load all components in parallel for better performance
+            const promises = [
+                this.loadGlobalDomainsRanking(projectId),
+                this.loadComparativeCharts(projectId),
+                this.loadCompetitorsPreview(projectId)
+            ];
+
+            await Promise.allSettled(promises);
+            console.log('✅ All analytics components loaded');
+
+        } catch (error) {
+            console.error('Error loading analytics components:', error);
+        }
     }
 
     renderVisibilityChart(data, events = []) {
@@ -1259,12 +1315,29 @@ class ManualAISystem {
     }
 
     getDomainLogoUrl(domain) {
+        if (!domain || typeof domain !== 'string') {
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMTAiIGZpbGw9IiNlNWU3ZWIiLz4KPHR5cGUgeD0iMTAiIHk9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzc0MTUxIj4/PC90ZXh0Pgo8L3N2Zz4K';
+        }
+        
+        // Clean domain to remove any protocol or paths
+        const cleanDomain = domain.toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .split('/')[0]
+            .split('?')[0]
+            .split('#')[0]
+            .trim();
+            
+        if (!cleanDomain) {
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMTAiIGZpbGw9IiNlNWU3ZWIiLz4KPHR5cGUgeD0iMTAiIHk9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzc0MTUxIj4/PC90ZXh0Pgo8L3N2Zz4K';
+        }
+        
         // Multiple fallback services for domain logos/favicons
         const logoServices = [
-            `https://logo.clearbit.com/${domain}`,                    // Clearbit - high quality
-            `https://www.google.com/s2/favicons?domain=${domain}&sz=64`, // Google favicons
-            `https://favicongrabber.com/api/grab/${domain}?pretty=true`, // Favicon grabber
-            `https://${domain}/favicon.ico`                          // Direct favicon
+            `https://logo.clearbit.com/${cleanDomain}`,                       // Clearbit - high quality
+            `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=32`, // Google favicons - smaller size for better performance
+            `https://icon.horse/icon/${cleanDomain}`,                         // Icon Horse - reliable fallback
+            `https://${cleanDomain}/favicon.ico`                            // Direct favicon
         ];
         
         // Return primary service (Clearbit) - fallback handled in onerror
@@ -1953,8 +2026,35 @@ class ManualAISystem {
             });
         }
 
+        // Global Settings competitors management
+        this.initGlobalCompetitorsManager();
+
         // Ensure competitors are loaded when modal Settings is opened
         // (actual load is triggered contextually in showProjectModal/switchModalTab)
+    }
+
+    initGlobalCompetitorsManager() {
+        const globalAddBtn = document.getElementById('globalAddCompetitorBtn');
+        const globalInput = document.getElementById('globalNewCompetitorInput');
+        const globalProjectSelector = document.getElementById('globalProjectSelector');
+
+        if (globalAddBtn) {
+            globalAddBtn.addEventListener('click', () => this.addGlobalCompetitor());
+        }
+
+        if (globalInput) {
+            globalInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addGlobalCompetitor();
+                }
+            });
+        }
+
+        if (globalProjectSelector) {
+            globalProjectSelector.addEventListener('change', (e) => {
+                this.switchGlobalProject(e.target.value);
+            });
+        }
     }
 
     async loadCompetitors(projectId = null) {
@@ -2206,6 +2306,359 @@ class ManualAISystem {
         if (tableBody) tableBody.innerHTML = '';
         if (topDomainsTable) topDomainsTable.style.display = 'none';
         if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    }
+
+    // ================================
+    // GLOBAL SETTINGS COMPETITORS MANAGEMENT
+    // ================================
+
+    async loadGlobalSettings() {
+        console.log('🔧 Loading Global Settings...');
+        
+        // Check if we have projects with competitors
+        const projectsWithCompetitors = this.projects.filter(p => 
+            p.selected_competitors && Array.isArray(p.selected_competitors) && p.selected_competitors.length > 0
+        );
+
+        const globalSettingsSection = document.getElementById('globalSettingsCompetitors');
+        const globalProjectSelector = document.getElementById('globalProjectSelector');
+
+        if (projectsWithCompetitors.length > 0) {
+            // Show the competitors section
+            if (globalSettingsSection) {
+                globalSettingsSection.style.display = 'block';
+            }
+
+            // Populate project selector
+            this.populateGlobalProjectSelector();
+
+            // Auto-select the first project with competitors
+            if (globalProjectSelector && !this.currentGlobalProject) {
+                const firstProject = projectsWithCompetitors[0];
+                this.switchGlobalProject(firstProject.id);
+                globalProjectSelector.value = firstProject.id;
+            }
+        } else {
+            // Hide the competitors section if no projects have competitors
+            if (globalSettingsSection) {
+                globalSettingsSection.style.display = 'none';
+            }
+        }
+    }
+
+    populateGlobalProjectSelector() {
+        const globalProjectSelector = document.getElementById('globalProjectSelector');
+        if (!globalProjectSelector) return;
+
+        const projectsWithCompetitors = this.projects.filter(p => 
+            p.selected_competitors && Array.isArray(p.selected_competitors) && p.selected_competitors.length > 0
+        );
+
+        globalProjectSelector.innerHTML = `
+            <option value="">Select a project to manage competitors...</option>
+            ${this.projects.map(project => `
+                <option value="${project.id}" ${projectsWithCompetitors.some(p => p.id === project.id) ? '' : 'data-no-competitors="true"'}>
+                    ${this.escapeHtml(project.name)}${projectsWithCompetitors.some(p => p.id === project.id) ? 
+                        ` (${project.selected_competitors.length} competitors)` : ' (no competitors)'}
+                </option>
+            `).join('')}
+        `;
+    }
+
+    async switchGlobalProject(projectId) {
+        if (!projectId) {
+            this.currentGlobalProject = null;
+            this.hideGlobalCompetitorsSection();
+            return;
+        }
+
+        const project = this.projects.find(p => p.id == projectId);
+        if (!project) {
+            console.warn('Project not found:', projectId);
+            return;
+        }
+
+        this.currentGlobalProject = project;
+        
+        // Update project info display
+        this.updateGlobalProjectInfo(project);
+        
+        // Load competitors for this project
+        await this.loadGlobalCompetitors(project.id);
+    }
+
+    updateGlobalProjectInfo(project) {
+        const projectNameEl = document.getElementById('selectedProjectName');
+        const projectDomainEl = document.getElementById('selectedProjectDomain');
+
+        if (projectNameEl) {
+            projectNameEl.textContent = project.name;
+        }
+
+        if (projectDomainEl) {
+            projectDomainEl.textContent = project.domain + ` (${project.country_code})`;
+        }
+    }
+
+    async loadGlobalCompetitors(projectId) {
+        console.log(`🔍 Loading global competitors for project ${projectId}`);
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('No competitors endpoint found, rendering empty state');
+                    this.renderGlobalCompetitors([]);
+                    return;
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('🎯 Global competitors data received:', data);
+            
+            if (data.success) {
+                const competitors = data.competitors || [];
+                console.log(`📊 Rendering ${competitors.length} global competitors:`, competitors);
+                this.renderGlobalCompetitors(competitors);
+            } else {
+                console.error('API returned error:', data.error);
+                this.renderGlobalCompetitors([]);
+            }
+
+        } catch (error) {
+            console.error('Error loading global competitors:', error);
+            this.renderGlobalCompetitors([]);
+        }
+    }
+
+    renderGlobalCompetitors(competitors) {
+        console.log('🎨 renderGlobalCompetitors called with:', competitors);
+        
+        const competitorsList = document.getElementById('globalCompetitorsList');
+        const competitorEmptyState = document.getElementById('globalCompetitorEmptyState');
+        
+        console.log('🔍 Global DOM elements found:', {
+            competitorsList: !!competitorsList,
+            competitorEmptyState: !!competitorEmptyState
+        });
+        
+        if (!competitorsList || !competitorEmptyState) {
+            console.warn('⚠️ Required global DOM elements not found for competitors rendering');
+            return;
+        }
+
+        // Clear existing competitors
+        competitorsList.innerHTML = '';
+
+        if (competitors.length === 0) {
+            console.log('📝 Showing global empty state - no competitors');
+            competitorsList.classList.remove('has-competitors');
+            competitorEmptyState.classList.remove('hidden');
+            competitorEmptyState.style.display = 'flex';
+        } else {
+            console.log(`📝 Showing ${competitors.length} global competitors`);
+            competitorsList.classList.add('has-competitors');
+            competitorEmptyState.classList.add('hidden');
+            competitorEmptyState.style.display = 'none';
+        }
+
+        competitors.forEach((domain, index) => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const competitorItem = document.createElement('div');
+            competitorItem.className = 'competitor-item';
+            
+            // Create elements safely
+            const competitorInfo = document.createElement('div');
+            competitorInfo.className = 'competitor-info';
+            
+            const logoImg = document.createElement('img');
+            logoImg.src = logoUrl;
+            logoImg.alt = domain;
+            logoImg.className = 'domain-logo';
+            
+            // Safe fallback for logo
+            logoImg.onerror = () => {
+                logoImg.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'competitor-logo-fallback';
+                fallback.textContent = domain.charAt(0).toUpperCase();
+                fallback.title = domain;
+                competitorInfo.insertBefore(fallback, logoImg.nextSibling);
+            };
+            
+            const domainSpan = document.createElement('span');
+            domainSpan.className = 'competitor-domain';
+            domainSpan.textContent = domain;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'competitor-remove-btn';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = () => this.removeGlobalCompetitor(domain);
+            
+            competitorInfo.appendChild(logoImg);
+            competitorInfo.appendChild(domainSpan);
+            competitorItem.appendChild(competitorInfo);
+            competitorItem.appendChild(removeBtn);
+            
+            competitorsList.appendChild(competitorItem);
+        });
+
+        // Update add button state
+        const addBtn = document.getElementById('globalAddCompetitorBtn');
+        const newCompetitorInput = document.getElementById('globalNewCompetitorInput');
+        
+        if (competitors.length >= 4) {
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.innerHTML = '<i class="fas fa-ban"></i> Max 4 competitors';
+            }
+            if (newCompetitorInput) {
+                newCompetitorInput.disabled = true;
+                newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
+            }
+        } else {
+            if (addBtn) {
+                addBtn.disabled = false;
+                addBtn.innerHTML = '<i class="fas fa-plus"></i> Add';
+            }
+            if (newCompetitorInput) {
+                newCompetitorInput.disabled = false;
+                newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
+            }
+        }
+    }
+
+    async addGlobalCompetitor() {
+        const newCompetitorInput = document.getElementById('globalNewCompetitorInput');
+        const domain = newCompetitorInput.value.trim().toLowerCase();
+
+        if (!domain) {
+            this.showError('Please enter a domain');
+            return;
+        }
+
+        // Basic domain validation
+        if (!this.isValidDomain(domain)) {
+            this.showError('Please enter a valid domain (e.g., example.com)');
+            return;
+        }
+
+        const currentProject = this.currentGlobalProject;
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            // Get current competitors
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
+            if (!response.ok) throw new Error('Failed to get current competitors');
+
+            const data = await response.json();
+            const currentCompetitors = data.competitors || [];
+
+            // Check for duplicates
+            if (currentCompetitors.includes(domain)) {
+                this.showError('This competitor is already added');
+                return;
+            }
+
+            // Check maximum limit
+            if (currentCompetitors.length >= 4) {
+                this.showError('Maximum 4 competitors allowed');
+                return;
+            }
+
+            // Add new competitor
+            const updatedCompetitors = [...currentCompetitors, domain];
+            await this.updateGlobalCompetitors(updatedCompetitors);
+
+            // Clear input
+            newCompetitorInput.value = '';
+            this.showSuccess('Competitor added successfully');
+
+        } catch (error) {
+            console.error('Error adding global competitor:', error);
+            this.showError('Failed to add competitor');
+        }
+    }
+
+    async removeGlobalCompetitor(domain) {
+        const currentProject = this.currentGlobalProject;
+        if (!currentProject) return;
+
+        try {
+            // Get current competitors
+            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
+            if (!response.ok) throw new Error('Failed to get current competitors');
+
+            const data = await response.json();
+            const currentCompetitors = data.competitors || [];
+
+            // Remove competitor
+            const updatedCompetitors = currentCompetitors.filter(comp => comp !== domain);
+            await this.updateGlobalCompetitors(updatedCompetitors);
+
+            this.showSuccess('Competitor removed successfully');
+
+        } catch (error) {
+            console.error('Error removing global competitor:', error);
+            this.showError('Failed to remove competitor');
+        }
+    }
+
+    async updateGlobalCompetitors(competitors) {
+        const currentProject = this.currentGlobalProject;
+        if (!currentProject) return;
+
+        const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ competitors })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update competitors');
+        }
+
+        // Reload competitors display in global settings
+        await this.loadGlobalCompetitors(currentProject.id);
+        
+        // Refresh the projects list to update the project cards with new competitor info
+        await this.loadProjects();
+        
+        // Update the project selector to reflect new competitor count
+        this.populateGlobalProjectSelector();
+        
+        // Update current project object
+        const updatedProject = this.projects.find(p => p.id === currentProject.id);
+        if (updatedProject) {
+            this.currentGlobalProject = updatedProject;
+            this.updateGlobalProjectInfo(updatedProject);
+        }
+    }
+
+    hideGlobalCompetitorsSection() {
+        const selectedProjectName = document.getElementById('selectedProjectName');
+        const selectedProjectDomain = document.getElementById('selectedProjectDomain');
+        const globalCompetitorsList = document.getElementById('globalCompetitorsList');
+        const globalCompetitorEmptyState = document.getElementById('globalCompetitorEmptyState');
+
+        if (selectedProjectName) selectedProjectName.textContent = 'No project selected';
+        if (selectedProjectDomain) selectedProjectDomain.textContent = '';
+        if (globalCompetitorsList) {
+            globalCompetitorsList.innerHTML = '';
+            globalCompetitorsList.classList.remove('has-competitors');
+        }
+        if (globalCompetitorEmptyState) {
+            globalCompetitorEmptyState.style.display = 'flex';
+            globalCompetitorEmptyState.classList.remove('hidden');
+        }
     }
 
     // ================================

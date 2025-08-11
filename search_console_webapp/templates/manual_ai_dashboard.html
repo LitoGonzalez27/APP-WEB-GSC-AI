@@ -548,7 +548,54 @@
 
                             </div>
                         </div>
-                        <!-- Project Competitors removed from Global Settings on purpose -->
+                        <!-- Project Competitors Section - Dynamic based on selected project -->
+                        <div class="setting-group" id="globalSettingsCompetitors" style="display: none;">
+                            <h3>🎯 Project Competitors</h3>
+                            <div class="project-competitors-info">
+                                <div class="setting-item">
+                                    <label>Selected Project</label>
+                                    <div class="selected-project-info" id="selectedProjectInfo">
+                                        <span id="selectedProjectName">No project selected</span>
+                                        <small id="selectedProjectDomain"></small>
+                                    </div>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label>Current Competitors</label>
+                                    <div class="global-competitors-manager">
+                                        <div class="global-add-competitor-section">
+                                            <div class="global-competitor-input-group">
+                                                <input type="text" id="globalNewCompetitorInput" class="form-input" 
+                                                       placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
+                                                <button type="button" class="btn-secondary" id="globalAddCompetitorBtn" onclick="manualAI.addGlobalCompetitor()">
+                                                    <i class="fas fa-plus"></i>
+                                                    Add
+                                                </button>
+                                            </div>
+                                            <small class="form-help">Add up to 4 competitor domains to track and compare performance</small>
+                                        </div>
+                                        
+                                        <div class="global-competitors-list" id="globalCompetitorsList">
+                                            <!-- Competitors will be loaded here -->
+                                        </div>
+                                        
+                                        <div class="global-competitor-empty-state" id="globalCompetitorEmptyState">
+                                            <i class="fas fa-users"></i>
+                                            <p>No competitors added yet</p>
+                                            <small>Add competitor domains to compare performance in AI Overview</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="setting-item">
+                                    <label for="projectSelector">Manage Different Project</label>
+                                    <select id="globalProjectSelector" class="form-select">
+                                        <option value="">Select a project to manage competitors...</option>
+                                    </select>
+                                    <small class="form-help">Switch to manage competitors for a different project</small>
+                                </div>
+                            </div>
+                        </div>
                         
                         <div class="setting-group">
                             <h3>Notifications</h3>
