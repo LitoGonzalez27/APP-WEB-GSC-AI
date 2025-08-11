@@ -2277,9 +2277,29 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # Obtener ranking global de dominios con métricas agregadas
+        # CORREGIDO: Approach híbrido para consistencia total con las métricas principales
+        # - Dominio del proyecto: usar manual_ai_results.domain_mentioned = true (misma lógica que get_project_statistics)
+        # - Otros dominios: usar manual_ai_global_domains (ya funciona bien)
         cur.execute("""
-            WITH domain_metrics AS (
+            WITH project_domain_mentions AS (
+                -- Para el dominio del proyecto: usar la MISMA lógica que get_project_statistics
+                SELECT 
+                    %s as detected_domain,
+                    COUNT(DISTINCT r.keyword_id) as appearances,
+                    AVG(r.domain_position) as avg_position,
+                    COUNT(DISTINCT r.analysis_date) as days_present,
+                    MIN(r.analysis_date) as first_seen,
+                    MAX(r.analysis_date) as last_seen,
+                    true as is_project_domain,
+                    false as is_selected_competitor
+                FROM manual_ai_results r
+                WHERE r.project_id = %s
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+                AND r.domain_mentioned = true
+            ),
+            other_domains AS (
+                -- Para otros dominios: usar manual_ai_global_domains (fuente confiable)
                 SELECT 
                     gd.detected_domain,
                     COUNT(DISTINCT gd.keyword_id) as appearances,
@@ -2287,33 +2307,35 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
                     COUNT(DISTINCT gd.analysis_date) as days_present,
                     MIN(gd.analysis_date) as first_seen,
                     MAX(gd.analysis_date) as last_seen,
-                    
-                    -- Calcular porcentaje de visibilidad
-                    (COUNT(DISTINCT gd.keyword_id)::float / 
-                     NULLIF((
-                         SELECT COUNT(DISTINCT r.keyword_id)
-                         FROM manual_ai_results r
-                         WHERE r.project_id = %s 
-                         AND r.analysis_date >= %s 
-                         AND r.analysis_date <= %s
-                         AND r.has_ai_overview = true
-                     ), 0)::float * 100) as visibility_percentage,
-                    
-                    -- Flags de identificación
-                    MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END) as is_project_domain,
-                    MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END) as is_selected_competitor
-                    
+                    MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END)::boolean as is_project_domain,
+                    MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END)::boolean as is_selected_competitor
                 FROM manual_ai_global_domains gd
                 WHERE gd.project_id = %s
                 AND gd.analysis_date >= %s 
                 AND gd.analysis_date <= %s
+                AND gd.detected_domain != %s -- Excluir dominio del proyecto
                 GROUP BY gd.detected_domain
+            ),
+            domain_metrics AS (
+                -- Combinar dominio del proyecto con otros dominios
+                SELECT * FROM project_domain_mentions
+                UNION ALL
+                SELECT * FROM other_domains
             )
             SELECT 
                 detected_domain,
                 appearances,
                 ROUND(avg_position::numeric, 1) as avg_position,
-                ROUND(visibility_percentage::numeric, 1) as visibility_percentage,
+                -- Calcular porcentaje de visibilidad basado en total de keywords con AI Overview
+                ROUND((appearances::float / 
+                    NULLIF((
+                        SELECT COUNT(DISTINCT r.keyword_id)
+                        FROM manual_ai_results r
+                        WHERE r.project_id = %s 
+                        AND r.analysis_date >= %s 
+                        AND r.analysis_date <= %s
+                        AND r.has_ai_overview = true
+                    ), 0)::float * 100)::numeric, 1) as visibility_percentage,
                 days_present,
                 first_seen,
                 last_seen,
@@ -2325,7 +2347,12 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
                 appearances DESC,
                 avg_position ASC,
                 detected_domain ASC
-        """, (project_id, start_date, end_date, project_id, start_date, end_date))
+            LIMIT 20
+        """, (
+            project_domain, project_id, start_date, end_date,  # project_domain_mentions CTE
+            project_id, start_date, end_date, project_domain,  # other_domains CTE  
+            project_id, start_date, end_date  # visibility_percentage calculation
+        ))
         
         results = cur.fetchall()
         

@@ -2820,8 +2820,8 @@
 
 /* Domain type highlighting */
 .domains-table .domain-row.project-domain {
-    background-color: #dbeafe !important; /* Light blue */
-    border-left: 4px solid #3b82f6;
+    background-color: rgba(216, 249, 184, 0.3) !important; /* Light green */
+    border-left: 4px solid #D8F9B8;
 }
 
 .domains-table .domain-row.competitor-domain {
