@@ -100,7 +100,7 @@ def create_global_domains_table():
         
         logger.info("✅ Estructura de tabla manual_ai_global_domains:")
         for col in columns:
-            logger.info(f"   - {col[0]} ({col[1]})")
+            logger.info(f"   - {col['column_name']} ({col['data_type']})")
         
         conn.commit()
         logger.info("🎉 Tabla de dominios globales creada exitosamente")
