@@ -2335,6 +2335,12 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
             domain_data = dict(row)
             domain_data['rank'] = i + 1
             
+            # Convertir decimales a float para JSON serialization
+            if domain_data['avg_position'] is not None:
+                domain_data['avg_position'] = float(domain_data['avg_position'])
+            if domain_data['visibility_percentage'] is not None:
+                domain_data['visibility_percentage'] = float(domain_data['visibility_percentage'])
+            
             # Determinar tipo de dominio para resaltado
             if domain_data['is_project_domain']:
                 domain_data['domain_type'] = 'project'

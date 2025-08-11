@@ -1881,9 +1881,9 @@ class ManualAISystem {
                         </div>
                     </div>
                 </td>
-                <td class="appearances-cell">${domain.appearances}</td>
-                <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
-                <td class="visibility-cell">${domain.visibility_percentage ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
+                <td class="appearances-cell">${domain.appearances || 0}</td>
+                <td class="position-cell">${domain.avg_position && typeof domain.avg_position === 'number' ? domain.avg_position.toFixed(1) : '-'}</td>
+                <td class="visibility-cell">${domain.visibility_percentage && typeof domain.visibility_percentage === 'number' ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
             `;
             
             tableBody.appendChild(row);
