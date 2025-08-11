@@ -150,8 +150,8 @@ class ManualAISystem {
         if (tabName === 'analytics') {
             this.loadAnalytics();
         } else if (tabName === 'settings') {
-            // Load global settings data including project-based competitors
-            this.loadGlobalSettings();
+            // Load competitors when switching to settings
+            this.loadCompetitors();
         }
     }
 
@@ -2026,36 +2026,13 @@ class ManualAISystem {
             });
         }
 
-        // Global Settings competitors management
-        this.initGlobalCompetitorsManager();
+
 
         // Ensure competitors are loaded when modal Settings is opened
         // (actual load is triggered contextually in showProjectModal/switchModalTab)
     }
 
-    initGlobalCompetitorsManager() {
-        const globalAddBtn = document.getElementById('globalAddCompetitorBtn');
-        const globalInput = document.getElementById('globalNewCompetitorInput');
-        const globalProjectSelector = document.getElementById('globalProjectSelector');
 
-        if (globalAddBtn) {
-            globalAddBtn.addEventListener('click', () => this.addGlobalCompetitor());
-        }
-
-        if (globalInput) {
-            globalInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.addGlobalCompetitor();
-                }
-            });
-        }
-
-        if (globalProjectSelector) {
-            globalProjectSelector.addEventListener('change', (e) => {
-                this.switchGlobalProject(e.target.value);
-            });
-        }
-    }
 
     async loadCompetitors(projectId = null) {
         // Prefer explicit projectId (e.g., from modal) otherwise fallback to current project context
@@ -2066,34 +2043,15 @@ class ManualAISystem {
         }
 
         console.log(`🔍 Loading competitors for project ${project.id}: ${project.name}`);
+        console.log('📋 Project data:', project);
 
-        try {
-            const response = await fetch(`/manual-ai/api/projects/${project.id}/competitors`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('No competitors endpoint found, rendering empty state');
-                    this.renderCompetitors([]);
-                    return;
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('🎯 Competitors data received:', data);
-            
-            if (data.success) {
-                const competitors = data.competitors || [];
-                console.log(`📊 Rendering ${competitors.length} competitors:`, competitors);
-                this.renderCompetitors(competitors);
-            } else {
-                console.error('API returned error:', data.error);
-                this.renderCompetitors([]);
-            }
-
-        } catch (error) {
-            console.error('Error loading competitors:', error);
-            this.renderCompetitors([]);
-        }
+        // Load competitors directly from project data (from database selected_competitors field)
+        const competitors = project.selected_competitors || [];
+        
+        console.log(`📊 Found ${competitors.length} competitors in project data:`, competitors);
+        
+        // Render the competitors immediately
+        this.renderCompetitors(competitors);
     }
 
     renderCompetitors(competitors) {
@@ -2208,12 +2166,8 @@ class ManualAISystem {
         }
 
         try {
-            // Get current competitors
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
-            if (!response.ok) throw new Error('Failed to get current competitors');
-
-            const data = await response.json();
-            const currentCompetitors = data.competitors || [];
+            // Get current competitors directly from project data
+            const currentCompetitors = currentProject.selected_competitors || [];
 
             // Check for duplicates
             if (currentCompetitors.includes(domain.toLowerCase())) {
@@ -2246,12 +2200,8 @@ class ManualAISystem {
         if (!currentProject) return;
 
         try {
-            // Get current competitors
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
-            if (!response.ok) throw new Error('Failed to get current competitors');
-
-            const data = await response.json();
-            const currentCompetitors = data.competitors || [];
+            // Get current competitors directly from project data
+            const currentCompetitors = currentProject.selected_competitors || [];
 
             // Remove competitor
             const updatedCompetitors = currentCompetitors.filter(comp => comp !== domain);
@@ -2282,6 +2232,15 @@ class ManualAISystem {
             throw new Error(error.error || 'Failed to update competitors');
         }
 
+        // Update the current project in memory with new competitors
+        currentProject.selected_competitors = competitors;
+        
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === currentProject.id);
+        if (projectIndex !== -1) {
+            this.projects[projectIndex].selected_competitors = competitors;
+        }
+        
         // Reload competitors display in modal and dashboard preview
         await Promise.all([
             this.loadCompetitors(currentProject.id),
@@ -2306,359 +2265,6 @@ class ManualAISystem {
         if (tableBody) tableBody.innerHTML = '';
         if (topDomainsTable) topDomainsTable.style.display = 'none';
         if (noDomainsMessage) noDomainsMessage.style.display = 'block';
-    }
-
-    // ================================
-    // GLOBAL SETTINGS COMPETITORS MANAGEMENT
-    // ================================
-
-    async loadGlobalSettings() {
-        console.log('🔧 Loading Global Settings...');
-        
-        // Check if we have projects with competitors
-        const projectsWithCompetitors = this.projects.filter(p => 
-            p.selected_competitors && Array.isArray(p.selected_competitors) && p.selected_competitors.length > 0
-        );
-
-        const globalSettingsSection = document.getElementById('globalSettingsCompetitors');
-        const globalProjectSelector = document.getElementById('globalProjectSelector');
-
-        if (projectsWithCompetitors.length > 0) {
-            // Show the competitors section
-            if (globalSettingsSection) {
-                globalSettingsSection.style.display = 'block';
-            }
-
-            // Populate project selector
-            this.populateGlobalProjectSelector();
-
-            // Auto-select the first project with competitors
-            if (globalProjectSelector && !this.currentGlobalProject) {
-                const firstProject = projectsWithCompetitors[0];
-                this.switchGlobalProject(firstProject.id);
-                globalProjectSelector.value = firstProject.id;
-            }
-        } else {
-            // Hide the competitors section if no projects have competitors
-            if (globalSettingsSection) {
-                globalSettingsSection.style.display = 'none';
-            }
-        }
-    }
-
-    populateGlobalProjectSelector() {
-        const globalProjectSelector = document.getElementById('globalProjectSelector');
-        if (!globalProjectSelector) return;
-
-        const projectsWithCompetitors = this.projects.filter(p => 
-            p.selected_competitors && Array.isArray(p.selected_competitors) && p.selected_competitors.length > 0
-        );
-
-        globalProjectSelector.innerHTML = `
-            <option value="">Select a project to manage competitors...</option>
-            ${this.projects.map(project => `
-                <option value="${project.id}" ${projectsWithCompetitors.some(p => p.id === project.id) ? '' : 'data-no-competitors="true"'}>
-                    ${this.escapeHtml(project.name)}${projectsWithCompetitors.some(p => p.id === project.id) ? 
-                        ` (${project.selected_competitors.length} competitors)` : ' (no competitors)'}
-                </option>
-            `).join('')}
-        `;
-    }
-
-    async switchGlobalProject(projectId) {
-        if (!projectId) {
-            this.currentGlobalProject = null;
-            this.hideGlobalCompetitorsSection();
-            return;
-        }
-
-        const project = this.projects.find(p => p.id == projectId);
-        if (!project) {
-            console.warn('Project not found:', projectId);
-            return;
-        }
-
-        this.currentGlobalProject = project;
-        
-        // Update project info display
-        this.updateGlobalProjectInfo(project);
-        
-        // Load competitors for this project
-        await this.loadGlobalCompetitors(project.id);
-    }
-
-    updateGlobalProjectInfo(project) {
-        const projectNameEl = document.getElementById('selectedProjectName');
-        const projectDomainEl = document.getElementById('selectedProjectDomain');
-
-        if (projectNameEl) {
-            projectNameEl.textContent = project.name;
-        }
-
-        if (projectDomainEl) {
-            projectDomainEl.textContent = project.domain + ` (${project.country_code})`;
-        }
-    }
-
-    async loadGlobalCompetitors(projectId) {
-        console.log(`🔍 Loading global competitors for project ${projectId}`);
-
-        try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('No competitors endpoint found, rendering empty state');
-                    this.renderGlobalCompetitors([]);
-                    return;
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('🎯 Global competitors data received:', data);
-            
-            if (data.success) {
-                const competitors = data.competitors || [];
-                console.log(`📊 Rendering ${competitors.length} global competitors:`, competitors);
-                this.renderGlobalCompetitors(competitors);
-            } else {
-                console.error('API returned error:', data.error);
-                this.renderGlobalCompetitors([]);
-            }
-
-        } catch (error) {
-            console.error('Error loading global competitors:', error);
-            this.renderGlobalCompetitors([]);
-        }
-    }
-
-    renderGlobalCompetitors(competitors) {
-        console.log('🎨 renderGlobalCompetitors called with:', competitors);
-        
-        const competitorsList = document.getElementById('globalCompetitorsList');
-        const competitorEmptyState = document.getElementById('globalCompetitorEmptyState');
-        
-        console.log('🔍 Global DOM elements found:', {
-            competitorsList: !!competitorsList,
-            competitorEmptyState: !!competitorEmptyState
-        });
-        
-        if (!competitorsList || !competitorEmptyState) {
-            console.warn('⚠️ Required global DOM elements not found for competitors rendering');
-            return;
-        }
-
-        // Clear existing competitors
-        competitorsList.innerHTML = '';
-
-        if (competitors.length === 0) {
-            console.log('📝 Showing global empty state - no competitors');
-            competitorsList.classList.remove('has-competitors');
-            competitorEmptyState.classList.remove('hidden');
-            competitorEmptyState.style.display = 'flex';
-        } else {
-            console.log(`📝 Showing ${competitors.length} global competitors`);
-            competitorsList.classList.add('has-competitors');
-            competitorEmptyState.classList.add('hidden');
-            competitorEmptyState.style.display = 'none';
-        }
-
-        competitors.forEach((domain, index) => {
-            const logoUrl = this.getDomainLogoUrl(domain);
-            const competitorItem = document.createElement('div');
-            competitorItem.className = 'competitor-item';
-            
-            // Create elements safely
-            const competitorInfo = document.createElement('div');
-            competitorInfo.className = 'competitor-info';
-            
-            const logoImg = document.createElement('img');
-            logoImg.src = logoUrl;
-            logoImg.alt = domain;
-            logoImg.className = 'domain-logo';
-            
-            // Safe fallback for logo
-            logoImg.onerror = () => {
-                logoImg.style.display = 'none';
-                const fallback = document.createElement('div');
-                fallback.className = 'competitor-logo-fallback';
-                fallback.textContent = domain.charAt(0).toUpperCase();
-                fallback.title = domain;
-                competitorInfo.insertBefore(fallback, logoImg.nextSibling);
-            };
-            
-            const domainSpan = document.createElement('span');
-            domainSpan.className = 'competitor-domain';
-            domainSpan.textContent = domain;
-            
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'competitor-remove-btn';
-            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-            removeBtn.onclick = () => this.removeGlobalCompetitor(domain);
-            
-            competitorInfo.appendChild(logoImg);
-            competitorInfo.appendChild(domainSpan);
-            competitorItem.appendChild(competitorInfo);
-            competitorItem.appendChild(removeBtn);
-            
-            competitorsList.appendChild(competitorItem);
-        });
-
-        // Update add button state
-        const addBtn = document.getElementById('globalAddCompetitorBtn');
-        const newCompetitorInput = document.getElementById('globalNewCompetitorInput');
-        
-        if (competitors.length >= 4) {
-            if (addBtn) {
-                addBtn.disabled = true;
-                addBtn.innerHTML = '<i class="fas fa-ban"></i> Max 4 competitors';
-            }
-            if (newCompetitorInput) {
-                newCompetitorInput.disabled = true;
-                newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
-            }
-        } else {
-            if (addBtn) {
-                addBtn.disabled = false;
-                addBtn.innerHTML = '<i class="fas fa-plus"></i> Add';
-            }
-            if (newCompetitorInput) {
-                newCompetitorInput.disabled = false;
-                newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
-            }
-        }
-    }
-
-    async addGlobalCompetitor() {
-        const newCompetitorInput = document.getElementById('globalNewCompetitorInput');
-        const domain = newCompetitorInput.value.trim().toLowerCase();
-
-        if (!domain) {
-            this.showError('Please enter a domain');
-            return;
-        }
-
-        // Basic domain validation
-        if (!this.isValidDomain(domain)) {
-            this.showError('Please enter a valid domain (e.g., example.com)');
-            return;
-        }
-
-        const currentProject = this.currentGlobalProject;
-        if (!currentProject) {
-            this.showError('No project selected');
-            return;
-        }
-
-        try {
-            // Get current competitors
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
-            if (!response.ok) throw new Error('Failed to get current competitors');
-
-            const data = await response.json();
-            const currentCompetitors = data.competitors || [];
-
-            // Check for duplicates
-            if (currentCompetitors.includes(domain)) {
-                this.showError('This competitor is already added');
-                return;
-            }
-
-            // Check maximum limit
-            if (currentCompetitors.length >= 4) {
-                this.showError('Maximum 4 competitors allowed');
-                return;
-            }
-
-            // Add new competitor
-            const updatedCompetitors = [...currentCompetitors, domain];
-            await this.updateGlobalCompetitors(updatedCompetitors);
-
-            // Clear input
-            newCompetitorInput.value = '';
-            this.showSuccess('Competitor added successfully');
-
-        } catch (error) {
-            console.error('Error adding global competitor:', error);
-            this.showError('Failed to add competitor');
-        }
-    }
-
-    async removeGlobalCompetitor(domain) {
-        const currentProject = this.currentGlobalProject;
-        if (!currentProject) return;
-
-        try {
-            // Get current competitors
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`);
-            if (!response.ok) throw new Error('Failed to get current competitors');
-
-            const data = await response.json();
-            const currentCompetitors = data.competitors || [];
-
-            // Remove competitor
-            const updatedCompetitors = currentCompetitors.filter(comp => comp !== domain);
-            await this.updateGlobalCompetitors(updatedCompetitors);
-
-            this.showSuccess('Competitor removed successfully');
-
-        } catch (error) {
-            console.error('Error removing global competitor:', error);
-            this.showError('Failed to remove competitor');
-        }
-    }
-
-    async updateGlobalCompetitors(competitors) {
-        const currentProject = this.currentGlobalProject;
-        if (!currentProject) return;
-
-        const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ competitors })
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || 'Failed to update competitors');
-        }
-
-        // Reload competitors display in global settings
-        await this.loadGlobalCompetitors(currentProject.id);
-        
-        // Refresh the projects list to update the project cards with new competitor info
-        await this.loadProjects();
-        
-        // Update the project selector to reflect new competitor count
-        this.populateGlobalProjectSelector();
-        
-        // Update current project object
-        const updatedProject = this.projects.find(p => p.id === currentProject.id);
-        if (updatedProject) {
-            this.currentGlobalProject = updatedProject;
-            this.updateGlobalProjectInfo(updatedProject);
-        }
-    }
-
-    hideGlobalCompetitorsSection() {
-        const selectedProjectName = document.getElementById('selectedProjectName');
-        const selectedProjectDomain = document.getElementById('selectedProjectDomain');
-        const globalCompetitorsList = document.getElementById('globalCompetitorsList');
-        const globalCompetitorEmptyState = document.getElementById('globalCompetitorEmptyState');
-
-        if (selectedProjectName) selectedProjectName.textContent = 'No project selected';
-        if (selectedProjectDomain) selectedProjectDomain.textContent = '';
-        if (globalCompetitorsList) {
-            globalCompetitorsList.innerHTML = '';
-            globalCompetitorsList.classList.remove('has-competitors');
-        }
-        if (globalCompetitorEmptyState) {
-            globalCompetitorEmptyState.style.display = 'flex';
-            globalCompetitorEmptyState.classList.remove('hidden');
-        }
     }
 
     // ================================
