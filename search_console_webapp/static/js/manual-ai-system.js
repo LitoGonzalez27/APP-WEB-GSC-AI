@@ -55,7 +55,7 @@ class ManualAISystem {
             },
             plugins: {
                 legend: {
-                    position: 'top',
+                    position: 'bottom',
                     align: 'start',
                     labels: {
                         usePointStyle: true,

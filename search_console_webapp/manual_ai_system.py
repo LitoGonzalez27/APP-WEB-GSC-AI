@@ -2089,12 +2089,15 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         visibility_chart_data = {'dates': [], 'datasets': []}
         position_chart_data = {'dates': [], 'datasets': []}
         
-        # Generar fechas del período
-        date_range = []
-        current_date = start_date
-        while current_date <= end_date:
-            date_range.append(str(current_date))
-            current_date += timedelta(days=1)
+        # Obtener fechas reales con datos (como get_project_statistics)
+        cur.execute("""
+            SELECT DISTINCT r.analysis_date
+            FROM manual_ai_results r
+            WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+            ORDER BY r.analysis_date
+        """, (project_id, start_date, end_date))
+        
+        date_range = [str(row['analysis_date']) for row in cur.fetchall()]
         
         visibility_chart_data['dates'] = date_range
         position_chart_data['dates'] = date_range
@@ -2111,53 +2114,81 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         
         # Para cada dominio, obtener sus métricas por fecha
         for domain in domains_to_compare:
-            # Datos de visibilidad (% de keywords donde aparece vs total keywords con AI Overview)
-            cur.execute("""
-                WITH daily_metrics AS (
+            # Datos de visibilidad - CORREGIDO: Usar misma lógica que get_project_statistics
+            if domain == project_domain:
+                # Para dominio del proyecto, usar manual_ai_results (datos primarios)
+                cur.execute("""
+                    SELECT 
+                        r.analysis_date,
+                        (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 
+                         NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END), 0)::float * 100) as visibility_percentage
+                    FROM manual_ai_results r
+                    WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+                    GROUP BY r.analysis_date
+                    ORDER BY r.analysis_date
+                """, (project_id, start_date, end_date))
+            else:
+                # Para competidores, usar manual_ai_global_domains
+                cur.execute("""
+                    WITH daily_metrics AS (
+                        SELECT 
+                            gd.analysis_date,
+                            COUNT(DISTINCT gd.keyword_id) as domain_appearances,
+                            (
+                                SELECT COUNT(DISTINCT r.keyword_id)
+                                FROM manual_ai_results r
+                                WHERE r.project_id = %s 
+                                AND r.analysis_date = gd.analysis_date
+                                AND r.has_ai_overview = true
+                            ) as total_ai_keywords
+                        FROM manual_ai_global_domains gd
+                        WHERE gd.project_id = %s 
+                        AND gd.detected_domain = %s
+                        AND gd.analysis_date >= %s 
+                        AND gd.analysis_date <= %s
+                        GROUP BY gd.analysis_date
+                    )
+                    SELECT 
+                        analysis_date,
+                        CASE 
+                            WHEN total_ai_keywords > 0 
+                            THEN (domain_appearances::float / total_ai_keywords::float * 100) 
+                            ELSE 0 
+                        END as visibility_percentage
+                    FROM daily_metrics
+                    ORDER BY analysis_date
+                """, (project_id, project_id, domain, start_date, end_date))
+            
+            visibility_results = cur.fetchall()
+            visibility_by_date = {str(row['analysis_date']): row['visibility_percentage'] for row in visibility_results}
+            
+            # Datos de posición media - CORREGIDO: Consistencia con get_project_statistics
+            if domain == project_domain:
+                # Para dominio del proyecto, usar manual_ai_results (datos primarios)
+                cur.execute("""
+                    SELECT 
+                        r.analysis_date,
+                        AVG(CASE WHEN r.domain_position IS NOT NULL THEN r.domain_position END) as avg_position
+                    FROM manual_ai_results r
+                    WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+                        AND r.domain_mentioned = true
+                    GROUP BY r.analysis_date
+                    ORDER BY r.analysis_date
+                """, (project_id, start_date, end_date))
+            else:
+                # Para competidores, usar manual_ai_global_domains
+                cur.execute("""
                     SELECT 
                         gd.analysis_date,
-                        COUNT(DISTINCT gd.keyword_id) as domain_appearances,
-                        (
-                            SELECT COUNT(DISTINCT r.keyword_id)
-                            FROM manual_ai_results r
-                            WHERE r.project_id = %s 
-                            AND r.analysis_date = gd.analysis_date
-                            AND r.has_ai_overview = true
-                        ) as total_ai_keywords
+                        AVG(gd.domain_position) as avg_position
                     FROM manual_ai_global_domains gd
                     WHERE gd.project_id = %s 
                     AND gd.detected_domain = %s
                     AND gd.analysis_date >= %s 
                     AND gd.analysis_date <= %s
                     GROUP BY gd.analysis_date
-                )
-                SELECT 
-                    analysis_date,
-                    CASE 
-                        WHEN total_ai_keywords > 0 
-                        THEN (domain_appearances::float / total_ai_keywords::float * 100) 
-                        ELSE 0 
-                    END as visibility_percentage
-                FROM daily_metrics
-                ORDER BY analysis_date
-            """, (project_id, project_id, domain, start_date, end_date))
-            
-            visibility_results = cur.fetchall()
-            visibility_by_date = {str(row['analysis_date']): row['visibility_percentage'] for row in visibility_results}
-            
-            # Datos de posición media
-            cur.execute("""
-                SELECT 
-                    gd.analysis_date,
-                    AVG(gd.domain_position) as avg_position
-                FROM manual_ai_global_domains gd
-                WHERE gd.project_id = %s 
-                AND gd.detected_domain = %s
-                AND gd.analysis_date >= %s 
-                AND gd.analysis_date <= %s
-                GROUP BY gd.analysis_date
-                ORDER BY gd.analysis_date
-            """, (project_id, domain, start_date, end_date))
+                    ORDER BY gd.analysis_date
+                """, (project_id, domain, start_date, end_date))
             
             position_results = cur.fetchall()
             position_by_date = {str(row['analysis_date']): row['avg_position'] for row in position_results}
@@ -2171,10 +2202,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                 position_data.append(position_by_date.get(date_str, None))
             
             # Determinar el label del dominio
-            if domain == project_domain:
-                domain_label = f"{domain} (Your Domain)"
-            else:
-                domain_label = domain
+            domain_label = domain
             
             # Dataset para gráfica de visibilidad
             visibility_chart_data['datasets'].append({
