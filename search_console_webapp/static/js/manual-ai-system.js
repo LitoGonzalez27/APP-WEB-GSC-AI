@@ -8,8 +8,11 @@ class ManualAISystem {
     constructor() {
         this.projects = [];
         this.currentProject = null;
+        this.currentModalProject = null;
+        this.projectToDelete = null;
         this.charts = {};
         this.isLoading = false;
+        this.refreshInterval = null;
         
         // Referencias DOM
         this.elements = {};
@@ -29,7 +32,25 @@ class ManualAISystem {
         // Cargamos datos iniciales
         this.loadInitialData();
         
+        // Configurar auto-refresh
+        this.setupAutoRefresh();
+        
+        // Initialize competitors manager
+        this.initCompetitorsManager();
+        
         console.log('✅ Manual AI System initialized');
+    }
+
+    setupAutoRefresh() {
+        // Auto-refresh projects every 2 minutes to catch cron updates
+        this.refreshInterval = setInterval(() => {
+            if (this.currentTab === 'projects') {
+                console.log('🔄 Auto-refreshing projects...');
+                this.loadProjects();
+            }
+        }, 120000); // 2 minutos
+        
+        console.log('✅ Auto-refresh configurado cada 2 minutos');
     }
 
     cacheElements() {
@@ -108,9 +129,6 @@ class ManualAISystem {
     async loadInitialData() {
         await this.loadProjects();
         this.populateAnalyticsProjectSelect();
-        
-        // Load cron execution status
-        this.updateLastCronExecution();
     }
 
     // ================================
@@ -132,7 +150,8 @@ class ManualAISystem {
         if (tabName === 'analytics') {
             this.loadAnalytics();
         } else if (tabName === 'settings') {
-            this.updateLastCronExecution();
+            // Load competitors when switching to settings
+            this.loadCompetitors();
         }
     }
 
@@ -167,12 +186,15 @@ class ManualAISystem {
         this.hideElement(this.elements.projectsEmptyState);
 
         try {
-            const response = await fetch('/manual-ai/api/projects');
+            // Añadir timestamp para evitar cache del navegador
+            const timestamp = new Date().getTime();
+            const response = await fetch(`/manual-ai/api/projects?_t=${timestamp}`);
             const data = await response.json();
 
             if (data.success) {
                 this.projects = data.projects;
                 this.renderProjects();
+                console.log('🔄 Projects loaded:', this.projects.length);
             } else {
                 throw new Error(data.error || 'Failed to load projects');
             }
@@ -200,12 +222,12 @@ class ManualAISystem {
                     <h3>${this.escapeHtml(project.name)}</h3>
                     <div class="project-actions">
                         <button type="button" class="btn-icon" onclick="manualAI.showProjectModal(${project.id})"
-                                title="Project settings">
-                            <i class="fas fa-cog"></i>
+                                title="Project settings" aria-label="Open project settings">
+                            <i class="fas fa-cog" aria-hidden="true"></i>
                         </button>
                         <button type="button" class="btn-icon" onclick="manualAI.analyzeProject(${project.id})"
-                                title="Run analysis">
-                            <i class="fas fa-play"></i>
+                                title="Run analysis" aria-label="Run AI analysis for this project">
+                            <i class="fas fa-play" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -235,6 +257,7 @@ class ManualAISystem {
                         <span class="stat-number">${project.mentions_count || 0}</span>
                         <span class="stat-label">Mentions</span>
                     </div>
+                    ${this.renderProjectCompetitorsSection(project)}
                 </div>
                 <div class="project-footer">
                     <small class="last-analysis">
@@ -244,6 +267,74 @@ class ManualAISystem {
                 </div>
             </div>
         `).join('');
+    }
+
+    renderProjectCompetitorsSection(project) {
+        const competitorsData = project.selected_competitors || [];
+        const competitorsCount = Array.isArray(competitorsData) ? competitorsData.length : 0;
+        
+        if (competitorsCount === 0) {
+            return `
+                <div class="stat competitors-stat">
+                    <div class="stat-content">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Competitors</span>
+                    </div>
+                    <div class="competitors-empty">
+                        <small style="color: var(--manual-ai-gray-500); font-size: 11px;">
+                            <i class="fas fa-users" style="margin-right: 4px; opacity: 0.6;"></i>
+                            No competitors added yet
+                        </small>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate competitor logos/previews with improved error handling
+        const competitorLogos = competitorsData.slice(0, 4).map(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const firstLetter = this.escapeHtml(domain.charAt(0).toUpperCase());
+            const safeDomain = this.escapeHtml(domain);
+            const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            return `
+                <div class="competitor-logo-container" title="${safeDomain}">
+                    <img id="${logoId}" 
+                         src="${logoUrl}" 
+                         alt="${safeDomain} logo" 
+                         class="competitor-logo-preview" 
+                         style="display: block;"
+                         onload="this.style.display='block';"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="competitor-logo-fallback" style="display: none;" title="${safeDomain}">
+                        ${firstLetter}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Generate competitor names with proper escaping
+        const competitorNames = competitorsData.slice(0, 2).map(domain => this.escapeHtml(domain)).join(', ');
+        const moreText = competitorsCount > 2 ? ` +${competitorsCount - 2} more` : '';
+
+        return `
+            <div class="stat competitors-stat">
+                <div class="stat-content">
+                    <span class="stat-number">${competitorsCount}</span>
+                    <span class="stat-label">Competitors</span>
+                </div>
+                <div class="competitors-preview-section">
+                    <div class="competitors-logos">
+                        ${competitorLogos}
+                    </div>
+                    <div class="competitors-list-preview">
+                        <small style="color: var(--manual-ai-gray-600); font-size: 11px; font-weight: 500; line-height: 1.3;">
+                            ${competitorNames}${moreText}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     // ================================
@@ -265,6 +356,16 @@ class ManualAISystem {
         const formData = new FormData(e.target);
         const projectData = Object.fromEntries(formData.entries());
 
+        // Collect up to 4 competitors from inline inputs
+        const competitors = [];
+        ['competitor1','competitor2','competitor3','competitor4'].forEach((id) => {
+            const v = (formData.get(id) || '').toString().trim().toLowerCase();
+            if (v) competitors.push(v);
+        });
+        if (competitors.length) {
+            projectData.competitors = competitors;
+        }
+
         this.showProgress('Creating project...', 'Setting up your new AI analysis project');
 
         try {
@@ -281,8 +382,25 @@ class ManualAISystem {
             if (data.success) {
                 this.hideCreateProject();
                 this.showSuccess('Project created successfully!');
+
+                // Refresh projects to include the new one
                 await this.loadProjects();
                 this.populateAnalyticsProjectSelect();
+
+                const newProjectId = data.project_id;
+
+                // Open the project modal directly in Settings to manage competitors
+                if (newProjectId) {
+                    this.showProjectModal(newProjectId);
+                    this.switchModalTab('settings');
+                    // Load competitors list (will show empty state if none)
+                    await this.loadCompetitors(newProjectId);
+                    // Update dashboard competitors preview as well
+                    await this.loadCompetitorsPreview(newProjectId);
+        } else {
+            // Fallback: ensure at least competitors preview updates
+            this.switchTab('projects');
+        }
             } else {
                 throw new Error(data.error || 'Failed to create project');
             }
@@ -762,30 +880,79 @@ class ManualAISystem {
     }
 
     renderAnalytics(stats) {
-        // Update summary cards
-        document.getElementById('totalKeywords').textContent = stats.main_stats.total_keywords || 0;
-        document.getElementById('aiKeywords').textContent = stats.main_stats.total_ai_keywords || 0;
-        document.getElementById('domainMentions').textContent = stats.main_stats.total_mentions || 0;
-        document.getElementById('visibilityPercentage').textContent = 
-            stats.main_stats.visibility_percentage ? 
-            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%';
-        document.getElementById('averagePosition').textContent = 
-            stats.main_stats.avg_position ? 
-            Math.round(stats.main_stats.avg_position * 10) / 10 : '-';
-        document.getElementById('aioWeight').textContent = 
-            stats.main_stats.aio_weight_percentage ? 
-            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%';
+        console.log('📊 Rendering analytics data:', stats);
+        
+        // Update summary cards with safe access
+        this.updateSummaryCard('totalKeywords', stats.main_stats?.total_keywords || 0);
+        this.updateSummaryCard('aiKeywords', stats.main_stats?.total_ai_keywords || 0);
+        this.updateSummaryCard('domainMentions', stats.main_stats?.total_mentions || 0);
+        this.updateSummaryCard('visibilityPercentage', 
+            stats.main_stats?.visibility_percentage ? 
+            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%');
+        this.updateSummaryCard('averagePosition', 
+            stats.main_stats?.avg_position ? 
+            Math.round(stats.main_stats.avg_position * 10) / 10 : '-');
+        this.updateSummaryCard('aioWeight', 
+            stats.main_stats?.aio_weight_percentage ? 
+            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%');
 
         // Show charts container
         this.hideElement(this.elements.analyticsContent);
         this.showElement(this.elements.chartsContainer);
 
-        // Render charts with events annotations
-        this.renderVisibilityChart(stats.visibility_chart, stats.events);
-        this.renderPositionsChart(stats.positions_chart, stats.events);
+        // Get project ID from stats or current selection
+        const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
 
-        // Load and render top domains
-        this.loadTopDomains(stats.project_id || this.currentProject?.id);
+        if (!projectId) {
+            console.warn('No project ID available for analytics rendering');
+            return;
+        }
+
+        console.log(`📈 Loading analytics components for project ${projectId}`);
+
+        // Render main charts with events annotations
+        if (stats.visibility_chart && Array.isArray(stats.visibility_chart)) {
+            this.renderVisibilityChart(stats.visibility_chart, stats.events || []);
+        } else {
+            console.warn('No visibility chart data available');
+        }
+
+        if (stats.positions_chart && Array.isArray(stats.positions_chart)) {
+            this.renderPositionsChart(stats.positions_chart, stats.events || []);
+        } else {
+            console.warn('No positions chart data available');
+        }
+
+        // Load all competitive analysis components in parallel
+        this.loadAnalyticsComponents(projectId);
+    }
+
+    updateSummaryCard(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        } else {
+            console.warn(`Summary card element not found: ${elementId}`);
+        }
+    }
+
+    async loadAnalyticsComponents(projectId) {
+        console.log(`🔄 Loading analytics components for project ${projectId}`);
+        
+        try {
+            // Load all components in parallel for better performance
+            const promises = [
+                this.loadGlobalDomainsRanking(projectId),
+                this.loadComparativeCharts(projectId),
+                this.loadCompetitorsPreview(projectId)
+            ];
+
+            await Promise.allSettled(promises);
+            console.log('✅ All analytics components loaded');
+
+        } catch (error) {
+            console.error('Error loading analytics components:', error);
+        }
     }
 
     renderVisibilityChart(data, events = []) {
@@ -1044,6 +1211,18 @@ class ManualAISystem {
         return div.innerHTML;
     }
 
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
     // ================================
     // PUBLIC METHODS (called from HTML)
     // ================================
@@ -1114,9 +1293,18 @@ class ManualAISystem {
             const visibilityScore = this.calculateVisibilityScore(domain.appearances, domain.avg_position);
             const scoreClass = this.getScoreClass(visibilityScore);
             
+            // Get logo URL for domain
+            const logoUrl = this.getDomainLogoUrl(domain.domain);
+            
             row.innerHTML = `
                 <td class="rank-cell">${index + 1}</td>
-                <td class="domain-cell" title="${domain.domain}">${domain.domain}</td>
+                <td class="domain-cell" title="${domain.domain}">
+                    <div class="domain-cell-content">
+                        <img src="${logoUrl}" alt="${domain.domain} logo" class="domain-logo" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.domain.charAt(0).toUpperCase()}</text></svg>'">
+                        <span class="domain-name">${domain.domain}</span>
+                    </div>
+                </td>
                 <td class="appearances-cell">${domain.appearances}</td>
                 <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
                 <td class="score-cell ${scoreClass}">${visibilityScore.toFixed(1)}</td>
@@ -1124,6 +1312,36 @@ class ManualAISystem {
             
             tableBody.appendChild(row);
         });
+    }
+
+    getDomainLogoUrl(domain) {
+        if (!domain || typeof domain !== 'string') {
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMTAiIGZpbGw9IiNlNWU3ZWIiLz4KPHR5cGUgeD0iMTAiIHk9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzc0MTUxIj4/PC90ZXh0Pgo8L3N2Zz4K';
+        }
+        
+        // Clean domain to remove any protocol or paths
+        const cleanDomain = domain.toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .split('/')[0]
+            .split('?')[0]
+            .split('#')[0]
+            .trim();
+            
+        if (!cleanDomain) {
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMTAiIGZpbGw9IiNlNWU3ZWIiLz4KPHR5cGUgeD0iMTAiIHk9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzc0MTUxIj4/PC90ZXh0Pgo8L3N2Zz4K';
+        }
+        
+        // Multiple fallback services for domain logos/favicons
+        const logoServices = [
+            `https://logo.clearbit.com/${cleanDomain}`,                       // Clearbit - high quality
+            `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=32`, // Google favicons - smaller size for better performance
+            `https://icon.horse/icon/${cleanDomain}`,                         // Icon Horse - reliable fallback
+            `https://${cleanDomain}/favicon.ico`                            // Direct favicon
+        ];
+        
+        // Return primary service (Clearbit) - fallback handled in onerror
+        return logoServices[0];
     }
 
     calculateVisibilityScore(appearances, avgPosition) {
@@ -1140,6 +1358,903 @@ class ManualAISystem {
         if (score >= 60) return 'score-good';
         if (score >= 30) return 'score-average';
         return 'score-poor';
+    }
+
+    // ================================
+    // COMPETITORS CHARTS FUNCTIONS
+    // ================================
+
+    async loadCompetitorsCharts(projectId) {
+        if (!projectId) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors-charts?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoCompetitorsChartsMessage();
+                    return;
+                }
+                throw new Error('Failed to load competitors charts data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render both charts
+            this.renderCompetitorsVisibilityChart(data.visibility_scatter || []);
+            this.renderCompetitorsPositionChart(data.position_evolution || {});
+
+        } catch (error) {
+            console.error('Error loading competitors charts:', error);
+            this.showNoCompetitorsChartsMessage();
+        }
+    }
+
+    renderCompetitorsVisibilityChart(scatterData) {
+        const ctx = document.getElementById('competitorsVisibilityChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.competitorsVisibility) {
+            this.charts.competitorsVisibility.destroy();
+        }
+
+        if (!scatterData || scatterData.length === 0) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        // Prepare data for scatter chart
+        const datasets = scatterData.map((item, index) => {
+            // Generate colors similar to the example image
+            const colors = [
+                { bg: '#3B82F6', border: '#2563EB' }, // Blue
+                { bg: '#EF4444', border: '#DC2626' }, // Red
+                { bg: '#10B981', border: '#059669' }, // Green
+                { bg: '#F59E0B', border: '#D97706' }, // Orange
+                { bg: '#8B5CF6', border: '#7C3AED' }, // Purple
+                { bg: '#06B6D4', border: '#0891B2' }  // Cyan
+            ];
+            
+            const color = colors[index % colors.length];
+            
+            return {
+                label: item.domain,
+                data: [{
+                    x: item.x,
+                    y: item.y,
+                    appearances: item.appearances,
+                    avg_position: item.avg_position,
+                    keywords_count: item.keywords_count
+                }],
+                backgroundColor: color.bg + '80', // Add transparency
+                borderColor: color.border,
+                borderWidth: 2,
+                pointRadius: 8,
+                pointHoverRadius: 10
+            };
+        });
+
+        this.charts.competitorsVisibility = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false // We'll create a custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].dataset.label;
+                            },
+                            label: function(context) {
+                                const data = context.raw;
+                                return [
+                                    `Visibility Score: ${data.x.toFixed(1)}`,
+                                    `Brand Likelihood: ${data.y.toFixed(1)}%`,
+                                    `Appearances: ${data.appearances}`,
+                                    `Avg Position: ${data.avg_position}`,
+                                    `Keywords: ${data.keywords_count}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Visibility Score (Brand Mentions)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Likelihood to buy (%)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create custom legend
+        this.createCompetitorsVisibilityLegend(scatterData);
+    }
+
+    createCompetitorsVisibilityLegend(scatterData) {
+        const legendContainer = document.querySelector('.competitors-charts-grid .chart-container:first-child .chart-legend');
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        legendContainer.innerHTML = '';
+
+        // Add quadrant labels
+        const quadrants = [
+            { label: 'Low performance', class: 'low-performance' },
+            { label: 'Low conversion', class: 'low-conversion' }
+        ];
+
+        quadrants.forEach(quadrant => {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `
+                <span class="legend-color ${quadrant.class}"></span>
+                <span>${quadrant.label}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+    }
+
+    renderCompetitorsPositionChart(positionData) {
+        const ctx = document.getElementById('competitorsPositionChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.competitorsPosition) {
+            this.charts.competitorsPosition.destroy();
+        }
+
+        if (!positionData || !positionData.datasets || positionData.datasets.length === 0) {
+            this.showNoCompetitorsChartsMessage();
+            return;
+        }
+
+        this.charts.competitorsPosition = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: positionData.dates || [],
+                datasets: positionData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false // We'll create a custom legend
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: Position ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        reverse: true, // Position 1 should be at the top
+                        title: {
+                            display: true,
+                            text: 'Brand Position'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return value.toString();
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+
+        // Create custom legend for position chart
+        this.createCompetitorsPositionLegend(positionData.datasets || []);
+    }
+
+    createCompetitorsPositionLegend(datasets) {
+        const legendContainer = document.getElementById('positionChartLegend');
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        legendContainer.innerHTML = '';
+
+        datasets.forEach(dataset => {
+            const item = document.createElement('div');
+            item.className = 'brand-legend-item';
+            item.innerHTML = `
+                <span class="brand-color" style="background-color: ${dataset.borderColor};"></span>
+                <span>${dataset.label}</span>
+            `;
+            legendContainer.appendChild(item);
+        });
+    }
+
+    showNoCompetitorsChartsMessage() {
+        // Hide charts and show empty state message
+        const charts = ['competitorsVisibilityChart', 'competitorsPositionChart'];
+        charts.forEach(chartId => {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                canvas.style.display = 'none';
+            }
+        });
+
+        // You could add a "no data" message here if needed
+        console.log('No competitors charts data available');
+    }
+
+    // ================================
+    // GLOBAL DOMAINS RANKING FUNCTIONS
+    // ================================
+
+    async loadGlobalDomainsRanking(projectId) {
+        if (!projectId) {
+            this.showNoGlobalDomainsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoGlobalDomainsMessage();
+                    return;
+                }
+                throw new Error('Failed to load global domains ranking');
+            }
+
+            const data = await response.json();
+            this.renderGlobalDomainsRanking(data.domains || []);
+
+        } catch (error) {
+            console.error('Error loading global domains ranking:', error);
+            this.showNoGlobalDomainsMessage();
+        }
+    }
+
+    renderGlobalDomainsRanking(domains) {
+        const tableBody = document.getElementById('globalDomainsBody');
+        const noDomainsMessage = document.getElementById('noGlobalDomainsMessage');
+        const globalDomainsTable = document.getElementById('globalDomainsTable');
+
+        if (!domains || domains.length === 0) {
+            this.showNoGlobalDomainsMessage();
+            return;
+        }
+
+        // Hide no domains message and show table
+        noDomainsMessage.style.display = 'none';
+        globalDomainsTable.style.display = 'table';
+
+        // Clear existing rows
+        tableBody.innerHTML = '';
+
+        // Render each domain row with highlighting
+        domains.forEach((domain, index) => {
+            const row = document.createElement('tr');
+            row.className = `domain-row ${domain.domain_type}-domain`;
+            
+            // Get logo URL
+            const logoUrl = this.getDomainLogoUrl(domain.detected_domain);
+            
+            // Create domain badge if needed
+            let domainBadge = '';
+            if (domain.domain_type === 'project') {
+                domainBadge = '<span class="domain-badge project">Your Domain</span>';
+            } else if (domain.domain_type === 'competitor') {
+                domainBadge = '<span class="domain-badge competitor">Competitor</span>';
+            }
+            
+            row.innerHTML = `
+                <td class="rank-cell">${domain.rank}</td>
+                <td class="domain-cell">
+                    <div class="global-domain-cell">
+                        <img src="${logoUrl}" alt="${domain.detected_domain} logo" class="domain-logo" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.detected_domain.charAt(0).toUpperCase()}</text></svg>'">
+                        <div class="global-domain-info">
+                            <div class="global-domain-label">
+                                <span class="global-domain-name">${domain.detected_domain}</span>
+                                ${domainBadge}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="appearances-cell">${domain.appearances}</td>
+                <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
+                <td class="visibility-cell">${domain.visibility_percentage ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+
+    showNoGlobalDomainsMessage() {
+        const tableBody = document.getElementById('globalDomainsBody');
+        const noDomainsMessage = document.getElementById('noGlobalDomainsMessage');
+        const globalDomainsTable = document.getElementById('globalDomainsTable');
+
+        if (tableBody) tableBody.innerHTML = '';
+        if (globalDomainsTable) globalDomainsTable.style.display = 'none';
+        if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    }
+
+    // ================================
+    // COMPARATIVE CHARTS FUNCTIONS (Project vs Selected Competitors)
+    // ================================
+
+    async loadComparativeCharts(projectId) {
+        if (!projectId) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=30`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoComparativeChartsMessage();
+                    return;
+                }
+                throw new Error('Failed to load comparative charts data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render both comparative charts
+            this.renderComparativeVisibilityChart(data.visibility_chart || {});
+            this.renderComparativePositionChart(data.position_chart || {});
+
+        } catch (error) {
+            console.error('Error loading comparative charts:', error);
+            this.showNoComparativeChartsMessage();
+        }
+    }
+
+    renderComparativeVisibilityChart(chartData) {
+        const ctx = document.getElementById('comparativeVisibilityChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.comparativeVisibility) {
+            this.charts.comparativeVisibility.destroy();
+        }
+
+        if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        this.charts.comparativeVisibility = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.dates || [],
+                datasets: chartData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw ? context.raw.toFixed(1) : 0}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Visibility Percentage (%)'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+    }
+
+    renderComparativePositionChart(chartData) {
+        const ctx = document.getElementById('comparativePositionChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.charts.comparativePosition) {
+            this.charts.comparativePosition.destroy();
+        }
+
+        if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+            this.showNoComparativeChartsMessage();
+            return;
+        }
+
+        this.charts.comparativePosition = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.dates || [],
+                datasets: chartData.datasets || []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(context[0].label).toLocaleDateString();
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: Position ${context.raw ? context.raw.toFixed(1) : 'N/A'}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        }
+                    },
+                    y: {
+                        reverse: true, // Lower position numbers should be at the top
+                        title: {
+                            display: true,
+                            text: 'Average Position in AI Overview'
+                        },
+                        grid: {
+                            color: '#E5E7EB'
+                        },
+                        min: 1,
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                return '#' + value;
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 3,
+                        hoverRadius: 6
+                    },
+                    line: {
+                        tension: 0.4
+                    }
+                }
+            }
+        });
+    }
+
+    showNoComparativeChartsMessage() {
+        // Hide charts and show empty state message
+        const charts = ['comparativeVisibilityChart', 'comparativePositionChart'];
+        charts.forEach(chartId => {
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                canvas.style.display = 'none';
+            }
+        });
+
+        console.log('No comparative charts data available');
+    }
+
+    // ================================
+    // COMPETITORS PREVIEW (Dashboard Main) 
+    // ================================
+    
+    async loadCompetitorsPreview(projectId) {
+        if (!projectId) {
+            this.renderCompetitorsPreview([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/competitors`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.renderCompetitorsPreview([]);
+                    return;
+                }
+                throw new Error('Failed to load competitors');
+            }
+
+            const data = await response.json();
+            this.renderCompetitorsPreview(data.competitors || []);
+
+        } catch (error) {
+            console.error('Error loading competitors preview:', error);
+            this.renderCompetitorsPreview([]);
+        }
+    }
+
+    renderCompetitorsPreview(competitors) {
+        const competitorsCountEl = document.getElementById('competitorsCount');
+        const competitorsPreviewEl = document.getElementById('competitorsPreview');
+
+        // Since we removed the Analytics chip, these elements no longer exist
+        // This function is kept for compatibility but does nothing
+        if (!competitorsCountEl || !competitorsPreviewEl) {
+            console.log('🗑️ Competitors preview elements not found (removed from UI)');
+            return;
+        }
+
+        // Legacy code kept for potential future use
+        competitorsCountEl.textContent = competitors.length;
+        competitorsPreviewEl.innerHTML = '';
+
+        if (competitors.length === 0) {
+            competitorsPreviewEl.innerHTML = '<span style="color: var(--text-secondary); font-size: 12px;">No competitors selected</span>';
+            return;
+        }
+
+        competitors.forEach(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const logoEl = document.createElement('img');
+            logoEl.src = logoUrl;
+            logoEl.alt = `${domain} logo`;
+            logoEl.className = 'competitor-logo-small';
+            logoEl.title = domain;
+            logoEl.onerror = function() {
+                this.outerHTML = `<div class="competitor-logo-placeholder" title="${domain}">${domain.charAt(0).toUpperCase()}</div>`;
+            };
+            competitorsPreviewEl.appendChild(logoEl);
+        });
+    }
+
+    // ================================
+    // COMPETITORS MANAGEMENT FUNCTIONS
+    // ================================
+
+    initCompetitorsManager() {
+        const addBtn = document.getElementById('addCompetitorBtn');
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.addCompetitor());
+        }
+
+        if (newCompetitorInput) {
+            newCompetitorInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addCompetitor();
+                }
+            });
+        }
+
+
+
+        // Ensure competitors are loaded when modal Settings is opened
+        // (actual load is triggered contextually in showProjectModal/switchModalTab)
+    }
+
+
+
+    async loadCompetitors(projectId = null) {
+        // Prefer explicit projectId (e.g., from modal) otherwise fallback to current project context
+        const project = projectId ? this.projects.find(p => p.id == projectId) : (this.currentModalProject || this.getCurrentProject());
+        if (!project) {
+            console.warn('No project found for loading competitors');
+            return;
+        }
+
+        console.log(`🔍 Loading competitors for project ${project.id}: ${project.name}`);
+        console.log('📋 Project data:', project);
+
+        // Load competitors directly from project data (from database selected_competitors field)
+        const competitors = project.selected_competitors || [];
+        
+        console.log(`📊 Found ${competitors.length} competitors in project data:`, competitors);
+        
+        // Render the competitors immediately
+        this.renderCompetitors(competitors);
+    }
+
+    renderCompetitors(competitors) {
+        console.log('🎨 renderCompetitors called with:', competitors);
+        
+        const competitorsList = document.getElementById('competitorsList');
+        const competitorEmptyState = document.getElementById('competitorEmptyState');
+        
+        console.log('🔍 DOM elements found:', {
+            competitorsList: !!competitorsList,
+            competitorEmptyState: !!competitorEmptyState
+        });
+        
+        if (!competitorsList || !competitorEmptyState) {
+            console.warn('⚠️ Required DOM elements not found for competitors rendering');
+            return;
+        }
+
+        // Clear existing competitors
+        competitorsList.innerHTML = '';
+
+        if (competitors.length === 0) {
+            console.log('📝 Showing empty state - no competitors');
+            competitorsList.classList.remove('has-competitors');
+            competitorEmptyState.classList.remove('hidden');
+            competitorEmptyState.style.display = 'flex';
+        } else {
+            console.log(`📝 Showing ${competitors.length} competitors`);
+            competitorsList.classList.add('has-competitors');
+            competitorEmptyState.classList.add('hidden');
+            competitorEmptyState.style.display = 'none';
+        }
+
+        competitors.forEach((domain, index) => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const competitorItem = document.createElement('div');
+            competitorItem.className = 'competitor-item';
+            
+            // Crear elementos de forma segura
+            const competitorInfo = document.createElement('div');
+            competitorInfo.className = 'competitor-info';
+            
+            const logoImg = document.createElement('img');
+            logoImg.src = logoUrl;
+            logoImg.alt = domain;
+            logoImg.className = 'domain-logo';
+            
+            // Fallback seguro para el logo
+            logoImg.onerror = () => {
+                logoImg.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.className = 'competitor-logo-fallback';
+                fallback.textContent = domain.charAt(0).toUpperCase();
+                fallback.title = domain;
+                competitorInfo.insertBefore(fallback, logoImg.nextSibling);
+            };
+            
+            const domainSpan = document.createElement('span');
+            domainSpan.className = 'competitor-domain';
+            domainSpan.textContent = domain;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'competitor-remove-btn';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.onclick = () => this.removeCompetitor(domain);
+            
+            competitorInfo.appendChild(logoImg);
+            competitorInfo.appendChild(domainSpan);
+            competitorItem.appendChild(competitorInfo);
+            competitorItem.appendChild(removeBtn);
+            
+            competitorsList.appendChild(competitorItem);
+        });
+
+        // Update add button state
+        const addBtn = document.getElementById('addCompetitorBtn');
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+        
+        if (competitors.length >= 4) {
+            addBtn.disabled = true;
+            addBtn.textContent = 'Max 4 competitors';
+            newCompetitorInput.disabled = true;
+            newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
+        } else {
+            addBtn.disabled = false;
+            addBtn.textContent = 'Add Competitor';
+            newCompetitorInput.disabled = false;
+            newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
+        }
+    }
+
+    async addCompetitor() {
+        const newCompetitorInput = document.getElementById('newCompetitorInput');
+        const domain = newCompetitorInput.value.trim();
+
+        if (!domain) {
+            this.showError('Please enter a domain');
+            return;
+        }
+
+        // Basic domain validation
+        if (!this.isValidDomain(domain)) {
+            this.showError('Please enter a valid domain (e.g., example.com)');
+            return;
+        }
+
+        const currentProject = this.currentModalProject;
+        if (!currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            // Get current competitors directly from project data
+            const currentCompetitors = currentProject.selected_competitors || [];
+
+            // Check for duplicates
+            if (currentCompetitors.includes(domain.toLowerCase())) {
+                this.showError('This competitor is already added');
+                return;
+            }
+
+            // Check maximum limit
+            if (currentCompetitors.length >= 4) {
+                this.showError('Maximum 4 competitors allowed');
+                return;
+            }
+
+            // Add new competitor
+            const updatedCompetitors = [...currentCompetitors, domain.toLowerCase()];
+            await this.updateCompetitors(updatedCompetitors);
+
+            // Clear input
+            newCompetitorInput.value = '';
+            this.showSuccess('Competitor added successfully');
+
+        } catch (error) {
+            console.error('Error adding competitor:', error);
+            this.showError('Failed to add competitor');
+        }
+    }
+
+    async removeCompetitor(domain) {
+        const currentProject = this.currentModalProject;
+        if (!currentProject) return;
+
+        try {
+            // Get current competitors directly from project data
+            const currentCompetitors = currentProject.selected_competitors || [];
+
+            // Remove competitor
+            const updatedCompetitors = currentCompetitors.filter(comp => comp !== domain);
+            await this.updateCompetitors(updatedCompetitors);
+
+            this.showSuccess('Competitor removed successfully');
+
+        } catch (error) {
+            console.error('Error removing competitor:', error);
+            this.showError('Failed to remove competitor');
+        }
+    }
+
+    async updateCompetitors(competitors) {
+        const currentProject = this.currentModalProject;
+        if (!currentProject) return;
+
+        const response = await fetch(`/manual-ai/api/projects/${currentProject.id}/competitors`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ competitors })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update competitors');
+        }
+
+        // Update the current project in memory with new competitors
+        currentProject.selected_competitors = competitors;
+        
+        // Update the project in the projects array
+        const projectIndex = this.projects.findIndex(p => p.id === currentProject.id);
+        if (projectIndex !== -1) {
+            this.projects[projectIndex].selected_competitors = competitors;
+        }
+        
+        // Reload competitors display in modal and dashboard preview
+        await Promise.all([
+            this.loadCompetitors(currentProject.id),
+            this.loadCompetitorsPreview(currentProject.id)
+        ]);
+        
+        // Refresh the projects list to update the project cards with new competitor info
+        await this.loadProjects();
+    }
+
+    isValidDomain(domain) {
+        // Basic domain validation regex
+        const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.([a-zA-Z]{2,}\.?)+$/;
+        return domainRegex.test(domain);
     }
 
     showNoDomainsMessage() {
@@ -1212,16 +2327,56 @@ class ManualAISystem {
 
         // Set project name in modal
         document.getElementById('deleteProjectName').textContent = currentProject.name;
+        document.getElementById('deleteProjectNamePrompt').textContent = currentProject.name;
         
         // Reset confirmation input
         const confirmInput = document.getElementById('deleteConfirmInput');
         confirmInput.value = '';
         document.getElementById('confirmDeleteBtn').disabled = true;
         
+        // Store project reference for deletion
+        this.projectToDelete = currentProject;
+        
+        // Remove any existing event listener to prevent duplicates
+        confirmInput.oninput = null;
+        
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== 'DELETE';
+            const inputValue = e.target.value.trim();
+            
+            // Use the stored project reference
+            if (!this.projectToDelete || !this.projectToDelete.name) {
+                console.error('❌ projectToDelete is null or has no name');
+                deleteBtn.disabled = true;
+                return;
+            }
+            
+            const projectName = this.projectToDelete.name.trim();
+            const isMatch = inputValue === projectName;
+            
+            console.log('🔍 Delete button validation:', {
+                inputValue: `"${inputValue}"`,
+                projectName: `"${projectName}"`,
+                inputLength: inputValue.length,
+                nameLength: projectName.length,
+                isMatch: isMatch,
+                charCodes: {
+                    input: Array.from(inputValue).map(c => c.charCodeAt(0)),
+                    name: Array.from(projectName).map(c => c.charCodeAt(0))
+                }
+            });
+            
+            deleteBtn.disabled = !isMatch;
+            
+            // Force visual update
+            if (isMatch) {
+                deleteBtn.style.opacity = '1';
+                deleteBtn.style.cursor = 'pointer';
+            } else {
+                deleteBtn.style.opacity = '0.5';
+                deleteBtn.style.cursor = 'not-allowed';
+            }
         };
         
         // Show modal
@@ -1235,30 +2390,30 @@ class ManualAISystem {
     }
 
     async executeDeleteProject() {
-        const currentProject = this.getCurrentProject();
+        const projectToDelete = this.projectToDelete;
         const confirmText = document.getElementById('deleteConfirmInput').value;
         
-        if (!currentProject) {
-            this.showError('No project selected');
+        if (!projectToDelete) {
+            this.showError('No project selected for deletion');
             return;
         }
 
-        if (confirmText !== 'DELETE') {
-            this.showError('Please type DELETE to confirm');
+        if (confirmText.trim() !== projectToDelete.name.trim()) {
+            this.showError('Please type the project name exactly to confirm');
             return;
         }
 
         try {
             this.showProgress('Deleting project...');
             
-            const response = await fetch(`/manual-ai/api/projects/${currentProject.id}`, {
+            const response = await fetch(`/manual-ai/api/projects/${encodeURIComponent(projectToDelete.id)}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to delete project');
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || error.message || `Failed to delete project (HTTP ${response.status})`);
             }
 
             this.hideProgress();
@@ -1267,11 +2422,10 @@ class ManualAISystem {
             // Show success message
             this.showSuccess('Project deleted successfully');
             
-            // Redirect to projects list after short delay
+            // Mercado estándar: recargar para reflejar el cambio inmediatamente
             setTimeout(() => {
-                this.showTab('projects');
-                this.loadProjects();
-            }, 1500);
+                window.location.reload();
+            }, 600);
             
         } catch (error) {
             this.hideProgress();
@@ -1355,6 +2509,7 @@ class ManualAISystem {
             this.loadModalKeywords(this.currentModalProject.id);
         } else if (tabName === 'settings' && this.currentModalProject) {
             this.loadModalSettings(this.currentModalProject);
+            this.loadCompetitors(this.currentModalProject.id);
         }
     }
 
@@ -1362,6 +2517,7 @@ class ManualAISystem {
         // Load into both tabs
         this.loadModalKeywords(project.id);
         this.loadModalSettings(project);
+        this.loadCompetitors(project.id);
     }
 
     async loadModalKeywords(projectId) {
@@ -1561,6 +2717,10 @@ class ManualAISystem {
 
         // Set project name in delete modal
         document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
+        document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
+        
+        // Store project reference for deletion (use the same variable as the other function)
+        this.projectToDelete = this.currentModalProject;
         
         // Hide project modal and show delete confirmation
         this.hideProjectModal();
@@ -1571,10 +2731,39 @@ class ManualAISystem {
         confirmInput.value = '';
         document.getElementById('confirmDeleteBtn').disabled = true;
         
+        // Remove any existing event listener to prevent duplicates
+        confirmInput.oninput = null;
+        
         // Add input listener for enabling delete button
         confirmInput.oninput = (e) => {
             const deleteBtn = document.getElementById('confirmDeleteBtn');
-            deleteBtn.disabled = e.target.value !== 'DELETE';
+            const inputValue = e.target.value.trim();
+            
+            // Safety check: ensure projectToDelete exists
+            if (!this.projectToDelete || !this.projectToDelete.name) {
+                console.error('❌ projectToDelete is null or has no name');
+                deleteBtn.disabled = true;
+                return;
+            }
+            
+            const projectName = this.projectToDelete.name.trim();
+            const isMatch = inputValue === projectName;
+            
+            console.log('🔍 Delete button validation (modal):', {
+                inputValue: `"${inputValue}"`,
+                projectName: `"${projectName}"`,
+                inputLength: inputValue.length,
+                nameLength: projectName.length,
+                isMatch: isMatch,
+                inputCharCodes: Array.from(inputValue).map(c => c.charCodeAt(0)),
+                nameCharCodes: Array.from(projectName).map(c => c.charCodeAt(0))
+            });
+            
+            deleteBtn.disabled = !isMatch;
+            
+            // Visual feedback for debugging
+            deleteBtn.style.opacity = isMatch ? '1' : '0.5';
+            deleteBtn.style.cursor = isMatch ? 'pointer' : 'not-allowed';
         };
     }
 }
@@ -1663,10 +2852,17 @@ function initializeUserDropdown() {
         }
     }
 
-    function handleLogout() {
-        if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-            // Redirect to logout endpoint
-            window.location.href = '/logout';
+    async function handleLogout() {
+        try {
+            // Usar el mismo flujo que el navbar para consistencia
+            const response = await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            if (response.ok) {
+                setTimeout(() => { window.location.href = '/login?session_expired=true'; }, 300);
+            } else {
+                window.location.href = '/login?auth_error=logout_failed';
+            }
+        } catch (_) {
+            window.location.href = '/login?auth_error=logout_failed';
         }
     }
 

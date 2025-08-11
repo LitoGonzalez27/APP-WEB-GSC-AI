@@ -250,12 +250,7 @@
                     <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
                 </div>
                 <div class="header-right">
-
-
-                    <a href="/app" class="btn-back-dashboard" title="Go Back">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>Go Back</span>
-                    </a>
+                    <!-- Go Back button removed as requested -->
                 </div>
             </div>
         </header>
@@ -311,7 +306,7 @@
                     </div>
                     <h3>No projects yet</h3>
                     <p>Create your first manual AI analysis project to get started</p>
-                    <button type="button" class="btn-primary" onclick="manualAI.showCreateProject()">
+                    <button type="button" class="btn-primary btn-small mt-2" onclick="manualAI.showCreateProject()">
                         <i class="fas fa-plus"></i>
                         Create Your First Project
                     </button>
@@ -369,7 +364,7 @@
                             </div>
                         </div>
                         <!-- 2. AI Overview Results -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-robot"></i>
                             </div>
@@ -389,7 +384,7 @@
                             </div>
                         </div>
                         <!-- 4. Domain Mentions -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-eye"></i>
                             </div>
@@ -409,7 +404,7 @@
                             </div>
                         </div>
                         <!-- 6. Average Position -->
-                        <div class="summary-card">
+                        <div class="summary-card ai-overview-metric">
                             <div class="summary-card-icon">
                                 <i class="fas fa-sort-numeric-down"></i>
                             </div>
@@ -418,6 +413,8 @@
                                 <p>Average Position</p>
                             </div>
                         </div>
+                        
+
                     </div>
 
                     <!-- Charts -->
@@ -432,44 +429,78 @@
                         </div>
                     </div>
 
-                    <!-- Top Domains Section -->
-                    <div class="top-domains-section">
+                    <!-- Comparative Charts Section -->
+                    <div class="competitors-charts-section">
                         <div class="section-header">
                             <h3>
-                                <i class="fas fa-trophy"></i>
-                                Most Visible Domains
+                                <i class="fas fa-chart-line"></i>
+                                Competitive Analysis vs Selected Competitors
                             </h3>
                             <div class="tooltip-container">
                                 <i class="fas fa-info-circle tooltip-trigger"></i>
                                 <div class="tooltip-content">
-                                    Domain visibility = appearance frequency + average position in AI Overview results
+                                    Compare your domain performance against selected competitors in AI Overview results
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="competitors-charts-grid">
+                            <div class="chart-container">
+                                <h4>AI Overview Visibility Percentage</h4>
+                                <div class="chart-description">
+                                    <small>Percentage of keywords where each domain appears in AI Overview</small>
+                                </div>
+                                <canvas id="comparativeVisibilityChart"></canvas>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <h4>Average Position in AI Overview</h4>
+                                <div class="chart-description">
+                                    <small>Average position when appearing in AI Overview (lower is better)</small>
+                                </div>
+                                <canvas id="comparativePositionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Global Domains Ranking Section -->
+                    <div class="top-domains-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-globe"></i>
+                                Global AI Overview Domains Ranking
+                            </h3>
+                            <div class="tooltip-container">
+                                <i class="fas fa-info-circle tooltip-trigger"></i>
+                                <div class="tooltip-content">
+                                    Ranking of ALL domains detected in AI Overview for your keywords, with highlighting for your domain and selected competitors
                                 </div>
                             </div>
                         </div>
                         
                         <div class="domains-container">
                             <div class="domains-table-wrapper">
-                                <table class="domains-table" id="topDomainsTable">
+                                <table class="domains-table" id="globalDomainsTable">
                                     <thead>
                                         <tr>
                                             <th>Rank</th>
                                             <th>Domain</th>
                                             <th>Appearances</th>
                                             <th>Avg Position</th>
-                                            <th>Visibility Score</th>
+                                            <th>Visibility %</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="topDomainsBody">
+                                    <tbody id="globalDomainsBody">
                                         <!-- Dynamic content will be loaded here -->
                                     </tbody>
                                 </table>
                             </div>
                             
-                            <div class="no-domains-message" id="noDomainsMessage" style="display: none;">
+                            <div class="no-domains-message" id="noGlobalDomainsMessage" style="display: none;">
                                 <div class="empty-state">
                                     <i class="fas fa-search"></i>
-                                    <p>No domain data available yet</p>
-                                    <small>Run analysis to see competitor domains in AI Overview</small>
+                                    <p>No global domain data available yet</p>
+                                    <small>Run analysis to see all domains detected in AI Overview</small>
                                 </div>
                             </div>
                         </div>
@@ -517,6 +548,7 @@
 
                             </div>
                         </div>
+
                         <div class="setting-group">
                             <h3>Notifications</h3>
                             <div class="setting-item">
@@ -652,6 +684,23 @@
                                 <option value="UA">🇺🇦 Ukraine</option>
                             </select>
                             <small class="form-help">Search location for analysis</small>
+                        </div>
+                    </div>
+
+                    <!-- Competitors (optional) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors (optional)</span>
+                                <small style="margin-left: 6px; color:#6b7280; font-weight:400;">Up to 4 domains</small>
+                            </label>
+                            <div class="competitors-inline-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <input type="text" id="competitor1" name="competitor1" class="enhanced-input" placeholder="example-competitor.com">
+                                <input type="text" id="competitor2" name="competitor2" class="enhanced-input" placeholder="another-competitor.com">
+                                <input type="text" id="competitor3" name="competitor3" class="enhanced-input" placeholder="optional">
+                                <input type="text" id="competitor4" name="competitor4" class="enhanced-input" placeholder="optional">
+                            </div>
+                            <small class="form-help">Introduce solo dominios (sin https:// ni rutas). Ej.: <strong>example.com</strong></small>
                         </div>
                     </div>
                 </div>
@@ -833,10 +882,10 @@ keyword 3"></textarea>
                 
                 <div class="confirmation-input">
                     <label for="deleteConfirmInput">
-                        Type <strong>DELETE</strong> to confirm:
+                        Type the project name <strong><span id="deleteProjectNamePrompt"></span></strong> to confirm:
                     </label>
                     <input type="text" id="deleteConfirmInput" class="form-input" 
-                           placeholder="Type DELETE here..." autocomplete="off">
+                           placeholder="Type the project name here..." autocomplete="off">
                 </div>
             </div>
             <div class="modal-footer">
@@ -870,7 +919,7 @@ keyword 3"></textarea>
                     </button>
                     <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="manualAI.switchModalTab('settings')">
                         <i class="fas fa-cog"></i>
-                        Global Settings
+                        Project Settings
                     </button>
                 </div>
 
@@ -923,6 +972,34 @@ keyword 3"></textarea>
                             <small class="form-help">Add a description to help identify this project</small>
                         </div>
 
+                        <!-- Project Competitors Section -->
+                        <div class="setting-group">
+                            <label>Project Competitors</label>
+                            <div class="competitors-manager">
+                                <div class="add-competitor-section">
+                                    <div class="competitor-input-group">
+                                        <input type="text" id="newCompetitorInput" class="form-input" 
+                                               placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
+                                        <button type="button" class="btn-secondary" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
+                                            <i class="fas fa-plus"></i>
+                                            Add
+                                        </button>
+                                    </div>
+                                    <small class="form-help">Add up to 4 competitor domains to track and compare performance</small>
+                                </div>
+                                
+                                <div class="competitors-list" id="competitorsList">
+                                    <!-- Competitors will be loaded here -->
+                                </div>
+                                
+                                <div class="competitor-empty-state" id="competitorEmptyState">
+                                    <i class="fas fa-users"></i>
+                                    <p>No competitors added yet</p>
+                                    <small>Add competitor domains to compare performance in AI Overview</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="save-section">
                             <button type="button" class="btn-primary" onclick="manualAI.updateProjectFromModal()">
                                 <i class="fas fa-save"></i>
@@ -953,9 +1030,11 @@ keyword 3"></textarea>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
+        // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos
+        window.DISABLE_SIDEBAR_NAVIGATION = true;
+        
         // Funciones de navegación entre secciones
         function navigateToConfiguration() {
             console.log('🔄 Navegando a Configuration desde Manual AI');
@@ -1056,17 +1135,45 @@ keyword 3"></textarea>
             }
         }
 
+        // Función para manejar sidebar en Manual AI
+        function initManualAISidebar() {
+            console.log('🎯 Inicializando sidebar específico para Manual AI...');
+            
+            // Remover clase active de todos los elementos de navegación
+            const allNavItems = document.querySelectorAll('.nav-item');
+            allNavItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Verificar estado de análisis para habilitar navegación
+            checkAnalysisState();
+            
+            // Solo marcar Manual AI como activo si existe el elemento
+            const navManualAI = document.getElementById('navManualAI');
+            if (navManualAI) {
+                navManualAI.classList.add('active');
+                console.log('✅ Manual AI marcado como activo en sidebar');
+            }
+        }
+    </script>
+
+
+
+    <script>
         // Inicializar sistema cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar que estamos en la página correcta
             if (window.location.pathname.includes('/manual-ai/')) {
                 window.manualAI = new ManualAISystem();
                 
-                // Verificar estado de análisis
-                checkAnalysisState();
+                // Inicializar sidebar específico para Manual AI
+                initManualAISidebar();
                 
-                // Marcar Manual AI como activo en el sidebar
-                document.getElementById('navManualAI').classList.add('active');
+                // Asegurar que el navbar esté inicializado (para logout)
+                if (typeof Navbar !== 'undefined') {
+                    console.log('🔧 Inicializando navbar para Manual AI');
+                    window.navbar = new Navbar();
+                }
             }
         });
     </script>
