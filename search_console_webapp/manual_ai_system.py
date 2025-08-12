@@ -2102,12 +2102,12 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         visibility_chart_data['dates'] = date_range
         position_chart_data['dates'] = date_range
         
-        # Colores consistentes para cada dominio (usando paleta de AI Overview)
+        # Nueva paleta de colores personalizada
         domain_colors = {
-            project_domain: '#D9FAB9',  # Verde claro para dominio del proyecto (Your Domain)
+            project_domain: '#A1FFBB',  # Verde claro para dominio del usuario
         }
         
-        competitor_colors = ['#F2B9FA', '#FADBB9', '#B9E8FA']  # Rosa, Naranja/Beige, Azul claro
+        competitor_colors = ['#FFEBA1', '#FFA1A1', '#A1A9FF', '#8EAA96']  # Nueva paleta
         for i, competitor in enumerate(selected_competitors):
             if i < len(competitor_colors):
                 domain_colors[competitor] = competitor_colors[i]

@@ -558,8 +558,18 @@
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: var(--manual-ai-spacing-xl);
+}
+
+/* Domain Visibility takes full width, Position Distribution below */
+.charts-grid .chart-container:first-child {
+  grid-column: 1 / -1;
+}
+
+.charts-grid .chart-container:nth-child(2) {
+  grid-column: 1 / -1;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .chart-container {

@@ -1191,17 +1191,31 @@ class ManualAISystem {
                     day: 'numeric' 
                 })),
                 datasets: [{
-                    label: 'Domain Visibility',
+                    label: 'Domain Visibility (%)',
                     data: data.map(d => d.visibility_pct || 0),
-                    borderColor: '#6366F1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.3)',
-                    pointBackgroundColor: '#6366F1',
+                    borderColor: '#A1FFBB',
+                    backgroundColor: 'rgba(161, 255, 187, 0.3)',
+                    pointBackgroundColor: '#A1FFBB',
                     pointBorderColor: '#FFFFFF',
-                    pointHoverBackgroundColor: '#4F46E5',
+                    pointHoverBackgroundColor: '#7FE0A0',
                     pointHoverBorderColor: '#FFFFFF',
                     pointStyle: 'rectRounded',
-                    fill: 'origin',
-                    tension: 0.4
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                }, {
+                    label: 'AI Overview Results',
+                    data: data.map(d => d.ai_keywords || 0),
+                    borderColor: '#FFEBA1',
+                    backgroundColor: 'rgba(255, 235, 161, 0.3)',
+                    pointBackgroundColor: '#FFEBA1',
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: '#FFE270',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: 'y1'
                 }]
             },
             plugins: [htmlLegendPlugin],
@@ -1211,18 +1225,43 @@ class ManualAISystem {
                     ...config.scales,
                     y: {
                         ...config.scales.y,
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
                         beginAtZero: true,
                         max: 100,
                         title: {
                             display: true,
                             text: 'Visibility (%)',
-                            color: '#374151',
+                            color: '#A1FFBB',
                             font: { size: 12, weight: '500' }
                         },
                         ticks: {
                             ...config.scales.y.ticks,
                             callback: function(value) {
                                 return value + '%';
+                            }
+                        }
+                    },
+                    y1: {
+                        ...config.scales.y,
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'AI Overview Results',
+                            color: '#FFEBA1',
+                            font: { size: 12, weight: '500' }
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        ticks: {
+                            ...config.scales.y.ticks,
+                            callback: function(value) {
+                                return Math.round(value);
                             }
                         }
                     },
@@ -1284,53 +1323,53 @@ class ManualAISystem {
                     {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
-                        borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.3)',
-                        pointBackgroundColor: '#059669',
+                        borderColor: '#FFEBA1',
+                        backgroundColor: 'rgba(255, 235, 161, 0.3)',
+                        pointBackgroundColor: '#FFEBA1',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#047857',
+                        pointHoverBackgroundColor: '#FFE270',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
-                        fill: 'origin',
+                        fill: false,
                         tension: 0.4
                     },
                     {
                         label: 'Position 4-10',
                         data: data.map(d => d.pos_4_10 || 0),
-                        borderColor: '#D97706',
-                        backgroundColor: 'rgba(217, 119, 6, 0.3)',
-                        pointBackgroundColor: '#D97706',
+                        borderColor: '#FFA1A1',
+                        backgroundColor: 'rgba(255, 161, 161, 0.3)',
+                        pointBackgroundColor: '#FFA1A1',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#B45309',
+                        pointHoverBackgroundColor: '#FF7070',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
-                        fill: 'origin',
+                        fill: false,
                         tension: 0.4
                     },
                     {
                         label: 'Position 11-20',
                         data: data.map(d => d.pos_11_20 || 0),
-                        borderColor: '#DC2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.3)',
-                        pointBackgroundColor: '#DC2626',
+                        borderColor: '#A1A9FF',
+                        backgroundColor: 'rgba(161, 169, 255, 0.3)',
+                        pointBackgroundColor: '#A1A9FF',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#B91C1C',
+                        pointHoverBackgroundColor: '#7080FF',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
-                        fill: 'origin',
+                        fill: false,
                         tension: 0.4
                     },
                     {
                         label: 'Position 21+',
                         data: data.map(d => d.pos_21_plus || 0),
-                        borderColor: '#6B7280',
-                        backgroundColor: 'rgba(107, 114, 128, 0.3)',
-                        pointBackgroundColor: '#6B7280',
+                        borderColor: '#8EAA96',
+                        backgroundColor: 'rgba(142, 170, 150, 0.3)',
+                        pointBackgroundColor: '#8EAA96',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#4B5563',
+                        pointHoverBackgroundColor: '#6B8A77',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
-                        fill: 'origin',
+                        fill: false,
                         tension: 0.4
                     }
                 ]
@@ -2099,7 +2138,7 @@ class ManualAISystem {
                     pointHoverBorderColor: '#FFFFFF',
                     pointStyle: 'rectRounded',
                     backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
-                    fill: 'origin', // Superpuesto como Sistrix
+                    fill: false, // Superpuesto como Sistrix
                     tension: 0.4
                 }))
             },
@@ -2191,7 +2230,7 @@ class ManualAISystem {
                     pointHoverBorderColor: '#FFFFFF',
                     pointStyle: 'rectRounded',
                     backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
-                    fill: 'origin', // Superpuesto como Sistrix
+                    fill: false, // Superpuesto como Sistrix
                     tension: 0.4
                 }))
             },
