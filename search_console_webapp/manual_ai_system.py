@@ -1981,14 +1981,14 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             'datasets': []
         }
         
-        # Colores para las líneas de competidores
+        # Colores para las líneas de competidores (usando paleta de AI Overview)
         colors = [
-            '#3B82F6',  # Blue
-            '#EF4444',  # Red  
-            '#10B981',  # Green
-            '#F59E0B',  # Orange
-            '#8B5CF6',  # Purple
-            '#06B6D4'   # Cyan
+            '#D9FAB9',  # Verde claro (Your Domain)
+            '#F2B9FA',  # Rosa/Magenta claro 
+            '#FADBB9',  # Naranja/Beige claro
+            '#B9E8FA',  # Azul claro
+            '#D8F9B8',  # Verde adicional
+            '#F0C8FA'   # Rosa adicional
         ]
         
         for i, domain in enumerate(selected_domains):
@@ -2102,12 +2102,12 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         visibility_chart_data['dates'] = date_range
         position_chart_data['dates'] = date_range
         
-        # Colores consistentes para cada dominio
+        # Colores consistentes para cada dominio (usando paleta de AI Overview)
         domain_colors = {
-            project_domain: '#3B82F6',  # Blue para dominio del proyecto
+            project_domain: '#D9FAB9',  # Verde claro para dominio del proyecto (Your Domain)
         }
         
-        competitor_colors = ['#EF4444', '#10B981', '#F59E0B', '#8B5CF6']  # Red, Green, Orange, Purple
+        competitor_colors = ['#F2B9FA', '#FADBB9', '#B9E8FA']  # Rosa, Naranja/Beige, Azul claro
         for i, competitor in enumerate(selected_competitors):
             if i < len(competitor_colors):
                 domain_colors[competitor] = competitor_colors[i]

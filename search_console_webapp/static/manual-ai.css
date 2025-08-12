@@ -1534,7 +1534,7 @@
 /* Domain table cells specific styling */
 .domains-table .rank-cell {
   width: 60px;
-  text-align: center;
+  text-align: center !important;
   font-weight: 600;
   color: var(--manual-ai-primary);
 }
@@ -1549,14 +1549,20 @@
 }
 
 .domains-table .appearances-cell {
-  text-align: center;
+  text-align: center !important;
   width: 100px;
 }
 
 .domains-table .position-cell {
-  text-align: center;
+  text-align: center !important;
   width: 100px;
   font-family: monospace;
+}
+
+.domains-table .visibility-cell {
+  text-align: center !important;
+  width: 100px;
+  font-weight: 600;
 }
 
 .domains-table .score-cell {
@@ -2820,8 +2826,17 @@
 
 /* Domain type highlighting */
 .domains-table .domain-row.project-domain {
-    background-color: rgba(216, 249, 184, 0.3) !important; /* Light green */
+    background-color: rgba(216, 249, 184, 0.6) !important; /* Green con más opacidad */
     border-left: 4px solid #D8F9B8;
+    border-right: 4px solid #D8F9B8;
+}
+
+/* Ensure proper alignment for all numeric cells, even in highlighted rows */
+.domains-table .domain-row.project-domain .rank-cell,
+.domains-table .domain-row.project-domain .appearances-cell,
+.domains-table .domain-row.project-domain .position-cell,
+.domains-table .domain-row.project-domain .visibility-cell {
+    text-align: center !important;
 }
 
 .domains-table .domain-row.competitor-domain {
@@ -2829,9 +2844,25 @@
     border-left: 4px solid #f59e0b;
 }
 
+/* Ensure proper alignment for competitor domain cells */
+.domains-table .domain-row.competitor-domain .rank-cell,
+.domains-table .domain-row.competitor-domain .appearances-cell,
+.domains-table .domain-row.competitor-domain .position-cell,
+.domains-table .domain-row.competitor-domain .visibility-cell {
+    text-align: center !important;
+}
+
 .domains-table .domain-row.other-domain {
     background-color: transparent;
     border-left: 4px solid transparent;
+}
+
+/* Ensure proper alignment for other domain cells */
+.domains-table .domain-row.other-domain .rank-cell,
+.domains-table .domain-row.other-domain .appearances-cell,
+.domains-table .domain-row.other-domain .position-cell,
+.domains-table .domain-row.other-domain .visibility-cell {
+    text-align: center !important;
 }
 
 /* Domain badges */

@@ -2061,6 +2061,7 @@ class ManualAISystem {
                     y: {
                         ...config.scales.y,
                         reverse: true,
+                        min: 1,
                         title: {
                             display: true,
                             text: 'Average Position',
