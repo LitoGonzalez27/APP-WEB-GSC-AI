@@ -1468,23 +1468,6 @@
   color: var(--manual-ai-primary);
 }
 
-.tooltip-content {
-  position: absolute;
-  top: -45px;
-  right: 0;
-  background: var(--manual-ai-gray-800);
-  color: white;
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
-  border-radius: var(--manual-ai-border-radius);
-  font-size: 0.8rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-  z-index: 1000;
-  max-width: 300px;
-  white-space: normal;
-}
 
 .tooltip-trigger:hover + .tooltip-content {
   opacity: 1;

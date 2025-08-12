@@ -2107,7 +2107,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
             project_domain: '#5BF0AF',  # Verde actualizado para dominio del usuario
         }
         
-        competitor_colors = ['#F0715B', '#FFA1A1', '#A1A9FF', '#8EAA96']  # Paleta con naranja
+        competitor_colors = ['#F0715B', '#1851F1', '#A1A9FF', '#8EAA96']  # Nueva paleta: Naranja, Azul, Lila, Verde gris
         for i, competitor in enumerate(selected_competitors):
             if i < len(competitor_colors):
                 domain_colors[competitor] = competitor_colors[i]
@@ -2278,15 +2278,19 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # Lógica simplificada y robusta para evitar errores
-        # Primero, obtener el total de keywords con AI Overview para el cálculo de porcentajes
+        # Lógica corregida: suma diaria de keywords con AI Overview durante el período
+        # Ejemplo: Día 1 = 13 keywords, Día 2 = 15 keywords → Total = 28
         cur.execute("""
-            SELECT COUNT(DISTINCT r.keyword_id) as total_keywords
-            FROM manual_ai_results r
-            WHERE r.project_id = %s 
-            AND r.analysis_date >= %s 
-            AND r.analysis_date <= %s
-            AND r.has_ai_overview = true
+            SELECT SUM(daily_keywords) as total_keywords
+            FROM (
+                SELECT COUNT(DISTINCT r.keyword_id) as daily_keywords
+                FROM manual_ai_results r
+                WHERE r.project_id = %s 
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+                AND r.has_ai_overview = true
+                GROUP BY r.analysis_date
+            ) daily_counts
         """, (project_id, start_date, end_date))
         
         total_keywords_result = cur.fetchone()
