@@ -3326,3 +3326,58 @@
 .chart-html-legend span {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
+
+/* Tooltip posicionado a la derecha */
+.tooltip-right {
+    display: inline-block;
+    margin-left: 8px;
+    position: relative;
+    vertical-align: middle;
+}
+
+.tooltip-right .tooltip-trigger {
+    font-size: 14px;
+    color: #6B7280;
+    cursor: help;
+    transition: color 0.2s ease;
+}
+
+.tooltip-right .tooltip-trigger:hover {
+    color: #374151;
+}
+
+.tooltip-content-right {
+    position: absolute;
+    left: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(17, 24, 39, 0.95);
+    color: #F9FAFB;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    max-width: 250px;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.tooltip-content-right::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: rgba(17, 24, 39, 0.95);
+}
+
+.tooltip-right:hover .tooltip-content-right {
+    opacity: 1;
+    visibility: visible;
+}

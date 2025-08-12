@@ -2278,98 +2278,80 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # Nueva lógica de agregación: suma de apariciones diarias y media ponderada
+        # Lógica simplificada y robusta para evitar errores
+        # Primero, obtener el total de keywords con AI Overview para el cálculo de porcentajes
         cur.execute("""
-            WITH total_keywords_with_aio AS (
-                -- Total de keywords con AI Overview en el período (para cálculo de %)
-                SELECT COUNT(DISTINCT r.keyword_id) as total_keywords
-                FROM manual_ai_results r
-                WHERE r.project_id = %s 
-                AND r.analysis_date >= %s 
-                AND r.analysis_date <= %s
-                AND r.has_ai_overview = true
-            ),
-            project_domain_aggregated AS (
-                -- Para el dominio del proyecto: agregar apariciones diarias
-                SELECT 
-                    %s as detected_domain,
-                    SUM(daily_mentions) as total_appearances,
-                    SUM(daily_mentions * avg_daily_position) / NULLIF(SUM(daily_mentions), 0) as weighted_avg_position,
-                    COUNT(analysis_date) as days_present,
-                    MIN(analysis_date) as first_seen,
-                    MAX(analysis_date) as last_seen,
-                    true as is_project_domain,
-                    false as is_selected_competitor
-                FROM (
-                    SELECT 
-                        r.analysis_date,
-                        COUNT(DISTINCT r.keyword_id) as daily_mentions,
-                        AVG(r.domain_position) as avg_daily_position
-                    FROM manual_ai_results r
-                    WHERE r.project_id = %s
-                    AND r.analysis_date >= %s 
-                    AND r.analysis_date <= %s
-                    AND r.domain_mentioned = true
-                    GROUP BY r.analysis_date
-                ) daily_stats
-            ),
-            other_domains_aggregated AS (
-                -- Para otros dominios: agregar apariciones diarias desde manual_ai_global_domains
+            SELECT COUNT(DISTINCT r.keyword_id) as total_keywords
+            FROM manual_ai_results r
+            WHERE r.project_id = %s 
+            AND r.analysis_date >= %s 
+            AND r.analysis_date <= %s
+            AND r.has_ai_overview = true
+        """, (project_id, start_date, end_date))
+        
+        total_keywords_result = cur.fetchone()
+        total_keywords = total_keywords_result['total_keywords'] if total_keywords_result else 0
+        
+        if total_keywords == 0:
+            logger.warning(f"No AI Overview keywords found for project {project_id} in date range")
+            return []
+        
+        # Obtener datos agregados por dominio 
+        cur.execute("""
+            WITH domain_daily_stats AS (
+                -- Estadísticas diarias por dominio desde manual_ai_global_domains
                 SELECT 
                     gd.detected_domain,
-                    SUM(daily_appearances) as total_appearances,
-                    SUM(daily_appearances * avg_daily_position) / NULLIF(SUM(daily_appearances), 0) as weighted_avg_position,
-                    COUNT(analysis_date) as days_present,
-                    MIN(analysis_date) as first_seen,
-                    MAX(analysis_date) as last_seen,
-                    MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END)::boolean as is_project_domain,
-                    MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END)::boolean as is_selected_competitor
-                FROM (
-                    SELECT 
-                        gd.detected_domain,
-                        gd.analysis_date,
-                        COUNT(*) as daily_appearances,
-                        AVG(gd.domain_position) as avg_daily_position,
-                        gd.is_project_domain,
-                        gd.is_selected_competitor
-                    FROM manual_ai_global_domains gd
-                    WHERE gd.project_id = %s
-                    AND gd.analysis_date >= %s 
-                    AND gd.analysis_date <= %s
-                    AND gd.detected_domain != %s -- Excluir dominio del proyecto
-                    GROUP BY gd.detected_domain, gd.analysis_date, gd.is_project_domain, gd.is_selected_competitor
-                ) gd
-                GROUP BY gd.detected_domain
-            ),
-            domain_metrics AS (
-                -- Combinar dominio del proyecto con otros dominios
-                SELECT * FROM project_domain_aggregated
+                    gd.analysis_date,
+                    COUNT(*) as daily_appearances,
+                    AVG(gd.domain_position) as avg_daily_position,
+                    MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END) as is_project_domain,
+                    MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END) as is_selected_competitor
+                FROM manual_ai_global_domains gd
+                WHERE gd.project_id = %s
+                AND gd.analysis_date >= %s 
+                AND gd.analysis_date <= %s
+                GROUP BY gd.detected_domain, gd.analysis_date
+                
                 UNION ALL
-                SELECT * FROM other_domains_aggregated
+                
+                -- Estadísticas del dominio del proyecto desde manual_ai_results
+                SELECT 
+                    %s as detected_domain,
+                    r.analysis_date,
+                    COUNT(DISTINCT r.keyword_id) as daily_appearances,
+                    AVG(r.domain_position) as avg_daily_position,
+                    1 as is_project_domain,
+                    0 as is_selected_competitor
+                FROM manual_ai_results r
+                WHERE r.project_id = %s
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+                AND r.domain_mentioned = true
+                GROUP BY r.analysis_date
             )
             SELECT 
                 detected_domain,
-                total_appearances as appearances,
-                ROUND(weighted_avg_position::numeric, 1) as avg_position,
-                -- Porcentaje de visibilidad: Total apariciones / total keywords con AI Overview del período
-                ROUND((total_appearances::float / 
-                    NULLIF((SELECT total_keywords FROM total_keywords_with_aio), 0)::float * 100)::numeric, 1) as visibility_percentage,
-                days_present,
-                first_seen,
-                last_seen,
-                is_project_domain::boolean,
-                is_selected_competitor::boolean
-            FROM domain_metrics
-            WHERE total_appearances > 0
+                SUM(daily_appearances) as appearances,
+                ROUND((SUM(daily_appearances * avg_daily_position) / NULLIF(SUM(daily_appearances), 0))::numeric, 1) as avg_position,
+                ROUND((SUM(daily_appearances)::float / %s::float * 100)::numeric, 1) as visibility_percentage,
+                COUNT(DISTINCT analysis_date) as days_present,
+                MIN(analysis_date) as first_seen,
+                MAX(analysis_date) as last_seen,
+                MAX(is_project_domain)::boolean as is_project_domain,
+                MAX(is_selected_competitor)::boolean as is_selected_competitor
+            FROM domain_daily_stats
+            GROUP BY detected_domain
+            HAVING SUM(daily_appearances) > 0
             ORDER BY 
-                total_appearances DESC,
-                weighted_avg_position ASC,
+                SUM(daily_appearances) DESC,
+                ROUND((SUM(daily_appearances * avg_daily_position) / NULLIF(SUM(daily_appearances), 0))::numeric, 1) ASC,
                 detected_domain ASC
             LIMIT 20
         """, (
-            project_id, start_date, end_date,  # total_keywords_with_aio CTE
-            project_domain, project_id, start_date, end_date,  # project_domain_aggregated CTE
-            project_id, start_date, end_date, project_domain  # other_domains_aggregated CTE
+            project_id, start_date, end_date,  # manual_ai_global_domains
+            project_domain, project_id, start_date, end_date,  # manual_ai_results para project domain
+            total_keywords  # para visibility_percentage
         ))
         
         results = cur.fetchall()

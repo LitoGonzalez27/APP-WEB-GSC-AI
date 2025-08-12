@@ -1234,7 +1234,15 @@ class ManualAISystem {
                                 });
                             },
                             label: function(context) {
-                                return `Visibility: ${Math.round(context.raw)}%`;
+                                const datasetLabel = context.dataset.label;
+                                const value = Math.round(context.raw);
+                                
+                                if (datasetLabel === 'Keywords with AI Overview') {
+                                    return `Keywords with AI Overview: ${value}`;
+                                } else if (datasetLabel === 'Domain Mentions') {
+                                    return `Domain Mentions: ${value}`;
+                                }
+                                return `${datasetLabel}: ${value}`;
                             }
                         }
                     }
@@ -1268,11 +1276,11 @@ class ManualAISystem {
                     {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
-                        borderColor: '#F0715B',
-                        backgroundColor: 'rgba(240, 113, 91, 0.3)',
-                        pointBackgroundColor: '#F0715B',
+                        borderColor: '#5BF0AF',
+                        backgroundColor: 'rgba(91, 240, 175, 0.3)',
+                        pointBackgroundColor: '#5BF0AF',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#E55A42',
+                        pointHoverBackgroundColor: '#45D190',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
                         fill: false,
@@ -1281,11 +1289,11 @@ class ManualAISystem {
                     {
                         label: 'Position 4-10',
                         data: data.map(d => d.pos_4_10 || 0),
-                        borderColor: '#FFA1A1',
-                        backgroundColor: 'rgba(255, 161, 161, 0.3)',
-                        pointBackgroundColor: '#FFA1A1',
+                        borderColor: '#1851F1',
+                        backgroundColor: 'rgba(24, 81, 241, 0.3)',
+                        pointBackgroundColor: '#1851F1',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#FF7070',
+                        pointHoverBackgroundColor: '#1040D6',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
                         fill: false,
