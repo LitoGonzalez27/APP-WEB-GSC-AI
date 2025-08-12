@@ -1080,12 +1080,13 @@ class ManualAISystem {
                     label: 'Domain Visibility',
                     data: data.map(d => d.visibility_pct || 0),
                     borderColor: '#6366F1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.4)',
                     pointBackgroundColor: '#6366F1',
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: '#4F46E5',
                     pointHoverBorderColor: '#FFFFFF',
-                    fill: true
+                    fill: 'origin',
+                    tension: 0.4
                 }]
             },
             options: {
@@ -1168,41 +1169,49 @@ class ManualAISystem {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
                         borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        backgroundColor: 'rgba(5, 150, 105, 0.6)',
                         pointBackgroundColor: '#059669',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#047857',
-                        pointHoverBorderColor: '#FFFFFF'
+                        pointHoverBorderColor: '#FFFFFF',
+                        fill: 'origin',
+                        tension: 0.4
                     },
                     {
                         label: 'Position 4-10',
                         data: data.map(d => d.pos_4_10 || 0),
                         borderColor: '#D97706',
-                        backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                        backgroundColor: 'rgba(217, 119, 6, 0.6)',
                         pointBackgroundColor: '#D97706',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#B45309',
-                        pointHoverBorderColor: '#FFFFFF'
+                        pointHoverBorderColor: '#FFFFFF',
+                        fill: '-1',
+                        tension: 0.4
                     },
                     {
                         label: 'Position 11-20',
                         data: data.map(d => d.pos_11_20 || 0),
                         borderColor: '#DC2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        backgroundColor: 'rgba(220, 38, 38, 0.6)',
                         pointBackgroundColor: '#DC2626',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#B91C1C',
-                        pointHoverBorderColor: '#FFFFFF'
+                        pointHoverBorderColor: '#FFFFFF',
+                        fill: '-1',
+                        tension: 0.4
                     },
                     {
                         label: 'Position 21+',
                         data: data.map(d => d.pos_21_plus || 0),
                         borderColor: '#6B7280',
-                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                        backgroundColor: 'rgba(107, 114, 128, 0.6)',
                         pointBackgroundColor: '#6B7280',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#4B5563',
-                        pointHoverBorderColor: '#FFFFFF'
+                        pointHoverBorderColor: '#FFFFFF',
+                        fill: '-1',
+                        tension: 0.4
                     }
                 ]
             },
@@ -1213,6 +1222,7 @@ class ManualAISystem {
                     y: {
                         ...config.scales.y,
                         beginAtZero: true,
+                        stacked: true,
                         title: {
                             display: true,
                             text: 'Number of Keywords',
@@ -1958,13 +1968,15 @@ class ManualAISystem {
                     month: 'short', 
                     day: 'numeric' 
                 })),
-                datasets: chartData.datasets.map(dataset => ({
+                datasets: chartData.datasets.map((dataset, index) => ({
                     ...dataset,
                     pointBackgroundColor: dataset.borderColor,
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: dataset.borderColor,
                     pointHoverBorderColor: '#FFFFFF',
-                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.1)') : 'rgba(99, 102, 241, 0.1)'
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.4)') : 'rgba(99, 102, 241, 0.4)',
+                    fill: index === 0 ? 'origin' : '-1',
+                    tension: 0.4
                 }))
             },
             options: {
@@ -1975,6 +1987,7 @@ class ManualAISystem {
                         ...config.scales.y,
                         beginAtZero: true,
                         max: 100,
+                        stacked: true,
                         title: {
                             display: true,
                             text: 'Visibility (%)',
@@ -2045,13 +2058,15 @@ class ManualAISystem {
                     month: 'short', 
                     day: 'numeric' 
                 })),
-                datasets: chartData.datasets.map(dataset => ({
+                datasets: chartData.datasets.map((dataset, index) => ({
                     ...dataset,
                     pointBackgroundColor: dataset.borderColor,
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: dataset.borderColor,
                     pointHoverBorderColor: '#FFFFFF',
-                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.1)') : 'rgba(99, 102, 241, 0.1)'
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.4)') : 'rgba(99, 102, 241, 0.4)',
+                    fill: index === 0 ? 'origin' : '-1',
+                    tension: 0.4
                 }))
             },
             options: {

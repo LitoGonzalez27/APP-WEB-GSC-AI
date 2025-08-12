@@ -3283,29 +3283,3 @@
         font-size: 1rem;
     }
 }
-
-/* Global domain table improvements */
-.domains-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: var(--manual-ai-spacing-md);
-}
-
-.domains-table th {
-    background: var(--manual-ai-gray-100);
-    color: var(--manual-ai-text-primary);
-    font-weight: 600;
-    padding: var(--manual-ai-spacing-sm);
-    border-bottom: 2px solid var(--manual-ai-border-color);
-}
-
-.domains-table td {
-    padding: var(--manual-ai-spacing-sm);
-    border-bottom: 1px solid var(--manual-ai-border-color);
-    color: var(--manual-ai-text-primary);
-}
-
-.domains-table tr:hover {
-    background: var(--manual-ai-gray-50);
-}
-
