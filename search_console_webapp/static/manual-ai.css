@@ -3364,3 +3364,13 @@
     opacity: 1;
     visibility: visible;
 }
+
+/* Texto explicativo para secciones */
+.section-description {
+    color: var(--manual-ai-gray-600);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    font-style: italic;
+    opacity: 0.85;
+}
