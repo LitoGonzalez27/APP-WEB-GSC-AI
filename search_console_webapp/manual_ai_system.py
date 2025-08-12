@@ -226,11 +226,11 @@ def update_project(project_id):
         if cur.rowcount == 0:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
             
-        # Registrar evento de cambio de nombre
-        cur.execute("""
-            INSERT INTO manual_ai_events (project_id, event_type, event_title, description, event_date)
-            VALUES (%s, 'project_updated', 'Project Renamed', %s, NOW())
-        """, (project_id, f'Project renamed to "{name}"'))
+        # Registrar evento de cambio de nombre (temporalmente deshabilitado)
+        # cur.execute("""
+        #     INSERT INTO manual_ai_events (project_id, event_type, event_title, description, event_date)
+        #     VALUES (%s, 'project_updated', 'Project Renamed', %s, NOW())
+        # """, (project_id, f'Project renamed to "{name}"'))
         
         conn.commit()
         conn.close()

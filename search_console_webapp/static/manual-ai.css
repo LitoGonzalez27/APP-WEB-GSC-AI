@@ -3374,3 +3374,14 @@
     font-style: italic;
     opacity: 0.85;
 }
+
+/* Labels específicos del modal con underline - sobrescribe estilos globales */
+label.manual-ai-underline {
+    display: inline !important;
+    margin-bottom: 0 !important;
+    font-weight: 500 !important;
+    font-size: 15px !important;
+    color: var(--manual-ai-gray-800) !important;
+    background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+    padding: 2px 4px;
+}
