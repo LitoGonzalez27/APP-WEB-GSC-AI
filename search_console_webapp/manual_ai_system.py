@@ -2102,12 +2102,12 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         visibility_chart_data['dates'] = date_range
         position_chart_data['dates'] = date_range
         
-        # Nueva paleta de colores personalizada
+        # Paleta de colores actualizada
         domain_colors = {
-            project_domain: '#A1FFBB',  # Verde claro para dominio del usuario
+            project_domain: '#5BF0AF',  # Verde actualizado para dominio del usuario
         }
         
-        competitor_colors = ['#FFEBA1', '#FFA1A1', '#A1A9FF', '#8EAA96']  # Nueva paleta
+        competitor_colors = ['#F0715B', '#FFA1A1', '#A1A9FF', '#8EAA96']  # Paleta con naranja
         for i, competitor in enumerate(selected_competitors):
             if i < len(competitor_colors):
                 domain_colors[competitor] = competitor_colors[i]
@@ -2249,9 +2249,10 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
     """
     Obtener ranking global de TODOS los dominios detectados en AI Overview.
     
-    Incluye:
-    - Cualquier dominio detectado (no solo los seleccionados)
-    - Número de apariciones, porcentaje de visibilidad, posición media
+    Nueva lógica de agregación:
+    - Total de Apariciones: Suma de apariciones diarias durante el período
+    - Porcentaje de Visibilidad: Total apariciones / total keywords con AI Overview del período
+    - Posición Media: Media ponderada sobre el total de búsquedas del período
     - Resaltado si es dominio del proyecto o competidor seleccionado
     - Ordenado por apariciones (desc) y posición media (asc)
     """
@@ -2277,81 +2278,98 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # CORREGIDO: Approach híbrido para consistencia total con las métricas principales
-        # - Dominio del proyecto: usar manual_ai_results.domain_mentioned = true (misma lógica que get_project_statistics)
-        # - Otros dominios: usar manual_ai_global_domains (ya funciona bien)
+        # Nueva lógica de agregación: suma de apariciones diarias y media ponderada
         cur.execute("""
-            WITH project_domain_mentions AS (
-                -- Para el dominio del proyecto: usar la MISMA lógica que get_project_statistics
-                SELECT 
-                    %s as detected_domain,
-                    COUNT(DISTINCT r.keyword_id) as appearances,
-                    AVG(r.domain_position) as avg_position,
-                    COUNT(DISTINCT r.analysis_date) as days_present,
-                    MIN(r.analysis_date) as first_seen,
-                    MAX(r.analysis_date) as last_seen,
-                    true as is_project_domain,
-                    false as is_selected_competitor
+            WITH total_keywords_with_aio AS (
+                -- Total de keywords con AI Overview en el período (para cálculo de %)
+                SELECT COUNT(DISTINCT r.keyword_id) as total_keywords
                 FROM manual_ai_results r
-                WHERE r.project_id = %s
+                WHERE r.project_id = %s 
                 AND r.analysis_date >= %s 
                 AND r.analysis_date <= %s
-                AND r.domain_mentioned = true
+                AND r.has_ai_overview = true
             ),
-            other_domains AS (
-                -- Para otros dominios: usar manual_ai_global_domains (fuente confiable)
+            project_domain_aggregated AS (
+                -- Para el dominio del proyecto: agregar apariciones diarias
+                SELECT 
+                    %s as detected_domain,
+                    SUM(daily_mentions) as total_appearances,
+                    SUM(daily_mentions * avg_daily_position) / NULLIF(SUM(daily_mentions), 0) as weighted_avg_position,
+                    COUNT(analysis_date) as days_present,
+                    MIN(analysis_date) as first_seen,
+                    MAX(analysis_date) as last_seen,
+                    true as is_project_domain,
+                    false as is_selected_competitor
+                FROM (
+                    SELECT 
+                        r.analysis_date,
+                        COUNT(DISTINCT r.keyword_id) as daily_mentions,
+                        AVG(r.domain_position) as avg_daily_position
+                    FROM manual_ai_results r
+                    WHERE r.project_id = %s
+                    AND r.analysis_date >= %s 
+                    AND r.analysis_date <= %s
+                    AND r.domain_mentioned = true
+                    GROUP BY r.analysis_date
+                ) daily_stats
+            ),
+            other_domains_aggregated AS (
+                -- Para otros dominios: agregar apariciones diarias desde manual_ai_global_domains
                 SELECT 
                     gd.detected_domain,
-                    COUNT(DISTINCT gd.keyword_id) as appearances,
-                    AVG(gd.domain_position) as avg_position,
-                    COUNT(DISTINCT gd.analysis_date) as days_present,
-                    MIN(gd.analysis_date) as first_seen,
-                    MAX(gd.analysis_date) as last_seen,
+                    SUM(daily_appearances) as total_appearances,
+                    SUM(daily_appearances * avg_daily_position) / NULLIF(SUM(daily_appearances), 0) as weighted_avg_position,
+                    COUNT(analysis_date) as days_present,
+                    MIN(analysis_date) as first_seen,
+                    MAX(analysis_date) as last_seen,
                     MAX(CASE WHEN gd.is_project_domain THEN 1 ELSE 0 END)::boolean as is_project_domain,
                     MAX(CASE WHEN gd.is_selected_competitor THEN 1 ELSE 0 END)::boolean as is_selected_competitor
-                FROM manual_ai_global_domains gd
-                WHERE gd.project_id = %s
-                AND gd.analysis_date >= %s 
-                AND gd.analysis_date <= %s
-                AND gd.detected_domain != %s -- Excluir dominio del proyecto
+                FROM (
+                    SELECT 
+                        gd.detected_domain,
+                        gd.analysis_date,
+                        COUNT(*) as daily_appearances,
+                        AVG(gd.domain_position) as avg_daily_position,
+                        gd.is_project_domain,
+                        gd.is_selected_competitor
+                    FROM manual_ai_global_domains gd
+                    WHERE gd.project_id = %s
+                    AND gd.analysis_date >= %s 
+                    AND gd.analysis_date <= %s
+                    AND gd.detected_domain != %s -- Excluir dominio del proyecto
+                    GROUP BY gd.detected_domain, gd.analysis_date, gd.is_project_domain, gd.is_selected_competitor
+                ) gd
                 GROUP BY gd.detected_domain
             ),
             domain_metrics AS (
                 -- Combinar dominio del proyecto con otros dominios
-                SELECT * FROM project_domain_mentions
+                SELECT * FROM project_domain_aggregated
                 UNION ALL
-                SELECT * FROM other_domains
+                SELECT * FROM other_domains_aggregated
             )
             SELECT 
                 detected_domain,
-                appearances,
-                ROUND(avg_position::numeric, 1) as avg_position,
-                -- Calcular porcentaje de visibilidad basado en total de keywords con AI Overview
-                ROUND((appearances::float / 
-                    NULLIF((
-                        SELECT COUNT(DISTINCT r.keyword_id)
-                        FROM manual_ai_results r
-                        WHERE r.project_id = %s 
-                        AND r.analysis_date >= %s 
-                        AND r.analysis_date <= %s
-                        AND r.has_ai_overview = true
-                    ), 0)::float * 100)::numeric, 1) as visibility_percentage,
+                total_appearances as appearances,
+                ROUND(weighted_avg_position::numeric, 1) as avg_position,
+                -- Porcentaje de visibilidad: Total apariciones / total keywords con AI Overview del período
+                ROUND((total_appearances::float / 
+                    NULLIF((SELECT total_keywords FROM total_keywords_with_aio), 0)::float * 100)::numeric, 1) as visibility_percentage,
                 days_present,
                 first_seen,
                 last_seen,
                 is_project_domain::boolean,
                 is_selected_competitor::boolean
             FROM domain_metrics
-            WHERE appearances > 0
+            WHERE total_appearances > 0
             ORDER BY 
-                appearances DESC,
-                avg_position ASC,
+                total_appearances DESC,
+                weighted_avg_position ASC,
                 detected_domain ASC
             LIMIT 20
         """, (
-            project_domain, project_id, start_date, end_date,  # project_domain_mentions CTE
-            project_id, start_date, end_date, project_domain,  # other_domains CTE  
-            project_id, start_date, end_date  # visibility_percentage calculation
+            project_id, start_date, end_date,  # total_keywords_with_aio CTE
+            project_domain, project_id, start_date, end_date,  # project_domain_aggregated CTE
+            project_id, start_date, end_date, project_domain  # other_domains_aggregated CTE
         ))
         
         results = cur.fetchall()

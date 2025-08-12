@@ -218,38 +218,11 @@ class ManualAISystem {
                 }
             },
             animations: {
-                x: {
-                    type: 'number',
+                tension: {
+                    duration: 300,
                     easing: 'easeInOutCubic',
-                    duration: 1000,
-                    from: NaN, // the point is initially skipped
-                    delay(ctx) {
-                        if (ctx.type !== 'data' || ctx.xStarted) {
-                            return 0;
-                        }
-                        ctx.xStarted = true;
-                        return ctx.index * 100;
-                    }
-                },
-                y: {
-                    type: 'number',
-                    easing: 'easeInOutCubic',
-                    duration: 1000,
-                    from: (ctx) => {
-                        if (ctx.type === 'data') {
-                            if (ctx.mode === 'default' && !ctx.dropped) {
-                                ctx.dropped = true;
-                                return 0;
-                            }
-                        }
-                    },
-                    delay(ctx) {
-                        if (ctx.type !== 'data' || ctx.yStarted) {
-                            return 0;
-                        }
-                        ctx.yStarted = true;
-                        return ctx.index * 100;
-                    }
+                    from: 1,
+                    to: 0.4
                 }
             }
         };
@@ -1191,31 +1164,29 @@ class ManualAISystem {
                     day: 'numeric' 
                 })),
                 datasets: [{
-                    label: 'Domain Visibility (%)',
-                    data: data.map(d => d.visibility_pct || 0),
-                    borderColor: '#A1FFBB',
-                    backgroundColor: 'rgba(161, 255, 187, 0.3)',
-                    pointBackgroundColor: '#A1FFBB',
-                    pointBorderColor: '#FFFFFF',
-                    pointHoverBackgroundColor: '#7FE0A0',
-                    pointHoverBorderColor: '#FFFFFF',
-                    pointStyle: 'rectRounded',
-                    fill: false,
-                    tension: 0.4,
-                    yAxisID: 'y'
-                }, {
-                    label: 'AI Overview Results',
+                    label: 'Keywords with AI Overview',
                     data: data.map(d => d.ai_keywords || 0),
-                    borderColor: '#FFEBA1',
-                    backgroundColor: 'rgba(255, 235, 161, 0.3)',
-                    pointBackgroundColor: '#FFEBA1',
+                    borderColor: '#5BF0AF',
+                    backgroundColor: 'rgba(91, 240, 175, 0.3)',
+                    pointBackgroundColor: '#5BF0AF',
                     pointBorderColor: '#FFFFFF',
-                    pointHoverBackgroundColor: '#FFE270',
+                    pointHoverBackgroundColor: '#45D190',
                     pointHoverBorderColor: '#FFFFFF',
                     pointStyle: 'rectRounded',
                     fill: false,
-                    tension: 0.4,
-                    yAxisID: 'y1'
+                    tension: 0.4
+                }, {
+                    label: 'Domain Mentions',
+                    data: data.map(d => d.mentions || 0),
+                    borderColor: '#F0715B',
+                    backgroundColor: 'rgba(240, 113, 91, 0.3)',
+                    pointBackgroundColor: '#F0715B',
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: '#E55A42',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    fill: false,
+                    tension: 0.4
                 }]
             },
             plugins: [htmlLegendPlugin],
@@ -1225,38 +1196,12 @@ class ManualAISystem {
                     ...config.scales,
                     y: {
                         ...config.scales.y,
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: 'Visibility (%)',
-                            color: '#A1FFBB',
-                            font: { size: 12, weight: '500' }
-                        },
-                        ticks: {
-                            ...config.scales.y.ticks,
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    },
-                    y1: {
-                        ...config.scales.y,
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'AI Overview Results',
-                            color: '#FFEBA1',
+                            text: 'Count',
+                            color: '#374151',
                             font: { size: 12, weight: '500' }
-                        },
-                        grid: {
-                            drawOnChartArea: false
                         },
                         ticks: {
                             ...config.scales.y.ticks,
@@ -1323,11 +1268,11 @@ class ManualAISystem {
                     {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
-                        borderColor: '#FFEBA1',
-                        backgroundColor: 'rgba(255, 235, 161, 0.3)',
-                        pointBackgroundColor: '#FFEBA1',
+                        borderColor: '#F0715B',
+                        backgroundColor: 'rgba(240, 113, 91, 0.3)',
+                        pointBackgroundColor: '#F0715B',
                         pointBorderColor: '#FFFFFF',
-                        pointHoverBackgroundColor: '#FFE270',
+                        pointHoverBackgroundColor: '#E55A42',
                         pointHoverBorderColor: '#FFFFFF',
                         pointStyle: 'rectRounded',
                         fill: false,
@@ -1984,8 +1929,10 @@ class ManualAISystem {
             return;
         }
 
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=30`);
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=${days}`);
             
             if (!response.ok) {
                 if (response.status === 404) {
@@ -2082,8 +2029,10 @@ class ManualAISystem {
             return;
         }
 
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=30`);
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=${days}`);
             
             if (!response.ok) {
                 if (response.status === 404) {
