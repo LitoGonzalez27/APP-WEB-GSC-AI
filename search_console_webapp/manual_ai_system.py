@@ -2278,12 +2278,12 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # Lógica corregida: suma diaria de keywords con AI Overview durante el período
-        # Ejemplo: Día 1 = 13 keywords, Día 2 = 15 keywords → Total = 28
+        # Lógica corregida: total de AI Overviews generados durante el período
+        # Ejemplo: Día 1 = 4 AI Overviews, Día 2 = 4 AI Overviews → Total = 8
         cur.execute("""
-            SELECT SUM(daily_keywords) as total_keywords
+            SELECT SUM(daily_ai_overviews) as total_ai_overviews
             FROM (
-                SELECT COUNT(DISTINCT r.keyword_id) as daily_keywords
+                SELECT COUNT(*) as daily_ai_overviews
                 FROM manual_ai_results r
                 WHERE r.project_id = %s 
                 AND r.analysis_date >= %s 
@@ -2293,17 +2293,18 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
             ) daily_counts
         """, (project_id, start_date, end_date))
         
-        total_keywords_result = cur.fetchone()
-        total_keywords = total_keywords_result['total_keywords'] if total_keywords_result else 0
+        total_ai_overviews_result = cur.fetchone()
+        total_ai_overviews = total_ai_overviews_result['total_ai_overviews'] if total_ai_overviews_result else 0
         
-        if total_keywords == 0:
-            logger.warning(f"No AI Overview keywords found for project {project_id} in date range")
+        if total_ai_overviews == 0:
+            logger.warning(f"No AI Overview results found for project {project_id} in date range")
             return []
         
         # Obtener datos agregados por dominio 
         cur.execute("""
             WITH domain_daily_stats AS (
-                -- Estadísticas diarias por dominio desde manual_ai_global_domains
+                -- Estadísticas diarias por dominio SOLO desde manual_ai_global_domains
+                -- (excluyendo el dominio del proyecto para evitar duplicación)
                 SELECT 
                     gd.detected_domain,
                     gd.analysis_date,
@@ -2315,11 +2316,12 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
                 WHERE gd.project_id = %s
                 AND gd.analysis_date >= %s 
                 AND gd.analysis_date <= %s
+                AND gd.detected_domain != %s  -- Excluir dominio del proyecto para evitar duplicación
                 GROUP BY gd.detected_domain, gd.analysis_date
                 
                 UNION ALL
                 
-                -- Estadísticas del dominio del proyecto desde manual_ai_results
+                -- Estadísticas del dominio del proyecto SOLO desde manual_ai_results
                 SELECT 
                     %s as detected_domain,
                     r.analysis_date,
@@ -2353,9 +2355,9 @@ def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[
                 detected_domain ASC
             LIMIT 20
         """, (
-            project_id, start_date, end_date,  # manual_ai_global_domains
+            project_id, start_date, end_date, project_domain,  # manual_ai_global_domains (excluyendo project_domain)
             project_domain, project_id, start_date, end_date,  # manual_ai_results para project domain
-            total_keywords  # para visibility_percentage
+            total_ai_overviews  # para visibility_percentage
         ))
         
         results = cur.fetchall()
