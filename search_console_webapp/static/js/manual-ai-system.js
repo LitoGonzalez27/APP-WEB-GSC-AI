@@ -4,6 +4,88 @@
  * SEGURO: No interfiere con el JavaScript existente
  */
 
+// HTML Legend Plugin for custom Chart.js legends
+const htmlLegendPlugin = {
+    id: 'htmlLegend',
+    afterUpdate(chart, args, options) {
+        const ul = this.getOrCreateLegendList(chart, options.containerID);
+        
+        // Remove old legend items
+        while (ul.firstChild) {
+            ul.firstChild.remove();
+        }
+        
+        // Reuse the built-in legendItems generator
+        const items = chart.options.plugins.legend.labels.generateLabels(chart);
+        
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.style.alignItems = 'center';
+            li.style.cursor = 'pointer';
+            li.style.display = 'flex';
+            li.style.flexDirection = 'row';
+            li.style.marginLeft = '12px';
+            li.style.marginRight = '12px';
+            
+            li.onclick = () => {
+                const {type} = chart.config;
+                if (type === 'pie' || type === 'doughnut') {
+                    chart.toggleDataVisibility(item.index);
+                } else {
+                    chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
+                }
+                chart.update();
+            };
+            
+            // Color box with rectRounded style
+            const boxSpan = document.createElement('span');
+            boxSpan.style.background = item.fillStyle;
+            boxSpan.style.borderColor = item.strokeStyle;
+            boxSpan.style.borderWidth = item.lineWidth + 'px';
+            boxSpan.style.borderRadius = '3px';
+            boxSpan.style.display = 'inline-block';
+            boxSpan.style.flexShrink = 0;
+            boxSpan.style.height = '12px';
+            boxSpan.style.marginRight = '8px';
+            boxSpan.style.width = '12px';
+            
+            // Text
+            const textContainer = document.createElement('span');
+            textContainer.style.color = item.fontColor || '#374151';
+            textContainer.style.fontSize = '12px';
+            textContainer.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+            textContainer.style.fontWeight = '500';
+            textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+            textContainer.style.opacity = item.hidden ? '0.5' : '1';
+            textContainer.textContent = item.text;
+            
+            li.appendChild(boxSpan);
+            li.appendChild(textContainer);
+            ul.appendChild(li);
+        });
+    },
+    
+    getOrCreateLegendList(chart, id) {
+        const legendContainer = document.getElementById(id);
+        if (!legendContainer) return null;
+        
+        let listContainer = legendContainer.querySelector('ul');
+        if (!listContainer) {
+            listContainer = document.createElement('ul');
+            listContainer.style.display = 'flex';
+            listContainer.style.flexDirection = 'row';
+            listContainer.style.flexWrap = 'wrap';
+            listContainer.style.margin = '0';
+            listContainer.style.padding = '0';
+            listContainer.style.listStyle = 'none';
+            listContainer.style.justifyContent = 'flex-start';
+            listContainer.style.alignItems = 'center';
+            legendContainer.appendChild(listContainer);
+        }
+        return listContainer;
+    }
+};
+
 class ManualAISystem {
     constructor() {
         this.projects = [];
@@ -44,7 +126,7 @@ class ManualAISystem {
     // ================================
     // Modern Chart.js Configuration
     // ================================
-    getModernChartConfig() {
+    getModernChartConfig(useHtmlLegend = false, legendId = null) {
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -54,11 +136,16 @@ class ManualAISystem {
                 axis: 'x'
             },
             plugins: {
+                htmlLegend: useHtmlLegend ? {
+                    containerID: legendId
+                } : undefined,
                 legend: {
+                    display: !useHtmlLegend,
                     position: 'bottom',
                     align: 'start',
                     labels: {
                         usePointStyle: true,
+                        pointStyle: 'rectRounded',
                         padding: 20,
                         font: {
                             size: 12,
@@ -122,20 +209,47 @@ class ManualAISystem {
                     borderJoinStyle: 'round'
                 },
                 point: {
-                    radius: 3,
-                    hoverRadius: 6,
-                    hitRadius: 8,
+                    pointStyle: 'rectRounded',
+                    radius: 4,
+                    hoverRadius: 7,
+                    hitRadius: 10,
                     borderWidth: 2,
                     hoverBorderWidth: 3
                 }
             },
             animations: {
-                tension: {
-                    duration: 1000,
+                x: {
+                    type: 'number',
                     easing: 'easeInOutCubic',
-                    from: 1,
-                    to: 0.4,
-                    loop: false
+                    duration: 1000,
+                    from: NaN, // the point is initially skipped
+                    delay(ctx) {
+                        if (ctx.type !== 'data' || ctx.xStarted) {
+                            return 0;
+                        }
+                        ctx.xStarted = true;
+                        return ctx.index * 100;
+                    }
+                },
+                y: {
+                    type: 'number',
+                    easing: 'easeInOutCubic',
+                    duration: 1000,
+                    from: (ctx) => {
+                        if (ctx.type === 'data') {
+                            if (ctx.mode === 'default' && !ctx.dropped) {
+                                ctx.dropped = true;
+                                return 0;
+                            }
+                        }
+                    },
+                    delay(ctx) {
+                        if (ctx.type !== 'data' || ctx.yStarted) {
+                            return 0;
+                        }
+                        ctx.yStarted = true;
+                        return ctx.index * 100;
+                    }
                 }
             }
         };
@@ -1066,8 +1180,8 @@ class ManualAISystem {
             this.charts.visibility.destroy();
         }
 
-        // Modern Chart.js configuration
-        const config = this.getModernChartConfig();
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'visibilityLegend');
         
         this.charts.visibility = new Chart(ctx, {
             type: 'line',
@@ -1080,15 +1194,17 @@ class ManualAISystem {
                     label: 'Domain Visibility',
                     data: data.map(d => d.visibility_pct || 0),
                     borderColor: '#6366F1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.4)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.3)',
                     pointBackgroundColor: '#6366F1',
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: '#4F46E5',
                     pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
                     fill: 'origin',
                     tension: 0.4
                 }]
             },
+            plugins: [htmlLegendPlugin],
             options: {
                 ...config,
                 scales: {
@@ -1155,7 +1271,7 @@ class ManualAISystem {
         }
 
         // Modern Chart.js configuration with modern colors
-        const config = this.getModernChartConfig();
+        const config = this.getModernChartConfig(true, 'positionsLegend');
         
         this.charts.positions = new Chart(ctx, {
             type: 'line',
@@ -1169,11 +1285,12 @@ class ManualAISystem {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
                         borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.6)',
+                        backgroundColor: 'rgba(5, 150, 105, 0.3)',
                         pointBackgroundColor: '#059669',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#047857',
                         pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'rectRounded',
                         fill: 'origin',
                         tension: 0.4
                     },
@@ -1181,40 +1298,44 @@ class ManualAISystem {
                         label: 'Position 4-10',
                         data: data.map(d => d.pos_4_10 || 0),
                         borderColor: '#D97706',
-                        backgroundColor: 'rgba(217, 119, 6, 0.6)',
+                        backgroundColor: 'rgba(217, 119, 6, 0.3)',
                         pointBackgroundColor: '#D97706',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#B45309',
                         pointHoverBorderColor: '#FFFFFF',
-                        fill: '-1',
+                        pointStyle: 'rectRounded',
+                        fill: 'origin',
                         tension: 0.4
                     },
                     {
                         label: 'Position 11-20',
                         data: data.map(d => d.pos_11_20 || 0),
                         borderColor: '#DC2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.6)',
+                        backgroundColor: 'rgba(220, 38, 38, 0.3)',
                         pointBackgroundColor: '#DC2626',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#B91C1C',
                         pointHoverBorderColor: '#FFFFFF',
-                        fill: '-1',
+                        pointStyle: 'rectRounded',
+                        fill: 'origin',
                         tension: 0.4
                     },
                     {
                         label: 'Position 21+',
                         data: data.map(d => d.pos_21_plus || 0),
                         borderColor: '#6B7280',
-                        backgroundColor: 'rgba(107, 114, 128, 0.6)',
+                        backgroundColor: 'rgba(107, 114, 128, 0.3)',
                         pointBackgroundColor: '#6B7280',
                         pointBorderColor: '#FFFFFF',
                         pointHoverBackgroundColor: '#4B5563',
                         pointHoverBorderColor: '#FFFFFF',
-                        fill: '-1',
+                        pointStyle: 'rectRounded',
+                        fill: 'origin',
                         tension: 0.4
                     }
                 ]
             },
+            plugins: [htmlLegendPlugin],
             options: {
                 ...config,
                 scales: {
@@ -1864,7 +1985,9 @@ class ManualAISystem {
         // Render each domain row with highlighting
         domains.forEach((domain, index) => {
             const row = document.createElement('tr');
-            row.className = `domain-row ${domain.domain_type}-domain`;
+            // Use 'table' prefix for project domain to avoid conflicts with other CSS
+            const domainTypeClass = domain.domain_type === 'project' ? 'table' : domain.domain_type;
+            row.className = `domain-row ${domainTypeClass}-domain`;
             
             // Get logo URL
             const logoUrl = this.getDomainLogoUrl(domain.detected_domain);
@@ -1958,8 +2081,8 @@ class ManualAISystem {
             return;
         }
 
-        // Modern Chart.js configuration
-        const config = this.getModernChartConfig();
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'comparativeVisibilityLegend');
         
         this.charts.comparativeVisibility = new Chart(ctx, {
             type: 'line',
@@ -1974,11 +2097,13 @@ class ManualAISystem {
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: dataset.borderColor,
                     pointHoverBorderColor: '#FFFFFF',
-                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.4)') : 'rgba(99, 102, 241, 0.4)',
-                    fill: index === 0 ? 'origin' : '-1',
+                    pointStyle: 'rectRounded',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
+                    fill: 'origin', // Superpuesto como Sistrix
                     tension: 0.4
                 }))
             },
+            plugins: [htmlLegendPlugin],
             options: {
                 ...config,
                 scales: {
@@ -1987,7 +2112,7 @@ class ManualAISystem {
                         ...config.scales.y,
                         beginAtZero: true,
                         max: 100,
-                        stacked: true,
+                        stacked: false,
                         title: {
                             display: true,
                             text: 'Visibility (%)',
@@ -2048,8 +2173,8 @@ class ManualAISystem {
             return;
         }
 
-        // Modern Chart.js configuration
-        const config = this.getModernChartConfig();
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'comparativePositionLegend');
         
         this.charts.comparativePosition = new Chart(ctx, {
             type: 'line',
@@ -2064,11 +2189,13 @@ class ManualAISystem {
                     pointBorderColor: '#FFFFFF',
                     pointHoverBackgroundColor: dataset.borderColor,
                     pointHoverBorderColor: '#FFFFFF',
-                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.4)') : 'rgba(99, 102, 241, 0.4)',
-                    fill: index === 0 ? 'origin' : '-1',
+                    pointStyle: 'rectRounded',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
+                    fill: 'origin', // Superpuesto como Sistrix
                     tension: 0.4
                 }))
             },
+            plugins: [htmlLegendPlugin],
             options: {
                 ...config,
                 scales: {
