@@ -3385,3 +3385,65 @@ label.manual-ai-underline {
     background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
     padding: 2px 4px;
 }
+
+/* Competidores horizontales en bloques de proyecto */
+.project-competitors-horizontal {
+    margin: var(--manual-ai-spacing-md) 0;
+    padding: var(--manual-ai-spacing-sm) 0;
+    border-top: 1px solid var(--manual-ai-gray-200);
+}
+
+.competitors-horizontal-list {
+    display: flex;
+    align-items: center;
+    gap: var(--manual-ai-spacing-md);
+    flex-wrap: wrap;
+}
+
+.competitor-horizontal-item {
+    display: flex;
+    align-items: center;
+    gap: var(--manual-ai-spacing-xs);
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm);
+    background: var(--manual-ai-gray-50);
+    border: 1px solid var(--manual-ai-gray-200);
+    border-radius: var(--manual-ai-border-radius);
+    font-size: 0.8rem;
+    color: var(--manual-ai-gray-700);
+}
+
+.competitor-horizontal-logo {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+.competitor-horizontal-fallback {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--manual-ai-gray-300);
+    color: var(--manual-ai-gray-600);
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+}
+
+.competitor-horizontal-name {
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.competitors-more {
+    color: var(--manual-ai-gray-500);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm);
+}

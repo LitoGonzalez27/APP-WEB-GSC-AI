@@ -404,17 +404,13 @@ class ManualAISystem {
         this.showElement(this.elements.projectsContainer);
 
         this.elements.projectsContainer.innerHTML = this.projects.map(project => `
-            <div class="project-card" data-project-id="${project.id}">
+            <div class="project-card" data-project-id="${project.id}" onclick="manualAI.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
                 <div class="project-header">
                     <h3>${this.escapeHtml(project.name)}</h3>
                     <div class="project-actions">
-                        <button type="button" class="btn-icon" onclick="manualAI.showProjectModal(${project.id})"
+                        <button type="button" class="btn-icon" onclick="event.stopPropagation(); manualAI.showProjectModal(${project.id})"
                                 title="Project settings" aria-label="Open project settings">
                             <i class="fas fa-cog" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="btn-icon" onclick="manualAI.analyzeProject(${project.id})"
-                                title="Run analysis" aria-label="Run AI analysis for this project">
-                            <i class="fas fa-play" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -433,19 +429,31 @@ class ManualAISystem {
                 </div>
                 <div class="project-stats">
                     <div class="stat">
-                        <span class="stat-number">${project.keyword_count || 0}</span>
-                        <span class="stat-label">Keywords</span>
+                        <span class="stat-number">${project.total_keywords || 0}</span>
+                        <span class="stat-label">Total Keywords</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">${project.ai_overview_count || 0}</span>
-                        <span class="stat-label">AI Results</span>
+                        <span class="stat-number">${project.total_ai_keywords || 0}</span>
+                        <span class="stat-label">AI Overview Results</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">${project.mentions_count || 0}</span>
-                        <span class="stat-label">Mentions</span>
+                        <span class="stat-number">${project.aio_weight_percentage ? Math.round(project.aio_weight_percentage) + '%' : '0%'}</span>
+                        <span class="stat-label">AI Overview Weight</span>
                     </div>
-                    ${this.renderProjectCompetitorsSection(project)}
+                    <div class="stat">
+                        <span class="stat-number">${project.total_mentions || 0}</span>
+                        <span class="stat-label">Domain Mentions</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">${project.visibility_percentage ? Math.round(project.visibility_percentage) + '%' : '0%'}</span>
+                        <span class="stat-label">Visibility</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">${project.avg_position ? Math.round(project.avg_position * 10) / 10 : '-'}</span>
+                        <span class="stat-label">Average Position</span>
+                    </div>
                 </div>
+                ${this.renderProjectCompetitorsHorizontal(project)}
                 <div class="project-footer">
                     <small class="last-analysis">
                         Last analysis: ${project.last_analysis_date ? 
@@ -522,6 +530,70 @@ class ManualAISystem {
                 </div>
             </div>
         `;
+    }
+
+    renderProjectCompetitorsHorizontal(project) {
+        const competitorsData = project.selected_competitors || [];
+        const competitorsCount = Array.isArray(competitorsData) ? competitorsData.length : 0;
+        
+        if (competitorsCount === 0) {
+            return `
+                <div class="project-competitors-horizontal">
+                    <small style="color: var(--manual-ai-gray-500); font-size: 11px;">
+                        <i class="fas fa-users" style="margin-right: 4px; opacity: 0.6;"></i>
+                        No competitors added yet
+                    </small>
+                </div>
+            `;
+        }
+
+        // Generate competitor logos/previews with improved error handling
+        const competitorLogos = competitorsData.slice(0, 4).map(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const firstLetter = this.escapeHtml(domain.charAt(0).toUpperCase());
+            const safeDomain = this.escapeHtml(domain);
+            const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            return `
+                <div class="competitor-horizontal-item" title="${safeDomain}">
+                    <img id="${logoId}" 
+                         src="${logoUrl}" 
+                         alt="${safeDomain} logo" 
+                         class="competitor-horizontal-logo" 
+                         style="display: block;"
+                         onload="this.style.display='block';"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="competitor-horizontal-fallback" style="display: none;" title="${safeDomain}">
+                        ${firstLetter}
+                    </div>
+                    <span class="competitor-horizontal-name">${this.escapeHtml(domain)}</span>
+                </div>
+            `;
+        }).join('');
+
+        const moreText = competitorsCount > 4 ? ` <span class="competitors-more">+${competitorsCount - 4} more</span>` : '';
+
+        return `
+            <div class="project-competitors-horizontal">
+                <div class="competitors-horizontal-list">
+                    ${competitorLogos}
+                    ${moreText}
+                </div>
+            </div>
+        `;
+    }
+
+    goToProjectAnalytics(projectId) {
+        // Switch to Analytics tab
+        this.switchTab('analytics');
+        
+        // Select the project in the analytics dropdown
+        if (this.elements.analyticsProjectSelect) {
+            this.elements.analyticsProjectSelect.value = projectId;
+            
+            // Trigger the analytics loading
+            this.loadAnalytics();
+        }
     }
 
     // ================================
