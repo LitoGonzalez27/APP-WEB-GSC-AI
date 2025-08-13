@@ -977,13 +977,11 @@ keyword 3"></textarea>
                     <div class="tab-section">
                         <div class="setting-group">
                             <label for="modalProjectName" class="manual-ai-underline">Project Name</label>
-                            <small class="form-help">Choose a descriptive name for your project</small>
                             <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
                         </div>
                         
                         <div class="setting-group">
                             <label for="modalProjectDescription" class="manual-ai-underline">Project Description</label>
-                            <small class="form-help">Add a description to help identify this project</small>
                             <textarea id="modalProjectDescription" class="form-textarea" 
                                       placeholder="Enter project description (optional)..." rows="3"></textarea>
                         </div>
@@ -991,13 +989,12 @@ keyword 3"></textarea>
                         <!-- Project Competitors Section -->
                         <div class="setting-group">
                             <label class="manual-ai-underline">Project Competitors</label>
-                            <small class="form-help">Add up to 4 competitor domains to track and compare performance</small>
                             <div class="competitors-manager">
                                 <div class="add-competitor-section">
                                     <div class="competitor-input-group">
                                         <input type="text" id="newCompetitorInput" class="form-input" 
                                                placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
-                                        <button type="button" class="btn-primary-inverted" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
+                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
                                             <i class="fas fa-plus"></i>
                                             Add Competitor
                                         </button>

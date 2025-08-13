@@ -3390,12 +3390,21 @@ label.manual-ai-underline {
 .project-competitors-horizontal {
     margin: var(--manual-ai-spacing-md) 0;
     padding: var(--manual-ai-spacing-sm) 0;
-    border-top: 1px solid var(--manual-ai-gray-200);
+    text-align: center;
+}
+
+.competitors-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--manual-ai-gray-700);
+    margin: 0 0 10px 0;
+    text-align: center;
 }
 
 .competitors-horizontal-list {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--manual-ai-spacing-md);
     flex-wrap: wrap;
 }
@@ -3410,6 +3419,21 @@ label.manual-ai-underline {
     border-radius: var(--manual-ai-border-radius);
     font-size: 0.8rem;
     color: var(--manual-ai-gray-700);
+    transition: all 0.2s ease;
+}
+
+.competitor-horizontal-item:hover {
+    background: var(--manual-ai-gray-100);
+    transform: translateY(-1px);
+}
+
+.competitor-horizontal-item.user-domain-item {
+    background: rgba(216, 249, 184, 0.3);
+    border-color: #D8F9B8;
+}
+
+.competitor-horizontal-item.user-domain-item:hover {
+    background: rgba(216, 249, 184, 0.5);
 }
 
 .competitor-horizontal-logo {
@@ -3441,9 +3465,28 @@ label.manual-ai-underline {
     white-space: nowrap;
 }
 
+.competitor-horizontal-name.user-domain-underline {
+    background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+    padding: 1px 3px;
+    color: var(--manual-ai-gray-800);
+    font-weight: 600;
+}
+
 .competitors-more {
     color: var(--manual-ai-gray-500);
     font-size: 0.75rem;
     font-weight: 500;
     padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm);
+}
+
+/* Botón add competitor más compacto */
+.btn-primary-inverted.btn-compact {
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm) !important;
+    font-size: 14px !important;
+}
+
+/* Input de competidor más ancho */
+#newCompetitorInput {
+    min-width: 300px !important;
+    flex: 1 !important;
 }
