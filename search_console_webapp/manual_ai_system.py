@@ -914,21 +914,21 @@ def get_user_projects(user_id: int) -> List[Dict]:
                 CASE 
                     WHEN COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) > 0 THEN
                         ROUND(
-                            (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float / 
-                             COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float) * 100, 1
+                            ((COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float / 
+                             COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float) * 100)::numeric, 1
                         )
                     ELSE 0
                 END as visibility_percentage,
                 CASE 
                     WHEN COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) > 0 THEN
-                        ROUND(AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END), 1)
+                        ROUND(AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END)::numeric, 1)
                     ELSE NULL
                 END as avg_position,
                 CASE 
                     WHEN COUNT(DISTINCT k.id) > 0 THEN
                         ROUND(
-                            (COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float / 
-                             COUNT(DISTINCT k.id)::float) * 100, 1
+                            ((COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float / 
+                             COUNT(DISTINCT k.id)::float) * 100)::numeric, 1
                         )
                     ELSE 0
                 END as aio_weight_percentage,
