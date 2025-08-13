@@ -1206,7 +1206,8 @@ class ManualAISystem {
             const promises = [
                 this.loadGlobalDomainsRanking(projectId),
                 this.loadComparativeCharts(projectId),
-                this.loadCompetitorsPreview(projectId)
+                this.loadCompetitorsPreview(projectId),
+                this.loadAIOverviewKeywordsTable(projectId)
             ];
 
             await Promise.allSettled(promises);
@@ -2100,6 +2101,287 @@ class ManualAISystem {
         if (tableBody) tableBody.innerHTML = '';
         if (globalDomainsTable) globalDomainsTable.style.display = 'none';
         if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    }
+
+    // ================================
+    // AI OVERVIEW KEYWORDS TABLE FUNCTIONS
+    // ================================
+
+    async loadAIOverviewKeywordsTable(projectId) {
+        if (!projectId) {
+            this.showNoAIKeywordsMessage();
+            return;
+        }
+
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table?days=${days}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoAIKeywordsMessage();
+                    return;
+                }
+                throw new Error('Failed to load AI Overview keywords data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render AI Overview keywords table using Grid.js
+            this.renderAIOverviewKeywordsTable(data);
+
+        } catch (error) {
+            console.error('Error loading AI Overview keywords table:', error);
+            this.showNoAIKeywordsMessage();
+        }
+    }
+
+    renderAIOverviewKeywordsTable(data) {
+        const container = document.getElementById('manualAIOverviewGrid');
+        const noKeywordsMessage = document.getElementById('noAIKeywordsMessage');
+        
+        if (!container) {
+            console.error('❌ AI Overview grid container not found');
+            return;
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        const keywordResults = data.keywordResults || [];
+        const competitorDomains = data.competitorDomains || [];
+
+        console.log('🏗️ Rendering AI Overview table with:', {
+            keywords: keywordResults.length,
+            competitors: competitorDomains.length
+        });
+
+        if (keywordResults.length === 0) {
+            this.showNoAIKeywordsMessage();
+            return;
+        }
+
+        // Hide no keywords message
+        if (noKeywordsMessage) {
+            noKeywordsMessage.style.display = 'none';
+        }
+
+        // Check if Grid.js is available
+        if (!window.gridjs) {
+            console.error('❌ Grid.js library not loaded');
+            container.innerHTML = '<p class="error-message">Grid.js library not available</p>';
+            return;
+        }
+
+        // Create Grid.js table
+        try {
+            const { columns, gridData } = this.processAIOverviewDataForGrid(keywordResults, competitorDomains);
+            
+            const grid = new gridjs.Grid({
+                columns: columns,
+                data: gridData,
+                pagination: {
+                    limit: 10,
+                    summary: true
+                },
+                sort: true,
+                search: {
+                    placeholder: 'Type a keyword...'
+                },
+                resizable: true,
+                className: {
+                    container: 'manual-ai-overview-grid',
+                    table: 'manual-ai-overview-table',
+                    search: 'manual-ai-overview-search'
+                }
+            });
+
+            // Render the grid
+            grid.render(container);
+            console.log('✅ AI Overview Grid.js table rendered successfully');
+
+        } catch (error) {
+            console.error('❌ Error creating AI Overview Grid.js table:', error);
+            container.innerHTML = '<p class="error-message">Error creating table</p>';
+        }
+    }
+
+    processAIOverviewDataForGrid(keywordResults, competitorDomains) {
+        // Define base columns
+        const columns = [
+            {
+                name: 'View',
+                width: '60px',
+                sort: false,
+                formatter: (cell, row) => {
+                    const keyword = row.cells[1].data; // Keyword is in second column
+                    return gridjs.html(`
+                        <button 
+                            class="serp-view-btn" 
+                            onclick="window.openSerpModal && window.openSerpModal('${keyword.replace(/'/g, "\\'")}')"
+                            title="View SERP"
+                        >
+                            <i class="fas fa-search"></i>
+                        </button>
+                    `);
+                }
+            },
+            {
+                name: 'Keyword',
+                width: '200px',
+                sort: true
+            },
+            {
+                name: gridjs.html('Your Domain<br>in AIO'),
+                width: '120px',
+                sort: true,
+                formatter: (cell) => {
+                    const isPresent = cell === 'Yes';
+                    return gridjs.html(`
+                        <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                            ${cell}
+                        </span>
+                    `);
+                }
+            },
+            {
+                name: gridjs.html('Your Position<br>in AIO'),
+                width: '120px',
+                sort: {
+                    compare: (a, b) => {
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        return numA - numB;
+                    }
+                },
+                formatter: (cell) => {
+                    if (cell === 'N/A') {
+                        return gridjs.html('<span class="aio-na">N/A</span>');
+                    }
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
+                }
+            }
+        ];
+
+        // Add competitor columns
+        competitorDomains.forEach((domain, index) => {
+            const truncatedDomain = this.truncateDomain(domain, 15);
+            
+            // Competitor presence column
+            columns.push({
+                name: gridjs.html(`${truncatedDomain}<br>in AIO`),
+                width: '120px',
+                sort: true,
+                formatter: (cell) => {
+                    const isPresent = cell === 'Yes';
+                    return gridjs.html(`
+                        <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                            ${cell}
+                        </span>
+                    `);
+                }
+            });
+
+            // Competitor position column
+            columns.push({
+                name: gridjs.html(`Position of<br>${truncatedDomain}`),
+                width: '120px',
+                sort: {
+                    compare: (a, b) => {
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        return numA - numB;
+                    }
+                },
+                formatter: (cell) => {
+                    if (cell === 'N/A') {
+                        return gridjs.html('<span class="aio-na">N/A</span>');
+                    }
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
+                }
+            });
+        });
+
+        // Process data for Grid.js
+        const gridData = keywordResults.map(result => {
+            const keyword = result.keyword || '';
+            const aiAnalysis = result.ai_analysis || {};
+            
+            // Base row data
+            const row = [
+                '', // View button (will be replaced by formatter)
+                keyword,
+                aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
+                aiAnalysis.domain_ai_source_position || 'N/A'
+            ];
+
+            // Add competitor data
+            competitorDomains.forEach(domain => {
+                const competitorData = this.findCompetitorDataInResult(result, domain);
+                row.push(competitorData.isPresent ? 'Yes' : 'No');
+                row.push(competitorData.position || 'N/A');
+            });
+
+            return row;
+        });
+
+        return { columns, gridData };
+    }
+
+    findCompetitorDataInResult(result, domain) {
+        // Find competitor data in AI analysis references
+        const aiAnalysis = result.ai_analysis || {};
+        const debugInfo = aiAnalysis.debug_info || {};
+        const references = debugInfo.references_found || [];
+        
+        if (!references || references.length === 0) {
+            return { isPresent: false, position: null };
+        }
+        
+        // Normalize domain for comparison
+        const normalizedDomain = domain.toLowerCase().replace('www.', '');
+        
+        // Search for domain in references
+        for (let i = 0; i < references.length; i++) {
+            const ref = references[i];
+            const refLink = ref.link || '';
+            const refSource = ref.source || '';
+            const refTitle = ref.title || '';
+            
+            // Check for matches in link, source or title
+            const linkMatch = refLink.toLowerCase().includes(normalizedDomain);
+            const sourceMatch = refSource.toLowerCase().includes(normalizedDomain);
+            const titleMatch = refTitle.toLowerCase().includes(normalizedDomain);
+            
+            if (linkMatch || sourceMatch || titleMatch) {
+                return {
+                    isPresent: true,
+                    position: (ref.index || 0) + 1 // Convert 0-based index to 1-based position
+                };
+            }
+        }
+        
+        return { isPresent: false, position: null };
+    }
+
+    truncateDomain(domain, maxLength = 15) {
+        if (!domain || domain.length <= maxLength) return domain;
+        return domain.substring(0, maxLength - 3) + '...';
+    }
+
+    showNoAIKeywordsMessage() {
+        const container = document.getElementById('manualAIOverviewGrid');
+        const noKeywordsMessage = document.getElementById('noAIKeywordsMessage');
+        
+        if (container) {
+            container.innerHTML = '';
+        }
+        
+        if (noKeywordsMessage) {
+            noKeywordsMessage.style.display = 'block';
+        }
     }
 
     // ================================

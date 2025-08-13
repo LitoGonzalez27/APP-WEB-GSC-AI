@@ -604,6 +604,27 @@ def get_project_stats(project_id):
         'stats': stats
     })
 
+@manual_ai_bp.route('/api/projects/<int:project_id>/ai-overview-table', methods=['GET'])
+@auth_required
+def get_ai_overview_table_data(project_id):
+    """Obtener datos detallados de keywords con AI Overview para la tabla Grid.js"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', 30))
+        ai_overview_data = get_project_ai_overview_keywords(project_id, days)
+        
+        return jsonify({
+            'success': True,
+            'data': ai_overview_data
+        })
+    except Exception as e:
+        logger.error(f"Error getting AI Overview table data for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/top-domains', methods=['GET'])
 @auth_required
 def get_top_domains(project_id):
@@ -2599,6 +2620,106 @@ def sync_historical_competitor_flags(project_id: int, current_competitors: List[
                 conn.close()
         except:
             pass
+
+def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
+    """
+    Obtener datos detallados de keywords con AI Overview para la tabla Grid.js
+    Incluye información del dominio del proyecto y competidores seleccionados
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener información del proyecto
+        cur.execute("""
+            SELECT domain, selected_competitors
+            FROM manual_ai_projects 
+            WHERE id = %s
+        """, (project_id,))
+        
+        project_data = cur.fetchone()
+        if not project_data:
+            return {'keywordResults': [], 'competitorDomains': []}
+        
+        project_domain = project_data['domain']
+        selected_competitors = project_data['selected_competitors'] or []
+        
+        # Obtener datos del último análisis de cada keyword con AI Overview
+        cur.execute("""
+            WITH latest_analysis AS (
+                SELECT DISTINCT ON (k.id) 
+                    k.id as keyword_id,
+                    k.keyword,
+                    r.has_ai_overview,
+                    r.domain_mentioned,
+                    r.domain_position,
+                    r.ai_analysis_data,
+                    r.analysis_date
+                FROM manual_ai_keywords k
+                JOIN manual_ai_results r ON k.id = r.keyword_id
+                WHERE k.project_id = %s
+                AND k.is_active = true
+                AND r.analysis_date >= %s
+                AND r.analysis_date <= %s
+                AND r.has_ai_overview = true
+                ORDER BY k.id, r.analysis_date DESC
+            )
+            SELECT 
+                keyword_id,
+                keyword,
+                has_ai_overview,
+                domain_mentioned,
+                domain_position,
+                ai_analysis_data,
+                analysis_date
+            FROM latest_analysis
+            ORDER BY keyword
+        """, (project_id, start_date, end_date))
+        
+        results = [dict(row) for row in cur.fetchall()]
+        
+        # Formatear datos para Grid.js
+        keyword_results = []
+        for result in results:
+            # Estructura base para cada keyword
+            keyword_data = {
+                'keyword': result['keyword'],
+                'ai_analysis': {
+                    'has_ai_overview': result['has_ai_overview'],
+                    'domain_is_ai_source': result['domain_mentioned'],
+                    'domain_ai_source_position': result['domain_position'],
+                    'debug_info': {
+                        'references_found': []
+                    }
+                }
+            }
+            
+            # Procesar ai_analysis_data si existe
+            if result['ai_analysis_data']:
+                ai_data = result['ai_analysis_data']
+                debug_info = ai_data.get('debug_info', {})
+                references = debug_info.get('references_found', [])
+                
+                # Añadir referencias para el procesamiento de competidores
+                keyword_data['ai_analysis']['debug_info']['references_found'] = references
+            
+            keyword_results.append(keyword_data)
+        
+        cur.close()
+        conn.close()
+        
+        return {
+            'keywordResults': keyword_results,
+            'competitorDomains': selected_competitors,
+            'projectDomain': project_domain
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting AI Overview keywords for project {project_id}: {e}")
+        return {'keywordResults': [], 'competitorDomains': []}
 
 # Registrar rutas de error handling
 @manual_ai_bp.errorhandler(404)
