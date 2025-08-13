@@ -416,9 +416,9 @@ class ManualAISystem {
                 </div>
                 <div class="project-details">
                     <div class="project-meta">
-                        <span class="project-domain">
+                        <span class="project-domain clickable-domain" title="Click to visit ${this.escapeHtml(project.domain)}" onclick="window.open('https://${this.escapeHtml(project.domain)}', '_blank')" style="cursor: pointer;">
                             <i class="fas fa-globe"></i>
-                            ${this.escapeHtml(project.domain)}
+                            <span class="user-domain-underline">${this.escapeHtml(project.domain)}</span>
                         </span>
                         <span class="project-country">
                             <i class="fas fa-flag"></i>
@@ -536,27 +536,10 @@ class ManualAISystem {
         const competitorsData = project.selected_competitors || [];
         const competitorsCount = Array.isArray(competitorsData) ? competitorsData.length : 0;
         
-        // User domain with green underline
-        const userDomainElement = `
-            <div class="competitor-horizontal-item user-domain-item">
-                <img src="${this.getDomainLogoUrl(project.domain)}" 
-                     alt="${this.escapeHtml(project.domain)} logo" 
-                     class="competitor-horizontal-logo" 
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="competitor-horizontal-fallback" style="display: none;">
-                    ${this.escapeHtml(project.domain.charAt(0).toUpperCase())}
-                </div>
-                <span class="competitor-horizontal-name user-domain-underline">${this.escapeHtml(project.domain)}</span>
-            </div>
-        `;
-        
         if (competitorsCount === 0) {
             return `
                 <div class="project-competitors-horizontal">
                     <h5 class="competitors-section-title">Selected Competitors</h5>
-                    <div class="competitors-horizontal-list">
-                        ${userDomainElement}
-                    </div>
                     <small style="color: var(--manual-ai-gray-500); font-size: 11px; text-align: center; display: block; margin-top: 8px;">
                         <i class="fas fa-users" style="margin-right: 4px; opacity: 0.6;"></i>
                         No competitors added yet
@@ -565,15 +548,16 @@ class ManualAISystem {
             `;
         }
 
-        // Generate competitor logos/previews with improved error handling
-        const competitorLogos = competitorsData.slice(0, 3).map(domain => {
+        // Generate competitor logos/previews with improved error handling and clickable links
+        const competitorLogos = competitorsData.slice(0, 4).map(domain => {
             const logoUrl = this.getDomainLogoUrl(domain);
             const firstLetter = this.escapeHtml(domain.charAt(0).toUpperCase());
             const safeDomain = this.escapeHtml(domain);
             const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
+            const websiteUrl = domain.startsWith('http') ? domain : `https://${domain}`;
             
             return `
-                <div class="competitor-horizontal-item" title="${safeDomain}">
+                <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open('${websiteUrl}', '_blank')" style="cursor: pointer;">
                     <img id="${logoId}" 
                          src="${logoUrl}" 
                          alt="${safeDomain} logo" 
@@ -589,13 +573,12 @@ class ManualAISystem {
             `;
         }).join('');
 
-        const moreText = competitorsCount > 3 ? ` <span class="competitors-more">+${competitorsCount - 3} more</span>` : '';
+        const moreText = competitorsCount > 4 ? ` <span class="competitors-more">+${competitorsCount - 4} more</span>` : '';
 
         return `
             <div class="project-competitors-horizontal">
                 <h5 class="competitors-section-title">Selected Competitors</h5>
                 <div class="competitors-horizontal-list">
-                    ${userDomainElement}
                     ${competitorLogos}
                     ${moreText}
                 </div>

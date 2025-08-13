@@ -2732,6 +2732,7 @@
     background: #f9fafb;
     border-radius: 8px;
     padding: 1rem;
+    margin-top:20px;
 }
 
 .competitors-list {
@@ -2958,6 +2959,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 6px;
+    align-items: baseline;
 }
 
 .competitor-input-group input {
@@ -3427,14 +3429,18 @@ label.manual-ai-underline {
     transform: translateY(-1px);
 }
 
-.competitor-horizontal-item.user-domain-item {
-    background: rgba(216, 249, 184, 0.3);
-    border-color: #D8F9B8;
+.competitor-horizontal-item[onclick] {
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.competitor-horizontal-item.user-domain-item:hover {
-    background: rgba(216, 249, 184, 0.5);
+.competitor-horizontal-item[onclick]:hover {
+    background: var(--manual-ai-gray-200);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+
+
 
 .competitor-horizontal-logo {
     width: 16px;
@@ -3483,10 +3489,25 @@ label.manual-ai-underline {
 .btn-primary-inverted.btn-compact {
     padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm) !important;
     font-size: 14px !important;
+    height: 43px;
 }
 
 /* Input de competidor más ancho */
 #newCompetitorInput {
     min-width: 300px !important;
     flex: 1 !important;
+}
+
+/* Dominio del proyecto clickeable */
+.project-domain.clickable-domain {
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+
+.project-domain.clickable-domain:hover {
+    background: rgba(216, 249, 184, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
