@@ -898,45 +898,6 @@ def get_user_projects(user_id: int) -> List[Dict]:
     
     try:
         cur.execute("""
-            WITH latest_analysis AS (
-                SELECT 
-                    project_id,
-                    MAX(analysis_date) as last_analysis_date
-                FROM manual_ai_results
-                GROUP BY project_id
-            ),
-            project_stats AS (
-                SELECT 
-                    r.project_id,
-                    COUNT(DISTINCT k.id) as total_keywords,
-                    COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as total_ai_keywords,
-                    COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as total_mentions,
-                    CASE 
-                        WHEN COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) > 0 THEN
-                            ROUND(
-                                (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float / 
-                                 COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float) * 100, 1
-                            )
-                        ELSE 0
-                    END as visibility_percentage,
-                    CASE 
-                        WHEN COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) > 0 THEN
-                            ROUND(AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END), 1)
-                        ELSE NULL
-                    END as avg_position,
-                    CASE 
-                        WHEN COUNT(DISTINCT k.id) > 0 THEN
-                            ROUND(
-                                (COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float / 
-                                 COUNT(DISTINCT k.id)::float) * 100, 1
-                            )
-                        ELSE 0
-                    END as aio_weight_percentage
-                FROM manual_ai_results r
-                INNER JOIN manual_ai_keywords k ON r.keyword_id = k.id AND k.is_active = true
-                INNER JOIN latest_analysis la ON r.project_id = la.project_id AND r.analysis_date = la.last_analysis_date
-                GROUP BY r.project_id
-            )
             SELECT 
                 p.id,
                 p.name,
@@ -947,17 +908,36 @@ def get_user_projects(user_id: int) -> List[Dict]:
                 p.updated_at,
                 p.selected_competitors,
                 COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
-                COALESCE(ps.total_keywords, 0) as total_keywords,
-                COALESCE(ps.total_ai_keywords, 0) as total_ai_keywords,
-                COALESCE(ps.total_mentions, 0) as total_mentions,
-                COALESCE(ps.visibility_percentage, 0) as visibility_percentage,
-                ps.avg_position,
-                COALESCE(ps.aio_weight_percentage, 0) as aio_weight_percentage,
-                la.last_analysis_date
+                COUNT(DISTINCT k.id) as total_keywords,
+                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as total_ai_keywords,
+                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as total_mentions,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) > 0 THEN
+                        ROUND(
+                            (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float / 
+                             COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float) * 100, 1
+                        )
+                    ELSE 0
+                END as visibility_percentage,
+                CASE 
+                    WHEN COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) > 0 THEN
+                        ROUND(AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END), 1)
+                    ELSE NULL
+                END as avg_position,
+                CASE 
+                    WHEN COUNT(DISTINCT k.id) > 0 THEN
+                        ROUND(
+                            (COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float / 
+                             COUNT(DISTINCT k.id)::float) * 100, 1
+                        )
+                    ELSE 0
+                END as aio_weight_percentage,
+                MAX(r.analysis_date) as last_analysis_date
             FROM manual_ai_projects p
-            LEFT JOIN latest_analysis la ON p.id = la.project_id
-            LEFT JOIN project_stats ps ON p.id = ps.project_id
+            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
+            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
             WHERE p.user_id = %s AND p.is_active = true
+            GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at, p.selected_competitors
             ORDER BY p.created_at DESC
         """, (user_id,))
         
