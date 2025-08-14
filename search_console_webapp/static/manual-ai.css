@@ -3625,18 +3625,10 @@ label.manual-ai-underline {
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* AIO Position indicators */
+/* AIO Position indicators - usando el mismo color que AI Overview automático */
 .aio-position {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-color);
-    color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
     font-weight: 600;
-    min-width: 30px;
+    color: var(--cta-bg) !important; /* #0D7FF3 - mismo azul que el automático */
 }
 
 .aio-na {
@@ -3663,9 +3655,9 @@ label.manual-ai-underline {
 }
 
 .manual-ai-overview-grid .gridjs-pages button {
-    background: var(--button-secondary-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    color: #2C2D2E !important;
+    border-color: var(--border-color) !important;
+    background: rgba(216, 249, 184, 0.4) !important; /* Mismo verde translúcido que AI Overview automático */
     border-radius: 4px;
     padding: 0.375rem 0.75rem;
     margin: 0 0.125rem;
@@ -3675,15 +3667,16 @@ label.manual-ai-underline {
 }
 
 .manual-ai-overview-grid .gridjs-pages button:hover:not(:disabled) {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
+    background: #C3F5A4 !important; /* Mismo verde que AI Overview automático */
+    color: #2C2D2E !important;
+    border-color: #C3F5A4 !important;
 }
 
 .manual-ai-overview-grid .gridjs-pages button.gridjs-currentPage {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
+    background: #C3F5A4 !important; /* Mismo verde que AI Overview automático */
+    color: #2C2D2E !important;
+    font-weight: 600 !important;
+    border-color: #C3F5A4 !important;
 }
 
 .manual-ai-overview-grid .gridjs-pages button:disabled {
