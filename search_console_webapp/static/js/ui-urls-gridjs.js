@@ -1,6 +1,6 @@
 // static/js/ui-urls-gridjs.js - Tabla Grid.js para URLs del panel principal
 
-import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta } from './number-utils.js';
+import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 /**
  * Crea y renderiza la tabla Grid.js de URLs
@@ -51,11 +51,7 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
         pagination: {
             limit: 10
         },
-        sort: {
-            multiColumn: false,
-            sortColumn: 2, // Clicks P1 siempre (índice 2)
-            sortDirection: 'desc' // De mayor a menor
-        },
+        sort: true, // ✅ CAMBIADO: Simplificar para evitar conflictos
         search: {
             placeholder: 'Type an URL...'
         },
@@ -77,24 +73,31 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
         grid.render(document.getElementById('urls-grid-table'));
         console.log('✅ URLs Grid.js table rendered successfully');
         
-        // Forzar ordenamiento por Clics P1 después del render
+        // ✅ MEJORADO: Aplicar ordenamiento por defecto programáticamente
         setTimeout(() => {
             try {
-                // Grid.js usa eventos de click en los headers para ordenar
-                const gridContainer = document.getElementById('urls-grid-table');
-                if (gridContainer) {
-                    const clicksHeader = gridContainer.querySelector('th:nth-child(3)'); // Columna Clics P1
-                    if (clicksHeader) {
-                        // Simular dos clicks para ordenar descendente (mayor a menor)
-                        clicksHeader.click();
-                        setTimeout(() => clicksHeader.click(), 50);
-                        console.log('🔄 Ordenamiento por Clics P1 (desc) aplicado');
+                // Aplicar ordenamiento por Clics P1 (columna 2) descendente
+                grid.updateConfig({
+                    sort: {
+                        multiColumn: false,
+                        sortColumn: 2, // Clicks P1 siempre (índice 2)
+                        sortDirection: 'desc' // De mayor a menor
                     }
-                }
+                }).forceRender();
+                console.log('🔄 Ordenamiento por Clics P1 (desc) aplicado programáticamente');
             } catch (sortError) {
                 console.warn('⚠️ No se pudo aplicar ordenamiento automático:', sortError);
+                // Fallback: usar clicks en header
+                const gridContainer = document.getElementById('urls-grid-table');
+                if (gridContainer) {
+                    const clicksHeader = gridContainer.querySelector('th:nth-child(3)');
+                    if (clicksHeader) {
+                        clicksHeader.click();
+                        setTimeout(() => clicksHeader.click(), 50);
+                    }
+                }
             }
-        }, 100);
+        }, 200);
         
         return grid;
     } catch (error) {
@@ -183,7 +186,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             name: gridjs.html('Clicks<br>P1'),
             width: '100px',
             sort: {
-                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
+                compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
             }
         }
     ];
@@ -196,12 +199,12 @@ function processUrlsDataForGrid(urlsData, analysisType) {
                 name: gridjs.html('Clicks<br>P2'),
                 width: '100px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
                 }
             },
             {
                 id: 'delta_clicks',
-                name: gridjs.html('ΔClicks<br>(%)'),
+                name: gridjs.html('ΔClicks'),
                 width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
@@ -219,7 +222,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             name: gridjs.html('Impressions<br>P1'),
             width: '120px',
             sort: {
-                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
+                compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
             }
         }
     );
@@ -231,12 +234,12 @@ function processUrlsDataForGrid(urlsData, analysisType) {
                 name: gridjs.html('Impressions<br>P2'),
                 width: '120px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
                 }
             },
             {
                 id: 'delta_impressions',
-                name: gridjs.html('ΔImp.<br>(%)'),
+                name: gridjs.html('ΔImp.'),
                 width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
@@ -270,7 +273,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             },
             {
                 id: 'delta_ctr',
-                name: gridjs.html('ΔCTR<br>(%)'),
+                name: gridjs.html('ΔCTR'),
                 width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
@@ -287,8 +290,11 @@ function processUrlsDataForGrid(urlsData, analysisType) {
             id: 'position_p1',
             name: gridjs.html('Position<br>P1'),
             width: '100px',
-            sort: {
-                compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
+            sort: true, // Usar ordenamiento numérico nativo de Grid.js
+            formatter: (cell) => {
+                // Formatear para display pero pasar valor numérico para sorting
+                if (cell === null || cell === undefined || cell === 0) return '0';
+                return formatPosition(cell);
             }
         }
     );
@@ -299,8 +305,11 @@ function processUrlsDataForGrid(urlsData, analysisType) {
                 id: 'position_p2',
                 name: gridjs.html('Position<br>P2'),
                 width: '100px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
+                sort: true, // Usar ordenamiento numérico nativo de Grid.js
+                formatter: (cell) => {
+                    // Formatear para display pero pasar valor numérico para sorting
+                    if (cell === null || cell === undefined || cell === 0) return '0';
+                    return formatPosition(cell);
                 }
             },
             {
@@ -329,28 +338,32 @@ function processUrlsDataForGrid(urlsData, analysisType) {
         
         if (analysisType === 'comparison') {
             rowData.push(formatInteger(row.clicks_p2 ?? 0));
-            rowData.push(formatPercentageChange(row.delta_clicks_percent));
+            rowData.push(calculateAbsoluteDelta(row.clicks_p1 ?? 0, row.clicks_p2 ?? 0, 'clicks'));
         }
         
         rowData.push(formatInteger(row.impressions_p1 ?? 0));
         
         if (analysisType === 'comparison') {
             rowData.push(formatInteger(row.impressions_p2 ?? 0));
-            rowData.push(formatPercentageChange(row.delta_impressions_percent));
+            rowData.push(calculateAbsoluteDelta(row.impressions_p1 ?? 0, row.impressions_p2 ?? 0, 'impressions'));
         }
         
         rowData.push(formatPercentage(row.ctr_p1));
         
         if (analysisType === 'comparison') {
             rowData.push(formatPercentage(row.ctr_p2));
-            rowData.push(formatPercentageChange(row.delta_ctr_percent, true));
+            rowData.push(calculateAbsoluteDelta(row.ctr_p1 ?? 0, row.ctr_p2 ?? 0, 'ctr'));
         }
         
-        rowData.push(formatPosition(row.position_p1));
+        // ✅ NUEVO: Pasar valores numéricos para posiciones (0 en lugar de N/A)
+        const pos1 = (row.position_p1 == null || isNaN(row.position_p1)) ? 0 : Number(row.position_p1);
+        rowData.push(pos1);
         
         if (analysisType === 'comparison') {
-            rowData.push(formatPosition(row.position_p2));
-            rowData.push(formatPositionDelta(row.delta_position_absolute, row.position_p1, row.position_p2));
+            const pos2 = (row.position_p2 == null || isNaN(row.position_p2)) ? 0 : Number(row.position_p2);
+            rowData.push(pos2);
+            // Calcular delta usando los valores reales (0 para N/A)
+            rowData.push(calculateAbsoluteDelta(pos1, pos2, 'position'));
         }
 
         return rowData;
@@ -436,80 +449,25 @@ function getDeltaClass(value) {
  * @returns {string} - Clase CSS
  */
 function getDeltaClassPosition(value) {
-    if (!value || value === '-') return '';
+    if (!value || value === '-' || value === '0' || value === '0,0') return 'delta-neutral';
     
-    // ✅ NUEVA: Identificar URLs nuevas en posiciones (verde como mejoras)
-    if (value === 'New' || value === 'Infinity' || (typeof value === 'string' && value.includes('New'))) {
-        return 'delta-positive';
+    // Parsear el valor numérico limpiando formato español
+    let cleanValue = value.toString().replace(/[+\s]/g, '');
+    if (cleanValue.includes(',')) {
+        cleanValue = cleanValue.replace(',', '.');
     }
+    const numValue = parseFloat(cleanValue);
     
-    // ✅ NUEVA: Identificar URLs perdidas en posiciones (rojo como empeoramientos)
-    if (value === 'Lost' || (typeof value === 'string' && value.includes('Lost'))) {
-        return 'delta-negative';
-    }
+    if (isNaN(numValue) || numValue === 0) return 'delta-neutral';
     
-    const numValue = parseFloat(value.replace(/[%+]/g, ''));
-    // Solo negro si es exactamente 0
-    if (numValue === 0) return 'delta-neutral';
     // Para posiciones: negativo = mejora (verde), positivo = empeora (rojo)
     if (numValue > 0) return 'delta-negative'; // Empeora posición = rojo
     if (numValue < 0) return 'delta-positive'; // Mejora posición = verde
     return '';
 }
 
-/**
- * Función auxiliar para parsear valores numéricos de strings formateados (MEJORADA)
- * @param {*} value - Valor a parsear
- * @returns {number} - Número parseado
- */
-function parseNumericValue(value) {
-    if (value === null || value === undefined || value === '' || value === '-') return 0;
-    if (typeof value === 'number') return value;
-    
-    let str = String(value).trim();
-    
-    // Manejar casos especiales
-    if (str === 'New' || str.includes('New') || str.includes('Nuevo')) return Infinity;
-    if (str === 'Lost' || str.includes('Lost') || str.includes('Perdido')) return -Infinity;
-    if (str.includes('∞')) return str.includes('+') ? Infinity : -Infinity;
-    
-    // Limpiar HTML tags si existen
-    str = str.replace(/<[^>]*>/g, '');
-    
-    // Preservar el signo negativo
-    const isNegative = str.startsWith('-');
-    
-    // Remover todos los símbolos excepto números y separadores decimales
-    str = str.replace(/[^\d,.]/g, '');
-    
-    // Manejar formato español: si hay tanto punto como coma, el último es decimal
-    if (str.includes('.') && str.includes(',')) {
-        const lastDot = str.lastIndexOf('.');
-        const lastComma = str.lastIndexOf(',');
-        
-        if (lastComma > lastDot) {
-            // Coma es decimal: 1.234,56 → 1234.56
-            str = str.replace(/\./g, '').replace(',', '.');
-        } else {
-            // Punto es decimal: 1,234.56 → 1234.56
-            str = str.replace(/,/g, '');
-        }
-    } else if (str.includes(',')) {
-        // Solo coma: asumir decimal español: 5,67 → 5.67
-        const commaCount = (str.match(/,/g) || []).length;
-        if (commaCount === 1) {
-            str = str.replace(',', '.');
-        } else {
-            // Múltiples comas: separadores de miles
-            str = str.replace(/,/g, '');
-        }
-    }
-    
-    const num = parseFloat(str);
-    const result = isNaN(num) ? 0 : (isNegative ? -Math.abs(num) : num);
-    
-    return result;
-}
+// ✅ ELIMINADA: Función local parseNumericValue() duplicada
+// Ahora usamos la versión correcta importada desde number-utils.js
 
 /**
  * Compara valores de delta para ordenamiento MEJORADO con DEBUG
