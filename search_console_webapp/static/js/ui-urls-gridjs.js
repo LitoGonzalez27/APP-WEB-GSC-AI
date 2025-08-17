@@ -73,21 +73,23 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
         grid.render(document.getElementById('urls-grid-table'));
         console.log('✅ URLs Grid.js table rendered successfully');
         
-        // ✅ MEJORADO: Aplicar ordenamiento por defecto programáticamente
+        // ✅ MEJORADO: Aplicar ordenamiento con verificaciones para evitar conflictos
         setTimeout(() => {
             try {
-                // Aplicar ordenamiento por Clics P1 (columna 2) descendente
-                grid.updateConfig({
-                    sort: {
-                        multiColumn: false,
-                        sortColumn: 2, // Clicks P1 siempre (índice 2)
-                        sortDirection: 'desc' // De mayor a menor
-                    }
-                }).forceRender();
-                console.log('🔄 Ordenamiento por Clics P1 (desc) aplicado programáticamente');
+                // Verificar que la grid aún existe y está renderizada
+                if (grid && grid.config && grid.config.data) {
+                    grid.updateConfig({
+                        sort: {
+                            multiColumn: false,
+                            sortColumn: 2, // Clicks P1 siempre (índice 2)
+                            sortDirection: 'desc' // De mayor a menor
+                        }
+                    }).forceRender();
+                    console.log('🔄 URLs: Ordenamiento por Clics P1 (desc) aplicado programáticamente');
+                }
             } catch (sortError) {
-                console.warn('⚠️ No se pudo aplicar ordenamiento automático:', sortError);
-                // Fallback: usar clicks en header
+                console.warn('⚠️ URLs: No se pudo aplicar ordenamiento automático:', sortError);
+                // Fallback: usar clicks en header específico de URLs
                 const gridContainer = document.getElementById('urls-grid-table');
                 if (gridContainer) {
                     const clicksHeader = gridContainer.querySelector('th:nth-child(3)');
@@ -97,7 +99,7 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
                     }
                 }
             }
-        }, 200);
+        }, 600); // Delay diferente para evitar conflictos con Keywords
         
         return grid;
     } catch (error) {
@@ -253,6 +255,7 @@ function processUrlsDataForGrid(urlsData, analysisType) {
 
     columns.push(
         {
+            id: 'ctr_p1',
             name: gridjs.html('CTR<br>P1 (%)'),
             width: '100px',
             sort: {

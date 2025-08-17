@@ -229,7 +229,7 @@ export async function handleFormSubmit(e) {
   console.log('🔄 Preparando para nueva consulta - limpieza básica realizada');
   
   // ✅ NUEVO: Resetear estado completo de la tabla de URLs antes de nueva consulta
-  resetUrlsTableState();
+  await resetUrlsTableState();
   
   if (elems.aiAnalysisMessage) elems.aiAnalysisMessage.innerHTML = '';
   if (elems.aiOverviewResultsContainer) elems.aiOverviewResultsContainer.innerHTML = '';
