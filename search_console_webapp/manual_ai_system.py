@@ -1871,11 +1871,29 @@ def get_project_statistics(project_id: int, days: int = 30) -> Dict:
     
     positions_data = [dict(row) for row in cur.fetchall()]
     
-    # Eventos para anotaciones
+    # Eventos para anotaciones - PRIORIZAR eventos con descripción del usuario
     cur.execute("""
-        SELECT event_date, event_type, event_title, keywords_affected
-        FROM manual_ai_events
-        WHERE project_id = %s AND event_date >= %s AND event_date <= %s
+        WITH ranked_events AS (
+            SELECT 
+                event_date, 
+                event_type, 
+                event_title, 
+                event_description, 
+                keywords_affected,
+                ROW_NUMBER() OVER (
+                    PARTITION BY event_date, event_type 
+                    ORDER BY 
+                        CASE WHEN event_description IS NOT NULL AND event_description != '' 
+                             AND event_description != 'No additional notes provided' 
+                             THEN 1 ELSE 2 END,
+                        id DESC
+                ) as rn
+            FROM manual_ai_events
+            WHERE project_id = %s AND event_date >= %s AND event_date <= %s
+        )
+        SELECT event_date, event_type, event_title, event_description, keywords_affected
+        FROM ranked_events
+        WHERE rn = 1  -- Solo el evento más relevante por fecha y tipo
         ORDER BY event_date
     """, (project_id, start_date, end_date))
     

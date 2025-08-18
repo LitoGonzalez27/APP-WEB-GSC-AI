@@ -1719,14 +1719,10 @@ class ManualAISystem {
                 const eventType = hoveredAnnotation.event.event_type;
                 const keywordsAffected = hoveredAnnotation.event.keywords_affected || 0;
                 
-                // Debug: ver qué datos realmente tenemos
-                console.log('🔍 Debug tooltip data:', {
-                    eventTitle,
-                    userDescription,
-                    eventType,
-                    keywordsAffected,
-                    fullEvent: hoveredAnnotation.event
-                });
+                // Debug solo cuando hay descripción del usuario para verificar que funciona
+                if (userDescription && userDescription.trim()) {
+                    console.log('🔍 Tooltip con comentario del usuario:', userDescription);
+                }
                 
                 // Título según el tipo de evento
                 let tooltipTitle = '';
