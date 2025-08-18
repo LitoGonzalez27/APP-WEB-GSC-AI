@@ -2556,6 +2556,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         # 🆕 NUEVO: Obtener información temporal de competidores para esta función también
         temporal_competitors = get_competitors_for_date_range(project_id, start_date, end_date)
         logger.info(f"🕒 Temporal competitors data for comparative charts: {len(temporal_competitors)} dates")
+        logger.info(f"🔍 Temporal competitors sample: {dict(list(temporal_competitors.items())[:3])}")
         
         # Para cada dominio, obtener sus métricas por fecha
         for domain in domains_to_compare:
@@ -2654,6 +2655,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                         last_active_date = date_str
                 
                 logger.info(f"🏢 Competitor {domain}: active from {first_active_date} to {last_active_date}")
+                logger.info(f"📊 Sample temporal data for {domain}: {[temporal_competitors.get(d, []) for d in date_range[:5]]}")
             
             for date_str in date_range:
                 if domain == project_domain:
@@ -2665,28 +2667,37 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                     active_competitors = temporal_competitors.get(date_str, [])
                     
                     if domain in active_competitors:
-                        # Competidor activo: usar datos reales
-                        visibility_data.append(visibility_by_date.get(date_str, 0))  # 0% si no hay datos pero está activo
+                        # ✅ COMPETIDOR ACTIVO: usar datos reales
+                        real_visibility = visibility_by_date.get(date_str)
+                        if real_visibility is not None:
+                            visibility_data.append(real_visibility)
+                        else:
+                            # Si está activo pero no hay datos de visibilidad, usar 0% como valor por defecto
+                            visibility_data.append(0)
                         position_data.append(position_by_date.get(date_str, None))
                     else:
                         # 🔧 LÓGICA TEMPORAL: Competidor no activo
                         if first_active_date and date_str < first_active_date:
-                            # Antes de añadirse: 0% visibilidad (hack como pediste)
-                            visibility_data.append(0)
+                            # ✅ ANTES DE AÑADIRSE: None para que no aparezca línea
+                            visibility_data.append(None) 
                             position_data.append(None)
                         elif last_active_date and date_str > last_active_date:
-                            # Después de eliminarse: caída a 0%
-                            visibility_data.append(0)
+                            # ✅ DESPUÉS DE ELIMINARSE: None para que no aparezca línea
+                            visibility_data.append(None)
                             position_data.append(None)
                         else:
                             # No debería llegar aquí, pero por seguridad
-                            visibility_data.append(0)
+                            visibility_data.append(None)
                             position_data.append(None)
+                            logger.warning(f"⚠️ Unexpected temporal state for {domain} on {date_str}: not in active list but between active dates")
             
             # Determinar el label del dominio
             domain_label = domain
             
             # Dataset para gráfica de visibilidad
+            logger.info(f"📈 Adding {domain} to visibility chart: {len([v for v in visibility_data if v is not None])} non-null points out of {len(visibility_data)}")
+            logger.info(f"📈 Visibility data sample for {domain}: {visibility_data[:7]}...")
+            
             visibility_chart_data['datasets'].append({
                 'label': domain_label,
                 'data': visibility_data,
@@ -2695,7 +2706,11 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                 'tension': 0.4,
                 'pointRadius': 3,
                 'pointHoverRadius': 5,
-                'borderWidth': domain == project_domain and 3 or 2  # Línea más gruesa para dominio del proyecto
+                'borderWidth': domain == project_domain and 3 or 2,  # Línea más gruesa para dominio del proyecto
+                'spanGaps': False,  # ✅ No conectar gaps (None values) 
+                'segment': {
+                    'borderDash': (ctx) => ctx.p0.parsed.y === null || ctx.p1.parsed.y === null ? [5, 5] : undefined
+                }  # ✅ Línea punteada en transiciones
             })
             
             # Dataset para gráfica de posición
