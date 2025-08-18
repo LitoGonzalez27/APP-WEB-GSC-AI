@@ -146,6 +146,28 @@ class ManualAISystem {
             // Reset currentModalProject if active
             this.currentModalProject = null;
             
+            // 🆕 NUEVO: Clear sessionStorage as well
+            try {
+                const sessionKeys = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (key.includes('manual') || key.includes('project') || key.includes('keyword'))) {
+                        sessionKeys.push(key);
+                    }
+                }
+                
+                sessionKeys.forEach(key => {
+                    console.log(`🧹 Removing obsolete session key: ${key}`);
+                    sessionStorage.removeItem(key);
+                });
+                
+                if (sessionKeys.length > 0) {
+                    console.log(`🧹 Session storage cleared: ${sessionKeys.length} keys removed`);
+                }
+            } catch (sessionError) {
+                console.warn('⚠️ Error clearing session storage:', sessionError);
+            }
+            
             if (keysToRemove.length > 0) {
                 console.log(`🧹 Obsolete cache cleared: ${keysToRemove.length} keys removed`);
             }
@@ -3572,11 +3594,11 @@ class ManualAISystem {
                 }
                 
                 if (response.status === 404) {
-                    errorMessage = 'The keyword or project does not exist. Please reload the page to sync data.';
+                    errorMessage = 'The keyword or project does not exist. Data will be synchronized automatically.';
                 } else if (response.status === 403) {
-                    errorMessage = 'You do not have permission to delete this keyword.';
+                    errorMessage = 'You do not have permission to delete this keyword. Data will be synchronized automatically.';
                 } else if (response.status === 500) {
-                    errorMessage = 'Internal server error. Please try again.';
+                    errorMessage = 'Internal server error. Data will be synchronized automatically.';
                 }
                 
                 throw new Error(errorMessage);
@@ -3594,16 +3616,35 @@ class ManualAISystem {
             this.showAnnotationModal('keyword_deleted', `Deleted keyword from ${this.currentModalProject.name}`);
 
         } catch (error) {
-            console.error('Error removing keyword:', error);
+            console.error('💥 Error removing keyword:', error);
             this.showError(error.message);
             
-            // If it's a 404 error, reload the data to sync
-            if (error.message.includes('does not exist')) {
-                console.log('🔄 Reloading data due to sync issue...');
+            // 🆕 MEJORADO: Automatic data synchronization for all error types
+            console.log('🔄 Auto-synchronizing data due to error...');
+            
+            try {
+                // Clear any stale cache
+                this.clearObsoleteCache();
+                
+                // Force reload projects from server
                 await this.loadProjects();
+                
+                // If modal is still open and project still exists, reload keywords
                 if (this.currentModalProject) {
-                    await this.loadModalKeywords(this.currentModalProject.id);
+                    const projectStillExists = this.projects.find(p => p.id === this.currentModalProject.id);
+                    if (projectStillExists) {
+                        await this.loadModalKeywords(this.currentModalProject.id);
+                    } else {
+                        // Project no longer exists, close modal
+                        console.log('⚠️ Project no longer exists, closing modal');
+                        this.hideProjectModal();
+                        this.showError('The project no longer exists. Data has been synchronized.');
+                    }
                 }
+                
+                console.log('✅ Data synchronization completed');
+            } catch (syncError) {
+                console.error('❌ Error during auto-sync:', syncError);
             }
         }
     }

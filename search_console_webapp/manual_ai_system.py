@@ -390,27 +390,24 @@ def delete_project_keyword(project_id, keyword_id):
     """Eliminar una keyword específica de un proyecto"""
     user = get_current_user()
     
+    # 🆕 MEJORADO: Validación temprana fuera del try block
+    logger.info(f"🗑️ Delete keyword request: project_id={project_id}, keyword_id={keyword_id}, user_id={user['id']}")
+    
+    # Verificar que el proyecto existe y pertenece al usuario
+    if not user_owns_project(user['id'], project_id):
+        logger.warning(f"❌ Unauthorized access: User {user['id']} does not own project {project_id}")
+        return jsonify({
+            'success': False, 
+            'error': f'Project {project_id} not found or unauthorized access'
+        }), 403
+    
     try:
-        # Verificar que el proyecto existe y pertenece al usuario
-        if not user_owns_project(user['id'], project_id):
-            return jsonify({
-                'success': False, 
-                'error': f'Project {project_id} not found or unauthorized access'
-            }), 403
         
         # Verificar que la keyword existe y pertenece al proyecto
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Primero verificar si el proyecto existe
-        cur.execute("SELECT id FROM manual_ai_projects WHERE id = %s", (project_id,))
-        if not cur.fetchone():
-            conn.close()
-            return jsonify({
-                'success': False, 
-                'error': f'Project {project_id} does not exist'
-            }), 404
-        
+        # Buscar la keyword (ya sabemos que el proyecto existe por user_owns_project)
         cur.execute("""
             SELECT id, keyword FROM manual_ai_keywords 
             WHERE id = %s AND project_id = %s AND is_active = true
@@ -419,6 +416,7 @@ def delete_project_keyword(project_id, keyword_id):
         keyword_data = cur.fetchone()
         if not keyword_data:
             conn.close()
+            logger.warning(f"❌ Keyword not found: keyword_id={keyword_id}, project_id={project_id}")
             return jsonify({
                 'success': False, 
                 'error': f'Keyword {keyword_id} not found in project {project_id} or already inactive'
@@ -440,22 +438,29 @@ def delete_project_keyword(project_id, keyword_id):
         conn.commit()
         conn.close()
         
-        # Crear evento
-        create_project_event(
-            project_id=project_id,
-            event_type='keyword_deleted',
-            event_title=f'Keyword deleted: {keyword_data["keyword"]}',
-            keywords_affected=1,
-            user_id=user['id']
-        )
+        # 🆕 MEJORADO: Crear evento con manejo de errores
+        try:
+            create_project_event(
+                project_id=project_id,
+                event_type='keyword_deleted',
+                event_title=f'Keyword deleted: {keyword_data["keyword"]}',
+                keywords_affected=1,
+                user_id=user['id']
+            )
+            logger.info(f"📝 Event created for keyword deletion: project_id={project_id}, keyword={keyword_data['keyword']}")
+        except Exception as event_error:
+            # Si falla la creación del evento, log pero no fallar la eliminación
+            logger.error(f"⚠️ Failed to create deletion event (non-critical): {event_error}")
+            # Continuar con el éxito de la eliminación
         
+        logger.info(f"✅ Keyword deleted successfully: {keyword_data['keyword']} from project {project_id}")
         return jsonify({
             'success': True,
             'message': f'Keyword "{keyword_data["keyword"]}" deleted successfully'
         })
         
     except Exception as e:
-        logger.error(f"Error deleting keyword: {e}")
+        logger.error(f"💥 Error deleting keyword {keyword_id} from project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/annotations', methods=['POST'])
