@@ -1390,6 +1390,36 @@ class ManualAISystem {
                 }
             }
         });
+
+        // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
+        if (events && events.length > 0) {
+            const annotations = this.createEventAnnotations(data, events);
+            if (annotations && annotations.length > 0) {
+                // ✅ MEJORADO: Registrar plugin usando Chart.js 3.x+ API
+                if (!Chart.registry.plugins.get('keywordEventAnnotations')) {
+                    Chart.register({
+                        id: 'keywordEventAnnotations',
+                        afterDraw: (chart) => {
+                            const annotationsData = chart.options.annotationsData;
+                            if (annotationsData && annotationsData.length > 0) {
+                                this.drawEventAnnotations(chart, annotationsData);
+                            }
+                        }
+                    });
+                }
+                
+                // Guardar anotaciones en las opciones del chart
+                this.charts.visibility.options.annotationsData = annotations;
+                
+                // Configurar eventos de mouse para tooltips
+                setTimeout(() => {
+                    this.showEventAnnotations(this.charts.visibility, annotations);
+                }, 100);
+                
+                // Re-render con las anotaciones
+                this.charts.visibility.update();
+            }
+        }
     }
 
     renderPositionsChart(data, events = []) {
@@ -1515,6 +1545,36 @@ class ManualAISystem {
                 }
             }
         });
+
+        // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
+        if (events && events.length > 0) {
+            const annotations = this.createEventAnnotations(data, events);
+            if (annotations && annotations.length > 0) {
+                // ✅ MEJORADO: Registrar plugin usando Chart.js 3.x+ API
+                if (!Chart.registry.plugins.get('keywordEventAnnotations')) {
+                    Chart.register({
+                        id: 'keywordEventAnnotations',
+                        afterDraw: (chart) => {
+                            const annotationsData = chart.options.annotationsData;
+                            if (annotationsData && annotationsData.length > 0) {
+                                this.drawEventAnnotations(chart, annotationsData);
+                            }
+                        }
+                    });
+                }
+                
+                // Guardar anotaciones en las opciones del chart
+                this.charts.positions.options.annotationsData = annotations;
+                
+                // Configurar eventos de mouse para tooltips
+                setTimeout(() => {
+                    this.showEventAnnotations(this.charts.positions, annotations);
+                }, 100);
+                
+                // Re-render con las anotaciones
+                this.charts.positions.update();
+            }
+        }
     }
 
     // ================================
@@ -1537,7 +1597,8 @@ class ManualAISystem {
                 title: event.event_title,
                 type: event.event_type,
                 keywords: event.keywords_affected,
-                date: eventDate
+                date: eventDate,
+                event: event, // ✅ MEJORADO: Incluir evento completo para tooltips
             };
         }).filter(Boolean);
     }
@@ -1549,23 +1610,35 @@ class ManualAISystem {
         const chartArea = chart.chartArea;
         
         annotations.forEach(annotation => {
+            // ✅ MEJORADO: Calcular posición correcta basada en el índice de datos
             const xPos = chart.scales.x.getPixelForValue(annotation.x);
             
-            // Draw vertical line
+            if (xPos < chartArea.left || xPos > chartArea.right) return; // Skip if outside chart
+            
+            // ✅ MEJORADO: Línea vertical más visible
             ctx.save();
             ctx.strokeStyle = this.getEventColor(annotation.type);
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 3;  // Más gruesa
+            ctx.setLineDash([8, 4]); // Línea más definida
+            ctx.globalAlpha = 0.8;
             ctx.beginPath();
             ctx.moveTo(xPos, chartArea.top);
             ctx.lineTo(xPos, chartArea.bottom);
             ctx.stroke();
             
-            // Draw icon at top
+            // ✅ MEJORADO: Círculo de fondo para el icono
+            ctx.globalAlpha = 1;
             ctx.fillStyle = this.getEventColor(annotation.type);
-            ctx.font = '12px "Font Awesome 5 Free"';
+            ctx.beginPath();
+            ctx.arc(xPos, chartArea.top - 12, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // ✅ MEJORADO: Icono de warning más visible
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(this.getEventIcon(annotation.type), xPos, chartArea.top - 5);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.getEventIcon(annotation.type), xPos, chartArea.top - 12);
             
             ctx.restore();
         });
@@ -1573,24 +1646,28 @@ class ManualAISystem {
 
     getEventColor(eventType) {
         const colors = {
-            'keywords_added': '#10B981',     // Green
-            'keyword_deleted': '#EF4444',   // Red
-            'keywords_removed': '#EF4444',  // Red
+            'keywords_added': '#F59E0B',     // ✅ MEJORADO: Warning orange para cambios de keywords
+            'keyword_deleted': '#F59E0B',   // ✅ MEJORADO: Warning orange para eliminación de keywords
+            'keywords_removed': '#F59E0B',  // ✅ MEJORADO: Warning orange para cambios de keywords
             'project_created': '#4F46E5',   // Blue
             'daily_analysis': '#6B7280',    // Gray
-            'analysis_failed': '#F59E0B'    // Orange
+            'analysis_failed': '#EF4444',   // Red para errores reales
+            'competitors_changed': '#8B5CF6', // ✅ NUEVO: Purple para cambios de competidores
+            'competitors_updated': '#8B5CF6'  // ✅ NUEVO: Purple para actualizaciones de competidores
         };
         return colors[eventType] || '#6B7280';
     }
 
     getEventIcon(eventType) {
         const icons = {
-            'keywords_added': '+',
-            'keyword_deleted': '−',
-            'keywords_removed': '−',
+            'keywords_added': '⚠',           // ✅ MEJORADO: Warning para cambios de keywords
+            'keyword_deleted': '⚠',         // ✅ MEJORADO: Warning para eliminación de keywords
+            'keywords_removed': '⚠',        // ✅ MEJORADO: Warning para cambios de keywords
             'project_created': '⭐',
             'daily_analysis': '📊',
-            'analysis_failed': '⚠'
+            'analysis_failed': '⚠',
+            'competitors_changed': '🔄',     // ✅ NUEVO: Icono para cambios de competidores
+            'competitors_updated': '🔄'      // ✅ NUEVO: Icono para actualizaciones de competidores
         };
         return icons[eventType] || '•';
     }
@@ -1634,26 +1711,43 @@ class ManualAISystem {
             const chartArea = chart.chartArea;
             
             for (const annotation of annotations) {
-                const annotationX = chartArea.left + (annotation.position * (chartArea.right - chartArea.left));
+                // ✅ CORREGIDO: Usar la posición correcta de la anotación
+                const annotationX = chart.scales.x.getPixelForValue(annotation.x);
                 
-                // Check if mouse is within annotation area (with some tolerance)
-                if (Math.abs(x - annotationX) <= 15 && y >= chartArea.top - 25 && y <= chartArea.bottom) {
+                // ✅ MEJORADO: Área de detección más amplia para facilitar interacción
+                if (Math.abs(x - annotationX) <= 20 && y >= chartArea.top - 30 && y <= chartArea.bottom + 10) {
                     hoveredAnnotation = annotation;
                     break;
                 }
             }
             
             if (hoveredAnnotation) {
-                // Show tooltip
+                // ✅ MEJORADO: Tooltip detallado para cambios de keywords
                 const eventTitle = hoveredAnnotation.event.event_title || 'Event';
                 const eventDesc = hoveredAnnotation.event.event_description || 'No description provided';
-                const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString();
+                const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('es-ES', {
+                    weekday: 'short',
+                    year: 'numeric', 
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const eventType = hoveredAnnotation.event.event_type;
+                const keywordsAffected = hoveredAnnotation.event.keywords_affected || 0;
                 
-                tooltip.innerHTML = `
-                    <strong>${eventTitle}</strong>
-                    <br>${eventDate}
-                    ${eventDesc !== 'No description provided' ? `<br><br>${eventDesc}` : ''}
-                `;
+                let tooltipContent = `<strong>⚠️ ${eventTitle}</strong><br>${eventDate}`;
+                
+                // Información específica según el tipo de evento
+                if (eventType === 'keywords_added' && keywordsAffected > 0) {
+                    tooltipContent += `<br><br>✅ <strong>${keywordsAffected}</strong> keyword${keywordsAffected !== 1 ? 's' : ''} añadida${keywordsAffected !== 1 ? 's' : ''}`;
+                } else if (eventType === 'keyword_deleted') {
+                    tooltipContent += `<br><br>🗑️ <strong>1</strong> keyword eliminada`;
+                } else if (eventType === 'keywords_removed' && keywordsAffected > 0) {
+                    tooltipContent += `<br><br>🗑️ <strong>${keywordsAffected}</strong> keyword${keywordsAffected !== 1 ? 's' : ''} eliminada${keywordsAffected !== 1 ? 's' : ''}`;
+                }
+                
+                tooltipContent += `<br><br><small style="opacity: 0.8;">Los datos de AI Overview pueden verse afectados por este cambio</small>`;
+                
+                tooltip.innerHTML = tooltipContent;
                 
                 tooltip.style.left = (e.clientX + 10) + 'px';
                 tooltip.style.top = (e.clientY - 10) + 'px';
@@ -2511,8 +2605,8 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },
@@ -2550,8 +2644,8 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },

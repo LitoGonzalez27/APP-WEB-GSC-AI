@@ -1184,7 +1184,7 @@ def get_keywords_for_project(project_id: int) -> List[Dict]:
             AVG(CASE WHEN r.has_ai_overview THEN 1.0 ELSE 0.0 END) as ai_overview_frequency
         FROM manual_ai_keywords k
         LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
-        WHERE k.project_id = %s
+        WHERE k.project_id = %s AND k.is_active = true
         GROUP BY k.id, k.keyword, k.is_active, k.added_at
         ORDER BY k.added_at DESC
     """, (project_id,))
@@ -2047,54 +2047,68 @@ def get_competitors_for_date_range(project_id: int, start_date: date, end_date: 
         
         conn.close()
         
-        # Reconstruir estado temporal
+        # 🔧 CORREGIDO: Reconstruir estado temporal correctamente
         date_range = {}
         active_competitors = []
         
-        # Procesar cada fecha en el rango
+        # Primer paso: determinar competidores iniciales
+        if competitor_changes:
+            # Buscar el evento más antiguo para competidores iniciales
+            first_event = competitor_changes[0]
+            if first_event['event_type'] == 'project_created':
+                try:
+                    change_data = json.loads(first_event['event_description'])
+                    if 'competitors' in change_data:
+                        active_competitors = change_data['competitors'].copy()
+                except (json.JSONDecodeError, KeyError):
+                    active_competitors = current_competitors.copy()
+            else:
+                # Si el primer evento no es de creación, usar competidores actuales como base
+                active_competitors = current_competitors.copy()
+        else:
+            # No hay eventos, usar competidores actuales
+            active_competitors = current_competitors.copy()
+        
+        # Segundo paso: aplicar cambios cronológicamente
+        changes_applied = set()  # Evitar aplicar el mismo cambio múltiples veces
+        
         from datetime import timedelta
         for n in range((end_date - start_date).days + 1):
             single_date = start_date + timedelta(n)
             
-            # Aplicar todos los cambios hasta esta fecha
-            for change in competitor_changes:
-                if change['event_date'] <= single_date:
+            # Aplicar SOLO los cambios que ocurren exactamente en esta fecha
+            for i, change in enumerate(competitor_changes):
+                change_id = f"{change['event_date']}_{i}"  # ID único para cada cambio
+                
+                if (change['event_date'] == single_date and 
+                    change_id not in changes_applied):
+                    
+                    changes_applied.add(change_id)
+                    
                     try:
                         if change['event_type'] == 'competitors_changed':
                             # Cambio detallado con información temporal
                             change_data = json.loads(change['event_description'])
                             if 'new_competitors' in change_data:
                                 active_competitors = change_data['new_competitors'].copy()
-                        
-                        elif change['event_type'] == 'project_created':
-                            # Proyecto creado - obtener competidores iniciales
-                            try:
-                                change_data = json.loads(change['event_description'])
-                                if 'competitors' in change_data:
-                                    active_competitors = change_data['competitors'].copy()
-                            except:
-                                # Si falla el parsing, usar competidores actuales
-                                active_competitors = current_competitors.copy()
+                                logger.info(f"📅 Applied competitor change on {single_date}: {active_competitors}")
                         
                         elif change['event_type'] == 'competitors_updated':
                             # Actualización simple - extraer de descripción si es posible
                             description = change['event_description']
                             if 'competitors:' in description:
-                                # Intentar extraer lista de competidores
                                 try:
                                     competitors_part = description.split('competitors:')[1].strip()
                                     if competitors_part and competitors_part != 'None':
                                         active_competitors = [c.strip() for c in competitors_part.split(',')]
+                                        logger.info(f"📅 Applied competitor update on {single_date}: {active_competitors}")
                                 except:
                                     pass
                     except (json.JSONDecodeError, KeyError) as e:
                         logger.warning(f"Error parsing event description for date {single_date}: {e}")
                         continue
             
-            # Si no hay cambios registrados, usar competidores actuales
-            if not active_competitors and current_competitors:
-                active_competitors = current_competitors.copy()
-            
+            # Asignar estado actual a esta fecha
             date_range[single_date.isoformat()] = active_competitors.copy()
         
         logger.info(f"🔄 Reconstructed temporal competitor state for project {project_id}: {len(date_range)} dates")
