@@ -1665,19 +1665,22 @@ class ManualAISystem {
             tooltip = document.createElement('div');
             tooltip.id = 'chart-annotation-tooltip';
             tooltip.style.cssText = `
-                position: absolute;
-                background: rgba(0, 0, 0, 0.9);
+                position: fixed;
+                background: rgba(0, 0, 0, 0.92);
                 color: white;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-                line-height: 1.4;
-                max-width: 200px;
-                z-index: 1000;
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-size: 13px;
+                line-height: 1.5;
+                max-width: 280px;
+                min-width: 200px;
+                z-index: 10000;
                 pointer-events: none;
                 opacity: 0;
                 transition: opacity 0.2s ease;
                 white-space: pre-wrap;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.1);
             `;
             document.body.appendChild(tooltip);
         }
@@ -1706,7 +1709,7 @@ class ManualAISystem {
             if (hoveredAnnotation) {
                 // ✅ CORREGIDO: Mostrar el texto que el usuario añadió
                 const eventTitle = hoveredAnnotation.event.event_title || 'Cambio en Keywords';
-                const userDescription = hoveredAnnotation.event.event_description || 'Sin notas adicionales';
+                const userDescription = hoveredAnnotation.event.event_description;
                 const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('es-ES', {
                     weekday: 'short',
                     year: 'numeric', 
@@ -1715,6 +1718,15 @@ class ManualAISystem {
                 });
                 const eventType = hoveredAnnotation.event.event_type;
                 const keywordsAffected = hoveredAnnotation.event.keywords_affected || 0;
+                
+                // Debug: ver qué datos realmente tenemos
+                console.log('🔍 Debug tooltip data:', {
+                    eventTitle,
+                    userDescription,
+                    eventType,
+                    keywordsAffected,
+                    fullEvent: hoveredAnnotation.event
+                });
                 
                 // Título según el tipo de evento
                 let tooltipTitle = '';
@@ -1731,17 +1743,45 @@ class ManualAISystem {
                 // ✅ CORREGIDO: Mostrar el texto del usuario como contenido principal
                 let tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
                 
-                // El texto del usuario es lo más importante
-                if (userDescription && userDescription !== 'Sin notas adicionales' && userDescription !== 'No additional notes provided') {
+                // ✅ MEJORADO: Lógica más robusta para mostrar comentarios del usuario
+                if (userDescription && 
+                    userDescription.trim() && 
+                    userDescription !== 'Sin notas adicionales' && 
+                    userDescription !== 'No additional notes provided' &&
+                    userDescription !== 'No description provided') {
                     tooltipContent += `<br><br><em>"${userDescription}"</em>`;
                 } else {
-                    tooltipContent += `<br><br><small style="opacity: 0.7;">Sin notas adicionales del usuario</small>`;
+                    tooltipContent += `<br><br><small style="opacity: 0.7;">Sin comentarios del usuario</small>`;
                 }
                 
                 tooltip.innerHTML = tooltipContent;
                 
-                tooltip.style.left = (e.clientX + 10) + 'px';
-                tooltip.style.top = (e.clientY - 10) + 'px';
+                // ✅ MEJORADO: Posicionamiento inteligente del tooltip
+                const rect = canvas.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                
+                let left = e.clientX + 15;
+                let top = e.clientY - 10;
+                
+                // Ajustar si se sale por la derecha
+                if (left + 250 > viewportWidth) { // 250px es el ancho aproximado del tooltip
+                    left = e.clientX - 250 - 15;
+                }
+                
+                // Ajustar si se sale por arriba
+                if (top < 10) {
+                    top = e.clientY + 25;
+                }
+                
+                // Ajustar si se sale por abajo
+                if (top + 100 > viewportHeight) { // 100px es la altura aproximada del tooltip
+                    top = e.clientY - 100 - 15;
+                }
+                
+                tooltip.style.left = Math.max(10, left) + 'px';
+                tooltip.style.top = Math.max(10, top) + 'px';
                 tooltip.style.opacity = '1';
                 canvas.style.cursor = 'pointer';
             } else {
