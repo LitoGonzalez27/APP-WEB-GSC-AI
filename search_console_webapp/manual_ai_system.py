@@ -2075,10 +2075,14 @@ def get_competitors_for_date_range(project_id: int, start_date: date, end_date: 
             first_event = competitor_changes[0]
             if first_event['event_type'] == 'project_created':
                 try:
-                    change_data = json.loads(first_event['event_description'])
-                    if 'competitors' in change_data:
-                        active_competitors = change_data['competitors'].copy()
-                except (json.JSONDecodeError, KeyError):
+                    event_desc = first_event['event_description']
+                    if event_desc:  # ✅ CORREGIDO: Verificar que no sea None
+                        change_data = json.loads(event_desc)
+                        if 'competitors' in change_data:
+                            active_competitors = change_data['competitors'].copy()
+                    else:
+                        active_competitors = current_competitors.copy()
+                except (json.JSONDecodeError, KeyError, TypeError):
                     active_competitors = current_competitors.copy()
             else:
                 # Si el primer evento no es de creación, usar competidores actuales como base
@@ -2106,15 +2110,17 @@ def get_competitors_for_date_range(project_id: int, start_date: date, end_date: 
                     try:
                         if change['event_type'] == 'competitors_changed':
                             # Cambio detallado con información temporal
-                            change_data = json.loads(change['event_description'])
-                            if 'new_competitors' in change_data:
-                                active_competitors = change_data['new_competitors'].copy()
-                                logger.info(f"📅 Applied competitor change on {single_date}: {active_competitors}")
+                            event_desc = change['event_description']
+                            if event_desc:  # ✅ CORREGIDO: Verificar que no sea None
+                                change_data = json.loads(event_desc)
+                                if 'new_competitors' in change_data:
+                                    active_competitors = change_data['new_competitors'].copy()
+                                    logger.info(f"📅 Applied competitor change on {single_date}: {active_competitors}")
                         
                         elif change['event_type'] == 'competitors_updated':
                             # Actualización simple - extraer de descripción si es posible
                             description = change['event_description']
-                            if 'competitors:' in description:
+                            if description and 'competitors:' in description:
                                 try:
                                     competitors_part = description.split('competitors:')[1].strip()
                                     if competitors_part and competitors_part != 'None':
@@ -2122,7 +2128,7 @@ def get_competitors_for_date_range(project_id: int, start_date: date, end_date: 
                                         logger.info(f"📅 Applied competitor update on {single_date}: {active_competitors}")
                                 except:
                                     pass
-                    except (json.JSONDecodeError, KeyError) as e:
+                    except (json.JSONDecodeError, KeyError, TypeError) as e:
                         logger.warning(f"Error parsing event description for date {single_date}: {e}")
                         continue
             
@@ -2133,9 +2139,12 @@ def get_competitors_for_date_range(project_id: int, start_date: date, end_date: 
         return date_range
         
     except Exception as e:
-        logger.error(f"Error getting competitors for date range: {e}")
+        logger.error(f"💥 Error getting competitors for date range: {e}")
+        logger.error(f"📋 Debug info - project_id: {project_id}, start_date: {start_date}, end_date: {end_date}")
         # Fallback: usar competidores actuales para todo el rango
+        from datetime import timedelta  # ✅ CORREGIDO: Importar timedelta para el fallback
         fallback_competitors = current_competitors if 'current_competitors' in locals() else []
+        logger.info(f"🔄 Using fallback competitors: {fallback_competitors}")
         return {
             (start_date + timedelta(n)).isoformat(): fallback_competitors.copy()
             for n in range((end_date - start_date).days + 1)
@@ -2712,7 +2721,10 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
         }
         
     except Exception as e:
-        logger.error(f"Error getting comparative charts data for project {project_id}: {e}")
+        logger.error(f"💥 Error getting comparative charts data for project {project_id}: {e}")
+        logger.error(f"📋 Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
         return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
     finally:
         cur.close()
