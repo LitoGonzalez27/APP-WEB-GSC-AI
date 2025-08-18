@@ -2120,6 +2120,7 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
     
     Retorna datos para Brand Visibility Index (scatter) y Brand Position Over Time (líneas).
     """
+    from datetime import date, timedelta
     conn = get_db_connection()
     cur = conn.cursor()
     
@@ -2143,10 +2144,12 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
                 'position_evolution': [], 
                 'domains': [],
                 'temporal_info': temporal_competitors,
-                'has_temporal_changes': has_temporal_changes
+                'has_temporal_changes': has_temporal_changes,
+                'competitor_changes': []
             }
         
-        project_domain = project_data[0]
+        # 🔧 CORREGIDO: Usar índice de diccionario en lugar de tupla
+        project_domain = project_data['domain'] if isinstance(project_data, dict) else project_data[0]
         
         # Obtener todos los datos de referencias históricas
         cur.execute("""
@@ -2187,7 +2190,11 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
                 continue
                 
             all_domains.add(domain)
-            date_str = str(analysis_date.date())
+            # 🔧 CORREGIDO: Manejar tanto datetime como string
+            if hasattr(analysis_date, 'date'):
+                date_str = str(analysis_date.date())
+            else:
+                date_str = str(analysis_date)
             
             if domain not in domain_daily_data:
                 domain_daily_data[domain] = {}
@@ -2202,7 +2209,13 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             
             domain_daily_data[domain][date_str]['appearances'] += 1
             if ref_index is not None:
-                domain_daily_data[domain][date_str]['positions'].append(ref_index + 1)
+                # 🔧 CORREGIDO: Convertir ref_index a entero
+                try:
+                    index_int = int(ref_index) if ref_index is not None else None
+                    if index_int is not None:
+                        domain_daily_data[domain][date_str]['positions'].append(index_int + 1)
+                except (ValueError, TypeError):
+                    pass  # Skip invalid indices
             domain_daily_data[domain][date_str]['keywords'].add(keyword)
         
         # Obtener total de keywords analizadas por día para calcular Brand Likelihood
@@ -2220,7 +2233,15 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             ORDER BY r.analysis_date
         """, (project_id, start_date, end_date))
         
-        daily_totals = {str(row['analysis_date'].date()): row['total_keywords_with_ai'] for row in cur.fetchall()}
+        # 🔧 CORREGIDO: Manejar tanto datetime como string en daily_totals
+        daily_totals = {}
+        for row in cur.fetchall():
+            analysis_date = row['analysis_date']
+            if hasattr(analysis_date, 'date'):
+                date_key = str(analysis_date.date())
+            else:
+                date_key = str(analysis_date)
+            daily_totals[date_key] = row['total_keywords_with_ai']
         
         # Calcular métricas finales para cada dominio
         visibility_scatter = []  # Para gráfica scatter de visibilidad
@@ -2232,21 +2253,40 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             total_appearances = sum(data['appearances'] for data in daily_data.values())
             domain_totals[domain] = total_appearances
         
-        # Seleccionar top 6 dominios más visibles
-        top_domains = sorted(domain_totals.items(), key=lambda x: x[1], reverse=True)[:6]
-        selected_domains = [domain for domain, _ in top_domains]
+        # 🔧 CORREGIDO: Usar competidores temporalmente correctos en lugar de top domains
+        # Obtener todos los competidores únicos que estuvieron activos en algún momento
+        all_temporal_competitors = set()
+        for date_comps in temporal_competitors.values():
+            all_temporal_competitors.update(date_comps)
+        
+        # Filtrar solo los dominios que son competidores configurados
+        selected_domains = [domain for domain in all_temporal_competitors if domain in domain_daily_data]
+        
+        # Si no hay suficientes competidores con datos, añadir los más visibles como backup
+        if len(selected_domains) < 3:
+            top_domains = sorted(domain_totals.items(), key=lambda x: x[1], reverse=True)[:6]
+            for domain, _ in top_domains:
+                if domain not in selected_domains and len(selected_domains) < 6:
+                    selected_domains.append(domain)
         
         # Generar datos para scatter chart (Brand Visibility Index)
         for domain in selected_domains:
             daily_data = domain_daily_data.get(domain, {})
             
-            total_appearances = sum(data['appearances'] for data in daily_data.values())
+            # 🔧 CORREGIDO: Solo contar datos de fechas donde este dominio era competidor activo
+            filtered_appearances = 0
             all_positions = []
             total_keywords = set()
             
-            for data in daily_data.values():
-                all_positions.extend(data['positions'])
-                total_keywords.update(data['keywords'])
+            for date_str, data in daily_data.items():
+                # Verificar si este dominio era competidor activo en esta fecha
+                active_competitors = temporal_competitors.get(date_str, [])
+                if domain in active_competitors:
+                    filtered_appearances += data['appearances']
+                    all_positions.extend(data['positions'])
+                    total_keywords.update(data['keywords'])
+            
+            total_appearances = filtered_appearances
             
             if total_appearances > 0 and all_positions:
                 avg_position = sum(all_positions) / len(all_positions)
@@ -2294,11 +2334,16 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             positions_by_date = []
             
             for date_str in date_range:
-                if date_str in daily_data and daily_data[date_str]['positions']:
+                # 🔧 CORREGIDO: Solo mostrar datos si el dominio era competidor activo en esa fecha
+                active_competitors = temporal_competitors.get(date_str, [])
+                
+                if (domain in active_competitors and 
+                    date_str in daily_data and 
+                    daily_data[date_str]['positions']):
                     avg_pos = sum(daily_data[date_str]['positions']) / len(daily_data[date_str]['positions'])
                     positions_by_date.append(round(avg_pos, 1))
                 else:
-                    positions_by_date.append(None)  # No data for this date
+                    positions_by_date.append(None)  # No data for this date or not active competitor
             
             position_evolution['datasets'].append({
                 'label': domain,
@@ -2325,24 +2370,36 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
                 {
                     'date': date_iso,
                     'competitors': competitors,
-                    'is_change': date_iso in temporal_competitors and 
-                                competitors != temporal_competitors.get(
-                                    (datetime.fromisoformat(date_iso) - timedelta(days=1)).isoformat(), 
-                                    competitors
-                                )
+                    'is_change': has_temporal_changes  # Simplified: just mark if any changes occurred
                 }
                 for date_iso, competitors in temporal_competitors.items()
             ]
         }
         
     except Exception as e:
-        logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
+        logger.error(f"💥 Error getting competitors charts data for project {project_id}: {e}")
+        logger.error(f"📋 Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
+        
+        # Return empty data but with temporal info if possible
+        try:
+            from datetime import date, timedelta
+            end_date = date.today()
+            start_date = end_date - timedelta(days=30)  # Use default 30 days
+            temporal_competitors = get_competitors_for_date_range(project_id, start_date, end_date)
+            has_temporal_changes = len(set(str(sorted(comps)) for comps in temporal_competitors.values())) > 1
+        except Exception as temporal_error:
+            logger.error(f"⚠️ Could not get temporal info in error handler: {temporal_error}")
+            temporal_competitors = {}
+            has_temporal_changes = False
+        
         return {
-            'visibility_scatter': [], 
-            'position_evolution': [], 
+            'visibility_scatter': [],
+            'position_evolution': [],
             'domains': [],
-            'temporal_info': {},
-            'has_temporal_changes': False,
+            'temporal_info': temporal_competitors,
+            'has_temporal_changes': has_temporal_changes,
             'competitor_changes': []
         }
     finally:
