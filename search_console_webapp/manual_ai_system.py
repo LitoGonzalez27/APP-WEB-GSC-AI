@@ -2365,17 +2365,40 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             daily_data = domain_daily_data.get(domain, {})
             positions_by_date = []
             
+            # 🆕 NUEVO: Encontrar primer y último día donde este competidor estaba activo
+            first_active_date = None
+            last_active_date = None
             for date_str in date_range:
-                # 🔧 CORREGIDO: Solo mostrar datos si el dominio era competidor activo en esa fecha
+                active_competitors = temporal_competitors.get(date_str, [])
+                if domain in active_competitors:
+                    if first_active_date is None:
+                        first_active_date = date_str
+                    last_active_date = date_str
+            
+            logger.info(f"📊 Position chart - Competitor {domain}: active from {first_active_date} to {last_active_date}")
+            
+            for date_str in date_range:
                 active_competitors = temporal_competitors.get(date_str, [])
                 
-                if (domain in active_competitors and 
-                    date_str in daily_data and 
-                    daily_data[date_str]['positions']):
-                    avg_pos = sum(daily_data[date_str]['positions']) / len(daily_data[date_str]['positions'])
-                    positions_by_date.append(round(avg_pos, 1))
+                if domain in active_competitors:
+                    # Competidor activo - usar datos reales si existen
+                    if (date_str in daily_data and daily_data[date_str]['positions']):
+                        avg_pos = sum(daily_data[date_str]['positions']) / len(daily_data[date_str]['positions'])
+                        positions_by_date.append(round(avg_pos, 1))
+                    else:
+                        # Competidor activo pero sin datos de posición - usar una posición alta (peor)
+                        positions_by_date.append(20)  # Posición por defecto cuando no hay datos
                 else:
-                    positions_by_date.append(None)  # No data for this date or not active competitor
+                    # 🎯 LÓGICA TEMPORAL CORREGIDA según especificaciones:
+                    if first_active_date and date_str < first_active_date:
+                        # Antes de que se añadiera el competidor: 0% visibilidad (posición infinita)
+                        positions_by_date.append(None)  # No mostrar línea antes de estar activo
+                    elif last_active_date and date_str > last_active_date:
+                        # Después de que se eliminara el competidor: caída a "sin posición"
+                        positions_by_date.append(None)  # No mostrar línea después de estar inactivo
+                    else:
+                        # No debería llegar aquí, pero por seguridad
+                        positions_by_date.append(None)
             
             position_evolution['datasets'].append({
                 'label': domain,
@@ -2521,6 +2544,10 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
             if i < len(competitor_colors):
                 domain_colors[competitor] = competitor_colors[i]
         
+        # 🆕 NUEVO: Obtener información temporal de competidores para esta función también
+        temporal_competitors = get_competitors_for_date_range(project_id, start_date, end_date)
+        logger.info(f"🕒 Temporal competitors data for comparative charts: {len(temporal_competitors)} dates")
+        
         # Para cada dominio, obtener sus métricas por fecha
         for domain in domains_to_compare:
             # Datos de visibilidad - CORREGIDO: Usar misma lógica que get_project_statistics
@@ -2602,13 +2629,50 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
             position_results = cur.fetchall()
             position_by_date = {str(row['analysis_date']): row['avg_position'] for row in position_results}
             
-            # Preparar datos para las gráficas
+            # 🎯 PREPARAR DATOS CON LÓGICA TEMPORAL CORRECTA
             visibility_data = []
             position_data = []
             
+            # 🆕 NUEVO: Para competidores, encontrar primer y último día activo
+            if domain != project_domain:
+                first_active_date = None
+                last_active_date = None
+                for date_str in date_range:
+                    active_competitors = temporal_competitors.get(date_str, [])
+                    if domain in active_competitors:
+                        if first_active_date is None:
+                            first_active_date = date_str
+                        last_active_date = date_str
+                
+                logger.info(f"🏢 Competitor {domain}: active from {first_active_date} to {last_active_date}")
+            
             for date_str in date_range:
-                visibility_data.append(visibility_by_date.get(date_str, None))
-                position_data.append(position_by_date.get(date_str, None))
+                if domain == project_domain:
+                    # Dominio del proyecto: siempre valores reales
+                    visibility_data.append(visibility_by_date.get(date_str, None))
+                    position_data.append(position_by_date.get(date_str, None))
+                else:
+                    # 🎯 COMPETIDORES: Implementar lógica temporal según especificaciones
+                    active_competitors = temporal_competitors.get(date_str, [])
+                    
+                    if domain in active_competitors:
+                        # Competidor activo: usar datos reales
+                        visibility_data.append(visibility_by_date.get(date_str, 0))  # 0% si no hay datos pero está activo
+                        position_data.append(position_by_date.get(date_str, None))
+                    else:
+                        # 🔧 LÓGICA TEMPORAL: Competidor no activo
+                        if first_active_date and date_str < first_active_date:
+                            # Antes de añadirse: 0% visibilidad (hack como pediste)
+                            visibility_data.append(0)
+                            position_data.append(None)
+                        elif last_active_date and date_str > last_active_date:
+                            # Después de eliminarse: caída a 0%
+                            visibility_data.append(0)
+                            position_data.append(None)
+                        else:
+                            # No debería llegar aquí, pero por seguridad
+                            visibility_data.append(0)
+                            position_data.append(None)
             
             # Determinar el label del dominio
             domain_label = domain
