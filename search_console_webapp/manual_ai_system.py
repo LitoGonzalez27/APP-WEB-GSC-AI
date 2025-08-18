@@ -390,13 +390,26 @@ def delete_project_keyword(project_id, keyword_id):
     """Eliminar una keyword específica de un proyecto"""
     user = get_current_user()
     
-    if not user_owns_project(user['id'], project_id):
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
     try:
+        # Verificar que el proyecto existe y pertenece al usuario
+        if not user_owns_project(user['id'], project_id):
+            return jsonify({
+                'success': False, 
+                'error': f'Project {project_id} not found or unauthorized access'
+            }), 403
+        
         # Verificar que la keyword existe y pertenece al proyecto
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Primero verificar si el proyecto existe
+        cur.execute("SELECT id FROM manual_ai_projects WHERE id = %s", (project_id,))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({
+                'success': False, 
+                'error': f'Project {project_id} does not exist'
+            }), 404
         
         cur.execute("""
             SELECT id, keyword FROM manual_ai_keywords 
@@ -405,7 +418,11 @@ def delete_project_keyword(project_id, keyword_id):
         
         keyword_data = cur.fetchone()
         if not keyword_data:
-            return jsonify({'success': False, 'error': 'Keyword not found'}), 404
+            conn.close()
+            return jsonify({
+                'success': False, 
+                'error': f'Keyword {keyword_id} not found in project {project_id} or already inactive'
+            }), 404
         
         # Marcar como inactiva (soft delete)
         cur.execute("""
@@ -439,6 +456,84 @@ def delete_project_keyword(project_id, keyword_id):
         
     except Exception as e:
         logger.error(f"Error deleting keyword: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/annotations', methods=['POST'])
+@auth_required
+def create_annotation():
+    """Create a manual annotation for tracking keyword changes"""
+    user = get_current_user()
+    data = request.get_json()
+    
+    project_id = data.get('project_id')
+    event_type = data.get('event_type')
+    event_title = data.get('event_title')
+    event_description = data.get('event_description', '')
+    event_date = data.get('event_date')
+    
+    if not all([project_id, event_type, event_title, event_date]):
+        return jsonify({
+            'success': False, 
+            'error': 'Missing required fields: project_id, event_type, event_title, event_date'
+        }), 400
+    
+    # Verify user owns the project
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({
+            'success': False, 
+            'error': 'Project not found or unauthorized access'
+        }), 403
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Check if there's already an annotation for this date
+        cur.execute("""
+            SELECT id, event_description FROM manual_ai_events 
+            WHERE project_id = %s AND event_date = %s 
+            AND event_type IN ('keywords_added', 'keyword_deleted', 'keywords_removed')
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """, (project_id, event_date))
+        
+        existing_annotation = cur.fetchone()
+        
+        if existing_annotation:
+            # Update existing annotation to combine descriptions
+            existing_desc = existing_annotation['event_description'] or ''
+            new_combined_desc = f"{existing_desc}\n{event_description}" if existing_desc else event_description
+            
+            cur.execute("""
+                UPDATE manual_ai_events 
+                SET event_description = %s, 
+                    event_title = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (new_combined_desc.strip(), f"Multiple keyword changes", existing_annotation['id']))
+            
+            message = "Annotation updated (combined with existing change)"
+        else:
+            # Create new annotation
+            cur.execute("""
+                INSERT INTO manual_ai_events (
+                    project_id, event_date, event_type, event_title, 
+                    event_description, user_id
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+            """, (project_id, event_date, event_type, event_title, event_description, user['id']))
+            
+            message = "Annotation created successfully"
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating annotation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['PUT'])
@@ -810,19 +905,25 @@ def update_project_competitors(project_id):
             if normalized not in validated_competitors:
                 validated_competitors.append(normalized)
         
-        # Obtener dominio del proyecto para evitar auto-competencia
+        # Obtener datos del proyecto y competidores anteriores
         conn = get_db_connection()
         cur = conn.cursor()
         
-        cur.execute("SELECT domain FROM manual_ai_projects WHERE id = %s", (project_id,))
+        cur.execute("SELECT domain, selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
         project_result = cur.fetchone()
         if not project_result:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
         
         project_domain = normalize_search_console_url(project_result['domain'])
+        previous_competitors = project_result['selected_competitors'] or []
         
         # Filtrar el dominio del proyecto si está en competidores
         validated_competitors = [comp for comp in validated_competitors if comp != project_domain]
+        
+        # 🆕 NUEVO: Detectar cambios específicos para tracking temporal
+        removed_competitors = [c for c in previous_competitors if c not in validated_competitors]
+        added_competitors = [c for c in validated_competitors if c not in previous_competitors]
+        has_changes = len(removed_competitors) > 0 or len(added_competitors) > 0
         
         # Actualizar competidores
         cur.execute("""
@@ -831,14 +932,38 @@ def update_project_competitors(project_id):
             WHERE id = %s
         """, (json.dumps(validated_competitors), project_id))
         
-        # Crear evento
-        create_project_event(
-            project_id=project_id,
-            event_type='competitors_updated',
-            event_title='Competitors list updated',
-            event_description=f'Updated to {len(validated_competitors)} competitors: {", ".join(validated_competitors)}',
-            user_id=user['id']
-        )
+        # 🆕 MEJORADO: Crear evento detallado con información temporal
+        if has_changes:
+            from datetime import datetime
+            event_description_data = {
+                'previous_competitors': previous_competitors,
+                'new_competitors': validated_competitors,
+                'changes': {
+                    'removed': removed_competitors,
+                    'added': added_competitors,
+                    'total_before': len(previous_competitors),
+                    'total_after': len(validated_competitors)
+                },
+                'timestamp': datetime.now().isoformat(),
+                'change_summary': f"Added: {len(added_competitors)}, Removed: {len(removed_competitors)}"
+            }
+            
+            create_project_event(
+                project_id=project_id,
+                event_type='competitors_changed',
+                event_title='Competitor configuration changed',
+                event_description=json.dumps(event_description_data),
+                user_id=user['id']
+            )
+        else:
+            # Si no hay cambios, crear evento simple
+            create_project_event(
+                project_id=project_id,
+                event_type='competitors_updated',
+                event_title='Competitors list updated (no changes)',
+                event_description=f'Confirmed {len(validated_competitors)} competitors: {", ".join(validated_competitors)}',
+                user_id=user['id']
+            )
         
         conn.commit()
         cur.close()
@@ -1872,9 +1997,123 @@ def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
     finally:
         conn.close()
 
+def get_competitors_for_date_range(project_id: int, start_date: date, end_date: date) -> Dict[str, List[str]]:
+    """
+    🆕 NUEVO: Obtiene qué competidores estaban activos en cada fecha del rango.
+    
+    Esta función reconstruye el estado temporal de los competidores basándose en:
+    1. Eventos de cambios de competidores (competitors_changed)
+    2. Evento de creación del proyecto (project_created)
+    
+    Args:
+        project_id: ID del proyecto
+        start_date: Fecha inicial del rango
+        end_date: Fecha final del rango
+        
+    Returns:
+        Dict con formato {fecha_iso: [lista_competidores]}
+        
+    Example:
+        {
+            "2025-01-15": ["competitor-a.com", "competitor-b.com"],
+            "2025-01-16": ["competitor-a.com", "competitor-b.com"],
+            "2025-01-17": ["competitor-a.com", "competitor-c.com"]  # cambió B por C
+        }
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Obtener todos los cambios de competidores ordenados cronológicamente
+        cur.execute("""
+            SELECT event_date, event_type, event_description 
+            FROM manual_ai_events 
+            WHERE project_id = %s 
+            AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
+            AND event_date <= %s
+            ORDER BY event_date ASC, created_at ASC
+        """, (project_id, end_date))
+        
+        competitor_changes = cur.fetchall()
+        
+        # Obtener competidores actuales como fallback
+        cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
+        current_result = cur.fetchone()
+        current_competitors = current_result['selected_competitors'] if current_result else []
+        
+        conn.close()
+        
+        # Reconstruir estado temporal
+        date_range = {}
+        active_competitors = []
+        
+        # Procesar cada fecha en el rango
+        from datetime import timedelta
+        for n in range((end_date - start_date).days + 1):
+            single_date = start_date + timedelta(n)
+            
+            # Aplicar todos los cambios hasta esta fecha
+            for change in competitor_changes:
+                if change['event_date'] <= single_date:
+                    try:
+                        if change['event_type'] == 'competitors_changed':
+                            # Cambio detallado con información temporal
+                            change_data = json.loads(change['event_description'])
+                            if 'new_competitors' in change_data:
+                                active_competitors = change_data['new_competitors'].copy()
+                        
+                        elif change['event_type'] == 'project_created':
+                            # Proyecto creado - obtener competidores iniciales
+                            try:
+                                change_data = json.loads(change['event_description'])
+                                if 'competitors' in change_data:
+                                    active_competitors = change_data['competitors'].copy()
+                            except:
+                                # Si falla el parsing, usar competidores actuales
+                                active_competitors = current_competitors.copy()
+                        
+                        elif change['event_type'] == 'competitors_updated':
+                            # Actualización simple - extraer de descripción si es posible
+                            description = change['event_description']
+                            if 'competitors:' in description:
+                                # Intentar extraer lista de competidores
+                                try:
+                                    competitors_part = description.split('competitors:')[1].strip()
+                                    if competitors_part and competitors_part != 'None':
+                                        active_competitors = [c.strip() for c in competitors_part.split(',')]
+                                except:
+                                    pass
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Error parsing event description for date {single_date}: {e}")
+                        continue
+            
+            # Si no hay cambios registrados, usar competidores actuales
+            if not active_competitors and current_competitors:
+                active_competitors = current_competitors.copy()
+            
+            date_range[single_date.isoformat()] = active_competitors.copy()
+        
+        logger.info(f"🔄 Reconstructed temporal competitor state for project {project_id}: {len(date_range)} dates")
+        return date_range
+        
+    except Exception as e:
+        logger.error(f"Error getting competitors for date range: {e}")
+        # Fallback: usar competidores actuales para todo el rango
+        fallback_competitors = current_competitors if 'current_competitors' in locals() else []
+        return {
+            (start_date + timedelta(n)).isoformat(): fallback_competitors.copy()
+            for n in range((end_date - start_date).days + 1)
+        }
+
 def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
     """
-    Obtener datos históricos de competidores para gráficas de visibilidad y evolución de posiciones.
+    🆕 MEJORADO: Obtener datos históricos de competidores para gráficas con competidores temporalmente correctos.
+    
+    Esta función ahora:
+    1. Reconstruye qué competidores estaban activos en cada fecha
+    2. Filtra datos para mostrar solo competidores relevantes por período
+    3. Incluye información de cambios temporales para tooltips mejorados
+    
     Retorna datos para Brand Visibility Index (scatter) y Brand Position Over Time (líneas).
     """
     conn = get_db_connection()
@@ -1884,11 +2123,24 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
         
+        # 🆕 NUEVO: Obtener mapa temporal de competidores
+        temporal_competitors = get_competitors_for_date_range(project_id, start_date, end_date)
+        
+        # Detectar si hubo cambios temporales en el período
+        unique_competitor_sets = set(str(sorted(comps)) for comps in temporal_competitors.values())
+        has_temporal_changes = len(unique_competitor_sets) > 1
+        
         # Obtener dominio del proyecto
         cur.execute("SELECT domain FROM manual_ai_projects WHERE id = %s", (project_id,))
         project_data = cur.fetchone()
         if not project_data:
-            return {'visibility_scatter': [], 'position_evolution': [], 'domains': []}
+            return {
+                'visibility_scatter': [], 
+                'position_evolution': [], 
+                'domains': [],
+                'temporal_info': temporal_competitors,
+                'has_temporal_changes': has_temporal_changes
+            }
         
         project_domain = project_data[0]
         
@@ -2061,12 +2313,34 @@ def get_project_competitors_charts_data(project_id: int, days: int = 30) -> Dict
             'date_range': {
                 'start': str(start_date),
                 'end': str(end_date)
-            }
+            },
+            # 🆕 NUEVO: Información temporal de competidores
+            'temporal_info': temporal_competitors,
+            'has_temporal_changes': has_temporal_changes,
+            'competitor_changes': [
+                {
+                    'date': date_iso,
+                    'competitors': competitors,
+                    'is_change': date_iso in temporal_competitors and 
+                                competitors != temporal_competitors.get(
+                                    (datetime.fromisoformat(date_iso) - timedelta(days=1)).isoformat(), 
+                                    competitors
+                                )
+                }
+                for date_iso, competitors in temporal_competitors.items()
+            ]
         }
         
     except Exception as e:
         logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
-        return {'visibility_scatter': [], 'position_evolution': [], 'domains': []}
+        return {
+            'visibility_scatter': [], 
+            'position_evolution': [], 
+            'domains': [],
+            'temporal_info': {},
+            'has_temporal_changes': False,
+            'competitor_changes': []
+        }
     finally:
         cur.close()
         conn.close()

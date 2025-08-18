@@ -1078,6 +1078,60 @@ keyword 3"></textarea>
         </main>
     </div>
 
+    <!-- Annotation Modal -->
+    <div class="modal-overlay" id="annotationModal">
+        <div class="modal-content modal-medium">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Add Change Annotation</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideAnnotationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="annotation-info">
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="info-content">
+                            <h4 id="annotationChangeTitle">Keywords Changed</h4>
+                            <p id="annotationChangeDescription">You've made changes to the keywords for this project. Add a brief description to help track this change in your analytics.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="annotationDescription" class="form-label">
+                        <i class="fas fa-comment-alt"></i>
+                        Description (optional but recommended)
+                    </label>
+                    <textarea 
+                        id="annotationDescription" 
+                        class="form-textarea" 
+                        placeholder="E.g., Added new product keywords, Removed low-performing terms, Updated brand keywords..."
+                        rows="3"
+                        maxlength="255"
+                    ></textarea>
+                    <div class="textarea-footer">
+                        <span class="char-count">
+                            <span id="annotationCharCount">0</span>/255 characters
+                        </span>
+                        <span class="helper-text">This will appear in your Domain Visibility chart</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="manualAI.hideAnnotationModal()">
+                    Skip Annotation
+                </button>
+                <button type="button" class="btn-primary" onclick="manualAI.saveAnnotation()">
+                    <i class="fas fa-save"></i>
+                    Save Annotation
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>

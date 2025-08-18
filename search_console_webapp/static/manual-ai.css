@@ -195,7 +195,7 @@
    ================================ */
 
 .manual-ai-main {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: var(--manual-ai-spacing-xl) var(--manual-ai-spacing-lg);
 }
@@ -3778,5 +3778,248 @@ label.manual-ai-underline {
     .manual-ai-overview-grid .gridjs-td {
         padding: 0.4rem 0.2rem;
         font-size: 0.75rem;
+    }
+}
+
+/* =====================================================
+   ANNOTATION MODAL STYLES
+===================================================== */
+
+/* Annotation Modal Info Card */
+.annotation-info {
+    margin-bottom: 1.5rem;
+}
+
+.info-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.info-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 1.1rem;
+}
+
+.info-content h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1e293b;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.info-content p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Annotation Form Elements */
+.textarea-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.char-count {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.helper-text {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Modal size variant */
+.modal-medium {
+    max-width: 500px;
+    width: 90%;
+}
+
+/* Annotation Modal Responsive */
+@media (max-width: 768px) {
+    .info-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .info-icon {
+        align-self: center;
+    }
+}
+
+/* =====================================================
+   TEMPORAL COMPETITOR MARKERS STYLES
+===================================================== */
+
+/* Chart Container Enhancements */
+.chart-container {
+    position: relative;
+}
+
+/* Temporal Change Indicator */
+.temporal-changes-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.temporal-changes-indicator::before {
+    content: '🔄';
+    margin-right: 4px;
+}
+
+/* Enhanced Tooltip Styles */
+#chart-annotation-tooltip {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+/* Chart Legend Enhancements for Temporal Data */
+.chart-legend.has-temporal-changes {
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    padding: 0.75rem;
+}
+
+.chart-legend.has-temporal-changes::before {
+    content: '⚠️ Competitors changed during this period';
+    display: block;
+    font-size: 0.8rem;
+    color: #92400e;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+/* Competitor Change Marker Styles (for CSS-based markers) */
+.competitor-change-marker {
+    position: absolute;
+    width: 2px;
+    background: #f59e0b;
+    border-radius: 1px;
+    z-index: 5;
+    opacity: 0.8;
+}
+
+.competitor-change-marker::before {
+    content: '🔄';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    background: #f59e0b;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+}
+
+/* Temporal Information Panel */
+.temporal-info-panel {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: none; /* Hidden by default, shown when temporal changes exist */
+}
+
+.temporal-info-panel.visible {
+    display: block;
+}
+
+.temporal-info-title {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.temporal-info-content {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.temporal-changes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.temporal-changes-list li {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.temporal-changes-list li:last-child {
+    border-bottom: none;
+}
+
+.change-date {
+    font-weight: 500;
+    color: #374151;
+}
+
+.change-description {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+/* Responsive Temporal Markers */
+@media (max-width: 768px) {
+    .temporal-changes-indicator {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+        top: 5px;
+        right: 5px;
+    }
+    
+    .temporal-info-panel {
+        padding: 0.75rem;
+        margin-top: 0.75rem;
+    }
+    
+    .competitor-change-marker::before {
+        font-size: 8px;
+        width: 14px;
+        height: 14px;
     }
 }

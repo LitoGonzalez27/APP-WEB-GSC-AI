@@ -96,7 +96,7 @@ class ManualAISystem {
         this.isLoading = false;
         this.refreshInterval = null;
         
-        // Referencias DOM
+        // DOM References
         this.elements = {};
         
         this.init();
@@ -105,22 +105,54 @@ class ManualAISystem {
     init() {
         console.log('🤖 Initializing Manual AI System...');
         
-        // Cacheamos referencias DOM
+        // Clear cache data that might be causing problems
+        this.clearObsoleteCache();
+        
+        // Cache DOM references
         this.cacheElements();
         
-        // Configuramos event listeners
+        // Setup event listeners
         this.setupEventListeners();
         
-        // Cargamos datos iniciales
+        // Load initial data
         this.loadInitialData();
         
-        // Configurar auto-refresh
+        // Setup auto-refresh
         this.setupAutoRefresh();
         
         // Initialize competitors manager
         this.initCompetitorsManager();
         
         console.log('✅ Manual AI System initialized');
+    }
+    
+    clearObsoleteCache() {
+        // Clear any references to projects that no longer exist
+        try {
+            // Clear localStorage related to Manual AI
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('manualAI_') || key.startsWith('manual_ai_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => {
+                console.log(`🧹 Removing obsolete cache key: ${key}`);
+                localStorage.removeItem(key);
+            });
+            
+            // Reset currentModalProject if active
+            this.currentModalProject = null;
+            
+            if (keysToRemove.length > 0) {
+                console.log(`🧹 Obsolete cache cleared: ${keysToRemove.length} keys removed`);
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Error clearing cache:', error);
+        }
     }
 
     // ================================
@@ -373,13 +405,24 @@ class ManualAISystem {
         this.hideElement(this.elements.projectsEmptyState);
 
         try {
-            // Añadir timestamp para evitar cache del navegador
+            // Add timestamp to avoid browser cache
             const timestamp = new Date().getTime();
             const response = await fetch(`/manual-ai/api/projects?_t=${timestamp}`);
             const data = await response.json();
 
             if (data.success) {
                 this.projects = data.projects;
+                
+                // Validate that projects in frontend still exist
+                if (this.currentModalProject) {
+                    const projectExists = this.projects.find(p => p.id === this.currentModalProject.id);
+                    if (!projectExists) {
+                        console.warn(`⚠️ Current modal project ${this.currentModalProject.id} no longer exists`);
+                        this.hideProjectModal();
+                        this.showError('The project you were viewing no longer exists.');
+                    }
+                }
+                
                 this.renderProjects();
                 console.log('🔄 Projects loaded:', this.projects.length);
             } else {
@@ -1509,6 +1552,7 @@ class ManualAISystem {
     getEventColor(eventType) {
         const colors = {
             'keywords_added': '#10B981',     // Green
+            'keyword_deleted': '#EF4444',   // Red
             'keywords_removed': '#EF4444',  // Red
             'project_created': '#4F46E5',   // Blue
             'daily_analysis': '#6B7280',    // Gray
@@ -1520,6 +1564,7 @@ class ManualAISystem {
     getEventIcon(eventType) {
         const icons = {
             'keywords_added': '+',
+            'keyword_deleted': '−',
             'keywords_removed': '−',
             'project_created': '⭐',
             'daily_analysis': '📊',
@@ -1529,8 +1574,164 @@ class ManualAISystem {
     }
 
     showEventAnnotations(chart, annotations) {
-        // This could be expanded to show tooltips on hover
-        // For now, the annotations are always visible
+        // Enhanced tooltip functionality for annotations
+        const canvas = chart.canvas;
+        const ctx = chart.ctx;
+        
+        // Create tooltip element if it doesn't exist
+        let tooltip = document.getElementById('chart-annotation-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'chart-annotation-tooltip';
+            tooltip.style.cssText = `
+                position: absolute;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                line-height: 1.4;
+                max-width: 200px;
+                z-index: 1000;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                white-space: pre-wrap;
+            `;
+            document.body.appendChild(tooltip);
+        }
+        
+        // Mouse move handler for tooltip
+        const onMouseMove = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check if mouse is over any annotation
+            let hoveredAnnotation = null;
+            const chartArea = chart.chartArea;
+            
+            for (const annotation of annotations) {
+                const annotationX = chartArea.left + (annotation.position * (chartArea.right - chartArea.left));
+                
+                // Check if mouse is within annotation area (with some tolerance)
+                if (Math.abs(x - annotationX) <= 15 && y >= chartArea.top - 25 && y <= chartArea.bottom) {
+                    hoveredAnnotation = annotation;
+                    break;
+                }
+            }
+            
+            if (hoveredAnnotation) {
+                // Show tooltip
+                const eventTitle = hoveredAnnotation.event.event_title || 'Event';
+                const eventDesc = hoveredAnnotation.event.event_description || 'No description provided';
+                const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString();
+                
+                tooltip.innerHTML = `
+                    <strong>${eventTitle}</strong>
+                    <br>${eventDate}
+                    ${eventDesc !== 'No description provided' ? `<br><br>${eventDesc}` : ''}
+                `;
+                
+                tooltip.style.left = (e.clientX + 10) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+                tooltip.style.opacity = '1';
+                canvas.style.cursor = 'pointer';
+            } else {
+                // Hide tooltip
+                tooltip.style.opacity = '0';
+                canvas.style.cursor = 'default';
+            }
+        };
+        
+        // Mouse leave handler
+        const onMouseLeave = () => {
+            tooltip.style.opacity = '0';
+            canvas.style.cursor = 'default';
+        };
+        
+        // Remove existing listeners
+        canvas.removeEventListener('mousemove', onMouseMove);
+        canvas.removeEventListener('mouseleave', onMouseLeave);
+        
+        // Add new listeners
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseleave', onMouseLeave);
+    }
+    
+    // ================================================
+    // TEMPORAL COMPETITOR MARKERS
+    // ================================================
+    
+    addCompetitorChangeMarkers(chart, temporalOptions) {
+        // 🆕 NUEVO: Añadir marcadores visuales cuando cambian competidores
+        if (!temporalOptions.hasTemporalChanges || !temporalOptions.competitorChanges) {
+            return;
+        }
+        
+        const changePoints = [];
+        let previousCompetitors = null;
+        
+        for (const change of temporalOptions.competitorChanges) {
+            if (change.is_change || (previousCompetitors && 
+                JSON.stringify(change.competitors) !== JSON.stringify(previousCompetitors))) {
+                changePoints.push({
+                    date: change.date,
+                    type: 'competitor_change',
+                    icon: '🔄',
+                    color: '#f59e0b',
+                    competitors: change.competitors,
+                    previousCompetitors: previousCompetitors
+                });
+            }
+            previousCompetitors = change.competitors;
+        }
+        
+        // Añadir plugin personalizado para dibujar marcadores
+        if (changePoints.length > 0) {
+            const drawMarkers = {
+                id: 'competitorChangeMarkers',
+                afterDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const chartArea = chart.chartArea;
+                    
+                    changePoints.forEach(marker => {
+                        // Encontrar posición X del marcador
+                        const labels = chart.data.labels || [];
+                        const dateIndex = labels.indexOf(marker.date);
+                        
+                        if (dateIndex !== -1) {
+                            const x = chart.scales.x.getPixelForValue(dateIndex);
+                            
+                            // Dibujar línea vertical
+                            ctx.save();
+                            ctx.strokeStyle = marker.color;
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.moveTo(x, chartArea.top);
+                            ctx.lineTo(x, chartArea.bottom);
+                            ctx.stroke();
+                            
+                            // Dibujar ícono
+                            ctx.fillStyle = marker.color;
+                            ctx.font = '14px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(marker.icon, x, chartArea.top - 10);
+                            
+                            ctx.restore();
+                        }
+                    });
+                }
+            };
+            
+            // Registrar plugin si no existe
+            if (!Chart.registry.plugins.get('competitorChangeMarkers')) {
+                Chart.register(drawMarkers);
+            }
+        }
+        
+        return changePoints;
     }
 
     // ================================
@@ -1750,9 +1951,27 @@ class ManualAISystem {
             const result = await response.json();
             const data = result.data || {};
             
-            // Render both charts
-            this.renderCompetitorsVisibilityChart(data.visibility_scatter || []);
-            this.renderCompetitorsPositionChart(data.position_evolution || {});
+            // 🆕 NUEVO: Extraer información temporal
+            const temporalInfo = data.temporal_info || {};
+            const hasTemporalChanges = data.has_temporal_changes || false;
+            const competitorChanges = data.competitor_changes || [];
+            
+            // Log información temporal para debugging
+            if (hasTemporalChanges) {
+                console.log('🔄 Temporal competitor changes detected:', competitorChanges);
+            }
+            
+            // Render both charts with temporal information
+            this.renderCompetitorsVisibilityChart(data.visibility_scatter || [], {
+                temporalInfo,
+                hasTemporalChanges,
+                competitorChanges
+            });
+            this.renderCompetitorsPositionChart(data.position_evolution || {}, {
+                temporalInfo,
+                hasTemporalChanges,
+                competitorChanges
+            });
 
         } catch (error) {
             console.error('Error loading competitors charts:', error);
@@ -1760,7 +1979,7 @@ class ManualAISystem {
         }
     }
 
-    renderCompetitorsVisibilityChart(scatterData) {
+    renderCompetitorsVisibilityChart(scatterData, temporalOptions = {}) {
         const ctx = document.getElementById('competitorsVisibilityChart');
         if (!ctx) return;
 
@@ -1824,13 +2043,23 @@ class ManualAISystem {
                             },
                             label: function(context) {
                                 const data = context.raw;
-                                return [
+                                const labels = [
                                     `Visibility Score: ${data.x.toFixed(1)}`,
                                     `Brand Likelihood: ${data.y.toFixed(1)}%`,
                                     `Appearances: ${data.appearances}`,
                                     `Avg Position: ${data.avg_position}`,
                                     `Keywords: ${data.keywords_count}`
                                 ];
+                                
+                                // 🆕 NUEVO: Añadir información temporal si está disponible
+                                if (temporalOptions.hasTemporalChanges) {
+                                    labels.push('');
+                                    labels.push('📊 Temporal Data:');
+                                    labels.push('This competitor may have changed');
+                                    labels.push('during the analysis period.');
+                                }
+                                
+                                return labels;
                             }
                         }
                     }
@@ -1862,6 +2091,11 @@ class ManualAISystem {
 
         // Create custom legend
         this.createCompetitorsVisibilityLegend(scatterData);
+        
+        // 🆕 NUEVO: Añadir marcadores de cambios temporales
+        if (temporalOptions.hasTemporalChanges) {
+            this.addCompetitorChangeMarkers(this.charts.competitorsVisibility, temporalOptions);
+        }
     }
 
     createCompetitorsVisibilityLegend(scatterData) {
@@ -1888,7 +2122,7 @@ class ManualAISystem {
         });
     }
 
-    renderCompetitorsPositionChart(positionData) {
+    renderCompetitorsPositionChart(positionData, temporalOptions = {}) {
         const ctx = document.getElementById('competitorsPositionChart');
         if (!ctx) return;
 
@@ -1924,6 +2158,22 @@ class ManualAISystem {
                             },
                             label: function(context) {
                                 return `${context.dataset.label}: Position ${context.raw}`;
+                            },
+                            // 🆕 NUEVO: Footer con información temporal
+                            footer: function(context) {
+                                if (!temporalOptions.hasTemporalChanges) return '';
+                                
+                                const date = context[0].label;
+                                const competitors = temporalOptions.temporalInfo[date];
+                                
+                                if (competitors) {
+                                    return [
+                                        '',
+                                        '📊 Active competitors on this date:',
+                                        competitors.join(', ')
+                                    ];
+                                }
+                                return '';
                             }
                         }
                     }
@@ -1969,6 +2219,11 @@ class ManualAISystem {
 
         // Create custom legend for position chart
         this.createCompetitorsPositionLegend(positionData.datasets || []);
+        
+        // 🆕 NUEVO: Añadir marcadores de cambios temporales
+        if (temporalOptions.hasTemporalChanges) {
+            this.addCompetitorChangeMarkers(this.charts.competitorsPosition, temporalOptions);
+        }
     }
 
     createCompetitorsPositionLegend(datasets) {
@@ -3181,7 +3436,17 @@ class ManualAISystem {
             const response = await fetch(`/manual-ai/api/projects/${projectId}/keywords`);
             
             if (!response.ok) {
-                throw new Error('Failed to load keywords');
+                if (response.status === 404) {
+                    console.warn(`⚠️ Project ${projectId} not found, reloading projects...`);
+                    await this.loadProjects();
+                    this.hideProjectModal();
+                    this.showError('The project does not exist. Data has been updated.');
+                    return;
+                } else if (response.status === 403) {
+                    this.showError('You do not have permission to view this project.');
+                    return;
+                }
+                throw new Error(`Failed to load keywords (${response.status})`);
             }
 
             const data = await response.json();
@@ -3189,7 +3454,7 @@ class ManualAISystem {
 
         } catch (error) {
             console.error('Error loading modal keywords:', error);
-            this.showError('Failed to load keywords');
+            this.showError(`Error loading keywords: ${error.message}`);
         }
     }
 
@@ -3275,6 +3540,9 @@ class ManualAISystem {
             await this.loadProjects(); // Refresh projects list
             
             this.showSuccess(`Added ${keywords.length} keyword(s) successfully`);
+            
+            // Show annotation modal after successful addition
+            this.showAnnotationModal('keywords_added', `Added ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''} to ${this.currentModalProject.name}`);
 
         } catch (error) {
             console.error('Error adding keywords:', error);
@@ -3295,19 +3563,48 @@ class ManualAISystem {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to remove keyword');
+                let errorMessage = 'Failed to remove keyword';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.message || errorMessage;
+                } catch (parseError) {
+                    console.error('Error parsing error response:', parseError);
+                }
+                
+                if (response.status === 404) {
+                    errorMessage = 'The keyword or project does not exist. Please reload the page to sync data.';
+                } else if (response.status === 403) {
+                    errorMessage = 'You do not have permission to delete this keyword.';
+                } else if (response.status === 500) {
+                    errorMessage = 'Internal server error. Please try again.';
+                }
+                
+                throw new Error(errorMessage);
             }
 
-            // Reload keywords and projects
+            const result = await response.json();
+            
+            // Reload keywords and projects to ensure sync
             await this.loadModalKeywords(this.currentModalProject.id);
             await this.loadProjects();
             
-            this.showSuccess('Keyword removed successfully');
+            this.showSuccess(result.message || 'Keyword deleted successfully');
+            
+            // Show annotation modal after successful deletion
+            this.showAnnotationModal('keyword_deleted', `Deleted keyword from ${this.currentModalProject.name}`);
 
         } catch (error) {
             console.error('Error removing keyword:', error);
-            this.showError(`Failed to remove keyword: ${error.message}`);
+            this.showError(error.message);
+            
+            // If it's a 404 error, reload the data to sync
+            if (error.message.includes('does not exist')) {
+                console.log('🔄 Reloading data due to sync issue...');
+                await this.loadProjects();
+                if (this.currentModalProject) {
+                    await this.loadModalKeywords(this.currentModalProject.id);
+                }
+            }
         }
     }
 
@@ -3421,6 +3718,109 @@ class ManualAISystem {
             deleteBtn.style.opacity = isMatch ? '1' : '0.5';
             deleteBtn.style.cursor = isMatch ? 'pointer' : 'not-allowed';
         };
+    }
+
+    // ================================================
+    // ANNOTATION MODAL FUNCTIONALITY  
+    // ================================================
+
+    showAnnotationModal(changeType, changeDescription) {
+        // Store the annotation data
+        this.pendingAnnotation = {
+            type: changeType,
+            description: changeDescription,
+            projectId: this.currentModalProject ? this.currentModalProject.id : null
+        };
+
+        // Update modal content
+        const titleElement = document.getElementById('annotationChangeTitle');
+        const descriptionElement = document.getElementById('annotationChangeDescription');
+        
+        if (titleElement && descriptionElement) {
+            if (changeType === 'keywords_added') {
+                titleElement.textContent = 'Keywords Added';
+                descriptionElement.textContent = `${changeDescription}. Add a note to track this change in your analytics.`;
+            } else if (changeType === 'keyword_deleted') {
+                titleElement.textContent = 'Keyword Deleted';
+                descriptionElement.textContent = `${changeDescription}. Add a note to track this change in your analytics.`;
+            }
+        }
+
+        // Reset textarea and show modal
+        const textarea = document.getElementById('annotationDescription');
+        const charCount = document.getElementById('annotationCharCount');
+        
+        if (textarea) {
+            textarea.value = '';
+            this.updateAnnotationCharCount();
+            
+            // Add character count listener
+            textarea.addEventListener('input', () => this.updateAnnotationCharCount());
+        }
+
+        this.showElement(document.getElementById('annotationModal'));
+    }
+
+    hideAnnotationModal() {
+        this.hideElement(document.getElementById('annotationModal'));
+        this.pendingAnnotation = null;
+    }
+
+    updateAnnotationCharCount() {
+        const textarea = document.getElementById('annotationDescription');
+        const charCount = document.getElementById('annotationCharCount');
+        
+        if (textarea && charCount) {
+            const currentLength = textarea.value.length;
+            charCount.textContent = currentLength;
+            
+            // Visual feedback for character limit
+            if (currentLength > 240) {
+                charCount.style.color = '#f59e0b'; // Warning
+            } else if (currentLength > 255) {
+                charCount.style.color = '#ef4444'; // Error
+            } else {
+                charCount.style.color = '#64748b'; // Normal
+            }
+        }
+    }
+
+    async saveAnnotation() {
+        if (!this.pendingAnnotation) {
+            this.hideAnnotationModal();
+            return;
+        }
+
+        const textarea = document.getElementById('annotationDescription');
+        const userDescription = textarea ? textarea.value.trim() : '';
+        
+        try {
+            // Create the annotation event
+            const response = await fetch('/manual-ai/api/annotations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: this.pendingAnnotation.projectId,
+                    event_type: this.pendingAnnotation.type,
+                    event_title: this.pendingAnnotation.description,
+                    event_description: userDescription || 'No additional notes provided',
+                    event_date: new Date().toISOString().split('T')[0] // Today's date
+                })
+            });
+
+            if (response.ok) {
+                this.showSuccess('Annotation saved successfully');
+                console.log('📝 Annotation saved for chart visualization');
+            } else {
+                console.warn('⚠️ Failed to save annotation, but continuing...');
+            }
+
+        } catch (error) {
+            console.error('Error saving annotation:', error);
+            // Don't show error to user as annotation is optional
+        } finally {
+            this.hideAnnotationModal();
+        }
     }
 }
 
