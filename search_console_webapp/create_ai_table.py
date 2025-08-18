@@ -10,7 +10,7 @@ from psycopg2.extras import RealDictCursor
 import json
 
 # Configuración directa de conexión
-DATABASE_URL = 'postgresql://postgres:LWaKOzBkTWoSJNvwOdBkpcpHqywaHavh@switchback.proxy.rlwy.net:14943/railway'
+DATABASE_URL = 'postgresql://postgres:XCkoyokCzfRlyPCFNGpfIhqteibfbojQ@caboose.proxy.rlwy.net:13631/railway'
 
 def create_ai_overview_table():
     """Crea la tabla ai_overview_analysis"""

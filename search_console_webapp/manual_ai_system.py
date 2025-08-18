@@ -425,7 +425,7 @@ def delete_project_keyword(project_id, keyword_id):
         # Marcar como inactiva (soft delete)
         cur.execute("""
             UPDATE manual_ai_keywords 
-            SET is_active = false, updated_at = CURRENT_TIMESTAMP
+            SET is_active = false
             WHERE id = %s AND project_id = %s
         """, (keyword_id, project_id))
         
@@ -512,8 +512,7 @@ def create_annotation():
             cur.execute("""
                 UPDATE manual_ai_events 
                 SET event_description = %s, 
-                    event_title = %s,
-                    updated_at = CURRENT_TIMESTAMP
+                    event_title = %s
                 WHERE id = %s
             """, (new_combined_desc.strip(), f"Multiple keyword changes", existing_annotation['id']))
             
@@ -584,7 +583,7 @@ def update_project_keyword(project_id, keyword_id):
         # Actualizar la keyword
         cur.execute("""
             UPDATE manual_ai_keywords 
-            SET keyword = %s, updated_at = CURRENT_TIMESTAMP
+            SET keyword = %s
             WHERE id = %s AND project_id = %s
         """, (new_keyword, keyword_id, project_id))
         
