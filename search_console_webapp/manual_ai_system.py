@@ -2707,10 +2707,7 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                 'pointRadius': 3,
                 'pointHoverRadius': 5,
                 'borderWidth': domain == project_domain and 3 or 2,  # Línea más gruesa para dominio del proyecto
-                'spanGaps': False,  # ✅ No conectar gaps (None values) 
-                'segment': {
-                    'borderDash': (ctx) => ctx.p0.parsed.y === null || ctx.p1.parsed.y === null ? [5, 5] : undefined
-                }  # ✅ Línea punteada en transiciones
+                'spanGaps': False  # ✅ No conectar gaps (None values) 
             })
             
             # Dataset para gráfica de posición
