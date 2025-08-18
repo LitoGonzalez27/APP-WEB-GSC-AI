@@ -1546,35 +1546,7 @@ class ManualAISystem {
             }
         });
 
-        // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
-        if (events && events.length > 0) {
-            const annotations = this.createEventAnnotations(data, events);
-            if (annotations && annotations.length > 0) {
-                // ✅ MEJORADO: Registrar plugin usando Chart.js 3.x+ API
-                if (!Chart.registry.plugins.get('keywordEventAnnotations')) {
-                    Chart.register({
-                        id: 'keywordEventAnnotations',
-                        afterDraw: (chart) => {
-                            const annotationsData = chart.options.annotationsData;
-                            if (annotationsData && annotationsData.length > 0) {
-                                this.drawEventAnnotations(chart, annotationsData);
-                            }
-                        }
-                    });
-                }
-                
-                // Guardar anotaciones en las opciones del chart
-                this.charts.positions.options.annotationsData = annotations;
-                
-                // Configurar eventos de mouse para tooltips
-                setTimeout(() => {
-                    this.showEventAnnotations(this.charts.positions, annotations);
-                }, 100);
-                
-                // Re-render con las anotaciones
-                this.charts.positions.update();
-            }
-        }
+        // ❌ REMOVIDO: No queremos anotaciones en la gráfica de posiciones
     }
 
     // ================================
@@ -1584,12 +1556,22 @@ class ManualAISystem {
     createEventAnnotations(chartData, events) {
         if (!events || events.length === 0) return [];
         
+        // ✅ CORREGIDO: Solo eventos de cambios de keywords
+        const keywordEvents = events.filter(event => 
+            event.event_type === 'keywords_added' ||
+            event.event_type === 'keyword_deleted' ||
+            event.event_type === 'keywords_removed'
+        );
+        
+        if (keywordEvents.length === 0) return [];
+        
         const chartDates = chartData.map(d => new Date(d.analysis_date).toDateString());
         
-        return events.map(event => {
+        return keywordEvents.map(event => {
             const eventDate = new Date(event.event_date).toDateString();
             const dateIndex = chartDates.indexOf(eventDate);
             
+            // ✅ CORREGIDO: Solo crear anotación si la fecha del evento coincide con datos del chart
             if (dateIndex === -1) return null;
             
             return {
@@ -1598,7 +1580,7 @@ class ManualAISystem {
                 type: event.event_type,
                 keywords: event.keywords_affected,
                 date: eventDate,
-                event: event, // ✅ MEJORADO: Incluir evento completo para tooltips
+                event: event, // Incluir evento completo para tooltips
             };
         }).filter(Boolean);
     }
@@ -1722,9 +1704,9 @@ class ManualAISystem {
             }
             
             if (hoveredAnnotation) {
-                // ✅ MEJORADO: Tooltip detallado para cambios de keywords
-                const eventTitle = hoveredAnnotation.event.event_title || 'Event';
-                const eventDesc = hoveredAnnotation.event.event_description || 'No description provided';
+                // ✅ CORREGIDO: Mostrar el texto que el usuario añadió
+                const eventTitle = hoveredAnnotation.event.event_title || 'Cambio en Keywords';
+                const userDescription = hoveredAnnotation.event.event_description || 'Sin notas adicionales';
                 const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('es-ES', {
                     weekday: 'short',
                     year: 'numeric', 
@@ -1734,18 +1716,27 @@ class ManualAISystem {
                 const eventType = hoveredAnnotation.event.event_type;
                 const keywordsAffected = hoveredAnnotation.event.keywords_affected || 0;
                 
-                let tooltipContent = `<strong>⚠️ ${eventTitle}</strong><br>${eventDate}`;
-                
-                // Información específica según el tipo de evento
-                if (eventType === 'keywords_added' && keywordsAffected > 0) {
-                    tooltipContent += `<br><br>✅ <strong>${keywordsAffected}</strong> keyword${keywordsAffected !== 1 ? 's' : ''} añadida${keywordsAffected !== 1 ? 's' : ''}`;
+                // Título según el tipo de evento
+                let tooltipTitle = '';
+                if (eventType === 'keywords_added') {
+                    tooltipTitle = `⚠️ Keywords Añadidas (${keywordsAffected})`;
                 } else if (eventType === 'keyword_deleted') {
-                    tooltipContent += `<br><br>🗑️ <strong>1</strong> keyword eliminada`;
-                } else if (eventType === 'keywords_removed' && keywordsAffected > 0) {
-                    tooltipContent += `<br><br>🗑️ <strong>${keywordsAffected}</strong> keyword${keywordsAffected !== 1 ? 's' : ''} eliminada${keywordsAffected !== 1 ? 's' : ''}`;
+                    tooltipTitle = `⚠️ Keyword Eliminada`;
+                } else if (eventType === 'keywords_removed') {
+                    tooltipTitle = `⚠️ Keywords Eliminadas (${keywordsAffected})`;
+                } else {
+                    tooltipTitle = `⚠️ ${eventTitle}`;
                 }
                 
-                tooltipContent += `<br><br><small style="opacity: 0.8;">Los datos de AI Overview pueden verse afectados por este cambio</small>`;
+                // ✅ CORREGIDO: Mostrar el texto del usuario como contenido principal
+                let tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
+                
+                // El texto del usuario es lo más importante
+                if (userDescription && userDescription !== 'Sin notas adicionales' && userDescription !== 'No additional notes provided') {
+                    tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                } else {
+                    tooltipContent += `<br><br><small style="opacity: 0.7;">Sin notas adicionales del usuario</small>`;
+                }
                 
                 tooltip.innerHTML = tooltipContent;
                 
