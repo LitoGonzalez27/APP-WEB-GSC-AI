@@ -28,14 +28,8 @@ import {
 } from './ui-sticky-actions.js';
 import { isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice, getAdaptiveTimeouts } from './utils.js';
 
-// ✅ NUEVO: Importar funciones del sidebar
-import { 
-  onAnalysisStart, 
-  onAnalysisComplete, 
-  onAIAnalysisReady,
-  showSection, 
-  resetSidebar
-} from './sidebar-navigation.js';
+// ✅ NUEVO: Funciones del sidebar ahora están disponibles globalmente
+// Las funciones están disponibles como: window.onAnalysisStart, window.onAnalysisComplete, etc.
 
 // ✅ IMPORTAR el nuevo selector de fechas
 import { 
@@ -208,7 +202,7 @@ export async function handleFormSubmit(e) {
   }
 
   // ✅ NUEVO: Resetear sidebar al inicio del análisis
-  resetSidebar();
+  window.resetSidebar();
 
   // Reset UI
   hideStickyActions();
@@ -235,7 +229,7 @@ export async function handleFormSubmit(e) {
   console.log('🔄 Preparando para nueva consulta - limpieza básica realizada');
   
   // ✅ NUEVO: Resetear estado completo de la tabla de URLs antes de nueva consulta
-  resetUrlsTableState();
+  await resetUrlsTableState();
   
   if (elems.aiAnalysisMessage) elems.aiAnalysisMessage.innerHTML = '';
   if (elems.aiOverviewResultsContainer) elems.aiOverviewResultsContainer.innerHTML = '';
@@ -288,7 +282,7 @@ export async function handleFormSubmit(e) {
   showProgress(steps, analysisParams);
 
   // ✅ NUEVO: Notificar al sidebar que el análisis ha comenzado
-  onAnalysisStart();
+  window.onAnalysisStart();
 
   try {
     const data = await fetchData(formData);
@@ -439,18 +433,18 @@ export async function handleFormSubmit(e) {
     console.log('🎯 Available sections determined:', availableSections);
     
     // Notificar al sidebar que el análisis está completo
-    onAnalysisComplete(availableSections);
+    window.onAnalysisComplete(availableSections);
     
     // Habilitar AI Overview si hay keywords disponibles
     if (keywordData && keywordData.length > 0) {
-      onAIAnalysisReady();
+      window.onAIAnalysisReady();
     }
 
     // ✅ NUEVO: Redirección automática a Performance Overview si está disponible
     if (availableSections.includes('performance')) {
       setTimeout(() => {
         console.log('🎯 Auto-navegando a Performance Overview (performanceContent) tras completar análisis');
-        showSection('performance');
+        window.showSection('performance');
         // ✅ NUEVO: Scroll arriba del todo
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 1500); // Esperar 1.5s para que se complete la renderización

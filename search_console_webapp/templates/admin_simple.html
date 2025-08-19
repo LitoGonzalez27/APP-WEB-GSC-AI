@@ -212,6 +212,12 @@
             color: white;
         }
         
+        .badge.ai-user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
         .badge.active {
             background: #28a745;
             color: white;
@@ -559,7 +565,13 @@
                             <td>
                                 <div class="role-container">
                                     <span class="badge {{ user.role }}">
-                                        {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                        {% if user.role == 'admin' %}
+                            Administrador
+                        {% elif user.role == 'AI User' %}
+                            AI User
+                        {% else %}
+                            Usuario
+                        {% endif %}
                                     </span>
                                     {% if user.id != current_user.id %}
                                     <button class="btn-role-edit btn-sm" 
@@ -711,6 +723,7 @@
                     <label for="roleSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar rol:</label>
                     <select id="roleSelect" class="role-select">
                         <option value="user">Usuario</option>
+                        <option value="AI User">AI User</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
@@ -718,6 +731,7 @@
                     <p style="margin: 0;"><strong>Nota:</strong></p>
                     <p style="margin: 0.5rem 0 0 0; color: #666;">
                         • <strong>Usuario:</strong> Acceso básico al sistema<br>
+                        • <strong>AI User:</strong> Acceso básico + funcionalidades AI Overview<br>
                         • <strong>Administrador:</strong> Acceso completo y gestión de usuarios
                     </p>
                 </div>
@@ -952,7 +966,13 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(`✅ Rol actualizado exitosamente a: ${newRole === 'admin' ? 'Administrador' : 'Usuario'}`);
+                    let roleDisplayName = 'Usuario';
+                    if (newRole === 'admin') {
+                        roleDisplayName = 'Administrador';
+                    } else if (newRole === 'AI User') {
+                        roleDisplayName = 'AI User';
+                    }
+                    alert(`✅ Rol actualizado exitosamente a: ${roleDisplayName}`);
                     location.reload(); // Recargar página para actualizar lista
                 } else {
                     alert('❌ Error: ' + result.error);

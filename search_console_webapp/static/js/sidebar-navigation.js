@@ -22,6 +22,12 @@ class SidebarNavigation {
   }
 
   init() {
+    // Verificar si está deshabilitado (ej: en Manual AI)
+    if (window.DISABLE_SIDEBAR_NAVIGATION) {
+      console.log('🚫 SidebarNavigation deshabilitado por configuración');
+      return;
+    }
+    
     // Esperar a que el DOM esté listo
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => this.setup());
@@ -852,7 +858,7 @@ class SidebarNavigation {
 let sidebarNavigation = null;
 
 // Función de inicialización
-export function initSidebarNavigation() {
+function initSidebarNavigation() {
   if (!sidebarNavigation) {
     sidebarNavigation = new SidebarNavigation();
     
@@ -864,48 +870,58 @@ export function initSidebarNavigation() {
 }
 
 // Funciones de utilidad para integración
-export function getSidebarNavigation() {
+function getSidebarNavigation() {
   return sidebarNavigation;
 }
 
-export function onAnalysisStart() {
+function onAnalysisStart() {
   if (sidebarNavigation) {
     sidebarNavigation.onAnalysisStart();
   }
 }
 
-export function onAnalysisComplete(availableSections = []) {
+function onAnalysisComplete(availableSections = []) {
   if (sidebarNavigation) {
     sidebarNavigation.onAnalysisComplete(availableSections);
   }
 }
 
-export function onAIAnalysisReady() {
+function onAIAnalysisReady() {
   if (sidebarNavigation) {
     sidebarNavigation.onAIAnalysisReady();
   }
 }
 
-export function resetSidebar() {
+function resetSidebar() {
   if (sidebarNavigation) {
     sidebarNavigation.resetSidebar();
   }
 }
 
-export function navigateToSection(section) {
+function navigateToSection(section) {
   if (sidebarNavigation) {
     sidebarNavigation.navigateToSection(section);
   }
 }
 
-export function showSection(sectionName) {
+function showSection(sectionName) {
   if (sidebarNavigation) {
     sidebarNavigation.showSection(sectionName);
   }
 }
 
+// Hacer funciones disponibles globalmente para compatibilidad
+window.getSidebarNavigation = getSidebarNavigation;
+window.onAnalysisStart = onAnalysisStart;
+window.onAnalysisComplete = onAnalysisComplete;
+window.onAIAnalysisReady = onAIAnalysisReady;
+window.resetSidebar = resetSidebar;
+window.navigateToSection = navigateToSection;
+window.showSection = showSection;
+window.onContentReady = onContentReady;
+
 // ✅ Nueva función para habilitar secciones cuando el contenido esté listo
-export function onContentReady(sectionName) {
+function onContentReady(sectionName) {
   console.log(`📊 Content ready detected for section: ${sectionName}`);
   
   if (!sidebarNavigation) {

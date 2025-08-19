@@ -32,7 +32,9 @@ from auth import (
     login_required,
     auth_required,
     admin_required,
+    ai_user_required,
     is_user_authenticated,
+    is_user_ai_enabled,
     get_authenticated_service,
     get_user_credentials,
     get_current_user
@@ -401,7 +403,7 @@ def app_main():
     user = get_current_user()
     user_email = user['email'] if user else None
     
-    return render_template('index.html', user_email=user_email, authenticated=True)
+    return render_template('index.html', user_email=user_email, user=user, authenticated=True)
 
 @app.route('/get-data', methods=['POST'])
 @auth_required
@@ -2630,7 +2632,49 @@ def apply_keyword_exclusions(keywords_list, exclusion_terms, exclusion_method='c
     
     return filtered_keywords
 
+# ================================
+# MANUAL AI ANALYSIS SYSTEM - SAFE REGISTRATION
+# ================================
+
+def register_manual_ai_system():
+    """Register Manual AI Analysis Blueprint safely"""
+    try:
+        from manual_ai_system import manual_ai_bp
+        app.register_blueprint(manual_ai_bp)
+        logger.info("✅ Manual AI Analysis system registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ Manual AI Analysis system not available: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering Manual AI Analysis system: {e}")
+        return False
+
+def initialize_database_on_startup():
+    """Initialize database on application startup"""
+    try:
+        logger.info("🚀 Inicializando base de datos en startup...")
+        from init_database import main as init_db_main
+        
+        if init_db_main():
+            logger.info("✅ Base de datos inicializada correctamente")
+            return True
+        else:
+            logger.error("❌ Error inicializando base de datos")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Error crítico inicializando BD: {e}")
+        return False
+
+# Registrar Manual AI System siempre (no solo en __main__)
+register_manual_ai_system()
+
 if __name__ == '__main__':
+    # Initialize database first
+    if not initialize_database_on_startup():
+        logger.error("❌ No se pudo inicializar la base de datos. Cerrando aplicación.")
+        sys.exit(1)
+    
     # Railway proporciona el puerto automáticamente
     port = int(os.environ.get('PORT', 5001))
     

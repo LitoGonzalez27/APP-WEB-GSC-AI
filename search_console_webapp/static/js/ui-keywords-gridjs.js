@@ -1,6 +1,6 @@
 // static/js/ui-keywords-gridjs.js - Tabla Grid.js para Keywords del panel principal
 
-import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta } from './number-utils.js';
+import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 /**
  * Crea y renderiza la tabla Grid.js de Keywords
@@ -33,29 +33,23 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Procesar datos para Grid.js
     const { columns, data } = processKeywordsDataForGrid(keywordsData, analysisType);
 
-    // Limpiar contenedor completamente
-    container.innerHTML = '';
-    
-    // Crear contenedor para la tabla
+    // Crear contenedor para la tabla con ID único y consistente
+    const uniqueId = `keywords-grid-table-${Date.now()}`;
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
+    tableContainer.innerHTML = `
+        <div id="${uniqueId}" class="ai-overview-grid-wrapper keywords-grid-wrapper"></div>
+    `;
     
-    const gridContainer = document.createElement('div');
-    gridContainer.id = `keywords-grid-table-${Date.now()}`; // ID único para evitar conflictos
-    gridContainer.className = 'ai-overview-grid-wrapper';
-    
-    tableContainer.appendChild(gridContainer);
+    // Limpiar contenedor y añadir nueva tabla
+    container.innerHTML = '';
     container.appendChild(tableContainer);
 
     // Crear instancia de Grid.js
     const grid = new gridjs.Grid({
         columns: columns,
         data: data,
-        sort: {
-            multiColumn: false,
-            sortColumn: analysisType === 'comparison' ? 2 : 2, // Clicks P1 siempre (índice 2)
-            sortDirection: 'desc' // De mayor a menor
-        },
+        sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
         search: {
             enabled: true,
             placeholder: 'Search keywords...'
@@ -123,23 +117,42 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     });
 
     try {
-        grid.render(gridContainer);
+        const gridElement = document.getElementById(uniqueId);
+        if (!gridElement) {
+            console.error('❌ Grid container not found for keywords table');
+            return null;
+        }
+        
+        grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
         
-        // Forzar ordenamiento por Clicks P1 después del render (igual que URLs)
+        // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
         setTimeout(() => {
             try {
-                const clicksHeader = gridContainer.querySelector('th:nth-child(3)'); // Columna Clicks P1
-                if (clicksHeader) {
-                    // Simular dos clicks para ordenar descendente (mayor a menor)
-                    clicksHeader.click();
-                    setTimeout(() => clicksHeader.click(), 50);
-                    console.log('🔄 Ordenamiento por Clicks P1 (desc) aplicado');
+                // Verificar que la grid aún existe y está renderizada
+                if (grid && grid.config && grid.config.data) {
+                    grid.updateConfig({
+                        sort: {
+                            multiColumn: false,
+                            sortColumn: 2, // Clicks P1 siempre (índice 2)
+                            sortDirection: 'desc' // De mayor a menor
+                        }
+                    }).forceRender();
+                    console.log('🔄 Keywords: Ordenamiento por Clics P1 (desc) aplicado programáticamente');
                 }
             } catch (sortError) {
-                console.warn('⚠️ No se pudo aplicar ordenamiento automático:', sortError);
+                console.warn('⚠️ Keywords: No se pudo aplicar ordenamiento automático:', sortError);
+                // Fallback: usar clicks en header específico de esta tabla
+                const specificContainer = document.getElementById(uniqueId);
+                if (specificContainer) {
+                    const clicksHeader = specificContainer.querySelector('th:nth-child(3)');
+                    if (clicksHeader) {
+                        clicksHeader.click();
+                        setTimeout(() => clicksHeader.click(), 50);
+                    }
+                }
             }
-        }, 100);
+        }, 800); // Delay mayor para evitar conflictos con URLs y modales
         
         return grid;
     } catch (error) {
@@ -193,29 +206,28 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
     if (analysisType === 'single') {
         columns = [
             ...baseColumns,
-            { id: 'clicks', name: 'Clicks', width: '100px', 
+            { id: 'clicks_m1', name: 'Clicks', width: '100px', 
+                sort: {
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
+            },
+            { id: 'impressions_m1', name: 'Impressions', width: '120px',
+                sort: {
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
+            },
+            { id: 'ctr_m1', name: 'CTR (%)', width: '100px',
                 sort: {
                     compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                },
-                formatter: (cell) => formatInteger(cell) 
+                }
             },
-            { id: 'impressions', name: 'Impressions', width: '120px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatInteger(cell) 
-            },
-            { id: 'ctr', name: 'CTR (%)', width: '100px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatPercentage(cell) 
-            },
-            { id: 'position', name: 'Position', width: '100px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
-                }, 
-                formatter: (cell) => formatPosition(cell) 
+            { id: 'position_m1', name: 'Position', width: '100px',
+                sort: true, // Usar ordenamiento numérico nativo de Grid.js
+                formatter: (cell) => {
+                    // Formatear para display pero pasar valor numérico para sorting
+                    if (cell === null || cell === undefined || cell === 0) return '0';
+                    return formatPosition(cell);
+                }
             }
         ];
         
@@ -223,92 +235,83 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
     } else {
         columns = [
             ...baseColumns,
-            { id: 'clicks_p1', name: 'Clicks P1', width: '100px',
+            { id: 'clicks_m1', name: gridjs.html('Clicks<br>P1'), width: '100px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatInteger(cell) 
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
             },
-            { id: 'clicks_p2', name: 'Clicks P2', width: '100px',
+            { id: 'clicks_m2', name: gridjs.html('Clicks<br>P2'), width: '100px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatInteger(cell) 
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
             },
-            { id: 'delta_clicks', name: 'ΔClicks (%)', width: '120px', 
+            { id: 'delta_clicks_percent', name: gridjs.html('ΔClicks'), width: '100px', 
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 },
                 formatter: (cell) => {
-                    const formatted = formatPercentageChange(cell);
-                    return gridjs.html(`<span class="${getDeltaClass(formatted)}">${formatted}</span>`);
-                } 
+                    return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
+                }
             },
-            { id: 'impressions_p1', name: 'Impressions P1', width: '120px',
+            { id: 'impressions_m1', name: gridjs.html('Impressions<br>P1'), width: '120px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatInteger(cell) 
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
             },
-            { id: 'impressions_p2', name: 'Impressions P2', width: '120px',
+            { id: 'impressions_m2', name: gridjs.html('Impressions<br>P2'), width: '120px',
                 sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatInteger(cell) 
+                    compare: (a, b) => parseIntegerValue(b) - parseIntegerValue(a) // Mayor a menor
+                }
             },
-            { id: 'delta_impressions', name: 'ΔImp. (%)', width: '120px',
+            { id: 'delta_impressions_percent', name: gridjs.html('ΔImp.'), width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 }, 
                 formatter: (cell) => {
-                    const formatted = formatPercentageChange(cell);
-                    return gridjs.html(`<span class="${getDeltaClass(formatted)}">${formatted}</span>`);
-                } 
+                    return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
+                }
             },
-            { id: 'ctr_p1', name: 'CTR P1 (%)', width: '100px',
+            { id: 'ctr_m1', name: gridjs.html('CTR<br>P1 (%)'), width: '100px',
                 sort: {
                     compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatPercentage(cell) 
+                }
             },
-            { id: 'ctr_p2', name: 'CTR P2 (%)', width: '100px',
+            { id: 'ctr_m2', name: gridjs.html('CTR<br>P2 (%)'), width: '100px',
                 sort: {
                     compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor
-                }, 
-                formatter: (cell) => formatPercentage(cell) 
+                }
             },
-            { id: 'delta_ctr', name: 'ΔCTR (%)', width: '120px',
+            { id: 'delta_ctr_percent', name: gridjs.html('ΔCTR'), width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaValuesImproved(a, b) // Mayor mejora a mayor pérdida
                 }, 
                 formatter: (cell) => {
-                    const formatted = formatPercentageChange(cell, true);
-                    return gridjs.html(`<span class="${getDeltaClass(formatted)}">${formatted}</span>`);
-                } 
+                    return gridjs.html(`<span class="${getDeltaClass(cell)}">${cell}</span>`);
+                }
             },
-            { id: 'pos_p1', name: 'Pos P1', width: '100px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
-                }, 
-                formatter: (cell) => formatPosition(cell) 
+            { id: 'position_m1', name: gridjs.html('Position<br>P1'), width: '100px',
+                sort: true, // Usar ordenamiento numérico nativo de Grid.js
+                formatter: (cell) => {
+                    // Formatear para display pero pasar valor numérico para sorting
+                    if (cell === null || cell === undefined || cell === 0) return '0';
+                    return formatPosition(cell);
+                }
             },
-            { id: 'pos_p2', name: 'Pos P2', width: '100px',
-                sort: {
-                    compare: (a, b) => parseNumericValue(b) - parseNumericValue(a) // Mayor a menor (50 → 0.1)
-                }, 
-                formatter: (cell) => formatPosition(cell) 
+            { id: 'position_m2', name: gridjs.html('Position<br>P2'), width: '100px',
+                sort: true, // Usar ordenamiento numérico nativo de Grid.js
+                formatter: (cell) => {
+                    // Formatear para display pero pasar valor numérico para sorting
+                    if (cell === null || cell === undefined || cell === 0) return '0';
+                    return formatPosition(cell);
+                }
             },
-            { id: 'delta_pos', name: 'ΔPos', width: '100px',
+            { id: 'delta_position_absolute', name: gridjs.html('ΔPos'), width: '100px',
                 sort: {
                     compare: (a, b) => compareDeltaPositionImproved(a, b) // New → negativo → 0 → positivo
                 }, 
-                formatter: (cell, row) => {
-                    // Acceder a las posiciones usando el índice correcto en la fila
-                    const pos1 = row.cells && row.cells[11] ? row.cells[11].data : null;  // position_m1 (índice 11)
-                    const pos2 = row.cells && row.cells[12] ? row.cells[12].data : null; // position_m2 (índice 12)
-                    const formatted = formatPositionDelta(cell, pos1, pos2);
-                    return gridjs.html(`<span class="${getDeltaClassPosition(formatted)}">${formatted}</span>`);
-                } 
+                formatter: (cell) => {
+                    return gridjs.html(`<span class="${getDeltaClassPosition(cell)}">${cell}</span>`);
+                }
             }
         ];
         
@@ -320,51 +323,46 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
         ];
     }
 
-    // Procesar datos
+    // Procesar datos (igual que URLs)
     const data = keywordsData.map(keyword => {
-        const row = [];
-        
-        dataColumns.forEach(col => {
-            if (col === 'serp') {
-                row.push(''); // Placeholder para el botón SERP
-            } else if (col === 'keyword') {
-                row.push(keyword.query || keyword.keyword || '');
-            } else {
-                // Obtener valor del keyword object
-                let value = keyword[col];
-                
-                // Manejar valores especiales
-                if (value === null || value === undefined || value === '') {
-                    if (col.includes('delta_')) {
-                        value = analysisType === 'comparison' ? (col === 'delta_position_absolute' ? '-' : '0%') : 'New';
-                    } else if (col.includes('_m2')) {
-                        value = analysisType === 'comparison' ? 0 : '';
-                    } else {
-                        value = 0;
-                    }
-                }
-                
-                // ✅ NUEVO: Preservar valores 'New' y 'Lost' explícitos para deltas
-                if (typeof value === 'string' && (value === 'New' || value === 'Lost') && col.includes('delta_')) {
-                    // Mantener el valor 'New' o 'Lost' tal como está
-                } else {
-                    // Validar tipos de datos específicos
-                    if (col.includes('position') && value !== '-' && value !== '' && value !== null) {
-                        value = parseFloat(value) || 0;
-                    }
-                    if (col.includes('clicks') || col.includes('impressions')) {
-                        value = parseInt(value) || 0;
-                    }
-                    if (col.includes('ctr')) {
-                        value = parseFloat(value) || 0;
-                    }
-                }
-                
-                row.push(value);
-            }
-        });
-        
-        return row;
+        const rowData = [
+            '', // Columna SERP (será reemplazada por el formatter)
+            keyword.query || keyword.keyword || ''
+        ];
+
+        // Añadir datos según el tipo de análisis
+        if (analysisType === 'single') {
+            rowData.push(formatInteger(keyword.clicks_m1 ?? 0));
+            rowData.push(formatInteger(keyword.impressions_m1 ?? 0));
+            rowData.push(formatPercentage(keyword.ctr_m1));
+            
+            // ✅ NUEVO: Pasar valores numéricos para posiciones (0 en lugar de N/A)
+            const pos1 = (keyword.position_m1 == null || isNaN(keyword.position_m1)) ? 0 : Number(keyword.position_m1);
+            rowData.push(pos1);
+        } else {
+            // Comparison mode
+            rowData.push(formatInteger(keyword.clicks_m1 ?? 0));
+            rowData.push(formatInteger(keyword.clicks_m2 ?? 0));
+            rowData.push(calculateAbsoluteDelta(keyword.clicks_m1 ?? 0, keyword.clicks_m2 ?? 0, 'clicks'));
+            
+            rowData.push(formatInteger(keyword.impressions_m1 ?? 0));
+            rowData.push(formatInteger(keyword.impressions_m2 ?? 0));
+            rowData.push(calculateAbsoluteDelta(keyword.impressions_m1 ?? 0, keyword.impressions_m2 ?? 0, 'impressions'));
+            
+            rowData.push(formatPercentage(keyword.ctr_m1));
+            rowData.push(formatPercentage(keyword.ctr_m2));
+            rowData.push(calculateAbsoluteDelta(keyword.ctr_m1 ?? 0, keyword.ctr_m2 ?? 0, 'ctr'));
+            
+            // ✅ NUEVO: Pasar valores numéricos para posiciones (0 en lugar de N/A)
+            const pos1 = (keyword.position_m1 == null || isNaN(keyword.position_m1)) ? 0 : Number(keyword.position_m1);
+            const pos2 = (keyword.position_m2 == null || isNaN(keyword.position_m2)) ? 0 : Number(keyword.position_m2);
+            rowData.push(pos1);
+            rowData.push(pos2);
+            // Calcular delta usando los valores reales (0 para N/A)
+            rowData.push(calculateAbsoluteDelta(pos1, pos2, 'position'));
+        }
+
+        return rowData;
     });
 
     console.log('✅ Keywords data processed for Grid.js:', { 
@@ -423,24 +421,24 @@ function escapeForAttribute(text) {
 }
 
 /**
- * Obtiene la clase CSS para deltas
+ * Obtiene la clase CSS para deltas (igual que URLs)
  * @param {string} value - Valor del delta
  * @returns {string} - Clase CSS
  */
 function getDeltaClass(value) {
     if (!value || value === '-') return '';
     
-    // ✅ NUEVA: Identificar keywords nuevas (verde como mejoras)
+    // ✅ Identificar keywords nuevas (verde como mejoras)
     if (value === 'New' || value === 'Infinity' || (typeof value === 'string' && value.includes('New'))) {
         return 'delta-positive';
     }
     
-    // ✅ NUEVA: Identificar keywords perdidas (rojo como empeoramientos)
+    // ✅ Identificar keywords perdidas (rojo como empeoramientos)  
     if (value === 'Lost' || (typeof value === 'string' && value.includes('Lost'))) {
         return 'delta-negative';
     }
     
-    const numValue = parseFloat(value.toString().replace(/[%+]/g, ''));
+    const numValue = parseNumericValue(value);
     // Solo negro si es exactamente 0
     if (numValue === 0) return 'delta-neutral';
     // Siempre verde o rojo para cualquier cambio, sin importar magnitud
@@ -450,24 +448,24 @@ function getDeltaClass(value) {
 }
 
 /**
- * Obtiene la clase CSS para deltas de posición (lógica invertida)
+ * Obtiene la clase CSS para deltas de posición (lógica invertida igual que URLs)
  * @param {string} value - Valor del delta de posición
  * @returns {string} - Clase CSS
  */
 function getDeltaClassPosition(value) {
     if (!value || value === '-') return '';
     
-    // ✅ NUEVA: Identificar keywords nuevas en posiciones (verde como mejoras)
+    // ✅ Identificar keywords nuevas en posiciones (verde como mejoras)
     if (value === 'New' || value === 'Infinity' || (typeof value === 'string' && value.includes('New'))) {
         return 'delta-positive';
     }
     
-    // ✅ NUEVA: Identificar keywords perdidas en posiciones (rojo como empeoramientos)
+    // ✅ Identificar keywords perdidas en posiciones (rojo como empeoramientos)
     if (value === 'Lost' || (typeof value === 'string' && value.includes('Lost'))) {
         return 'delta-negative';
     }
     
-    const numValue = parseFloat(value.toString().replace(/[%+]/g, ''));
+    const numValue = parseNumericValue(value);
     // Solo negro si es exactamente 0
     if (numValue === 0) return 'delta-neutral';
     // Para posiciones: negativo = mejora (verde), positivo = empeora (rojo)
@@ -476,62 +474,10 @@ function getDeltaClassPosition(value) {
     return '';
 }
 
-/**
- * Función auxiliar para parsear valores numéricos de strings formateados (MEJORADA)
- * @param {*} value - Valor a parsear
- * @returns {number} - Número parseado
- */
-function parseNumericValue(value) {
-    if (value === null || value === undefined || value === '' || value === '-') return 0;
-    if (typeof value === 'number') return value;
-    
-    let str = String(value).trim();
-    
-    // Manejar casos especiales
-    if (str === 'New' || str.includes('New') || str.includes('Nuevo')) return Infinity;
-    if (str === 'Lost' || str.includes('Lost') || str.includes('Perdido')) return -Infinity;
-    if (str.includes('∞')) return str.includes('+') ? Infinity : -Infinity;
-    
-    // Limpiar HTML tags si existen
-    str = str.replace(/<[^>]*>/g, '');
-    
-    // Preservar el signo negativo
-    const isNegative = str.startsWith('-');
-    
-    // Remover todos los símbolos excepto números y separadores decimales
-    str = str.replace(/[^\d,.]/g, '');
-    
-    // Manejar formato español: si hay tanto punto como coma, el último es decimal
-    if (str.includes('.') && str.includes(',')) {
-        const lastDot = str.lastIndexOf('.');
-        const lastComma = str.lastIndexOf(',');
-        
-        if (lastComma > lastDot) {
-            // Coma es decimal: 1.234,56 → 1234.56
-            str = str.replace(/\./g, '').replace(',', '.');
-        } else {
-            // Punto es decimal: 1,234.56 → 1234.56
-            str = str.replace(/,/g, '');
-        }
-    } else if (str.includes(',')) {
-        // Solo coma: asumir decimal español: 5,67 → 5.67
-        const commaCount = (str.match(/,/g) || []).length;
-        if (commaCount === 1) {
-            str = str.replace(',', '.');
-        } else {
-            // Múltiples comas: separadores de miles
-            str = str.replace(/,/g, '');
-        }
-    }
-    
-    const num = parseFloat(str);
-    const result = isNaN(num) ? 0 : (isNegative ? -Math.abs(num) : num);
-    
-    return result;
-}
+// ✅ ELIMINADO: parseNumericValue duplicado - ahora se usa el de number-utils.js
 
 /**
- * Compara valores de delta para ordenamiento MEJORADO con DEBUG
+ * Compara valores de delta para ordenamiento MEJORADO (igual que URLs)
  * Orden: Mayor mejora → menor mejora → 0 → menor pérdida → mayor pérdida
  * @param {*} a - Primer valor
  * @param {*} b - Segundo valor  
@@ -571,7 +517,7 @@ function compareDeltaValuesImproved(a, b) {
 }
 
 /**
- * Compara valores de delta de posición para ordenamiento MEJORADO (lógica invertida)
+ * Compara valores de delta de posición para ordenamiento MEJORADO (lógica invertida igual que URLs)
  * Orden: New → mejor mejora (más negativo) → 0 → peor empeoramiento (más positivo)
  * @param {*} a - Primer valor
  * @param {*} b - Segundo valor

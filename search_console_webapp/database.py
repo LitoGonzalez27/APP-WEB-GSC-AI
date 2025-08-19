@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Configuración de la base de datos
 # Railway proporciona DATABASE_URL automáticamente en producción
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:sRZcCViicJDQsgFZnVeiDsLHEzWBbvIB@yamanote.proxy.rlwy.net:15620/railway')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:XCkoyokCzfRlyPCFNGpfIhqteibfbojQ@caboose.proxy.rlwy.net:13631/railway')
 
 # Detectar si estamos en producción
 # Detección de entorno mejorada

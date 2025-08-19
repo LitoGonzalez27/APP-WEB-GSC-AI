@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "command": "python3 daily_analysis_cron.py",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
