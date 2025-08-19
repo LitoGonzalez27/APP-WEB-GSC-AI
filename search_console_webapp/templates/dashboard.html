@@ -61,6 +61,8 @@
                                     <div class="user-role">
                                         {% if user.role == 'admin' %}
                                         <span class="role-badge admin">Administrador</span>
+                                        {% elif user.role == 'AI User' %}
+                                        <span class="role-badge ai-user">AI User</span>
                                         {% else %}
                                         <span class="role-badge user">Usuario</span>
                                         {% endif %}
@@ -135,6 +137,23 @@
                         <button class="btn btn-primary" onclick="showContactSupport()">
                             <i class="fas fa-envelope"></i>
                             Contactar soporte
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Alerta de acceso AI denegado -->
+            {% if ai_access_denied %}
+            <div class="alert alert-info">
+                <i class="fas fa-robot"></i>
+                <div class="alert-content">
+                    <h4>Coming Soon</h4>
+                    <p>{{ ai_message }}</p>
+                    <div class="alert-actions">
+                        <button class="btn btn-primary" onclick="window.location.href='/dashboard'">
+                            <i class="fas fa-arrow-left"></i>
+                            Volver al Dashboard
                         </button>
                     </div>
                 </div>
@@ -755,6 +774,12 @@
         .role-badge.user {
             background: #d1ecf1;
             color: #0c5460;
+        }
+
+        .role-badge.ai-user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
         }
 
         .dropdown-divider {

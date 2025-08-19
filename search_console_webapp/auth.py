@@ -128,6 +128,11 @@ def is_user_admin():
     user = get_current_user()
     return user and user['role'] == 'admin'
 
+def is_user_ai_enabled():
+    """Verifica si el usuario tiene acceso a funcionalidades AI (admin o AI User)"""
+    user = get_current_user()
+    return user and user['role'] in ['admin', 'AI User']
+
 def auth_required(f):
     """Decorador que requiere autenticación"""
     @wraps(f)
@@ -231,6 +236,62 @@ def admin_required(f):
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403
             return redirect(url_for('dashboard') + '?admin_required=true')
+        
+        # Actualizar última actividad
+        update_last_activity()
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def ai_user_required(f):
+    """Decorador que requiere privilegios de AI User (admin o AI User)"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar autenticación básica
+        if not is_user_authenticated():
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?auth_required=true')
+        
+        # Verificar expiración por inactividad
+        if is_session_expired():
+            session.clear()
+            logger.info("Sesión expirada por inactividad")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
+            return redirect(url_for('login_page') + '?session_expired=true')
+        
+        # Verificar si el usuario está en la base de datos
+        user = get_current_user()
+        if not user:
+            session.clear()
+            logger.warning("Usuario no encontrado en base de datos")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?user_not_found=true')
+        
+        # Verificar si el usuario está activo
+        if not user['is_active']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
+            return redirect(url_for('login_page') + '?account_suspended=true')
+        
+        # Verificar si el usuario tiene acceso a funcionalidades AI
+        if not user['role'] in ['admin', 'AI User']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({
+                    'error': 'Coming Soon',
+                    'message': 'This functionality is still under development and will be enabled soon.',
+                    'ai_user_required': True
+                }), 403
+            # Para acceso directo via navegador, renderizar página con mensaje
+            return render_template('dashboard.html', 
+                                 user=user, 
+                                 authenticated=True,
+                                 ai_access_denied=True,
+                                 ai_message='Coming Soon - This functionality is still under development and will be enabled soon.')
         
         # Actualizar última actividad
         update_last_activity()
@@ -400,6 +461,8 @@ def setup_auth_routes(app):
                 return redirect(url_for('dashboard'))
         
         return render_template('signup.html')
+
+
 
 
 
@@ -869,7 +932,7 @@ def setup_auth_routes(app):
             data = request.get_json()
             new_role = data.get('role')
             
-            if new_role not in ['user', 'admin']:
+            if new_role not in ['user', 'admin', 'AI User']:
                 return jsonify({'error': 'Rol inválido'}), 400
             
             user = get_user_by_id(user_id)

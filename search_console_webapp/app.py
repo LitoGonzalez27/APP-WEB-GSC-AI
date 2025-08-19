@@ -32,7 +32,9 @@ from auth import (
     login_required,
     auth_required,
     admin_required,
+    ai_user_required,
     is_user_authenticated,
+    is_user_ai_enabled,
     get_authenticated_service,
     get_user_credentials,
     get_current_user
@@ -401,7 +403,7 @@ def app_main():
     user = get_current_user()
     user_email = user['email'] if user else None
     
-    return render_template('index.html', user_email=user_email, authenticated=True)
+    return render_template('index.html', user_email=user_email, user=user, authenticated=True)
 
 @app.route('/get-data', methods=['POST'])
 @auth_required

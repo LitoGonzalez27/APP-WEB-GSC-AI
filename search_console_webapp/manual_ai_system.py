@@ -11,7 +11,7 @@ import threading
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
-from auth import auth_required, cron_or_auth_required, get_current_user
+from auth import auth_required, cron_or_auth_required, ai_user_required, get_current_user
 from services.serp_service import get_serp_json
 from services.ai_analysis import detect_ai_overview_elements
 from services.utils import extract_domain, normalize_search_console_url
@@ -111,14 +111,14 @@ def manual_ai_health():
 # ================================
 
 @manual_ai_bp.route('/')
-@auth_required
+@ai_user_required
 def manual_ai_dashboard():
     """Dashboard principal del sistema Manual AI Analysis"""
     user = get_current_user()
     return render_template('manual_ai_dashboard.html', user=user)
 
 @manual_ai_bp.route('/api/projects', methods=['GET'])
-@auth_required
+@ai_user_required
 def get_projects():
     """Obtener todos los proyectos del usuario actual"""
     user = get_current_user()
@@ -130,7 +130,7 @@ def get_projects():
     })
 
 @manual_ai_bp.route('/api/projects', methods=['POST'])
-@auth_required
+@ai_user_required
 def create_project():
     """Crear un nuevo proyecto"""
     user = get_current_user()
@@ -169,7 +169,7 @@ def create_project():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>', methods=['GET'])
-@auth_required
+@ai_user_required
 def get_project_details(project_id):
     """Obtener detalles completos de un proyecto"""
     user = get_current_user()
@@ -325,7 +325,7 @@ def delete_project(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords', methods=['GET'])
-@auth_required
+@ai_user_required
 def get_project_keywords(project_id):
     """Obtener keywords de un proyecto"""
     user = get_current_user()
@@ -678,7 +678,7 @@ def update_project_keyword(project_id, keyword_id):
 # ================================
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/analyze', methods=['POST'])
-@auth_required
+@ai_user_required
 def analyze_project(project_id):
     """Ejecutar análisis completo de un proyecto"""
     user = get_current_user()
@@ -727,7 +727,7 @@ def analyze_project(project_id):
         return jsonify({'success': False, 'error': 'Analysis failed due to internal error'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/results', methods=['GET'])
-@auth_required
+@ai_user_required
 def get_project_results(project_id):
     """Obtener resultados de análisis de un proyecto"""
     user = get_current_user()
@@ -748,7 +748,7 @@ def get_project_results(project_id):
     })
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/stats', methods=['GET'])
-@auth_required
+@ai_user_required
 def get_project_stats(project_id):
     """Obtener estadísticas y gráficos de un proyecto"""
     user = get_current_user()
@@ -1065,7 +1065,7 @@ def update_project_competitors(project_id):
         return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
-@auth_required
+@ai_user_required
 def export_project_data(project_id):
     """Exportar datos del proyecto a CSV"""
     user = get_current_user()
