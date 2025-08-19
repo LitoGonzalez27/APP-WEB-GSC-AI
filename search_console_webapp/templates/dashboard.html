@@ -36,7 +36,7 @@
                 <div class="navbar-links">
                     <a href="/app" class="navbar-link">
                         <i class="fas fa-analytics"></i>
-                        Comenzar a Analizar
+                        Start Analysis
                     </a>
                 </div>
                 
@@ -103,7 +103,7 @@
                         Dashboard
                     </h1>
                     <p class="dashboard-subtitle">
-                        Bienvenido de vuelta, {{ user.name }}. Aquí tienes un resumen de tu actividad.
+                        Welcome back, {{ user.name }}. Here's an overview of your activity.
                     </p>
                 </div>
                 
@@ -112,12 +112,12 @@
                     {% if user.is_active %}
                     <div class="status-badge active">
                         <i class="fas fa-check-circle"></i>
-                        <span>Cuenta activa</span>
+                        <span>Active Account</span>
                     </div>
                     {% else %}
                     <div class="status-badge inactive">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <span>Cuenta inactiva</span>
+                        <span>Inactive Account</span>
                     </div>
                     {% endif %}
                 </div>
@@ -156,19 +156,19 @@
                         </h3>
                     </div>
                     <div class="card-content">
-                        <p>Comienza el análisis completo con Clicandseo para optimizar tu sitio web.</p>
+                        <p>Start the complete analysis with Clicandseo to optimize your website.</p>
                         <div class="card-features">
                             <div class="feature-item">
                                 <i class="fas fa-search"></i>
-                                <span>Análisis de palabras clave</span>
+                                <span>Keyword Analysis</span>
                             </div>
                             <div class="feature-item">
                                 <i class="fas fa-robot"></i>
-                                <span>Detección de AI Overview</span>
+                                <span>AI Overview Detection</span>
                             </div>
                             <div class="feature-item">
                                 <i class="fas fa-chart-bar"></i>
-                                <span>Métricas de rendimiento</span>
+                                <span>Performance Metrics</span>
                             </div>
                         </div>
                     </div>
@@ -176,12 +176,12 @@
                         {% if user.is_active %}
                         <a href="/app" class="btn btn-primary">
                             <i class="fas fa-play"></i>
-                            Comenzar a Analizar
+                            Start Analysis
                         </a>
                         {% else %}
                         <button class="btn btn-secondary" disabled>
                             <i class="fas fa-lock"></i>
-                            Requiere cuenta activa
+                            Requires Active Account
                         </button>
                         {% endif %}
                     </div>
@@ -196,18 +196,18 @@
                         </h3>
                     </div>
                     <div class="card-content">
-                        <p>Conecta tus propiedades de Google Search Console para análisis detallados.</p>
+                        <p>Connect your Google Search Console properties for detailed analysis.</p>
                         <div class="search-console-status">
                             <div class="status-item">
                                 <i class="fas fa-link"></i>
-                                <span>Conexión: 
-                                    <strong class="status-connected">Conectado</strong>
+                                <span>Connection: 
+                                    <strong class="status-connected">Connected</strong>
                                 </span>
                             </div>
                             <div class="status-item">
                                 <i class="fas fa-globe"></i>
-                                <span>Propiedades: 
-                                    <strong id="propertiesCount">Cargando...</strong>
+                                <span>Properties: 
+                                    <strong id="propertiesCount">Loading...</strong>
                                 </span>
                             </div>
                         </div>
@@ -217,35 +217,35 @@
                     </div>
                 </div>
 
-                <!-- Tarjeta de configuración -->
+                <!-- Settings card -->
                 <div class="dashboard-card">
                     <div class="card-header">
                         <h3>
                             <i class="fas fa-cog"></i>
-                            Configuración
+                            Settings
                         </h3>
                     </div>
                     <div class="card-content">
-                        <p>Personaliza tu experiencia y gestiona tu perfil de usuario.</p>
+                        <p>Customize your experience and manage your user profile.</p>
                         <div class="config-options">
                             <div class="config-item">
                                 <i class="fas fa-user-edit"></i>
-                                <span>Editar perfil</span>
+                                <span>Edit Profile</span>
                             </div>
                             <div class="config-item">
                                 <i class="fas fa-bell"></i>
-                                <span>Notificaciones</span>
+                                <span>Notifications</span>
                             </div>
                             <div class="config-item">
                                 <i class="fas fa-shield-alt"></i>
-                                <span>Seguridad</span>
+                                <span>Security</span>
                             </div>
                         </div>
                     </div>
                     <div class="card-footer">
                         <button class="btn btn-outline" onclick="showSettings()">
                             <i class="fas fa-cog"></i>
-                            Configurar
+                            Configure
                         </button>
                     </div>
                 </div>
@@ -255,30 +255,30 @@
                     <div class="card-header">
                         <h3>
                             <i class="fas fa-life-ring"></i>
-                            Soporte
+                            Support
                         </h3>
                     </div>
                     <div class="card-content">
-                        <p>¿Necesitas ayuda? Accede a nuestra documentación y soporte técnico.</p>
+                        <p>Need help? Access our documentation and technical support.</p>
                         <div class="support-options">
                             <div class="support-item">
                                 <i class="fas fa-book"></i>
-                                <span>Documentación</span>
+                                <span>Documentation</span>
                             </div>
                             <div class="support-item">
                                 <i class="fas fa-question-circle"></i>
-                                <span>Preguntas frecuentes</span>
+                                <span>Frequently Asked Questions</span>
                             </div>
                             <div class="support-item">
                                 <i class="fas fa-envelope"></i>
-                                <span>Contactar soporte</span>
+                                <span>Contact Support</span>
                             </div>
                         </div>
                     </div>
                     <div class="card-footer">
                         <button class="btn btn-outline" onclick="showContactSupport()">
                             <i class="fas fa-envelope"></i>
-                            Contactar
+                            Contact
                         </button>
                     </div>
                 </div>
@@ -306,14 +306,14 @@
             }
         }
 
-        // Función para mostrar configuración (placeholder)
+                    // Function to show settings (placeholder)
         function showSettings() {
-            alert('Configuración próximamente disponible');
+                            alert('Settings coming soon');
         }
 
         // Función para mostrar contacto de soporte (placeholder)
         function showContactSupport() {
-            alert('Contacto de soporte próximamente disponible');
+                            alert('Support contact coming soon');
         }
 
         // Función para manejar logout
@@ -366,12 +366,43 @@
         });
     </script>
 
-    <!-- Estilos específicos del dashboard -->
+    <!-- Estilos específicos del dashboard con estética Manual AI -->
     <style>
+        /* Variables del Manual AI para consistencia */
+        :root {
+            --dashboard-primary: #161616;
+            --dashboard-primary-light: #2d2d2d;
+            --dashboard-secondary: #D8F9B8;
+            --dashboard-accent: #4F46E5;
+            --dashboard-accent-light: #6366F1;
+            --dashboard-gray-50: #f9fafb;
+            --dashboard-gray-100: #f3f4f6;
+            --dashboard-gray-200: #e5e7eb;
+            --dashboard-gray-300: #d1d5db;
+            --dashboard-gray-400: #9ca3af;
+            --dashboard-gray-500: #6b7280;
+            --dashboard-gray-600: #4b5563;
+            --dashboard-gray-700: #374151;
+            --dashboard-gray-800: #1f2937;
+            --dashboard-gray-900: #111827;
+            --dashboard-success: #10b981;
+            --dashboard-warning: #f59e0b;
+            --dashboard-error: #ef4444;
+            --dashboard-info: #3b82f6;
+            --dashboard-border-radius: 8px;
+            --dashboard-border-radius-lg: 12px;
+            --dashboard-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --dashboard-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --dashboard-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --dashboard-transition: all 0.15s ease-in-out;
+        }
+
         .main-content {
             padding-top: 70px;
             min-height: 100vh;
-            background: #f8f9fa;
+            background: var(--dashboard-gray-50);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
         }
 
         .container {
@@ -385,28 +416,30 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
-            padding: 1.5rem;
+            padding: 2rem;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: var(--dashboard-border-radius-lg);
+            box-shadow: var(--dashboard-shadow-md);
+            border: 1px solid var(--dashboard-gray-200);
         }
 
         .header-content h1 {
             margin: 0;
-            color: #333;
-            font-size: 2rem;
-            font-weight: 600;
+            color: var(--dashboard-gray-900);
+            font-size: 2.25rem;
+            font-weight: 700;
         }
 
         .header-content h1 i {
-            margin-right: 0.5rem;
-            color: #007bff;
+            margin-right: 0.75rem;
+            color: var(--dashboard-accent);
         }
 
         .dashboard-subtitle {
-            margin: 0.5rem 0 0 0;
-            color: #6c757d;
-            font-size: 1rem;
+            margin: 0.75rem 0 0 0;
+            color: var(--dashboard-gray-600);
+            font-size: 1.125rem;
+            font-weight: 400;
         }
 
         .account-status {
@@ -418,20 +451,23 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--dashboard-border-radius);
             font-size: 0.875rem;
-            font-weight: 500;
+            font-weight: 600;
+            transition: var(--dashboard-transition);
         }
 
         .status-badge.active {
-            background: #d4edda;
-            color: #155724;
+            background: var(--dashboard-secondary);
+            color: var(--dashboard-primary);
+            border: 1px solid var(--dashboard-secondary);
         }
 
         .status-badge.inactive {
-            background: #fff3cd;
-            color: #856404;
+            background: #fef3c7;
+            color: var(--dashboard-warning);
+            border: 1px solid #fde68a;
         }
 
         .alert {
@@ -471,48 +507,52 @@
 
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 2rem;
         }
 
         .dashboard-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: var(--dashboard-border-radius-lg);
+            box-shadow: var(--dashboard-shadow);
+            border: 1px solid var(--dashboard-gray-200);
             overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: var(--dashboard-transition);
         }
 
         .dashboard-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-4px);
+            box-shadow: var(--dashboard-shadow-lg);
+            border-color: var(--dashboard-gray-300);
         }
 
         .card-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #e9ecef;
+            padding: 2rem 2rem 1.5rem 2rem;
+            border-bottom: 1px solid var(--dashboard-gray-200);
+            background: var(--dashboard-gray-50);
         }
 
         .card-header h3 {
             margin: 0;
-            color: #333;
-            font-size: 1.25rem;
-            font-weight: 600;
+            color: var(--dashboard-gray-900);
+            font-size: 1.375rem;
+            font-weight: 700;
         }
 
         .card-header h3 i {
-            margin-right: 0.5rem;
-            color: #007bff;
+            margin-right: 0.75rem;
+            color: var(--dashboard-accent);
         }
 
         .card-content {
-            padding: 1.5rem;
+            padding: 2rem;
         }
 
         .card-content p {
-            margin: 0 0 1rem 0;
-            color: #6c757d;
-            line-height: 1.5;
+            margin: 0 0 1.5rem 0;
+            color: var(--dashboard-gray-600);
+            line-height: 1.6;
+            font-size: 1rem;
         }
 
         .card-features,
@@ -531,7 +571,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            color: #495057;
+            color: var(--dashboard-gray-600);
             font-size: 0.875rem;
         }
 
@@ -539,62 +579,71 @@
         .status-item i,
         .config-item i,
         .support-item i {
-            color: #007bff;
+            color: var(--dashboard-accent);
             width: 16px;
         }
 
         .status-connected {
-            color: #28a745;
+            color: var(--dashboard-success);
         }
 
         .card-footer {
-            padding: 1.5rem;
-            border-top: 1px solid #e9ecef;
-            background: #f8f9fa;
+            padding: 2rem;
+            border-top: 1px solid var(--dashboard-gray-200);
+            background: var(--dashboard-gray-50);
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
+            gap: 0.75rem;
+            padding: 0.875rem 1.75rem;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--dashboard-border-radius);
             font-size: 0.875rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: var(--dashboard-transition);
             text-decoration: none;
+            box-shadow: var(--dashboard-shadow-sm);
         }
 
         .btn-primary {
-            background: #007bff;
-            color: white;
+            background: var(--dashboard-primary);
+            color: var(--dashboard-secondary);
+            border: 1px solid var(--dashboard-primary);
         }
 
         .btn-primary:hover {
-            background: #0056b3;
+            background: var(--dashboard-primary-light);
+            transform: translateY(-1px);
+            box-shadow: var(--dashboard-shadow);
         }
 
         .btn-outline {
             background: transparent;
-            color: #007bff;
-            border: 1px solid #007bff;
+            color: var(--dashboard-accent);
+            border: 1px solid var(--dashboard-accent);
         }
 
         .btn-outline:hover {
-            background: #007bff;
+            background: var(--dashboard-accent);
             color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--dashboard-shadow);
         }
 
         .btn-secondary {
-            background: #6c757d;
+            background: var(--dashboard-gray-500);
             color: white;
+            border: 1px solid var(--dashboard-gray-500);
         }
 
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         /* Estilos del navbar */
@@ -780,7 +829,7 @@
             gap: 0.5rem;
             width: 100%;
             padding: 0.75rem 1rem;
-            color: #495057;
+            color: var(--dashboard-gray-600);
             text-decoration: none;
             background: none;
             border: none;
