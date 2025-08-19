@@ -1727,30 +1727,41 @@ class ManualAISystem {
                     console.log('🔍 Tooltip con comentario del usuario:', userDescription);
                 }
                 
-                // Título según el tipo de evento
+                // ✅ MEJORADO: Título y contenido según el tipo de evento
                 let tooltipTitle = '';
-                if (eventType === 'keywords_added') {
-                    tooltipTitle = `⚠️ Keywords Añadidas (${keywordsAffected})`;
-                } else if (eventType === 'keyword_deleted') {
-                    tooltipTitle = `⚠️ Keyword Eliminada`;
-                } else if (eventType === 'keywords_removed') {
-                    tooltipTitle = `⚠️ Keywords Eliminadas (${keywordsAffected})`;
-                } else {
-                    tooltipTitle = `⚠️ ${eventTitle}`;
-                }
+                let tooltipContent = '';
                 
-                // ✅ CORREGIDO: Mostrar el texto del usuario como contenido principal
-                let tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
-                
-                // ✅ MEJORADO: Lógica más robusta para mostrar comentarios del usuario
-                if (userDescription && 
-                    userDescription.trim() && 
-                    userDescription !== 'Sin notas adicionales' && 
-                    userDescription !== 'No additional notes provided' &&
-                    userDescription !== 'No description provided') {
-                    tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                if (eventType === 'manual_note_added') {
+                    // ✅ NUEVO: Caso especial para notas manuales del usuario
+                    tooltipTitle = `📝 User Note`;
+                    tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
+                    if (userDescription && userDescription.trim()) {
+                        tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                    }
                 } else {
-                    tooltipContent += `<br><br><small style="opacity: 0.7;">Sin comentarios del usuario</small>`;
+                    // ✅ Casos existentes para eventos de keywords
+                    if (eventType === 'keywords_added') {
+                        tooltipTitle = `⚠️ Keywords Añadidas (${keywordsAffected})`;
+                    } else if (eventType === 'keyword_deleted') {
+                        tooltipTitle = `⚠️ Keyword Eliminada`;
+                    } else if (eventType === 'keywords_removed') {
+                        tooltipTitle = `⚠️ Keywords Eliminadas (${keywordsAffected})`;
+                    } else {
+                        tooltipTitle = `⚠️ ${eventTitle}`;
+                    }
+                    
+                    tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
+                    
+                    // ✅ Mostrar comentarios del usuario para eventos de keywords
+                    if (userDescription && 
+                        userDescription.trim() && 
+                        userDescription !== 'Sin notas adicionales' && 
+                        userDescription !== 'No additional notes provided' &&
+                        userDescription !== 'No description provided') {
+                        tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                    } else {
+                        tooltipContent += `<br><br><small style="opacity: 0.7;">Sin comentarios del usuario</small>`;
+                    }
                 }
                 
                 tooltip.innerHTML = tooltipContent;
