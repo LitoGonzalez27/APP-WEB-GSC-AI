@@ -33,13 +33,9 @@
             
             <div class="navbar-menu">
                 <div class="navbar-links">
-                    <a href="/dashboard" class="navbar-link">
-                        <i class="fas fa-home"></i>
-                        Dashboard
-                    </a>
-                    <a href="/app" class="navbar-link">
+                    <a href="/app" class="navbar-link custom-btn-analizar">
                         <i class="fas fa-analytics"></i>
-                        Ir a Clicandseo
+                        Comenzar a Analizar
                     </a>
                     {% if user.role == 'admin' %}
                     <a href="/admin/users" class="navbar-link">
@@ -66,6 +62,10 @@
                             <a href="/profile" class="dropdown-item active">
                                 <i class="fas fa-user-circle"></i>
                                 Mi Perfil
+                            </a>
+                            <a href="/dashboard" class="dropdown-item">
+                                <i class="fas fa-home"></i>
+                                Dashboard
                             </a>
                             <div class="dropdown-divider"></div>
                             <button class="dropdown-item logout-btn">
@@ -97,9 +97,15 @@
                             <h1>{{ user.name }}</h1>
                             <p class="user-email">{{ user.email }}</p>
                             <div class="user-badges">
-                                <span class="badge badge-role">
-                                    <i class="fas fa-{{ 'crown' if user.role == 'admin' else 'user' }}"></i>
-                                    {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
+                                    <i class="fas fa-{{ 'crown' if user.role == 'admin' else ('robot' if user.role == 'AI User' else 'user') }}"></i>
+                                    {% if user.role == 'admin' %}
+                                        Administrador
+                                    {% elif user.role == 'AI User' %}
+                                        AI User
+                                    {% else %}
+                                        Usuario
+                                    {% endif %}
                                 </span>
                                 <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
                                     <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
@@ -749,6 +755,12 @@
             color: #1976d2;
         }
 
+        .badge-role.ai-user {
+            background: #161616;
+            color: #D8F9B8;
+            border-radius: 8px;
+        }
+
         .badge-status.active {
             background: #e8f5e8;
             color: #2e7d32;
@@ -757,6 +769,21 @@
         .badge-status.inactive {
             background: #ffebee;
             color: #c62828;
+        }
+
+        .custom-btn-analizar {
+            padding: 0.5rem 1rem !important;
+            color: #161616 !important;
+            text-decoration: none !important;
+            border-radius: 25px !important;
+            transition: all 0.3s ease !important;
+            background: #D8F9B8 !important;
+            font-size: 14px !important;
+        }
+
+        .custom-btn-analizar:hover {
+            background: #c5e6a3 !important;
+            transform: translateY(-1px);
         }
 
         .profile-tabs {
