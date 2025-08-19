@@ -117,7 +117,7 @@
                     <div class="header-actions">
                         <button class="btn btn-primary" onclick="openEditProfile()">
                             <i class="fas fa-edit"></i>
-                            Editar perfil
+                            Edit Profile
                         </button>
                     </div>
                 </div>
@@ -128,15 +128,15 @@
                 <div class="tab-nav">
                     <button class="tab-button active" data-tab="info">
                         <i class="fas fa-info-circle"></i>
-                        Información personal
+                        Personal Information
                     </button>
                     <button class="tab-button" data-tab="security">
                         <i class="fas fa-shield-alt"></i>
-                        Seguridad
+                        Security
                     </button>
                     <button class="tab-button" data-tab="activity">
                         <i class="fas fa-history"></i>
-                        Actividad
+                        Activity
                     </button>
                 </div>
 
@@ -146,14 +146,14 @@
                         <div class="card-header">
                             <h3>
                                 <i class="fas fa-user"></i>
-                                Información personal
+                                Personal Information
                             </h3>
-                            <p>Gestiona tu información básica de perfil</p>
+                            <p>Manage your basic profile information</p>
                         </div>
                         <div class="card-body">
                             <div class="info-grid">
                                 <div class="info-item">
-                                    <label>Nombre completo</label>
+                                    <label>Full Name</label>
                                     <div class="info-value">{{ user.name }}</div>
                                 </div>
                                 <div class="info-item">
@@ -161,33 +161,39 @@
                                     <div class="info-value">{{ user.email }}</div>
                                 </div>
                                 <div class="info-item">
-                                    <label>Rol</label>
+                                    <label>Role</label>
                                     <div class="info-value">
-                                        <span class="badge badge-role">
-                                            {{ 'Administrador' if user.role == 'admin' else 'Usuario' }}
+                                        <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
+                                            {% if user.role == 'admin' %}
+                                                Admin
+                                            {% elif user.role == 'AI User' %}
+                                                AI User
+                                            {% else %}
+                                                User
+                                            {% endif %}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="info-item">
-                                    <label>Estado de la cuenta</label>
+                                    <label>Account Status</label>
                                     <div class="info-value">
                                         <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
-                                            {{ 'Activa' if user.is_active else 'Inactiva' }}
+                                            {{ 'Active' if user.is_active else 'Inactive' }}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="info-item">
-                                    <label>Fecha de registro</label>
+                                    <label>Registration Date</label>
                                     <div class="info-value">
                                         {% if user.created_at %}
-                                            {{ user.created_at.strftime('%d de %B de %Y') }}
+                                            {{ user.created_at.strftime('%B %d, %Y') }}
                                         {% else %}
-                                            No disponible
+                                            Not available
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="info-item">
-                                    <label>Tipo de autenticación</label>
+                                    <label>Authentication Type</label>
                                     <div class="info-value">
                                         {% if user.google_id %}
                                         <span class="auth-type google">
@@ -197,7 +203,7 @@
                                         {% else %}
                                         <span class="auth-type manual">
                                             <i class="fas fa-envelope"></i>
-                                            Email y contraseña
+                                            Email and Password
                                         </span>
                                         {% endif %}
                                     </div>
@@ -213,9 +219,9 @@
                         <div class="card-header">
                             <h3>
                                 <i class="fas fa-shield-alt"></i>
-                                Seguridad de la cuenta
+                                Account Security
                             </h3>
-                            <p>Gestiona la seguridad y contraseña de tu cuenta</p>
+                            <p>Manage your account security and password</p>
                         </div>
                         <div class="card-body">
                             {% if user.password_hash %}
@@ -224,13 +230,13 @@
                                     <div class="security-info">
                                         <h4>
                                             <i class="fas fa-key"></i>
-                                            Contraseña
+                                            Password
                                         </h4>
-                                        <p>Cambia tu contraseña para mantener tu cuenta segura</p>
+                                        <p>Change your password to keep your account secure</p>
                                     </div>
                                     <button class="btn btn-outline" onclick="openChangePassword()">
                                         <i class="fas fa-edit"></i>
-                                        Cambiar contraseña
+                                        Change Password
                                     </button>
                                 </div>
                             </div>
@@ -239,8 +245,8 @@
                                 <div class="notice-content">
                                     <i class="fab fa-google"></i>
                                     <div>
-                                        <h4>Cuenta vinculada con Google</h4>
-                                        <p>Tu cuenta está autenticada mediante Google OAuth. No tienes una contraseña específica en nuestro sistema.</p>
+                                        <h4>Google-linked Account</h4>
+                                        <p>Your account is authenticated through Google OAuth. You don't have a specific password in our system.</p>
                                     </div>
                                 </div>
                             </div>
@@ -271,9 +277,9 @@
                         <div class="card-header">
                             <h3>
                                 <i class="fas fa-history"></i>
-                                Actividad reciente
+                                Recent Activity
                             </h3>
-                            <p>Registro de las acciones más recientes en tu cuenta</p>
+                            <p>Log of the most recent actions on your account</p>
                         </div>
                         <div class="card-body">
                             <div class="activity-list">
@@ -751,11 +757,6 @@
         }
 
         .badge-role {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .badge-role.ai-user {
             background: #161616;
             color: #D8F9B8;
             border-radius: 8px;

@@ -226,6 +226,7 @@
             </div>
           </button>
 
+          {% if user and user.role in ['admin', 'AI User'] %}
           <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
@@ -235,6 +236,17 @@
               <div class="status-dot status-ready" id="statusManualAI"></div>
             </div>
           </button>
+          {% else %}
+          <div class="nav-item disabled" id="navManualAI" title="This functionality is only available for AI Users">
+            <div class="nav-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="nav-text">Manual AI Analysis</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusManualAI"></div>
+            </div>
+          </div>
+          {% endif %}
         </div>
 
         <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">

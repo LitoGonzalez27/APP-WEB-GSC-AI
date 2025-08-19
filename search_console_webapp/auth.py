@@ -282,16 +282,11 @@ def ai_user_required(f):
         if not user['role'] in ['admin', 'AI User']:
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({
-                    'error': 'Coming Soon',
-                    'message': 'This functionality is still under development and will be enabled soon.',
+                    'error': 'AI User privileges required',
                     'ai_user_required': True
                 }), 403
-            # Para acceso directo via navegador, renderizar página con mensaje
-            return render_template('dashboard.html', 
-                                 user=user, 
-                                 authenticated=True,
-                                 ai_access_denied=True,
-                                 ai_message='Coming Soon - This functionality is still under development and will be enabled soon.')
+            # Para acceso directo via navegador, redirigir a /app
+            return redirect(url_for('app_main'))
         
         # Actualizar última actividad
         update_last_activity()

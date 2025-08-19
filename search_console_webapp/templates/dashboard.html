@@ -143,22 +143,7 @@
             </div>
             {% endif %}
 
-            <!-- Alerta de acceso AI denegado -->
-            {% if ai_access_denied %}
-            <div class="alert alert-info">
-                <i class="fas fa-robot"></i>
-                <div class="alert-content">
-                    <h4>Coming Soon</h4>
-                    <p>{{ ai_message }}</p>
-                    <div class="alert-actions">
-                        <button class="btn btn-primary" onclick="window.location.href='/dashboard'">
-                            <i class="fas fa-arrow-left"></i>
-                            Volver al Dashboard
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+
 
             <!-- Grid de tarjetas -->
             <div class="dashboard-grid">
