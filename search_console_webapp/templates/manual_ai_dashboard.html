@@ -994,6 +994,26 @@ keyword 3"></textarea>
                         </div>
                     </div>
 
+                    <!-- ✅ NUEVO: Add Notes Section -->
+                    <div class="tab-section">
+                        <h4>Add Notes</h4>
+                        <div class="notes-input-section">
+                            <div class="input-group">
+                                <textarea id="modalNotesInput" class="form-textarea" 
+                                          placeholder="Add your personal notes about today's optimizations, changes, or observations..."
+                                          rows="3"></textarea>
+                                <button type="button" class="btn-secondary" onclick="manualAI.addNoteFromModal()">
+                                    <i class="fas fa-sticky-note"></i>
+                                    Add Note
+                                </button>
+                            </div>
+                            <small class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Add notes to mark important days and track optimization efforts. These will appear as blue annotations in your visibility graph.
+                            </small>
+                        </div>
+                    </div>
+
                     <div class="tab-section">
                         <h4>Current Keywords</h4>
                         <div class="keywords-list-container">

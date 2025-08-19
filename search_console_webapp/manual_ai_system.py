@@ -540,6 +540,71 @@ def create_annotation():
         logger.error(f"Error creating annotation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@manual_ai_bp.route('/api/projects/<int:project_id>/notes', methods=['POST'])
+@auth_required
+def add_project_note(project_id):
+    """✨ NUEVO: Añadir nota manual del usuario para un proyecto"""
+    user = get_current_user()
+    data = request.get_json()
+    
+    note_text = data.get('note', '').strip()
+    
+    if not note_text:
+        return jsonify({'success': False, 'error': 'Note text is required'}), 400
+    
+    if len(note_text) > 500:
+        return jsonify({'success': False, 'error': 'Note text must be 500 characters or less'}), 400
+    
+    # Verificar que el proyecto existe y pertenece al usuario
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({
+            'success': False, 
+            'error': 'Project not found or unauthorized access'
+        }), 403
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Obtener fecha actual
+        from datetime import date
+        today = date.today()
+        
+        # Crear evento de nota manual
+        cur.execute("""
+            INSERT INTO manual_ai_events 
+            (project_id, event_type, event_title, event_description, event_date, keywords_affected, user_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            project_id,
+            'manual_note_added',  # ✅ Nuevo tipo de evento
+            f'User note: {note_text[:50]}...' if len(note_text) > 50 else f'User note: {note_text}',
+            note_text,
+            today,
+            0,  # Las notas no afectan keywords
+            user['id'],
+            datetime.now()
+        ))
+        
+        conn.commit()
+        
+        logger.info(f"📝 Manual note added for project {project_id} by user {user['id']}: {note_text[:100]}...")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Note added successfully',
+            'note_date': str(today)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error adding project note: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if 'cur' in locals():
+            cur.close()
+        if 'conn' in locals():
+            conn.close()
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords/<int:keyword_id>', methods=['PUT'])
 @auth_required
 def update_project_keyword(project_id, keyword_id):

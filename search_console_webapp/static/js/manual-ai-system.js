@@ -1556,18 +1556,19 @@ class ManualAISystem {
     createEventAnnotations(chartData, events) {
         if (!events || events.length === 0) return [];
         
-        // ✅ CORREGIDO: Solo eventos de cambios de keywords
-        const keywordEvents = events.filter(event => 
+        // ✅ MEJORADO: Eventos de cambios de keywords Y notas manuales
+        const relevantEvents = events.filter(event => 
             event.event_type === 'keywords_added' ||
             event.event_type === 'keyword_deleted' ||
-            event.event_type === 'keywords_removed'
+            event.event_type === 'keywords_removed' ||
+            event.event_type === 'manual_note_added'  // ✅ NUEVO: Incluir notas manuales
         );
         
-        if (keywordEvents.length === 0) return [];
+        if (relevantEvents.length === 0) return [];
         
         const chartDates = chartData.map(d => new Date(d.analysis_date).toDateString());
         
-        return keywordEvents.map(event => {
+        return relevantEvents.map(event => {
             const eventDate = new Date(event.event_date).toDateString();
             const dateIndex = chartDates.indexOf(eventDate);
             
@@ -1628,28 +1629,30 @@ class ManualAISystem {
 
     getEventColor(eventType) {
         const colors = {
-            'keywords_added': '#F59E0B',     // ✅ MEJORADO: Warning orange para cambios de keywords
-            'keyword_deleted': '#F59E0B',   // ✅ MEJORADO: Warning orange para eliminación de keywords
-            'keywords_removed': '#F59E0B',  // ✅ MEJORADO: Warning orange para cambios de keywords
+            'keywords_added': '#F59E0B',     // ✅ Warning orange para cambios de keywords
+            'keyword_deleted': '#F59E0B',   // ✅ Warning orange para eliminación de keywords
+            'keywords_removed': '#F59E0B',  // ✅ Warning orange para cambios de keywords
+            'manual_note_added': '#3B82F6', // ✅ NUEVO: Azul para notas manuales del usuario
             'project_created': '#4F46E5',   // Blue
             'daily_analysis': '#6B7280',    // Gray
             'analysis_failed': '#EF4444',   // Red para errores reales
-            'competitors_changed': '#8B5CF6', // ✅ NUEVO: Purple para cambios de competidores
-            'competitors_updated': '#8B5CF6'  // ✅ NUEVO: Purple para actualizaciones de competidores
+            'competitors_changed': '#8B5CF6', // ✅ Purple para cambios de competidores
+            'competitors_updated': '#8B5CF6'  // ✅ Purple para actualizaciones de competidores
         };
         return colors[eventType] || '#6B7280';
     }
 
     getEventIcon(eventType) {
         const icons = {
-            'keywords_added': '⚠',           // ✅ MEJORADO: Warning para cambios de keywords
-            'keyword_deleted': '⚠',         // ✅ MEJORADO: Warning para eliminación de keywords
-            'keywords_removed': '⚠',        // ✅ MEJORADO: Warning para cambios de keywords
+            'keywords_added': '⚠',           // ✅ Warning para cambios de keywords
+            'keyword_deleted': '⚠',         // ✅ Warning para eliminación de keywords
+            'keywords_removed': '⚠',        // ✅ Warning para cambios de keywords
+            'manual_note_added': '📝',       // ✅ NUEVO: Icono de nota para anotaciones manuales
             'project_created': '⭐',
             'daily_analysis': '📊',
             'analysis_failed': '⚠',
-            'competitors_changed': '🔄',     // ✅ NUEVO: Icono para cambios de competidores
-            'competitors_updated': '🔄'      // ✅ NUEVO: Icono para actualizaciones de competidores
+            'competitors_changed': '🔄',     // ✅ Icono para cambios de competidores
+            'competitors_updated': '🔄'      // ✅ Icono para actualizaciones de competidores
         };
         return icons[eventType] || '•';
     }
@@ -3690,6 +3693,62 @@ class ManualAISystem {
         } catch (error) {
             console.error('Error adding keywords:', error);
             this.showError(`Failed to add keywords: ${error.message}`);
+        }
+    }
+
+    // ✅ NUEVO: Función para añadir notas manuales del usuario
+    async addNoteFromModal() {
+        const notesInput = document.getElementById('modalNotesInput');
+        const noteText = notesInput.value.trim();
+        
+        if (!noteText) {
+            this.showError('Please enter a note');
+            return;
+        }
+
+        if (noteText.length > 500) {
+            this.showError('Note must be 500 characters or less');
+            return;
+        }
+
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: noteText })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add note');
+            }
+
+            const result = await response.json();
+            
+            // Clear input
+            notesInput.value = '';
+            
+            // Refresh analytics if we're currently viewing this project
+            if (this.currentProject && this.currentProject.id === this.currentModalProject.id) {
+                await this.loadAnalyticsComponents(this.currentProject.id);
+            }
+            
+            this.showSuccess(`Note added successfully for ${result.note_date}`);
+            
+            console.log('📝 Manual note added successfully:', {
+                project: this.currentModalProject.name,
+                note: noteText.substring(0, 50) + (noteText.length > 50 ? '...' : ''),
+                date: result.note_date
+            });
+
+        } catch (error) {
+            console.error('Error adding note:', error);
+            this.showError(`Failed to add note: ${error.message}`);
         }
     }
 
