@@ -5,8 +5,8 @@
 /* ===== VARIABLES ESPECÍFICAS PARA EL SELECTOR DE FECHAS ===== */
 :root {
   /* Date Selector Colors */
-  --date-primary: var(--cta-bg, #0D7FF3);
-  --date-primary-hover: var(--cta-hover-bg, #0B6BCF);
+  --date-primary: var(--cta-bg, #161616);
+  --date-primary-hover: var(--cta-hover-bg, #D8F9B8);
   --date-primary-light: rgba(13, 127, 243, 0.1);
   
   --date-surface: var(--card-bg, #ffffff);
@@ -97,9 +97,9 @@ body.dark-mode {
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--date-primary), var(--date-primary-hover));
+  background: #161616;
   border-radius: 12px;
-  color: white;
+  color: #D8F9B8;
   font-size: 20px;
   flex-shrink: 0;
   transition: var(--date-transition);
@@ -174,8 +174,8 @@ body.dark-mode {
 }
 
 .date-badge-primary {
-  background: var(--date-primary-light);
-  color: var(--date-primary);
+  background: #d8f9b863;
+  color: #161616;
   border-color: rgba(13, 127, 243, 0.2);
 }
 
@@ -515,12 +515,12 @@ body.dark-mode {
   background: var(--date-primary-light);
   border: 1px solid rgba(13, 127, 243, 0.2);
   border-radius: 8px;
-  color: var(--date-primary);
+  color: #161616;
   margin-bottom:5px;
 }
 
 .date-info-card i {
-  color: var(--date-primary);
+  color: #161616;
   margin-top: 2px;
   flex-shrink: 0;
 }
@@ -579,13 +579,13 @@ body.dark-mode {
 }
 
 .btn-modal-primary {
-  background: var(--date-primary);
-  color: white;
+  background: #161616;
+  color:#D8F9B8;
   border: 1px solid var(--date-primary);
 }
 
 .btn-modal-primary:hover {
-  background: var(--date-primary-hover);
+  background:#161616;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(13, 127, 243, 0.3);
 }
@@ -921,7 +921,7 @@ body.dark-mode {
 body.dark-mode .date-info-card {
   background: rgba(13, 127, 243, 0.1);
   border-color: rgba(13, 127, 243, 0.2);
-  color: var(--date-text-primary);
+  color: #161616;
 }
 
 body.dark-mode .date-info-card i {

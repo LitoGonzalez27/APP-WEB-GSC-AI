@@ -1083,7 +1083,7 @@ tr:hover td {
 }
 
 .country-info-tooltip .tooltip-content {
-  background: var(--card-bg);
+  background: #161616;
   color: var(--text-color);
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
@@ -1106,7 +1106,7 @@ tr:hover td {
 }
 
 .country-info-tooltip .tooltip-description {
-  color: var(--text-color);
+  color: white;
   font-size: 0.85em;
   opacity: 0.9;
 }
