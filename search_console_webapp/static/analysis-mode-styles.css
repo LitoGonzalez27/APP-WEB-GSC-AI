@@ -82,8 +82,9 @@
     font-weight: 500;
 }
 
-/* Contenedor relativo para el tooltip */
-label[for="urlsInput"] {
+/* Contenedor relativo para los tooltips */
+label[for="urlsInput"],
+label[for="matchTypeGroup"] {
     position: relative;
 }
 
