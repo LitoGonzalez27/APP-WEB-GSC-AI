@@ -1198,96 +1198,6 @@ function handleAuthError(error, context = '') {
     }, 2000);
 }
 
-// ✅ NUEVO: Inicializar tooltip del campo URLs
-function initUrlsInfoTooltip() {
-    console.log('🔍 Iniciando initUrlsInfoTooltip...');
-    
-    const urlsLabel = document.querySelector('label[for="urlsInput"]');
-    const urlsIcon = document.getElementById('urlsInfoIcon');
-    
-    console.log('🔍 Elementos encontrados:', {
-        urlsLabel: !!urlsLabel,
-        urlsIcon: !!urlsIcon,
-        labelElement: urlsLabel,
-        iconElement: urlsIcon
-    });
-    
-    if (!urlsLabel || !urlsIcon) {
-        console.error('❌ No se encontraron los elementos necesarios para el tooltip');
-        return;
-    }
-    
-    // Verificar si ya existe el tooltip
-    const existingTooltip = document.getElementById('urlsInfoTooltip');
-    if (existingTooltip) {
-        console.log('⚠️ Tooltip ya existe, eliminando...');
-        existingTooltip.remove();
-    }
-    
-    // Crear el tooltip HTML
-    const tooltipHTML = `
-        <div class="urls-info-tooltip" id="urlsInfoTooltip">
-            <strong>ℹ️ How URL Analysis Works</strong>
-            <p>When you leave the URL field empty, the analysis covers your entire Search Console property with all pages included. If you specify URLs, the system will filter data to show only pages that match your criteria. Use <em>Contains</em> to find pages that include your specified text anywhere in the URL, <em>Equals</em> for exact URL matches, or <em>Not Contains</em> to exclude pages that contain your specified text. Enter one URL per line for multiple URL analysis.</p>
-        </div>
-    `;
-    
-    // Agregar el tooltip al label
-    urlsLabel.insertAdjacentHTML('beforeend', tooltipHTML);
-    
-    const tooltip = document.getElementById('urlsInfoTooltip');
-    console.log('🔍 Tooltip creado:', !!tooltip);
-    
-    // Funcionalidad de click
-    urlsIcon.addEventListener('click', (e) => {
-        console.log('🔍 Click en icono detectado');
-        e.preventDefault();
-        e.stopPropagation();
-        tooltip.classList.toggle('active');
-        console.log('🔍 Tooltip activo:', tooltip.classList.contains('active'));
-    });
-    
-    // Agregar hover también
-    urlsIcon.addEventListener('mouseenter', () => {
-        console.log('🔍 Hover en icono detectado');
-        tooltip.classList.add('active');
-    });
-    
-    urlsIcon.addEventListener('mouseleave', () => {
-        // Delay para permitir hover en el tooltip
-        setTimeout(() => {
-            if (!tooltip.matches(':hover')) {
-                tooltip.classList.remove('active');
-            }
-        }, 100);
-    });
-    
-    // Mantener abierto cuando se hace hover en el tooltip
-    tooltip.addEventListener('mouseenter', () => {
-        tooltip.classList.add('active');
-    });
-    
-    tooltip.addEventListener('mouseleave', () => {
-        tooltip.classList.remove('active');
-    });
-    
-    // Cerrar al hacer click fuera
-    document.addEventListener('click', (e) => {
-        if (!urlsLabel.contains(e.target)) {
-            tooltip.classList.remove('active');
-        }
-    });
-    
-    // Cerrar con ESC
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            tooltip.classList.remove('active');
-        }
-    });
-    
-    console.log('✅ Tooltip del campo URLs inicializado correctamente');
-}
-
 // ✅ NUEVO: Configurar interacciones del tooltip (SIMPLIFICADO)
 function setupTooltipInteraction() {
     const tooltipElement = document.querySelector('[data-tooltip-id="analysis-mode-tooltip"]');
@@ -1383,10 +1293,6 @@ function initializeApp() {
     initAIOverlay(); // ✅ NUEVO: Inicializar overlay AI
     initUrlPlaceholderFunctionality(); // ✅ NUEVO: Inicializar placeholder dinámico
     initMobileOptimizations(); // ✅ NUEVO: Inicializar optimizaciones móviles automáticas
-    // ✅ NUEVO: Inicializar tooltip de información con timeout
-    setTimeout(() => {
-        initUrlsInfoTooltip();
-    }, 500);
 
     // 6) Botón para borrar URLs
     const clearUrlsBtn = document.getElementById('clearUrlsBtn');
@@ -1443,7 +1349,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.displayAnalysisMode = displayAnalysisMode;
     window.updateUrlPlaceholder = updateUrlPlaceholder;
     window.setupTooltipInteraction = setupTooltipInteraction;
-    window.initUrlsInfoTooltip = initUrlsInfoTooltip;
+
     window.updateAIOverlayData = updateAIOverlayData;
     window.resetAIOverlay = resetAIOverlay;
     window.updateRealProgress = updateRealProgress;

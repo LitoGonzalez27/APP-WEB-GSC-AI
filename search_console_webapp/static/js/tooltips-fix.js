@@ -32,7 +32,7 @@ function initUrlsInfoTooltip() {
     const tooltipHTML = `
         <div class="urls-info-tooltip" id="urlsInfoTooltip">
             <strong>ℹ️ URL Analysis Guide</strong>
-            <p>When you leave the URL field empty, the analysis covers your entire Search Console property with all pages included. If you specify URLs, the system will filter data to show only pages that match your criteria. Enter one URL per line for multiple URL analysis. You can also use multiple paths.</p>
+            <p>When you leave the URL field empty, the analysis covers your entire Search Console property with all pages included. If you specify URLs, the system will filter data to show only pages that match your criteria. You can add multiple URLs or paths, one per line break (each URL or path on a separate line).</p>
         </div>
     `;
     
@@ -120,7 +120,7 @@ function initMatchTypeInfoTooltip() {
     const tooltipHTML = `
         <div class="urls-info-tooltip" id="matchTypeInfoTooltip">
             <strong>ℹ️ Match Type Options</strong>
-            <p>Use <em>Contains</em> to find pages that include your specified text anywhere in the URL, <em>Equals</em> for exact URL matches (use it to analyze multiple URLs), or <em>Not Contains</em> to exclude pages that contain your specified text.</p>
+            <p>Use <em>Contains</em> to find pages that include your specified text anywhere in the URL, <em>Equals</em> for exact URL matches, or <em>Not Contains</em> to exclude pages that contain your specified text. Enter one URL per line for multiple URL analysis.</p>
         </div>
     `;
     

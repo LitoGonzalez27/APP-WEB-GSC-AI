@@ -81,11 +81,11 @@
               <span>Dashboard</span>
             </a>
             <div class="dropdown-divider"></div>
-            <button class="dropdown-item" id="dropdownThemeToggle">
+            <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
               <i class="fas fa-moon" id="dropdownThemeIcon"></i>
               <span id="dropdownThemeText">Modo Oscuro</span>
             </button>
-            <div class="dropdown-divider"></div>
+            <div class="dropdown-divider" style="display: none;"></div>
             <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
               <i class="fas fa-sign-out-alt"></i>
               <span>Cerrar Sesión</span>
@@ -99,7 +99,7 @@
             <span>Iniciar Sesión</span>
           </button>
 
-          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema">
+          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema" style="display: none;">
             <i class="fas fa-moon" id="themeIcon"></i>
           </button>
         </div>
@@ -150,7 +150,7 @@
             </button>
           </div>
 
-          <div class="mobile-theme-section">
+          <div class="mobile-theme-section" style="display: none;">
             <div class="mobile-theme-toggle">
               <span class="mobile-theme-label">Tema de la aplicación</span>
               <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
