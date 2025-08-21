@@ -2614,6 +2614,23 @@ class ManualAISystem {
             grid.render(container);
             console.log('✅ AI Overview Grid.js table rendered successfully');
 
+            // Orden inicial por posición ascendente, enviando N/A al final
+            try {
+                setTimeout(() => {
+                    if (grid && grid.config) {
+                        grid.updateConfig({
+                            sort: {
+                                multiColumn: false,
+                                sortColumn: 2, // índice de "Your Position in AIO"
+                                sortDirection: 'asc'
+                            }
+                        }).forceRender();
+                    }
+                }, 400);
+            } catch (e) {
+                console.warn('⚠️ No se pudo aplicar el orden inicial por posición:', e);
+            }
+
         } catch (error) {
             console.error('❌ Error creating AI Overview Grid.js table:', error);
             container.innerHTML = '<p class="error-message">Error creating table</p>';
@@ -2646,9 +2663,16 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
-                        return numA - numB;
+                        const toSortable = (v) => {
+                            if (v === null || v === undefined) return Number.POSITIVE_INFINITY;
+                            if (typeof v === 'number') return v;
+                            const s = String(v).trim();
+                            if (s === 'N/A' || s === 'No' || s === '-' || s === '') return Number.POSITIVE_INFINITY;
+                            const normalized = s.replace(/\s/g, '').replace(',', '.');
+                            const num = parseFloat(normalized);
+                            return isNaN(num) ? Number.POSITIVE_INFINITY : num;
+                        };
+                        return toSortable(a) - toSortable(b);
                     }
                 },
                 formatter: (cell) => {
@@ -2685,9 +2709,16 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
-                        return numA - numB;
+                        const toSortable = (v) => {
+                            if (v === null || v === undefined) return Number.POSITIVE_INFINITY;
+                            if (typeof v === 'number') return v;
+                            const s = String(v).trim();
+                            if (s === 'N/A' || s === 'No' || s === '-' || s === '') return Number.POSITIVE_INFINITY;
+                            const normalized = s.replace(/\s/g, '').replace(',', '.');
+                            const num = parseFloat(normalized);
+                            return isNaN(num) ? Number.POSITIVE_INFINITY : num;
+                        };
+                        return toSortable(a) - toSortable(b);
                     }
                 },
                 formatter: (cell) => {
