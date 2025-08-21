@@ -217,7 +217,8 @@ body.loaded {
 }
 
 .logo-image-login{
-    width: 300px;
+    width: 200px;
+    margin-bottom:20px;
 }
 
 .logo-image-signup{
@@ -246,6 +247,7 @@ body.loaded {
 }
 
 .feature {
+    color:#161616;
     display: flex;
     align-items: center;
     gap: 0.75rem;
