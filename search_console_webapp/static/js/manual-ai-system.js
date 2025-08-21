@@ -2649,9 +2649,9 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        // Convertir a números para comparación - N/A como valor más negativo
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },
@@ -2696,9 +2696,9 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        // Convertir a números para comparación - N/A como valor más negativo
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },

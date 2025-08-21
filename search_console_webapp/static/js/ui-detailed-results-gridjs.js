@@ -137,9 +137,9 @@ function processDetailedDataForGrid(keywordResults) {
             width: '100px',
             sort: {
                 compare: (a, b) => {
-                    // Convertir a números para comparación - N/A como valor más negativo
-                    const numA = typeof a === 'number' ? a : (a === 'No' || a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
-                    const numB = typeof b === 'number' ? b : (b === 'No' || b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
+                    // Convertir a números para comparación - N/A como valor mayor para ir al final
+                    const numA = typeof a === 'number' ? a : (a === 'No' || a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'No' || b === 'N/A' ? Infinity : parseInt(b) || Infinity);
                     return numA - numB;
                 }
             },

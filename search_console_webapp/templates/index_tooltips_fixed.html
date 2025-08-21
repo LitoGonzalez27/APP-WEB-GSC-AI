@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clicandseo</title>
+
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modal-progreso.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='modales-datos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='serp-modal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='tablas.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='date-selector.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='analysis-mode-styles.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai-overlay-styles.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='feedback-button.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai-typology-chart.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='ai-reset-styles.css') }}">
+  
+  <!-- ClicAndSEO Style Guide - Search Performance Consistency -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='search-performance-styles.css') }}">
+</head>
+<body data-authenticated="{{ 'true' if authenticated else 'false' }}">
+
+  <nav class="navbar" id="navbar">
+    <div class="navbar-container">
+
+      <div class="navbar-brand">
+          <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+               alt="Clicandseo Logo" 
+               class="logo-image">
+      </div>
+
+      <div class="navbar-desktop-actions">
+
+        <div class="navbar-user-dropdown" id="userDropdown" style="display: none;">
+          <button class="user-dropdown-btn" id="userDropdownBtn">
+            <div class="user-avatar-small" id="userAvatarSmall">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <span class="user-name-small" id="userNameDropdown">Usuario</span>
+            <i class="fas fa-chevron-down dropdown-chevron"></i>
+          </button>
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <div class="user-dropdown-header">
+              <div class="user-avatar-large" id="userAvatarLarge">
+                <i class="fas fa-user-circle"></i>
+              </div>
+              <div class="user-details">
+                <div class="user-name-large" id="userNameLarge">Usuario</div>
+                <div class="user-email" id="userEmailDropdown">usuario@email.com</div>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="/profile" class="dropdown-item">
+              <i class="fas fa-user-circle"></i>
+              <span>Mi Perfil</span>
+            </a>
+            <a href="/dashboard" class="dropdown-item">
+              <i class="fas fa-home"></i>
+              <span>Dashboard</span>
+            </a>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
+              <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+              <span id="dropdownThemeText">Modo Oscuro</span>
+            </button>
+            <div class="dropdown-divider" style="display: none;"></div>
+            <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="auth-buttons" id="authButtons">
+          <button type="button" class="btn-auth btn-login" id="loginBtn">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Iniciar Sesión</span>
+          </button>
+
+          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema" style="display: none;">
+            <i class="fas fa-moon" id="themeIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <div class="navbar-mobile-menu" id="navbarMenu">
+        <div class="mobile-menu-header">
+          <div class="mobile-brand">
+            <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                 alt="Clicandseo Logo" 
+                 class="logo-image">
+            <span>Clicandseo</span>
+          </div>
+          <button class="mobile-menu-close" id="mobileMenuClose">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="mobile-menu-content">
+
+          <div class="mobile-user-section">
+            <div class="mobile-user-info" id="mobileUserInfo" style="display: none;">
+              <div class="mobile-user-avatar">
+                <i class="fas fa-user-circle"></i>
+              </div>
+              <div class="mobile-user-details">
+                <span class="mobile-user-name" id="mobileUserName">Usuario</span>
+                <span class="mobile-user-email" id="mobileUserEmail">usuario@email.com</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mobile-auth-section">
+            <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>Iniciar Sesión con Google</span>
+            </button>
+
+            <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: none;">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+
+          <div class="mobile-theme-section" style="display: none;">
+            <div class="mobile-theme-toggle">
+              <span class="mobile-theme-label">Tema de la aplicación</span>
+              <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
+                <i class="fas fa-moon" id="mobileThemeIcon"></i>
+                <span id="mobileThemeText">Modo Oscuro</span>
+                <i class="fas fa-chevron-right mobile-chevron"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="navbar-overlay" id="navbarOverlay"></div>
+  </nav>
+
+  <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+
+  <div class="app-layout">
+
+    <aside class="sidebar-container" id="sidebarContainer">
+      <div class="sidebar-header">
+      </div>
+
+      <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+
+        <div class="nav-section nav-section-analysis">
+          <div class="nav-section-title">Análisis</div>
+          <button type="button" class="nav-item active" id="navConfiguration" data-section="configuration">
+            <div class="nav-icon">
+              <i class="fas fa-cog"></i>
+            </div>
+            <div class="nav-text">Configuration</div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusConfiguration"></div>
+            </div>
+          </button>
+
+          <button type="button" class="nav-item disabled" id="navPerformance" data-section="performance">
+            <div class="nav-icon">
+              <i class="fas fa-tachometer-alt"></i>
+            </div>
+            <div class="nav-text">Overview</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusPerformance"></div>
+            </div>
+          </button>
+
+          <button type="button" class="nav-item disabled" id="navKeywords" data-section="keywords">
+            <div class="nav-icon">
+              <i class="fas fa-key"></i>
+            </div>
+            <div class="nav-text">Keywords</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusKeywords"></div>
+            </div>
+          </button>
+
+          <button type="button" class="nav-item disabled" id="navPages" data-section="pages">
+            <div class="nav-icon">
+              <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="nav-text">Pages</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusPages"></div>
+            </div>
+          </button>
+
+          <button type="button" class="nav-item disabled" id="navAI" data-section="ai-overview">
+            <div class="nav-icon">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="nav-text">AI Overview</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusAI"></div>
+            </div>
+          </button>
+
+          {% if user and user.role in ['admin', 'AI User'] %}
+          <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
+            <div class="nav-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="nav-text">Manual AI Analysis</div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusManualAI"></div>
+            </div>
+          </button>
+          {% else %}
+          <div class="nav-item disabled" id="navManualAI" title="This functionality is only available for AI Users">
+            <div class="nav-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="nav-text">Manual AI Analysis</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusManualAI"></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
+          <div class="nav-section-title">Herramientas</div>
+
+          <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;">
+            <i class="fas fa-download"></i>
+            <span>Descargar Excel</span>
+            <div class="download-spinner" style="display: none;">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+          </button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content-area">
+      <div id="stickyActions" class="sticky-actions" style="display: none;">
+        <div class="sticky-actions-container">
+          <button type="button" id="stickyAIBtn" class="sticky-btn sticky-btn-ai">
+            <i class="fas fa-robot"></i>
+            <span class="sticky-btn-text">Execute AI Analysis</span>
+            <span class="sticky-btn-spinner" style="display: none;">
+              <i class="fas fa-spinner fa-spin"></i>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="content-section active" id="configurationContent" data-section="configuration">
+        <div class="page-container">
+          <form id="urlForm" class="search-form">
+
+            <div class="form-header">
+              <h1>Search Results Performance</h1>
+              <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
+            </div> 
+
+            <div class="form-row">
+              <div class="form-group form-group-half">
+                <label for="siteUrlSelect">Select Domain</label>
+                <select id="siteUrlSelect" name="site_url" required>
+                  <option value="" disabled selected>Loading properties...</option>
+                </select>
+              </div>
+
+              <div class="form-group form-group-half">
+                <label for="countrySelect">
+                  Country
+                  <span class="country-info-icon" id="countryInfoIcon">
+                    <i class="fas fa-info-circle"></i>
+                  </span>
+                </label>
+                <select id="countrySelect" name="country">
+                  <option value="" disabled selected>Select a domain first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group form-group-large">
+                <label for="urlsInput">
+                  URL(s)
+                  <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon"></i>
+                </label>
+                <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
+              </div>
+
+              <div class="form-group form-group-small">
+                <label for="matchTypeGroup">
+                  Match Type
+                  <i class="fas fa-info-circle urls-info-icon" id="matchTypeInfoIcon"></i>
+                </label>
+                <div class="match-type-group" id="matchTypeGroup">
+                  <input type="radio" id="matchContains" name="match_type" value="contains" checked>
+                  <label for="matchContains" class="match-type-btn">Contains</label>
+
+                  <input type="radio" id="matchEquals" name="match_type" value="equals">
+                  <label for="matchEquals" class="match-type-btn">Equals</label>
+
+                  <input type="radio" id="matchNotContains" name="match_type" value="notContains">
+                  <label for="matchNotContains" class="match-type-btn">Not Contains</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group form-group-full">
+
+                <div id="monthChips" role="group" aria-labelledby="monthChipsLabel"></div>
+              </div>
+            </div>
+
+            <div class="form-row form-actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Analyze Performance
+              </button>
+              <button type="button" id="clearUrlsBtn" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Clear URLs
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="loader" style="display:none; text-align:center; margin:20px;" role="status" aria-live="polite">
+        <div class="spinner"></div>
+        <p>Processing data for specific periods...</p>
+      </div>
+
+      <div class="content-section" id="performanceContent" data-section="performance">
+        <section id="insightsSection" class="glass-effect">
+          <h2 id="insightsTitle">Performance Overview</h2>
+          <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
+          <div id="summaryDisclaimer" class="summary-disclaimer"></div>
+        </section>
+
+        <section id="performanceSection" class="glass-effect">
+          <h2 id="performanceTitle">Selected Periods Performance</h2>
+          <div id="summaryBlock" class="summary-block">
+
+            <div class="summary-card" id="summaryClicks">
+              <div class="card-icon"><i class="fas fa-mouse-pointer"></i></div>
+              <strong>Clicks</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryImpressions">
+              <div class="card-icon"><i class="fas fa-eye"></i></div>
+              <strong>Impressions</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryCTR">
+              <div class="card-icon"><i class="fas fa-percentage"></i></div>
+              <strong>Average CTR</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryPosition">
+              <div class="card-icon"><i class="fas fa-location-arrow"></i></div>
+              <strong>Average Position</strong>
+              <div class="summary-content"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="content-section" id="keywordsContent" data-section="keywords">
+        <section id="keywordsSection" class="glass-effect">
+          <h2 id="keywordsTitle" class="keywords-title-compact">Keyword Performance</h2> 
+          <div class="keywords-overview-subtitle">Performance comparison between selected periods</div>
+
+          <div class="keywords-overview-block">
+            <div id="keyword-overview" class="overview-cards overview-cards-horizontal"></div>
+          </div>
+
+          <div class="keywords-category-block">
+            <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
+          </div>
+          <div id="keywordComparisonBlock" class="table-responsive-container">
+            <!-- Grid.js table will be inserted here -->
+          </div>
+        </section>
+      </div>
+
+      <div class="content-section" id="pagesContent" data-section="pages">
+        <section id="resultsSection" class="glass-effect">
+          <h2 id="resultsTitle">URLs Performance</h2>
+          <div class="urls-overview-subtitle">Performance comparison between selected periods</div>
+          <div id="resultsBlock" class="table-responsive-container">
+            <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Keywords</th>
+                  <th>URL</th>
+                  <th>Clicks P1</th>
+                  <th>Clicks P2</th>
+                  <th>ΔClicks (%)</th>
+                  <th>Impressions P1</th>
+                  <th>Impressions P2</th>
+                  <th>ΔImp. (%)</th>
+                  <th>CTR P1 (%)</th>
+                  <th>CTR P2 (%)</th>
+                  <th>ΔCTR (%)</th>
+                  <th>Pos P1</th>
+                  <th>Pos P2</th>
+                  <th>ΔPos</th>
+                </tr>
+              </thead>
+              <tbody id="tableBodyResults"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="content-section" id="aiOverviewContent" data-section="ai-overview">
+        <!-- Advanced Analysis Options -->
+        <div class="advanced-analysis-section" id="advancedAnalysisSection">
+          <div class="section-header">
+            <h3 class="section-main-title">
+            Advanced Analysis Options
+            </h3>
+            <p class="section-main-description">
+              Configure competitor analysis 
+              <span class="analysis-info-icon" data-tooltip="If you don't add competitors manually, our system will automatically detect the top 4 most relevant domains based on their presence in AI Overview for your analyzed keywords. This auto-detection respects your keyword exclusions and helps identify your main competition in AI-powered search results.">
+                <i class="fas fa-info-circle"></i>
+              </span>
+              and keyword exclusions 
+              <span class="analysis-info-icon" data-tooltip="Our system analyzes the top keywords with the highest clicks from your Search Console data. You can actively exclude specific terms if needed to refine the analysis and focus on the most relevant keywords for your AI Overview insights.">
+                <i class="fas fa-info-circle"></i>
+              </span>
+              to refine your AI Overview insights
+            </p>
+          </div>
+
+          <!-- Competitor Analysis Collapsible -->
+          <div class="collapsible-section" id="competitorSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('competitor')">
+              <div class="collapsible-title">
+                <i class="fas fa-users"></i>
+                <span>Competitor Analysis</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="competitorSummary">
+                Click to add competitor domains
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="competitorArrow"></i>
+            </div>
+            
+            <div class="collapsible-content" id="competitorContent">
+              <div class="competitor-container">
+                <div class="competitor-grid">
+                  <!-- Column 1: Competitor 1 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 1
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor1" 
+                        placeholder="e.g., example.com"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor1Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Competitor 2 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 2
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor2" 
+                        placeholder="e.g., competitor.org"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor2Validation"></div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Competitor 3 -->
+                  <div class="competitor-column">
+                    <h4 class="competitor-column-title">
+                      <i class="fas fa-user"></i>
+                      Competitor 3
+                    </h4>
+                    <div class="competitor-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="competitor3" 
+                        placeholder="e.g., rival.co.uk"
+                        class="competitor-input"
+                      />
+
+                      <div class="competitor-validation" id="competitor3Validation"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Clear All Competitors Button -->
+                <div class="competitor-actions">
+                  <button type="button" class="clear-competitors-btn" id="clearCompetitors">
+                    <i class="fas fa-eraser"></i>
+                    Clear All Competitors
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Keyword Exclusions Collapsible -->
+          <div class="collapsible-section" id="exclusionSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('exclusion')">
+              <div class="collapsible-title">
+                <i class="fas fa-filter"></i>
+                <span>Keyword Exclusions</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="exclusionSummary">
+                Click to exclude brand terms or irrelevant keywords
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="exclusionArrow"></i>
+            </div>
+            
+            <div class="collapsible-content" id="exclusionContent">
+              <div class="exclusion-container">
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-filter"></i>
+                      Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="exclusionMethod" class="exclusion-method-select">
+                        <option value="contains">Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="startsWith">Starts With</option>
+                        <option value="endsWith">Ends With</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="methodDescription">Keywords containing these terms</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Terms
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="exclusionTerms" 
+                        placeholder="Type term, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Use comma (,) or Enter to add</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Active Tags -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-tags"></i>
+                      Active Exclusions
+                      <span class="exclusion-count" id="exclusionCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="exclusion-tags-container" id="exclusionTagsContainer">
+                        <!-- Tags will be dynamically added here -->
+                      </div>
+                      <div class="exclusion-clear-all" id="clearAllTags" style="display: none;">
+                        <button type="button" class="clear-all-btn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section id="aiOverviewSection" class="glass-effect">
+          <div class="ai-overview-header">
+            <h2 id="aiOverviewTitle">AI Overview Analysis</h2>
+            <button id="resetAIAnalysisBtn" class="btn-reset-ai" style="display: none;" title="Reset AI Analysis">
+              <i class="fas fa-refresh"></i>
+              <span>Reset Analysis</span>
+            </button>
+          </div>
+
+          <div class="ai-content-wrapper blurred" id="aiContentWrapper">
+
+            <div class="ai-placeholder-data" id="aiPlaceholderData">
+              <div class="ai-placeholder-summary">
+                <h3><i class="fas fa-chart-line"></i> AI Analysis Summary</h3>
+                <div class="ai-placeholder-metrics">
+                  <div class="ai-placeholder-metric ai-shimmer">
+                    <div class="ai-placeholder-metric-value">24</div>
+                    <div class="ai-placeholder-metric-label">Keywords Analyzed</div>
+                  </div>
+                  <div class="ai-placeholder-metric ai-shimmer">
+                    <div class="ai-placeholder-metric-value">18</div>
+                    <div class="ai-placeholder-metric-label">Con AI Overview</div>
+                  </div>
+                  <div class="ai-placeholder-metric ai-shimmer">
+                    <div class="ai-placeholder-metric-value">7</div>
+                    <div class="ai-placeholder-metric-label">Como Fuente IA</div>
+                  </div>
+                  <div class="ai-placeholder-metric ai-shimmer">
+                    <div class="ai-placeholder-metric-value">245</div>
+                    <div class="ai-placeholder-metric-label">Clics Potenciales</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ai-placeholder-table">
+                <div class="ai-placeholder-table-header">
+                  <i class="fas fa-table"></i> Top Keywords by AI Impact
+                </div>
+                <div class="ai-placeholder-rows">
+                  <div class="ai-placeholder-row">
+                    <span class="ai-placeholder-keyword">comprar zapatillas running</span>
+                    <span class="ai-placeholder-status positive">Fuente IA</span>
+                  </div>
+                  <div class="ai-placeholder-row">
+                    <span class="ai-placeholder-keyword">mejores marcas deportivas</span>
+                    <span class="ai-placeholder-status negative">Sin Mención</span>
+                  </div>
+                  <div class="ai-placeholder-row">
+                    <span class="ai-placeholder-keyword">reviews zapatillas 2024</span>
+                    <span class="ai-placeholder-status positive">Fuente IA</span>
+                  </div>
+                  <div class="ai-placeholder-row">
+                    <span class="ai-placeholder-keyword">ofertas calzado deportivo</span>
+                    <span class="ai-placeholder-status neutral">AI Overview</span>
+                  </div>
+                  <div class="ai-placeholder-row">
+                    <span class="ai-placeholder-keyword">guía tallas zapatos</span>
+                    <span class="ai-placeholder-status positive">Fuente IA</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="aiAnalysisMessage" class="ai-analysis-message" style="display: none;"></div>
+            <div id="aiOverviewResultsContainer" class="ai-overview-results-container" style="display: none;"></div>
+          </div>
+
+          <div class="ai-overlay" id="aiOverlay">
+            <div class="ai-overlay-content">
+              <i class="fas fa-robot ai-overlay-icon"></i>
+                          <h3 class="ai-overlay-title">Execute AI Analysis</h3>
+            <p class="ai-overlay-subtitle">
+              Analyze the impact of AI Overview on your keywords and discover visibility opportunities
+            </p>
+
+              <div class="ai-keyword-count-selector">
+                <label for="keywordCountSelect">
+                  <i class="fas fa-list-ol"></i> Keywords to analyze:
+                </label>
+                <select id="keywordCountSelect">
+                  <option value="25">25 keywords</option>
+                  <option value="50" selected>50 keywords</option>
+                  <option value="100">100 keywords</option>
+                  <option value="150">150 keywords</option>
+                </select>
+              </div>
+
+              <button class="btn-execute-ai" id="executeAIBtn" disabled>
+                <i class="fas fa-play"></i>
+                Start AI Analysis
+              </button>
+            </div>
+          </div>
+
+          <div class="ai-progress-overlay" id="aiProgressOverlay">
+            <div class="ai-progress-container">
+
+              <div class="ai-progress-particles">
+                <div class="ai-particle ai-particle-1"></div>
+                <div class="ai-particle ai-particle-2"></div>
+                <div class="ai-particle ai-particle-3"></div>
+                <div class="ai-particle ai-particle-4"></div>
+                <div class="ai-particle ai-particle-5"></div>
+                <div class="ai-particle ai-particle-6"></div>
+              </div>
+
+              <h3 class="ai-progress-title">Analyzing AI Overview</h3>
+              <p class="ai-progress-subtitle">Processing keywords and SERPs...</p>
+
+              <div class="ai-progress-circle">
+
+                <div class="ai-progress-pulse-ring"></div>
+                <svg viewBox="0 0 100 100">
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                    </linearGradient>
+                  </defs>
+                  <circle class="progress-bg" cx="50" cy="50" r="45"></circle>
+                  <circle class="progress-bar" cx="50" cy="50" r="45" id="progressCircle"></circle>
+                </svg>
+                <div class="ai-progress-percentage" id="progressPercentage">0%</div>
+              </div>
+
+              <div class="ai-progress-status" id="progressStatus">Starting analysis...</div>
+              <div class="ai-progress-details" id="progressDetails">Preparing keyword data</div>
+
+              <div class="ai-progress-time-remaining" id="timeRemaining" style="
+                margin-top: 0.8em;
+                text-align: center;
+                font-size: 0.9em;
+                color: #667eea;
+                font-weight: 500;
+                opacity: 0.9;
+              ">Calculating time...</div>
+
+              <div class="ai-progress-steps">
+                <div class="ai-progress-step" id="step1"></div>
+                <div class="ai-progress-step" id="step2"></div>
+                <div class="ai-progress-step" id="step3"></div>
+                <div class="ai-progress-step" id="step4"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="serpModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-search"></i> 
+          SERP Analysis: <span id="serpKeyword"></span>
+        </h3>
+        <span class="close-btn">&times;</span>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="progressModal" class="modal" role="dialog" aria-labelledby="progressModalTitle" aria-describedby="progressModalDesc">
+    <div class="modal-dialog">
+      <div class="progress-modal-content">
+
+        <div class="progress-modal-header">
+          <div class="progress-brand">
+            <div class="progress-logo" aria-hidden="true">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="progress-brand-text">
+              <h3 id="progressModalTitle">Performance Analysis</h3>
+              <p id="progressModalDesc">Processing your Search Console data</p>
+            </div>
+          </div>
+          <div class="progress-time-estimate">
+            <span class="time-label">Estimated time:</span>
+            <span class="time-value" id="timeEstimate" aria-live="polite">~45 seconds</span>
+          </div>
+        </div>
+
+        <div class="progress-main-section">
+
+          <div class="progress-circle-container">
+            <svg class="progress-circle-svg" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="progressGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#00f2fe;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#43e97b;stop-opacity:1" />
+                </linearGradient>
+              </defs>
+              <circle 
+                class="progress-circle-bg" 
+                cx="60" cy="60" r="54" 
+                fill="none" 
+                stroke-width="4">
+              </circle>
+              <circle 
+                class="progress-circle-fill" 
+                cx="60" cy="60" r="54" 
+                fill="none" 
+                stroke-width="4"
+                stroke-linecap="round"
+                id="progressCircleFill">
+              </circle>
+            </svg>
+            <div class="progress-percentage-display">
+              <span class="progress-percentage-number" id="progressPercentageNumber">0</span>
+              <span class="progress-percentage-symbol">%</span>
+            </div>
+            <div class="progress-pulse-ring"></div>
+          </div>
+
+          <div class="progress-status-section">
+            <h4 class="progress-current-step" id="progressCurrentStep" aria-live="polite">Initializing analysis...</h4>
+            <p class="progress-current-detail" id="progressCurrentDetail" aria-live="polite">Preparing to fetch your Search Console data</p>
+
+            <div class="progress-fun-fact" id="progressFunFact" role="note">
+              <i class="fas fa-lightbulb" aria-hidden="true"></i>
+              <span>Did you know? Google processes over 8.5 billion searches per day!</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="progress-steps-section">
+          <div class="progress-steps-header">
+            <span class="steps-label">Analysis Steps</span>
+            <span class="steps-counter" aria-live="polite">
+              <span id="currentStepNumber">1</span> of <span id="totalStepsNumber">7</span>
+            </span>
+          </div>
+          <div class="progress-steps-container" id="progressStepsContainer" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Analysis progress">
+
+          </div>
+        </div>
+
+        <div class="progress-particles">
+          <div class="particle particle-1"></div>
+          <div class="particle particle-2"></div>
+          <div class="particle particle-3"></div>
+          <div class="particle particle-4"></div>
+          <div class="particle particle-5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Grid.js para tablas avanzadas -->
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='gridjs-styles.css') }}">
+  <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+
+  <style>
+    .logged-in-nav {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .btn-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #f8f9fa;
+      color: #495057;
+      text-decoration: none;
+      border-radius: 25px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      border: 1px solid #dee2e6;
+    }
+
+    .btn-nav:hover {
+      background: #e9ecef;
+      color: #333;
+      text-decoration: none;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-nav i {
+      font-size: 0.875rem;
+    }
+
+    /* Responsive para móviles */
+    @media (max-width: 768px) {
+      .logged-in-nav {
+        gap: 0.25rem;
+      }
+
+      .btn-nav {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8rem;
+      }
+
+      .btn-nav span {
+        display: none; /* Ocultar texto en móvil, solo iconos */
+      }
+    }
+  </style>
+
+  <div class="feedback-button-container">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfVN-ZILnx6wzfaxaZ6dwSJNgG4CSSyuctaNOoVdsWnFE4GFw/viewform?usp=sharing&ouid=107199513026819931698" 
+       target="_blank" 
+       class="feedback-btn" 
+       data-tooltip="Reporta un error">
+      <i class="fas fa-bug"></i>
+      <span>Feedback Beta Tester</span>
+    </a>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
+<script src="{{ url_for('static', filename='js/keyword-exclusion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/collapsible-sections.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-detailed-results-gridjs.js') }}"></script>
+
+  <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
+
+  <script src="{{ url_for('static', filename='js/session-init.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keywords-gridjs.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/ui-date-selector.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
+
+  <!-- Fix Tooltips - URLs and Match Type -->
+  <script src="{{ url_for('static', filename='js/tooltips-fix.js') }}"></script>
+
+  <!-- Manual AI Analysis - Independent functionality -->
+  <script>
+    function openManualAI() {
+      console.log('🚀 Abriendo Manual AI desde aplicación principal...');
+      
+      // Guardar estado actual del análisis antes de navegar
+      const currentAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
+      const currentFormData = {
+        siteUrl: document.getElementById('siteUrlSelect')?.value || '',
+        country: document.getElementById('countrySelect')?.value || '',
+        startDate: document.getElementById('startDate')?.value || '',
+        endDate: document.getElementById('endDate')?.value || '',
+        comparisonStartDate: document.getElementById('comparisonStartDate')?.value || '',
+        comparisonEndDate: document.getElementById('comparisonEndDate')?.value || ''
+      };
+      
+      console.log('💾 Guardando estado actual:', {
+        hasAnalysisData: !!currentAnalysisData,
+        formData: currentFormData,
+        currentSection: window.sidebarNav?.currentSection || 'configuration',
+        currentURL: window.location.href
+      });
+      
+      // Guardar estado de navegación
+      const navigationState = {
+        source: 'main-app',
+        currentSection: window.sidebarNav?.currentSection || 'configuration',
+        analysisState: window.sidebarNav?.analysisState || 'pending',
+        formData: currentFormData,
+        hasAnalysisData: !!currentAnalysisData,
+        timestamp: Date.now(),
+        originalUrl: window.location.href
+      };
+      
+      // Guardar en sessionStorage para preservar entre páginas
+      sessionStorage.setItem('navigationState', JSON.stringify(navigationState));
+      
+      console.log('🔄 Navegando a Manual AI con estado sincronizado');
+      
+      // Navigate to Manual AI Analysis in same tab
+      window.location.href = '/manual-ai/';
+    }
+  </script>
+
+</body>
+</html>
