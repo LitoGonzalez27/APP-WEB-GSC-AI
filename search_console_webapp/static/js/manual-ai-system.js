@@ -2624,11 +2624,13 @@ class ManualAISystem {
         // Define base columns (sin la columna View)
         const columns = [
             {
+                id: 'keyword',
                 name: 'Keyword',
                 width: '200px',
                 sort: true
             },
             {
+                id: 'your_domain_in_aio',
                 name: gridjs.html('Your Domain<br>in AIO'),
                 width: '120px',
                 sort: true,
@@ -2642,12 +2644,14 @@ class ManualAISystem {
                 }
             },
             {
+                id: 'your_position_in_aio',
                 name: gridjs.html('Your Position<br>in AIO'),
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },
@@ -2663,9 +2667,15 @@ class ManualAISystem {
         // Add competitor columns
         competitorDomains.forEach((domain, index) => {
             const truncatedDomain = this.truncateDomain(domain, 15);
+            const domainId = (domain || '')
+                .toLowerCase()
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/[^a-z0-9]+/g, '_');
             
             // Competitor presence column
             columns.push({
+                id: `comp_${domainId}_present`,
                 name: gridjs.html(`${truncatedDomain}<br>in AIO`),
                 width: '120px',
                 sort: true,
@@ -2681,12 +2691,14 @@ class ManualAISystem {
 
             // Competitor position column
             columns.push({
+                id: `comp_${domainId}_position`,
                 name: gridjs.html(`Position of<br>${truncatedDomain}`),
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
                         return numA - numB;
                     }
                 },
