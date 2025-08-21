@@ -2646,8 +2646,8 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
                         return numA - numB;
                     }
                 },
@@ -2685,8 +2685,8 @@ class ManualAISystem {
                 width: '120px',
                 sort: {
                     compare: (a, b) => {
-                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || Infinity);
-                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || Infinity);
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? -Infinity : parseInt(a) || -Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? -Infinity : parseInt(b) || -Infinity);
                         return numA - numB;
                     }
                 },
