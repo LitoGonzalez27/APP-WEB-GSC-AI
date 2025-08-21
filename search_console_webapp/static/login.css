@@ -225,6 +225,7 @@ body.loaded {
 }
 
 .branding-text h2 {
+    color:#161616;
     font-size: 1.875rem;
     font-weight: 600;
     margin-bottom: 1rem;
@@ -232,6 +233,7 @@ body.loaded {
 }
 
 .branding-text p {
+    color:#161616;
     font-size: 1.125rem;
     opacity: 0.9;
     line-height: 1.6;
@@ -270,6 +272,7 @@ body.loaded {
 
 /* Panel del formulario (derecho) */
 .login-form-panel {
+    background-color:#161616;
     padding: 3rem;
     display: flex;
     flex-direction: column;
@@ -291,12 +294,12 @@ body.loaded {
 .form-header h3 {
     font-size: 1.875rem;
     font-weight: 700;
-    color: var(--gray-900);
+    color: white;
     margin-bottom: 0.5rem;
 }
 
 .form-header p {
-    color: var(--gray-600);
+    color: white;
     font-size: 1rem;
     line-height: 1.5;
 }
@@ -412,7 +415,7 @@ body.loaded {
     justify-content: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: var(--gray-600);
+    color: #f7f7f7;
     margin: 0;
 }
 
@@ -436,7 +439,7 @@ body.loaded {
 }
 
 .footer-link {
-    color: var(--gray-600);
+    color: #f7f7f7;
     text-decoration: none;
     font-size: 0.875rem;
     transition: var(--transition);
