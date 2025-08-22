@@ -850,7 +850,10 @@ def download_manual_ai_excel(project_id):
         # Obtener información del proyecto
         project_info = get_project_info(project_id)
         if not project_info:
+            logger.error(f"Project {project_id} not found for user {user['id']}")
             return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        logger.info(f"Project info retrieved: {project_info['name']} ({project_info['domain']})")
         
         # Verificar que hay datos para exportar
         results = get_project_analysis_results(project_id, days)
@@ -858,12 +861,14 @@ def download_manual_ai_excel(project_id):
             return jsonify({'success': False, 'error': 'No data available for export'}), 400
         
         # Generar Excel con las 5 hojas especificadas
+        logger.info(f"Generating Manual AI Excel for project {project_id}, user {user['id']}, days {days}")
         xlsx_file = generate_manual_ai_excel(
             project_id=project_id,
             project_info=project_info,
             days=days,
             user_id=user['id']
         )
+        logger.info(f"Manual AI Excel generated successfully for project {project_id}")
         
         # Crear nombre de archivo según especificaciones
         from datetime import datetime
@@ -886,9 +891,12 @@ def download_manual_ai_excel(project_id):
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         
+    except ImportError as e:
+        logger.error(f"Import error in manual AI Excel generation: {e}")
+        return jsonify({'success': False, 'error': 'Missing required dependencies for Excel generation'}), 500
     except Exception as e:
-        logger.error(f"Error generating manual AI Excel for project {project_id}: {e}")
-        return jsonify({'success': False, 'error': 'Failed to generate Excel file'}), 500
+        logger.error(f"Error generating manual AI Excel for project {project_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': f'Failed to generate Excel file: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/competitors-charts', methods=['GET'])
 @auth_required
@@ -3340,9 +3348,17 @@ def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, use
     
     try:
         # Obtener todos los datos necesarios
+        logger.info(f"Fetching analysis results for project {project_id}")
         results = get_project_analysis_results(project_id, days)
+        logger.info(f"Found {len(results)} analysis results")
+        
+        logger.info(f"Fetching project statistics for project {project_id}")
         stats = get_project_statistics(project_id, days)
+        logger.info(f"Statistics fetched successfully")
+        
+        logger.info(f"Fetching global domains ranking for project {project_id}")
         global_domains = get_project_global_domains_ranking(project_id, days)
+        logger.info(f"Found {len(global_domains) if global_domains else 0} global domains")
         
         # Configuración de zona horaria
         madrid_tz = pytz.timezone('Europe/Madrid')
@@ -3365,29 +3381,39 @@ def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, use
             number_format = workbook.add_format({'num_format': '0.0'})
             
             # HOJA 1: Resumen
+            logger.info("Creating summary sheet")
             create_summary_sheet(writer, workbook, header_format, project_info, stats, results, days, madrid_tz)
+            logger.info("Summary sheet created successfully")
             
             # HOJA 2: Domain Visibility Over Time
+            logger.info("Creating domain visibility sheet")
             create_domain_visibility_sheet(writer, workbook, header_format, date_format, 
                                          percent_format, project_id, project_info, days)
+            logger.info("Domain visibility sheet created successfully")
             
             # HOJA 3: Competitive Analysis
+            logger.info("Creating competitive analysis sheet")
             create_competitive_analysis_sheet(writer, workbook, header_format, date_format,
                                             percent_format, project_id, project_info, days)
+            logger.info("Competitive analysis sheet created successfully")
             
             # HOJA 4: AI Overview Keywords Details
+            logger.info("Creating keywords details sheet")
             create_keywords_details_sheet(writer, workbook, header_format, date_format,
                                         results, project_id, days)
+            logger.info("Keywords details sheet created successfully")
             
             # HOJA 5: Global AI Overview Domain Ratings
+            logger.info("Creating global domains sheet")
             create_global_domains_sheet(writer, workbook, header_format, percent_format,
                                       number_format, global_domains, project_info, stats)
+            logger.info("Global domains sheet created successfully")
         
         output.seek(0)
         return output
         
     except Exception as e:
-        logger.error(f"Error generating manual AI Excel: {e}")
+        logger.error(f"Error generating manual AI Excel: {e}", exc_info=True)
         raise
 
 def create_summary_sheet(writer, workbook, header_format, project_info, stats, results, days, madrid_tz):
@@ -3471,14 +3497,23 @@ def create_domain_visibility_sheet(writer, workbook, header_format, date_format,
             'project_visibility_pct': visibility_pct
         })
     
+    # Crear DataFrame con datos o vacío con columnas definidas
     if rows:
         df_visibility = pd.DataFrame(rows)
-        df_visibility.to_excel(writer, sheet_name='Domain Visibility Over Time', index=False)
-        
-        worksheet = writer.sheets['Domain Visibility Over Time']
-        worksheet.write_row(0, 0, ['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'], header_format)
-        worksheet.set_column('A:A', 15)
-        worksheet.set_column('B:D', 20)
+    else:
+        # Crear DataFrame vacío con las columnas requeridas
+        df_visibility = pd.DataFrame(columns=['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'])
+    
+    df_visibility.to_excel(writer, sheet_name='Domain Visibility Over Time', index=False)
+    
+    worksheet = writer.sheets['Domain Visibility Over Time']
+    worksheet.write_row(0, 0, ['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'], header_format)
+    worksheet.set_column('A:A', 15)
+    worksheet.set_column('B:D', 20)
+    
+    # Si no hay datos, agregar nota
+    if not rows:
+        worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 def create_competitive_analysis_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
     """Crear Hoja 3: Competitive Analysis"""
@@ -3553,25 +3588,34 @@ def create_competitive_analysis_sheet(writer, workbook, header_format, date_form
             'visibility_pct': visibility_pct
         })
     
+    # Crear DataFrame con datos o vacío con columnas definidas
     if rows:
         df_competitive = pd.DataFrame(rows)
         df_competitive = df_competitive.sort_values(['date', 'visibility_pct'], ascending=[True, False])
-        df_competitive.to_excel(writer, sheet_name='Competitive Analysis', index=False)
-        
-        worksheet = writer.sheets['Competitive Analysis']
-        worksheet.write_row(0, 0, ['date', 'domain', 'aio_keywords', 'domain_mentions', 'visibility_pct'], header_format)
-        worksheet.set_column('A:A', 15)
-        worksheet.set_column('B:B', 30)
-        worksheet.set_column('C:E', 20)
+    else:
+        # Crear DataFrame vacío con las columnas requeridas
+        df_competitive = pd.DataFrame(columns=['date', 'domain', 'aio_keywords', 'domain_mentions', 'visibility_pct'])
+    
+    df_competitive.to_excel(writer, sheet_name='Competitive Analysis', index=False)
+    
+    worksheet = writer.sheets['Competitive Analysis']
+    worksheet.write_row(0, 0, ['date', 'domain', 'aio_keywords', 'domain_mentions', 'visibility_pct'], header_format)
+    worksheet.set_column('A:A', 15)
+    worksheet.set_column('B:B', 30)
+    worksheet.set_column('C:E', 20)
+    
+    # Si no hay datos, agregar nota
+    if not rows:
+        worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 def create_keywords_details_sheet(writer, workbook, header_format, date_format, results, project_id, days):
     """Crear Hoja 4: AI Overview Keywords Details"""
     # Filtrar solo keywords con AI Overview
     ai_keywords = [r for r in results if r.get('has_ai_overview')]
     
+    # Preparar datos según estructura de la UI
+    rows = []
     if ai_keywords:
-        # Preparar datos según estructura de la UI
-        rows = []
         for result in ai_keywords:
             rows.append({
                 'keyword': result.get('keyword', ''),
@@ -3582,24 +3626,34 @@ def create_keywords_details_sheet(writer, workbook, header_format, date_format, 
                 'impact_score': result.get('impact_score', 0),
                 'ai_elements_count': result.get('ai_elements_count', 0)
             })
-        
+    
+    # Crear DataFrame con datos o vacío con columnas definidas
+    if rows:
         df_keywords = pd.DataFrame(rows)
-        df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
-        
-        worksheet = writer.sheets['AI Overview Keywords Details']
-        worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
-        worksheet.set_column('A:A', 30)  # keyword
-        worksheet.set_column('B:G', 20)  # otras columnas
+    else:
+        # Crear DataFrame vacío con las columnas requeridas
+        df_keywords = pd.DataFrame(columns=['keyword', 'has_aio', 'domain_mentioned', 'domain_position', 'analysis_date', 'impact_score', 'ai_elements_count'])
+    
+    df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
+    
+    worksheet = writer.sheets['AI Overview Keywords Details']
+    worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
+    worksheet.set_column('A:A', 30)  # keyword
+    worksheet.set_column('B:G', 20)  # otras columnas
+    
+    # Si no hay datos, agregar nota
+    if not rows:
+        worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 def create_global_domains_sheet(writer, workbook, header_format, percent_format, number_format, global_domains, project_info, stats):
     """Crear Hoja 5: Global AI Overview Domain Ratings"""
     
+    # Calcular AIO_Events_total según especificaciones
+    aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains) if global_domains else 0
+    
+    # Preparar datos con ranking
+    rows = []
     if global_domains:
-        # Calcular AIO_Events_total según especificaciones
-        aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains)
-        
-        # Preparar datos con ranking
-        rows = []
         for idx, domain in enumerate(global_domains, 1):
             appearances = domain.get('total_appearances', 0)
             avg_position = domain.get('avg_position')
@@ -3609,24 +3663,34 @@ def create_global_domains_sheet(writer, workbook, header_format, percent_format,
                 'Rank': idx,
                 'Domain': domain.get('domain', ''),
                 'Appearances': appearances,
-                'Avg Position': f"{avg_position:.1f}" if avg_position else "",
+                'Avg Position': f"{avg_position:.1f}" if avg_position and avg_position > 0 else "",
                 'Visibility %': f"{visibility_pct:.2f}%"
             })
-        
+    
+    # Crear DataFrame con datos o vacío con columnas definidas
+    if rows:
         df_domains = pd.DataFrame(rows)
-        df_domains.to_excel(writer, sheet_name='Global AI Overview Domain Ratings', index=False)
-        
-        worksheet = writer.sheets['Global AI Overview Domain Ratings']
-        worksheet.write_row(0, 0, list(df_domains.columns), header_format)
-        worksheet.set_column('A:A', 10)  # Rank
-        worksheet.set_column('B:B', 40)  # Domain
-        worksheet.set_column('C:E', 20)  # Metrics
-        
-        # Agregar nota
-        note_row = len(df_domains) + 3
-        worksheet.write(note_row, 0, f"Proyecto: {project_info['name']}")
-        worksheet.write(note_row + 1, 0, f"AIO_Events_total: {aio_events_total}")
-        worksheet.write(note_row + 2, 0, "Average Position: Media simple de posiciones")
+    else:
+        # Crear DataFrame vacío con las columnas requeridas
+        df_domains = pd.DataFrame(columns=['Rank', 'Domain', 'Appearances', 'Avg Position', 'Visibility %'])
+    
+    df_domains.to_excel(writer, sheet_name='Global AI Overview Domain Ratings', index=False)
+    
+    worksheet = writer.sheets['Global AI Overview Domain Ratings']
+    worksheet.write_row(0, 0, list(df_domains.columns), header_format)
+    worksheet.set_column('A:A', 10)  # Rank
+    worksheet.set_column('B:B', 40)  # Domain
+    worksheet.set_column('C:E', 20)  # Metrics
+    
+    # Agregar nota
+    note_row = len(df_domains) + 3
+    worksheet.write(note_row, 0, f"Proyecto: {project_info['name']}")
+    worksheet.write(note_row + 1, 0, f"AIO_Events_total: {aio_events_total}")
+    worksheet.write(note_row + 2, 0, "Average Position: Media simple de posiciones")
+    
+    # Si no hay datos, agregar nota
+    if not rows:
+        worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 # Registrar rutas de error handling
 @manual_ai_bp.errorhandler(404)
