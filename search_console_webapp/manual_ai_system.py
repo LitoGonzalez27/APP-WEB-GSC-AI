@@ -3235,7 +3235,8 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
         project_domain = project_data['domain']
         selected_competitors = project_data['selected_competitors'] or []
         
-        # Obtener datos del último análisis de cada keyword con AI Overview
+        # Obtener datos del último análisis de cada keyword activa
+        # CORREGIDO: Primero tomar el último análisis, LUEGO filtrar por AI Overview
         cur.execute("""
             WITH latest_analysis AS (
                 SELECT DISTINCT ON (k.id) 
@@ -3247,12 +3248,11 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
                     r.ai_analysis_data,
                     r.analysis_date
                 FROM manual_ai_keywords k
-                JOIN manual_ai_results r ON k.id = r.keyword_id
+                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    AND r.analysis_date >= %s
+                    AND r.analysis_date <= %s
                 WHERE k.project_id = %s
                 AND k.is_active = true
-                AND r.analysis_date >= %s
-                AND r.analysis_date <= %s
-                AND r.has_ai_overview = true
                 ORDER BY k.id, r.analysis_date DESC
             )
             SELECT 
@@ -3264,17 +3264,19 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
                 ai_analysis_data,
                 analysis_date
             FROM latest_analysis
+            WHERE has_ai_overview = true
             ORDER BY keyword
-        """, (project_id, start_date, end_date))
+        """, (start_date, end_date, project_id))
         
         results = [dict(row) for row in cur.fetchall()]
         
         # Formatear datos para Grid.js
         keyword_results = []
         for result in results:
-            # Estructura base para cada keyword
+            # Estructura base para cada keyword (Grid.js + Excel)
             keyword_data = {
                 'keyword': result['keyword'],
+                'analysis_date': result['analysis_date'],  # Para Excel
                 'ai_analysis': {
                     'has_ai_overview': result['has_ai_overview'],
                     'domain_is_ai_source': result['domain_mentioned'],
@@ -3652,18 +3654,21 @@ def create_keywords_details_sheet(writer, workbook, header_format, date_format, 
     # Preparar datos según estructura exacta de la UI
     rows = []
     for result in keyword_results:
+        # Acceder a datos anidados de ai_analysis
+        ai_analysis = result.get('ai_analysis', {})
+        
         rows.append({
             'keyword': result.get('keyword', ''),
-            'date': result.get('date', ''),
+            'date': result.get('analysis_date', ''),  # Fecha del análisis
             'url': result.get('url', ''),
-            'has_aio': 'Sí' if result.get('has_aio') else 'No',
+            'has_aio': 'Sí' if ai_analysis.get('has_ai_overview') else 'No',
             'domains_in_aio': result.get('domains_in_aio', ''),
             'position': result.get('position', ''),
             'clicks': result.get('clicks', 0),
             'impressions': result.get('impressions', 0),
             'ctr': result.get('ctr', 0),
-            'project_domain_in_aio': 'Sí' if result.get('project_domain_in_aio') else 'No',
-            'project_position_in_aio': result.get('project_position_in_aio', ''),
+            'project_domain_in_aio': 'Sí' if ai_analysis.get('domain_is_ai_source') else 'No',
+            'project_position_in_aio': ai_analysis.get('domain_ai_source_position', ''),
             'competitors_in_aio': result.get('competitors_in_aio', '')
         })
     
