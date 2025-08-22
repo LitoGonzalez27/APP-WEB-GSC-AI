@@ -345,6 +345,17 @@ class ManualAISystem {
         this.elements.analyticsProjectSelect?.addEventListener('change', () => this.loadAnalytics());
         this.elements.analyticsTimeRange?.addEventListener('change', () => this.loadAnalytics());
 
+        // Download Excel button
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('🖱️ Manual AI Excel download button clicked');
+                this.handleDownloadExcel();
+            });
+            console.log('✅ Manual AI Download Excel event listener added');
+        }
+
         // Detail tabs
         document.querySelectorAll('[data-detail-tab]').forEach(tab => {
             tab.addEventListener('click', (e) => this.switchDetailTab(e.target.dataset.detailTab));
@@ -1176,6 +1187,7 @@ class ManualAISystem {
                 </div>
             `;
             this.hideElement(this.elements.chartsContainer);
+            this.showDownloadButton(false); // Hide download button when no project selected
             return;
         }
 
@@ -1203,6 +1215,7 @@ class ManualAISystem {
                     <p>Failed to load analytics data</p>
                 </div>
             `;
+            this.showDownloadButton(false); // Hide download button on error
         }
     }
 
@@ -1236,6 +1249,16 @@ class ManualAISystem {
         }
 
         console.log(`📈 Loading analytics components for project ${projectId}`);
+
+        // Store current analytics data for Excel export
+        this.currentAnalyticsData = {
+            projectId: projectId,
+            stats: stats,
+            days: this.elements.analyticsTimeRange?.value || 30
+        };
+
+        // Show download button when analytics data is loaded
+        this.showDownloadButton(true);
 
         // Render main charts with events annotations
         if (stats.visibility_chart && Array.isArray(stats.visibility_chart)) {
@@ -4064,6 +4087,126 @@ class ManualAISystem {
             // Don't show error to user as annotation is optional
         } finally {
             this.hideAnnotationModal();
+        }
+    }
+
+    // ================================
+    // EXCEL DOWNLOAD FUNCTIONALITY
+    // ================================
+
+    showDownloadButton(show = true) {
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const globalSection = document.getElementById('navSectionGlobal');
+        
+        if (downloadBtn) {
+            downloadBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download Excel button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        
+        // Show/hide the entire global section based on button visibility
+        if (globalSection) {
+            globalSection.style.display = show ? 'block' : 'none';
+            console.log(`📂 Global tools section ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+    }
+
+    async handleDownloadExcel() {
+        if (!this.currentAnalyticsData) {
+            this.showError('No data available for export. Please select a project and load analytics first.');
+            return;
+        }
+
+        const { projectId, days } = this.currentAnalyticsData;
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const spinner = downloadBtn?.querySelector('.download-spinner');
+        const btnText = downloadBtn?.querySelector('span');
+
+        console.log(`📥 Starting Manual AI Excel download for project ${projectId} (${days} days)`);
+
+        try {
+            // Show loading state
+            if (downloadBtn) downloadBtn.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+            if (btnText) btnText.style.display = 'none';
+
+            // Get current project info for telemetry
+            const project = this.projects.find(p => p.id === projectId);
+            const projectName = project?.name || 'Unknown';
+            const competitorsCount = project?.selected_competitors?.length || 0;
+
+            // Make download request
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/download-excel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    days: days
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: "Error generating Excel file" }));
+                throw new Error(errorData.error || 'Failed to generate Excel file');
+            }
+
+            // Download the file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+
+            // Extract filename from response headers or create default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'manual-ai_export.xlsx';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Telemetry logging
+            console.log('📊 Manual AI Excel export telemetry:', {
+                project_id: projectId,
+                project_name: projectName,
+                keyword_set_id: 'manual-ai', // Manual AI doesn't use keyword sets like the main app
+                date_range: `${days}_days`,
+                competitors_count: competitorsCount,
+                rows_total: this.currentAnalyticsData.stats?.main_stats?.total_keywords || 0,
+                export_type: 'manual_ai_xlsx',
+                timestamp: new Date().toISOString()
+            });
+
+            // Show success state
+            if (btnText) {
+                const originalText = btnText.textContent;
+                btnText.textContent = '¡Descargado!';
+                downloadBtn.classList.add('success');
+
+                setTimeout(() => {
+                    btnText.textContent = originalText;
+                    downloadBtn.classList.remove('success');
+                }, 2000);
+            }
+
+            this.showSuccess('Excel file downloaded successfully!');
+
+        } catch (error) {
+            console.error('❌ Error downloading Manual AI Excel:', error);
+            this.showError(`Error downloading Excel: ${error.message}`);
+        } finally {
+            // Reset loading state
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+            if (btnText) btnText.style.display = 'inline';
         }
     }
 }
