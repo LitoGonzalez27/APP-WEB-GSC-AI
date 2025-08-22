@@ -3342,7 +3342,7 @@ def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, use
     2. Domain Visibility Over Time  
     3. Competitive Analysis
     4. AI Overview Keywords Details
-    5. Global AI Overview Domain Ratings
+    5. Global AI Overview Domains
     """
     output = BytesIO()
     
@@ -3403,7 +3403,7 @@ def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, use
                                         results, project_id, days)
             logger.info("Keywords details sheet created successfully")
             
-            # HOJA 5: Global AI Overview Domain Ratings
+            # HOJA 5: Global AI Overview Domains
             logger.info("Creating global domains sheet")
             create_global_domains_sheet(writer, workbook, header_format, percent_format,
                                       number_format, global_domains, project_info, stats)
@@ -3646,7 +3646,7 @@ def create_keywords_details_sheet(writer, workbook, header_format, date_format, 
         worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 def create_global_domains_sheet(writer, workbook, header_format, percent_format, number_format, global_domains, project_info, stats):
-    """Crear Hoja 5: Global AI Overview Domain Ratings"""
+    """Crear Hoja 5: Global AI Overview Domains"""
     
     # Calcular AIO_Events_total según especificaciones
     aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains) if global_domains else 0
@@ -3674,9 +3674,9 @@ def create_global_domains_sheet(writer, workbook, header_format, percent_format,
         # Crear DataFrame vacío con las columnas requeridas
         df_domains = pd.DataFrame(columns=['Rank', 'Domain', 'Appearances', 'Avg Position', 'Visibility %'])
     
-    df_domains.to_excel(writer, sheet_name='Global AI Overview Domain Ratings', index=False)
+    df_domains.to_excel(writer, sheet_name='Global AI Overview Domains', index=False)
     
-    worksheet = writer.sheets['Global AI Overview Domain Ratings']
+    worksheet = writer.sheets['Global AI Overview Domains']
     worksheet.write_row(0, 0, list(df_domains.columns), header_format)
     worksheet.set_column('A:A', 10)  # Rank
     worksheet.set_column('B:B', 40)  # Domain
