@@ -1171,7 +1171,7 @@ def convert_iso_to_internal_country(country_code: str) -> str:
 # ================================
 
 def get_user_projects(user_id: int) -> List[Dict]:
-    """Obtener todos los proyectos de un usuario con estadísticas básicas"""
+    """Obtener todos los proyectos de un usuario con estadísticas basadas en último análisis (consistente con analytics)"""
     conn = get_db_connection()
     if not conn:
         logger.error("Failed to get database connection for user projects")
@@ -1180,6 +1180,7 @@ def get_user_projects(user_id: int) -> List[Dict]:
     cur = conn.cursor()
     
     try:
+        # CORREGIDO: Usar la misma lógica que get_project_statistics (último análisis por keyword)
         cur.execute("""
             SELECT 
                 p.id,
@@ -1191,36 +1192,42 @@ def get_user_projects(user_id: int) -> List[Dict]:
                 p.updated_at,
                 p.selected_competitors,
                 COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
-                COUNT(DISTINCT k.id) as total_keywords,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as total_ai_keywords,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as total_mentions,
-                CASE 
-                    WHEN COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) > 0 THEN
-                        ROUND(
-                            ((COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float / 
-                             COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float) * 100)::numeric, 1
-                        )
-                    ELSE 0
-                END as visibility_percentage,
-                CASE 
-                    WHEN COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) > 0 THEN
-                        ROUND(AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END)::numeric, 1)
-                    ELSE NULL
-                END as avg_position,
-                CASE 
-                    WHEN COUNT(DISTINCT k.id) > 0 THEN
-                        ROUND(
-                            ((COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END)::float / 
-                             COUNT(DISTINCT k.id)::float) * 100)::numeric, 1
-                        )
-                    ELSE 0
-                END as aio_weight_percentage,
-                MAX(r.analysis_date) as last_analysis_date
+                COALESCE(project_stats.total_keywords, 0) as total_keywords,
+                COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
+                COALESCE(project_stats.total_mentions, 0) as total_mentions,
+                COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
+                project_stats.avg_position,
+                COALESCE(project_stats.aio_weight_percentage, 0) as aio_weight_percentage,
+                project_stats.last_analysis_date
             FROM manual_ai_projects p
-            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
-            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+            LEFT JOIN LATERAL (
+                WITH latest_results AS (
+                    SELECT DISTINCT ON (k.id) 
+                        k.id as keyword_id,
+                        k.is_active,
+                        r.has_ai_overview,
+                        r.domain_mentioned,
+                        r.domain_position,
+                        r.analysis_date
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                    WHERE k.project_id = p.id
+                    ORDER BY k.id, r.analysis_date DESC
+                )
+                SELECT 
+                    COUNT(*) as total_keywords,
+                    COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
+                    COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                    COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                    AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
+                    (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+                     NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
+                    (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                     NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
+                    MAX(analysis_date) as last_analysis_date
+                FROM latest_results
+            ) project_stats ON true
             WHERE p.user_id = %s AND p.is_active = true
-            GROUP BY p.id, p.name, p.description, p.domain, p.country_code, p.created_at, p.updated_at, p.selected_competitors
             ORDER BY p.created_at DESC
         """, (user_id,))
         
@@ -2721,10 +2728,14 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                                 AND r.has_ai_overview = true
                             ) as total_ai_keywords
                         FROM manual_ai_global_domains gd
+                        JOIN manual_ai_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
+                        JOIN manual_ai_keywords k ON r.keyword_id = k.id
                         WHERE gd.project_id = %s 
                         AND gd.detected_domain = %s
                         AND gd.analysis_date >= %s 
                         AND gd.analysis_date <= %s
+                        AND k.is_active = true
+                        AND r.has_ai_overview = true
                         GROUP BY gd.analysis_date
                     )
                     SELECT 
@@ -2755,16 +2766,20 @@ def get_project_comparative_charts_data(project_id: int, days: int = 30) -> Dict
                     ORDER BY r.analysis_date
                 """, (project_id, start_date, end_date))
             else:
-                # Para competidores, usar manual_ai_global_domains
+                # Para competidores, usar manual_ai_global_domains - CORREGIDO: Filtrar solo keywords con AIO
                 cur.execute("""
                     SELECT 
                         gd.analysis_date,
                         AVG(gd.domain_position) as avg_position
                     FROM manual_ai_global_domains gd
+                    JOIN manual_ai_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
+                    JOIN manual_ai_keywords k ON r.keyword_id = k.id
                     WHERE gd.project_id = %s 
                     AND gd.detected_domain = %s
                     AND gd.analysis_date >= %s 
                     AND gd.analysis_date <= %s
+                    AND k.is_active = true
+                    AND r.has_ai_overview = true
                     GROUP BY gd.analysis_date
                     ORDER BY gd.analysis_date
                 """, (project_id, domain, start_date, end_date))
