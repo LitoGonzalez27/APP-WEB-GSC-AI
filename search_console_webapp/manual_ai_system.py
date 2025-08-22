@@ -3662,41 +3662,79 @@ def create_competitive_analysis_sheet(writer, workbook, header_format, date_form
         worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
 def create_keywords_details_sheet(writer, workbook, header_format, date_format, ai_overview_data, project_id, days):
-    """Crear Hoja 4: AI Overview Keywords Details - usando datos exactos de la UI"""
-    # Usar datos exactos de la UI (mismo endpoint que usa la tabla)
+    """Crear Hoja 4: AI Overview Keywords Details - EXACTAMENTE igual que la UI"""
+    # Obtener datos exactos de la UI
     keyword_results = ai_overview_data.get('keywordResults', [])
+    competitor_domains = ai_overview_data.get('competitorDomains', [])
     
-    # Preparar datos según estructura exacta de la UI
+    # Función para normalizar dominio como en la UI JavaScript
+    def normalize_domain_id(domain):
+        return (domain or '').lower().replace('https://', '').replace('http://', '').replace('www.', '').replace('.', '_').replace('-', '_')
+    
+    # Función para encontrar datos de competidor en referencias (como en la UI)
+    def find_competitor_data_in_result(result, domain):
+        ai_analysis = result.get('ai_analysis', {})
+        debug_info = ai_analysis.get('debug_info', {})
+        references = debug_info.get('references_found', [])
+        
+        if not references:
+            return {'isPresent': False, 'position': None}
+        
+        normalized_domain = domain.lower().replace('www.', '')
+        
+        for ref in references:
+            ref_link = (ref.get('link', '') or '').lower()
+            ref_source = (ref.get('source', '') or '').lower()
+            ref_title = (ref.get('title', '') or '').lower()
+            
+            if (normalized_domain in ref_link or 
+                normalized_domain in ref_source or 
+                normalized_domain in ref_title):
+                # CORREGIDO: Usar el campo 'index' y convertir a posición (index + 1)
+                index = ref.get('index')
+                position = index + 1 if index is not None else None
+                return {
+                    'isPresent': True,
+                    'position': position
+                }
+        
+        return {'isPresent': False, 'position': None}
+    
+    # Definir columnas base exactamente como en la UI
+    columns = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
+    
+    # Agregar columnas dinámicas para cada competidor (igual que la UI)
+    for domain in competitor_domains:
+        columns.append(f'{domain} in AIO')
+        columns.append(f'Position of {domain}')
+    
+    # Preparar datos exactamente como la UI
     rows = []
     for result in keyword_results:
-        # Acceder a datos anidados de ai_analysis
+        keyword = result.get('keyword', '')
         ai_analysis = result.get('ai_analysis', {})
         
-        rows.append({
-            'keyword': result.get('keyword', ''),
-            'date': result.get('analysis_date', ''),  # Fecha del análisis
-            'url': result.get('url', ''),
-            'has_aio': 'Sí' if ai_analysis.get('has_ai_overview') else 'No',
-            'domains_in_aio': result.get('domains_in_aio', ''),
-            'position': result.get('position', ''),
-            'clicks': result.get('clicks', 0),
-            'impressions': result.get('impressions', 0),
-            'ctr': result.get('ctr', 0),
-            'project_domain_in_aio': 'Sí' if ai_analysis.get('domain_is_ai_source') else 'No',
-            'project_position_in_aio': ai_analysis.get('domain_ai_source_position', ''),
-            'competitors_in_aio': result.get('competitors_in_aio', '')
-        })
+        # Datos base (igual que la UI)
+        row_data = {
+            'Keyword': keyword,
+            'Your Domain in AIO': 'Yes' if ai_analysis.get('domain_is_ai_source') else 'No',
+            'Your Position in AIO': ai_analysis.get('domain_ai_source_position', '') or 'N/A'
+        }
+        
+        # Agregar datos de cada competidor (igual que la UI)
+        for domain in competitor_domains:
+            competitor_data = find_competitor_data_in_result(result, domain)
+            row_data[f'{domain} in AIO'] = 'Yes' if competitor_data['isPresent'] else 'No'
+            row_data[f'Position of {domain}'] = competitor_data['position'] or 'N/A'
+        
+        rows.append(row_data)
     
-    # Crear DataFrame con datos o vacío con columnas definidas
+    # Crear DataFrame con columnas dinámicas
     if rows:
         df_keywords = pd.DataFrame(rows)
     else:
-        # Crear DataFrame vacío con las columnas requeridas (igual que la UI)
-        df_keywords = pd.DataFrame(columns=[
-            'keyword', 'date', 'url', 'has_aio', 'domains_in_aio', 'position', 
-            'clicks', 'impressions', 'ctr', 'project_domain_in_aio', 
-            'project_position_in_aio', 'competitors_in_aio'
-        ])
+        # DataFrame vacío con columnas base
+        df_keywords = pd.DataFrame(columns=columns)
     
     df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
     
