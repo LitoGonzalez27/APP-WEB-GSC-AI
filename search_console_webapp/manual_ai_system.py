@@ -845,7 +845,7 @@ def download_manual_ai_excel(project_id):
     try:
         # Obtener filtros del request
         data = request.get_json() or {}
-        days = data.get('days', 30)
+        days = int(data.get('days', 30))  # Convertir a entero para usar con timedelta
         
         # Obtener información del proyecto
         project_info = get_project_info(project_id)
