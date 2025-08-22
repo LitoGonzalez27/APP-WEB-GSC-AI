@@ -1,13 +1,16 @@
 # manual_ai_system.py - Sistema Manual AI Analysis independiente
 # SEGURO: No toca ningún archivo existente, usa servicios establecidos
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, send_file
 from datetime import datetime, date, timedelta
 import logging
 import json
 import time
 from typing import List, Dict, Any, Optional
 import threading
+from io import BytesIO
+import pandas as pd
+import pytz
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
@@ -829,6 +832,63 @@ def get_global_domains_ranking(project_id):
     except Exception as e:
         logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/download-excel', methods=['POST'])
+@ai_user_required
+def download_manual_ai_excel(project_id):
+    """Generar y descargar Excel con datos de Manual AI según especificaciones"""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Obtener filtros del request
+        data = request.get_json() or {}
+        days = data.get('days', 30)
+        
+        # Obtener información del proyecto
+        project_info = get_project_info(project_id)
+        if not project_info:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        # Verificar que hay datos para exportar
+        results = get_project_analysis_results(project_id, days)
+        if not results:
+            return jsonify({'success': False, 'error': 'No data available for export'}), 400
+        
+        # Generar Excel con las 5 hojas especificadas
+        xlsx_file = generate_manual_ai_excel(
+            project_id=project_id,
+            project_info=project_info,
+            days=days,
+            user_id=user['id']
+        )
+        
+        # Crear nombre de archivo según especificaciones
+        from datetime import datetime
+        import pytz
+        
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        now_madrid = datetime.now(madrid_tz)
+        timestamp = now_madrid.strftime('%Y%m%d-%H%M')
+        
+        project_slug = project_info['name'].lower().replace(' ', '').replace('-', '').replace('_', '')[:20]
+        filename = f'manual-ai_export__{project_slug}__{timestamp}__Europe-Madrid.xlsx'
+        
+        # Registrar telemetría
+        logger.info(f"Manual AI Excel export: project_id={project_id}, days={days}, filename={filename}")
+        
+        return send_file(
+            xlsx_file,
+            download_name=filename,
+            as_attachment=True,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating manual AI Excel for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to generate Excel file'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/competitors-charts', methods=['GET'])
 @auth_required
@@ -3240,6 +3300,333 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
     except Exception as e:
         logger.error(f"Error getting AI Overview keywords for project {project_id}: {e}")
         return {'keywordResults': [], 'competitorDomains': []}
+
+def get_project_info(project_id: int) -> Optional[Dict]:
+    """Obtener información básica de un proyecto"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+        
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, name, description, domain, country_code, selected_competitors, created_at
+            FROM manual_ai_projects 
+            WHERE id = %s AND is_active = true
+        """, (project_id,))
+        
+        result = cur.fetchone()
+        if result:
+            return dict(result)
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error getting project info for project {project_id}: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, user_id: int) -> BytesIO:
+    """
+    Generar Excel con las 5 hojas especificadas para Manual AI:
+    1. Resumen
+    2. Domain Visibility Over Time  
+    3. Competitive Analysis
+    4. AI Overview Keywords Details
+    5. Global AI Overview Domain Ratings
+    """
+    output = BytesIO()
+    
+    try:
+        # Obtener todos los datos necesarios
+        results = get_project_analysis_results(project_id, days)
+        stats = get_project_statistics(project_id, days)
+        global_domains = get_project_global_domains_ranking(project_id, days)
+        
+        # Configuración de zona horaria
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            workbook = writer.book
+            
+            # Formatos comunes
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'top',
+                'fg_color': '#4472C4',
+                'font_color': 'white',
+                'border': 1
+            })
+            
+            date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
+            percent_format = workbook.add_format({'num_format': '0.00%'})
+            number_format = workbook.add_format({'num_format': '0.0'})
+            
+            # HOJA 1: Resumen
+            create_summary_sheet(writer, workbook, header_format, project_info, stats, results, days, madrid_tz)
+            
+            # HOJA 2: Domain Visibility Over Time
+            create_domain_visibility_sheet(writer, workbook, header_format, date_format, 
+                                         percent_format, project_id, project_info, days)
+            
+            # HOJA 3: Competitive Analysis
+            create_competitive_analysis_sheet(writer, workbook, header_format, date_format,
+                                            percent_format, project_id, project_info, days)
+            
+            # HOJA 4: AI Overview Keywords Details
+            create_keywords_details_sheet(writer, workbook, header_format, date_format,
+                                        results, project_id, days)
+            
+            # HOJA 5: Global AI Overview Domain Ratings
+            create_global_domains_sheet(writer, workbook, header_format, percent_format,
+                                      number_format, global_domains, project_info, stats)
+        
+        output.seek(0)
+        return output
+        
+    except Exception as e:
+        logger.error(f"Error generating manual AI Excel: {e}")
+        raise
+
+def create_summary_sheet(writer, workbook, header_format, project_info, stats, results, days, madrid_tz):
+    """Crear Hoja 1: Resumen"""
+    # Calcular métricas según especificaciones
+    total_keywords = len(set(r['keyword'] for r in results if r.get('keyword')))
+    ai_overview_results = len([r for r in results if r.get('has_ai_overview')])
+    ai_overview_weight = (ai_overview_results / total_keywords * 100) if total_keywords > 0 else 0
+    domain_mentions = len([r for r in results if r.get('domain_mentioned')])
+    visibility_pct = (domain_mentions / ai_overview_results * 100) if ai_overview_results > 0 else 0
+    
+    # Calcular posición promedio (simple por ahora)
+    positions = [r['domain_position'] for r in results if r.get('domain_mentioned') and r.get('domain_position')]
+    avg_position = sum(positions) / len(positions) if positions else None
+    
+    summary_data = [
+        ['Métrica', 'Valor'],
+        ['Total Keywords', total_keywords],
+        ['AI Overview Results', ai_overview_results],
+        ['AI Overview Weight (%)', f"{ai_overview_weight:.2f}%"],
+        ['Domain Mentions', domain_mentions],
+        ['Visibility (%)', f"{visibility_pct:.2f}%"],
+        ['Average Position', f"{avg_position:.1f}" if avg_position else "N/A"],
+        ['', ''],
+        ['NOTAS', ''],
+        [f'Proyecto: {project_info["name"]}', ''],
+        [f'Dominio: {project_info["domain"]}', ''],
+        [f'Rango de fechas: Últimos {days} días', ''],
+        [f'Competidores: {len(project_info.get("selected_competitors", []))}', ''],
+        [f'Generado: {datetime.now(madrid_tz).strftime("%Y-%m-%d %H:%M")} Europe/Madrid', '']
+    ]
+    
+    df_summary = pd.DataFrame(summary_data)
+    df_summary.to_excel(writer, sheet_name='Resumen', index=False, header=False)
+    
+    # Aplicar formato
+    worksheet = writer.sheets['Resumen']
+    worksheet.write_row(0, 0, ['Métrica', 'Valor'], header_format)
+    worksheet.set_column('A:A', 40)
+    worksheet.set_column('B:B', 20)
+
+def create_domain_visibility_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
+    """Crear Hoja 2: Domain Visibility Over Time"""
+    # Obtener datos por día
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+    
+    cur.execute("""
+        SELECT 
+            r.analysis_date,
+            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords,
+            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as project_mentions
+        FROM manual_ai_results r
+        JOIN manual_ai_keywords k ON r.keyword_id = k.id
+        WHERE r.project_id = %s 
+        AND r.analysis_date >= %s 
+        AND r.analysis_date <= %s
+        AND k.is_active = true
+        GROUP BY r.analysis_date
+        ORDER BY r.analysis_date
+    """, (project_id, start_date, end_date))
+    
+    daily_data = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    # Preparar datos para Excel
+    rows = []
+    for row in daily_data:
+        aio_keywords = row['aio_keywords']
+        project_mentions = row['project_mentions']
+        visibility_pct = (project_mentions / aio_keywords * 100) if aio_keywords > 0 else 0
+        
+        rows.append({
+            'date': row['analysis_date'],
+            'aio_keywords': aio_keywords,
+            'project_mentions': project_mentions,
+            'project_visibility_pct': visibility_pct
+        })
+    
+    if rows:
+        df_visibility = pd.DataFrame(rows)
+        df_visibility.to_excel(writer, sheet_name='Domain Visibility Over Time', index=False)
+        
+        worksheet = writer.sheets['Domain Visibility Over Time']
+        worksheet.write_row(0, 0, ['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'], header_format)
+        worksheet.set_column('A:A', 15)
+        worksheet.set_column('B:D', 20)
+
+def create_competitive_analysis_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
+    """Crear Hoja 3: Competitive Analysis"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+    
+    # Obtener datos del proyecto
+    cur.execute("""
+        SELECT 
+            r.analysis_date,
+            %s as domain,
+            COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords,
+            COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as domain_mentions
+        FROM manual_ai_results r
+        JOIN manual_ai_keywords k ON r.keyword_id = k.id
+        WHERE r.project_id = %s 
+        AND r.analysis_date >= %s 
+        AND r.analysis_date <= %s
+        AND k.is_active = true
+        GROUP BY r.analysis_date
+        ORDER BY r.analysis_date, domain_mentions DESC
+    """, (project_info['domain'], project_id, start_date, end_date))
+    
+    project_data = cur.fetchall()
+    
+    # Obtener datos de competidores
+    competitors_data = []
+    selected_competitors = project_info.get('selected_competitors', [])
+    
+    for competitor in selected_competitors:
+        cur.execute("""
+            SELECT 
+                gd.analysis_date,
+                %s as domain,
+                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords,
+                COUNT(DISTINCT gd.keyword_id) as domain_mentions
+            FROM manual_ai_global_domains gd
+            JOIN manual_ai_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
+            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            WHERE gd.project_id = %s 
+            AND gd.detected_domain = %s
+            AND gd.analysis_date >= %s 
+            AND gd.analysis_date <= %s
+            AND k.is_active = true
+            GROUP BY gd.analysis_date
+            ORDER BY gd.analysis_date
+        """, (competitor, project_id, competitor, start_date, end_date))
+        
+        competitors_data.extend(cur.fetchall())
+    
+    cur.close()
+    conn.close()
+    
+    # Combinar datos
+    all_data = list(project_data) + competitors_data
+    
+    # Preparar datos para Excel
+    rows = []
+    for row in all_data:
+        aio_keywords = row['aio_keywords']
+        domain_mentions = row['domain_mentions']
+        visibility_pct = (domain_mentions / aio_keywords * 100) if aio_keywords > 0 else 0
+        
+        rows.append({
+            'date': row['analysis_date'],
+            'domain': row['domain'],
+            'aio_keywords': aio_keywords,
+            'domain_mentions': domain_mentions,
+            'visibility_pct': visibility_pct
+        })
+    
+    if rows:
+        df_competitive = pd.DataFrame(rows)
+        df_competitive = df_competitive.sort_values(['date', 'visibility_pct'], ascending=[True, False])
+        df_competitive.to_excel(writer, sheet_name='Competitive Analysis', index=False)
+        
+        worksheet = writer.sheets['Competitive Analysis']
+        worksheet.write_row(0, 0, ['date', 'domain', 'aio_keywords', 'domain_mentions', 'visibility_pct'], header_format)
+        worksheet.set_column('A:A', 15)
+        worksheet.set_column('B:B', 30)
+        worksheet.set_column('C:E', 20)
+
+def create_keywords_details_sheet(writer, workbook, header_format, date_format, results, project_id, days):
+    """Crear Hoja 4: AI Overview Keywords Details"""
+    # Filtrar solo keywords con AI Overview
+    ai_keywords = [r for r in results if r.get('has_ai_overview')]
+    
+    if ai_keywords:
+        # Preparar datos según estructura de la UI
+        rows = []
+        for result in ai_keywords:
+            rows.append({
+                'keyword': result.get('keyword', ''),
+                'has_aio': 'Sí' if result.get('has_ai_overview') else 'No',
+                'domain_mentioned': 'Sí' if result.get('domain_mentioned') else 'No',
+                'domain_position': result.get('domain_position', ''),
+                'analysis_date': result.get('analysis_date', ''),
+                'impact_score': result.get('impact_score', 0),
+                'ai_elements_count': result.get('ai_elements_count', 0)
+            })
+        
+        df_keywords = pd.DataFrame(rows)
+        df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
+        
+        worksheet = writer.sheets['AI Overview Keywords Details']
+        worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
+        worksheet.set_column('A:A', 30)  # keyword
+        worksheet.set_column('B:G', 20)  # otras columnas
+
+def create_global_domains_sheet(writer, workbook, header_format, percent_format, number_format, global_domains, project_info, stats):
+    """Crear Hoja 5: Global AI Overview Domain Ratings"""
+    
+    if global_domains:
+        # Calcular AIO_Events_total según especificaciones
+        aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains)
+        
+        # Preparar datos con ranking
+        rows = []
+        for idx, domain in enumerate(global_domains, 1):
+            appearances = domain.get('total_appearances', 0)
+            avg_position = domain.get('avg_position')
+            visibility_pct = (appearances / aio_events_total * 100) if aio_events_total > 0 else 0
+            
+            rows.append({
+                'Rank': idx,
+                'Domain': domain.get('domain', ''),
+                'Appearances': appearances,
+                'Avg Position': f"{avg_position:.1f}" if avg_position else "",
+                'Visibility %': f"{visibility_pct:.2f}%"
+            })
+        
+        df_domains = pd.DataFrame(rows)
+        df_domains.to_excel(writer, sheet_name='Global AI Overview Domain Ratings', index=False)
+        
+        worksheet = writer.sheets['Global AI Overview Domain Ratings']
+        worksheet.write_row(0, 0, list(df_domains.columns), header_format)
+        worksheet.set_column('A:A', 10)  # Rank
+        worksheet.set_column('B:B', 40)  # Domain
+        worksheet.set_column('C:E', 20)  # Metrics
+        
+        # Agregar nota
+        note_row = len(df_domains) + 3
+        worksheet.write(note_row, 0, f"Proyecto: {project_info['name']}")
+        worksheet.write(note_row + 1, 0, f"AIO_Events_total: {aio_events_total}")
+        worksheet.write(note_row + 2, 0, "Average Position: Media simple de posiciones")
 
 # Registrar rutas de error handling
 @manual_ai_bp.errorhandler(404)
