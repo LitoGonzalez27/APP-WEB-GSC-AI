@@ -260,7 +260,7 @@ def update_user_activity(user_id, is_active=True):
             conn.close()
 
 def get_all_users():
-    """Obtiene todos los usuarios (para administración)"""
+    """Obtiene todos los usuarios (para administración) - INCLUYE BILLING INFO"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -268,7 +268,22 @@ def get_all_users():
             
         cur = conn.cursor()
         cur.execute('''
-            SELECT id, email, name, picture, role, is_active, created_at, updated_at
+            SELECT 
+                id, email, name, picture, role, is_active, created_at, updated_at,
+                -- Billing fields
+                COALESCE(plan, 'free') as plan,
+                COALESCE(current_plan, plan, 'free') as current_plan,
+                COALESCE(billing_status, 'active') as billing_status,
+                COALESCE(quota_limit, 0) as quota_limit,
+                COALESCE(quota_used, 0) as quota_used,
+                quota_reset_date,
+                stripe_customer_id,
+                subscription_id,
+                -- Custom quota fields
+                custom_quota_limit,
+                custom_quota_notes,
+                custom_quota_assigned_by,
+                custom_quota_assigned_date
             FROM users
             ORDER BY created_at DESC
         ''')

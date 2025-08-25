@@ -228,6 +228,52 @@
             color: white;
         }
         
+        /* Plan badges */
+        .badge.free {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .badge.basic {
+            background: #007bff;
+            color: white;
+        }
+        
+        .badge.premium {
+            background: #28a745;
+            color: white;
+        }
+        
+        .badge.enterprise {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
+        /* Plan & Quota container */
+        .plan-quota-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .plan-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+        
+        .plan-info small {
+            color: #666;
+            font-size: 0.7rem;
+        }
+        
+        .custom-note {
+            color: #6f42c1;
+            font-style: italic;
+            font-size: 0.65rem;
+        }
+        
         .actions {
             display: flex;
             gap: 0.5rem;
@@ -537,6 +583,7 @@
                         <th>Usuario</th>
                         <th>Email</th>
                         <th>Rol</th>
+                        <th>Plan & Quota</th>
                         <th>Estado</th>
                         <th>Registro</th>
                         <th>Acciones</th>
@@ -580,6 +627,29 @@
                                             data-user-role="{{ user.role }}">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <!-- Plan & Quota Column -->
+                                <div class="plan-quota-container">
+                                    <div class="plan-info">
+                                        {% if user.custom_quota_limit %}
+                                            <span class="badge enterprise">Enterprise</span>
+                                            <small>Custom: {{ user.custom_quota_limit }} RU</small>
+                                        {% else %}
+                                            <span class="badge {{ user.plan or 'free' }}">
+                                                {% if user.plan == 'free' %}Free
+                                                {% elif user.plan == 'basic' %}Basic
+                                                {% elif user.plan == 'premium' %}Premium  
+                                                {% else %}{{ user.plan|title }}
+                                                {% endif %}
+                                            </span>
+                                            <small>{{ user.quota_used or 0 }}/{{ user.quota_limit or 0 }} RU</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if user.custom_quota_assigned_by %}
+                                        <small class="custom-note">By: {{ user.custom_quota_assigned_by }}</small>
                                     {% endif %}
                                 </div>
                             </td>
