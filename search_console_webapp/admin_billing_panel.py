@@ -436,7 +436,7 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id):
         # Obtener información del admin que asigna
         cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
         admin_info = cur.fetchone()
-        admin_name = admin_info[1] if admin_info else f'Admin ID {admin_id}'
+        admin_name = admin_info['email'] if admin_info else f'Admin ID {admin_id}'
         
         # Actualizar usuario con custom quota
         cur.execute('''
@@ -471,7 +471,9 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id):
         
     except Exception as e:
         logger.error(f"Error asignando custom quota: {e}")
-        return {'success': False, 'error': 'Error interno del servidor'}
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {'success': False, 'error': f'Database error: {str(e)}'}
     finally:
         if conn:
             conn.close()
@@ -488,7 +490,7 @@ def remove_custom_quota(user_id, admin_id):
         # Obtener información del admin
         cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
         admin_info = cur.fetchone()
-        admin_name = admin_info[1] if admin_info else f'Admin ID {admin_id}'
+        admin_name = admin_info['email'] if admin_info else f'Admin ID {admin_id}'
         
         # Remover custom quota y volver a plan free por defecto
         cur.execute('''
@@ -521,7 +523,9 @@ def remove_custom_quota(user_id, admin_id):
         
     except Exception as e:
         logger.error(f"Error removiendo custom quota: {e}")
-        return {'success': False, 'error': 'Error interno del servidor'}
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {'success': False, 'error': f'Database error: {str(e)}'}
     finally:
         if conn:
             conn.close()
