@@ -1128,6 +1128,80 @@ def setup_auth_routes(app):
             logger.error(f"Error obteniendo estadísticas detalladas: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
+    @app.route('/admin/users/<int:user_id>/change-plan', methods=['POST'])
+    @admin_required
+    def admin_change_user_plan(user_id):
+        """Cambiar plan de un usuario desde admin panel"""
+        try:
+            from admin_billing_panel import update_user_plan_manual
+            
+            data = request.get_json()
+            new_plan = data.get('plan')
+            current_user = get_current_user()
+            
+            if not new_plan:
+                return jsonify({'success': False, 'error': 'Plan no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = update_user_plan_manual(user_id, new_plan, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error cambiando plan de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/assign-custom-quota', methods=['POST'])
+    @admin_required  
+    def admin_assign_custom_quota(user_id):
+        """Asignar quota personalizada (Enterprise) desde admin panel"""
+        try:
+            from admin_billing_panel import assign_custom_quota
+            
+            data = request.get_json()
+            custom_limit = data.get('custom_limit')
+            notes = data.get('notes', '')
+            current_user = get_current_user()
+            
+            if custom_limit is None:
+                return jsonify({'success': False, 'error': 'Custom limit no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = assign_custom_quota(user_id, custom_limit, notes, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error asignando custom quota a usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/remove-custom-quota', methods=['POST'])
+    @admin_required
+    def admin_remove_custom_quota(user_id):
+        """Remover quota personalizada y volver a plan estándar"""
+        try:
+            from admin_billing_panel import remove_custom_quota
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = remove_custom_quota(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error removiendo custom quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""
     credentials = get_user_credentials()

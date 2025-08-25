@@ -274,6 +274,49 @@
             font-size: 0.65rem;
         }
         
+        /* Plan actions buttons */
+        .plan-actions {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+        }
+        
+        .btn-plan-change, .btn-custom-quota, .btn-remove-custom {
+            padding: 0.125rem 0.25rem;
+            border: none;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-plan-change {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-plan-change:hover {
+            background: #0056b3;
+        }
+        
+        .btn-custom-quota {
+            background: #6f42c1;
+            color: white;
+        }
+        
+        .btn-custom-quota:hover {
+            background: #5a32a3;
+        }
+        
+        .btn-remove-custom {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-remove-custom:hover {
+            background: #c82333;
+        }
+        
         .actions {
             display: flex;
             gap: 0.5rem;
@@ -651,6 +694,31 @@
                                     {% if user.custom_quota_assigned_by %}
                                         <small class="custom-note">By: {{ user.custom_quota_assigned_by }}</small>
                                     {% endif %}
+                                    <!-- Admin Actions -->
+                                    <div class="plan-actions">
+                                        <button class="btn-plan-change btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                data-user-plan="{{ user.plan or 'free' }}"
+                                                title="Change Plan">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </button>
+                                        {% if not user.custom_quota_limit %}
+                                        <button class="btn-custom-quota btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                title="Assign Custom Quota">
+                                            <i class="fas fa-crown"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn-remove-custom btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                title="Remove Custom Quota">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </td>
                             <td>
@@ -845,6 +913,80 @@
                 <button class="btn btn-primary" id="confirmStatusBtn">
                     <i class="fas fa-save"></i>
                     Cambiar Estado
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Cambio de Plan -->
+    <div id="planModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exchange-alt"></i> Cambiar Plan de Usuario</h3>
+                <button class="modal-close" onclick="closeModal('planModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Qué plan quieres asignar a <strong id="planUserName">-</strong>?</p>
+                <div style="margin-top: 1rem;">
+                    <label for="planSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar plan:</label>
+                    <select id="planSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="free">Free (0€ - 0 RU/month)</option>
+                        <option value="basic">Basic (29,99€ - 1.225 RU/month)</option>
+                        <option value="premium">Premium (59,99€ - 2.950 RU/month)</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Nota:</strong></p>
+                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                        • Para Enterprise use "Assign Custom Quota"<br>
+                        • El cambio aplicará en el próximo ciclo de facturación<br>
+                        • Los usuarios beta pueden requerir configuración manual
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('planModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmPlanBtn">
+                    <i class="fas fa-save"></i>
+                    Cambiar Plan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Custom Quota (Enterprise) -->
+    <div id="customQuotaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-crown"></i> Assign Custom Quota (Enterprise)</h3>
+                <button class="modal-close" onclick="closeModal('customQuotaModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Assign custom quota to <strong id="customQuotaUserName">-</strong></p>
+                <div style="margin-top: 1rem;">
+                    <label for="customQuotaLimit" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Custom RU Limit per month:</label>
+                    <input type="number" id="customQuotaLimit" min="0" max="100000" step="100" placeholder="e.g., 5000" 
+                           style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div style="margin-top: 1rem;">
+                    <label for="customQuotaNotes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Notes (optional):</label>
+                    <textarea id="customQuotaNotes" placeholder="e.g., Special agreement with Agency XYZ" 
+                              style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px; min-height: 60px; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #e8f4fd; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Enterprise Features:</strong></p>
+                    <p style="margin: 0.5rem 0 0 0; color: #0066cc;">
+                        • Plan will automatically change to "Enterprise"<br>
+                        • User will bypass standard plan limits<br>
+                        • Custom quota takes priority over plan quotas
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('customQuotaModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmCustomQuotaBtn">
+                    <i class="fas fa-crown"></i>
+                    Assign Custom Quota
                 </button>
             </div>
         </div>
@@ -1164,6 +1306,169 @@
                 }).catch(error => alert('Error en la conexión: ' + error));
             }
         });
+
+        // ========== PLAN MANAGEMENT ==========
+        
+        // Event listeners para los nuevos botones
+        document.addEventListener('click', function(e) {
+            // Plan change button
+            if (e.target.closest('.btn-plan-change')) {
+                const btn = e.target.closest('.btn-plan-change');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                const currentPlan = btn.dataset.userPlan;
+                
+                showPlanModal(userId, userName, currentPlan);
+            }
+            
+            // Custom quota button
+            if (e.target.closest('.btn-custom-quota')) {
+                const btn = e.target.closest('.btn-custom-quota');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                
+                showCustomQuotaModal(userId, userName);
+            }
+            
+            // Remove custom quota button
+            if (e.target.closest('.btn-remove-custom')) {
+                const btn = e.target.closest('.btn-remove-custom');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                
+                if (confirm(`¿Estás seguro de que quieres remover la custom quota de ${userName}? El usuario volverá al plan Free.`)) {
+                    removeCustomQuota(userId, userName);
+                }
+            }
+        });
+
+        function showPlanModal(userId, userName, currentPlan) {
+            console.log('🔄 Abriendo modal de cambio de plan:', userId);
+            
+            document.getElementById('planUserName').textContent = userName;
+            document.getElementById('planSelect').value = currentPlan;
+            
+            // Remove previous event listeners
+            const oldBtn = document.getElementById('confirmPlanBtn');
+            const newBtn = oldBtn.cloneNode(true);
+            oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+            
+            // Add new event listener
+            newBtn.addEventListener('click', () => changePlan(userId, userName));
+            
+            document.getElementById('planModal').style.display = 'flex';
+        }
+
+        function showCustomQuotaModal(userId, userName) {
+            console.log('👑 Abriendo modal de custom quota:', userId);
+            
+            document.getElementById('customQuotaUserName').textContent = userName;
+            document.getElementById('customQuotaLimit').value = '';
+            document.getElementById('customQuotaNotes').value = '';
+            
+            // Remove previous event listeners
+            const oldBtn = document.getElementById('confirmCustomQuotaBtn');
+            const newBtn = oldBtn.cloneNode(true);
+            oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+            
+            // Add new event listener
+            newBtn.addEventListener('click', () => assignCustomQuota(userId, userName));
+            
+            document.getElementById('customQuotaModal').style.display = 'flex';
+        }
+
+        async function changePlan(userId, userName) {
+            const newPlan = document.getElementById('planSelect').value;
+            
+            console.log(`🔄 Cambiando plan de usuario ${userId} a ${newPlan}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/change-plan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ plan: newPlan })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Plan cambiado exitosamente para ${userName}: ${result.message}`);
+                    closeModal('planModal');
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error changing plan:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function assignCustomQuota(userId, userName) {
+            const customLimit = parseInt(document.getElementById('customQuotaLimit').value);
+            const notes = document.getElementById('customQuotaNotes').value;
+            
+            if (!customLimit || customLimit < 0) {
+                alert('❌ Por favor ingresa un límite válido (mayor a 0)');
+                return;
+            }
+            
+            console.log(`👑 Asignando custom quota ${customLimit} RU a usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/assign-custom-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        custom_limit: customLimit,
+                        notes: notes 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Custom quota asignada exitosamente para ${userName}: ${result.message}`);
+                    closeModal('customQuotaModal');
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error assigning custom quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function removeCustomQuota(userId, userName) {
+            console.log(`🗑️ Removiendo custom quota de usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/remove-custom-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Custom quota removida exitosamente para ${userName}: ${result.message}`);
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error removing custom quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+        
     </script>
 </body>
 </html> 
