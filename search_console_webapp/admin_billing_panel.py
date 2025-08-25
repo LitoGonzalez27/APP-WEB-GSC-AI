@@ -113,7 +113,7 @@ def get_users_with_billing():
         
         cur = conn.cursor()
         
-        # Query que incluye todos los campos de billing
+        # Query que incluye todos los campos de billing + custom quotas
         cur.execute('''
             SELECT 
                 id, email, name, picture, role, is_active, 
@@ -130,7 +130,12 @@ def get_users_with_billing():
                 current_period_start,
                 current_period_end,
                 pending_plan,
-                pending_plan_date
+                pending_plan_date,
+                -- Custom quota fields
+                custom_quota_limit,
+                custom_quota_notes,
+                custom_quota_assigned_by,
+                custom_quota_assigned_date
             FROM users 
             ORDER BY created_at DESC
         ''')
@@ -184,13 +189,14 @@ def get_user_billing_details(user_id):
         
         cur = conn.cursor()
         
-        # Información del usuario con billing
+        # Información del usuario con billing + custom quotas
         cur.execute('''
             SELECT 
                 id, email, name, picture, role, is_active, created_at,
                 plan, current_plan, billing_status, quota_limit, quota_used,
                 quota_reset_date, stripe_customer_id, subscription_id,
-                current_period_start, current_period_end, pending_plan, pending_plan_date
+                current_period_start, current_period_end, pending_plan, pending_plan_date,
+                custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date
             FROM users 
             WHERE id = %s
         ''', (user_id,))
@@ -246,7 +252,7 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         cur = conn.cursor()
         
         # Validar plan
-        valid_plans = ['free', 'basic', 'premium']
+        valid_plans = ['free', 'basic', 'premium', 'enterprise']
         if new_plan not in valid_plans:
             return {'success': False, 'error': f'Plan inválido. Debe ser: {", ".join(valid_plans)}'}
         
@@ -254,7 +260,8 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         quota_limits = {
             'free': 0,
             'basic': 1225,
-            'premium': 2950
+            'premium': 2950,
+            'enterprise': 0  # Enterprise usa custom_quota_limit
         }
         
         new_quota_limit = quota_limits[new_plan]
@@ -353,8 +360,15 @@ def get_plan_display_info(plan):
             'name': 'Premium',
             'badge_class': 'badge-premium',
             'ru_limit': 2950, 
-            'price': '€49.99',  # Ajustar según tu pricing real
+            'price': '€59.99',
             'color': '#28a745'
+        },
+        'enterprise': {
+            'name': 'Enterprise',
+            'badge_class': 'badge-enterprise',
+            'ru_limit': 'Custom',
+            'price': 'Custom',
+            'color': '#6f42c1'
         }
     }
     
@@ -401,6 +415,160 @@ def get_billing_status_display_info(billing_status):
         'color': '#6c757d',
         'icon': 'fas fa-question-circle'
     })
+
+def assign_custom_quota(user_id, custom_limit, notes, admin_id):
+    """Asigna una cuota personalizada a un usuario (para planes Enterprise)"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Database connection failed'}
+        
+        cur = conn.cursor()
+        
+        # Validar que custom_limit sea un número positivo
+        try:
+            custom_limit = int(custom_limit)
+            if custom_limit < 0:
+                return {'success': False, 'error': 'Custom limit must be >= 0'}
+        except (ValueError, TypeError):
+            return {'success': False, 'error': 'Custom limit must be a valid number'}
+        
+        # Obtener información del admin que asigna
+        cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
+        admin_info = cur.fetchone()
+        admin_name = admin_info[1] if admin_info else f'Admin ID {admin_id}'
+        
+        # Actualizar usuario con custom quota
+        cur.execute('''
+            UPDATE users 
+            SET 
+                custom_quota_limit = %s,
+                custom_quota_notes = %s,
+                custom_quota_assigned_by = %s,
+                custom_quota_assigned_date = NOW(),
+                -- También actualizar plan a enterprise si no lo es
+                plan = CASE WHEN plan != 'enterprise' THEN 'enterprise' ELSE plan END,
+                current_plan = CASE WHEN current_plan != 'enterprise' THEN 'enterprise' ELSE current_plan END,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (custom_limit, notes, admin_name, user_id))
+        
+        if cur.rowcount == 0:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        
+        # Log de la acción
+        logger.info(f"Admin {admin_id} ({admin_name}) asignó custom quota {custom_limit} RU a usuario {user_id}")
+        
+        conn.commit()
+        
+        return {
+            'success': True, 
+            'message': f'Custom quota assigned: {custom_limit} RU/month',
+            'custom_limit': custom_limit,
+            'assigned_by': admin_name,
+            'assigned_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+    except Exception as e:
+        logger.error(f"Error asignando custom quota: {e}")
+        return {'success': False, 'error': 'Error interno del servidor'}
+    finally:
+        if conn:
+            conn.close()
+
+def remove_custom_quota(user_id, admin_id):
+    """Remueve la cuota personalizada de un usuario (vuelve a plan estándar)"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Database connection failed'}
+        
+        cur = conn.cursor()
+        
+        # Obtener información del admin
+        cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
+        admin_info = cur.fetchone()
+        admin_name = admin_info[1] if admin_info else f'Admin ID {admin_id}'
+        
+        # Remover custom quota y volver a plan free por defecto
+        cur.execute('''
+            UPDATE users 
+            SET 
+                custom_quota_limit = NULL,
+                custom_quota_notes = NULL,
+                custom_quota_assigned_by = NULL,
+                custom_quota_assigned_date = NULL,
+                plan = 'free',
+                current_plan = 'free',
+                quota_limit = 0,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (user_id,))
+        
+        if cur.rowcount == 0:
+            return {'success': False, 'error': 'Usuario no encontrado'}
+        
+        # Log de la acción
+        logger.info(f"Admin {admin_id} ({admin_name}) removió custom quota de usuario {user_id}")
+        
+        conn.commit()
+        
+        return {
+            'success': True, 
+            'message': 'Custom quota removed. User reverted to Free plan.',
+            'reverted_to': 'free'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error removiendo custom quota: {e}")
+        return {'success': False, 'error': 'Error interno del servidor'}
+    finally:
+        if conn:
+            conn.close()
+
+def get_effective_quota_limit(user_data):
+    """Calcula el límite de cuota efectivo para un usuario (custom o plan estándar)"""
+    if user_data.get('custom_quota_limit') is not None:
+        return user_data['custom_quota_limit']
+    
+    # Usar límite del plan estándar
+    plan_limits = {
+        'free': 0,
+        'basic': 1225,
+        'premium': 2950,
+        'enterprise': 0  # Sin custom quota = sin acceso
+    }
+    
+    return plan_limits.get(user_data.get('plan', 'free'), 0)
+
+def get_custom_quota_users():
+    """Obtiene todos los usuarios que tienen custom quotas asignadas"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return []
+        
+        cur = conn.cursor()
+        
+        cur.execute('''
+            SELECT 
+                id, email, name, plan, current_plan, quota_used,
+                custom_quota_limit, custom_quota_notes, 
+                custom_quota_assigned_by, custom_quota_assigned_date
+            FROM users 
+            WHERE custom_quota_limit IS NOT NULL
+            ORDER BY custom_quota_assigned_date DESC
+        ''')
+        
+        users = cur.fetchall()
+        return [dict(user) for user in users]
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo usuarios con custom quota: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 # Función de prueba
 def test_billing_functions():
