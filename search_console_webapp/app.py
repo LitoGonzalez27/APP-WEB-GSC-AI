@@ -23,6 +23,7 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
 from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE
 from services.ai_analysis import detect_ai_overview_elements
+from stripe_webhooks import create_webhook_route
 from services.utils import extract_domain, normalize_search_console_url, urls_match
 from services.country_config import get_country_config
 
@@ -97,6 +98,9 @@ if is_production or is_staging:
 
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)
+
+# --- NUEVO: Configurar webhook de Stripe ---
+create_webhook_route(app)
 
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):

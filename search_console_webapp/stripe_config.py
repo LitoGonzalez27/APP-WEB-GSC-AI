@@ -62,6 +62,8 @@ class StripeConfig:
             missing.append('STRIPE_SECRET_KEY')
         if not self.publishable_key:
             missing.append('STRIPE_PUBLISHABLE_KEY')
+        if not self.webhook_secret:
+            missing.append('STRIPE_WEBHOOK_SECRET')
         
         # Required Price IDs
         if not self.price_id_basic:
