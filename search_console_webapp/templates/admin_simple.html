@@ -281,7 +281,7 @@
             margin-top: 0.25rem;
         }
         
-        .btn-plan-change, .btn-custom-quota, .btn-remove-custom {
+        .btn-plan-change, .btn-custom-quota, .btn-remove-custom, .btn-reset-quota {
             padding: 0.125rem 0.25rem;
             border: none;
             border-radius: 3px;
@@ -315,6 +315,15 @@
         
         .btn-remove-custom:hover {
             background: #c82333;
+        }
+        
+        .btn-reset-quota {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-reset-quota:hover {
+            background: #e0a800;
         }
         
         .actions {
@@ -716,6 +725,17 @@
                                                 data-user-name="{{ user.name or user.email }}"
                                                 title="Remove Custom Quota">
                                             <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <!-- Reset Quota Button (solo si hay uso de quota) -->
+                                        {% if user.quota_used and user.quota_used > 0 %}
+                                        <button class="btn-reset-quota btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                data-quota-used="{{ user.quota_used }}"
+                                                title="Reset Quota Usage">
+                                            <i class="fas fa-undo"></i>
                                         </button>
                                         {% endif %}
                                     </div>
@@ -1340,6 +1360,16 @@
                     removeCustomQuota(userId, userName);
                 }
             }
+            
+            // Reset quota button
+            if (e.target.closest('.btn-reset-quota')) {
+                const btn = e.target.closest('.btn-reset-quota');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                const quotaUsed = btn.dataset.quotaUsed;
+                
+                resetQuota(userId, userName, quotaUsed);
+            }
         });
 
         function showPlanModal(userId, userName, currentPlan) {
@@ -1465,6 +1495,35 @@
                 }
             } catch (error) {
                 console.error('Error removing custom quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function resetQuota(userId, userName, currentUsage) {
+            if (!confirm(`⚠️ ¿Estás seguro de que quieres resetear la quota de ${userName}?\n\nUso actual: ${currentUsage} RU\nSe reseteará a: 0 RU`)) {
+                return;
+            }
+            
+            console.log(`🔄 Reseteando quota de usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/reset-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Quota reseteada exitosamente para ${userName}\n\n${result.message}`);
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error resetting quota:', error);
                 alert('❌ Error en la conexión: ' + error.message);
             }
         }

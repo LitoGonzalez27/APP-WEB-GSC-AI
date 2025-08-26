@@ -597,5 +597,89 @@ def test_billing_functions():
         if details:
             print(f"Detalles: Plan {details.get('plan')}, Cuota: {details.get('quota_used')}/{details.get('quota_limit')}")
 
+def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
+    """
+    Resetea manualmente la quota de un usuario (admin override)
+    
+    Args:
+        user_id: ID del usuario cuya quota resetear
+        admin_id: ID del admin que hace el reset
+        
+    Returns:
+        dict: {'success': bool, 'message': str, 'error': str}
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {'success': False, 'error': 'Database connection failed'}
+        
+        cur = conn.cursor()
+        
+        # Verificar que el admin existe
+        cur.execute('SELECT email FROM users WHERE id = %s AND role = %s', (admin_id, 'admin'))
+        admin_info = cur.fetchone()
+        
+        if not admin_info:
+            return {'success': False, 'error': 'Admin not found or insufficient permissions'}
+        
+        # Verificar que el usuario existe y obtener quota actual
+        cur.execute('SELECT email, quota_used, plan FROM users WHERE id = %s', (user_id,))
+        user_info = cur.fetchone()
+        
+        if not user_info:
+            return {'success': False, 'error': 'User not found'}
+        
+        previous_quota_used = user_info['quota_used'] or 0
+        
+        # Resetear quota_used a 0
+        cur.execute('''
+            UPDATE users 
+            SET quota_used = 0, 
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (user_id,))
+        
+        # Registrar evento de reset en quota_usage_events (si la tabla existe)
+        try:
+            cur.execute('''
+                INSERT INTO quota_usage_events 
+                (user_id, ru_consumed, operation_type, metadata, created_at) 
+                VALUES (%s, %s, %s, %s, NOW())
+            ''', (
+                user_id, 
+                0,  # No consume RU, es un reset
+                'admin_quota_reset',
+                json.dumps({
+                    'reset_by_admin_id': admin_id,
+                    'reset_by_admin_email': admin_info['email'],
+                    'previous_quota_used': previous_quota_used,
+                    'reason': 'Manual admin reset'
+                })
+            ))
+        except Exception as event_error:
+            # Si falla el registro de evento, continuar (no crítico)
+            logger.warning(f"Could not log quota reset event: {event_error}")
+        
+        conn.commit()
+        
+        logger.info(f"✅ Quota reset: user {user_id} ({user_info['email']}) by admin {admin_info['email']}")
+        logger.info(f"   Previous usage: {previous_quota_used} RU -> Reset to: 0 RU")
+        
+        return {
+            'success': True,
+            'message': f'Quota reset successfully. Previous usage: {previous_quota_used} RU',
+            'previous_usage': previous_quota_used,
+            'new_usage': 0
+        }
+        
+    except Exception as e:
+        logger.error(f"Error resetting quota for user {user_id}: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {'success': False, 'error': f'Database error: {str(e)}'}
+    finally:
+        if conn:
+            conn.close()
+
 if __name__ == "__main__":
     test_billing_functions()

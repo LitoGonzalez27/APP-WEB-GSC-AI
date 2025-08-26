@@ -87,7 +87,7 @@ def get_user_quota_status(user_id):
         conn = get_db_connection()
         if not conn:
             return {
-                'limit': 0, 'used': 0, 'remaining': 0, 
+                'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
                 'percentage': 0, 'can_consume': False,
                 'plan': 'unknown', 'is_custom': False
             }
@@ -104,7 +104,7 @@ def get_user_quota_status(user_id):
         user = cur.fetchone()
         if not user:
             return {
-                'limit': 0, 'used': 0, 'remaining': 0, 
+                'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
                 'percentage': 0, 'can_consume': False,
                 'plan': 'unknown', 'is_custom': False
             }
@@ -132,8 +132,8 @@ def get_user_quota_status(user_id):
         can_consume = remaining > 0
         
         return {
-            'limit': effective_limit,
-            'used': used,
+            'quota_limit': effective_limit,
+            'quota_used': used,
             'remaining': remaining,
             'percentage': percentage,
             'can_consume': can_consume,
@@ -145,7 +145,7 @@ def get_user_quota_status(user_id):
     except Exception as e:
         logger.error(f"Error obteniendo estado de quota para usuario {user_id}: {e}")
         return {
-            'limit': 0, 'used': 0, 'remaining': 0, 
+            'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
             'percentage': 0, 'can_consume': False,
             'plan': 'unknown', 'is_custom': False
         }
@@ -247,26 +247,26 @@ def get_user_access_permissions(user_id):
     has_quota = quota_status['can_consume']
     
     permissions = {
-        'ai_overview_access': False,
-        'manual_ai_access': False,
-        'serp_api_access': False,
-        'quota_info': quota_status
+        'can_use_ai_overview': False,
+        'can_use_manual_ai': False,
+        'can_use_serp_api': False,
+        'quota_status': quota_status
     }
     
     # Free plan: Sin acceso a features de AI
     if plan == 'free':
         permissions.update({
-            'ai_overview_access': False,
-            'manual_ai_access': False,
-            'serp_api_access': False
+            'can_use_ai_overview': False,
+            'can_use_manual_ai': False,
+            'can_use_serp_api': False
         })
     
     # Basic, Premium, Enterprise: Acceso completo si tienen quota
     elif plan in ['basic', 'premium', 'enterprise']:
         permissions.update({
-            'ai_overview_access': has_quota,
-            'manual_ai_access': has_quota,
-            'serp_api_access': has_quota
+            'can_use_ai_overview': has_quota,
+            'can_use_manual_ai': has_quota,
+            'can_use_serp_api': has_quota
         })
     
     return permissions
@@ -403,6 +403,128 @@ def test_quota_manager():
         print(f"Error in testing: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        if conn:
+            conn.close()
+
+def record_quota_usage(user_id, ru_consumed, operation_type="unknown", metadata=None):
+    """
+    Registra el consumo de RU por parte de un usuario
+    
+    Args:
+        user_id: ID del usuario
+        ru_consumed: Cantidad de RU consumidos
+        operation_type: Tipo de operación (serp_json, serp_html, serp_screenshot)
+        metadata: Información adicional (dict)
+    
+    Returns:
+        bool: True si se registró exitosamente
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No se pudo conectar a la base de datos para registrar quota usage")
+            return False
+        
+        cur = conn.cursor()
+        
+        # Actualizar quota_used en tabla users
+        cur.execute('''
+            UPDATE users 
+            SET quota_used = COALESCE(quota_used, 0) + %s,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (ru_consumed, user_id))
+        
+        # Registrar evento en quota_usage_events si la tabla existe
+        try:
+            import json
+            cur.execute('''
+                INSERT INTO quota_usage_events 
+                (user_id, ru_consumed, operation_type, metadata, created_at) 
+                VALUES (%s, %s, %s, %s, NOW())
+            ''', (
+                user_id, 
+                ru_consumed, 
+                operation_type,
+                json.dumps(metadata) if metadata else None
+            ))
+        except Exception as e:
+            # Si la tabla no existe, continuar (no es crítico)
+            logger.warning(f"Could not log to quota_usage_events: {e}")
+        
+        conn.commit()
+        
+        logger.info(f"📊 Recorded {ru_consumed} RU usage for user {user_id} ({operation_type})")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error recording quota usage for user {user_id}: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def reset_user_quota(user_id, admin_id=None):
+    """
+    Resetea la quota de un usuario a 0
+    
+    Args:
+        user_id: ID del usuario
+        admin_id: ID del admin que hace el reset (opcional)
+    
+    Returns:
+        bool: True si se reseteó exitosamente
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No se pudo conectar a la base de datos para resetear quota")
+            return False
+        
+        cur = conn.cursor()
+        
+        # Obtener usage actual antes del reset
+        cur.execute('SELECT quota_used FROM users WHERE id = %s', (user_id,))
+        result = cur.fetchone()
+        previous_usage = result['quota_used'] if result else 0
+        
+        # Resetear quota_used a 0
+        cur.execute('''
+            UPDATE users 
+            SET quota_used = 0,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (user_id,))
+        
+        # Registrar evento de reset
+        try:
+            import json
+            cur.execute('''
+                INSERT INTO quota_usage_events 
+                (user_id, ru_consumed, operation_type, metadata, created_at) 
+                VALUES (%s, %s, %s, %s, NOW())
+            ''', (
+                user_id, 
+                0,  # No consume RU, es un reset
+                'quota_reset',
+                json.dumps({
+                    'previous_usage': previous_usage,
+                    'reset_by_admin': admin_id,
+                    'reason': 'Manual quota reset'
+                })
+            ))
+        except Exception as e:
+            logger.warning(f"Could not log quota reset event: {e}")
+        
+        conn.commit()
+        
+        logger.info(f"🔄 Reset quota for user {user_id}: {previous_usage} RU -> 0 RU")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error resetting quota for user {user_id}: {e}")
+        return False
     finally:
         if conn:
             conn.close()

@@ -1202,6 +1202,27 @@ def setup_auth_routes(app):
             logger.error(f"Error removiendo custom quota de usuario {user_id}: {e}")
             return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
+    @app.route('/admin/users/<int:user_id>/reset-quota', methods=['POST'])
+    @admin_required
+    def admin_reset_quota(user_id):
+        """Resetear manualmente la quota de un usuario (admin override)"""
+        try:
+            from admin_billing_panel import reset_user_quota_manual
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = reset_user_quota_manual(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""
     credentials = get_user_credentials()

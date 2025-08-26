@@ -1124,6 +1124,20 @@ def get_serp_raw_json():
     
     try:
         serp_data_json = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_json.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp bloqueado por quota para user - keyword: '{keyword_query}'")
+            return jsonify({
+                'error': serp_data_json.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_json.get('quota_info', {}),
+                'action_required': serp_data_json.get('action_required'),
+                'organic_results': [],
+                'ads': []
+            }), 429  # Too Many Requests
+        
+        # ✅ Respuesta normal exitosa
         return jsonify({
             'organic_results': serp_data_json.get('organic_results', []), 
             'ads': serp_data_json.get('ads', [])
@@ -1153,6 +1167,25 @@ def get_serp_position():
     
     try:
         serp_data_pos = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_pos.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp/position bloqueado por quota para user - keyword: '{keyword_val}'")
+            return jsonify({
+                'error': serp_data_pos.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_pos.get('quota_info', {}),
+                'action_required': serp_data_pos.get('action_required'),
+                'keyword': keyword_val,
+                'domain': normalize_search_console_url(site_url_val),
+                'found': False,
+                'position': None,
+                'result': None,
+                'result_type': None,
+                'all_matches': [],
+                'total_results': 0,
+                'timestamp': time.time()
+            }), 429  # Too Many Requests
         
         if not serp_data_pos:
             logger.error(f"[SERP POSITION] No se obtuvo respuesta de SerpAPI para '{keyword_val}'")
@@ -1236,6 +1269,39 @@ def get_serp_screenshot_route():
     except Exception as e:
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
+
+# ✅ FASE 4: Nueva ruta para verificar estado de quota
+@app.route('/api/quota/status')
+@auth_required
+def get_quota_status():
+    """Obtiene el estado actual de quota del usuario autenticado"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        # Importar función de quota middleware
+        from quota_middleware import get_quota_warning_info
+        from quota_manager import get_user_quota_status, get_user_access_permissions
+        
+        # Obtener estado de quota completo
+        quota_status = get_user_quota_status(user_id)
+        access_permissions = get_user_access_permissions(user_id)
+        warning_info = get_quota_warning_info(user_id)
+        
+        response_data = {
+            'quota_status': quota_status,
+            'access_permissions': access_permissions,
+            'warning_info': warning_info
+        }
+        
+        logger.info(f"📊 Quota status para user {user_id}: {quota_status['quota_used']}/{quota_status['quota_limit']} RU")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo quota status: {e}")
+        return jsonify({'error': 'Could not retrieve quota status'}), 500
 
 def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=None):
     """
