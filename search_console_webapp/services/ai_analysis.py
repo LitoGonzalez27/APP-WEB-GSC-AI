@@ -1,8 +1,97 @@
 # services/ai_analysis.py
 import logging
+import re
 from .utils import urls_match, normalize_search_console_url, extract_domain
 
 logger = logging.getLogger(__name__)
+
+def extract_brand_variations(domain):
+    """
+    Extrae variaciones de marca comunes de un dominio para detectar menciones.
+    
+    Ejemplos:
+    - getquipu.com → ["quipu", "getquipu", "get quipu"]
+    - clickandseo.com → ["clickandseo", "click and seo", "clicandseo"]
+    - example-site.com → ["example-site", "example site", "examplesite"]
+    """
+    if not domain:
+        return []
+    
+    # Remover extensiones comunes
+    clean_domain = domain.lower()
+    for ext in ['.com', '.es', '.org', '.net', '.io', '.co']:
+        if clean_domain.endswith(ext):
+            clean_domain = clean_domain[:-len(ext)]
+            break
+    
+    # Remover www si existe
+    if clean_domain.startswith('www.'):
+        clean_domain = clean_domain[4:]
+    
+    variations = []
+    
+    # 1. Dominio completo limpio
+    variations.append(clean_domain)
+    
+    # 2. Si tiene "get" al inicio, añadir versión sin "get"
+    if clean_domain.startswith('get'):
+        without_get = clean_domain[3:]
+        if len(without_get) > 2:  # Solo si queda algo significativo
+            variations.append(without_get)
+    
+    # 3. Si tiene guiones, crear versiones con espacios y sin separadores
+    if '-' in clean_domain:
+        variations.append(clean_domain.replace('-', ' '))
+        variations.append(clean_domain.replace('-', ''))
+    
+    # 4. Si detectamos palabras compuestas comunes, separarlas
+    # Patrones comunes: click+and, get+word, etc.
+    if 'and' in clean_domain:
+        variations.append(clean_domain.replace('and', ' and '))
+    
+    # 5. Variaciones con mayúsculas (para nombres propios)
+    for var in list(variations):
+        variations.append(var.capitalize())
+        variations.append(var.title())
+    
+    # Eliminar duplicados y variaciones muy cortas
+    unique_variations = []
+    for var in variations:
+        if len(var) >= 3 and var not in unique_variations:
+            unique_variations.append(var)
+    
+    return unique_variations
+
+def check_brand_mention(text, domain, brand_variations):
+    """
+    Verifica si el texto contiene menciones del dominio o sus variaciones de marca.
+    
+    Returns:
+        tuple: (found, method) donde found es bool y method es string describiendo cómo se encontró
+    """
+    if not text or not domain:
+        return False, None
+    
+    text_lower = text.lower()
+    
+    # 1. Buscar dominio completo primero
+    if domain.lower() in text_lower:
+        return True, "full_domain"
+    
+    # 2. Buscar variaciones de marca
+    for variation in brand_variations:
+        if len(variation) >= 3:  # Solo buscar variaciones significativas
+            # Buscar como palabra completa o parcial pero con contexto
+            if variation.lower() in text_lower:
+                # Verificar que no sea parte de otra palabra más larga
+                import re
+                pattern = r'\b' + re.escape(variation.lower()) + r'\b'
+                if re.search(pattern, text_lower):
+                    return True, f"brand_exact_match:{variation}"
+                elif variation.lower() in text_lower:
+                    return True, f"brand_partial_match:{variation}"
+    
+    return False, None
 
 def detect_ai_overview_elements(serp_data, site_url=None):
     """
@@ -52,13 +141,19 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         ai_elements['debug_info']['error'] = 'No SERP data'
         return ai_elements
     
-    # Normalizar URL del sitio
+    # Normalizar URL del sitio y extraer variaciones de marca
     normalized_site_url = None
+    brand_variations = []
     raw_site_url = site_url
     
     if site_url:
         normalized_site_url = normalize_search_console_url(site_url)
+        
+        # ✅ NUEVO: Extraer variaciones de marca del dominio
+        brand_variations = extract_brand_variations(normalized_site_url)
+        
         logger.info(f"[AI ANALYSIS] Sitio a analizar: {site_url} → {normalized_site_url}")
+        logger.info(f"[AI ANALYSIS] Variaciones de marca detectadas: {brand_variations}")
     
     # Buscar AI Overview en los datos SERP
     ai_overview_data = serp_data.get('ai_overview')
@@ -99,6 +194,8 @@ def detect_ai_overview_elements(serp_data, site_url=None):
     total_reference_indexes = set()
     
     # Analizar text_blocks para obtener reference_indexes y contenido
+    text_block_mentions = []  # Para rastrear menciones encontradas en el contenido
+    
     for i, block in enumerate(text_blocks):
         block_type = block.get('type', 'unknown')
         snippet = block.get('snippet', '')
@@ -108,6 +205,18 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         total_reference_indexes.update(reference_indexes)
         
         logger.debug(f"[AI ANALYSIS] Text block {i+1}: type={block_type}, snippet_length={len(snippet)}, references={reference_indexes}")
+        
+        # ✅ NUEVO: Buscar menciones de marca en el contenido del AI Overview
+        if snippet and normalized_site_url:
+            found, method = check_brand_mention(snippet, normalized_site_url, brand_variations)
+            if found:
+                text_block_mentions.append({
+                    'block_index': i,
+                    'method': method,
+                    'snippet_preview': snippet[:100] + '...' if len(snippet) > 100 else snippet,
+                    'reference_indexes': reference_indexes
+                })
+                logger.info(f"[AI ANALYSIS] 🎯 Mención encontrada en text_block {i+1} via {method}: '{snippet[:150]}...'")
         
         # Añadir a la lista de elementos detectados (compatibilidad legacy)
         ai_elements['ai_overview_detected'].append({
@@ -126,6 +235,18 @@ def detect_ai_overview_elements(serp_data, site_url=None):
                 item_snippet = list_item.get('snippet', '')
                 total_content_length += len(item_snippet)
                 logger.debug(f"[AI ANALYSIS]   List item {j+1}: references={item_refs}")
+                
+                # ✅ NUEVO: Buscar menciones en list items también
+                if item_snippet and normalized_site_url:
+                    found, method = check_brand_mention(item_snippet, normalized_site_url, brand_variations)
+                    if found:
+                        text_block_mentions.append({
+                            'block_index': f"{i}.{j}",
+                            'method': method,
+                            'snippet_preview': item_snippet[:100] + '...' if len(item_snippet) > 100 else item_snippet,
+                            'reference_indexes': item_refs
+                        })
+                        logger.info(f"[AI ANALYSIS] 🎯 Mención encontrada en list item {i}.{j} via {method}: '{item_snippet[:150]}...'")
     
     # Asignar valores de compatibilidad legacy
     ai_elements['total_elements'] = len(text_blocks)
@@ -142,7 +263,8 @@ def detect_ai_overview_elements(serp_data, site_url=None):
     detection_method = None
     
     if normalized_site_url:
-        # MÉTODO 1: Buscar en ai_overview.references (oficial)
+        # MÉTODO 1: Buscar en ai_overview.references (oficial) - MÁXIMA PRIORIDAD
+        # Las referencias oficiales con posición específica son más valiosas que menciones en contenido
         if references:
             logger.info(f"[AI ANALYSIS] 🔍 MÉTODO OFICIAL: Buscando en {len(references)} referencias oficiales...")
             
@@ -163,15 +285,47 @@ def detect_ai_overview_elements(serp_data, site_url=None):
                     logger.info(f"[AI ANALYSIS] ✅ MÉTODO OFICIAL: Dominio encontrado en posición {domain_position}")
                     break
                 
-                # También verificar en source y title
-                if (ref_source and normalized_site_url.lower() in ref_source.lower()) or \
-                   (ref_title and normalized_site_url.lower() in ref_title.lower()):
+                # ✅ CORREGIDO: Verificar URLs en source y title de forma más precisa
+                source_has_domain = False
+                title_has_domain = False
+                
+                if ref_source:
+                    # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en source
+                    found, method = check_brand_mention(ref_source, normalized_site_url, brand_variations)
+                    if found:
+                        source_has_domain = True
+                        logger.info(f"[AI ANALYSIS] 🎯 Mención encontrada en source via {method}: '{ref_source[:100]}...'")
+                
+                if ref_title and not source_has_domain:
+                    # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en title
+                    found, method = check_brand_mention(ref_title, normalized_site_url, brand_variations)
+                    if found:
+                        title_has_domain = True
+                        logger.info(f"[AI ANALYSIS] 🎯 Mención encontrada en title via {method}: '{ref_title[:100]}...'")
+                
+                if source_has_domain or title_has_domain:
                     domain_found = True
                     domain_position = ref_index + 1
                     domain_link = ref_link
-                    detection_method = "official_source_title"
-                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO OFICIAL: Dominio encontrado en source/title posición {domain_position}")
+                    detection_method = "official_source_title_precise"
+                    location = "source" if source_has_domain else "title"
+                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO OFICIAL: Dominio encontrado en {location} posición {domain_position}")
                     break
+        
+        # ✅ MÉTODO 1.5: Buscar menciones en contenido de text_blocks (FALLBACK)
+        # Solo si no se encontró en referencias oficiales
+        if not domain_found and text_block_mentions:
+            logger.info(f"[AI ANALYSIS] 🎯 MÉTODO CONTENIDO (FALLBACK): Encontradas {len(text_block_mentions)} menciones en text_blocks")
+            
+            # Usar la primera mención encontrada (la más relevante)
+            first_mention = text_block_mentions[0]
+            domain_found = True
+            domain_position = 1  # Posición conceptual en AI Overview
+            domain_link = None  # No hay link específico para menciones en contenido
+            detection_method = f"text_content_{first_mention['method']}"
+            
+            logger.info(f"[AI ANALYSIS] ✅ MÉTODO CONTENIDO: Mención encontrada en text_block {first_mention['block_index']}")
+            logger.info(f"[AI ANALYSIS] 📝 Contenido: '{first_mention['snippet_preview']}'")
         
         # MÉTODO 2: Buscar en organic_results usando reference_indexes (híbrido estándar)
         if not domain_found and total_reference_indexes and organic_results:
@@ -200,81 +354,38 @@ def detect_ai_overview_elements(serp_data, site_url=None):
                         logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ESTÁNDAR: Dominio encontrado en posición visual {domain_position}")
                         break
                     
-                    # Verificar en source y title
-                    if (result_source and normalized_site_url.lower() in result_source.lower()) or \
-                       (result_title and normalized_site_url.lower() in result_title.lower()):
+                    # ✅ CORREGIDO: Verificar URLs en source y title de forma más precisa
+                    source_has_domain = False
+                    title_has_domain = False
+                    
+                    if result_source:
+                        # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en source
+                        found, method = check_brand_mention(result_source, normalized_site_url, brand_variations)
+                        if found:
+                            source_has_domain = True
+                            logger.info(f"[AI ANALYSIS] 🎯 Mención híbrida encontrada en source via {method}: '{result_source[:100]}...'")
+                    
+                    if result_title and not source_has_domain:
+                        # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en title
+                        found, method = check_brand_mention(result_title, normalized_site_url, brand_variations)
+                        if found:
+                            title_has_domain = True
+                            logger.info(f"[AI ANALYSIS] 🎯 Mención híbrida encontrada en title via {method}: '{result_title[:100]}...'")
+                    
+                    if source_has_domain or title_has_domain:
                         domain_found = True
                         visual_position = sorted_ref_indexes.index(ref_idx) + 1
                         domain_position = visual_position
                         domain_link = result_link
-                        detection_method = "hybrid_source_title"
-                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ESTÁNDAR: Dominio encontrado en source/title posición visual {domain_position}")
+                        detection_method = "hybrid_source_title_precise"
+                        location = "source" if source_has_domain else "title"
+                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ESTÁNDAR: Dominio encontrado en {location} posición visual {domain_position}")
                         break
         
-        # 🚀 MÉTODO 3: BÚSQUEDA AGRESIVA CON POSICIONES CORREGIDAS
-        if not domain_found and organic_results:
-            logger.info(f"[AI ANALYSIS] 🔍 MÉTODO AGRESIVO: Buscando en TODOS los organic_results (0-15) con cálculo de posición corregido")
-            
-            # Buscar en las primeras 15 posiciones
-            search_range = min(15, len(organic_results))
-            sorted_ref_indexes = sorted(total_reference_indexes) if total_reference_indexes else []
-            
-            for i in range(search_range):
-                result = organic_results[i]
-                result_link = result.get('link', '')
-                result_title = result.get('title', '')
-                result_source = result.get('source', '')
-                
-                logger.debug(f"[AI ANALYSIS] Búsqueda agresiva {i}: {result_title[:50]}... → {result_link}")
-                
-                # Verificar coincidencia
-                if result_link and urls_match(result_link, normalized_site_url):
-                    domain_found = True
-                    domain_link = result_link
-                    detection_method = "aggressive_search"
-                    
-                    # 🎯 POSICIÓN CORREGIDA BASADA EN PATRÓN DEL USUARIO
-                    if sorted_ref_indexes:
-                        # Calcular posición visual basándose en reference_indexes
-                        refs_before = [idx for idx in sorted_ref_indexes if idx < i]
-                        
-                        # 🎯 CORRECCIÓN AGRESIVA: Basada en observación del usuario
-                        # El usuario ve consistentemente posición #1 para dominios en primeras posiciones
-                        if i <= 5:  # Ampliar rango de corrección
-                            visual_position = 1
-                            logger.info(f"[AI ANALYSIS] 🎯 CORRECCIÓN AGRESIVA: Dominio en organic[{i}] → Posición visual #1 (patrón consistente del usuario)")
-                        else:
-                            visual_position = len(refs_before) + 1
-                            logger.info(f"[AI ANALYSIS] ✅ MÉTODO AGRESIVO: Dominio en organic[{i}] → Posición visual #{visual_position}")
-                    else:
-                        # Si no hay reference_indexes, es muy probable que sea posición #1
-                        visual_position = 1
-                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO AGRESIVO: Sin reference_indexes, asumiendo posición #1")
-                    
-                    domain_position = visual_position
-                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO AGRESIVO: Dominio encontrado en posición visual #{domain_position}")
-                    break
-                
-                # Verificar en source y title
-                if (result_source and normalized_site_url.lower() in result_source.lower()) or \
-                   (result_title and normalized_site_url.lower() in result_title.lower()):
-                    domain_found = True
-                    domain_link = result_link
-                    detection_method = "aggressive_source_title"
-                    
-                    # Misma lógica de corrección para source/title
-                    if sorted_ref_indexes:
-                        refs_before = [idx for idx in sorted_ref_indexes if idx < i]
-                        if i <= 5:  # Corrección agresiva consistente
-                            visual_position = 1
-                        else:
-                            visual_position = len(refs_before) + 1
-                    else:
-                        visual_position = 1
-                    
-                    domain_position = visual_position
-                    logger.info(f"[AI ANALYSIS] ✅ MÉTODO AGRESIVO: Dominio encontrado en source/title posición visual #{domain_position}")
-                    break
+        # Si no se encontró nada, loggear el resultado
+        if not domain_found:
+            logger.info(f"[AI ANALYSIS] 🚫 NO ENCONTRADO: No hay menciones del dominio en AI Overview")
+            logger.info(f"[AI ANALYSIS] 📋 BUSCADO: {normalized_site_url} + variaciones {brand_variations}")
     
     # Asignar resultados del dominio
     ai_elements['domain_is_ai_source'] = domain_found
@@ -291,15 +402,20 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'site_url_original': raw_site_url,
         'site_url_normalized': normalized_site_url,
         'reference_indexes_found': sorted(total_reference_indexes),
-        'structure_type': 'hybrid_ultra_robust_corrected_positions',
+        'structure_type': 'hybrid_ultra_robust_with_smart_prioritization',
         'detection_method': detection_method,
         'ai_overview_found': True,
         'available_keys': list(serp_data.keys()),
         'requires_additional_request': False,
         'has_official_references': bool(references),
         'has_organic_fallback': bool(organic_results and total_reference_indexes),
-        'used_aggressive_search': detection_method in ['aggressive_search', 'aggressive_source_title'],
-        'position_correction_applied': detection_method in ['aggressive_search', 'aggressive_source_title'],
+        'used_aggressive_search': False,  # ✅ DESHABILITADO: Ya no usamos búsqueda agresiva 
+        'position_correction_applied': detection_method in ['hybrid_organic_results', 'hybrid_source_title_precise'],
+        # ✅ NUEVO: Información sobre detección de marca
+        'brand_variations_generated': brand_variations,
+        'text_block_mentions_found': len(text_block_mentions),
+        'text_block_mentions_details': text_block_mentions,
+        'uses_brand_detection': len(brand_variations) > 0,
         # 🆕 NUEVO: Guardar referencias para análisis de competidores
         'references_found': references,
         'organic_matches': []  # Se llenará si se usan organic results con reference_indexes
@@ -310,10 +426,8 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         logger.info(f"[AI ANALYSIS] ✅ RESULTADO FINAL: Dominio encontrado en posición {domain_position} (método: {detection_method})")
         ai_elements['impact_score'] += 20  # Bonus por encontrar el dominio
         
-        # Bonus extra por búsqueda agresiva exitosa
-        if detection_method in ['aggressive_search', 'aggressive_source_title']:
-            ai_elements['impact_score'] += 10
-            logger.info(f"[AI ANALYSIS] 🎯 BÚSQUEDA AGRESIVA EXITOSA: Encontrado donde reference_indexes fallaron")
+        # ✅ BONUS ELIMINADO: Ya no hay búsqueda agresiva
+        # Solo se otorgan bonos por detección en referencias oficiales o reference_indexes específicos
             
         # Bonus extra por corrección de posición aplicada
         if ai_elements['debug_info'].get('position_correction_applied'):
