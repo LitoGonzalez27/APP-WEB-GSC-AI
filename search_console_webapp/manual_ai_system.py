@@ -691,7 +691,48 @@ def analyze_project(project_id):
     
     try:
         # Ejecutar análisis manual con sobreescritura forzada
-        results = run_project_analysis(project_id, force_overwrite=True)
+        analysis_result = run_project_analysis(project_id, force_overwrite=True)
+        
+        # ✅ FASE 4: Manejar respuesta que puede incluir información de quota
+        if isinstance(analysis_result, dict) and analysis_result.get('quota_exceeded'):
+            # Análisis interrumpido por quota
+            quota_info = analysis_result.get('quota_info', {})
+            partial_results = analysis_result.get('results', [])
+            
+            logger.warning(f"Manual AI analysis for project {project_id} stopped due to quota limit")
+            
+            # Crear snapshot con resultados parciales si hay algunos
+            if partial_results:
+                create_daily_snapshot(project_id)
+            
+            # Crear evento de análisis parcial
+            create_project_event(
+                project_id=project_id,
+                event_type='manual_analysis_quota_exceeded',
+                event_title=f'Manual analysis stopped: quota exceeded ({len(partial_results)} keywords analyzed)',
+                keywords_affected=len(partial_results),
+                user_id=user['id']
+            )
+            
+            return jsonify({
+                'success': False,
+                'error': 'quota_exceeded',
+                'quota_exceeded': True,
+                'quota_info': quota_info,
+                'action_required': analysis_result.get('action_required', 'upgrade'),
+                'results_count': len(partial_results),
+                'keywords_analyzed': analysis_result.get('keywords_analyzed', 0),
+                'keywords_remaining': analysis_result.get('keywords_remaining', 0),
+                'analysis_date': str(date.today()),
+                'message': f'Analysis stopped due to quota limit. {len(partial_results)} keywords analyzed successfully.'
+            }), 429  # Too Many Requests
+        
+        # Análisis normal (lista de resultados)
+        if isinstance(analysis_result, list):
+            results = analysis_result
+        else:
+            # Fallback por si hay otra estructura
+            results = analysis_result.get('results', []) if isinstance(analysis_result, dict) else []
         
         if not results:
             logger.warning(f"No results returned for project {project_id} analysis")
@@ -1479,8 +1520,25 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                     @with_backoff(max_attempts=3, base_delay_sec=1.0)
                     def fetch_serp():
                         data = get_serp_json(dict(serp_params_base))
-                        if not data or data.get('error'):
+                        
+                        # ✅ FASE 4: Manejar errores de quota específicamente
+                        if not data:
+                            raise RuntimeError('No SERP data returned')
+                        
+                        # Verificar errores de quota primero
+                        if data.get('quota_blocked'):
+                            logger.warning(f"🚫 Manual AI bloqueado por quota para '{keyword}': {data.get('error')}")
+                            # Crear una excepción específica para quota que pueda ser manejada diferente
+                            quota_error = RuntimeError(f"QUOTA_EXCEEDED: {data.get('error', 'Quota limit reached')}")
+                            quota_error.quota_info = data.get('quota_info', {})
+                            quota_error.action_required = data.get('action_required', 'upgrade')
+                            quota_error.is_quota_error = True
+                            raise quota_error
+                        
+                        # Verificar otros errores de SerpAPI
+                        if data.get('error'):
                             raise RuntimeError(data.get('error', 'SERP fetch error'))
+                            
                         return data
 
                     serp_data = fetch_serp()
@@ -1545,9 +1603,57 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
             logger.debug(f"Analyzed keyword '{keyword}': AI={ai_result.get('has_ai_overview')}, Mentioned={ai_result.get('domain_is_ai_source')}")
             
         except Exception as e:
-            logger.error(f"Error analyzing keyword '{keyword}': {e}")
-            failed_keywords += 1
-            continue
+            # ✅ FASE 4: Manejar errores de quota específicamente
+            if hasattr(e, 'is_quota_error') and e.is_quota_error:
+                logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {e}")
+                
+                # Guardar un resultado específico para quota exceeded
+                cur.execute('''
+                    INSERT INTO manual_ai_results 
+                    (project_id, keyword_id, keyword, analysis_date, has_ai_overview, 
+                     domain_mentioned, error_details, country_code)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (project_id, keyword_id, analysis_date) 
+                    DO UPDATE SET 
+                        has_ai_overview = EXCLUDED.has_ai_overview,
+                        domain_mentioned = EXCLUDED.domain_mentioned,
+                        error_details = EXCLUDED.error_details,
+                        updated_at = NOW()
+                ''', (
+                    project_id, keyword_id, keyword, today, False, False,
+                    f"QUOTA_EXCEEDED: {getattr(e, 'quota_info', {}).get('message', 'Quota limit reached')}",
+                    project['country_code']
+                ))
+                
+                # ✅ IMPORTANTE: Si es error de quota, probablemente todas las siguientes también fallarán
+                # Así que terminamos el análisis aquí con información específica
+                quota_info = getattr(e, 'quota_info', {})
+                action_required = getattr(e, 'action_required', 'upgrade')
+                
+                logger.error(f"🚫 Manual AI analysis stopped due to quota limit. "
+                           f"Plan: {quota_info.get('plan', 'unknown')}, "
+                           f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
+                
+                # Hacer commit y salir con información específica de quota
+                conn.commit()
+                cur.close()
+                conn.close()
+                
+                # Retornar resultados parciales + información de quota
+                return {
+                    'results': results,
+                    'quota_exceeded': True,
+                    'quota_info': quota_info,
+                    'action_required': action_required,
+                    'keywords_analyzed': len(results),
+                    'keywords_remaining': len(keywords) - len(results),
+                    'error': 'QUOTA_EXCEEDED'
+                }
+            else:
+                # Error normal (no de quota)
+                logger.error(f"Error analyzing keyword '{keyword}': {e}")
+                failed_keywords += 1
+                continue
     
     conn.commit()
     cur.close()

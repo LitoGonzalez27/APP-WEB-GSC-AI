@@ -1101,11 +1101,52 @@ class ManualAISystem {
             
             clearTimeout(timeoutId);
 
+            const data = await response.json();
+
+            // ✅ FASE 4: Manejar errores de quota específicamente
+            if (response.status === 429 && data.quota_exceeded) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                const quotaInfo = data.quota_info || {};
+                const analyzed = data.keywords_analyzed || 0;
+                const remaining = data.keywords_remaining || 0;
+                
+                console.warn(`🚫 Manual AI analysis blocked by quota: ${data.error}`);
+                
+                // Mostrar UI de quota si está disponible
+                if (window.QuotaUI) {
+                    window.QuotaUI.showBlockModal({
+                        error: data.error,
+                        quota_blocked: true,
+                        quota_info: quotaInfo,
+                        action_required: data.action_required || 'upgrade'
+                    });
+                }
+                
+                // Mostrar mensaje específico de quota
+                const quotaMessage = analyzed > 0 
+                    ? `Analysis stopped due to quota limit. ${analyzed} keywords were analyzed successfully before reaching the limit. ${remaining} keywords remain.`
+                    : `Analysis blocked: You have reached your monthly quota limit. Please upgrade your plan to continue.`;
+                    
+                this.showError(quotaMessage);
+                
+                // Refresh project stats en caso de que se hayan analizado algunas keywords
+                if (analyzed > 0) {
+                    await this.loadProjects();
+                    
+                    // Refresh analytics if needed
+                    if (this.elements.analyticsProjectSelect.value == projectId) {
+                        await this.loadAnalytics();
+                    }
+                }
+                
+                return; // No continuar con el flujo normal
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-
-            const data = await response.json();
 
             if (data.success) {
                 clearInterval(backupPolling); // Stop backup polling

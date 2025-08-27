@@ -1338,9 +1338,42 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
     
     try:
         serp_data_from_service = get_serp_json(params_ai)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente en AI Overview
+        if not serp_data_from_service:
+            raise Exception("El servicio get_serp_json devolvió datos vacíos")
+        
+        # Verificar errores de quota primero
+        if serp_data_from_service.get("quota_blocked"):
+            logger.warning(f"🚫 AI Overview bloqueado por quota para '{keyword_arg}': {serp_data_from_service.get('error')}")
+            quota_error_result = {
+                'keyword': keyword_arg,
+                'error': 'quota_exceeded',
+                'quota_info': serp_data_from_service.get('quota_info', {}),
+                'action_required': serp_data_from_service.get('action_required'),
+                'ai_analysis': {
+                    'has_ai_overview': False,
+                    'quota_blocked': True,
+                    'debug_info': {
+                        'error': 'Quota limit reached',
+                        'message': serp_data_from_service.get('error'),
+                        'quota_info': serp_data_from_service.get('quota_info', {})
+                    }
+                },
+                'site_position': 'Quota Exceeded',
+                'serp_features': [],
+                'timestamp': time.time(),
+                'country_analyzed': country_code or 'esp'
+            }
             
-        if not serp_data_from_service or "error" in serp_data_from_service:
-            error_msg = serp_data_from_service.get("error", "El servicio get_serp_json devolvió datos vacíos o con error")
+            # ✅ NUEVO: Guardar en caché el resultado de quota para evitar repetir llamadas
+            ai_cache.cache_analysis(keyword_arg, site_url_arg, country_code or '', quota_error_result)
+            
+            return quota_error_result
+        
+        # Verificar otros errores de SerpAPI
+        if "error" in serp_data_from_service:
+            error_msg = serp_data_from_service.get("error", "Error desconocido de SerpAPI")
             logger.warning(f"Error SERP para '{keyword_arg}': {error_msg}")
             raise Exception(error_msg)
 
@@ -1700,6 +1733,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                     logger.info(f"✅ Progreso: {i}/{len(keywords_data_list)} keywords procesadas")
                     # TODO: En futuras versiones, enviar progreso real al frontend via SSE
                 
+                # ✅ FASE 4: Manejar resultados de quota en análisis paralelo
                 if 'ai_analysis' not in ai_result_item:
                     ai_result_item['ai_analysis'] = {
                         'has_ai_overview': False,
@@ -1710,6 +1744,12 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                         'domain_ai_source_position': None,
                         'domain_ai_source_link': None
                     }
+                
+                # ✅ NUEVO: Verificar si es error de quota para marcar apropiadamente
+                is_quota_error = ai_result_item.get('error') == 'quota_exceeded'
+                if is_quota_error:
+                    logger.info(f"⚠️ Keyword '{keyword_str}' bloqueada por quota - incluida en resultados")
+                    # El resultado de quota ya tiene la estructura correcta, no necesita modificación
 
                 combined_result = {
                     **kw_data_item,

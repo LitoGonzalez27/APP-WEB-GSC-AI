@@ -28,6 +28,9 @@
     <!-- CSS específico para Manual AI -->
     <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
     
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
+    
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
@@ -1168,6 +1171,10 @@ keyword 3"></textarea>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+    
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
         // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos

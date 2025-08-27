@@ -45,6 +45,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-reset-styles.css') }}">
   
+  <!-- ✅ FASE 4: Estilos de Quota UI -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='quota-ui.css') }}">
+  
   <!-- ClicAndSEO Style Guide - Search Performance Consistency -->
   <link rel="stylesheet" href="{{ url_for('static', filename='search-performance-styles.css') }}">
 </head>
@@ -989,8 +992,11 @@
 
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+      <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
 
