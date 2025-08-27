@@ -780,19 +780,83 @@ def setup_auth_routes(app):
     @app.route('/admin/users')
     @admin_required
     def admin_users():
-        """Panel de administración de usuarios"""
-        # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
-        ensure_sample_data()
-        
-        users = get_all_users()
-        stats = get_user_stats()
-        current_user = get_current_user()
-        
-        # Debug logging
-        logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {stats}")
-        
-        # ✅ USANDO TEMPLATE SIMPLE Y LIMPIO CON MODALES GARANTIZADOS
-        return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+        """Panel de administración de usuarios - MEJORADO con datos de billing"""
+        try:
+            # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
+            ensure_sample_data()
+            
+            # 🚀 MEJORA: Usar funciones de billing para datos completos
+            try:
+                from admin_billing_panel import get_users_with_billing, get_billing_stats
+                users = get_users_with_billing()
+                # Fusionar stats básicos con stats de billing
+                basic_stats = get_user_stats()
+                billing_stats = get_billing_stats()
+                stats = {**basic_stats, **billing_stats}
+                logger.info(f"✅ Admin panel mejorado - Usuarios con billing: {len(users)}")
+            except ImportError as e:
+                logger.warning(f"⚠️ Fallback a función básica - admin_billing_panel no disponible: {e}")
+                users = get_all_users()
+                stats = get_user_stats()
+            
+            current_user = get_current_user()
+            
+            # Debug logging
+            logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {list(stats.keys())}")
+            
+            # ✅ TEMPLATE MEJORADO CON DATOS COMPLETOS DE BILLING
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+            
+        except Exception as e:
+            logger.error(f"Error en panel admin: {e}")
+            # Fallback básico en caso de error
+            users = get_all_users() if 'get_all_users' in globals() else []
+            stats = get_user_stats() if 'get_user_stats' in globals() else {}
+            current_user = get_current_user()
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+
+    @app.route('/admin/users/<int:user_id>/billing-details')
+    @admin_required
+    def user_billing_details(user_id):
+        """Obtener detalles completos de billing de un usuario para el modal Ver"""
+        try:
+            from admin_billing_panel import get_user_billing_details
+            user_details = get_user_billing_details(user_id)
+            
+            if not user_details:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            
+            return jsonify({'success': True, 'user': user_details})
+            
+        except ImportError:
+            # Fallback a datos básicos si admin_billing_panel no está disponible
+            logger.warning("⚠️ admin_billing_panel no disponible, usando datos básicos")
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute('''
+                    SELECT id, email, name, picture, role, is_active, created_at,
+                           plan, quota_limit, quota_used, current_period_start, current_period_end
+                    FROM users WHERE id = %s
+                ''', (user_id,))
+                user = cur.fetchone()
+                
+                if not user:
+                    return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+                
+                user_dict = dict(user)
+                return jsonify({'success': True, 'user': user_dict})
+                
+            except Exception as fallback_error:
+                logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
+                return jsonify({'success': False, 'error': 'Error obteniendo datos del usuario'}), 500
+            finally:
+                if conn:
+                    conn.close()
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
     @app.route('/admin/debug-stats')
     @admin_required 

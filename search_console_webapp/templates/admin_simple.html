@@ -268,6 +268,66 @@
             font-size: 0.7rem;
         }
         
+        /* 🚀 NUEVO: Barra progresiva de cuotas */
+        .quota-progress-container {
+            margin-top: 0.25rem;
+            width: 100%;
+        }
+        
+        .quota-progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .quota-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 80%, #dc3545 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        
+        .quota-progress-fill.danger {
+            background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+        }
+        
+        .quota-progress-fill.warning {
+            background: linear-gradient(90deg, #ffc107 0%, #f39c12 100%);
+        }
+        
+        .quota-progress-fill.success {
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .quota-progress-text {
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 0.125rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quota-percentage {
+            font-weight: 600;
+        }
+        
+        .quota-percentage.danger {
+            color: #dc3545;
+        }
+        
+        .quota-percentage.warning {
+            color: #ffc107;
+        }
+        
+        .quota-percentage.success {
+            color: #28a745;
+        }
+        
         .custom-note {
             color: #6f42c1;
             font-style: italic;
@@ -683,7 +743,7 @@
                                 </div>
                             </td>
                             <td>
-                                <!-- Plan & Quota Column -->
+                                <!-- Plan & Quota Column MEJORADA -->
                                 <div class="plan-quota-container">
                                     <div class="plan-info">
                                         {% if user.custom_quota_limit %}
@@ -700,6 +760,26 @@
                                             <small>{{ user.quota_used or 0 }}/{{ user.quota_limit or 0 }} RU</small>
                                         {% endif %}
                                     </div>
+                                    
+                                    <!-- 🚀 NUEVA: Barra progresiva de cuotas -->
+                                    {% set quota_limit = user.custom_quota_limit if user.custom_quota_limit else (user.quota_limit or 0) %}
+                                    {% set quota_used = user.quota_used or 0 %}
+                                    {% if quota_limit > 0 %}
+                                        {% set quota_percentage = ((quota_used / quota_limit) * 100)|round(1) %}
+                                        <div class="quota-progress-container" 
+                                             data-quota-used="{{ quota_used }}" 
+                                             data-quota-limit="{{ quota_limit }}" 
+                                             data-quota-percentage="{{ quota_percentage }}">
+                                            <div class="quota-progress-bar">
+                                                <div class="quota-progress-fill" data-percentage="{{ quota_percentage }}"></div>
+                                            </div>
+                                            <div class="quota-progress-text">
+                                                <span>{{ quota_used }}/{{ quota_limit }} RU</span>
+                                                <span class="quota-percentage" data-percentage="{{ quota_percentage }}">{{ quota_percentage }}%</span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    
                                     {% if user.custom_quota_assigned_by %}
                                         <small class="custom-note">By: {{ user.custom_quota_assigned_by }}</small>
                                     {% endif %}
@@ -802,44 +882,143 @@
         </div>
     </div>
 
-    <!-- Modal de Detalles de Usuario -->
+    <!-- Modal de Detalles de Usuario MEJORADO -->
     <div id="userModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h3><i class="fas fa-user"></i> Detalles del Usuario</h3>
+                <h3><i class="fas fa-user-circle"></i> Detalles Completos del Usuario</h3>
                 <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">ID:</span>
-                        <span class="detail-value" id="detailId">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Nombre:</span>
-                        <span class="detail-value" id="detailName">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Email:</span>
-                        <span class="detail-value" id="detailEmail">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Rol:</span>
-                        <span class="detail-value" id="detailRole">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Estado:</span>
-                        <span class="detail-value" id="detailStatus">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Registro:</span>
-                        <span class="detail-value" id="detailCreated">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Autenticación:</span>
-                        <span class="detail-value" id="detailAuth">-</span>
+                <!-- Sección: Información Básica -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-user"></i> Información Básica
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">ID:</span>
+                            <span class="detail-value" id="detailId">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Nombre:</span>
+                            <span class="detail-value" id="detailName">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Email:</span>
+                            <span class="detail-value" id="detailEmail">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Rol:</span>
+                            <span class="detail-value" id="detailRole">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Estado:</span>
+                            <span class="detail-value" id="detailStatus">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Registro:</span>
+                            <span class="detail-value" id="detailCreated">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Autenticación:</span>
+                            <span class="detail-value" id="detailAuth">-</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 🚀 NUEVA: Sección Plan y Facturación -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-credit-card"></i> Plan y Facturación
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Plan Actual:</span>
+                            <span class="detail-value" id="detailPlan">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Estado de Facturación:</span>
+                            <span class="detail-value" id="detailBillingStatus">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Stripe Customer ID:</span>
+                            <span class="detail-value" id="detailStripeId">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Período de Facturación:</span>
+                            <span class="detail-value" id="detailBillingPeriod">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Próxima Renovación:</span>
+                            <span class="detail-value" id="detailNextRenewal">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🚀 NUEVA: Sección Cuotas y Uso -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-tachometer-alt"></i> Cuotas y Uso
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Límite de Cuota:</span>
+                            <span class="detail-value" id="detailQuotaLimit">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Cuota Utilizada:</span>
+                            <span class="detail-value" id="detailQuotaUsed">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Porcentaje de Uso:</span>
+                            <span class="detail-value" id="detailQuotaPercentage">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Reset de Cuota:</span>
+                            <span class="detail-value" id="detailQuotaReset">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progreso en modal -->
+                    <div id="detailProgressContainer" style="margin-top: 1rem; display: none;">
+                        <div style="margin-bottom: 0.25rem; font-size: 0.8rem; color: #666;">Progreso de Uso:</div>
+                        <div class="quota-progress-bar">
+                            <div id="detailProgressFill" class="quota-progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🚀 NUEVA: Sección Custom Quota (Enterprise) -->
+                <div id="detailCustomQuotaSection" style="margin-bottom: 1.5rem; display: none;">
+                    <h4 style="color: #6f42c1; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-crown"></i> Custom Quota (Enterprise)
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Custom Limit:</span>
+                            <span class="detail-value" id="detailCustomLimit">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Notas:</span>
+                            <span class="detail-value" id="detailCustomNotes">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Asignado por:</span>
+                            <span class="detail-value" id="detailCustomAssignedBy">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Fecha de Asignación:</span>
+                            <span class="detail-value" id="detailCustomAssignedDate">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('userModal')">Cerrar</button>
+                <button class="btn btn-primary" id="refreshUserDetails" style="display: none;">
+                    <i class="fas fa-sync"></i> Actualizar
+                </button>
             </div>
         </div>
     </div>
@@ -1015,9 +1194,10 @@
     <script>
         // ========== FUNCIONES BÁSICAS Y DIRECTAS ==========
         
-        function showUserDetails(id, name, email, role, status, created, authType) {
-            console.log('📋 Mostrando detalles de usuario:', id);
+        async function showUserDetails(id, name, email, role, status, created, authType) {
+            console.log('📋 Cargando detalles completos de usuario:', id);
             
+            // Llenar información básica inmediatamente
             document.getElementById('detailId').textContent = id;
             document.getElementById('detailName').textContent = name;
             document.getElementById('detailEmail').textContent = email;
@@ -1026,7 +1206,155 @@
             document.getElementById('detailCreated').textContent = created;
             document.getElementById('detailAuth').textContent = authType;
             
+            // Mostrar modal inmediatamente
             openModal('userModal');
+            
+            try {
+                // 🚀 NUEVO: Cargar detalles completos de billing
+                console.log('🔄 Cargando datos de billing...');
+                const response = await fetch(`/admin/users/${id}/billing-details`);
+                const result = await response.json();
+                
+                if (result.success && result.user) {
+                    const user = result.user;
+                    console.log('✅ Datos de billing cargados:', user);
+                    
+                    // Plan y Facturación
+                    document.getElementById('detailPlan').textContent = getPlanDisplayName(user.plan || 'free');
+                    document.getElementById('detailBillingStatus').textContent = getBillingStatusDisplay(user.billing_status || 'active');
+                    document.getElementById('detailStripeId').textContent = user.stripe_customer_id || 'No configurado';
+                    
+                    // Período de facturación
+                    if (user.current_period_start && user.current_period_end) {
+                        const startDate = new Date(user.current_period_start).toLocaleDateString('es-ES');
+                        const endDate = new Date(user.current_period_end).toLocaleDateString('es-ES');
+                        document.getElementById('detailBillingPeriod').textContent = `${startDate} - ${endDate}`;
+                        document.getElementById('detailNextRenewal').textContent = `${endDate} (${getDaysUntilRenewal(user.current_period_end)} días)`;
+                    } else {
+                        document.getElementById('detailBillingPeriod').textContent = 'No configurado';
+                        document.getElementById('detailNextRenewal').textContent = 'No configurado';
+                    }
+                    
+                    // Cuotas y Uso
+                    const quotaLimit = user.custom_quota_limit || user.quota_limit || 0;
+                    const quotaUsed = user.quota_used || 0;
+                    
+                    document.getElementById('detailQuotaLimit').textContent = `${quotaLimit} RU/mes`;
+                    document.getElementById('detailQuotaUsed').textContent = `${quotaUsed} RU`;
+                    
+                    if (quotaLimit > 0) {
+                        const percentage = Math.round((quotaUsed / quotaLimit) * 100);
+                        document.getElementById('detailQuotaPercentage').textContent = `${percentage}%`;
+                        
+                        // Mostrar barra de progreso
+                        const progressContainer = document.getElementById('detailProgressContainer');
+                        const progressFill = document.getElementById('detailProgressFill');
+                        
+                        progressContainer.style.display = 'block';
+                        progressFill.style.width = `${percentage}%`;
+                        
+                        // Aplicar colores según porcentaje
+                        progressFill.className = 'quota-progress-fill';
+                        if (percentage >= 90) {
+                            progressFill.classList.add('danger');
+                        } else if (percentage >= 75) {
+                            progressFill.classList.add('warning');
+                        } else {
+                            progressFill.classList.add('success');
+                        }
+                    } else {
+                        document.getElementById('detailQuotaPercentage').textContent = 'N/A';
+                        document.getElementById('detailProgressContainer').style.display = 'none';
+                    }
+                    
+                    // Reset de cuota
+                    if (user.quota_reset_date) {
+                        const resetDate = new Date(user.quota_reset_date).toLocaleDateString('es-ES');
+                        document.getElementById('detailQuotaReset').textContent = resetDate;
+                    } else {
+                        document.getElementById('detailQuotaReset').textContent = 'No configurado';
+                    }
+                    
+                    // Custom Quota (Enterprise)
+                    const customQuotaSection = document.getElementById('detailCustomQuotaSection');
+                    if (user.custom_quota_limit) {
+                        customQuotaSection.style.display = 'block';
+                        document.getElementById('detailCustomLimit').textContent = `${user.custom_quota_limit} RU/mes`;
+                        document.getElementById('detailCustomNotes').textContent = user.custom_quota_notes || 'Sin notas';
+                        document.getElementById('detailCustomAssignedBy').textContent = user.custom_quota_assigned_by || 'N/A';
+                        
+                        if (user.custom_quota_assigned_date) {
+                            const assignedDate = new Date(user.custom_quota_assigned_date).toLocaleDateString('es-ES');
+                            document.getElementById('detailCustomAssignedDate').textContent = assignedDate;
+                        } else {
+                            document.getElementById('detailCustomAssignedDate').textContent = 'N/A';
+                        }
+                    } else {
+                        customQuotaSection.style.display = 'none';
+                    }
+                    
+                } else {
+                    console.warn('⚠️ No se pudieron cargar los detalles de billing:', result.error);
+                    // Mantener solo la información básica visible
+                    document.getElementById('detailPlan').textContent = 'No disponible';
+                    document.getElementById('detailBillingStatus').textContent = 'No disponible';
+                    document.getElementById('detailStripeId').textContent = 'No disponible';
+                    document.getElementById('detailBillingPeriod').textContent = 'No disponible';
+                    document.getElementById('detailNextRenewal').textContent = 'No disponible';
+                    document.getElementById('detailQuotaLimit').textContent = 'No disponible';
+                    document.getElementById('detailQuotaUsed').textContent = 'No disponible';
+                    document.getElementById('detailQuotaPercentage').textContent = 'No disponible';
+                    document.getElementById('detailQuotaReset').textContent = 'No disponible';
+                    document.getElementById('detailProgressContainer').style.display = 'none';
+                    document.getElementById('detailCustomQuotaSection').style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('❌ Error cargando detalles de billing:', error);
+                // En caso de error, mantener la funcionalidad básica
+            }
+        }
+        
+        // 🚀 NUEVAS: Funciones helper para el modal
+        function getPlanDisplayName(plan) {
+            const planNames = {
+                'free': 'Free (0€)',
+                'basic': 'Basic (29,99€)', 
+                'premium': 'Premium (59,99€)',
+                'enterprise': 'Enterprise (Custom)',
+                'beta': 'Beta'
+            };
+            return planNames[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+        }
+        
+        function getBillingStatusDisplay(status) {
+            const statusNames = {
+                'active': '✅ Activo',
+                'trialing': '🆓 Período de prueba',
+                'past_due': '⚠️ Pago atrasado',
+                'canceled': '❌ Cancelado',
+                'unpaid': '💸 Sin pagar',
+                'incomplete': '⏳ Incompleto',
+                'beta': '🧪 Beta'
+            };
+            return statusNames[status] || status;
+        }
+        
+        function getDaysUntilRenewal(endDate) {
+            const now = new Date();
+            const end = new Date(endDate);
+            const diffTime = end - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                return 'Vencido';
+            } else if (diffDays === 0) {
+                return 'Hoy';
+            } else if (diffDays === 1) {
+                return '1 día';
+            } else {
+                return `${diffDays} días`;
+            }
         }
         
         function showDeleteConfirm(userId, userName) {
@@ -1254,6 +1582,35 @@
             }
         });
         
+        // 🚀 NUEVO: Inicializar barras progresivas de cuotas
+        function initializeQuotaProgressBars() {
+            console.log('🔄 Inicializando barras progresivas de cuotas...');
+            
+            document.querySelectorAll('.quota-progress-container').forEach(container => {
+                const percentage = parseFloat(container.dataset.quotaPercentage || 0);
+                const progressFill = container.querySelector('.quota-progress-fill');
+                const percentageSpan = container.querySelector('.quota-percentage');
+                
+                if (progressFill && percentageSpan) {
+                    // Aplicar ancho
+                    progressFill.style.width = percentage + '%';
+                    
+                    // Aplicar clases de color según porcentaje
+                    let colorClass = 'success';
+                    if (percentage >= 90) {
+                        colorClass = 'danger';
+                    } else if (percentage >= 75) {
+                        colorClass = 'warning';
+                    }
+                    
+                    progressFill.classList.add(colorClass);
+                    percentageSpan.classList.add(colorClass);
+                    
+                    console.log(`✅ Barra inicializada: ${percentage}% (${colorClass})`);
+                }
+            });
+        }
+
         // Debug simple
         console.log('🚀 Admin Panel Simple cargado correctamente');
         
@@ -1273,6 +1630,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 🚀 NUEVO: Inicializar barras progresivas al cargar la página
+            initializeQuotaProgressBars();
+            
             // Obtener todas las rows de users
             const userRows = document.querySelectorAll('.table tbody tr');
 
