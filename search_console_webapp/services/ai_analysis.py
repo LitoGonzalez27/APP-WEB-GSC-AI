@@ -327,60 +327,57 @@ def detect_ai_overview_elements(serp_data, site_url=None):
             logger.info(f"[AI ANALYSIS] ✅ MÉTODO CONTENIDO: Mención encontrada en text_block {first_mention['block_index']}")
             logger.info(f"[AI ANALYSIS] 📝 Contenido: '{first_mention['snippet_preview']}'")
         
-        # MÉTODO 2: Buscar en organic_results usando reference_indexes (híbrido estándar)
-        if not domain_found and total_reference_indexes and organic_results:
-            logger.info(f"[AI ANALYSIS] 🔍 MÉTODO HÍBRIDO ESTÁNDAR: Buscando en organic_results usando reference_indexes {sorted(total_reference_indexes)}")
+        # MÉTODO 2: Buscar en organic_results usando reference_indexes (híbrido ULTRA-ESTRICTO)
+        # SOLO cuenta si el organic_result coincide exactamente con una referencia oficial
+        if not domain_found and total_reference_indexes and organic_results and references:
+            logger.info(f"[AI ANALYSIS] 🔍 MÉTODO HÍBRIDO ULTRA-ESTRICTO: Validando organic_results contra referencias oficiales")
+            
+            # Crear mapeo de reference_indexes a enlaces oficiales para validación estricta
+            official_links_by_index = {}
+            for ref in references:
+                ref_index = ref.get('index')
+                ref_link = ref.get('link', '')
+                if ref_index is not None and ref_link:
+                    official_links_by_index[ref_index] = ref_link
+            
+            logger.info(f"[AI ANALYSIS] 🔗 Referencias oficiales mapeadas: {list(official_links_by_index.keys())}")
             
             # Crear lista ordenada de reference_indexes para calcular posición visual correcta
             sorted_ref_indexes = sorted(total_reference_indexes)
             
             for ref_idx in sorted_ref_indexes:
+                # VALIDACIÓN ESTRICTA: Solo continuar si este reference_index tiene una referencia oficial
+                if ref_idx not in official_links_by_index:
+                    logger.info(f"[AI ANALYSIS] ⚠️ Reference_index {ref_idx} NO tiene referencia oficial - SALTANDO")
+                    continue
+                
+                # Buscar en organic_results usando el reference_index validado
                 if ref_idx < len(organic_results):
                     result = organic_results[ref_idx]
                     result_link = result.get('link', '')
                     result_title = result.get('title', '')
                     result_source = result.get('source', '')
+                    official_link = official_links_by_index[ref_idx]
                     
-                    logger.debug(f"[AI ANALYSIS] Organic result {ref_idx}: {result_title[:50]}... → {result_link}")
+                    logger.info(f"[AI ANALYSIS] 🔍 Evaluando organic_result {ref_idx}: {result_source}")
+                    logger.info(f"[AI ANALYSIS] 🔗 Comparando: organic='{result_link}' vs oficial='{official_link}'")
                     
-                    # Verificar coincidencia
+                    # VALIDACIÓN ADICIONAL: El organic_result debe coincidir con la referencia oficial
+                    if not urls_match(result_link, official_link):
+                        logger.info(f"[AI ANALYSIS] ⚠️ Organic_result {ref_idx} NO coincide con referencia oficial - SALTANDO")
+                        continue
+                    
+                    # Verificar coincidencia con nuestro dominio
                     if result_link and urls_match(result_link, normalized_site_url):
                         domain_found = True
-                        # POSICIÓN CORREGIDA: Posición en la lista ordenada de referencias
+                        # Posición en la lista ordenada de referencias
                         visual_position = sorted_ref_indexes.index(ref_idx) + 1
                         domain_position = visual_position
                         domain_link = result_link
-                        detection_method = "hybrid_organic_results"
-                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ESTÁNDAR: Dominio encontrado en posición visual {domain_position}")
+                        detection_method = "hybrid_ultra_strict_validated"
+                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ULTRA-ESTRICTO: Dominio encontrado en posición visual {domain_position}")
                         break
-                    
-                    # ✅ CORREGIDO: Verificar URLs en source y title de forma más precisa
-                    source_has_domain = False
-                    title_has_domain = False
-                    
-                    if result_source:
-                        # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en source
-                        found, method = check_brand_mention(result_source, normalized_site_url, brand_variations)
-                        if found:
-                            source_has_domain = True
-                            logger.info(f"[AI ANALYSIS] 🎯 Mención híbrida encontrada en source via {method}: '{result_source[:100]}...'")
-                    
-                    if result_title and not source_has_domain:
-                        # ✅ INTELIGENTE: Buscar dominio y variaciones de marca en title
-                        found, method = check_brand_mention(result_title, normalized_site_url, brand_variations)
-                        if found:
-                            title_has_domain = True
-                            logger.info(f"[AI ANALYSIS] 🎯 Mención híbrida encontrada en title via {method}: '{result_title[:100]}...'")
-                    
-                    if source_has_domain or title_has_domain:
-                        domain_found = True
-                        visual_position = sorted_ref_indexes.index(ref_idx) + 1
-                        domain_position = visual_position
-                        domain_link = result_link
-                        detection_method = "hybrid_source_title_precise"
-                        location = "source" if source_has_domain else "title"
-                        logger.info(f"[AI ANALYSIS] ✅ MÉTODO HÍBRIDO ESTÁNDAR: Dominio encontrado en {location} posición visual {domain_position}")
-                        break
+
         
         # Si no se encontró nada, loggear el resultado
         if not domain_found:
@@ -402,15 +399,17 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'site_url_original': raw_site_url,
         'site_url_normalized': normalized_site_url,
         'reference_indexes_found': sorted(total_reference_indexes),
-        'structure_type': 'hybrid_ultra_robust_with_smart_prioritization',
+        'structure_type': 'hybrid_ultra_strict_anti_false_positives',
         'detection_method': detection_method,
         'ai_overview_found': True,
         'available_keys': list(serp_data.keys()),
         'requires_additional_request': False,
         'has_official_references': bool(references),
         'has_organic_fallback': bool(organic_results and total_reference_indexes),
-        'used_aggressive_search': False,  # ✅ DESHABILITADO: Ya no usamos búsqueda agresiva 
-        'position_correction_applied': detection_method in ['hybrid_organic_results', 'hybrid_source_title_precise'],
+        'used_aggressive_search': False,
+        'uses_ultra_strict_validation': True,
+        'official_links_validated': True,  # ✅ DESHABILITADO: Ya no usamos búsqueda agresiva 
+        'position_correction_applied': detection_method in ['hybrid_ultra_strict_validated'],
         # ✅ NUEVO: Información sobre detección de marca
         'brand_variations_generated': brand_variations,
         'text_block_mentions_found': len(text_block_mentions),
