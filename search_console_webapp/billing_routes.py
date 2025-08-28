@@ -114,6 +114,7 @@ def setup_billing_routes(app):
             # Crear Checkout Session
             checkout_session = stripe.checkout.Session.create(
                 customer=customer_id,
+                client_reference_id=str(user['id']),  # ✅ CRÍTICO: Para identificar usuario en webhook
                 payment_method_types=['card'],
                 line_items=[{
                     'price': price_id,
@@ -124,7 +125,8 @@ def setup_billing_routes(app):
                 cancel_url=url_for('billing_cancel', _external=True) + '?plan=' + plan,
                 metadata={
                     'user_id': user['id'],
-                    'plan': plan
+                    'plan': plan,
+                    'source': request.args.get('source', 'direct')
                 }
             )
             
