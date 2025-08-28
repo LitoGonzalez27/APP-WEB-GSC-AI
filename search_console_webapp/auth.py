@@ -443,6 +443,11 @@ def setup_auth_routes(app):
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
         
+        # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
+        if plan_param == 'enterprise':
+            logger.info("Plan Enterprise detectado en login - redirigiendo a contacto")
+            return redirect('https://clicandseo.com/contact?plan=enterprise&source=login')
+        
         if plan_param and plan_param in ['basic', 'premium']:
             session['signup_plan'] = plan_param
             session['signup_source'] = source_param or 'registration'
@@ -469,6 +474,11 @@ def setup_auth_routes(app):
         # ✅ NUEVO: Guardar parámetro plan para checkout automático
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
+        
+        # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
+        if plan_param == 'enterprise':
+            logger.info("Plan Enterprise detectado en signup - redirigiendo a contacto")
+            return redirect('https://clicandseo.com/contact?plan=enterprise&source=signup')
         
         if plan_param and plan_param in ['basic', 'premium']:
             session['signup_plan'] = plan_param

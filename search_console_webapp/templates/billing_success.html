@@ -31,11 +31,18 @@
                         Payment Successful!
                     </h1>
                     
-                    {% if plan %}
+                    {% if checkout_info %}
                     <p style="color: var(--manual-ai-success); font-size: 1.25rem; font-weight: 500; margin: var(--manual-ai-spacing-md) 0;">
-                        Your {{ plan|title }} plan is being activated.
+                        Your {{ checkout_info.plan|title }} plan is being activated.
                     </p>
                     {% endif %}
+                    
+                    <!-- Status del plan - se actualiza via JavaScript -->
+                    <div id="activation-status" style="margin-top: var(--manual-ai-spacing-md);">
+                        <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
+                            🔄 Verifying plan activation...
+                        </p>
+                    </div>
                 </div>
                 
                 <!-- Success Details -->
@@ -93,5 +100,81 @@
             </div>
         </div>
     </div>
+    
+    <!-- JavaScript para verificar activación real via webhook -->
+    <script>
+        // ✅ CRÍTICO: Verificar activación real, no confiar solo en success page
+        let verificationAttempts = 0;
+        const maxAttempts = 12; // 2 minutos máximo (12 x 10s)
+        
+        function verifyPlanActivation() {
+            verificationAttempts++;
+            
+            fetch('/api/billing/verify-activation')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('🔍 Verificación de activación:', data);
+                    
+                    const statusDiv = document.getElementById('activation-status');
+                    
+                    if (data.activated && data.plan !== 'free') {
+                        // ✅ PLAN ACTIVADO
+                        statusDiv.innerHTML = `
+                            <p style="color: var(--manual-ai-success); font-size: 1rem; font-weight: 600;">
+                                ✅ ${data.plan.toUpperCase()} plan successfully activated!
+                            </p>
+                            <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
+                                Quota: ${data.quota_limit} RU/month available
+                            </p>
+                        `;
+                        console.log('✅ Plan activado correctamente:', data.plan);
+                        
+                    } else if (verificationAttempts >= maxAttempts) {
+                        // ❌ TIMEOUT - Sin activación tras máximo intentos
+                        statusDiv.innerHTML = `
+                            <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
+                                ⏳ Activation is taking longer than expected
+                            </p>
+                            <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
+                                Please check your billing section or contact support if the issue persists.
+                            </p>
+                        `;
+                        console.warn('⚠️ Timeout en verificación de activación');
+                        
+                    } else {
+                        // 🔄 AÚN PROCESANDO - Continuar verificando
+                        statusDiv.innerHTML = `
+                            <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
+                                🔄 Verifying plan activation... (${verificationAttempts}/${maxAttempts})
+                            </p>
+                        `;
+                        console.log(`🔄 Verificando... intento ${verificationAttempts}/${maxAttempts}`);
+                        
+                        // Verificar de nuevo en 10 segundos
+                        setTimeout(verifyPlanActivation, 10000);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error verificando activación:', error);
+                    const statusDiv = document.getElementById('activation-status');
+                    statusDiv.innerHTML = `
+                        <p style="color: var(--manual-ai-error); font-size: 1rem; font-weight: 500;">
+                            ❌ Error verifying activation
+                        </p>
+                        <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
+                            Please refresh the page or check your billing section.
+                        </p>
+                    `;
+                });
+        }
+        
+        // Iniciar verificación cuando la página carga
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎉 Success page cargada - iniciando verificación de activación');
+            
+            // Verificar inmediatamente y luego cada 10 segundos
+            verifyPlanActivation();
+        });
+    </script>
 </body>
 </html>
