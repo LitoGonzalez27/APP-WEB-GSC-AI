@@ -10,6 +10,10 @@ class PaywallManager {
     
     showPaywallModal(upgradeOptions = ['basic', 'premium'], featureName = 'This feature') {
         const modal = this.createPaywallModal(upgradeOptions, featureName);
+        
+        // ✅ NUEVO: Guardar featureName para restaurar estado al cerrar
+        modal.dataset.featureName = featureName;
+        
         document.body.appendChild(modal);
         
         // Auto-remove after 30 seconds or on click outside
@@ -175,7 +179,35 @@ class PaywallManager {
     
     hidePaywallModal() {
         const modals = document.querySelectorAll('.paywall-modal');
-        modals.forEach(modal => modal.remove());
+        
+        modals.forEach(modal => {
+            // ✅ NUEVO: Restaurar estado según el feature
+            const featureName = modal.dataset.featureName;
+            
+            if (featureName && featureName.includes('AI Overview')) {
+                console.log('🔄 Paywall cerrado para AI Overview - restaurando estado inicial');
+                
+                // Importar y usar resetAIOverlay si está disponible
+                if (window.resetAIOverlay) {
+                    window.resetAIOverlay();
+                } else {
+                    // Fallback: restaurar overlay manualmente
+                    const overlay = document.getElementById('aiOverlay');
+                    const progressOverlay = document.getElementById('aiProgressOverlay');
+                    
+                    if (progressOverlay) {
+                        progressOverlay.classList.remove('active');
+                    }
+                    
+                    if (overlay) {
+                        overlay.classList.remove('hidden');
+                        console.log('🔄 AI Overlay restaurado al estado inicial');
+                    }
+                }
+            }
+            
+            modal.remove();
+        });
     }
 }
 
@@ -183,5 +215,5 @@ class PaywallManager {
 window.PaywallManager = new PaywallManager();
 
 // Helper functions for modules
-window.showPaywall = (options, featureName) => window.PaywallManager.showPaywallModal(options, featureName);
+window.showPaywall = (featureName, upgradeOptions = ['basic', 'premium']) => window.PaywallManager.showPaywallModal(upgradeOptions, featureName);
 window.showQuotaExceeded = (info) => window.PaywallManager.showQuotaExceededModal(info);
