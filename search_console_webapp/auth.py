@@ -129,9 +129,10 @@ def is_user_admin():
     return user and user['role'] == 'admin'
 
 def is_user_ai_enabled():
-    """Verifica si el usuario tiene acceso a funcionalidades AI (admin o AI User)"""
+    """DEPRECATED: Funcionalidades AI ahora dependen del plan, no del rol"""
     user = get_current_user()
-    return user and user['role'] in ['admin', 'AI User']
+    # ✅ NUEVO: AI depende del plan de pago, no del rol
+    return user and user.get('plan') in ['basic', 'premium', 'enterprise']
 
 def auth_required(f):
     """Decorador que requiere autenticación"""
@@ -278,15 +279,9 @@ def ai_user_required(f):
                 return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
             return redirect(url_for('login_page') + '?account_suspended=true')
         
-        # Verificar si el usuario tiene acceso a funcionalidades AI
-        if not user['role'] in ['admin', 'AI User']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({
-                    'error': 'AI User privileges required',
-                    'ai_user_required': True
-                }), 403
-            # Para acceso directo via navegador, redirigir a /app
-            return redirect(url_for('app_main'))
+        # ✅ NUEVO: AI User role eliminado - solo verificar autenticación
+        # Las funcionalidades AI ahora se controlan por plan en cada endpoint
+        logger.warning("@ai_user_required está deprecated. Las funcionalidades AI se controlan por plan.")
         
         # Actualizar última actividad
         update_last_activity()
@@ -1002,8 +997,8 @@ def setup_auth_routes(app):
             data = request.get_json()
             new_role = data.get('role')
             
-            if new_role not in ['user', 'admin', 'AI User']:
-                return jsonify({'error': 'Rol inválido'}), 400
+            if new_role not in ['user', 'admin']:
+                return jsonify({'error': 'Rol inválido. Solo permitidos: user, admin'}), 400
             
             user = get_user_by_id(user_id)
             if not user:

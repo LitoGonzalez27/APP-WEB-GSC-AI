@@ -14,7 +14,7 @@ import pytz
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
-from auth import auth_required, cron_or_auth_required, ai_user_required, get_current_user
+from auth import auth_required, cron_or_auth_required, get_current_user
 from services.serp_service import get_serp_json
 from services.ai_analysis import detect_ai_overview_elements
 from services.utils import extract_domain, normalize_search_console_url
@@ -121,19 +121,13 @@ def manual_ai_health():
 # ================================
 
 @manual_ai_bp.route('/')
-@auth_required  # Cambiar de ai_user_required a auth_required para control por plan
+@auth_required  # Solo requiere autenticación, NO restricción por plan
 def manual_ai_dashboard():
-    """Dashboard principal del sistema Manual AI Analysis - FASE 4.5: Control por plan"""
+    """Dashboard principal del sistema Manual AI Analysis - ACCESO LIBRE CON PAYWALLS EN ACCIONES"""
     user = get_current_user()
     
-    # ✅ NUEVO FASE 4.5: PAYWALL CHECK
-    # Solo Basic/Premium pueden usar Manual AI
-    if user.get('plan') == 'free':
-        logger.warning(f"Usuario Free intentó acceder Manual AI: {user.get('email')}")
-        return render_template('paywall_manual_ai.html', 
-                             user=user,
-                             upgrade_options=['basic', 'premium'],
-                             current_plan='free')
+    # ✅ NUEVO: Manual AI siempre accesible, paywall en acciones específicas
+    logger.info(f"Usuario accediendo Manual AI dashboard: {user.get('email')} (plan: {user.get('plan')})")
     
     return render_template('manual_ai_dashboard.html', user=user)
 

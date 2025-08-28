@@ -247,7 +247,7 @@
             </div>
           </button>
 
-          {% if user and user.role in ['admin', 'AI User'] %}
+          {% if user %}
           <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
@@ -258,7 +258,7 @@
             </div>
           </button>
           {% else %}
-          <div class="nav-item disabled" id="navManualAI" title="This functionality is only available for AI Users">
+          <div class="nav-item disabled" id="navManualAI" title="Authentication required">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
             </div>
