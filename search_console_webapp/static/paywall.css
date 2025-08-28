@@ -391,6 +391,8 @@
   background: var(--paywall-primary);
   color: var(--paywall-secondary);
   border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
 }
 
 .btn-primary:hover {
@@ -405,6 +407,7 @@
   background: white;
   color: var(--paywall-gray-700);
   border: var(--paywall-border-width) solid var(--paywall-gray-300);
+  border-radius: 8px;
 }
 
 .btn-secondary:hover {

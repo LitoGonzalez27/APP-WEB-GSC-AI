@@ -434,30 +434,54 @@ def setup_auth_routes(app):
 
     @app.route('/login')
     def login_page():
-        """Página de inicio de sesión - FASE 4.5: Soporte parámetro next"""
+        """Página de inicio de sesión - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
         next_url = request.args.get('next', '/')
         session['auth_next'] = next_url
         
+        # ✅ NUEVO: Manejar parámetros de plan que vienen del registro
+        plan_param = request.args.get('plan')
+        source_param = request.args.get('source')
+        
+        if plan_param and plan_param in ['basic', 'premium']:
+            session['signup_plan'] = plan_param
+            session['signup_source'] = source_param or 'registration'
+            logger.info(f"Login page con plan: {plan_param} (source: {source_param})")
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                # Redirigir a next o dashboard
+                # Si ya está autenticado y viene con plan, ir directo a checkout
+                if plan_param and plan_param in ['basic', 'premium']:
+                    return redirect(f'/billing/checkout/{plan_param}?source={source_param}')
+                # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('login.html')
 
     @app.route('/signup')
     def signup_page():
-        """Página de registro - FASE 4.5: Soporte parámetro next"""
+        """Página de registro - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
         next_url = request.args.get('next', '/')
         session['auth_next'] = next_url
         
+        # ✅ NUEVO: Guardar parámetro plan para checkout automático
+        plan_param = request.args.get('plan')
+        source_param = request.args.get('source')
+        
+        if plan_param and plan_param in ['basic', 'premium']:
+            session['signup_plan'] = plan_param
+            session['signup_source'] = source_param or 'direct'
+            logger.info(f"Usuario viene de pricing con plan: {plan_param} (source: {source_param})")
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                # Redirigir a next o dashboard
+                # Si ya está autenticado y viene con plan, ir directo a checkout
+                if plan_param and plan_param in ['basic', 'premium']:
+                    return redirect(f'/billing/checkout/{plan_param}')
+                # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('signup.html')
@@ -578,8 +602,18 @@ def setup_auth_routes(app):
                     # ✅ MEJORADO UX: NO iniciar sesión automáticamente, redirigir a login con mensaje
                     session.pop('temp_credentials', None)
                     
-                    logger.info(f"Usuario registrado con Google (redirigiendo a login): {user_info['email']}")
-                    return redirect('/login?registration_success=true&with_google=true&email=' + user_info['email'])
+                    # ✅ NUEVO: Incluir plan en redirect si viene de pricing
+                    signup_plan = session.get('signup_plan')
+                    signup_source = session.get('signup_source')
+                    
+                    login_url = f'/login?registration_success=true&with_google=true&email=' + user_info['email']
+                    if signup_plan:
+                        login_url += f'&plan={signup_plan}&source={signup_source}'
+                        logger.info(f"Usuario registrado con plan {signup_plan} desde {signup_source}: {user_info['email']}")
+                    else:
+                        logger.info(f"Usuario registrado con Google (redirigiendo a login): {user_info['email']}")
+                    
+                    return redirect(login_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)
@@ -626,7 +660,16 @@ def setup_auth_routes(app):
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                # ✅ NUEVO FASE 4.5: Usar parámetro next después de autenticación
+                
+                # ✅ NUEVO: Verificar si hay plan para checkout automático
+                signup_plan = session.pop('signup_plan', None)
+                signup_source = session.pop('signup_source', None)
+                
+                if signup_plan and signup_plan in ['basic', 'premium']:
+                    logger.info(f"Login exitoso con plan {signup_plan} - redirigiendo a checkout")
+                    return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}')
+                
+                # ✅ FASE 4.5: Usar parámetro next después de autenticación
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
                 return redirect(next_url)
                 

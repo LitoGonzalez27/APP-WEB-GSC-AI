@@ -145,6 +145,7 @@ body.dark-mode .ai-overlay {
   transform: translateY(-3px);
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
   background: #D8F9B8;
+  color: #161616;
 }
 
 .btn-execute-ai:active:not(:disabled) {
@@ -776,7 +777,7 @@ body.dark-mode #keywordCountSelect:hover {
 }
 
 #keywordCountSelect:focus {
-  border-color: #4c63d2;
+  border-color: #161616;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   transform: translateY(-1px);
 }
