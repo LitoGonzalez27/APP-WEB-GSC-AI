@@ -13,6 +13,7 @@ Implementa el flujo SaaS estándar:
 import os
 import stripe
 import logging
+from datetime import datetime
 from flask import request, jsonify, redirect, url_for, render_template, session
 from auth import auth_required, get_current_user
 from database import get_db_connection
@@ -189,7 +190,7 @@ def setup_billing_routes(app):
     @app.route('/billing/success')
     @auth_required
     def billing_success():
-        """Página de confirmación post-pago - Verifica activación real via webhook"""
+        """Página de confirmación post-pago - PROFESIONAL según feedback experto"""
         
         session_id = request.args.get('session_id')
         user = get_current_user()
@@ -198,27 +199,90 @@ def setup_billing_routes(app):
         session.pop('signup_plan', None)
         session.pop('signup_source', None)
         
-        checkout_info = None
+        # ✅ PROFESIONAL: Obtener información completa de transacción
+        transaction_data = None
+        payment_status = 'processing'  # Default: en proceso
+        
         if session_id:
             try:
-                # Verificar session en Stripe
-                checkout_session = stripe.checkout.Session.retrieve(session_id)
-                checkout_info = {
-                    'plan': checkout_session.metadata.get('plan', 'unknown'),
+                # Obtener checkout session completo
+                checkout_session = stripe.checkout.Session.retrieve(session_id, expand=['subscription', 'invoice'])
+                
+                # Obtener customer para email y detalles
+                customer = stripe.Customer.retrieve(checkout_session.customer)
+                
+                # Determinar estado del pago
+                if checkout_session.payment_status == 'paid' and user.get('billing_status') == 'active':
+                    payment_status = 'confirmed'
+                elif checkout_session.payment_status == 'paid':
+                    payment_status = 'webhook_pending'
+                elif checkout_session.payment_status == 'unpaid':
+                    payment_status = 'failed'
+                
+                # Construir datos completos de transacción
+                subscription = checkout_session.subscription
+                invoice = checkout_session.invoice
+                
+                transaction_data = {
+                    # Identificadores
+                    'session_id': session_id,
+                    'transaction_id': checkout_session.id,
                     'customer_id': checkout_session.customer,
+                    'subscription_id': subscription.id if subscription else None,
+                    'invoice_id': invoice.id if invoice else None,
+                    
+                    # Detalles del pago
                     'amount_total': checkout_session.amount_total,
-                    'currency': checkout_session.currency
+                    'amount_subtotal': checkout_session.amount_subtotal,
+                    'currency': checkout_session.currency.upper(),
+                    'payment_status': checkout_session.payment_status,
+                    
+                    # Plan y periodicidad
+                    'plan': checkout_session.metadata.get('plan', 'unknown'),
+                    'source': checkout_session.metadata.get('source', 'direct'),
+                    
+                    # Fechas
+                    'created_at': datetime.fromtimestamp(checkout_session.created),
+                    'current_period_start': datetime.fromtimestamp(subscription.current_period_start) if subscription else None,
+                    'current_period_end': datetime.fromtimestamp(subscription.current_period_end) if subscription else None,
+                    
+                    # Customer info
+                    'customer_email': customer.email,
+                    'customer_name': checkout_session.customer_details.get('name') if checkout_session.customer_details else customer.name,
+                    
+                    # URLs importantes
+                    'invoice_url': invoice.hosted_invoice_url if invoice else None,
+                    'receipt_url': invoice.invoice_pdf if invoice else None,
                 }
-                logger.info(f"Success page - checkout verificado para {user['email']}: {checkout_info['plan']}")
+                
+                logger.info(f"Success page - transacción completa para {user['email']}: {transaction_data['plan']}")
                 
             except Exception as e:
-                logger.error(f"Error verificando checkout session: {e}")
+                logger.error(f"Error obteniendo datos de transacción: {e}")
+                # Fallback con datos básicos
+                transaction_data = {
+                    'session_id': session_id,
+                    'transaction_id': session_id,
+                    'plan': 'basic',
+                    'created_at': datetime.now(),
+                    'payment_status': 'unknown'
+                }
         
-        # ✅ MEJORADO: La página debe verificar activación real, no confiar solo en success
-        # El frontend verificará via AJAX si el plan realmente se activó
+        # ✅ Estado actual del usuario (para verificación)
+        user_status = {
+            'plan': user.get('plan', 'free'),
+            'billing_status': user.get('billing_status', 'inactive'),
+            'quota_limit': user.get('quota_limit', 0),
+            'quota_used': user.get('quota_used', 0),
+            'subscription_id': user.get('subscription_id'),
+            'current_period_end': user.get('current_period_end')
+        }
+        
         return render_template('billing_success.html', 
                              session_id=session_id,
-                             checkout_info=checkout_info,
+                             transaction_data=transaction_data,
+                             payment_status=payment_status,
+                             user_status=user_status,
                              user=user)
     
     @app.route('/billing/cancel')
