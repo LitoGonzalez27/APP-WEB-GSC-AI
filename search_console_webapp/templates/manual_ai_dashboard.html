@@ -1311,6 +1311,14 @@ keyword 3"></textarea>
 
 
     <script>
+        // ✅ NUEVO: Información del usuario para control de plan
+        window.currentUser = {
+            email: '{{ user.email }}',
+            plan: '{{ user.plan }}',
+            role: '{{ user.role }}'
+        };
+        console.log('👤 Usuario Manual AI:', window.currentUser);
+        
         // Inicializar sistema cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             // Verificar que estamos en la página correcta

@@ -33,7 +33,6 @@ from auth import (
     login_required,
     auth_required,
     admin_required,
-    ai_user_required,
     is_user_authenticated,
     is_user_ai_enabled,
     get_authenticated_service,

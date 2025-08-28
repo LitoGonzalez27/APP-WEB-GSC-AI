@@ -187,6 +187,187 @@
   text-transform: uppercase;
 }
 
+/* ✅ TÍTULO PREMIUM CON SUBRAYADO VERDE */
+.paywall-title-premium {
+  display: inline-block;
+  background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+  font-weight: 500;
+  padding: 2px 4px;
+  color: var(--paywall-gray-800);
+}
+
+/* ✅ BOTÓN VIEW PLANS PARA AI OVERVIEW (estilo CTA Manual AI) */
+.btn-view-plans-ai {
+  background: #161616;
+  color: #D8F9B8;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn-view-plans-ai:hover {
+  background: #D8F9B8;
+  color: #161616;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+}
+
+/* ✅ NUEVOS ESTILOS PARA PAYWALL MEJORADO */
+.plan-card.premium-highlight {
+  border-color: var(--paywall-primary);
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  transform: scale(1.02);
+  box-shadow: var(--paywall-shadow-lg);
+}
+
+.plan-card.premium-highlight:hover {
+  transform: scale(1.02) translateY(-3px);
+  box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card .plan-description {
+  font-size: 0.9rem;
+  color: var(--paywall-gray-500);
+  margin: var(--paywall-spacing-sm) 0;
+  line-height: 1.4;
+}
+
+.plan-card .plan-cta {
+  background: var(--paywall-primary);
+  color: var(--paywall-secondary);
+  padding: var(--paywall-spacing-sm) var(--paywall-spacing-md);
+  border-radius: var(--paywall-border-radius);
+  font-weight: 600;
+  margin-top: var(--paywall-spacing-md);
+  transition: all 0.2s ease;
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
+.plan-card:hover .plan-cta {
+  background: var(--paywall-primary-light);
+  transform: translateY(-1px);
+}
+
+/* Feature Benefits Section */
+.feature-benefits {
+  margin: var(--paywall-spacing-lg) 0;
+  padding: var(--paywall-spacing-md);
+  background: var(--paywall-gray-50);
+  border-radius: var(--paywall-border-radius);
+}
+
+.feature-benefits h4 {
+  margin: 0 0 var(--paywall-spacing-md) 0;
+  color: var(--paywall-gray-900);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.feature-benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-benefits li {
+  padding: var(--paywall-spacing-xs) 0;
+  color: var(--paywall-gray-700);
+  line-height: 1.5;
+  font-size: 0.95rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+/* ✅ NUEVO: Viñetas visuales para la lista */
+.feature-benefits li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: var(--paywall-spacing-xs);
+  color: #10b981;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+/* Paywall Info Section */
+.paywall-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--paywall-border-radius);
+  padding: var(--paywall-spacing-md);
+  margin: var(--paywall-spacing-lg) 0;
+  font-size: 0.9rem;
+  color: var(--paywall-gray-700);
+  line-height: 1.5;
+}
+
+/* Quota Status (para quota exceeded) */
+.quota-status {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--paywall-border-radius);
+  padding: var(--paywall-spacing-lg);
+  margin: var(--paywall-spacing-lg) 0;
+  text-align: center;
+}
+
+.quota-bar {
+  width: 100%;
+  height: 12px;
+  background: #fee2e2;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: var(--paywall-spacing-md) 0;
+}
+
+.quota-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.quota-text {
+  font-weight: 600;
+  color: #dc2626;
+  margin: var(--paywall-spacing-sm) 0;
+}
+
+.quota-explanation {
+  margin: var(--paywall-spacing-xl) 0;
+}
+
+.quota-explanation h4 {
+  margin: 0 0 var(--paywall-spacing-md) 0;
+  color: var(--paywall-gray-900);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.quota-explanation ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.quota-explanation li {
+  padding: var(--paywall-spacing-xs) 0;
+  color: var(--paywall-gray-700);
+  line-height: 1.4;
+  font-size: 0.95rem;
+}
+
 /* ================================
    BUTTONS (igual que Manual AI)
    ================================ */
@@ -210,6 +391,8 @@
   background: var(--paywall-primary);
   color: var(--paywall-secondary);
   border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
 }
 
 .btn-primary:hover {
@@ -224,6 +407,7 @@
   background: white;
   color: var(--paywall-gray-700);
   border: var(--paywall-border-width) solid var(--paywall-gray-300);
+  border-radius: 8px;
 }
 
 .btn-secondary:hover {

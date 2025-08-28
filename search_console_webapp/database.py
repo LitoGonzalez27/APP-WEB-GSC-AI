@@ -162,7 +162,7 @@ def create_user(email, name, password=None, google_id=None, picture=None, auto_a
             SELECT column_name FROM information_schema.columns 
             WHERE table_name = 'users' AND column_name IN ('plan', 'quota_limit', 'quota_used')
         """)
-        billing_columns = [row[0] for row in cur.fetchall()]
+        billing_columns = [row['column_name'] for row in cur.fetchall()]
         has_billing_columns = len(billing_columns) >= 3
         
         if has_billing_columns:
@@ -182,10 +182,14 @@ def create_user(email, name, password=None, google_id=None, picture=None, auto_a
             ''', (email, name, password_hash, google_id, picture, is_active))
         
         user = cur.fetchone()
-        conn.commit()
         
-        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active}, plan: {plan})")
-        return dict(user)
+        if user:
+            conn.commit()
+            logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active}, plan: {plan})")
+            return dict(user)
+        else:
+            logger.error(f"INSERT no retornó usuario para: {email}")
+            return None
         
     except Exception as e:
         logger.error(f"Error creando usuario: {e}")

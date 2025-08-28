@@ -726,8 +726,6 @@
                                     <span class="badge {{ user.role }}">
                                         {% if user.role == 'admin' %}
                             Administrador
-                        {% elif user.role == 'AI User' %}
-                            AI User
                         {% else %}
                             Usuario
                         {% endif %}
@@ -1060,15 +1058,13 @@
                     <label for="roleSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar rol:</label>
                     <select id="roleSelect" class="role-select">
                         <option value="user">Usuario</option>
-                        <option value="AI User">AI User</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Nota:</strong></p>
                     <p style="margin: 0.5rem 0 0 0; color: #666;">
-                        • <strong>Usuario:</strong> Acceso básico al sistema<br>
-                        • <strong>AI User:</strong> Acceso básico + funcionalidades AI Overview<br>
+                        • <strong>Usuario:</strong> Acceso básico - funcionalidades AI según plan de pago<br>
                         • <strong>Administrador:</strong> Acceso completo y gestión de usuarios
                     </p>
                 </div>
@@ -1529,8 +1525,8 @@
                     let roleDisplayName = 'Usuario';
                     if (newRole === 'admin') {
                         roleDisplayName = 'Administrador';
-                    } else if (newRole === 'AI User') {
-                        roleDisplayName = 'AI User';
+                    } else {
+                        roleDisplayName = 'Usuario';
                     }
                     alert(`✅ Rol actualizado exitosamente a: ${roleDisplayName}`);
                     location.reload(); // Recargar página para actualizar lista

@@ -173,6 +173,30 @@
                 return;
             }
             
+            // ✅ NUEVO FASE 4.5: Mostrar mensaje de registro exitoso
+            const registrationSuccess = urlParams.get('registration_success');
+            const withGoogle = urlParams.get('with_google');
+            const userEmail = urlParams.get('email');
+            
+            if (registrationSuccess === 'true') {
+                let successMessage = '🎉 ¡Registro exitoso!';
+                if (withGoogle === 'true') {
+                    successMessage += `<br>Tu cuenta de ClicandSEO está lista.`;
+                    if (userEmail) {
+                        successMessage += `<br><strong>Email:</strong> ${userEmail}`;
+                    }
+                    successMessage += '<br><br>🚀 <strong>Inicia sesión para comenzar con tu plan gratuito</strong>';
+                } else {
+                    successMessage += ' Ahora puedes iniciar sesión.';
+                }
+                
+                showSuccessMessage(successMessage);
+                
+                // Limpiar URL después de mostrar el mensaje
+                const newUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+            
             const authError = urlParams.get('auth_error');
             if (authError) {
                 let errorMessage = 'Error de autenticación. Por favor, intenta de nuevo.';
@@ -261,6 +285,11 @@
                     notifications.style.display = 'none';
                 }, 5000);
             }
+        }
+        
+        // ✅ NUEVO FASE 4.5: Función para mostrar mensaje de registro exitoso
+        function showSuccessMessage(message) {
+            showNotification(message, 'success');
         }
 
         // Manejar login con Google
