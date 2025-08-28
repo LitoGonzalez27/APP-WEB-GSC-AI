@@ -204,8 +204,10 @@ class PaywallManager {
                     }
                 }
                 
-                // ✅ NUEVO: Cambiar botón "Start AI Analysis" por "View Plans"
-                this.changeAIOverviewToViewPlans();
+                // ✅ NUEVO: Cambiar botón después de un pequeño delay para asegurar que el overlay esté restaurado
+                setTimeout(() => {
+                    this.changeAIOverviewToViewPlans();
+                }, 100);
             }
             
             modal.remove();
@@ -226,12 +228,26 @@ class PaywallManager {
             // Añadir clase CTA de Manual AI (negro con texto verde)
             executeBtn.className = 'btn-view-plans-ai';
             
-            // Cambiar función onClick
-            executeBtn.onclick = () => {
+            // Quitar cualquier event listener anterior
+            executeBtn.onclick = null;
+            executeBtn.removeEventListener('click', executeBtn._oldClickHandler);
+            
+            // Añadir nuevo event listener
+            const newClickHandler = (e) => {
+                e.preventDefault();
+                console.log('🎯 Redirigiendo a /billing desde View Plans button');
                 window.location.href = '/billing';
             };
             
-            console.log('🎯 Botón AI Overview cambiado a "View Plans"');
+            executeBtn._oldClickHandler = newClickHandler;
+            executeBtn.addEventListener('click', newClickHandler);
+            
+            // También añadir onclick como fallback
+            executeBtn.setAttribute('onclick', "window.location.href='/billing'");
+            
+            console.log('🎯 Botón AI Overview cambiado a "View Plans" con redirection a /billing');
+        } else {
+            console.error('❌ No se encontró el botón executeAIBtn para cambiar a View Plans');
         }
     }
 }
