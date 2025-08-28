@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Configuración de la base de datos
 # Railway proporciona DATABASE_URL automáticamente en producción
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:sRZcCViicJDQsgFZnVeiDsLHEzWBbvIB@yamanote.proxy.rlwy.net:15620/railway')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:XCkoyokCzfRlyPCFNGpfIhqteibfbojQ@caboose.proxy.rlwy.net:13631/railway')
 
 # Detectar si estamos en producción
 # Detección de entorno mejorada
@@ -135,8 +135,8 @@ def verify_password(password, stored_hash):
     
     return password_hash.hex() == stored_password_hash
 
-def create_user(email, name, password=None, google_id=None, picture=None):
-    """Crea un nuevo usuario en la base de datos"""
+def create_user(email, name, password=None, google_id=None, picture=None, auto_activate=True):
+    """Crea un nuevo usuario en la base de datos - FASE 4.5: auto_activate=True para self-service"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -153,20 +153,43 @@ def create_user(email, name, password=None, google_id=None, picture=None):
         # Preparar datos del usuario
         password_hash = hash_password(password) if password else None
         
-        # Usuarios se crean inactivos por defecto
-        is_active = False
+        # ✅ NUEVO FASE 4.5: Activación automática para self-service
+        is_active = auto_activate  # True para SaaS, False para enterprise
+        plan = 'free' if auto_activate else None  # Plan por defecto para SaaS
         
-        cur.execute('''
-            INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
-            VALUES (%s, %s, %s, %s, %s, 'user', %s)
-            RETURNING id, email, name, picture, role, is_active, created_at
-        ''', (email, name, password_hash, google_id, picture, is_active))
+        # Verificar si las columnas de billing existen
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name IN ('plan', 'quota_limit', 'quota_used')
+        """)
+        billing_columns = [row['column_name'] for row in cur.fetchall()]
+        has_billing_columns = len(billing_columns) >= 3
+        
+        if has_billing_columns:
+            # Insertar con campos de billing (Fase 1 aplicada)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, 
+                                  role, is_active, plan, quota_limit, quota_used)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s, %s, 0, 0)
+                RETURNING id, email, name, picture, role, is_active, created_at, plan
+            ''', (email, name, password_hash, google_id, picture, is_active, plan))
+        else:
+            # Insertar sin campos de billing (compatibilidad)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s)
+                RETURNING id, email, name, picture, role, is_active, created_at
+            ''', (email, name, password_hash, google_id, picture, is_active))
         
         user = cur.fetchone()
-        conn.commit()
         
-        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active})")
-        return dict(user)
+        if user:
+            conn.commit()
+            logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active}, plan: {plan})")
+            return dict(user)
+        else:
+            logger.error(f"INSERT no retornó usuario para: {email}")
+            return None
         
     except Exception as e:
         logger.error(f"Error creando usuario: {e}")
@@ -260,7 +283,7 @@ def update_user_activity(user_id, is_active=True):
             conn.close()
 
 def get_all_users():
-    """Obtiene todos los usuarios (para administración)"""
+    """Obtiene todos los usuarios (para administración) - INCLUYE BILLING INFO"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -268,7 +291,22 @@ def get_all_users():
             
         cur = conn.cursor()
         cur.execute('''
-            SELECT id, email, name, picture, role, is_active, created_at, updated_at
+            SELECT 
+                id, email, name, picture, role, is_active, created_at, updated_at,
+                -- Billing fields
+                COALESCE(plan, 'free') as plan,
+                COALESCE(current_plan, plan, 'free') as current_plan,
+                COALESCE(billing_status, 'active') as billing_status,
+                COALESCE(quota_limit, 0) as quota_limit,
+                COALESCE(quota_used, 0) as quota_used,
+                quota_reset_date,
+                stripe_customer_id,
+                subscription_id,
+                -- Custom quota fields
+                custom_quota_limit,
+                custom_quota_notes,
+                custom_quota_assigned_by,
+                custom_quota_assigned_date
             FROM users
             ORDER BY created_at DESC
         ''')
