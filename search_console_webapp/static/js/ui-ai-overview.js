@@ -153,6 +153,25 @@ async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
         body: JSON.stringify(payload)
     });
     
+    // ✅ NUEVO FASE 4.5: Manejar paywalls y quotas específicamente
+    if (response.status === 402) {
+        // Paywall - usuario Free
+        const data = await response.json();
+        if (window.showPaywall) {
+            window.showPaywall(data.upgrade_options || ['basic', 'premium'], 'AI Overview Analysis');
+        }
+        throw new Error('paywall'); // Error específico para detectar en catch
+    }
+    
+    if (response.status === 429) {
+        // Quota exceeded
+        const data = await response.json();
+        if (window.showQuotaExceeded) {
+            window.showQuotaExceeded(data.quota_info || {});
+        }
+        throw new Error('quota_exceeded'); // Error específico para detectar en catch
+    }
+    
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
         throw new Error(errorData.error || `Error del servidor: ${response.status}`);
@@ -333,7 +352,13 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
   } catch (error) {
     console.error('[AI OVERVIEW] ❌ Error en análisis:', error);
     
-    // Mostrar error en la UI
+    // ✅ NUEVO FASE 4.5: No mostrar UI de error para paywalls/quotas (ya tienen modales)
+    if (error.message === 'paywall' || error.message === 'quota_exceeded') {
+        console.log('[AI OVERVIEW] 🚫 Paywall/quota error - modal mostrado, no error UI');
+        return null; // Salir sin mostrar error genérico
+    }
+    
+    // Mostrar error en la UI solo para errores reales
     if (elems.aiOverviewResultsContainer) {
         elems.aiOverviewResultsContainer.innerHTML = '';
         elems.aiOverviewResultsContainer.insertAdjacentHTML('afterbegin', `
