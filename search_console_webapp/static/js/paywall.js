@@ -66,19 +66,19 @@ class PaywallManager {
         modal.innerHTML = `
             <div class="paywall-content">
                 <div class="paywall-header">
-                    <h3>🚀 ${featureName} is Premium</h3>
+                    <h3 class="paywall-title-premium">${featureName} is Premium</h3>
                     <p>Unlock powerful AI-driven insights with a paid plan</p>
                 </div>
                 
                 <div class="paywall-body">
                     <div class="feature-benefits">
-                        <h4>✨ What you'll get:</h4>
+                        <h4>What you'll get:</h4>
                         <ul>
-                            <li>🔍 <strong>AI Overview Analysis</strong> - Track Google's AI mentions of your domain</li>
-                            <li>🎯 <strong>Manual AI Projects</strong> - Keyword-by-keyword tracking and monitoring</li>
-                            <li>📊 <strong>Competitor Analysis</strong> - See who dominates AI results in your niche</li>
-                            <li>📈 <strong>Historical Data</strong> - Track changes and trends over time</li>
-                            <li>📋 <strong>Excel Exports</strong> - Professional reports for clients and teams</li>
+                            <li><strong>AI Overview Analysis</strong> - Track Google's AI mentions of your domain</li>
+                            <li><strong>Manual AI Projects</strong> - Keyword-by-keyword tracking and monitoring</li>
+                            <li><strong>Competitor Analysis</strong> - See who dominates AI results in your niche</li>
+                            <li><strong>Historical Data</strong> - Track changes and trends over time</li>
+                            <li><strong>Excel Exports</strong> - Professional reports for clients and teams</li>
                         </ul>
                     </div>
                     
@@ -87,7 +87,7 @@ class PaywallManager {
                     </div>
                     
                     <div class="paywall-info">
-                        <p><strong>💡 What are RU?</strong> Request Units = API calls to analyze keywords. Cached results use 0 RU, so you save on repeated searches!</p>
+                        <p><strong>What are RU?</strong> Request Units = API calls to analyze keywords (1 API Call = 1 keyword analyzed). Cached results use 0 RU, so you save on repeated searches!</p>
                     </div>
                 </div>
                 
@@ -95,7 +95,7 @@ class PaywallManager {
                     <button class="btn-secondary" onclick="window.PaywallManager.hidePaywallModal()">
                         Maybe Later
                     </button>
-                    <a href="/billing" class="btn-secondary">
+                    <a href="/billing" class="btn-primary">
                         View All Plans
                     </a>
                 </div>
@@ -185,9 +185,9 @@ class PaywallManager {
             const featureName = modal.dataset.featureName;
             
             if (featureName && featureName.includes('AI Overview')) {
-                console.log('🔄 Paywall cerrado para AI Overview - restaurando estado inicial');
+                console.log('🔄 Paywall cerrado para AI Overview - cambiando a "View Plans"');
                 
-                // Importar y usar resetAIOverlay si está disponible
+                // Restaurar overlay y cambiar botón a "View Plans"
                 if (window.resetAIOverlay) {
                     window.resetAIOverlay();
                 } else {
@@ -201,13 +201,38 @@ class PaywallManager {
                     
                     if (overlay) {
                         overlay.classList.remove('hidden');
-                        console.log('🔄 AI Overlay restaurado al estado inicial');
                     }
                 }
+                
+                // ✅ NUEVO: Cambiar botón "Start AI Analysis" por "View Plans"
+                this.changeAIOverviewToViewPlans();
             }
             
             modal.remove();
         });
+    }
+    
+    // ✅ NUEVO: Cambiar botón AI Overview a "View Plans"
+    changeAIOverviewToViewPlans() {
+        const executeBtn = document.getElementById('executeAIBtn');
+        
+        if (executeBtn) {
+            // Cambiar texto y estilo
+            executeBtn.innerHTML = `
+                <i class="fas fa-crown"></i>
+                View Plans
+            `;
+            
+            // Añadir clase CTA de Manual AI (negro con texto verde)
+            executeBtn.className = 'btn-view-plans-ai';
+            
+            // Cambiar función onClick
+            executeBtn.onclick = () => {
+                window.location.href = '/billing';
+            };
+            
+            console.log('🎯 Botón AI Overview cambiado a "View Plans"');
+        }
     }
 }
 

@@ -187,6 +187,40 @@
   text-transform: uppercase;
 }
 
+/* ✅ TÍTULO PREMIUM CON SUBRAYADO VERDE */
+.paywall-title-premium {
+  display: inline-block;
+  background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+  font-weight: 500;
+  padding: 2px 4px;
+  color: var(--paywall-gray-800);
+}
+
+/* ✅ BOTÓN VIEW PLANS PARA AI OVERVIEW (estilo CTA Manual AI) */
+.btn-view-plans-ai {
+  background: #161616;
+  color: #D8F9B8;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn-view-plans-ai:hover {
+  background: #D8F9B8;
+  color: #161616;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+}
+
 /* ✅ NUEVOS ESTILOS PARA PAYWALL MEJORADO */
 .plan-card.premium-highlight {
   border-color: var(--paywall-primary);
