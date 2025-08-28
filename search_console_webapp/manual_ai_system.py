@@ -114,10 +114,20 @@ def manual_ai_health():
 # ================================
 
 @manual_ai_bp.route('/')
-@ai_user_required
+@auth_required  # Cambiar de ai_user_required a auth_required para control por plan
 def manual_ai_dashboard():
-    """Dashboard principal del sistema Manual AI Analysis"""
+    """Dashboard principal del sistema Manual AI Analysis - FASE 4.5: Control por plan"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: PAYWALL CHECK
+    # Solo Basic/Premium pueden usar Manual AI
+    if user.get('plan') == 'free':
+        logger.warning(f"Usuario Free intentó acceder Manual AI: {user.get('email')}")
+        return render_template('paywall_manual_ai.html', 
+                             user=user,
+                             upgrade_options=['basic', 'premium'],
+                             current_plan='free')
+    
     return render_template('manual_ai_dashboard.html', user=user)
 
 @manual_ai_bp.route('/api/projects', methods=['GET'])

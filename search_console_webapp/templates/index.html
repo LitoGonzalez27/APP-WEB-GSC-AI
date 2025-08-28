@@ -50,6 +50,9 @@
   
   <!-- ClicAndSEO Style Guide - Search Performance Consistency -->
   <link rel="stylesheet" href="{{ url_for('static', filename='search-performance-styles.css') }}">
+  
+  <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='paywall.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
   <!-- Google Tag Manager (noscript) -->
@@ -997,6 +1000,10 @@
     
     <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->
     <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+  
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+    
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
 

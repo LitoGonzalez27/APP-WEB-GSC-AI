@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Success - ClicandSEO</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    
+    <!-- Reutilizar CSS de Manual AI para consistencia total -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Usar estructura de Manual AI -->
+    <div class="main-container">
+        <div class="content-wrapper" style="max-width: 700px; margin: 0 auto; padding: var(--manual-ai-spacing-2xl);">
+            
+            <!-- Success Message con estilos Manual AI -->
+            <div class="success-container" style="text-align: center; padding: var(--manual-ai-spacing-2xl);">
+                
+                <!-- Header -->
+                <div class="success-header" style="margin-bottom: var(--manual-ai-spacing-2xl);">
+                    <div style="font-size: 4rem; margin-bottom: var(--manual-ai-spacing-lg);">🎉</div>
+                    <h1 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 2.5rem; font-weight: 600;">
+                        Payment Successful!
+                    </h1>
+                    
+                    {% if plan %}
+                    <p style="color: var(--manual-ai-success); font-size: 1.25rem; font-weight: 500; margin: var(--manual-ai-spacing-md) 0;">
+                        Your {{ plan|title }} plan is being activated.
+                    </p>
+                    {% endif %}
+                </div>
+                
+                <!-- Success Details -->
+                <div class="success-details" style="background: var(--manual-ai-gray-50); border: var(--manual-ai-border-width) solid var(--manual-ai-success); border-left: 4px solid var(--manual-ai-success); padding: var(--manual-ai-spacing-xl); border-radius: var(--manual-ai-border-radius-lg); margin-bottom: var(--manual-ai-spacing-2xl);">
+                    <div style="color: var(--manual-ai-gray-700); font-size: 1.1rem; line-height: 1.6;">
+                        <p style="margin: var(--manual-ai-spacing-sm) 0;">
+                            ✅ You'll receive a confirmation email shortly.
+                        </p>
+                        <p style="margin: var(--manual-ai-spacing-sm) 0;">
+                            ⚡ Your new features will be available within a few minutes.
+                        </p>
+                        <p style="margin: var(--manual-ai-spacing-sm) 0; font-weight: 500;">
+                            🚀 You can now access AI Overview and Manual AI Analysis!
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons usando clases Manual AI -->
+                <div class="success-actions" style="display: flex; gap: var(--manual-ai-spacing-md); justify-content: center; flex-wrap: wrap; margin-bottom: var(--manual-ai-spacing-2xl);">
+                    <a href="/" class="btn-primary">
+                        Start Using Your Plan
+                    </a>
+                    <a href="/billing" class="btn-secondary">
+                        View Billing
+                    </a>
+                </div>
+                
+                <!-- Next Steps -->
+                <div class="next-steps" style="background: var(--manual-ai-gray-50); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200); padding: var(--manual-ai-spacing-lg); border-radius: var(--manual-ai-border-radius); margin-bottom: var(--manual-ai-spacing-xl);">
+                    <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
+                        💡 What's Next?
+                    </h3>
+                    <div style="color: var(--manual-ai-gray-700); font-size: 0.95rem; line-height: 1.5;">
+                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
+                            • Try the <strong>AI Overview Analysis</strong> from the main dashboard
+                        </p>
+                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
+                            • Create your first project in <strong>Manual AI Analysis</strong>
+                        </p>
+                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
+                            • Monitor your quota usage in the billing section
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Support -->
+                <div class="support-section" style="text-align: center;">
+                    <p style="color: var(--manual-ai-gray-600); font-size: 0.9rem; margin: 0;">
+                        Need help? Contact us at 
+                        <a href="mailto:hello@clicandseo.com" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
+                            hello@clicandseo.com
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

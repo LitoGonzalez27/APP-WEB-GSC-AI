@@ -46,6 +46,9 @@
     <!-- Grid.js para tablas -->
     <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
     <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
     <!-- Google Tag Manager (noscript) -->
@@ -1174,6 +1177,9 @@ keyword 3"></textarea>
     
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
     <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
     
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>

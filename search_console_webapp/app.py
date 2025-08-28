@@ -1783,6 +1783,37 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
 @app.route('/api/analyze-ai-overview', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
 def analyze_ai_overview_route():
+    # ✅ NUEVO FASE 4.5: PAYWALL CHECK
+    user = get_current_user()
+    
+    # Paywall: Solo Basic/Premium pueden usar AI Overview
+    if user.get('plan') == 'free':
+        logger.warning(f"Usuario Free intentó acceder AI Overview: {user.get('email')}")
+        return jsonify({
+            'error': 'paywall',
+            'message': 'AI Overview requires a paid plan',
+            'upgrade_options': ['basic', 'premium'],
+            'current_plan': 'free'
+        }), 402  # Payment Required
+    
+    # Quota check: Verificar límites de RU
+    quota_used = user.get('quota_used', 0)
+    quota_limit = user.get('quota_limit', 0)
+    
+    if quota_limit > 0 and quota_used >= quota_limit:
+        logger.warning(f"Usuario excedió quota: {user.get('email')} ({quota_used}/{quota_limit} RU)")
+        return jsonify({
+            'error': 'quota_exceeded',
+            'message': 'You have reached your monthly limit',
+            'quota_info': {
+                'quota_used': quota_used,
+                'quota_limit': quota_limit,
+                'percentage': round((quota_used / quota_limit) * 100, 1) if quota_limit > 0 else 0
+            },
+            'action_required': 'upgrade',
+            'current_plan': user.get('plan', 'free')
+        }), 429  # Too Many Requests
+    
     try:
         request_payload = request.get_json()
         keywords_data_list = request_payload.get('keywords', [])
@@ -2778,6 +2809,24 @@ def initialize_database_on_startup():
 
 # Registrar Manual AI System siempre (no solo en __main__)
 register_manual_ai_system()
+
+# ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
+def register_billing_routes():
+    """Register Billing Routes for SaaS self-service flow"""
+    try:
+        from billing_routes import setup_billing_routes
+        setup_billing_routes(app)
+        logger.info("✅ Billing routes (SaaS self-service) registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ Billing routes not available: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering billing routes: {e}")
+        return False
+
+# Registrar Billing Routes para flujo SaaS
+register_billing_routes()
 
 if __name__ == '__main__':
     # Initialize database first

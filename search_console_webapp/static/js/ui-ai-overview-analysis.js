@@ -185,6 +185,26 @@ async function analyzeAIOverview(keywords, siteUrl) {
         });
         
         clearTimeout(timeoutId);
+        
+        // ✅ NUEVO FASE 4.5: Manejar paywalls
+        if (response.status === 402) {
+            // Paywall - usuario Free
+            const data = await response.json();
+            if (window.showPaywall) {
+                window.showPaywall(data.upgrade_options || ['basic', 'premium']);
+            }
+            throw new Error('AI Overview requires a paid plan. Please upgrade to continue.');
+        }
+        
+        if (response.status === 429) {
+            // Quota exceeded
+            const data = await response.json();
+            if (window.showQuotaExceeded) {
+                window.showQuotaExceeded(data.quota_info || {});
+            }
+            throw new Error('You have reached your monthly limit. Please upgrade to continue.');
+        }
+        
         return response.json();
     } catch (error) {
         clearTimeout(timeoutId);

@@ -1103,6 +1103,22 @@ class ManualAISystem {
 
             const data = await response.json();
 
+            // ✅ NUEVO FASE 4.5: Manejar paywalls (402)
+            if (response.status === 402) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                console.warn(`🚫 Manual AI analysis blocked by paywall: ${data.error}`);
+                
+                // Mostrar paywall si está disponible
+                if (window.showPaywall) {
+                    window.showPaywall(data.upgrade_options || ['basic', 'premium']);
+                }
+                
+                this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
+                return;
+            }
+
             // ✅ FASE 4: Manejar errores de quota específicamente
             if (response.status === 429 && data.quota_exceeded) {
                 clearInterval(backupPolling);

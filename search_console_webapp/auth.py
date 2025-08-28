@@ -439,21 +439,31 @@ def setup_auth_routes(app):
 
     @app.route('/login')
     def login_page():
-        """Página de inicio de sesión"""
+        """Página de inicio de sesión - FASE 4.5: Soporte parámetro next"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('login.html')
 
     @app.route('/signup')
     def signup_page():
-        """Página de registro"""
+        """Página de registro - FASE 4.5: Soporte parámetro next"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('signup.html')
 
@@ -555,13 +565,14 @@ def setup_auth_routes(app):
                     logger.warning(f"Usuario {user_info['email']} ya existe, no se puede registrar de nuevo")
                     return redirect('/login?auth_error=user_already_exists')
                 
-                # Crear nuevo usuario
+                # ✅ NUEVO FASE 4.5: Crear usuario con activación automática
                 try:
                     new_user = create_user(
                         email=user_info['email'],
                         name=user_info['name'],
                         google_id=user_info['id'],
-                        picture=user_info.get('picture')
+                        picture=user_info.get('picture'),
+                        auto_activate=True  # ✅ ACTIVACIÓN AUTOMÁTICA para SaaS
                     )
                     
                     if not new_user:
@@ -569,13 +580,17 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # NO ACTIVAR automáticamente - dejar inactivo para revisión admin
+                    # ✅ NUEVO FASE 4.5: INICIAR SESIÓN AUTOMÁTICAMENTE
+                    session['credentials'] = session.pop('temp_credentials')
+                    session['user_id'] = new_user['id']
+                    session['user_email'] = new_user['email']
+                    session['user_name'] = new_user['name']
+                    update_last_activity()
                     
-                    # ✅ NO INICIAR SESIÓN - Solo limpiar credenciales temporales
-                    session.pop('temp_credentials', None)
-                    
-                    logger.info(f"Usuario registrado con Google (sin iniciar sesión): {user_info['email']}")
-                    return redirect('/login?registration_success=true&with_google=true')
+                    logger.info(f"Usuario registrado y autenticado con Google: {user_info['email']}")
+                    # ✅ USAR PARÁMETRO NEXT después de registro exitoso
+                    next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=signup')
+                    return redirect(next_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)
@@ -622,7 +637,9 @@ def setup_auth_routes(app):
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                return redirect('/dashboard?auth_success=true&action=login')
+                # ✅ NUEVO FASE 4.5: Usar parámetro next después de autenticación
+                next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+                return redirect(next_url)
                 
         except Exception as e:
             session.pop('temp_credentials', None)

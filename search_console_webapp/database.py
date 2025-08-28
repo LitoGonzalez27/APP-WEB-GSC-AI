@@ -135,8 +135,8 @@ def verify_password(password, stored_hash):
     
     return password_hash.hex() == stored_password_hash
 
-def create_user(email, name, password=None, google_id=None, picture=None):
-    """Crea un nuevo usuario en la base de datos"""
+def create_user(email, name, password=None, google_id=None, picture=None, auto_activate=True):
+    """Crea un nuevo usuario en la base de datos - FASE 4.5: auto_activate=True para self-service"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -153,19 +153,38 @@ def create_user(email, name, password=None, google_id=None, picture=None):
         # Preparar datos del usuario
         password_hash = hash_password(password) if password else None
         
-        # Usuarios se crean inactivos por defecto
-        is_active = False
+        # ✅ NUEVO FASE 4.5: Activación automática para self-service
+        is_active = auto_activate  # True para SaaS, False para enterprise
+        plan = 'free' if auto_activate else None  # Plan por defecto para SaaS
         
-        cur.execute('''
-            INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
-            VALUES (%s, %s, %s, %s, %s, 'user', %s)
-            RETURNING id, email, name, picture, role, is_active, created_at
-        ''', (email, name, password_hash, google_id, picture, is_active))
+        # Verificar si las columnas de billing existen
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name IN ('plan', 'quota_limit', 'quota_used')
+        """)
+        billing_columns = [row[0] for row in cur.fetchall()]
+        has_billing_columns = len(billing_columns) >= 3
+        
+        if has_billing_columns:
+            # Insertar con campos de billing (Fase 1 aplicada)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, 
+                                  role, is_active, plan, quota_limit, quota_used)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s, %s, 0, 0)
+                RETURNING id, email, name, picture, role, is_active, created_at, plan
+            ''', (email, name, password_hash, google_id, picture, is_active, plan))
+        else:
+            # Insertar sin campos de billing (compatibilidad)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s)
+                RETURNING id, email, name, picture, role, is_active, created_at
+            ''', (email, name, password_hash, google_id, picture, is_active))
         
         user = cur.fetchone()
         conn.commit()
         
-        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active})")
+        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active}, plan: {plan})")
         return dict(user)
         
     except Exception as e:
