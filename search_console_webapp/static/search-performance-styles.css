@@ -1,0 +1,334 @@
+/*=============================================
+  CLICANDSEO STYLE GUIDE - SEARCH PERFORMANCE
+  Consistencia con Dashboard y Manual AI Overview
+=============================================*/
+
+:root {
+  /* Colores CTA - ClicAndSEO Style Guide */
+  --cta-bg: #D8F9B8 !important;                    /* Negro principal */
+  --cta-hover-bg: #161616 !important;              /* Verde principal */
+  --cta-text: #161616 !important;                  /* Verde en botón negro */
+  --cta-hover-text: #D8F9B8 !important;            /* Negro en botón verde */
+  
+  /* Actualizar colores principales */
+  --heading: #161616 !important;                   /* Títulos en negro */
+  --primary-color: #161616 !important;             /* Color primario */
+  --secondary-color: #D8F9B8 !important;           /* Color secundario */
+  
+  /* Grises actualizados para consistencia */
+  --text-secondary: #4b5563 !important;            /* Texto secundario */
+  --border-primary: #e5e7eb !important;            /* Bordes principales */
+  --background-secondary: #f9fafb !important;      /* Fondos secundarios */
+  
+  /* Sistema de sombras Dashboard */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  
+  /* Transiciones */
+  --transition: all 0.15s ease-in-out;
+}
+
+/*=============================================
+  FORMULARIO PRINCIPAL - STYLE GUIDE
+=============================================*/
+
+.search-form {
+  background: white !important;
+  border-radius: 12px !important;                  /* Border radius del Dashboard */
+  border: 1px solid var(--border-primary) !important;
+  padding: 2rem !important;                        /* Espaciado Dashboard */
+  margin-bottom: 2rem !important;
+  box-shadow: var(--shadow-md) !important;
+  transition: var(--transition) !important;       /* Transición Dashboard */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.form-header {
+  text-align: left !important;
+  margin-bottom: 2rem !important;
+  padding-bottom: 1.5rem !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+}
+
+.form-header h1 {
+  font-size: 2.25rem !important;                   /* Tamaño títulos Dashboard */
+  font-weight: 700 !important;                     /* Peso títulos Dashboard */
+  margin-bottom: 0.75rem !important;
+  color: var(--heading) !important;                /* Negro #161616 */
+  text-align: left !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1.2 !important;
+}
+
+.form-description {
+  font-size: 1.125rem !important;                  /* Tamaño subtítulos Dashboard */
+  color: var(--text-secondary) !important;         /* Gris consistente */
+  margin: 0 !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+}
+
+/*=============================================
+  BOTONES - CLICANDSEO STYLE GUIDE
+=============================================*/
+
+.search-form .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;                         /* Gap Dashboard */
+  padding: 0.875rem 1.75rem !important;            /* Padding Dashboard */
+  border: none !important;
+  border-radius: 8px !important;                   /* Border radius Dashboard */
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;                     /* Peso Dashboard */
+  cursor: pointer !important;
+  transition: var(--transition) !important;        /* Transición Dashboard */
+  text-decoration: none !important;
+  min-width: auto !important;
+  justify-content: center !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.search-form .btn-primary {
+  background: var(--cta-hover-bg) !important;            /* Negro #161616 */
+  color: var(--cta-hover-text) !important;               /* Verde #D8F9B8 */
+}
+
+.search-form .btn-primary:hover {
+  background: var(--cta-bg) !important;      /* Verde #D8F9B8 */
+  color: var(--cta-hover-bg) !important;         /* Negro #161616 */
+  transform: translateY(-1px) !important;          /* Elevación Dashboard */
+  box-shadow: var(--shadow) !important;
+}
+
+.search-form .btn-secondary {
+  background: transparent !important;
+  color: var(--cta-hover-bg) !important;                 /* Negro #161616 */
+  border: 1px solid var(--cta-hover-bg) !important;
+}
+
+.search-form .btn-secondary:hover {
+  background: var(--cta-bg) !important;            /* Negro #161616 */
+  color: var(--cta-hover-bg) !important;               /* Verde #D8F9B8 */
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.search-form .btn:active {
+  transform: translateY(0) !important;
+}
+
+/*=============================================
+  INPUTS Y SELECTS - STYLE GUIDE
+=============================================*/
+
+.search-form .form-group label {
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+  color: var(--heading) !important;               /* Negro #161616 */
+  font-size: 0.875rem !important;
+  display: flex !important;
+  align-items: center !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.search-form .form-group input,
+.search-form .form-group select,
+.search-form .form-group textarea {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 8px !important;                  /* Border radius Dashboard */
+  background: white !important;
+  color: var(--heading) !important;
+  font-size: 0.875rem !important;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1.5 !important;
+}
+
+.search-form .form-group input:focus,
+.search-form .form-group select:focus,
+.search-form .form-group textarea:focus {
+  outline: none !important;
+  border-color: var(--cta-bg) !important;         /* Negro #161616 */
+  box-shadow: 0 0 0 3px rgba(22, 22, 22, 0.1) !important;
+}
+
+.search-form .form-group textarea {
+  resize: vertical !important;
+  min-height: 120px !important;
+}
+
+/*=============================================
+  MATCH TYPE BUTTONS - STYLE GUIDE
+=============================================*/
+
+.search-form .match-type-group {
+  display: flex !important;
+  background: #f9fafb !important;                 /* Background Dashboard */
+  border-radius: 8px !important;
+  padding: 0.25rem !important;
+  border: 1px solid var(--border-primary) !important;
+  margin-top: 0.5rem !important;
+}
+
+.search-form .match-type-btn {
+  flex: 1 !important;
+  padding: 0.5rem 1rem !important;
+  text-align: center !important;
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: var(--transition) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.search-form .match-type-group input[type="radio"] {
+  display: none !important;
+}
+
+.search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
+  background: var(--cta-bg) !important;           /* Negro #161616 */
+  color: var(--cta-text) !important;              /* Verde #D8F9B8 */
+  font-weight: 600 !important;
+}
+
+.search-form .match-type-btn:hover {
+  background: rgba(22, 22, 22, 0.05) !important;
+}
+
+.search-form .match-type-group input[type="radio"]:checked + .match-type-btn:hover {
+  background: var(--cta-bg) !important;
+  color: var(--cta-text) !important;
+}
+
+/*=============================================
+  LAYOUT Y CONTAINER - STYLE GUIDE
+=============================================*/
+
+.page-container {
+  max-width: 1200px !important;                   /* Max width Dashboard */
+  margin: 0 auto !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1.6 !important;
+}
+
+.search-form .form-row {
+  display: grid !important;
+  gap: 1.5rem !important;                         /* Gap Dashboard */
+  margin-bottom: 1.5rem !important;
+}
+
+.search-form .form-row.form-actions {
+  grid-template-columns: auto auto !important;
+  justify-content: flex-start !important;
+  gap: 1rem !important;
+  margin-top: 2rem !important;
+}
+
+.search-form .form-group {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/*=============================================
+  ICONOS Y ELEMENTOS ADICIONALES
+=============================================*/
+
+.search-form .country-info-icon,
+.search-form .urls-info-icon {
+  color: var(--text-secondary) !important;
+  margin-left: 0.5rem !important;
+  cursor: help !important;
+  transition: var(--transition) !important;
+}
+
+.search-form .country-info-icon:hover,
+.search-form .urls-info-icon:hover {
+  color: var(--heading) !important;
+}
+
+/*=============================================
+  RESPONSIVE - STYLE GUIDE
+=============================================*/
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem !important;
+  }
+  
+  .search-form {
+    padding: 1.5rem !important;
+  }
+  
+  .form-header h1 {
+    font-size: 1.875rem !important;
+  }
+  
+  .search-form .form-row {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .search-form .form-row.form-actions {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  
+  .search-form .btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding: 0.75rem !important;
+  }
+  
+  .search-form {
+    padding: 1rem !important;
+  }
+  
+  .form-header h1 {
+    font-size: 1.625rem !important;
+  }
+  
+  .form-description {
+    font-size: 1rem !important;
+  }
+}
+
+/*=============================================
+  CHIPS DE FECHA (Si existen)
+=============================================*/
+
+.search-form #monthChips {
+  margin-top: 0.5rem !important;
+}
+
+.search-form .chip {
+  background: #f9fafb !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 6px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: var(--transition) !important;
+}
+
+.search-form .chip:hover {
+  background: var(--background-secondary) !important;
+  border-color: var(--cta-bg) !important;
+}
+
+.search-form .chip.selected {
+  background: var(--cta-bg) !important;
+  color: var(--cta-text) !important;
+  border-color: var(--cta-bg) !important;
+}

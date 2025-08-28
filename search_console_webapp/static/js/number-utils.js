@@ -99,47 +99,135 @@ export function formatPosition(value) {
 }
 
 /**
- * Formatea cambios porcentuales con manejo de casos especiales
- * @param {number|string|'Infinity'|'New'|'Lost'} value - Valor del cambio
- * @param {boolean} isCTR - Si es un cambio de CTR (para formato específico)
- * @returns {string} - Cambio formateado
+ * Calcula y formatea la diferencia absoluta entre dos períodos (P1 - P2)
+ * @param {number|null} valueP1 - Valor del período 1
+ * @param {number|null} valueP2 - Valor del período 2  
+ * @param {string} type - Tipo de métrica: 'clicks', 'impressions', 'ctr', 'position'
+ * @returns {string} - Diferencia formateada
  */
-export function formatPercentageChange(value, isCTR = false) {
-  if (value === 'Infinity' || value === '+Inf') return '+∞%';
-  if (value === '-Infinity' || value === '-Inf') return '-∞%';
-  if (value === 'New' || value === 'Nuevo') return '<span class="positive-change">Nuevo</span>';
-  if (value === 'Lost' || value === 'Perdido') return '<span class="negative-change">Perdido</span>';
+export function calculateAbsoluteDelta(valueP1, valueP2, type = 'clicks') {
+  // Verificar valores válidos
+  const p1 = (valueP1 == null || isNaN(valueP1)) ? 0 : Number(valueP1);
+  const p2 = (valueP2 == null || isNaN(valueP2)) ? 0 : Number(valueP2);
   
-  if (value == null || value === '' || isNaN(value)) return 'N/A';
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (!isFinite(num)) return 'N/A';
+  // Calcular diferencia absoluta: P1 - P2
+  const delta = p1 - p2;
   
-  // Para CTR, usar 2 decimales; para otros, 1 decimal
-  const decimals = isCTR ? 2 : 1;
-  const formatted = formatDecimal(num, decimals) + '%';
-  
-  // Agregar signo positivo si es necesario
-  if (num > 0) {
-    return '+' + formatted;
+  // Formatear según el tipo
+  let formatted;
+  switch(type) {
+    case 'ctr':
+      // CTR: mostrar como diferencia de puntos porcentuales con 2 decimales
+      formatted = formatDecimal(Math.abs(delta), 2);
+      break;
+    case 'position':
+      // Posición: mostrar con 1 decimal  
+      formatted = formatDecimal(Math.abs(delta), 1);
+      break;
+    case 'clicks':
+    case 'impressions':
+    default:
+      // Clics e impresiones: mostrar como enteros
+      formatted = formatInteger(Math.abs(delta));
+      break;
   }
   
-  return formatted;
+  // Agregar signo
+  if (delta > 0) {
+    return '+' + formatted;
+  } else if (delta < 0) {
+    return '-' + formatted;
+  }
+  
+  return '0';
 }
 
 /**
- * Formatea delta de posición con manejo de casos especiales
- * @param {number|string|'New'|'Lost'} deltaValue - Valor del delta
- * @param {number} posP1 - Posición P1
+ * Formatea diferencias absolutas según la guía oficial (P1 - P2) - DEPRECATED
+ * @deprecated Use calculateAbsoluteDelta instead
+ * @param {number|string} value - Valor de la diferencia absoluta
+ * @param {string} type - Tipo de métrica: 'clicks', 'impressions', 'ctr', 'position'
+ * @returns {string} - Diferencia formateada
+ */
+export function formatAbsoluteDelta(value, type = 'clicks') {
+  if (value == null || value === '' || isNaN(value)) return '0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (!isFinite(num)) return '0';
+  
+  let formatted;
+  
+  // Formatear según el tipo de métrica
+  switch(type) {
+    case 'ctr':
+      // CTR: mostrar como diferencia de puntos porcentuales con 2 decimales
+      formatted = formatDecimal(Math.abs(num), 2);
+      break;
+    case 'position':
+      // Posición: mostrar con 1 decimal
+      formatted = formatDecimal(Math.abs(num), 1);
+      break;
+    case 'clicks':
+    case 'impressions':
+    default:
+      // Clics e impresiones: mostrar como enteros
+      formatted = formatInteger(Math.abs(num));
+      break;
+  }
+  
+  // Agregar signo
+  if (num > 0) {
+    return '+' + formatted;
+  } else if (num < 0) {
+    return '-' + formatted;
+  }
+  
+  return '0';
+}
+
+/**
+ * Formatea diferencias absolutas con manejo de casos especiales (según guía oficial) - DEPRECATED
+ * @deprecated Use calculateAbsoluteDelta instead
+ * @param {number|string} value - Valor de la diferencia absoluta
+ * @param {boolean} isCTR - Si es un cambio de CTR (para formato específico)
+ * @returns {string} - Diferencia formateada
+ */
+export function formatPercentageChange(value, isCTR = false) {
+  if (value == null || value === '' || isNaN(value)) return '0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (!isFinite(num)) return '0';
+  
+  // Para CTR que son decimales (0.05 = 5%), multiplicar por 100 para mostrar en formato comprensible
+  if (isCTR && Math.abs(num) < 1) {
+    // CTR es decimal, convertir a porcentaje para mostrar
+    const ctrDifference = num * 100;
+    const formatted = formatDecimal(Math.abs(ctrDifference), 2);
+    return ctrDifference >= 0 ? '+' + formatted : '-' + formatted;
+  }
+  
+  // Para otros valores (clics, impresiones), mostrar como entero
+  const formatted = formatInteger(Math.abs(num));
+  
+  // Agregar signo
+  if (num > 0) {
+    return '+' + formatted;
+  } else if (num < 0) {
+    return '-' + formatted;
+  }
+  
+  return '0';
+}
+
+/**
+ * Formatea delta de posición con manejo de casos especiales (según guía oficial)
+ * @param {number|string} deltaValue - Valor del delta
+ * @param {number} posP1 - Posición P1  
  * @param {number} posP2 - Posición P2
  * @returns {string} - Delta formateado
  */
 export function formatPositionDelta(deltaValue, posP1, posP2) {
-  if (deltaValue === 'New' || deltaValue === 'Nuevo') return '<span class="positive-change">Nuevo</span>';
-  if (deltaValue === 'Lost' || deltaValue === 'Perdido') return '<span class="negative-change">Perdido</span>';
-  
-  if (deltaValue == null || deltaValue === '' || isNaN(deltaValue)) return 'N/A';
+  if (deltaValue == null || deltaValue === '' || isNaN(deltaValue)) return '0,0';
   const num = typeof deltaValue === 'string' ? parseFloat(deltaValue) : deltaValue;
-  if (!isFinite(num)) return 'N/A';
+  if (!isFinite(num)) return '0,0';
   
   const formatted = formatDecimal(Math.abs(num), 1);
   
@@ -162,10 +250,6 @@ export function formatPositionDelta(deltaValue, posP1, posP2) {
  */
 export function parseNumericValue(val) {
   // Casos especiales
-  if (val === 'Infinity' || val === '+∞' || val === '+∞%') return Infinity;
-  if (val === '-Infinity' || val === '-∞' || val === '-∞%') return -Infinity;
-  if (val === 'New' || val === 'Nuevo') return 0.00001; // Valor positivo pequeño
-  if (val === 'Lost' || val === 'Perdido') return -0.00001; // Valor negativo pequeño
   if (val === 'N/A' || val === null || val === undefined || val === '') return 0;
   
   // Si ya es número, devolverlo
@@ -230,6 +314,37 @@ export function parseIntegerValue(val) {
   
   const parsed = parseInt(cleaned, 10);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Parsea valores de posición para ordenamiento, tratando N/A como 0
+ * @param {string|number} val - Valor a parsear
+ * @returns {number} - Valor numérico para ordenamiento (N/A = 0)
+ */
+export function parsePositionValue(val) {
+  // ✅ CAMBIADO: 0 en lugar de N/A (ya no necesitamos tratar como peor valor)
+  if (val === 'N/A' || val === null || val === undefined || val === '' || val === 0) return 0;
+  
+  // Si ya es número, devolverlo
+  if (typeof val === 'number') return val;
+  
+  // Limpiar string
+  let cleaned = val.toString().trim();
+  
+  // Manejar formato español: coma como decimal
+  if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  
+  const parsed = parseFloat(cleaned);
+  const result = isNaN(parsed) ? 0 : parsed; // ✅ CAMBIADO: 0 en lugar de 999999
+  
+  // Debug opcional para diagnóstico
+  if (window.debugPositions) {
+    console.log(`🔍 parsePositionValue("${val}") → cleaned: "${cleaned}" → parsed: ${parsed} → result: ${result}`);
+  }
+  
+  return result;
 }
 
 // === CONFIGURACIÓN PARA DATATABLES ===

@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manual AI Overview Analysis - ClicAndSEO</title>
     
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+    <!-- End Google Tag Manager -->
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+    
     <!-- Reutilizar estilos existentes para consistencia -->
     <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
@@ -13,6 +27,9 @@
     
     <!-- CSS específico para Manual AI -->
     <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+    
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
@@ -25,8 +42,20 @@
     
     <!-- Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Grid.js para tablas -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
 </head>
 <body data-authenticated="{{ 'true' if user else 'false' }}">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
     <!-- Navbar principal del SaaS -->
     <nav class="navbar" id="navbar">
         <div class="navbar-container">
@@ -71,11 +100,11 @@
                             <span>Dashboard</span>
                         </a>
                         <div class="dropdown-divider"></div>
-                        <button class="dropdown-item" id="dropdownThemeToggle">
+                        <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
                             <i class="fas fa-moon" id="dropdownThemeIcon"></i>
                             <span id="dropdownThemeText">Modo Oscuro</span>
                         </button>
-                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-divider" style="display: none;"></div>
                         <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
                             <i class="fas fa-sign-out-alt"></i>
                             <span>Cerrar Sesión</span>
@@ -89,7 +118,7 @@
                         <span>Iniciar Sesión</span>
                     </button>
 
-                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro">
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro" style="display: none;">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
                 </div>
@@ -137,7 +166,7 @@
                         </button>
                     </div>
 
-                    <div class="mobile-theme-section">
+                    <div class="mobile-theme-section" style="display: none;">
                         <div class="mobile-theme-toggle">
                             <span class="mobile-theme-label">Tema de la aplicación</span>
                             <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
@@ -227,9 +256,9 @@
 
                 <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
                     <div class="nav-section-title">Herramientas</div>
-                    <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;">
+                    <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;" aria-label="Download Manual AI data as Excel" title="Exporta los datos visibles en Manual AI a Excel">
                         <i class="fas fa-download"></i>
-                        <span>Descargar Excel</span>
+                        <span>Download Excel</span>
                         <div class="download-spinner" style="display: none;">
                             <i class="fas fa-spinner fa-spin"></i>
                         </div>
@@ -266,10 +295,6 @@
                     <i class="fas fa-chart-line"></i>
                     Analytics
                 </button>
-                            <button type="button" class="nav-tab" data-tab="settings">
-                <i class="fas fa-cog"></i>
-                Global Settings
-            </button>
             </div>
         </nav>
 
@@ -351,6 +376,25 @@
 
                 <!-- Charts container -->
                 <div class="charts-container" id="chartsContainer" style="display: none;">
+                    <!-- Overview Section -->
+                    <div class="overview-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-tachometer-alt"></i>
+                                Overview
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Key metrics and performance indicators for your project's AI Overview visibility
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                Information shown in the cards below is based on the latest available analysis
+                            </p>
+                        </div>
+                    </div>
+                    
                     <!-- Summary cards -->
                     <div class="summary-cards">
                         <!-- 1. Total Keywords -->
@@ -422,10 +466,12 @@
                         <div class="chart-container">
                             <h3>Domain Visibility Over Time</h3>
                             <canvas id="visibilityChart"></canvas>
+                            <div id="visibilityLegend" class="chart-html-legend"></div>
                         </div>
                         <div class="chart-container">
                             <h3>Position Distribution</h3>
                             <canvas id="positionsChart"></canvas>
+                            <div id="positionsLegend" class="chart-html-legend"></div>
                         </div>
                     </div>
 
@@ -435,30 +481,59 @@
                             <h3>
                                 <i class="fas fa-chart-line"></i>
                                 Competitive Analysis vs Selected Competitors
-                            </h3>
-                            <div class="tooltip-container">
-                                <i class="fas fa-info-circle tooltip-trigger"></i>
-                                <div class="tooltip-content">
-                                    Compare your domain performance against selected competitors in AI Overview results
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Compare your domain performance against selected competitors in AI Overview results
+                                    </div>
                                 </div>
-                            </div>
+                            </h3>
                         </div>
                         
                         <div class="competitors-charts-grid">
                             <div class="chart-container">
                                 <h4>AI Overview Visibility Percentage</h4>
-                                <div class="chart-description">
-                                    <small>Percentage of keywords where each domain appears in AI Overview</small>
-                                </div>
                                 <canvas id="comparativeVisibilityChart"></canvas>
+                                <div id="comparativeVisibilityLegend" class="chart-html-legend"></div>
                             </div>
                             
                             <div class="chart-container">
                                 <h4>Average Position in AI Overview</h4>
-                                <div class="chart-description">
-                                    <small>Average position when appearing in AI Overview (lower is better)</small>
-                                </div>
                                 <canvas id="comparativePositionChart"></canvas>
+                                <div id="comparativePositionLegend" class="chart-html-legend"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Overview Keywords Details Section -->
+                    <div class="ai-overview-keywords-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-table"></i>
+                                AI Overview Keywords Details
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Detailed table showing keywords that generate AI Overview with your domain and competitors' appearances
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                Data from the latest analysis showing keywords with AI Overview and domain presence
+                            </p>
+                        </div>
+                        
+                        <div class="ai-overview-keywords-container">
+                            <div id="manualAIOverviewGrid" class="manual-ai-overview-grid-wrapper">
+                                <!-- Grid.js table will be rendered here -->
+                            </div>
+                            
+                            <div class="no-ai-keywords-message" id="noAIKeywordsMessage" style="display: none;">
+                                <div class="empty-state">
+                                    <i class="fas fa-robot"></i>
+                                    <p>No AI Overview keywords found</p>
+                                    <small>Run analysis to see keywords with AI Overview results</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -469,13 +544,16 @@
                             <h3>
                                 <i class="fas fa-globe"></i>
                                 Global AI Overview Domains Ranking
-                            </h3>
-                            <div class="tooltip-container">
-                                <i class="fas fa-info-circle tooltip-trigger"></i>
-                                <div class="tooltip-content">
-                                    Ranking of ALL domains detected in AI Overview for your keywords, with highlighting for your domain and selected competitors
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Ranking of ALL domains detected in AI Overview for your keywords, with highlighting for your domain and selected competitors
+                                    </div>
                                 </div>
-                            </div>
+                            </h3>
+                            <p class="section-description">
+                                Data shown represents the cumulative sum of all appearances during the selected period
+                            </p>
                         </div>
                         
                         <div class="domains-container">
@@ -937,7 +1015,22 @@ keyword 3"></textarea>
                                     Add Keywords
                                 </button>
                             </div>
-                            <small class="form-help">You can add multiple keywords at once, separated by commas or new lines</small>
+                        </div>
+                    </div>
+
+                    <!-- ✅ NUEVO: Add Notes Section -->
+                    <div class="tab-section">
+                        <h4>Add Notes</h4>
+                        <div class="keywords-input-section">
+                            <div class="input-group">
+                                <textarea id="modalNotesInput" class="form-textarea" 
+                                          placeholder="Add notes to mark important days and track optimization efforts. These will appear as blue annotations in your visibility graph."
+                                          rows="3"></textarea>
+                                <button type="button" class="btn-primary" onclick="manualAI.addNoteFromModal()">
+                                    <i class="fas fa-sticky-note"></i>
+                                    Add Note
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -960,32 +1053,29 @@ keyword 3"></textarea>
                 <div class="modal-tab-content" id="modalSettingsTab">
                     <div class="tab-section">
                         <div class="setting-group">
-                            <label for="modalProjectName">Project Name</label>
+                            <label for="modalProjectName" class="manual-ai-underline">Project Name</label>
                             <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
-                            <small class="form-help">Choose a descriptive name for your project</small>
                         </div>
                         
                         <div class="setting-group">
-                            <label for="modalProjectDescription">Project Description</label>
+                            <label for="modalProjectDescription" class="manual-ai-underline">Project Description</label>
                             <textarea id="modalProjectDescription" class="form-textarea" 
                                       placeholder="Enter project description (optional)..." rows="3"></textarea>
-                            <small class="form-help">Add a description to help identify this project</small>
                         </div>
 
                         <!-- Project Competitors Section -->
                         <div class="setting-group">
-                            <label>Project Competitors</label>
+                            <label class="manual-ai-underline">Project Competitors</label>
                             <div class="competitors-manager">
                                 <div class="add-competitor-section">
                                     <div class="competitor-input-group">
                                         <input type="text" id="newCompetitorInput" class="form-input" 
                                                placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
-                                        <button type="button" class="btn-secondary" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
+                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
                                             <i class="fas fa-plus"></i>
-                                            Add
+                                            Add Competitor
                                         </button>
                                     </div>
-                                    <small class="form-help">Add up to 4 competitor domains to track and compare performance</small>
                                 </div>
                                 
                                 <div class="competitors-list" id="competitorsList">
@@ -1028,8 +1118,69 @@ keyword 3"></textarea>
         </main>
     </div>
 
+    <!-- Annotation Modal -->
+    <div class="modal-overlay" id="annotationModal">
+        <div class="modal-content modal-medium">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Add Change Annotation</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideAnnotationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="annotation-info">
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="info-content">
+                            <h4 id="annotationChangeTitle">Keywords Changed</h4>
+                            <p id="annotationChangeDescription">You've made changes to the keywords for this project. Add a brief description to help track this change in your analytics.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="annotationDescription" class="form-label">
+                        <i class="fas fa-comment-alt"></i>
+                        Description (optional but recommended)
+                    </label>
+                    <textarea 
+                        id="annotationDescription" 
+                        class="form-textarea" 
+                        placeholder="E.g., Added new product keywords, Removed low-performing terms, Updated brand keywords..."
+                        rows="3"
+                        maxlength="255"
+                    ></textarea>
+                    <div class="textarea-footer">
+                        <span class="char-count">
+                            <span id="annotationCharCount">0</span>/255 characters
+                        </span>
+                        <span class="helper-text">This will appear in your Domain Visibility chart</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="manualAI.hideAnnotationModal()">
+                    Skip Annotation
+                </button>
+                <button type="button" class="btn-primary" onclick="manualAI.saveAnnotation()">
+                    <i class="fas fa-save"></i>
+                    Save Annotation
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+    
     <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
     <script>
         // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos

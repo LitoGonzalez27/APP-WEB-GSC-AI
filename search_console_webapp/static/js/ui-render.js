@@ -16,23 +16,46 @@ import {
 import { createUrlsGridTable } from './ui-urls-gridjs.js';
 import { createUrlKeywordsGridTable } from './ui-url-keywords-gridjs.js';
 
-// Variable para almacenar la instancia de Grid.js de URLs (migrado desde DataTable)
+// Variables para almacenar las instancias de Grid.js principales
 let urlsGridTable = null;
+let keywordsGridTable = null;
 
-// ✅ ACTUALIZADA: Función para resetear completamente el estado de la tabla de URLs (Grid.js)
-export function resetUrlsTableState() {
+// ✅ MEJORADA: Función para resetear completamente el estado de la tabla de URLs (Grid.js)
+export async function resetUrlsTableState() {
   console.log('🔄 Reseteando estado completo de la tabla de URLs...');
   
-  // Resetear variable global de Grid.js
+  // Resetear variables globales de Grid.js
   if (urlsGridTable && urlsGridTable.destroy) {
     try {
       urlsGridTable.destroy();
-      console.log('✅ Grid.js anterior destruido en reset');
+      console.log('✅ URLs Grid.js anterior destruido en reset');
     } catch (e) {
-      console.warn('⚠️ Error destruyendo Grid.js en reset:', e);
+      console.warn('⚠️ Error destruyendo URLs Grid.js en reset:', e);
     }
   }
   urlsGridTable = null;
+  
+  // ✅ MEJORADO: Limpiar tabla principal de keywords
+  try {
+    const { clearKeywordComparisonTable } = await import('./ui-keyword-comparison-table.js');
+    clearKeywordComparisonTable();
+    console.log('✅ Keywords Grid.js principal destruido en reset');
+  } catch (e) {
+    console.warn('⚠️ Error destruyendo Keywords Grid.js principal en reset:', e);
+  }
+  
+  // ✅ NUEVO: Limpiar también las instancias de Grid.js de modales keywords
+  Object.keys(preProcessedModalData).forEach(range => {
+    if (preProcessedModalData[range].gridTable && preProcessedModalData[range].gridTable.destroy) {
+      try {
+        preProcessedModalData[range].gridTable.destroy();
+        console.log(`✅ Modal Grid.js destruido para ${range}`);
+      } catch (e) {
+        console.warn(`⚠️ Error destruyendo Modal Grid.js para ${range}:`, e);
+      }
+      preProcessedModalData[range].gridTable = null;
+    }
+  });
   
   // Limpiar datos globales relacionados
   window.currentData = null;
@@ -45,7 +68,7 @@ export function resetUrlsTableState() {
     elems.resultsTitle.style.display = 'none';
   }
   
-  console.log('✅ Estado de tabla de URLs reseteado completamente');
+  console.log('✅ Estado de tabla de URLs y modales reseteado completamente');
 }
 
 // ✅ NUEVO: Variable global para almacenar los datos de keywords
@@ -1591,15 +1614,20 @@ async function createGridTableForRange(range, keywords, analysisType) {
     // Importar dinámicamente para evitar dependencias circulares
     const { createKeywordsGridTable } = await import('./ui-keywords-gridjs.js');
     
-    // Crear Grid.js table
-    preProcessedModalData[range].gridTable = createKeywordsGridTable(keywords, analysisType, container);
+    // Crear Grid.js table con delay específico por rango para evitar conflictos
+    const delayMap = { top3: 1000, top10: 1200, top20: 1400, top20plus: 1600 };
+    const delay = delayMap[range] || 1000;
     
-    if (preProcessedModalData[range].gridTable) {
-      const endTime = performance.now();
-      console.log(`✅ Grid.js tabla para ${range} creada en ${(endTime - startTime).toFixed(2)}ms`);
-    } else {
-      console.warn(`⚠️ No se pudo crear Grid.js tabla para ${range}`);
-    }
+    setTimeout(() => {
+      preProcessedModalData[range].gridTable = createKeywordsGridTable(keywords, analysisType, container);
+      
+      if (preProcessedModalData[range].gridTable) {
+        const endTime = performance.now();
+        console.log(`✅ Grid.js tabla para ${range} creada en ${(endTime - startTime).toFixed(2)}ms`);
+      } else {
+        console.warn(`⚠️ No se pudo crear Grid.js tabla para ${range}`);
+      }
+    }, delay);
     
   } catch (error) {
     console.error(`❌ Error al crear Grid.js tabla para ${range}:`, error);

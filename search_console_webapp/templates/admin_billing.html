@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Billing Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* ========== BASE STYLES ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        /* ========== MAIN CONTENT ========== */
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        /* ========== BILLING STATS ========== */
+        .billing-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .stat-card.plans .stat-number { color: #007bff; }
+        .stat-card.revenue .stat-number { color: #28a745; }
+        .stat-card.usage .stat-number { color: #ffc107; }
+        .stat-card.users .stat-number { color: #6f42c1; }
+        
+        /* ========== USERS TABLE ========== */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+        
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+        
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* ========== USER INFO ========== */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 200px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .user-details h4 {
+            margin: 0;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        
+        .user-details small {
+            color: #666;
+            font-size: 0.8rem;
+        }
+        
+        /* ========== BADGES ========== */
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        /* Plan badges */
+        .badge-free { background: #6c757d; color: white; }
+        .badge-basic { background: #007bff; color: white; }
+        .badge-premium { background: #28a745; color: white; }
+        
+        /* Billing status badges */
+        .badge-active { background: #28a745; color: white; }
+        .badge-past-due { background: #ffc107; color: #212529; }
+        .badge-canceled { background: #dc3545; color: white; }
+        .badge-beta { background: #6f42c1; color: white; }
+        
+        /* Role badges */
+        .badge-admin { background: #ffc107; color: #212529; }
+        .badge-user { background: #6c757d; color: white; }
+        
+        /* ========== QUOTA PROGRESS ========== */
+        .quota-info {
+            min-width: 120px;
+        }
+        
+        .quota-text {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .quota-progress {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .quota-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .quota-fill.low { background: #28a745; }      /* 0-50% */
+        .quota-fill.medium { background: #ffc107; }   /* 51-80% */
+        .quota-fill.high { background: #fd7e14; }     /* 81-95% */
+        .quota-fill.critical { background: #dc3545; } /* 96-100% */
+        
+        /* ========== ACTIONS ========== */
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        
+        .btn:hover { transform: translateY(-1px); }
+        
+        /* ========== MODALES ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            padding: 2rem;
+        }
+        
+        .modal.show {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        /* ========== DETAIL GRID ========== */
+        .detail-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .detail-value {
+            color: #666;
+        }
+        
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .billing-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="nav-title">
+                <i class="fas fa-credit-card"></i>
+                Billing Management Panel
+            </div>
+            <div class="nav-actions">
+                <a href="/admin" class="btn btn-info">
+                    <i class="fas fa-users"></i>
+                    User Panel
+                </a>
+                <a href="/" class="btn btn-info">
+                    <i class="fas fa-home"></i>
+                    Home
+                </a>
+                <a href="/auth/logout" class="btn btn-danger">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Billing Management</h1>
+            <p>Manage user plans, quotas, and billing status</p>
+        </div>
+
+        <!-- Billing Stats -->
+        <div class="billing-stats">
+            <div class="stat-card plans">
+                <div class="stat-number">{{ billing_stats.users_by_plan.basic|default(0) + billing_stats.users_by_plan.premium|default(0) }}</div>
+                <div class="stat-label">Paying Users</div>
+            </div>
+            <div class="stat-card users">
+                <div class="stat-number">{{ billing_stats.users_by_plan.free|default(0) }}</div>
+                <div class="stat-label">Free Users</div>
+            </div>
+            <div class="stat-card revenue">
+                <div class="stat-number">€{{ "%.0f"|format(billing_stats.revenue_estimate_month) }}</div>
+                <div class="stat-label">Est. Monthly Revenue</div>
+            </div>
+            <div class="stat-card usage">
+                <div class="stat-number">{{ "{:,}".format(billing_stats.total_ru_consumed_month) }}</div>
+                <div class="stat-label">RU Used This Month</div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Plan</th>
+                        <th>Billing Status</th>
+                        <th>Quota Usage</th>
+                        <th>Reset Date</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="user-info">
+                                    <div class="user-avatar">
+                                        {% if user.picture %}
+                                            <img src="{{ user.picture }}" alt="Avatar">
+                                        {% else %}
+                                            <i class="fas fa-user"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="user-details">
+                                        <h4>{{ user.name or 'No name' }}</h4>
+                                        <small>{{ user.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% set plan_info = get_plan_display_info(user.plan or 'free') %}
+                                <span class="badge {{ plan_info.badge_class }}">
+                                    {{ plan_info.name }} 
+                                    {% if user.plan != 'free' %}
+                                        ({{ "{:,}".format(plan_info.ru_limit) }} RU)
+                                    {% endif %}
+                                </span>
+                                {% if user.pending_plan %}
+                                    <br><small>→ {{ user.pending_plan|title }} (pending)</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set status_info = get_billing_status_display_info(user.billing_status or 'active') %}
+                                <span class="badge {{ status_info.badge_class }}">
+                                    <i class="{{ status_info.icon }}"></i>
+                                    {{ status_info.name }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="quota-info">
+                                    <div class="quota-text">
+                                        {{ "{:,}".format(user.quota_used or 0) }} / {{ "{:,}".format(user.quota_limit or 0) }}
+                                    </div>
+                                    {% if user.quota_limit and user.quota_limit > 0 %}
+                                        {% set percentage = ((user.quota_used or 0) / user.quota_limit * 100)|round(1) %}
+                                        <div class="quota-progress">
+                                            <div class="quota-fill 
+                                                {% if percentage <= 50 %}low
+                                                {% elif percentage <= 80 %}medium  
+                                                {% elif percentage <= 95 %}high
+                                                {% else %}critical{% endif %}"
+                                                style="width: {{ [percentage, 100]|min }}%">
+                                            </div>
+                                        </div>
+                                        <small>{{ percentage }}%</small>
+                                    {% else %}
+                                        <div class="quota-progress">
+                                            <div class="quota-fill low" style="width: 0%"></div>
+                                        </div>
+                                        <small>0%</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if user.quota_reset_date %}
+                                    {{ user.quota_reset_date.strftime('%d/%m/%Y') }}<br>
+                                    <small>{{ user.quota_reset_date.strftime('%H:%M') }}</small>
+                                {% else %}
+                                    <small>No date</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ user.role }}">
+                                    {{ user.role|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn btn-info btn-view-billing"
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or user.email }}">
+                                        <i class="fas fa-eye"></i>
+                                        Details
+                                    </button>
+                                    <button class="btn btn-warning btn-change-plan"
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or user.email }}"
+                                            data-current-plan="{{ user.plan or 'free' }}">
+                                        <i class="fas fa-edit"></i>
+                                        Plan
+                                    </button>
+                                    <button class="btn btn-success btn-reset-quota"
+                                            data-user-id="{{ user.id }}"
+                                            data-user-name="{{ user.name or user.email }}">
+                                        <i class="fas fa-refresh"></i>
+                                        Reset
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
+                                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                                No users found
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal for User Billing Details -->
+    <div id="billingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-credit-card"></i> Billing Details</h3>
+                <button class="btn btn-danger" onclick="closeModal('billingModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid" id="billingDetails">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Change Plan -->
+    <div id="planModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Change Plan</h3>
+                <button class="btn btn-danger" onclick="closeModal('planModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Change plan for <strong id="planUserName">-</strong>?</p>
+                <div style="margin-top: 1rem;">
+                    <label for="planSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Select plan:</label>
+                    <select id="planSelect" style="width: 100%; padding: 0.5rem; border: 2px solid #dee2e6; border-radius: 5px;">
+                        <option value="free">Free (0 RU)</option>
+                        <option value="basic">Basic (1,225 RU/month)</option>
+                        <option value="premium">Premium (2,950 RU/month)</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Note:</strong> This is a manual override for testing/support. 
+                    Production plans should be managed through Stripe.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-info" onclick="closeModal('planModal')">Cancel</button>
+                <button class="btn btn-warning" id="confirmPlanBtn">
+                    <i class="fas fa-save"></i>
+                    Change Plan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for modal data
+        let currentUserId = null;
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // View billing details buttons
+            document.querySelectorAll('.btn-view-billing').forEach(button => {
+                button.addEventListener('click', function() {
+                    const userId = this.dataset.userId;
+                    const userName = this.dataset.userName;
+                    showBillingDetails(userId, userName);
+                });
+            });
+            
+            // Change plan buttons
+            document.querySelectorAll('.btn-change-plan').forEach(button => {
+                button.addEventListener('click', function() {
+                    const userId = this.dataset.userId;
+                    const userName = this.dataset.userName;
+                    const currentPlan = this.dataset.currentPlan;
+                    showPlanModal(userId, userName, currentPlan);
+                });
+            });
+            
+            // Reset quota buttons
+            document.querySelectorAll('.btn-reset-quota').forEach(button => {
+                button.addEventListener('click', function() {
+                    const userId = this.dataset.userId;
+                    const userName = this.dataset.userName;
+                    resetUserQuota(userId, userName);
+                });
+            });
+            
+            // Plan change confirmation
+            document.getElementById('confirmPlanBtn').addEventListener('click', function() {
+                if (currentUserId) {
+                    const newPlan = document.getElementById('planSelect').value;
+                    updateUserPlan(currentUserId, newPlan);
+                }
+            });
+        });
+        
+        function showBillingDetails(userId, userName) {
+            // In real implementation, this would fetch user billing details via AJAX
+            fetch(`/admin/users/${userId}/billing-details`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayBillingDetails(data.user);
+                        openModal('billingModal');
+                    } else {
+                        alert('Error loading billing details: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading billing details');
+                });
+        }
+        
+        function displayBillingDetails(user) {
+            const container = document.getElementById('billingDetails');
+            container.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">User:</span>
+                    <span class="detail-value">${user.name} (${user.email})</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Current Plan:</span>
+                    <span class="detail-value">${user.plan} → ${user.current_plan}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Billing Status:</span>
+                    <span class="detail-value">${user.billing_status}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Quota Usage:</span>
+                    <span class="detail-value">${user.quota_used} / ${user.quota_limit} RU (${user.quota_percentage}%)</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Stripe Customer:</span>
+                    <span class="detail-value">${user.stripe_customer_id || 'Not connected'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Subscription:</span>
+                    <span class="detail-value">${user.subscription_id || 'No subscription'}</span>
+                </div>
+                ${user.pending_plan ? `
+                <div class="detail-item">
+                    <span class="detail-label">Pending Plan:</span>
+                    <span class="detail-value">${user.pending_plan} (${user.pending_plan_date})</span>
+                </div>
+                ` : ''}
+            `;
+        }
+        
+        function showPlanModal(userId, userName, currentPlan) {
+            currentUserId = userId;
+            document.getElementById('planUserName').textContent = userName;
+            document.getElementById('planSelect').value = currentPlan;
+            openModal('planModal');
+        }
+        
+        function updateUserPlan(userId, newPlan) {
+            fetch(`/admin/users/${userId}/update-plan`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    plan: newPlan
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Plan updated successfully: ' + data.message);
+                    location.reload();
+                } else {
+                    alert('Error updating plan: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating plan');
+            });
+            
+            closeModal('planModal');
+        }
+        
+        function resetUserQuota(userId, userName) {
+            if (confirm(`Reset quota for ${userName}? This will set their usage to 0 and extend reset date by 30 days.`)) {
+                fetch(`/admin/users/${userId}/reset-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Quota reset successfully');
+                        location.reload();
+                    } else {
+                        alert('Error resetting quota: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error resetting quota');
+                });
+            }
+        }
+        
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+            currentUserId = null;
+        }
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target.classList.contains('modal')) {
+                const modalId = event.target.id;
+                closeModal(modalId);
+            }
+        });
+        
+        console.log('🚀 Billing Panel loaded successfully');
+    </script>
+</body>
+</html>

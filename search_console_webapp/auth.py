@@ -128,6 +128,11 @@ def is_user_admin():
     user = get_current_user()
     return user and user['role'] == 'admin'
 
+def is_user_ai_enabled():
+    """Verifica si el usuario tiene acceso a funcionalidades AI (admin o AI User)"""
+    user = get_current_user()
+    return user and user['role'] in ['admin', 'AI User']
+
 def auth_required(f):
     """Decorador que requiere autenticación"""
     @wraps(f)
@@ -231,6 +236,57 @@ def admin_required(f):
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Admin privileges required', 'admin_required': True}), 403
             return redirect(url_for('dashboard') + '?admin_required=true')
+        
+        # Actualizar última actividad
+        update_last_activity()
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def ai_user_required(f):
+    """Decorador que requiere privilegios de AI User (admin o AI User)"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar autenticación básica
+        if not is_user_authenticated():
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?auth_required=true')
+        
+        # Verificar expiración por inactividad
+        if is_session_expired():
+            session.clear()
+            logger.info("Sesión expirada por inactividad")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
+            return redirect(url_for('login_page') + '?session_expired=true')
+        
+        # Verificar si el usuario está en la base de datos
+        user = get_current_user()
+        if not user:
+            session.clear()
+            logger.warning("Usuario no encontrado en base de datos")
+            
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'User not found', 'auth_required': True}), 401
+            return redirect(url_for('login_page') + '?user_not_found=true')
+        
+        # Verificar si el usuario está activo
+        if not user['is_active']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
+            return redirect(url_for('login_page') + '?account_suspended=true')
+        
+        # Verificar si el usuario tiene acceso a funcionalidades AI
+        if not user['role'] in ['admin', 'AI User']:
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({
+                    'error': 'AI User privileges required',
+                    'ai_user_required': True
+                }), 403
+            # Para acceso directo via navegador, redirigir a /app
+            return redirect(url_for('app_main'))
         
         # Actualizar última actividad
         update_last_activity()
@@ -383,23 +439,35 @@ def setup_auth_routes(app):
 
     @app.route('/login')
     def login_page():
-        """Página de inicio de sesión"""
+        """Página de inicio de sesión - FASE 4.5: Soporte parámetro next"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('login.html')
 
     @app.route('/signup')
     def signup_page():
-        """Página de registro"""
+        """Página de registro - FASE 4.5: Soporte parámetro next"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('signup.html')
+
+
 
 
 
@@ -497,13 +565,14 @@ def setup_auth_routes(app):
                     logger.warning(f"Usuario {user_info['email']} ya existe, no se puede registrar de nuevo")
                     return redirect('/login?auth_error=user_already_exists')
                 
-                # Crear nuevo usuario
+                # ✅ NUEVO FASE 4.5: Crear usuario con activación automática
                 try:
                     new_user = create_user(
                         email=user_info['email'],
                         name=user_info['name'],
                         google_id=user_info['id'],
-                        picture=user_info.get('picture')
+                        picture=user_info.get('picture'),
+                        auto_activate=True  # ✅ ACTIVACIÓN AUTOMÁTICA para SaaS
                     )
                     
                     if not new_user:
@@ -511,13 +580,17 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # NO ACTIVAR automáticamente - dejar inactivo para revisión admin
+                    # ✅ NUEVO FASE 4.5: INICIAR SESIÓN AUTOMÁTICAMENTE
+                    session['credentials'] = session.pop('temp_credentials')
+                    session['user_id'] = new_user['id']
+                    session['user_email'] = new_user['email']
+                    session['user_name'] = new_user['name']
+                    update_last_activity()
                     
-                    # ✅ NO INICIAR SESIÓN - Solo limpiar credenciales temporales
-                    session.pop('temp_credentials', None)
-                    
-                    logger.info(f"Usuario registrado con Google (sin iniciar sesión): {user_info['email']}")
-                    return redirect('/login?registration_success=true&with_google=true')
+                    logger.info(f"Usuario registrado y autenticado con Google: {user_info['email']}")
+                    # ✅ USAR PARÁMETRO NEXT después de registro exitoso
+                    next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=signup')
+                    return redirect(next_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)
@@ -564,7 +637,9 @@ def setup_auth_routes(app):
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                return redirect('/dashboard?auth_success=true&action=login')
+                # ✅ NUEVO FASE 4.5: Usar parámetro next después de autenticación
+                next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+                return redirect(next_url)
                 
         except Exception as e:
             session.pop('temp_credentials', None)
@@ -722,19 +797,83 @@ def setup_auth_routes(app):
     @app.route('/admin/users')
     @admin_required
     def admin_users():
-        """Panel de administración de usuarios"""
-        # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
-        ensure_sample_data()
-        
-        users = get_all_users()
-        stats = get_user_stats()
-        current_user = get_current_user()
-        
-        # Debug logging
-        logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {stats}")
-        
-        # ✅ USANDO TEMPLATE SIMPLE Y LIMPIO CON MODALES GARANTIZADOS
-        return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+        """Panel de administración de usuarios - MEJORADO con datos de billing"""
+        try:
+            # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
+            ensure_sample_data()
+            
+            # 🚀 MEJORA: Usar funciones de billing para datos completos
+            try:
+                from admin_billing_panel import get_users_with_billing, get_billing_stats
+                users = get_users_with_billing()
+                # Fusionar stats básicos con stats de billing
+                basic_stats = get_user_stats()
+                billing_stats = get_billing_stats()
+                stats = {**basic_stats, **billing_stats}
+                logger.info(f"✅ Admin panel mejorado - Usuarios con billing: {len(users)}")
+            except ImportError as e:
+                logger.warning(f"⚠️ Fallback a función básica - admin_billing_panel no disponible: {e}")
+                users = get_all_users()
+                stats = get_user_stats()
+            
+            current_user = get_current_user()
+            
+            # Debug logging
+            logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {list(stats.keys())}")
+            
+            # ✅ TEMPLATE MEJORADO CON DATOS COMPLETOS DE BILLING
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+            
+        except Exception as e:
+            logger.error(f"Error en panel admin: {e}")
+            # Fallback básico en caso de error
+            users = get_all_users() if 'get_all_users' in globals() else []
+            stats = get_user_stats() if 'get_user_stats' in globals() else {}
+            current_user = get_current_user()
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+
+    @app.route('/admin/users/<int:user_id>/billing-details')
+    @admin_required
+    def user_billing_details(user_id):
+        """Obtener detalles completos de billing de un usuario para el modal Ver"""
+        try:
+            from admin_billing_panel import get_user_billing_details
+            user_details = get_user_billing_details(user_id)
+            
+            if not user_details:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            
+            return jsonify({'success': True, 'user': user_details})
+            
+        except ImportError:
+            # Fallback a datos básicos si admin_billing_panel no está disponible
+            logger.warning("⚠️ admin_billing_panel no disponible, usando datos básicos")
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute('''
+                    SELECT id, email, name, picture, role, is_active, created_at,
+                           plan, quota_limit, quota_used, current_period_start, current_period_end
+                    FROM users WHERE id = %s
+                ''', (user_id,))
+                user = cur.fetchone()
+                
+                if not user:
+                    return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+                
+                user_dict = dict(user)
+                return jsonify({'success': True, 'user': user_dict})
+                
+            except Exception as fallback_error:
+                logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
+                return jsonify({'success': False, 'error': 'Error obteniendo datos del usuario'}), 500
+            finally:
+                if conn:
+                    conn.close()
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
     @app.route('/admin/debug-stats')
     @admin_required 
@@ -869,7 +1008,7 @@ def setup_auth_routes(app):
             data = request.get_json()
             new_role = data.get('role')
             
-            if new_role not in ['user', 'admin']:
+            if new_role not in ['user', 'admin', 'AI User']:
                 return jsonify({'error': 'Rol inválido'}), 400
             
             user = get_user_by_id(user_id)
@@ -1069,6 +1208,101 @@ def setup_auth_routes(app):
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas detalladas: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/change-plan', methods=['POST'])
+    @admin_required
+    def admin_change_user_plan(user_id):
+        """Cambiar plan de un usuario desde admin panel"""
+        try:
+            from admin_billing_panel import update_user_plan_manual
+            
+            data = request.get_json()
+            new_plan = data.get('plan')
+            current_user = get_current_user()
+            
+            if not new_plan:
+                return jsonify({'success': False, 'error': 'Plan no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = update_user_plan_manual(user_id, new_plan, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error cambiando plan de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/assign-custom-quota', methods=['POST'])
+    @admin_required  
+    def admin_assign_custom_quota(user_id):
+        """Asignar quota personalizada (Enterprise) desde admin panel"""
+        try:
+            from admin_billing_panel import assign_custom_quota
+            
+            data = request.get_json()
+            custom_limit = data.get('custom_limit')
+            notes = data.get('notes', '')
+            current_user = get_current_user()
+            
+            if custom_limit is None:
+                return jsonify({'success': False, 'error': 'Custom limit no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = assign_custom_quota(user_id, custom_limit, notes, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error asignando custom quota a usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/remove-custom-quota', methods=['POST'])
+    @admin_required
+    def admin_remove_custom_quota(user_id):
+        """Remover quota personalizada y volver a plan estándar"""
+        try:
+            from admin_billing_panel import remove_custom_quota
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = remove_custom_quota(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error removiendo custom quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/reset-quota', methods=['POST'])
+    @admin_required
+    def admin_reset_quota(user_id):
+        """Resetear manualmente la quota de un usuario (admin override)"""
+        try:
+            from admin_billing_panel import reset_user_quota_manual
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = reset_user_quota_manual(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""

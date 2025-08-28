@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clicandseo</title>
 
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+  <!-- End Google Tag Manager -->
+
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
   <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
@@ -36,8 +44,21 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-reset-styles.css') }}">
+  
+  <!-- ✅ FASE 4: Estilos de Quota UI -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='quota-ui.css') }}">
+  
+  <!-- ClicAndSEO Style Guide - Search Performance Consistency -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='search-performance-styles.css') }}">
+  
+  <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='paywall.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
   <nav class="navbar" id="navbar">
     <div class="navbar-container">
@@ -78,11 +99,11 @@
               <span>Dashboard</span>
             </a>
             <div class="dropdown-divider"></div>
-            <button class="dropdown-item" id="dropdownThemeToggle">
+            <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
               <i class="fas fa-moon" id="dropdownThemeIcon"></i>
               <span id="dropdownThemeText">Modo Oscuro</span>
             </button>
-            <div class="dropdown-divider"></div>
+            <div class="dropdown-divider" style="display: none;"></div>
             <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
               <i class="fas fa-sign-out-alt"></i>
               <span>Cerrar Sesión</span>
@@ -96,7 +117,7 @@
             <span>Iniciar Sesión</span>
           </button>
 
-          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema">
+          <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar tema" style="display: none;">
             <i class="fas fa-moon" id="themeIcon"></i>
           </button>
         </div>
@@ -147,7 +168,7 @@
             </button>
           </div>
 
-          <div class="mobile-theme-section">
+          <div class="mobile-theme-section" style="display: none;">
             <div class="mobile-theme-toggle">
               <span class="mobile-theme-label">Tema de la aplicación</span>
               <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
@@ -226,6 +247,7 @@
             </div>
           </button>
 
+          {% if user and user.role in ['admin', 'AI User'] %}
           <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
@@ -235,6 +257,17 @@
               <div class="status-dot status-ready" id="statusManualAI"></div>
             </div>
           </button>
+          {% else %}
+          <div class="nav-item disabled" id="navManualAI" title="This functionality is only available for AI Users">
+            <div class="nav-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="nav-text">Manual AI Analysis</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusManualAI"></div>
+            </div>
+          </div>
+          {% endif %}
         </div>
 
         <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
@@ -298,13 +331,16 @@
               <div class="form-group form-group-large">
                 <label for="urlsInput">
                   URL(s)
-                  <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon" title="Click para más información"></i>
+                  <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon"></i>
                 </label>
                 <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
               </div>
 
               <div class="form-group form-group-small">
-                <label for="matchTypeGroup">Match Type</label>
+                <label for="matchTypeGroup">
+                  Match Type
+                  <i class="fas fa-info-circle urls-info-icon" id="matchTypeInfoIcon"></i>
+                </label>
                 <div class="match-type-group" id="matchTypeGroup">
                   <input type="radio" id="matchContains" name="match_type" value="contains" checked>
                   <label for="matchContains" class="match-type-btn">Contains</label>
@@ -959,10 +995,20 @@
 
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+      <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+  
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+    
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
+
+  <!-- Fix Tooltips - URLs and Match Type -->
+  <script src="{{ url_for('static', filename='js/tooltips-fix.js') }}"></script>
 
   <!-- Manual AI Analysis - Independent functionality -->
   <script>

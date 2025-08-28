@@ -1,0 +1,335 @@
+/* ================================
+   PAYWALL STYLES - Manual AI System Compatible
+   ================================ */
+
+/* Reutilizar variables CSS de Manual AI para consistencia total */
+:root {
+  /* Usar mismas variables que manual-ai.css */
+  --paywall-primary: #161616;
+  --paywall-primary-light: #2d2d2d;
+  --paywall-secondary: #D8F9B8;
+  --paywall-accent: #4F46E5;
+  --paywall-accent-light: #6366F1;
+  
+  /* Grises (igual que Manual AI) */
+  --paywall-gray-50: #f9fafb;
+  --paywall-gray-100: #f3f4f6;
+  --paywall-gray-200: #e5e7eb;
+  --paywall-gray-300: #d1d5db;
+  --paywall-gray-400: #9ca3af;
+  --paywall-gray-500: #6b7280;
+  --paywall-gray-600: #4b5563;
+  --paywall-gray-700: #374151;
+  --paywall-gray-800: #1f2937;
+  --paywall-gray-900: #111827;
+  
+  /* Estados */
+  --paywall-success: #10b981;
+  --paywall-warning: #f59e0b;
+  --paywall-error: #ef4444;
+  --paywall-info: #3b82f6;
+  
+  /* Espaciado (igual que Manual AI) */
+  --paywall-spacing-xs: 0.25rem;
+  --paywall-spacing-sm: 0.5rem;
+  --paywall-spacing-md: 1rem;
+  --paywall-spacing-lg: 1.5rem;
+  --paywall-spacing-xl: 2rem;
+  --paywall-spacing-2xl: 3rem;
+  
+  /* Bordes */
+  --paywall-border-radius: 8px;
+  --paywall-border-radius-lg: 12px;
+  --paywall-border-width: 1px;
+  
+  /* Sombras (igual que Manual AI) */
+  --paywall-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --paywall-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --paywall-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ================================
+   MODAL OVERLAY (igual que Manual AI)
+   ================================ */
+
+.paywall-modal,
+.quota-exceeded-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: var(--paywall-spacing-md);
+}
+
+.paywall-content {
+  background: white;
+  border-radius: var(--paywall-border-radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ================================
+   CONTENT SECTIONS
+   ================================ */
+
+.paywall-header {
+  padding: var(--paywall-spacing-lg);
+  border-bottom: var(--paywall-border-width) solid var(--paywall-gray-200);
+  text-align: center;
+}
+
+.paywall-header h3 {
+  margin: 0 0 var(--paywall-spacing-sm) 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--paywall-gray-900);
+}
+
+.paywall-header p {
+  margin: 0;
+  color: var(--paywall-gray-600);
+  font-size: 1.1rem;
+}
+
+.paywall-body {
+  padding: var(--paywall-spacing-lg);
+}
+
+.paywall-footer {
+  padding: var(--paywall-spacing-lg);
+  border-top: var(--paywall-border-width) solid var(--paywall-gray-200);
+  text-align: center;
+}
+
+/* ================================
+   UPGRADE OPTIONS (Plan Cards)
+   ================================ */
+
+.upgrade-options {
+  display: flex;
+  gap: var(--paywall-spacing-md);
+  margin: var(--paywall-spacing-lg) 0;
+}
+
+.plan-card {
+  flex: 1;
+  padding: var(--paywall-spacing-lg);
+  border: 2px solid var(--paywall-gray-200);
+  border-radius: var(--paywall-border-radius-lg);
+  text-decoration: none;
+  color: var(--paywall-gray-700);
+  transition: all 0.3s ease;
+  text-align: center;
+  position: relative;
+  background: white;
+}
+
+.plan-card:hover {
+  border-color: var(--paywall-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--paywall-shadow-lg);
+  text-decoration: none;
+  color: var(--paywall-gray-700);
+}
+
+.plan-card h4 {
+  margin: 0 0 var(--paywall-spacing-sm) 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--paywall-primary);
+}
+
+.plan-card .plan-price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--paywall-primary);
+  margin: var(--paywall-spacing-sm) 0;
+}
+
+.plan-card .plan-features {
+  font-size: 0.95rem;
+  color: var(--paywall-gray-600);
+  margin: var(--paywall-spacing-sm) 0;
+}
+
+.plan-card .plan-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--paywall-success);
+  color: white;
+  padding: var(--paywall-spacing-xs) var(--paywall-spacing-sm);
+  border-radius: var(--paywall-border-radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ================================
+   BUTTONS (igual que Manual AI)
+   ================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--paywall-spacing-xs);
+  padding: var(--paywall-spacing-sm) var(--paywall-spacing-md);
+  border-radius: var(--paywall-border-radius);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  line-height: 1.2;
+}
+
+.btn-primary {
+  background: var(--paywall-primary);
+  color: var(--paywall-secondary);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: var(--paywall-secondary);
+  color: var(--paywall-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--paywall-shadow);
+  text-decoration: none;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--paywall-gray-700);
+  border: var(--paywall-border-width) solid var(--paywall-gray-300);
+}
+
+.btn-secondary:hover {
+  background: var(--paywall-gray-50);
+  border-color: var(--paywall-gray-400);
+  color: var(--paywall-primary);
+  text-decoration: none;
+}
+
+.btn-sm {
+  padding: var(--paywall-spacing-xs) var(--paywall-spacing-sm);
+  font-size: 0.875rem;
+}
+
+/* ================================
+   BILLING PAGE STYLES
+   ================================ */
+
+.billing-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--paywall-spacing-xl);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.billing-page h1 {
+  color: var(--paywall-gray-900);
+  margin-bottom: var(--paywall-spacing-xl);
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.current-plan {
+  background: var(--paywall-gray-50);
+  border: var(--paywall-border-width) solid var(--paywall-gray-200);
+  border-radius: var(--paywall-border-radius-lg);
+  padding: var(--paywall-spacing-xl);
+  margin-bottom: var(--paywall-spacing-xl);
+}
+
+.current-plan h2 {
+  margin: 0 0 var(--paywall-spacing-lg) 0;
+  color: var(--paywall-gray-900);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.quota-usage {
+  margin-top: var(--paywall-spacing-lg);
+}
+
+.quota-usage label {
+  display: block;
+  margin-bottom: var(--paywall-spacing-sm);
+  color: var(--paywall-gray-700);
+  font-weight: 500;
+}
+
+.quota-usage progress {
+  width: 100%;
+  height: 20px;
+  border-radius: var(--paywall-border-radius);
+  margin-bottom: var(--paywall-spacing-sm);
+}
+
+.quota-usage progress::-webkit-progress-bar {
+  background-color: var(--paywall-gray-200);
+  border-radius: var(--paywall-border-radius);
+}
+
+.quota-usage progress::-webkit-progress-value {
+  background-color: var(--paywall-primary);
+  border-radius: var(--paywall-border-radius);
+}
+
+.quota-warning {
+  color: var(--paywall-error);
+  font-weight: 500;
+  margin-top: var(--paywall-spacing-sm);
+}
+
+.billing-actions {
+  display: flex;
+  gap: var(--paywall-spacing-md);
+  margin-bottom: var(--paywall-spacing-xl);
+}
+
+/* ================================
+   RESPONSIVE DESIGN
+   ================================ */
+
+@media (max-width: 768px) {
+  .paywall-content {
+    margin: var(--paywall-spacing-md);
+    max-width: none;
+  }
+  
+  .upgrade-options {
+    flex-direction: column;
+  }
+  
+  .billing-actions {
+    flex-direction: column;
+  }
+  
+  .billing-page {
+    padding: var(--paywall-spacing-md);
+  }
+}

@@ -4,6 +4,88 @@
  * SEGURO: No interfiere con el JavaScript existente
  */
 
+// HTML Legend Plugin for custom Chart.js legends
+const htmlLegendPlugin = {
+    id: 'htmlLegend',
+    afterUpdate(chart, args, options) {
+        const ul = this.getOrCreateLegendList(chart, options.containerID);
+        
+        // Remove old legend items
+        while (ul.firstChild) {
+            ul.firstChild.remove();
+        }
+        
+        // Reuse the built-in legendItems generator
+        const items = chart.options.plugins.legend.labels.generateLabels(chart);
+        
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.style.alignItems = 'center';
+            li.style.cursor = 'pointer';
+            li.style.display = 'flex';
+            li.style.flexDirection = 'row';
+            li.style.marginLeft = '12px';
+            li.style.marginRight = '12px';
+            
+            li.onclick = () => {
+                const {type} = chart.config;
+                if (type === 'pie' || type === 'doughnut') {
+                    chart.toggleDataVisibility(item.index);
+                } else {
+                    chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
+                }
+                chart.update();
+            };
+            
+            // Color box with rectRounded style
+            const boxSpan = document.createElement('span');
+            boxSpan.style.background = item.fillStyle;
+            boxSpan.style.borderColor = item.strokeStyle;
+            boxSpan.style.borderWidth = item.lineWidth + 'px';
+            boxSpan.style.borderRadius = '3px';
+            boxSpan.style.display = 'inline-block';
+            boxSpan.style.flexShrink = 0;
+            boxSpan.style.height = '12px';
+            boxSpan.style.marginRight = '8px';
+            boxSpan.style.width = '12px';
+            
+            // Text
+            const textContainer = document.createElement('span');
+            textContainer.style.color = item.fontColor || '#374151';
+            textContainer.style.fontSize = '12px';
+            textContainer.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+            textContainer.style.fontWeight = '500';
+            textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+            textContainer.style.opacity = item.hidden ? '0.5' : '1';
+            textContainer.textContent = item.text;
+            
+            li.appendChild(boxSpan);
+            li.appendChild(textContainer);
+            ul.appendChild(li);
+        });
+    },
+    
+    getOrCreateLegendList(chart, id) {
+        const legendContainer = document.getElementById(id);
+        if (!legendContainer) return null;
+        
+        let listContainer = legendContainer.querySelector('ul');
+        if (!listContainer) {
+            listContainer = document.createElement('ul');
+            listContainer.style.display = 'flex';
+            listContainer.style.flexDirection = 'row';
+            listContainer.style.flexWrap = 'wrap';
+            listContainer.style.margin = '0';
+            listContainer.style.padding = '0';
+            listContainer.style.listStyle = 'none';
+            listContainer.style.justifyContent = 'flex-start';
+            listContainer.style.alignItems = 'center';
+            legendContainer.appendChild(listContainer);
+        }
+        return listContainer;
+    }
+};
+
 class ManualAISystem {
     constructor() {
         this.projects = [];
@@ -14,7 +96,7 @@ class ManualAISystem {
         this.isLoading = false;
         this.refreshInterval = null;
         
-        // Referencias DOM
+        // DOM References
         this.elements = {};
         
         this.init();
@@ -23,22 +105,181 @@ class ManualAISystem {
     init() {
         console.log('🤖 Initializing Manual AI System...');
         
-        // Cacheamos referencias DOM
+        // Clear cache data that might be causing problems
+        this.clearObsoleteCache();
+        
+        // Cache DOM references
         this.cacheElements();
         
-        // Configuramos event listeners
+        // Setup event listeners
         this.setupEventListeners();
         
-        // Cargamos datos iniciales
+        // Load initial data
         this.loadInitialData();
         
-        // Configurar auto-refresh
+        // Setup auto-refresh
         this.setupAutoRefresh();
         
         // Initialize competitors manager
         this.initCompetitorsManager();
         
         console.log('✅ Manual AI System initialized');
+    }
+    
+    clearObsoleteCache() {
+        // Clear any references to projects that no longer exist
+        try {
+            // Clear localStorage related to Manual AI
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('manualAI_') || key.startsWith('manual_ai_'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => {
+                console.log(`🧹 Removing obsolete cache key: ${key}`);
+                localStorage.removeItem(key);
+            });
+            
+            // Reset currentModalProject if active
+            this.currentModalProject = null;
+            
+            // 🆕 NUEVO: Clear sessionStorage as well
+            try {
+                const sessionKeys = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (key.includes('manual') || key.includes('project') || key.includes('keyword'))) {
+                        sessionKeys.push(key);
+                    }
+                }
+                
+                sessionKeys.forEach(key => {
+                    console.log(`🧹 Removing obsolete session key: ${key}`);
+                    sessionStorage.removeItem(key);
+                });
+                
+                if (sessionKeys.length > 0) {
+                    console.log(`🧹 Session storage cleared: ${sessionKeys.length} keys removed`);
+                }
+            } catch (sessionError) {
+                console.warn('⚠️ Error clearing session storage:', sessionError);
+            }
+            
+            if (keysToRemove.length > 0) {
+                console.log(`🧹 Obsolete cache cleared: ${keysToRemove.length} keys removed`);
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Error clearing cache:', error);
+        }
+    }
+
+    // ================================
+    // Modern Chart.js Configuration
+    // ================================
+    getModernChartConfig(useHtmlLegend = false, legendId = null) {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+                axis: 'x'
+            },
+            plugins: {
+                htmlLegend: useHtmlLegend ? {
+                    containerID: legendId
+                } : undefined,
+                legend: {
+                    display: !useHtmlLegend,
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rectRounded',
+                        padding: 20,
+                        font: {
+                            size: 12,
+                            family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                        }
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                    titleColor: '#F9FAFB',
+                    bodyColor: '#F3F4F6',
+                    borderColor: 'rgba(156, 163, 175, 0.3)',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    padding: 12,
+                    titleFont: {
+                        size: 13,
+                        weight: '600'
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    filter: function(tooltipItem) {
+                        return tooltipItem.parsed.y !== null;
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(229, 231, 235, 0.4)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#6B7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(229, 231, 235, 0.4)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#6B7280',
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    borderCapStyle: 'round',
+                    borderJoinStyle: 'round'
+                },
+                point: {
+                    pointStyle: 'rectRounded',
+                    radius: 4,
+                    hoverRadius: 7,
+                    hitRadius: 10,
+                    borderWidth: 2,
+                    hoverBorderWidth: 3
+                }
+            },
+            animations: {
+                tension: {
+                    duration: 300,
+                    easing: 'easeInOutCubic',
+                    from: 1,
+                    to: 0.4
+                }
+            }
+        };
     }
 
     setupAutoRefresh() {
@@ -103,6 +344,17 @@ class ManualAISystem {
         // Analytics controls
         this.elements.analyticsProjectSelect?.addEventListener('change', () => this.loadAnalytics());
         this.elements.analyticsTimeRange?.addEventListener('change', () => this.loadAnalytics());
+
+        // Download Excel button
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('🖱️ Manual AI Excel download button clicked');
+                this.handleDownloadExcel();
+            });
+            console.log('✅ Manual AI Download Excel event listener added');
+        }
 
         // Detail tabs
         document.querySelectorAll('[data-detail-tab]').forEach(tab => {
@@ -186,13 +438,24 @@ class ManualAISystem {
         this.hideElement(this.elements.projectsEmptyState);
 
         try {
-            // Añadir timestamp para evitar cache del navegador
+            // Add timestamp to avoid browser cache
             const timestamp = new Date().getTime();
             const response = await fetch(`/manual-ai/api/projects?_t=${timestamp}`);
             const data = await response.json();
 
             if (data.success) {
                 this.projects = data.projects;
+                
+                // Validate that projects in frontend still exist
+                if (this.currentModalProject) {
+                    const projectExists = this.projects.find(p => p.id === this.currentModalProject.id);
+                    if (!projectExists) {
+                        console.warn(`⚠️ Current modal project ${this.currentModalProject.id} no longer exists`);
+                        this.hideProjectModal();
+                        this.showError('The project you were viewing no longer exists.');
+                    }
+                }
+                
                 this.renderProjects();
                 console.log('🔄 Projects loaded:', this.projects.length);
             } else {
@@ -217,25 +480,21 @@ class ManualAISystem {
         this.showElement(this.elements.projectsContainer);
 
         this.elements.projectsContainer.innerHTML = this.projects.map(project => `
-            <div class="project-card" data-project-id="${project.id}">
+            <div class="project-card" data-project-id="${project.id}" onclick="manualAI.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
                 <div class="project-header">
                     <h3>${this.escapeHtml(project.name)}</h3>
                     <div class="project-actions">
-                        <button type="button" class="btn-icon" onclick="manualAI.showProjectModal(${project.id})"
+                        <button type="button" class="btn-icon" onclick="event.stopPropagation(); manualAI.showProjectModal(${project.id})"
                                 title="Project settings" aria-label="Open project settings">
                             <i class="fas fa-cog" aria-hidden="true"></i>
-                        </button>
-                        <button type="button" class="btn-icon" onclick="manualAI.analyzeProject(${project.id})"
-                                title="Run analysis" aria-label="Run AI analysis for this project">
-                            <i class="fas fa-play" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
                 <div class="project-details">
                     <div class="project-meta">
-                        <span class="project-domain">
+                        <span class="project-domain clickable-domain" title="Click to visit ${this.escapeHtml(project.domain)}" onclick="window.open('https://${this.escapeHtml(project.domain)}', '_blank')" style="cursor: pointer;">
                             <i class="fas fa-globe"></i>
-                            ${this.escapeHtml(project.domain)}
+                            <span class="user-domain-underline">${this.escapeHtml(project.domain)}</span>
                         </span>
                         <span class="project-country">
                             <i class="fas fa-flag"></i>
@@ -246,19 +505,31 @@ class ManualAISystem {
                 </div>
                 <div class="project-stats">
                     <div class="stat">
-                        <span class="stat-number">${project.keyword_count || 0}</span>
-                        <span class="stat-label">Keywords</span>
+                        <span class="stat-number">${project.total_keywords || 0}</span>
+                        <span class="stat-label">Total Keywords</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">${project.ai_overview_count || 0}</span>
-                        <span class="stat-label">AI Results</span>
+                        <span class="stat-number">${project.total_ai_keywords || 0}</span>
+                        <span class="stat-label">AI Overview Results</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-number">${project.mentions_count || 0}</span>
-                        <span class="stat-label">Mentions</span>
+                        <span class="stat-number">${project.aio_weight_percentage ? Math.round(project.aio_weight_percentage) + '%' : '0%'}</span>
+                        <span class="stat-label">AI Overview Weight</span>
                     </div>
-                    ${this.renderProjectCompetitorsSection(project)}
+                    <div class="stat">
+                        <span class="stat-number">${project.total_mentions || 0}</span>
+                        <span class="stat-label">Domain Mentions</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">${project.visibility_percentage ? Math.round(project.visibility_percentage) + '%' : '0%'}</span>
+                        <span class="stat-label">Visibility</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">${project.avg_position ? Math.round(project.avg_position * 10) / 10 : '-'}</span>
+                        <span class="stat-label">Average Position</span>
+                    </div>
                 </div>
+                ${this.renderProjectCompetitorsHorizontal(project)}
                 <div class="project-footer">
                     <small class="last-analysis">
                         Last analysis: ${project.last_analysis_date ? 
@@ -302,7 +573,7 @@ class ManualAISystem {
                     <img id="${logoId}" 
                          src="${logoUrl}" 
                          alt="${safeDomain} logo" 
-                         class="competitor-logo-preview" 
+                     class="competitor-logo-preview" 
                          style="display: block;"
                          onload="this.style.display='block';"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -335,6 +606,73 @@ class ManualAISystem {
                 </div>
             </div>
         `;
+    }
+
+    renderProjectCompetitorsHorizontal(project) {
+        const competitorsData = project.selected_competitors || [];
+        const competitorsCount = Array.isArray(competitorsData) ? competitorsData.length : 0;
+        
+        if (competitorsCount === 0) {
+            return `
+                <div class="project-competitors-horizontal">
+                    <h5 class="competitors-section-title">Selected Competitors</h5>
+                    <small style="color: var(--manual-ai-gray-500); font-size: 11px; text-align: center; display: block; margin-top: 8px;">
+                        <i class="fas fa-users" style="margin-right: 4px; opacity: 0.6;"></i>
+                        No competitors added yet
+                    </small>
+                </div>
+            `;
+        }
+
+        // Generate competitor logos/previews with improved error handling and clickable links
+        const competitorLogos = competitorsData.slice(0, 4).map(domain => {
+            const logoUrl = this.getDomainLogoUrl(domain);
+            const firstLetter = this.escapeHtml(domain.charAt(0).toUpperCase());
+            const safeDomain = this.escapeHtml(domain);
+            const logoId = `logo-${project.id}-${Math.random().toString(36).substr(2, 9)}`;
+            const websiteUrl = domain.startsWith('http') ? domain : `https://${domain}`;
+            
+            return `
+                <div class="competitor-horizontal-item" title="Click to visit ${safeDomain}" onclick="window.open('${websiteUrl}', '_blank')" style="cursor: pointer;">
+                    <img id="${logoId}" 
+                         src="${logoUrl}" 
+                         alt="${safeDomain} logo" 
+                         class="competitor-horizontal-logo" 
+                         style="display: block;"
+                         onload="this.style.display='block';"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="competitor-horizontal-fallback" style="display: none;" title="${safeDomain}">
+                        ${firstLetter}
+                    </div>
+                    <span class="competitor-horizontal-name">${this.escapeHtml(domain)}</span>
+                </div>
+            `;
+        }).join('');
+
+        const moreText = competitorsCount > 4 ? ` <span class="competitors-more">+${competitorsCount - 4} more</span>` : '';
+
+        return `
+            <div class="project-competitors-horizontal">
+                <h5 class="competitors-section-title">Selected Competitors</h5>
+                <div class="competitors-horizontal-list">
+                    ${competitorLogos}
+                    ${moreText}
+                </div>
+            </div>
+        `;
+    }
+
+    goToProjectAnalytics(projectId) {
+        // Switch to Analytics tab
+        this.switchTab('analytics');
+        
+        // Select the project in the analytics dropdown
+        if (this.elements.analyticsProjectSelect) {
+            this.elements.analyticsProjectSelect.value = projectId;
+            
+            // Trigger the analytics loading
+            this.loadAnalytics();
+        }
     }
 
     // ================================
@@ -763,11 +1101,68 @@ class ManualAISystem {
             
             clearTimeout(timeoutId);
 
+            const data = await response.json();
+
+            // ✅ NUEVO FASE 4.5: Manejar paywalls (402)
+            if (response.status === 402) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                console.warn(`🚫 Manual AI analysis blocked by paywall: ${data.error}`);
+                
+                // Mostrar paywall si está disponible
+                if (window.showPaywall) {
+                    window.showPaywall(data.upgrade_options || ['basic', 'premium']);
+                }
+                
+                this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
+                return;
+            }
+
+            // ✅ FASE 4: Manejar errores de quota específicamente
+            if (response.status === 429 && data.quota_exceeded) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                const quotaInfo = data.quota_info || {};
+                const analyzed = data.keywords_analyzed || 0;
+                const remaining = data.keywords_remaining || 0;
+                
+                console.warn(`🚫 Manual AI analysis blocked by quota: ${data.error}`);
+                
+                // Mostrar UI de quota si está disponible
+                if (window.QuotaUI) {
+                    window.QuotaUI.showBlockModal({
+                        error: data.error,
+                        quota_blocked: true,
+                        quota_info: quotaInfo,
+                        action_required: data.action_required || 'upgrade'
+                    });
+                }
+                
+                // Mostrar mensaje específico de quota
+                const quotaMessage = analyzed > 0 
+                    ? `Analysis stopped due to quota limit. ${analyzed} keywords were analyzed successfully before reaching the limit. ${remaining} keywords remain.`
+                    : `Analysis blocked: You have reached your monthly quota limit. Please upgrade your plan to continue.`;
+                    
+                this.showError(quotaMessage);
+                
+                // Refresh project stats en caso de que se hayan analizado algunas keywords
+                if (analyzed > 0) {
+                    await this.loadProjects();
+                    
+                    // Refresh analytics if needed
+                    if (this.elements.analyticsProjectSelect.value == projectId) {
+                        await this.loadAnalytics();
+                    }
+                }
+                
+                return; // No continuar con el flujo normal
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-
-            const data = await response.json();
 
             if (data.success) {
                 clearInterval(backupPolling); // Stop backup polling
@@ -849,6 +1244,7 @@ class ManualAISystem {
                 </div>
             `;
             this.hideElement(this.elements.chartsContainer);
+            this.showDownloadButton(false); // Hide download button when no project selected
             return;
         }
 
@@ -876,6 +1272,7 @@ class ManualAISystem {
                     <p>Failed to load analytics data</p>
                 </div>
             `;
+            this.showDownloadButton(false); // Hide download button on error
         }
     }
 
@@ -909,6 +1306,16 @@ class ManualAISystem {
         }
 
         console.log(`📈 Loading analytics components for project ${projectId}`);
+
+        // Store current analytics data for Excel export
+        this.currentAnalyticsData = {
+            projectId: projectId,
+            stats: stats,
+            days: this.elements.analyticsTimeRange?.value || 30
+        };
+
+        // Show download button when analytics data is loaded
+        this.showDownloadButton(true);
 
         // Render main charts with events annotations
         if (stats.visibility_chart && Array.isArray(stats.visibility_chart)) {
@@ -944,7 +1351,8 @@ class ManualAISystem {
             const promises = [
                 this.loadGlobalDomainsRanking(projectId),
                 this.loadComparativeCharts(projectId),
-                this.loadCompetitorsPreview(projectId)
+                this.loadCompetitorsPreview(projectId),
+                this.loadAIOverviewKeywordsTable(projectId)
             ];
 
             await Promise.allSettled(promises);
@@ -956,134 +1364,269 @@ class ManualAISystem {
     }
 
     renderVisibilityChart(data, events = []) {
-        const ctx = document.getElementById('visibilityChart').getContext('2d');
+        const canvasEl = document.getElementById('visibilityChart');
+        if (!canvasEl || !data || data.length === 0) return;
+
+        const ctx = canvasEl.getContext('2d');
         
         // Destroy existing chart
         if (this.charts.visibility) {
             this.charts.visibility.destroy();
         }
 
-        // Create annotations for events
-        const annotations = this.createEventAnnotations(data, events);
-
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'visibilityLegend');
+        
         this.charts.visibility = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
+                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
                 datasets: [{
-                    label: 'Domain Visibility %',
-                    data: data.map(d => d.visibility_pct || 0),
-                    borderColor: '#4F46E5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    tension: 0.4,
-                    fill: true
+                    label: 'Keywords with AI Overview',
+                    data: data.map(d => d.ai_keywords || 0),
+                    borderColor: '#5BF0AF',
+                    backgroundColor: 'rgba(91, 240, 175, 0.12)',
+                    pointBackgroundColor: '#5BF0AF',
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: '#45D190',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    fill: 'start',
+                    tension: 0.4
+                }, {
+                    label: 'Domain Mentions',
+                    data: data.map(d => d.mentions || 0),
+                    borderColor: '#F0715B',
+                    backgroundColor: 'rgba(240, 113, 91, 0.12)',
+                    pointBackgroundColor: '#F0715B',
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: '#E55A42',
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    fill: 'start',
+                    tension: 0.4
                 }]
             },
+            plugins: [htmlLegendPlugin],
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...config,
                 scales: {
+                    ...config.scales,
                     y: {
+                        ...config.scales.y,
                         beginAtZero: true,
-                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Count',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        },
                         ticks: {
+                            ...config.scales.y.ticks,
                             callback: function(value) {
-                                return value + '%';
+                                return Math.round(value);
                             }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
                         }
                     }
                 },
                 plugins: {
+                    ...config.plugins,
                     tooltip: {
+                        ...config.plugins.tooltip,
                         callbacks: {
+                            title: function(context) {
+                                return new Date(data[context[0].dataIndex].analysis_date).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
                             label: function(context) {
-                                return `Visibility: ${Math.round(context.raw)}%`;
+                                const datasetLabel = context.dataset.label;
+                                const value = Math.round(context.raw);
+                                
+                                if (datasetLabel === 'Keywords with AI Overview') {
+                                    return `Keywords with AI Overview: ${value}`;
+                                } else if (datasetLabel === 'Domain Mentions') {
+                                    return `Domain Mentions: ${value}`;
+                                }
+                                return `${datasetLabel}: ${value}`;
                             }
                         }
                     }
-                },
-                // Add event annotations
-                onHover: (event, elements, chart) => {
-                    this.showEventAnnotations(chart, annotations);
                 }
-            },
-            plugins: [{
-                id: 'eventAnnotations',
-                afterDraw: (chart) => {
-                    this.drawEventAnnotations(chart, annotations);
-                }
-            }]
+            }
         });
+
+        // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
+        if (events && events.length > 0) {
+            const annotations = this.createEventAnnotations(data, events);
+            if (annotations && annotations.length > 0) {
+                // ✅ MEJORADO: Registrar plugin usando Chart.js 3.x+ API
+                if (!Chart.registry.plugins.get('keywordEventAnnotations')) {
+                    Chart.register({
+                        id: 'keywordEventAnnotations',
+                        afterDraw: (chart) => {
+                            const annotationsData = chart.options.annotationsData;
+                            if (annotationsData && annotationsData.length > 0) {
+                                this.drawEventAnnotations(chart, annotationsData);
+                            }
+                        }
+                    });
+                }
+                
+                // Guardar anotaciones en las opciones del chart
+                this.charts.visibility.options.annotationsData = annotations;
+                
+                // Configurar eventos de mouse para tooltips
+                setTimeout(() => {
+                    this.showEventAnnotations(this.charts.visibility, annotations);
+                }, 100);
+                
+                // Re-render con las anotaciones
+                this.charts.visibility.update();
+            }
+        }
     }
 
     renderPositionsChart(data, events = []) {
-        const ctx = document.getElementById('positionsChart').getContext('2d');
+        const canvasEl = document.getElementById('positionsChart');
+        if (!canvasEl || !data || data.length === 0) return;
+
+        const ctx = canvasEl.getContext('2d');
         
         // Destroy existing chart
         if (this.charts.positions) {
             this.charts.positions.destroy();
         }
 
-        // Create annotations for events
-        const annotations = this.createEventAnnotations(data, events);
-
+        // Modern Chart.js configuration with modern colors
+        const config = this.getModernChartConfig(true, 'positionsLegend');
+        
         this.charts.positions = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString()),
+                labels: data.map(d => new Date(d.analysis_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
                 datasets: [
                     {
                         label: 'Position 1-3',
                         data: data.map(d => d.pos_1_3 || 0),
-                        borderColor: '#10B981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderColor: '#5BF0AF',
+                        backgroundColor: 'rgba(91, 240, 175, 0.12)',
+                        pointBackgroundColor: '#5BF0AF',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#45D190',
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'rectRounded',
+                        fill: 'start',
                         tension: 0.4
                     },
                     {
                         label: 'Position 4-10',
                         data: data.map(d => d.pos_4_10 || 0),
-                        borderColor: '#F59E0B',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderColor: '#1851F1',
+                        backgroundColor: 'rgba(24, 81, 241, 0.12)',
+                        pointBackgroundColor: '#1851F1',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#1040D6',
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'rectRounded',
+                        fill: 'start',
                         tension: 0.4
                     },
                     {
                         label: 'Position 11-20',
                         data: data.map(d => d.pos_11_20 || 0),
-                        borderColor: '#EF4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: '#F0715B',
+                        backgroundColor: 'rgba(240, 113, 91, 0.12)',
+                        pointBackgroundColor: '#F0715B',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#E55A42',
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'rectRounded',
+                        fill: 'start',
                         tension: 0.4
                     },
                     {
                         label: 'Position 21+',
                         data: data.map(d => d.pos_21_plus || 0),
-                        borderColor: '#6B7280',
-                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                        borderColor: '#8EAA96',
+                        backgroundColor: 'rgba(142, 170, 150, 0.12)',
+                        pointBackgroundColor: '#8EAA96',
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: '#6B8A77',
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'rectRounded',
+                        fill: 'start',
                         tension: 0.4
                     }
                 ]
             },
+            plugins: [htmlLegendPlugin],
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...config,
                 scales: {
+                    ...config.scales,
                     y: {
-                        beginAtZero: true
+                        ...config.scales.y,
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Keywords',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
                     }
                 },
                 plugins: {
+                    ...config.plugins,
                     tooltip: {
-                        mode: 'index',
-                        intersect: false
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(data[context[0].dataIndex].analysis_date).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw} keywords`;
+                            }
+                        }
                     }
                 }
-            },
-            plugins: [{
-                id: 'eventAnnotations',
-                afterDraw: (chart) => {
-                    this.drawEventAnnotations(chart, annotations);
-                }
-            }]
+            }
         });
+
+        // ❌ REMOVIDO: No queremos anotaciones en la gráfica de posiciones
     }
 
     // ================================
@@ -1093,12 +1636,23 @@ class ManualAISystem {
     createEventAnnotations(chartData, events) {
         if (!events || events.length === 0) return [];
         
+        // ✅ MEJORADO: Eventos de cambios de keywords Y notas manuales
+        const relevantEvents = events.filter(event => 
+            event.event_type === 'keywords_added' ||
+            event.event_type === 'keyword_deleted' ||
+            event.event_type === 'keywords_removed' ||
+            event.event_type === 'manual_note_added'  // ✅ NUEVO: Incluir notas manuales
+        );
+        
+        if (relevantEvents.length === 0) return [];
+        
         const chartDates = chartData.map(d => new Date(d.analysis_date).toDateString());
         
-        return events.map(event => {
+        return relevantEvents.map(event => {
             const eventDate = new Date(event.event_date).toDateString();
             const dateIndex = chartDates.indexOf(eventDate);
             
+            // ✅ CORREGIDO: Solo crear anotación si la fecha del evento coincide con datos del chart
             if (dateIndex === -1) return null;
             
             return {
@@ -1106,7 +1660,8 @@ class ManualAISystem {
                 title: event.event_title,
                 type: event.event_type,
                 keywords: event.keywords_affected,
-                date: eventDate
+                date: eventDate,
+                event: event, // Incluir evento completo para tooltips
             };
         }).filter(Boolean);
     }
@@ -1118,23 +1673,35 @@ class ManualAISystem {
         const chartArea = chart.chartArea;
         
         annotations.forEach(annotation => {
+            // ✅ MEJORADO: Calcular posición correcta basada en el índice de datos
             const xPos = chart.scales.x.getPixelForValue(annotation.x);
             
-            // Draw vertical line
+            if (xPos < chartArea.left || xPos > chartArea.right) return; // Skip if outside chart
+            
+            // ✅ MEJORADO: Línea vertical más visible
             ctx.save();
             ctx.strokeStyle = this.getEventColor(annotation.type);
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 3;  // Más gruesa
+            ctx.setLineDash([8, 4]); // Línea más definida
+            ctx.globalAlpha = 0.8;
             ctx.beginPath();
             ctx.moveTo(xPos, chartArea.top);
             ctx.lineTo(xPos, chartArea.bottom);
             ctx.stroke();
             
-            // Draw icon at top
+            // ✅ MEJORADO: Círculo de fondo para el icono
+            ctx.globalAlpha = 1;
             ctx.fillStyle = this.getEventColor(annotation.type);
-            ctx.font = '12px "Font Awesome 5 Free"';
+            ctx.beginPath();
+            ctx.arc(xPos, chartArea.top - 12, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // ✅ MEJORADO: Icono de warning más visible
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(this.getEventIcon(annotation.type), xPos, chartArea.top - 5);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.getEventIcon(annotation.type), xPos, chartArea.top - 12);
             
             ctx.restore();
         });
@@ -1142,29 +1709,266 @@ class ManualAISystem {
 
     getEventColor(eventType) {
         const colors = {
-            'keywords_added': '#10B981',     // Green
-            'keywords_removed': '#EF4444',  // Red
+            'keywords_added': '#F59E0B',     // ✅ Warning orange para cambios de keywords
+            'keyword_deleted': '#F59E0B',   // ✅ Warning orange para eliminación de keywords
+            'keywords_removed': '#F59E0B',  // ✅ Warning orange para cambios de keywords
+            'manual_note_added': '#3B82F6', // ✅ NUEVO: Azul para notas manuales del usuario
             'project_created': '#4F46E5',   // Blue
             'daily_analysis': '#6B7280',    // Gray
-            'analysis_failed': '#F59E0B'    // Orange
+            'analysis_failed': '#EF4444',   // Red para errores reales
+            'competitors_changed': '#8B5CF6', // ✅ Purple para cambios de competidores
+            'competitors_updated': '#8B5CF6'  // ✅ Purple para actualizaciones de competidores
         };
         return colors[eventType] || '#6B7280';
     }
 
     getEventIcon(eventType) {
         const icons = {
-            'keywords_added': '+',
-            'keywords_removed': '−',
+            'keywords_added': '⚠',           // ✅ Warning para cambios de keywords
+            'keyword_deleted': '⚠',         // ✅ Warning para eliminación de keywords
+            'keywords_removed': '⚠',        // ✅ Warning para cambios de keywords
+            'manual_note_added': '📝',       // ✅ NUEVO: Icono de nota para anotaciones manuales
             'project_created': '⭐',
             'daily_analysis': '📊',
-            'analysis_failed': '⚠'
+            'analysis_failed': '⚠',
+            'competitors_changed': '🔄',     // ✅ Icono para cambios de competidores
+            'competitors_updated': '🔄'      // ✅ Icono para actualizaciones de competidores
         };
         return icons[eventType] || '•';
     }
 
     showEventAnnotations(chart, annotations) {
-        // This could be expanded to show tooltips on hover
-        // For now, the annotations are always visible
+        // Enhanced tooltip functionality for annotations
+        const canvas = chart.canvas;
+        const ctx = chart.ctx;
+        
+        // Create tooltip element if it doesn't exist
+        let tooltip = document.getElementById('chart-annotation-tooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'chart-annotation-tooltip';
+            tooltip.style.cssText = `
+                position: fixed;
+                background: rgba(0, 0, 0, 0.92);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-size: 13px;
+                line-height: 1.5;
+                max-width: 280px;
+                min-width: 200px;
+                z-index: 10000;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                white-space: pre-wrap;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            `;
+            document.body.appendChild(tooltip);
+        }
+        
+        // Mouse move handler for tooltip
+        const onMouseMove = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check if mouse is over any annotation
+            let hoveredAnnotation = null;
+            const chartArea = chart.chartArea;
+            
+            for (const annotation of annotations) {
+                // ✅ CORREGIDO: Usar la posición correcta de la anotación
+                const annotationX = chart.scales.x.getPixelForValue(annotation.x);
+                
+                // ✅ MEJORADO: Área de detección más amplia para facilitar interacción
+                if (Math.abs(x - annotationX) <= 20 && y >= chartArea.top - 30 && y <= chartArea.bottom + 10) {
+                    hoveredAnnotation = annotation;
+                    break;
+                }
+            }
+            
+            if (hoveredAnnotation) {
+                // ✅ CORREGIDO: Mostrar el texto que el usuario añadió
+                const eventTitle = hoveredAnnotation.event.event_title || 'Cambio en Keywords';
+                const userDescription = hoveredAnnotation.event.event_description;
+                const eventDate = new Date(hoveredAnnotation.event.event_date).toLocaleDateString('es-ES', {
+                    weekday: 'short',
+                    year: 'numeric', 
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const eventType = hoveredAnnotation.event.event_type;
+                const keywordsAffected = hoveredAnnotation.event.keywords_affected || 0;
+                
+                // Debug solo cuando hay descripción del usuario para verificar que funciona
+                if (userDescription && userDescription.trim()) {
+                    console.log('🔍 Tooltip con comentario del usuario:', userDescription);
+                }
+                
+                // ✅ MEJORADO: Título y contenido según el tipo de evento
+                let tooltipTitle = '';
+                let tooltipContent = '';
+                
+                if (eventType === 'manual_note_added') {
+                    // ✅ NUEVO: Caso especial para notas manuales del usuario
+                    tooltipTitle = `📝 User Note`;
+                    tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
+                    if (userDescription && userDescription.trim()) {
+                        tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                    }
+                } else {
+                    // ✅ Casos existentes para eventos de keywords
+                    if (eventType === 'keywords_added') {
+                        tooltipTitle = `⚠️ Keywords Añadidas (${keywordsAffected})`;
+                    } else if (eventType === 'keyword_deleted') {
+                        tooltipTitle = `⚠️ Keyword Eliminada`;
+                    } else if (eventType === 'keywords_removed') {
+                        tooltipTitle = `⚠️ Keywords Eliminadas (${keywordsAffected})`;
+                    } else {
+                        tooltipTitle = `⚠️ ${eventTitle}`;
+                    }
+                    
+                    tooltipContent = `<strong>${tooltipTitle}</strong><br>${eventDate}`;
+                    
+                    // ✅ Mostrar comentarios del usuario para eventos de keywords
+                    if (userDescription && 
+                        userDescription.trim() && 
+                        userDescription !== 'Sin notas adicionales' && 
+                        userDescription !== 'No additional notes provided' &&
+                        userDescription !== 'No description provided') {
+                        tooltipContent += `<br><br><em>"${userDescription}"</em>`;
+                    } else {
+                        tooltipContent += `<br><br><small style="opacity: 0.7;">Sin comentarios del usuario</small>`;
+                    }
+                }
+                
+                tooltip.innerHTML = tooltipContent;
+                
+                // ✅ MEJORADO: Posicionamiento inteligente del tooltip
+                const rect = canvas.getBoundingClientRect();
+                const tooltipRect = tooltip.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                
+                let left = e.clientX + 15;
+                let top = e.clientY - 10;
+                
+                // Ajustar si se sale por la derecha
+                if (left + 250 > viewportWidth) { // 250px es el ancho aproximado del tooltip
+                    left = e.clientX - 250 - 15;
+                }
+                
+                // Ajustar si se sale por arriba
+                if (top < 10) {
+                    top = e.clientY + 25;
+                }
+                
+                // Ajustar si se sale por abajo
+                if (top + 100 > viewportHeight) { // 100px es la altura aproximada del tooltip
+                    top = e.clientY - 100 - 15;
+                }
+                
+                tooltip.style.left = Math.max(10, left) + 'px';
+                tooltip.style.top = Math.max(10, top) + 'px';
+                tooltip.style.opacity = '1';
+                canvas.style.cursor = 'pointer';
+            } else {
+                // Hide tooltip
+                tooltip.style.opacity = '0';
+                canvas.style.cursor = 'default';
+            }
+        };
+        
+        // Mouse leave handler
+        const onMouseLeave = () => {
+            tooltip.style.opacity = '0';
+            canvas.style.cursor = 'default';
+        };
+        
+        // Remove existing listeners
+        canvas.removeEventListener('mousemove', onMouseMove);
+        canvas.removeEventListener('mouseleave', onMouseLeave);
+        
+        // Add new listeners
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseleave', onMouseLeave);
+    }
+    
+    // ================================================
+    // TEMPORAL COMPETITOR MARKERS
+    // ================================================
+    
+    addCompetitorChangeMarkers(chart, temporalOptions) {
+        // 🆕 NUEVO: Añadir marcadores visuales cuando cambian competidores
+        if (!temporalOptions.hasTemporalChanges || !temporalOptions.competitorChanges) {
+            return;
+        }
+        
+        const changePoints = [];
+        let previousCompetitors = null;
+        
+        for (const change of temporalOptions.competitorChanges) {
+            if (change.is_change || (previousCompetitors && 
+                JSON.stringify(change.competitors) !== JSON.stringify(previousCompetitors))) {
+                changePoints.push({
+                    date: change.date,
+                    type: 'competitor_change',
+                    icon: '🔄',
+                    color: '#f59e0b',
+                    competitors: change.competitors,
+                    previousCompetitors: previousCompetitors
+                });
+            }
+            previousCompetitors = change.competitors;
+        }
+        
+        // Añadir plugin personalizado para dibujar marcadores
+        if (changePoints.length > 0) {
+            const drawMarkers = {
+                id: 'competitorChangeMarkers',
+                afterDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const chartArea = chart.chartArea;
+                    
+                    changePoints.forEach(marker => {
+                        // Encontrar posición X del marcador
+                        const labels = chart.data.labels || [];
+                        const dateIndex = labels.indexOf(marker.date);
+                        
+                        if (dateIndex !== -1) {
+                            const x = chart.scales.x.getPixelForValue(dateIndex);
+                            
+                            // Dibujar línea vertical
+                            ctx.save();
+                            ctx.strokeStyle = marker.color;
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.moveTo(x, chartArea.top);
+                            ctx.lineTo(x, chartArea.bottom);
+                            ctx.stroke();
+                            
+                            // Dibujar ícono
+                            ctx.fillStyle = marker.color;
+                            ctx.font = '14px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(marker.icon, x, chartArea.top - 10);
+                            
+                            ctx.restore();
+                        }
+                    });
+                }
+            };
+            
+            // Registrar plugin si no existe
+            if (!Chart.registry.plugins.get('competitorChangeMarkers')) {
+                Chart.register(drawMarkers);
+            }
+        }
+        
+        return changePoints;
     }
 
     // ================================
@@ -1384,9 +2188,27 @@ class ManualAISystem {
             const result = await response.json();
             const data = result.data || {};
             
-            // Render both charts
-            this.renderCompetitorsVisibilityChart(data.visibility_scatter || []);
-            this.renderCompetitorsPositionChart(data.position_evolution || {});
+            // 🆕 NUEVO: Extraer información temporal
+            const temporalInfo = data.temporal_info || {};
+            const hasTemporalChanges = data.has_temporal_changes || false;
+            const competitorChanges = data.competitor_changes || [];
+            
+            // Log información temporal para debugging
+            if (hasTemporalChanges) {
+                console.log('🔄 Temporal competitor changes detected:', competitorChanges);
+            }
+            
+            // Render both charts with temporal information
+            this.renderCompetitorsVisibilityChart(data.visibility_scatter || [], {
+                temporalInfo,
+                hasTemporalChanges,
+                competitorChanges
+            });
+            this.renderCompetitorsPositionChart(data.position_evolution || {}, {
+                temporalInfo,
+                hasTemporalChanges,
+                competitorChanges
+            });
 
         } catch (error) {
             console.error('Error loading competitors charts:', error);
@@ -1394,7 +2216,7 @@ class ManualAISystem {
         }
     }
 
-    renderCompetitorsVisibilityChart(scatterData) {
+    renderCompetitorsVisibilityChart(scatterData, temporalOptions = {}) {
         const ctx = document.getElementById('competitorsVisibilityChart');
         if (!ctx) return;
 
@@ -1458,13 +2280,23 @@ class ManualAISystem {
                             },
                             label: function(context) {
                                 const data = context.raw;
-                                return [
+                                const labels = [
                                     `Visibility Score: ${data.x.toFixed(1)}`,
                                     `Brand Likelihood: ${data.y.toFixed(1)}%`,
                                     `Appearances: ${data.appearances}`,
                                     `Avg Position: ${data.avg_position}`,
                                     `Keywords: ${data.keywords_count}`
                                 ];
+                                
+                                // 🆕 NUEVO: Añadir información temporal si está disponible
+                                if (temporalOptions.hasTemporalChanges) {
+                                    labels.push('');
+                                    labels.push('📊 Temporal Data:');
+                                    labels.push('This competitor may have changed');
+                                    labels.push('during the analysis period.');
+                                }
+                                
+                                return labels;
                             }
                         }
                     }
@@ -1496,6 +2328,11 @@ class ManualAISystem {
 
         // Create custom legend
         this.createCompetitorsVisibilityLegend(scatterData);
+        
+        // 🆕 NUEVO: Añadir marcadores de cambios temporales
+        if (temporalOptions.hasTemporalChanges) {
+            this.addCompetitorChangeMarkers(this.charts.competitorsVisibility, temporalOptions);
+        }
     }
 
     createCompetitorsVisibilityLegend(scatterData) {
@@ -1522,7 +2359,7 @@ class ManualAISystem {
         });
     }
 
-    renderCompetitorsPositionChart(positionData) {
+    renderCompetitorsPositionChart(positionData, temporalOptions = {}) {
         const ctx = document.getElementById('competitorsPositionChart');
         if (!ctx) return;
 
@@ -1558,6 +2395,22 @@ class ManualAISystem {
                             },
                             label: function(context) {
                                 return `${context.dataset.label}: Position ${context.raw}`;
+                            },
+                            // 🆕 NUEVO: Footer con información temporal
+                            footer: function(context) {
+                                if (!temporalOptions.hasTemporalChanges) return '';
+                                
+                                const date = context[0].label;
+                                const competitors = temporalOptions.temporalInfo[date];
+                                
+                                if (competitors) {
+                                    return [
+                                        '',
+                                        '📊 Active competitors on this date:',
+                                        competitors.join(', ')
+                                    ];
+                                }
+                                return '';
                             }
                         }
                     }
@@ -1603,6 +2456,11 @@ class ManualAISystem {
 
         // Create custom legend for position chart
         this.createCompetitorsPositionLegend(positionData.datasets || []);
+        
+        // 🆕 NUEVO: Añadir marcadores de cambios temporales
+        if (temporalOptions.hasTemporalChanges) {
+            this.addCompetitorChangeMarkers(this.charts.competitorsPosition, temporalOptions);
+        }
     }
 
     createCompetitorsPositionLegend(datasets) {
@@ -1647,8 +2505,10 @@ class ManualAISystem {
             return;
         }
 
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=30`);
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/global-domains-ranking?days=${days}`);
             
             if (!response.ok) {
                 if (response.status === 404) {
@@ -1687,7 +2547,9 @@ class ManualAISystem {
         // Render each domain row with highlighting
         domains.forEach((domain, index) => {
             const row = document.createElement('tr');
-            row.className = `domain-row ${domain.domain_type}-domain`;
+            // Use 'table' prefix for project domain to avoid conflicts with other CSS
+            const domainTypeClass = domain.domain_type === 'project' ? 'table' : domain.domain_type;
+            row.className = `domain-row ${domainTypeClass}-domain`;
             
             // Get logo URL
             const logoUrl = this.getDomainLogoUrl(domain.detected_domain);
@@ -1714,9 +2576,9 @@ class ManualAISystem {
                         </div>
                     </div>
                 </td>
-                <td class="appearances-cell">${domain.appearances}</td>
-                <td class="position-cell">${domain.avg_position ? domain.avg_position.toFixed(1) : '-'}</td>
-                <td class="visibility-cell">${domain.visibility_percentage ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
+                <td class="appearances-cell">${domain.appearances || 0}</td>
+                <td class="position-cell">${domain.avg_position && typeof domain.avg_position === 'number' ? domain.avg_position.toFixed(1) : '-'}</td>
+                <td class="visibility-cell">${domain.visibility_percentage && typeof domain.visibility_percentage === 'number' ? domain.visibility_percentage.toFixed(1) : '0.0'}%</td>
             `;
             
             tableBody.appendChild(row);
@@ -1734,6 +2596,281 @@ class ManualAISystem {
     }
 
     // ================================
+    // AI OVERVIEW KEYWORDS TABLE FUNCTIONS
+    // ================================
+
+    async loadAIOverviewKeywordsTable(projectId) {
+        if (!projectId) {
+            this.showNoAIKeywordsMessage();
+            return;
+        }
+
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table?days=${days}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.showNoAIKeywordsMessage();
+                    return;
+                }
+                throw new Error('Failed to load AI Overview keywords data');
+            }
+
+            const result = await response.json();
+            const data = result.data || {};
+            
+            // Render AI Overview keywords table using Grid.js
+            this.renderAIOverviewKeywordsTable(data);
+
+        } catch (error) {
+            console.error('Error loading AI Overview keywords table:', error);
+            this.showNoAIKeywordsMessage();
+        }
+    }
+
+    renderAIOverviewKeywordsTable(data) {
+        const container = document.getElementById('manualAIOverviewGrid');
+        const noKeywordsMessage = document.getElementById('noAIKeywordsMessage');
+        
+        if (!container) {
+            console.error('❌ AI Overview grid container not found');
+            return;
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        const keywordResults = data.keywordResults || [];
+        const competitorDomains = data.competitorDomains || [];
+
+        console.log('🏗️ Rendering AI Overview table with:', {
+            keywords: keywordResults.length,
+            competitors: competitorDomains.length
+        });
+
+        if (keywordResults.length === 0) {
+            this.showNoAIKeywordsMessage();
+            return;
+        }
+
+        // Hide no keywords message
+        if (noKeywordsMessage) {
+            noKeywordsMessage.style.display = 'none';
+        }
+
+        // Check if Grid.js is available
+        if (!window.gridjs) {
+            console.error('❌ Grid.js library not loaded');
+            container.innerHTML = '<p class="error-message">Grid.js library not available</p>';
+            return;
+        }
+
+        // Create Grid.js table
+        try {
+            const { columns, gridData } = this.processAIOverviewDataForGrid(keywordResults, competitorDomains);
+            
+            const grid = new gridjs.Grid({
+                columns: columns,
+                data: gridData,
+                pagination: {
+                    limit: 10,
+                    summary: true
+                },
+                sort: true,
+                search: {
+                    placeholder: 'Type a keyword...'
+                },
+                resizable: true,
+                className: {
+                    container: 'manual-ai-overview-grid',
+                    table: 'manual-ai-overview-table',
+                    search: 'manual-ai-overview-search'
+                }
+            });
+
+            // Render the grid
+            grid.render(container);
+            console.log('✅ AI Overview Grid.js table rendered successfully');
+
+        } catch (error) {
+            console.error('❌ Error creating AI Overview Grid.js table:', error);
+            container.innerHTML = '<p class="error-message">Error creating table</p>';
+        }
+    }
+
+    processAIOverviewDataForGrid(keywordResults, competitorDomains) {
+        // Define base columns (sin la columna View)
+        const columns = [
+            {
+                id: 'keyword',
+                name: 'Keyword',
+                width: '200px',
+                sort: true
+            },
+            {
+                id: 'your_domain_in_aio',
+                name: gridjs.html('Your Domain<br>in AIO'),
+                width: '120px',
+                sort: true,
+                formatter: (cell) => {
+                    const isPresent = cell === 'Yes';
+                    return gridjs.html(`
+                        <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                            ${cell}
+                        </span>
+                    `);
+                }
+            },
+            {
+                id: 'your_position_in_aio',
+                name: gridjs.html('Your Position<br>in AIO'),
+                width: '120px',
+                sort: {
+                    compare: (a, b) => {
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        return numA - numB;
+                    }
+                },
+                formatter: (cell) => {
+                    if (cell === 'N/A') {
+                        return gridjs.html('<span class="aio-na">N/A</span>');
+                    }
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
+                }
+            }
+        ];
+
+        // Add competitor columns
+        competitorDomains.forEach((domain, index) => {
+            const truncatedDomain = this.truncateDomain(domain, 15);
+            const domainId = (domain || '')
+                .toLowerCase()
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/[^a-z0-9]+/g, '_');
+            
+            // Competitor presence column
+            columns.push({
+                id: `comp_${domainId}_present`,
+                name: gridjs.html(`${truncatedDomain}<br>in AIO`),
+                width: '120px',
+                sort: true,
+                formatter: (cell) => {
+                    const isPresent = cell === 'Yes';
+                    return gridjs.html(`
+                        <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                            ${cell}
+                        </span>
+                    `);
+                }
+            });
+
+            // Competitor position column
+            columns.push({
+                id: `comp_${domainId}_position`,
+                name: gridjs.html(`Position of<br>${truncatedDomain}`),
+                width: '120px',
+                sort: {
+                    compare: (a, b) => {
+                        // Convertir a números para comparación - N/A como valor mayor para ir al final
+                        const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                        const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                        return numA - numB;
+                    }
+                },
+                formatter: (cell) => {
+                    if (cell === 'N/A') {
+                        return gridjs.html('<span class="aio-na">N/A</span>');
+                    }
+                    return gridjs.html(`<span class="aio-position">${cell}</span>`);
+                }
+            });
+        });
+
+        // Process data for Grid.js
+        const gridData = keywordResults.map(result => {
+            const keyword = result.keyword || '';
+            const aiAnalysis = result.ai_analysis || {};
+            
+            // Base row data (sin la columna View)
+            const row = [
+                keyword,
+                aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
+                aiAnalysis.domain_ai_source_position || 'N/A'
+            ];
+
+            // Add competitor data
+            competitorDomains.forEach(domain => {
+                const competitorData = this.findCompetitorDataInResult(result, domain);
+                row.push(competitorData.isPresent ? 'Yes' : 'No');
+                row.push(competitorData.position || 'N/A');
+            });
+
+            return row;
+        });
+
+        return { columns, gridData };
+    }
+
+    findCompetitorDataInResult(result, domain) {
+        // Find competitor data in AI analysis references
+        const aiAnalysis = result.ai_analysis || {};
+        const debugInfo = aiAnalysis.debug_info || {};
+        const references = debugInfo.references_found || [];
+        
+        if (!references || references.length === 0) {
+            return { isPresent: false, position: null };
+        }
+        
+        // Normalize domain for comparison
+        const normalizedDomain = domain.toLowerCase().replace('www.', '');
+        
+        // Search for domain in references
+        for (let i = 0; i < references.length; i++) {
+            const ref = references[i];
+            const refLink = ref.link || '';
+            const refSource = ref.source || '';
+            const refTitle = ref.title || '';
+            
+            // Check for matches in link, source or title
+            const linkMatch = refLink.toLowerCase().includes(normalizedDomain);
+            const sourceMatch = refSource.toLowerCase().includes(normalizedDomain);
+            const titleMatch = refTitle.toLowerCase().includes(normalizedDomain);
+            
+            if (linkMatch || sourceMatch || titleMatch) {
+                return {
+                    isPresent: true,
+                    position: (ref.index || 0) + 1 // Convert 0-based index to 1-based position
+                };
+            }
+        }
+        
+        return { isPresent: false, position: null };
+    }
+
+    truncateDomain(domain, maxLength = 15) {
+        if (!domain || domain.length <= maxLength) return domain;
+        return domain.substring(0, maxLength - 3) + '...';
+    }
+
+    showNoAIKeywordsMessage() {
+        const container = document.getElementById('manualAIOverviewGrid');
+        const noKeywordsMessage = document.getElementById('noAIKeywordsMessage');
+        
+        if (container) {
+            container.innerHTML = '';
+        }
+        
+        if (noKeywordsMessage) {
+            noKeywordsMessage.style.display = 'block';
+        }
+    }
+
+    // ================================
     // COMPARATIVE CHARTS FUNCTIONS (Project vs Selected Competitors)
     // ================================
 
@@ -1743,8 +2880,10 @@ class ManualAISystem {
             return;
         }
 
+        const days = this.elements.analyticsTimeRange?.value || 30;
+
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=30`);
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=${days}`);
             
             if (!response.ok) {
                 if (response.status === 404) {
@@ -1781,67 +2920,78 @@ class ManualAISystem {
             return;
         }
 
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'comparativeVisibilityLegend');
+        
         this.charts.comparativeVisibility = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.dates || [],
-                datasets: chartData.datasets || []
+                labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
+                datasets: chartData.datasets.map((dataset, index) => ({
+                    ...dataset,
+                    pointBackgroundColor: dataset.borderColor,
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: dataset.borderColor,
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
+                    fill: false, // Superpuesto como Sistrix
+                    tension: 0.4
+                }))
             },
+            plugins: [htmlLegendPlugin],
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            title: function(context) {
-                                return new Date(context[0].label).toLocaleDateString();
-                            },
-                            label: function(context) {
-                                return `${context.dataset.label}: ${context.raw ? context.raw.toFixed(1) : 0}%`;
-                            }
-                        }
-                    }
-                },
+                ...config,
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        }
-                    },
+                    ...config.scales,
                     y: {
+                        ...config.scales.y,
+                        beginAtZero: true,
+                        max: 100,
+                        stacked: false,
                         title: {
                             display: true,
-                            text: 'Visibility Percentage (%)'
+                            text: 'Visibility (%)',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
                         },
-                        grid: {
-                            color: '#E5E7EB'
-                        },
-                        min: 0,
-                        max: 100,
                         ticks: {
+                            ...config.scales.y.ticks,
                             callback: function(value) {
                                 return value + '%';
                             }
                         }
+                    },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
                     }
                 },
-                elements: {
-                    point: {
-                        radius: 3,
-                        hoverRadius: 6
-                    },
-                    line: {
-                        tension: 0.4
+                plugins: {
+                    ...config.plugins,
+                    tooltip: {
+                        ...config.plugins.tooltip,
+                        callbacks: {
+                            title: function(context) {
+                                return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
+                            },
+                            label: function(context) {
+                                return `${context.dataset.label}: ${Math.round(context.raw)}%`;
+                            }
+                        }
                     }
                 }
             }
@@ -1862,68 +3012,78 @@ class ManualAISystem {
             return;
         }
 
+        // Modern Chart.js configuration with HTML Legend
+        const config = this.getModernChartConfig(true, 'comparativePositionLegend');
+        
         this.charts.comparativePosition = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.dates || [],
-                datasets: chartData.datasets || []
+                labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                })),
+                datasets: chartData.datasets.map((dataset, index) => ({
+                    ...dataset,
+                    pointBackgroundColor: dataset.borderColor,
+                    pointBorderColor: '#FFFFFF',
+                    pointHoverBackgroundColor: dataset.borderColor,
+                    pointHoverBorderColor: '#FFFFFF',
+                    pointStyle: 'rectRounded',
+                    backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
+                    fill: false, // Superpuesto como Sistrix
+                    tension: 0.4
+                }))
             },
+            plugins: [htmlLegendPlugin],
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
+                ...config,
+                scales: {
+                    ...config.scales,
+                    y: {
+                        ...config.scales.y,
+                        reverse: true,
+                        min: 1,
+                        title: {
+                            display: true,
+                            text: 'Average Position',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        },
+                        ticks: {
+                            ...config.scales.y.ticks,
+                            callback: function(value) {
+                                return '#' + Math.round(value);
+                            }
+                        }
                     },
+                    x: {
+                        ...config.scales.x,
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#374151',
+                            font: { size: 12, weight: '500' }
+                        }
+                    }
+                },
+                plugins: {
+                    ...config.plugins,
                     tooltip: {
-                        mode: 'index',
-                        intersect: false,
+                        ...config.plugins.tooltip,
                         callbacks: {
                             title: function(context) {
-                                return new Date(context[0].label).toLocaleDateString();
+                                return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                });
                             },
                             label: function(context) {
-                                return `${context.dataset.label}: Position ${context.raw ? context.raw.toFixed(1) : 'N/A'}`;
+                                const value = context.raw;
+                                return `${context.dataset.label}: Position ${value ? Math.round(value) : 'N/A'}`;
                             }
                         }
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        }
-                    },
-                    y: {
-                        reverse: true, // Lower position numbers should be at the top
-                        title: {
-                            display: true,
-                            text: 'Average Position in AI Overview'
-                        },
-                        grid: {
-                            color: '#E5E7EB'
-                        },
-                        min: 1,
-                        ticks: {
-                            stepSize: 1,
-                            callback: function(value) {
-                                return '#' + value;
-                            }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 3,
-                        hoverRadius: 6
-                    },
-                    line: {
-                        tension: 0.4
                     }
                 }
             }
@@ -2051,7 +3211,7 @@ class ManualAISystem {
         console.log(`📊 Found ${competitors.length} competitors in project data:`, competitors);
         
         // Render the competitors immediately
-        this.renderCompetitors(competitors);
+                this.renderCompetitors(competitors);
     }
 
     renderCompetitors(competitors) {
@@ -2240,7 +3400,7 @@ class ManualAISystem {
         if (projectIndex !== -1) {
             this.projects[projectIndex].selected_competitors = competitors;
         }
-        
+
         // Reload competitors display in modal and dashboard preview
         await Promise.all([
             this.loadCompetitors(currentProject.id),
@@ -2525,7 +3685,17 @@ class ManualAISystem {
             const response = await fetch(`/manual-ai/api/projects/${projectId}/keywords`);
             
             if (!response.ok) {
-                throw new Error('Failed to load keywords');
+                if (response.status === 404) {
+                    console.warn(`⚠️ Project ${projectId} not found, reloading projects...`);
+                    await this.loadProjects();
+                    this.hideProjectModal();
+                    this.showError('The project does not exist. Data has been updated.');
+                    return;
+                } else if (response.status === 403) {
+                    this.showError('You do not have permission to view this project.');
+                    return;
+                }
+                throw new Error(`Failed to load keywords (${response.status})`);
             }
 
             const data = await response.json();
@@ -2533,7 +3703,7 @@ class ManualAISystem {
 
         } catch (error) {
             console.error('Error loading modal keywords:', error);
-            this.showError('Failed to load keywords');
+            this.showError(`Error loading keywords: ${error.message}`);
         }
     }
 
@@ -2619,10 +3789,69 @@ class ManualAISystem {
             await this.loadProjects(); // Refresh projects list
             
             this.showSuccess(`Added ${keywords.length} keyword(s) successfully`);
+            
+            // Show annotation modal after successful addition
+            this.showAnnotationModal('keywords_added', `Added ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''} to ${this.currentModalProject.name}`);
 
         } catch (error) {
             console.error('Error adding keywords:', error);
             this.showError(`Failed to add keywords: ${error.message}`);
+        }
+    }
+
+    // ✅ NUEVO: Función para añadir notas manuales del usuario
+    async addNoteFromModal() {
+        const notesInput = document.getElementById('modalNotesInput');
+        const noteText = notesInput.value.trim();
+        
+        if (!noteText) {
+            this.showError('Please enter a note');
+            return;
+        }
+
+        if (noteText.length > 500) {
+            this.showError('Note must be 500 characters or less');
+            return;
+        }
+
+        if (!this.currentModalProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: noteText })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add note');
+            }
+
+            const result = await response.json();
+            
+            // Clear input
+            notesInput.value = '';
+            
+            // Refresh analytics if we're currently viewing this project
+            if (this.currentProject && this.currentProject.id === this.currentModalProject.id) {
+                await this.loadAnalyticsComponents(this.currentProject.id);
+            }
+            
+            this.showSuccess(`Note added successfully for ${result.note_date}`);
+            
+            console.log('📝 Manual note added successfully:', {
+                project: this.currentModalProject.name,
+                note: noteText.substring(0, 50) + (noteText.length > 50 ? '...' : ''),
+                date: result.note_date
+            });
+
+        } catch (error) {
+            console.error('Error adding note:', error);
+            this.showError(`Failed to add note: ${error.message}`);
         }
     }
 
@@ -2639,19 +3868,67 @@ class ManualAISystem {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to remove keyword');
+                let errorMessage = 'Failed to remove keyword';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorData.message || errorMessage;
+                } catch (parseError) {
+                    console.error('Error parsing error response:', parseError);
+                }
+                
+                if (response.status === 404) {
+                    errorMessage = 'The keyword or project does not exist. Data will be synchronized automatically.';
+                } else if (response.status === 403) {
+                    errorMessage = 'You do not have permission to delete this keyword. Data will be synchronized automatically.';
+                } else if (response.status === 500) {
+                    errorMessage = 'Internal server error. Data will be synchronized automatically.';
+                }
+                
+                throw new Error(errorMessage);
             }
 
-            // Reload keywords and projects
+            const result = await response.json();
+            
+            // Reload keywords and projects to ensure sync
             await this.loadModalKeywords(this.currentModalProject.id);
             await this.loadProjects();
             
-            this.showSuccess('Keyword removed successfully');
+            this.showSuccess(result.message || 'Keyword deleted successfully');
+            
+            // Show annotation modal after successful deletion
+            this.showAnnotationModal('keyword_deleted', `Deleted keyword from ${this.currentModalProject.name}`);
 
         } catch (error) {
-            console.error('Error removing keyword:', error);
-            this.showError(`Failed to remove keyword: ${error.message}`);
+            console.error('💥 Error removing keyword:', error);
+            this.showError(error.message);
+            
+            // 🆕 MEJORADO: Automatic data synchronization for all error types
+            console.log('🔄 Auto-synchronizing data due to error...');
+            
+            try {
+                // Clear any stale cache
+                this.clearObsoleteCache();
+                
+                // Force reload projects from server
+                await this.loadProjects();
+                
+                // If modal is still open and project still exists, reload keywords
+                if (this.currentModalProject) {
+                    const projectStillExists = this.projects.find(p => p.id === this.currentModalProject.id);
+                    if (projectStillExists) {
+                        await this.loadModalKeywords(this.currentModalProject.id);
+                    } else {
+                        // Project no longer exists, close modal
+                        console.log('⚠️ Project no longer exists, closing modal');
+                        this.hideProjectModal();
+                        this.showError('The project no longer exists. Data has been synchronized.');
+                    }
+                }
+                
+                console.log('✅ Data synchronization completed');
+            } catch (syncError) {
+                console.error('❌ Error during auto-sync:', syncError);
+            }
         }
     }
 
@@ -2765,6 +4042,229 @@ class ManualAISystem {
             deleteBtn.style.opacity = isMatch ? '1' : '0.5';
             deleteBtn.style.cursor = isMatch ? 'pointer' : 'not-allowed';
         };
+    }
+
+    // ================================================
+    // ANNOTATION MODAL FUNCTIONALITY  
+    // ================================================
+
+    showAnnotationModal(changeType, changeDescription) {
+        // Store the annotation data
+        this.pendingAnnotation = {
+            type: changeType,
+            description: changeDescription,
+            projectId: this.currentModalProject ? this.currentModalProject.id : null
+        };
+
+        // Update modal content
+        const titleElement = document.getElementById('annotationChangeTitle');
+        const descriptionElement = document.getElementById('annotationChangeDescription');
+        
+        if (titleElement && descriptionElement) {
+            if (changeType === 'keywords_added') {
+                titleElement.textContent = 'Keywords Added';
+                descriptionElement.textContent = `${changeDescription}. Add a note to track this change in your analytics.`;
+            } else if (changeType === 'keyword_deleted') {
+                titleElement.textContent = 'Keyword Deleted';
+                descriptionElement.textContent = `${changeDescription}. Add a note to track this change in your analytics.`;
+            }
+        }
+
+        // Reset textarea and show modal
+        const textarea = document.getElementById('annotationDescription');
+        const charCount = document.getElementById('annotationCharCount');
+        
+        if (textarea) {
+            textarea.value = '';
+            this.updateAnnotationCharCount();
+            
+            // Add character count listener
+            textarea.addEventListener('input', () => this.updateAnnotationCharCount());
+        }
+
+        this.showElement(document.getElementById('annotationModal'));
+    }
+
+    hideAnnotationModal() {
+        this.hideElement(document.getElementById('annotationModal'));
+        this.pendingAnnotation = null;
+    }
+
+    updateAnnotationCharCount() {
+        const textarea = document.getElementById('annotationDescription');
+        const charCount = document.getElementById('annotationCharCount');
+        
+        if (textarea && charCount) {
+            const currentLength = textarea.value.length;
+            charCount.textContent = currentLength;
+            
+            // Visual feedback for character limit
+            if (currentLength > 240) {
+                charCount.style.color = '#f59e0b'; // Warning
+            } else if (currentLength > 255) {
+                charCount.style.color = '#ef4444'; // Error
+            } else {
+                charCount.style.color = '#64748b'; // Normal
+            }
+        }
+    }
+
+    async saveAnnotation() {
+        if (!this.pendingAnnotation) {
+            this.hideAnnotationModal();
+            return;
+        }
+
+        const textarea = document.getElementById('annotationDescription');
+        const userDescription = textarea ? textarea.value.trim() : '';
+        
+        try {
+            // Create the annotation event
+            const response = await fetch('/manual-ai/api/annotations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: this.pendingAnnotation.projectId,
+                    event_type: this.pendingAnnotation.type,
+                    event_title: this.pendingAnnotation.description,
+                    event_description: userDescription || 'No additional notes provided',
+                    event_date: new Date().toISOString().split('T')[0] // Today's date
+                })
+            });
+
+            if (response.ok) {
+                this.showSuccess('Annotation saved successfully');
+                console.log('📝 Annotation saved for chart visualization');
+            } else {
+                console.warn('⚠️ Failed to save annotation, but continuing...');
+            }
+
+        } catch (error) {
+            console.error('Error saving annotation:', error);
+            // Don't show error to user as annotation is optional
+        } finally {
+            this.hideAnnotationModal();
+        }
+    }
+
+    // ================================
+    // EXCEL DOWNLOAD FUNCTIONALITY
+    // ================================
+
+    showDownloadButton(show = true) {
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const globalSection = document.getElementById('navSectionGlobal');
+        
+        if (downloadBtn) {
+            downloadBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download Excel button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        
+        // Show/hide the entire global section based on button visibility
+        if (globalSection) {
+            globalSection.style.display = show ? 'block' : 'none';
+            console.log(`📂 Global tools section ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+    }
+
+    async handleDownloadExcel() {
+        if (!this.currentAnalyticsData) {
+            this.showError('No data available for export. Please select a project and load analytics first.');
+            return;
+        }
+
+        const { projectId, days } = this.currentAnalyticsData;
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const spinner = downloadBtn?.querySelector('.download-spinner');
+        const btnText = downloadBtn?.querySelector('span');
+
+        console.log(`📥 Starting Manual AI Excel download for project ${projectId} (${days} days)`);
+
+        try {
+            // Show loading state
+            if (downloadBtn) downloadBtn.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+            if (btnText) btnText.style.display = 'none';
+
+            // Get current project info for telemetry
+            const project = this.projects.find(p => p.id === projectId);
+            const projectName = project?.name || 'Unknown';
+            const competitorsCount = project?.selected_competitors?.length || 0;
+
+            // Make download request
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/download-excel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    days: days
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: "Error generating Excel file" }));
+                throw new Error(errorData.error || 'Failed to generate Excel file');
+            }
+
+            // Download the file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+
+            // Extract filename from response headers or create default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'manual-ai_export.xlsx';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Telemetry logging
+            console.log('📊 Manual AI Excel export telemetry:', {
+                project_id: projectId,
+                project_name: projectName,
+                keyword_set_id: 'manual-ai', // Manual AI doesn't use keyword sets like the main app
+                date_range: `${days}_days`,
+                competitors_count: competitorsCount,
+                rows_total: this.currentAnalyticsData.stats?.main_stats?.total_keywords || 0,
+                export_type: 'manual_ai_xlsx',
+                timestamp: new Date().toISOString()
+            });
+
+            // Show success state
+            if (btnText) {
+                const originalText = btnText.textContent;
+                btnText.textContent = '¡Descargado!';
+                downloadBtn.classList.add('success');
+
+                setTimeout(() => {
+                    btnText.textContent = originalText;
+                    downloadBtn.classList.remove('success');
+                }, 2000);
+            }
+
+            this.showSuccess('Excel file downloaded successfully!');
+
+        } catch (error) {
+            console.error('❌ Error downloading Manual AI Excel:', error);
+            this.showError(`Error downloading Excel: ${error.message}`);
+        } finally {
+            // Reset loading state
+            if (downloadBtn) downloadBtn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+            if (btnText) btnText.style.display = 'inline';
+        }
     }
 }
 

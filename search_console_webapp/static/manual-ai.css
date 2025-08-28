@@ -195,7 +195,7 @@
    ================================ */
 
 .manual-ai-main {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: var(--manual-ai-spacing-xl) var(--manual-ai-spacing-lg);
 }
@@ -374,6 +374,37 @@
   color:#161616;
 }
 
+/* Botón primario invertido: fondo verde claro y texto negro, y hover invertido */
+.btn-primary-inverted {
+  background: #D8F9B8;
+  color: #161616;
+  border: none;
+  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
+  border-radius: var(--manual-ai-border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--manual-ai-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-xs);
+  text-decoration: none;
+}
+
+.btn-primary-inverted:hover {
+  background: #161616;
+  color: #D8F9B8;
+  transform: translateY(-1px);
+  box-shadow: var(--manual-ai-shadow);
+}
+
+/* Subrayado verde para títulos/labels */
+.manual-ai-underline {
+  display: inline-block;
+  background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+  font-weight: 500;
+  padding: 2px 4px;
+}
+
 .btn-icon {
   background: none;
   border: none;
@@ -527,8 +558,12 @@
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: var(--manual-ai-spacing-xl);
+}
+
+/* Both charts take full width */
+.charts-grid .chart-container {
+  grid-column: 1 / -1;
 }
 
 .chart-container {
@@ -1433,23 +1468,6 @@
   color: var(--manual-ai-primary);
 }
 
-.tooltip-content {
-  position: absolute;
-  top: -45px;
-  right: 0;
-  background: var(--manual-ai-gray-800);
-  color: white;
-  padding: var(--manual-ai-spacing-sm) var(--manual-ai-spacing-md);
-  border-radius: var(--manual-ai-border-radius);
-  font-size: 0.8rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-  z-index: 1000;
-  max-width: 300px;
-  white-space: normal;
-}
 
 .tooltip-trigger:hover + .tooltip-content {
   opacity: 1;
@@ -1503,7 +1521,7 @@
 /* Domain table cells specific styling */
 .domains-table .rank-cell {
   width: 60px;
-  text-align: center;
+  text-align: center !important;
   font-weight: 600;
   color: var(--manual-ai-primary);
 }
@@ -1518,14 +1536,20 @@
 }
 
 .domains-table .appearances-cell {
-  text-align: center;
+  text-align: center !important;
   width: 100px;
 }
 
 .domains-table .position-cell {
-  text-align: center;
+  text-align: center !important;
   width: 100px;
   font-family: monospace;
+}
+
+.domains-table .visibility-cell {
+  text-align: center !important;
+  width: 100px;
+  font-weight: 600;
 }
 
 .domains-table .score-cell {
@@ -2708,6 +2732,7 @@
     background: #f9fafb;
     border-radius: 8px;
     padding: 1rem;
+    margin-top:20px;
 }
 
 .competitors-list {
@@ -2788,9 +2813,18 @@
 }
 
 /* Domain type highlighting */
-.domains-table .domain-row.project-domain {
-    background-color: #dbeafe !important; /* Light blue */
-    border-left: 4px solid #3b82f6;
+.domains-table .domain-row.table-domain {
+    background-color: rgba(216, 249, 184, 0.6);
+    border-left: 4px solid #D8F9B8;
+    border-right: 4px solid #D8F9B8;
+}
+
+/* Ensure proper alignment for all numeric cells, even in highlighted rows */
+.domains-table .domain-row.table-domain .rank-cell,
+.domains-table .domain-row.table-domain .appearances-cell,
+.domains-table .domain-row.table-domain .position-cell,
+.domains-table .domain-row.table-domain .visibility-cell {
+    text-align: center !important;
 }
 
 .domains-table .domain-row.competitor-domain {
@@ -2798,9 +2832,25 @@
     border-left: 4px solid #f59e0b;
 }
 
+/* Ensure proper alignment for competitor domain cells */
+.domains-table .domain-row.competitor-domain .rank-cell,
+.domains-table .domain-row.competitor-domain .appearances-cell,
+.domains-table .domain-row.competitor-domain .position-cell,
+.domains-table .domain-row.competitor-domain .visibility-cell {
+    text-align: center !important;
+}
+
 .domains-table .domain-row.other-domain {
     background-color: transparent;
     border-left: 4px solid transparent;
+}
+
+/* Ensure proper alignment for other domain cells */
+.domains-table .domain-row.other-domain .rank-cell,
+.domains-table .domain-row.other-domain .appearances-cell,
+.domains-table .domain-row.other-domain .position-cell,
+.domains-table .domain-row.other-domain .visibility-cell {
+    text-align: center !important;
 }
 
 /* Domain badges */
@@ -2909,6 +2959,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 6px;
+    align-items: baseline;
 }
 
 .competitor-input-group input {
@@ -3222,28 +3273,753 @@
     }
 }
 
-/* Global domain table improvements */
-.domains-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: var(--manual-ai-spacing-md);
+/* Chart HTML Legends */
+.chart-html-legend {
+    margin-top: 12px;
+    padding: 8px 0;
+    border-top: 1px solid rgba(229, 231, 235, 0.6);
 }
 
-.domains-table th {
-    background: var(--manual-ai-gray-100);
-    color: var(--manual-ai-text-primary);
+.chart-html-legend ul {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.chart-html-legend li {
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    margin: 4px 8px !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease !important;
+    background-color: transparent !important;
+}
+
+.chart-html-legend li:hover {
+    background-color: rgba(243, 244, 246, 0.8) !important;
+    transform: translateY(-1px) !important;
+}
+
+.chart-html-legend span {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Tooltip posicionado a la derecha */
+.tooltip-right {
+    display: inline-block;
+    margin-left: 8px;
+    position: relative;
+    vertical-align: middle;
+}
+
+.tooltip-right .tooltip-trigger {
+    font-size: 14px;
+    color: #6B7280;
+    cursor: help;
+    transition: color 0.2s ease;
+}
+
+.tooltip-right .tooltip-trigger:hover {
+    color: #374151;
+}
+
+.tooltip-content-right {
+    position: absolute;
+    left: 25px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(17, 24, 39, 0.95);
+    color: #F9FAFB;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    max-width: 250px;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.tooltip-content-right::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-right-color: rgba(17, 24, 39, 0.95);
+}
+
+.tooltip-right:hover .tooltip-content-right {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Texto explicativo para secciones */
+.section-description {
+    color: var(--manual-ai-gray-600);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    font-style: italic;
+    opacity: 0.85;
+}
+
+/* Labels específicos del modal con underline - sobrescribe estilos globales */
+label.manual-ai-underline {
+    display: inline !important;
+    margin-bottom: 0 !important;
+    font-weight: 500 !important;
+    font-size: 15px !important;
+    color: var(--manual-ai-gray-800) !important;
+    background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+    padding: 2px 4px;
+}
+
+/* Competidores horizontales en bloques de proyecto */
+.project-competitors-horizontal {
+    margin: var(--manual-ai-spacing-md) 0;
+    padding: var(--manual-ai-spacing-sm) 0;
+    text-align: center;
+}
+
+.competitors-section-title {
+    font-size: 13px;
     font-weight: 600;
-    padding: var(--manual-ai-spacing-sm);
-    border-bottom: 2px solid var(--manual-ai-border-color);
+    color: var(--manual-ai-gray-700);
+    margin: 0 0 10px 0;
+    text-align: center;
 }
 
-.domains-table td {
-    padding: var(--manual-ai-spacing-sm);
-    border-bottom: 1px solid var(--manual-ai-border-color);
-    color: var(--manual-ai-text-primary);
+.competitors-horizontal-list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--manual-ai-spacing-md);
+    flex-wrap: wrap;
 }
 
-.domains-table tr:hover {
+.competitor-horizontal-item {
+    display: flex;
+    align-items: center;
+    gap: var(--manual-ai-spacing-xs);
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm);
     background: var(--manual-ai-gray-50);
+    border: 1px solid var(--manual-ai-gray-200);
+    border-radius: var(--manual-ai-border-radius);
+    font-size: 0.8rem;
+    color: var(--manual-ai-gray-700);
+    transition: all 0.2s ease;
 }
 
+.competitor-horizontal-item:hover {
+    background: var(--manual-ai-gray-100);
+    transform: translateY(-1px);
+}
+
+.competitor-horizontal-item[onclick] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.competitor-horizontal-item[onclick]:hover {
+    background: var(--manual-ai-gray-200);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+
+
+.competitor-horizontal-logo {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+.competitor-horizontal-fallback {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--manual-ai-gray-300);
+    color: var(--manual-ai-gray-600);
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+}
+
+.competitor-horizontal-name {
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.competitor-horizontal-name.user-domain-underline {
+    background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+    padding: 1px 3px;
+    color: var(--manual-ai-gray-800);
+    font-weight: 600;
+}
+
+.competitors-more {
+    color: var(--manual-ai-gray-500);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm);
+}
+
+/* Botón add competitor más compacto */
+.btn-primary-inverted.btn-compact {
+    padding: var(--manual-ai-spacing-xs) var(--manual-ai-spacing-sm) !important;
+    font-size: 14px !important;
+    height: 43px;
+}
+
+/* Input de competidor más ancho */
+#newCompetitorInput {
+    min-width: 300px !important;
+    flex: 1 !important;
+}
+
+/* Dominio del proyecto clickeable */
+.project-domain.clickable-domain {
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
+
+.project-domain.clickable-domain:hover {
+    background: rgba(216, 249, 184, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ================================
+   AI OVERVIEW KEYWORDS TABLE STYLES
+   ================================ */
+
+/* AI Overview Keywords Section */
+.ai-overview-keywords-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ai-overview-keywords-container {
+    margin-top: 1rem;
+}
+
+/* Grid.js specific styles for AI Overview table */
+.manual-ai-overview-grid-wrapper {
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.manual-ai-overview-grid .gridjs-wrapper {
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.manual-ai-overview-grid .gridjs-container {
+    font-family: var(--font-family);
+}
+
+.manual-ai-overview-grid .gridjs-head {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.manual-ai-overview-grid .gridjs-search input {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-color);
+    width: 300px;
+}
+
+.manual-ai-overview-grid .gridjs-search input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.manual-ai-overview-grid .gridjs-table {
+    border: none;
+    font-size: 0.875rem;
+}
+
+.manual-ai-overview-grid .gridjs-th {
+    background: var(--table-header-bg);
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+}
+
+.manual-ai-overview-grid .gridjs-td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    vertical-align: middle;
+}
+
+.manual-ai-overview-grid .gridjs-tr:hover .gridjs-td {
+    background: rgba(124, 58, 237, 0.02);
+}
+
+/* Eliminado: SERP view button - funcionalidad no requerida */
+
+/* AIO Status indicators */
+.aio-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    min-width: 40px;
+}
+
+.aio-status.aio-yes {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.aio-status.aio-no {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* AIO Position indicators - usando el mismo color que AI Overview automático */
+.aio-position {
+    font-weight: 600;
+    color: var(--cta-bg) !important; /* #0D7FF3 - mismo azul que el automático */
+}
+
+.aio-na {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-200);
+    color: var(--neutral-500);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    min-width: 30px;
+}
+
+/* Pagination styles for AI Overview table */
+.manual-ai-overview-grid .gridjs-pagination {
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.manual-ai-overview-grid .gridjs-pages button {
+    color: #2C2D2E !important;
+    border-color: var(--border-color) !important;
+    background: rgba(216, 249, 184, 0.4) !important; /* Mismo verde translúcido que AI Overview automático */
+    border-radius: 4px;
+    padding: 0.375rem 0.75rem;
+    margin: 0 0.125rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.manual-ai-overview-grid .gridjs-pages button:hover:not(:disabled) {
+    background: #C3F5A4 !important; /* Mismo verde que AI Overview automático */
+    color: #2C2D2E !important;
+    border-color: #C3F5A4 !important;
+}
+
+.manual-ai-overview-grid .gridjs-pages button.gridjs-currentPage {
+    background: #C3F5A4 !important; /* Mismo verde que AI Overview automático */
+    color: #2C2D2E !important;
+    font-weight: 600 !important;
+    border-color: #C3F5A4 !important;
+}
+
+.manual-ai-overview-grid .gridjs-pages button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.manual-ai-overview-grid .gridjs-summary {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* No AI Keywords message */
+.no-ai-keywords-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.no-ai-keywords-message .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    color: var(--text-secondary);
+}
+
+.no-ai-keywords-message .empty-state i {
+    font-size: 2.5rem;
+    color: var(--neutral-400);
+}
+
+.no-ai-keywords-message .empty-state p {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin: 0;
+    color: var(--text-color);
+}
+
+.no-ai-keywords-message .empty-state small {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Error message for Grid.js */
+.manual-ai-overview-grid .error-message {
+    text-align: center;
+    padding: 2rem;
+    color: var(--error-color);
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    margin: 1rem 0;
+}
+
+/* Responsive adjustments for AI Overview table */
+@media (max-width: 1200px) {
+    .manual-ai-overview-grid .gridjs-th,
+    .manual-ai-overview-grid .gridjs-td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.8rem;
+    }
+    
+    /* Eliminado: SERP view button responsive - funcionalidad no requerida */
+    
+    .aio-status,
+    .aio-position,
+    .aio-na {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+        min-width: 28px;
+    }
+}
+
+@media (max-width: 768px) {
+    .ai-overview-keywords-section {
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    .manual-ai-overview-grid .gridjs-search input {
+        width: 100%;
+        max-width: 250px;
+    }
+    
+    .manual-ai-overview-grid .gridjs-pagination {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .manual-ai-overview-grid .gridjs-th,
+    .manual-ai-overview-grid .gridjs-td {
+        padding: 0.4rem 0.2rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* =====================================================
+   ANNOTATION MODAL STYLES
+===================================================== */
+
+/* Annotation Modal Info Card */
+.annotation-info {
+    margin-bottom: 1.5rem;
+}
+
+.info-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.info-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 1.1rem;
+}
+
+.info-content h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1e293b;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.info-content p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Annotation Form Elements */
+.textarea-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.char-count {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.helper-text {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Modal size variant */
+.modal-medium {
+    max-width: 500px;
+    width: 90%;
+}
+
+/* Annotation Modal Responsive */
+@media (max-width: 768px) {
+    .info-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .info-icon {
+        align-self: center;
+    }
+}
+
+/* =====================================================
+   TEMPORAL COMPETITOR MARKERS STYLES
+===================================================== */
+
+/* Chart Container Enhancements */
+.chart-container {
+    position: relative;
+}
+
+/* Temporal Change Indicator */
+.temporal-changes-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.temporal-changes-indicator::before {
+    content: '🔄';
+    margin-right: 4px;
+}
+
+/* Enhanced Tooltip Styles */
+#chart-annotation-tooltip {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+/* Chart Legend Enhancements for Temporal Data */
+.chart-legend.has-temporal-changes {
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    padding: 0.75rem;
+}
+
+.chart-legend.has-temporal-changes::before {
+    content: '⚠️ Competitors changed during this period';
+    display: block;
+    font-size: 0.8rem;
+    color: #92400e;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+/* Competitor Change Marker Styles (for CSS-based markers) */
+.competitor-change-marker {
+    position: absolute;
+    width: 2px;
+    background: #f59e0b;
+    border-radius: 1px;
+    z-index: 5;
+    opacity: 0.8;
+}
+
+.competitor-change-marker::before {
+    content: '🔄';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    background: #f59e0b;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+}
+
+/* Temporal Information Panel */
+.temporal-info-panel {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: none; /* Hidden by default, shown when temporal changes exist */
+}
+
+.temporal-info-panel.visible {
+    display: block;
+}
+
+.temporal-info-title {
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.temporal-info-content {
+    font-size: 0.9rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.temporal-changes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.temporal-changes-list li {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.temporal-changes-list li:last-child {
+    border-bottom: none;
+}
+
+.change-date {
+    font-weight: 500;
+    color: #374151;
+}
+
+.change-description {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+/* Responsive Temporal Markers */
+@media (max-width: 768px) {
+    .temporal-changes-indicator {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+        top: 5px;
+        right: 5px;
+    }
+    
+    .temporal-info-panel {
+        padding: 0.75rem;
+        margin-top: 0.75rem;
+    }
+    
+    .competitor-change-marker::before {
+        font-size: 8px;
+        width: 14px;
+        height: 14px;
+    }
+}

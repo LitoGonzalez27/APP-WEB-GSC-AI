@@ -23,6 +23,7 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
 from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE
 from services.ai_analysis import detect_ai_overview_elements
+from stripe_webhooks import create_webhook_route
 from services.utils import extract_domain, normalize_search_console_url, urls_match
 from services.country_config import get_country_config
 
@@ -32,7 +33,9 @@ from auth import (
     login_required,
     auth_required,
     admin_required,
+    ai_user_required,
     is_user_authenticated,
+    is_user_ai_enabled,
     get_authenticated_service,
     get_user_credentials,
     get_current_user
@@ -95,6 +98,9 @@ if is_production or is_staging:
 
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)
+
+# --- NUEVO: Configurar webhook de Stripe ---
+create_webhook_route(app)
 
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
@@ -401,7 +407,7 @@ def app_main():
     user = get_current_user()
     user_email = user['email'] if user else None
     
-    return render_template('index.html', user_email=user_email, authenticated=True)
+    return render_template('index.html', user_email=user_email, user=user, authenticated=True)
 
 @app.route('/get-data', methods=['POST'])
 @auth_required
@@ -1118,6 +1124,20 @@ def get_serp_raw_json():
     
     try:
         serp_data_json = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_json.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp bloqueado por quota para user - keyword: '{keyword_query}'")
+            return jsonify({
+                'error': serp_data_json.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_json.get('quota_info', {}),
+                'action_required': serp_data_json.get('action_required'),
+                'organic_results': [],
+                'ads': []
+            }), 429  # Too Many Requests
+        
+        # ✅ Respuesta normal exitosa
         return jsonify({
             'organic_results': serp_data_json.get('organic_results', []), 
             'ads': serp_data_json.get('ads', [])
@@ -1147,6 +1167,25 @@ def get_serp_position():
     
     try:
         serp_data_pos = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_pos.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp/position bloqueado por quota para user - keyword: '{keyword_val}'")
+            return jsonify({
+                'error': serp_data_pos.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_pos.get('quota_info', {}),
+                'action_required': serp_data_pos.get('action_required'),
+                'keyword': keyword_val,
+                'domain': normalize_search_console_url(site_url_val),
+                'found': False,
+                'position': None,
+                'result': None,
+                'result_type': None,
+                'all_matches': [],
+                'total_results': 0,
+                'timestamp': time.time()
+            }), 429  # Too Many Requests
         
         if not serp_data_pos:
             logger.error(f"[SERP POSITION] No se obtuvo respuesta de SerpAPI para '{keyword_val}'")
@@ -1231,6 +1270,39 @@ def get_serp_screenshot_route():
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
 
+# ✅ FASE 4: Nueva ruta para verificar estado de quota
+@app.route('/api/quota/status')
+@auth_required
+def get_quota_status():
+    """Obtiene el estado actual de quota del usuario autenticado"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        # Importar función de quota middleware
+        from quota_middleware import get_quota_warning_info
+        from quota_manager import get_user_quota_status, get_user_access_permissions
+        
+        # Obtener estado de quota completo
+        quota_status = get_user_quota_status(user_id)
+        access_permissions = get_user_access_permissions(user_id)
+        warning_info = get_quota_warning_info(user_id)
+        
+        response_data = {
+            'quota_status': quota_status,
+            'access_permissions': access_permissions,
+            'warning_info': warning_info
+        }
+        
+        logger.info(f"📊 Quota status para user {user_id}: {quota_status['quota_used']}/{quota_status['quota_limit']} RU")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo quota status: {e}")
+        return jsonify({'error': 'Could not retrieve quota status'}), 500
+
 def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=None):
     """
     Analiza el impacto de AI Overview para una keyword específica con sistema de caché
@@ -1266,9 +1338,42 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
     
     try:
         serp_data_from_service = get_serp_json(params_ai)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente en AI Overview
+        if not serp_data_from_service:
+            raise Exception("El servicio get_serp_json devolvió datos vacíos")
+        
+        # Verificar errores de quota primero
+        if serp_data_from_service.get("quota_blocked"):
+            logger.warning(f"🚫 AI Overview bloqueado por quota para '{keyword_arg}': {serp_data_from_service.get('error')}")
+            quota_error_result = {
+                'keyword': keyword_arg,
+                'error': 'quota_exceeded',
+                'quota_info': serp_data_from_service.get('quota_info', {}),
+                'action_required': serp_data_from_service.get('action_required'),
+                'ai_analysis': {
+                    'has_ai_overview': False,
+                    'quota_blocked': True,
+                    'debug_info': {
+                        'error': 'Quota limit reached',
+                        'message': serp_data_from_service.get('error'),
+                        'quota_info': serp_data_from_service.get('quota_info', {})
+                    }
+                },
+                'site_position': 'Quota Exceeded',
+                'serp_features': [],
+                'timestamp': time.time(),
+                'country_analyzed': country_code or 'esp'
+            }
             
-        if not serp_data_from_service or "error" in serp_data_from_service:
-            error_msg = serp_data_from_service.get("error", "El servicio get_serp_json devolvió datos vacíos o con error")
+            # ✅ NUEVO: Guardar en caché el resultado de quota para evitar repetir llamadas
+            ai_cache.cache_analysis(keyword_arg, site_url_arg, country_code or '', quota_error_result)
+            
+            return quota_error_result
+        
+        # Verificar otros errores de SerpAPI
+        if "error" in serp_data_from_service:
+            error_msg = serp_data_from_service.get("error", "Error desconocido de SerpAPI")
             logger.warning(f"Error SERP para '{keyword_arg}': {error_msg}")
             raise Exception(error_msg)
 
@@ -1628,6 +1733,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                     logger.info(f"✅ Progreso: {i}/{len(keywords_data_list)} keywords procesadas")
                     # TODO: En futuras versiones, enviar progreso real al frontend via SSE
                 
+                # ✅ FASE 4: Manejar resultados de quota en análisis paralelo
                 if 'ai_analysis' not in ai_result_item:
                     ai_result_item['ai_analysis'] = {
                         'has_ai_overview': False,
@@ -1638,6 +1744,12 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                         'domain_ai_source_position': None,
                         'domain_ai_source_link': None
                     }
+                
+                # ✅ NUEVO: Verificar si es error de quota para marcar apropiadamente
+                is_quota_error = ai_result_item.get('error') == 'quota_exceeded'
+                if is_quota_error:
+                    logger.info(f"⚠️ Keyword '{keyword_str}' bloqueada por quota - incluida en resultados")
+                    # El resultado de quota ya tiene la estructura correcta, no necesita modificación
 
                 combined_result = {
                     **kw_data_item,
@@ -1671,6 +1783,37 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
 @app.route('/api/analyze-ai-overview', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
 def analyze_ai_overview_route():
+    # ✅ NUEVO FASE 4.5: PAYWALL CHECK
+    user = get_current_user()
+    
+    # Paywall: Solo Basic/Premium pueden usar AI Overview
+    if user.get('plan') == 'free':
+        logger.warning(f"Usuario Free intentó acceder AI Overview: {user.get('email')}")
+        return jsonify({
+            'error': 'paywall',
+            'message': 'AI Overview requires a paid plan',
+            'upgrade_options': ['basic', 'premium'],
+            'current_plan': 'free'
+        }), 402  # Payment Required
+    
+    # Quota check: Verificar límites de RU
+    quota_used = user.get('quota_used', 0)
+    quota_limit = user.get('quota_limit', 0)
+    
+    if quota_limit > 0 and quota_used >= quota_limit:
+        logger.warning(f"Usuario excedió quota: {user.get('email')} ({quota_used}/{quota_limit} RU)")
+        return jsonify({
+            'error': 'quota_exceeded',
+            'message': 'You have reached your monthly limit',
+            'quota_info': {
+                'quota_used': quota_used,
+                'quota_limit': quota_limit,
+                'percentage': round((quota_used / quota_limit) * 100, 1) if quota_limit > 0 else 0
+            },
+            'action_required': 'upgrade',
+            'current_plan': user.get('plan', 'free')
+        }), 429  # Too Many Requests
+    
     try:
         request_payload = request.get_json()
         keywords_data_list = request_payload.get('keywords', [])
@@ -2666,6 +2809,24 @@ def initialize_database_on_startup():
 
 # Registrar Manual AI System siempre (no solo en __main__)
 register_manual_ai_system()
+
+# ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
+def register_billing_routes():
+    """Register Billing Routes for SaaS self-service flow"""
+    try:
+        from billing_routes import setup_billing_routes
+        setup_billing_routes(app)
+        logger.info("✅ Billing routes (SaaS self-service) registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ Billing routes not available: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering billing routes: {e}")
+        return False
+
+# Registrar Billing Routes para flujo SaaS
+register_billing_routes()
 
 if __name__ == '__main__':
     # Initialize database first
