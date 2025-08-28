@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 # Blueprint independiente - no interfiere con rutas existentes
 manual_ai_bp = Blueprint('manual_ai', __name__, url_prefix='/manual-ai')
 
+# ✅ NUEVO FASE 4.5: Helper para control de plan
+def check_manual_ai_access(user):
+    """Verifica si el usuario tiene acceso a Manual AI"""
+    if user.get('plan') == 'free':
+        return False, {'error': 'Manual AI requires a paid plan', 'upgrade_required': True}
+    return True, None
+
 # ================================
 # UTILIDADES DE OBSERVABILIDAD
 # ================================
@@ -131,10 +138,15 @@ def manual_ai_dashboard():
     return render_template('manual_ai_dashboard.html', user=user)
 
 @manual_ai_bp.route('/api/projects', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_projects():
     """Obtener todos los proyectos del usuario actual"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     projects = get_user_projects(user['id'])
     
     return jsonify({
@@ -143,10 +155,15 @@ def get_projects():
     })
 
 @manual_ai_bp.route('/api/projects', methods=['POST'])
-@ai_user_required
+@auth_required
 def create_project():
     """Crear un nuevo proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     data = request.get_json()
     
     # Validaciones básicas
@@ -182,10 +199,15 @@ def create_project():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_details(project_id):
     """Obtener detalles completos de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -338,10 +360,15 @@ def delete_project(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_keywords(project_id):
     """Obtener keywords de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -691,10 +718,15 @@ def update_project_keyword(project_id, keyword_id):
 # ================================
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/analyze', methods=['POST'])
-@ai_user_required
+@auth_required
 def analyze_project(project_id):
     """Ejecutar análisis completo de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -781,10 +813,15 @@ def analyze_project(project_id):
         return jsonify({'success': False, 'error': 'Analysis failed due to internal error'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/results', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_results(project_id):
     """Obtener resultados de análisis de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -802,10 +839,15 @@ def get_project_results(project_id):
     })
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/stats', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_stats(project_id):
     """Obtener estadísticas y gráficos de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -885,10 +927,15 @@ def get_global_domains_ranking(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/download-excel', methods=['POST'])
-@ai_user_required
+@auth_required
 def download_manual_ai_excel(project_id):
     """Generar y descargar Excel con datos de Manual AI según especificaciones"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -1184,10 +1231,15 @@ def update_project_competitors(project_id):
         return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
-@ai_user_required
+@auth_required
 def export_project_data(project_id):
     """Exportar datos del proyecto a CSV"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403

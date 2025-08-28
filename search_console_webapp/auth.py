@@ -580,17 +580,11 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # ✅ NUEVO FASE 4.5: INICIAR SESIÓN AUTOMÁTICAMENTE
-                    session['credentials'] = session.pop('temp_credentials')
-                    session['user_id'] = new_user['id']
-                    session['user_email'] = new_user['email']
-                    session['user_name'] = new_user['name']
-                    update_last_activity()
+                    # ✅ MEJORADO UX: NO iniciar sesión automáticamente, redirigir a login con mensaje
+                    session.pop('temp_credentials', None)
                     
-                    logger.info(f"Usuario registrado y autenticado con Google: {user_info['email']}")
-                    # ✅ USAR PARÁMETRO NEXT después de registro exitoso
-                    next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=signup')
-                    return redirect(next_url)
+                    logger.info(f"Usuario registrado con Google (redirigiendo a login): {user_info['email']}")
+                    return redirect('/login?registration_success=true&with_google=true&email=' + user_info['email'])
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)

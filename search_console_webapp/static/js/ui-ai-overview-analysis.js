@@ -191,7 +191,7 @@ async function analyzeAIOverview(keywords, siteUrl) {
             // Paywall - usuario Free
             const data = await response.json();
             if (window.showPaywall) {
-                window.showPaywall(data.upgrade_options || ['basic', 'premium']);
+                window.showPaywall(data.upgrade_options || ['basic', 'premium'], 'AI Overview Analysis');
             }
             throw new Error('AI Overview requires a paid plan. Please upgrade to continue.');
         }

@@ -1112,7 +1112,7 @@ class ManualAISystem {
                 
                 // Mostrar paywall si está disponible
                 if (window.showPaywall) {
-                    window.showPaywall(data.upgrade_options || ['basic', 'premium']);
+                    window.showPaywall(data.upgrade_options || ['basic', 'premium'], 'Manual AI Analysis');
                 }
                 
                 this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
