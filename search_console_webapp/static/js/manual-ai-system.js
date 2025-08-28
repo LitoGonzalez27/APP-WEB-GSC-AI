@@ -286,8 +286,13 @@ class ManualAISystem {
         // Auto-refresh projects every 2 minutes to catch cron updates
         this.refreshInterval = setInterval(() => {
             if (this.currentTab === 'projects') {
-                console.log('🔄 Auto-refreshing projects...');
-                this.loadProjects();
+                // ✅ NUEVO: Solo auto-refresh para usuarios con plan de pago
+                if (window.currentUser && window.currentUser.plan !== 'free') {
+                    console.log('🔄 Auto-refreshing projects...');
+                    this.loadProjects();
+                } else {
+                    console.log('🆓 Auto-refresh omitido para usuario gratuito');
+                }
             }
         }, 120000); // 2 minutos
         
@@ -379,8 +384,29 @@ class ManualAISystem {
     }
 
     async loadInitialData() {
-        await this.loadProjects();
+        // ✅ NUEVO: Solo cargar proyectos para usuarios con plan de pago
+        if (window.currentUser && window.currentUser.plan !== 'free') {
+            console.log('💳 Usuario con plan de pago - cargando proyectos:', window.currentUser.plan);
+            await this.loadProjects();
+        } else {
+            console.log('🆓 Usuario gratuito - mostrando estado sin proyectos');
+            // Mostrar estado sin proyectos (el botón "Crear proyecto" activará paywall)
+            this.showFreeUserState();
+        }
+        
         this.populateAnalyticsProjectSelect();
+    }
+
+    // ✅ NUEVO: Estado para usuarios gratuitos
+    showFreeUserState() {
+        // Ocultar loading
+        this.hideElement(this.elements.projectsLoading);
+        
+        // Mostrar estado "sin proyectos" que es compatible con usuarios gratuitos
+        this.projects = []; // Array vacío
+        this.renderProjects(); // Esto mostrará el empty state con "Crear proyecto"
+        
+        console.log('🆓 Estado gratuito mostrado - botón "Crear proyecto" disponible para paywall');
     }
 
     // ================================
@@ -680,6 +706,14 @@ class ManualAISystem {
     // ================================
 
     showCreateProject() {
+        // ✅ NUEVO: Verificar plan antes de mostrar formulario
+        if (window.currentUser && window.currentUser.plan === 'free') {
+            console.log('🆓 Usuario gratuito intentó crear proyecto - mostrando paywall');
+            window.showPaywall('Manual AI Analysis');
+            return;
+        }
+        
+        console.log('💳 Usuario con plan - mostrando formulario de creación');
         this.elements.createProjectForm.reset();
         this.showElement(this.elements.createProjectModal);
     }
