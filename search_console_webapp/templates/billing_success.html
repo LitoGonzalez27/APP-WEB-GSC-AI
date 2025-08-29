@@ -166,32 +166,40 @@
                 {% endif %}
             </div>
 
-            {% if transaction_data %}
+            {% if transaction_data and (transaction_data.transaction_id or transaction_data.plan or transaction_data.amount_total) %}
             <!-- RESUMEN DE LA OPERACIÓN -->
             <div class="transaction-details">
                 <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
                     📋 Resumen de la Operación
                 </h3>
                 
+                {% if transaction_data.transaction_id %}
                 <div class="detail-row">
                     <span class="detail-label">Nº de Pedido:</span>
                     <span class="detail-value">{{ transaction_data.transaction_id[-8:] }}</span>
                 </div>
+                {% endif %}
                 
+                {% if transaction_data.created_at %}
                 <div class="detail-row">
                     <span class="detail-label">Fecha y Hora:</span>
                     <span class="detail-value">{{ transaction_data.created_at.strftime('%d/%m/%Y %H:%M') }} (CET)</span>
                 </div>
+                {% endif %}
                 
+                {% if transaction_data.plan %}
                 <div class="detail-row">
                     <span class="detail-label">Plan Contratado:</span>
                     <span class="detail-value">{{ transaction_data.plan|title }} mensual</span>
                 </div>
+                {% endif %}
                 
+                {% if transaction_data.amount_total %}
                 <div class="detail-row">
                     <span class="detail-label">Importe Total:</span>
                     <span class="detail-value amount-highlight">{{ '%.2f'|format(transaction_data.amount_total/100) }} {{ transaction_data.currency }}</span>
                 </div>
+                {% endif %}
                 
                 {% if transaction_data.current_period_end %}
                 <div class="detail-row">

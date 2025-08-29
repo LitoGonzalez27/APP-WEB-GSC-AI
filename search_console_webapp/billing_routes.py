@@ -204,6 +204,20 @@ def setup_billing_routes(app):
         payment_status = 'processing'  # Default: en proceso
         
         if session_id:
+            # ✅ Asegurar que siempre tenemos datos básicos
+            transaction_data = {
+                'session_id': session_id,
+                'transaction_id': session_id,
+                'plan': user.get('plan', 'basic'),
+                'created_at': datetime.now(),
+                'payment_status': 'unknown',
+                'amount_total': None,
+                'currency': 'EUR',
+                'customer_email': user.get('email'),
+                'customer_name': user.get('name'),
+                'invoice_url': None,
+                'current_period_end': None
+            }
             try:
                 # Obtener checkout session completo
                 checkout_session = stripe.checkout.Session.retrieve(session_id, expand=['subscription', 'invoice'])
@@ -219,53 +233,59 @@ def setup_billing_routes(app):
                 elif checkout_session.payment_status == 'unpaid':
                     payment_status = 'failed'
                 
-                # Construir datos completos de transacción
+                # Actualizar con datos completos de transacción de Stripe
                 subscription = checkout_session.subscription
                 invoice = checkout_session.invoice
                 
-                transaction_data = {
+                # ✅ Actualizar datos básicos con información real de Stripe
+                transaction_data.update({
                     # Identificadores
-                    'session_id': session_id,
                     'transaction_id': checkout_session.id,
                     'customer_id': checkout_session.customer,
                     'subscription_id': subscription.id if subscription else None,
                     'invoice_id': invoice.id if invoice else None,
                     
                     # Detalles del pago
-                    'amount_total': checkout_session.amount_total,
-                    'amount_subtotal': checkout_session.amount_subtotal,
-                    'currency': checkout_session.currency.upper(),
-                    'payment_status': checkout_session.payment_status,
+                    'amount_total': getattr(checkout_session, 'amount_total', None),
+                    'amount_subtotal': getattr(checkout_session, 'amount_subtotal', None),
+                    'currency': getattr(checkout_session, 'currency', 'eur').upper(),
+                    'payment_status': getattr(checkout_session, 'payment_status', 'unknown'),
                     
                     # Plan y periodicidad
-                    'plan': checkout_session.metadata.get('plan', 'unknown'),
+                    'plan': checkout_session.metadata.get('plan', user.get('plan', 'basic')),
                     'source': checkout_session.metadata.get('source', 'direct'),
                     
                     # Fechas
-                    'created_at': datetime.fromtimestamp(checkout_session.created),
-                    'current_period_start': datetime.fromtimestamp(subscription.current_period_start) if subscription else None,
-                    'current_period_end': datetime.fromtimestamp(subscription.current_period_end) if subscription else None,
+                    'created_at': datetime.fromtimestamp(checkout_session.created) if hasattr(checkout_session, 'created') else datetime.now(),
+                    'current_period_start': datetime.fromtimestamp(subscription.current_period_start) if subscription and hasattr(subscription, 'current_period_start') else None,
+                    'current_period_end': datetime.fromtimestamp(subscription.current_period_end) if subscription and hasattr(subscription, 'current_period_end') else None,
                     
                     # Customer info
-                    'customer_email': customer.email,
-                    'customer_name': checkout_session.customer_details.get('name') if checkout_session.customer_details else customer.name,
+                    'customer_email': getattr(customer, 'email', user.get('email')),
+                    'customer_name': checkout_session.customer_details.get('name') if checkout_session.customer_details else getattr(customer, 'name', user.get('name')),
                     
                     # URLs importantes
-                    'invoice_url': invoice.hosted_invoice_url if invoice else None,
-                    'receipt_url': invoice.invoice_pdf if invoice else None,
-                }
+                    'invoice_url': getattr(invoice, 'hosted_invoice_url', None) if invoice else None,
+                    'receipt_url': getattr(invoice, 'invoice_pdf', None) if invoice else None,
+                })
                 
                 logger.info(f"Success page - transacción completa para {user['email']}: {transaction_data['plan']}")
                 
             except Exception as e:
                 logger.error(f"Error obteniendo datos de transacción: {e}")
-                # Fallback con datos básicos
+                # Fallback con datos básicos seguros
                 transaction_data = {
                     'session_id': session_id,
                     'transaction_id': session_id,
-                    'plan': 'basic',
+                    'plan': user.get('plan', 'basic'),
                     'created_at': datetime.now(),
-                    'payment_status': 'unknown'
+                    'payment_status': 'unknown',
+                    'amount_total': None,
+                    'currency': 'EUR',
+                    'customer_email': user.get('email'),
+                    'customer_name': user.get('name'),
+                    'invoice_url': None,
+                    'current_period_end': None
                 }
         
         # ✅ Estado actual del usuario (para verificación)

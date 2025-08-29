@@ -609,21 +609,28 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # ✅ MEJORADO UX: NO iniciar sesión automáticamente, redirigir a login con mensaje
-                    session.pop('temp_credentials', None)
-                    
-                    # ✅ NUEVO: Incluir plan en redirect si viene de pricing
+                    # ✅ MEJORADO UX: Flujo directo sin login intermedio
                     signup_plan = session.get('signup_plan')
                     signup_source = session.get('signup_source')
                     
-                    login_url = f'/login?registration_success=true&with_google=true&email=' + user_info['email']
-                    if signup_plan:
-                        login_url += f'&plan={signup_plan}&source={signup_source}'
-                        logger.info(f"Usuario registrado con plan {signup_plan} desde {signup_source}: {user_info['email']}")
+                    if signup_plan and signup_plan in ['basic', 'premium']:
+                        # ✅ NUEVO: Login automático + redirect directo a checkout
+                        session['credentials'] = session.pop('temp_credentials')
+                        session['user_id'] = new_user['id']
+                        session['user_email'] = new_user['email']
+                        session['user_name'] = new_user['name']
+                        update_last_activity()
+                        
+                        logger.info(f"Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
+                        return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}&first_time=true')
                     else:
-                        logger.info(f"Usuario registrado con Google (redirigiendo a login): {user_info['email']}")
-                    
-                    return redirect(login_url)
+                        # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
+                        session.pop('temp_credentials', None)
+                        
+                        login_url = f'/login?registration_success=true&with_google=true&email=' + user_info['email']
+                        logger.info(f"Usuario registrado (redirigiendo a login): {user_info['email']}")
+                        
+                        return redirect(login_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)
