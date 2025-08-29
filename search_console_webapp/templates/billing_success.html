@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pago Completado - ClicandSEO</title>
+    <title>Payment Successful - ClicandSEO</title>
     
-    <!-- SEO/Privacidad según feedback experto -->
+    <!-- SEO/Privacy according to expert feedback -->
     <meta name="robots" content="noindex,nofollow">
-    <meta name="description" content="Confirmación de pago - ClicandSEO">
+    <meta name="description" content="Payment confirmation - ClicandSEO">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
@@ -27,94 +27,91 @@
     <div class="billing-success-container">
         <div class="billing-card">
             
-            <!-- HEADER DE CONFIRMACIÓN -->
+            <!-- SUCCESS HEADER -->
             <div class="billing-header">
                 {% if payment_status == 'confirmed' %}
-                    <h1 class="billing-title">Pago Completado</h1>
+                    <div class="success-check" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                    </div>
+                    <h1 class="billing-title">Payment Successful</h1>
                 {% elif payment_status == 'webhook_pending' %}
-                    <h1 class="billing-title">Pago Realizado</h1>
+                    <h1 class="billing-title">Payment Made</h1>
                 {% elif payment_status == 'failed' %}
-                    <h1 class="billing-title">Pago Fallido</h1>
+                    <h1 class="billing-title">Payment Failed</h1>
                 {% else %}
-                    <h1 class="billing-title">Procesando Pago</h1>
+                    <h1 class="billing-title">Processing Payment</h1>
                 {% endif %}
             </div>
 
             {% if transaction_data and (transaction_data.transaction_id or transaction_data.plan or transaction_data.amount_total) %}
-            <!-- RESUMEN DE LA OPERACIÓN -->
+            <!-- TRANSACTION SUMMARY -->
             <div class="transaction-details">
-                <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
-                    Resumen de la Operación
-                </h3>
+                <h3 class="section-title">Transaction Summary</h3>
                 
                 {% if transaction_data.transaction_id %}
                 <div class="detail-row">
-                    <span class="detail-label">Nº de Pedido:</span>
+                    <span class="detail-label">Order ID:</span>
                     <span class="detail-value">{{ transaction_data.transaction_id[-8:] }}</span>
                 </div>
                 {% endif %}
                 
                 {% if transaction_data.created_at %}
                 <div class="detail-row">
-                    <span class="detail-label">Fecha y Hora:</span>
+                    <span class="detail-label">Date & Time:</span>
                     <span class="detail-value">{{ transaction_data.created_at.strftime('%d/%m/%Y %H:%M') }} (CET)</span>
                 </div>
                 {% endif %}
                 
                 {% if transaction_data.plan %}
                 <div class="detail-row">
-                    <span class="detail-label">Plan Contratado:</span>
-                    <span class="detail-value">{{ transaction_data.plan|title }} mensual</span>
+                    <span class="detail-label">Selected Plan:</span>
+                    <span class="detail-value">{{ transaction_data.plan|title }} monthly</span>
                 </div>
                 {% endif %}
                 
                 {% if transaction_data.amount_total %}
                 <div class="detail-row">
-                    <span class="detail-label">Importe Total:</span>
+                    <span class="detail-label">Total Amount:</span>
                     <span class="detail-value amount-highlight">{{ '%.2f'|format(transaction_data.amount_total/100) }} {{ transaction_data.currency }}</span>
                 </div>
                 {% endif %}
                 
                 {% if transaction_data.current_period_end %}
                 <div class="detail-row">
-                    <span class="detail-label">Próxima Renovación:</span>
+                    <span class="detail-label">Next Renewal:</span>
                     <span class="detail-value">{{ transaction_data.current_period_end.strftime('%d/%m/%Y') }}</span>
                 </div>
                 {% endif %}
                 
                 {% if transaction_data.invoice_url %}
                 <div class="detail-row">
-                    <span class="detail-label">Factura:</span>
+                    <span class="detail-label">Invoice:</span>
                     <span class="detail-value">
-                        <a href="{{ transaction_data.invoice_url }}" target="_blank" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
-                            Descargar Factura
-                        </a>
+                        <a class="invoice-link" href="{{ transaction_data.invoice_url }}" target="_blank">Download Invoice</a>
                     </span>
                 </div>
                 {% endif %}
             </div>
             {% endif %}
             
-            <!-- ESTADO DE LA CUENTA -->
+            <!-- ACCOUNT STATUS -->
             <div class="transaction-details">
-                <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
-                    Estado de la Cuenta
-                </h3>
+                <h3 class="section-title">Account Status</h3>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Email del Titular:</span>
+                    <span class="detail-label">Account Email:</span>
                     <span class="detail-value">{{ user.email }}</span>
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Estado de Suscripción:</span>
+                    <span class="detail-label">Subscription Status:</span>
                     <span class="detail-value">
                         {% if user_status.billing_status == 'active' %}
-                            <span class="status-badge status-confirmed">Activa</span>
+                            <span class="status-badge status-confirmed">Active</span>
                         {% elif user_status.billing_status == 'trialing' %}
-                            <span class="status-badge status-processing">Prueba</span>
+                            <span class="status-badge status-processing">Trial</span>
                         {% elif user_status.billing_status == 'past_due' %}
-                            <span class="status-badge status-failed">Pago Pendiente</span>
+                            <span class="status-badge status-failed">Past Due</span>
                         {% else %}
                             <span class="status-badge status-processing">{{ user_status.billing_status|title }}</span>
                         {% endif %}
@@ -122,42 +119,35 @@
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Plan Actual:</span>
+                    <span class="detail-label">Current Plan:</span>
                     <span class="detail-value">{{ user_status.plan|title }}</span>
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Quota Disponible:</span>
+                    <span class="detail-label">Available Quota:</span>
                     <span class="detail-value">{{ user_status.quota_limit - user_status.quota_used }}/{{ user_status.quota_limit }} RU</span>
                 </div>
             </div>
 
             <!-- BOTONES DE ACCIÓN -->
-            <div class="action-buttons">
-                <a href="/billing/portal" class="btn-secondary btn-no-underline">Gestionar Facturación</a>
-                <a href="/" class="btn-primary btn-no-underline">Ir a la App</a>
+            <div class="action-buttons" style="justify-content:center;">
+                <a href="/billing/portal" class="btn-secondary btn-no-underline">Manage Billing</a>
+                <a href="/" class="btn-primary btn-no-underline">Go to the App</a>
                 {% if payment_status == 'webhook_pending' %}
-                <button onclick="location.reload()" class="btn-secondary">Actualizar Estado</button>
+                <button onclick="location.reload()" class="btn-secondary">Refresh Status</button>
                 {% endif %}
                 {% if payment_status == 'failed' %}
-                <a href="/billing/portal" class="btn-primary btn-no-underline">Reintentar Pago</a>
+                <a href="/billing/portal" class="btn-primary btn-no-underline">Retry Payment</a>
                 {% endif %}
             </div>
 
-            <!-- SOPORTE Y CONFIANZA -->
+            <!-- SUPPORT -->
             <div class="support-section">
-                <h4 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-sm) 0; font-weight: 600;">
-                    ¿Necesitas ayuda?
-                </h4>
-                <p style="color: var(--manual-ai-gray-700); margin: 0;">
-                    Contacta con nuestro equipo en 
-                    <a href="mailto:hola@clicandseo.com" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
-                        hola@clicandseo.com
-                    </a>
+                <h4 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-sm) 0; font-weight: 600;">Need help?</h4>
+                <p style="color: var(--manual-ai-gray-700); margin: 0;">Contact our team at 
+                    <a href="mailto:hola@clicandseo.com" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">hola@clicandseo.com</a>
                 </p>
-                <p style="color: var(--manual-ai-gray-600); font-size: 0.875rem; margin: var(--manual-ai-spacing-xs) 0 0 0;">
-                    Respondemos en menos de 24 horas
-                </p>
+                <p style="color: var(--manual-ai-gray-600); font-size: 0.875rem; margin: var(--manual-ai-spacing-xs) 0 0 0;">We reply in under 24 hours</p>
             </div>
 
             

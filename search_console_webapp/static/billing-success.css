@@ -39,9 +39,29 @@ body.billing-success-body {
   padding: var(--bs-space-xl);
 }
 
+.transaction-details + .transaction-details { margin-top: var(--bs-space-lg); }
+
 .billing-header {
   text-align: center; /* centrar título */
   margin-bottom: var(--bs-space-xl);
+}
+
+.success-check {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto var(--bs-space-md);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #E7F9F1 0%, #D8F9B8 100%);
+  border: 3px solid var(--bs-success);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25), 0 0 0 6px rgba(16, 185, 129, 0.12);
+}
+
+.success-check svg {
+  width: 42px;
+  height: 42px;
+  fill: #0f9f6b;
 }
 
 .billing-title {
@@ -97,6 +117,9 @@ body.billing-success-body {
   font-weight: 600;
 }
 
+.btn-primary:hover, .btn-primary-bs:hover { filter: brightness(1.05); box-shadow: var(--bs-shadow-sm); }
+.btn-secondary:hover, .btn-secondary-bs:hover { box-shadow: var(--bs-shadow-sm); }
+
 .btn-secondary-bs {
   background: #fff;
   color: var(--bs-gray-700);
@@ -115,5 +138,40 @@ body.billing-success-body {
 
 /* Compatibilidad con clases previas de Manual AI (aplicar sombra y fondo) */
 .transaction-details { background: #fff; box-shadow: var(--bs-shadow-sm); border: 1px solid var(--bs-gray-200); border-radius: var(--bs-radius); }
+
+.section-title {
+  color: var(--bs-primary);
+  margin: 0 0 var(--bs-space-md) 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.status-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.status-confirmed { background: rgba(16,185,129,.12); color: #0f9f6b; }
+.status-processing { background: rgba(245,158,11,.12); color: #B45309; }
+.status-failed { background: rgba(239,68,68,.12); color: #B91C1C; }
+
+/* Invoice link styles */
+.invoice-link {
+  color: var(--bs-primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.invoice-link:focus {
+  outline: 3px solid rgba(79,70,229,.25);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.invoice-link:hover { color: #0f9f6b; }
 
 
