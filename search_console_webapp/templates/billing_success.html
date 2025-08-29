@@ -3,111 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Success - ClicandSEO</title>
+    <title>Pago Completado - ClicandSEO</title>
+    
+    <!-- SEO/Privacidad según feedback experto -->
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="description" content="Confirmación de pago - ClicandSEO">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
     <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
     
-    <!-- Reutilizar CSS de Manual AI para consistencia total -->
+    <!-- Consistencia visual con Manual AI Overview -->
     <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+    <!-- Estilos propios de Billing Success -->
+    <link href="{{ url_for('static', filename='billing-success.css') }}" rel="stylesheet">
+    
 </head>
-<body>
-    <!-- Usar estructura de Manual AI -->
-    <div class="main-container">
-        <div class="content-wrapper" style="max-width: 700px; margin: 0 auto; padding: var(--manual-ai-spacing-2xl);">
+<body class="billing-success-body hide-icons">
+    <div class="billing-success-container">
+        <div class="billing-card">
             
-            <!-- Success Message con estilos Manual AI -->
-            <div class="success-container" style="text-align: center; padding: var(--manual-ai-spacing-2xl);">
+            <!-- HEADER DE CONFIRMACIÓN -->
+            <div class="billing-header">
+                {% if payment_status == 'confirmed' %}
+                    <h1 class="billing-title">Pago Completado</h1>
+                {% elif payment_status == 'webhook_pending' %}
+                    <h1 class="billing-title">Pago Realizado</h1>
+                {% elif payment_status == 'failed' %}
+                    <h1 class="billing-title">Pago Fallido</h1>
+                {% else %}
+                    <h1 class="billing-title">Procesando Pago</h1>
+                {% endif %}
+            </div>
+
+            {% if transaction_data and (transaction_data.transaction_id or transaction_data.plan or transaction_data.amount_total) %}
+            <!-- RESUMEN DE LA OPERACIÓN -->
+            <div class="transaction-details">
+                <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
+                    Resumen de la Operación
+                </h3>
                 
-                <!-- Header -->
-                <div class="success-header" style="margin-bottom: var(--manual-ai-spacing-2xl);">
-                    <div style="font-size: 4rem; margin-bottom: var(--manual-ai-spacing-lg);">🎉</div>
-                    <h1 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 2.5rem; font-weight: 600;">
-                        Payment Successful!
-                    </h1>
-                    
-                    {% if checkout_info %}
-                    <p style="color: var(--manual-ai-success); font-size: 1.25rem; font-weight: 500; margin: var(--manual-ai-spacing-md) 0;">
-                        Your {{ checkout_info.plan|title }} plan is being activated.
-                    </p>
-                    {% endif %}
-                    
-                    <!-- Status del plan - se actualiza via JavaScript -->
-                    <div id="activation-status" style="margin-top: var(--manual-ai-spacing-md);">
-                        <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
-                            🔄 Verifying plan activation...
-                        </p>
-                    </div>
+                {% if transaction_data.transaction_id %}
+                <div class="detail-row">
+                    <span class="detail-label">Nº de Pedido:</span>
+                    <span class="detail-value">{{ transaction_data.transaction_id[-8:] }}</span>
                 </div>
+                {% endif %}
                 
-                <!-- Success Details -->
-                <div class="success-details" style="background: var(--manual-ai-gray-50); border: var(--manual-ai-border-width) solid var(--manual-ai-success); border-left: 4px solid var(--manual-ai-success); padding: var(--manual-ai-spacing-xl); border-radius: var(--manual-ai-border-radius-lg); margin-bottom: var(--manual-ai-spacing-2xl);">
-                    <div style="color: var(--manual-ai-gray-700); font-size: 1.1rem; line-height: 1.6;">
-                        <p style="margin: var(--manual-ai-spacing-sm) 0;">
-                            ✅ You'll receive a confirmation email shortly.
-                        </p>
-                        <p style="margin: var(--manual-ai-spacing-sm) 0;">
-                            ⚡ Your new features will be available within a few minutes.
-                        </p>
-                        <p style="margin: var(--manual-ai-spacing-sm) 0; font-weight: 500;">
-                            🚀 You can now access AI Overview and Manual AI Analysis!
-                        </p>
-                    </div>
+                {% if transaction_data.created_at %}
+                <div class="detail-row">
+                    <span class="detail-label">Fecha y Hora:</span>
+                    <span class="detail-value">{{ transaction_data.created_at.strftime('%d/%m/%Y %H:%M') }} (CET)</span>
                 </div>
+                {% endif %}
                 
-                <!-- Action Buttons usando clases Manual AI -->
-                <div class="success-actions" style="display: flex; gap: var(--manual-ai-spacing-md); justify-content: center; flex-wrap: wrap; margin-bottom: var(--manual-ai-spacing-2xl);">
-                    <a href="/" class="btn-primary">
-                        Start Using Your Plan
-                    </a>
-                    <a href="/billing" class="btn-secondary">
-                        View Billing
-                    </a>
+                {% if transaction_data.plan %}
+                <div class="detail-row">
+                    <span class="detail-label">Plan Contratado:</span>
+                    <span class="detail-value">{{ transaction_data.plan|title }} mensual</span>
                 </div>
+                {% endif %}
                 
-                <!-- Next Steps -->
-                <div class="next-steps" style="background: var(--manual-ai-gray-50); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200); padding: var(--manual-ai-spacing-lg); border-radius: var(--manual-ai-border-radius); margin-bottom: var(--manual-ai-spacing-xl);">
-                    <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
-                        💡 What's Next?
-                    </h3>
-                    <div style="color: var(--manual-ai-gray-700); font-size: 0.95rem; line-height: 1.5;">
-                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
-                            • Try the <strong>AI Overview Analysis</strong> from the main dashboard
-                        </p>
-                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
-                            • Create your first project in <strong>Manual AI Analysis</strong>
-                        </p>
-                        <p style="margin: var(--manual-ai-spacing-xs) 0;">
-                            • Monitor your quota usage in the billing section
-                        </p>
-                    </div>
+                {% if transaction_data.amount_total %}
+                <div class="detail-row">
+                    <span class="detail-label">Importe Total:</span>
+                    <span class="detail-value amount-highlight">{{ '%.2f'|format(transaction_data.amount_total/100) }} {{ transaction_data.currency }}</span>
                 </div>
+                {% endif %}
                 
-                <!-- Support -->
-                <div class="support-section" style="text-align: center;">
-                    <p style="color: var(--manual-ai-gray-600); font-size: 0.9rem; margin: 0;">
-                        Need help? Contact us at 
-                        <a href="mailto:hello@clicandseo.com" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
-                            hello@clicandseo.com
+                {% if transaction_data.current_period_end %}
+                <div class="detail-row">
+                    <span class="detail-label">Próxima Renovación:</span>
+                    <span class="detail-value">{{ transaction_data.current_period_end.strftime('%d/%m/%Y') }}</span>
+                </div>
+                {% endif %}
+                
+                {% if transaction_data.invoice_url %}
+                <div class="detail-row">
+                    <span class="detail-label">Factura:</span>
+                    <span class="detail-value">
+                        <a href="{{ transaction_data.invoice_url }}" target="_blank" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
+                            Descargar Factura
                         </a>
-                    </p>
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- ESTADO DE LA CUENTA -->
+            <div class="transaction-details">
+                <h3 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-md) 0; font-size: 1.1rem; font-weight: 600;">
+                    Estado de la Cuenta
+                </h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Email del Titular:</span>
+                    <span class="detail-value">{{ user.email }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Estado de Suscripción:</span>
+                    <span class="detail-value">
+                        {% if user_status.billing_status == 'active' %}
+                            <span class="status-badge status-confirmed">Activa</span>
+                        {% elif user_status.billing_status == 'trialing' %}
+                            <span class="status-badge status-processing">Prueba</span>
+                        {% elif user_status.billing_status == 'past_due' %}
+                            <span class="status-badge status-failed">Pago Pendiente</span>
+                        {% else %}
+                            <span class="status-badge status-processing">{{ user_status.billing_status|title }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Plan Actual:</span>
+                    <span class="detail-value">{{ user_status.plan|title }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Quota Disponible:</span>
+                    <span class="detail-value">{{ user_status.quota_limit - user_status.quota_used }}/{{ user_status.quota_limit }} RU</span>
                 </div>
             </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="action-buttons">
+                <a href="/billing/portal" class="btn-secondary btn-no-underline">Gestionar Facturación</a>
+                <a href="/" class="btn-primary btn-no-underline">Ir a la App</a>
+                {% if payment_status == 'webhook_pending' %}
+                <button onclick="location.reload()" class="btn-secondary">Actualizar Estado</button>
+                {% endif %}
+                {% if payment_status == 'failed' %}
+                <a href="/billing/portal" class="btn-primary btn-no-underline">Reintentar Pago</a>
+                {% endif %}
+            </div>
+
+            <!-- SOPORTE Y CONFIANZA -->
+            <div class="support-section">
+                <h4 style="color: var(--manual-ai-primary); margin: 0 0 var(--manual-ai-spacing-sm) 0; font-weight: 600;">
+                    ¿Necesitas ayuda?
+                </h4>
+                <p style="color: var(--manual-ai-gray-700); margin: 0;">
+                    Contacta con nuestro equipo en 
+                    <a href="mailto:hola@clicandseo.com" style="color: var(--manual-ai-primary); text-decoration: none; font-weight: 500;">
+                        hola@clicandseo.com
+                    </a>
+                </p>
+                <p style="color: var(--manual-ai-gray-600); font-size: 0.875rem; margin: var(--manual-ai-spacing-xs) 0 0 0;">
+                    Respondemos en menos de 24 horas
+                </p>
+            </div>
+
+            
         </div>
     </div>
     
-    <!-- JavaScript para verificar activación real via webhook -->
+    <!-- JavaScript mejorado para verificación inteligente -->
     <script>
-        // ✅ CRÍTICO: Verificar activación real, no confiar solo en success page
+        // ✅ VERIFICACIÓN INTELIGENTE según estado actual
         let verificationAttempts = 0;
-        const maxAttempts = 12; // 2 minutos máximo (12 x 10s)
+        const maxAttempts = 6; // 1 minuto máximo para webhooks pending
+        const paymentStatus = '{{ payment_status }}';
         
         function verifyPlanActivation() {
+            // Solo verificar si estamos en estado webhook_pending
+            if (paymentStatus !== 'webhook_pending') {
+                return;
+            }
+            
             verificationAttempts++;
             
             fetch('/api/billing/verify-activation')
@@ -115,66 +184,55 @@
                 .then(data => {
                     console.log('🔍 Verificación de activación:', data);
                     
-                    const statusDiv = document.getElementById('activation-status');
-                    
                     if (data.activated && data.plan !== 'free') {
-                        // ✅ PLAN ACTIVADO
-                        statusDiv.innerHTML = `
-                            <p style="color: var(--manual-ai-success); font-size: 1rem; font-weight: 600;">
-                                ✅ ${data.plan.toUpperCase()} plan successfully activated!
-                            </p>
-                            <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
-                                Quota: ${data.quota_limit} RU/month available
-                            </p>
-                        `;
-                        console.log('✅ Plan activado correctamente:', data.plan);
+                        // ✅ PLAN ACTIVADO - Recargar página para mostrar estado confirmado
+                        console.log('✅ Plan activado - recargando página');
+                        location.reload();
                         
                     } else if (verificationAttempts >= maxAttempts) {
-                        // ❌ TIMEOUT - Sin activación tras máximo intentos
-                        statusDiv.innerHTML = `
-                            <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
-                                ⏳ Activation is taking longer than expected
-                            </p>
-                            <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
-                                Please check your billing section or contact support if the issue persists.
-                            </p>
-                        `;
-                        console.warn('⚠️ Timeout en verificación de activación');
+                        // ❌ TIMEOUT - Mostrar botón de actualizar manual
+                        console.warn('⚠️ Timeout en verificación - mostrando botón manual');
+                        const updateButton = document.querySelector('[onclick="location.reload()"]');
+                        if (updateButton) {
+                            updateButton.style.display = 'inline-block';
+                            updateButton.textContent = '🔄 Actualizar Estado';
+                        }
                         
                     } else {
-                        // 🔄 AÚN PROCESANDO - Continuar verificando
-                        statusDiv.innerHTML = `
-                            <p style="color: var(--manual-ai-warning); font-size: 1rem; font-weight: 500;">
-                                🔄 Verifying plan activation... (${verificationAttempts}/${maxAttempts})
-                            </p>
-                        `;
+                        // 🔄 CONTINUAR VERIFICANDO
                         console.log(`🔄 Verificando... intento ${verificationAttempts}/${maxAttempts}`);
-                        
-                        // Verificar de nuevo en 10 segundos
                         setTimeout(verifyPlanActivation, 10000);
                     }
                 })
                 .catch(error => {
                     console.error('❌ Error verificando activación:', error);
-                    const statusDiv = document.getElementById('activation-status');
-                    statusDiv.innerHTML = `
-                        <p style="color: var(--manual-ai-error); font-size: 1rem; font-weight: 500;">
-                            ❌ Error verifying activation
-                        </p>
-                        <p style="color: var(--manual-ai-gray-700); font-size: 0.9rem; margin-top: var(--manual-ai-spacing-xs);">
-                            Please refresh the page or check your billing section.
-                        </p>
-                    `;
+                    // En caso de error, mostrar botón de actualización manual
+                    const updateButton = document.querySelector('[onclick="location.reload()"]');
+                    if (updateButton) {
+                        updateButton.style.display = 'inline-block';
+                    }
                 });
         }
         
-        // Iniciar verificación cuando la página carga
+        // Iniciar verificación inteligente
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎉 Success page cargada - iniciando verificación de activación');
+            console.log('🎉 Success page profesional cargada');
+            console.log('💳 Estado del pago:', paymentStatus);
             
-            // Verificar inmediatamente y luego cada 10 segundos
-            verifyPlanActivation();
+            // Solo iniciar verificación automática si estamos esperando webhook
+            if (paymentStatus === 'webhook_pending') {
+                console.log('⏳ Iniciando verificación automática de webhook');
+                setTimeout(verifyPlanActivation, 2000); // Esperar 2s inicial
+            } else {
+                console.log('✅ Estado final alcanzado - no verificación necesaria');
+            }
         });
+        
+        // Función para refresh manual
+        function refreshPaymentStatus() {
+            console.log('🔄 Refresh manual solicitado');
+            location.reload();
+        }
     </script>
 </body>
 </html>
