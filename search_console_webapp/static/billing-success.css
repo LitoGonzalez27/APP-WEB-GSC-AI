@@ -138,6 +138,7 @@ body.billing-success-body {
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.025em;
+  text-align: center;
 }
 
 .billing-subtitle {
@@ -257,15 +258,16 @@ body.billing-success-body {
 
 .btn-primary {
   background: var(--billing-primary);
-  color: white;
+  color: #D8F9B8;
   border-color: var(--billing-primary);
 }
 
 .btn-primary:hover {
-  background: var(--billing-gray-800);
+  background: #D8F9B8;
   border-color: var(--billing-gray-800);
   transform: translateY(-1px);
   box-shadow: var(--billing-shadow-md);
+  color: #161616;
 }
 
 .btn-secondary {

@@ -1119,4 +1119,209 @@ def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100):
         return []
     finally:
         if conn:
+            conn.close()
+
+# ====================================
+# 📊 SISTEMA DE TRACKING DE CONSUMO
+# ====================================
+
+def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_code=None, metadata=None):
+    """
+    Registra el consumo de RU (Recursos Únicos) de un usuario
+    
+    Args:
+        user_id (int): ID del usuario que consume RU
+        ru_consumed (int): Cantidad de RU consumidas (típicamente 1 por keyword)
+        source (str): Fuente del consumo ('ai_overview', 'manual_ai', 'serp_api')
+        keyword (str, optional): Keyword analizada
+        country_code (str, optional): Código del país
+        metadata (dict, optional): Datos adicionales del análisis
+    
+    Returns:
+        bool: True si se registró correctamente, False si hubo error
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No se pudo conectar a la base de datos para tracking")
+            return False
+            
+        cur = conn.cursor()
+        
+        # 1. Registrar evento en quota_usage_events
+        cur.execute('''
+            INSERT INTO quota_usage_events (
+                user_id, ru_consumed, source, keyword, country_code, metadata, timestamp
+            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        ''', (
+            user_id,
+            ru_consumed,
+            source,
+            keyword,
+            country_code,
+            json.dumps(metadata) if metadata else None
+        ))
+        
+        # 2. Actualizar quota_used en users
+        cur.execute('''
+            UPDATE users 
+            SET 
+                quota_used = COALESCE(quota_used, 0) + %s,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (ru_consumed, user_id))
+        
+        # 3. Verificar que el usuario fue actualizado
+        if cur.rowcount == 0:
+            logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
+            conn.rollback()
+            return False
+        
+        conn.commit()
+        
+        # Log de éxito
+        logger.info(f"✅ Quota tracking - Usuario {user_id}: +{ru_consumed} RU ({source})")
+        if keyword:
+            logger.info(f"   📝 Keyword: {keyword}")
+        if country_code:
+            logger.info(f"   🌍 País: {country_code}")
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error en track_quota_consumption: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_user_quota_usage(user_id, days=30):
+    """
+    Obtiene el uso de quota de un usuario en los últimos N días
+    
+    Args:
+        user_id (int): ID del usuario
+        days (int): Días hacia atrás para consultar (default: 30)
+    
+    Returns:
+        dict: Estadísticas de uso de quota
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {}
+            
+        cur = conn.cursor()
+        
+        # Uso total en el período
+        cur.execute('''
+            SELECT 
+                COALESCE(SUM(ru_consumed), 0) as total_ru,
+                COUNT(*) as total_events,
+                COUNT(DISTINCT source) as sources_used,
+                MAX(timestamp) as last_usage
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+        ''', (user_id, days))
+        
+        stats = cur.fetchone()
+        
+        # Uso por fuente
+        cur.execute('''
+            SELECT 
+                source,
+                COALESCE(SUM(ru_consumed), 0) as ru_consumed,
+                COUNT(*) as events_count
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+            GROUP BY source
+            ORDER BY ru_consumed DESC
+        ''', (user_id, days))
+        
+        usage_by_source = [dict(row) for row in cur.fetchall()]
+        
+        # Uso diario (últimos 7 días)
+        cur.execute('''
+            SELECT 
+                DATE(timestamp) as date,
+                COALESCE(SUM(ru_consumed), 0) as daily_ru
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '7 days'
+            GROUP BY DATE(timestamp)
+            ORDER BY date DESC
+        ''', (user_id,))
+        
+        daily_usage = [dict(row) for row in cur.fetchall()]
+        
+        return {
+            'period_days': days,
+            'total_ru': stats['total_ru'],
+            'total_events': stats['total_events'],
+            'sources_used': stats['sources_used'],
+            'last_usage': stats['last_usage'],
+            'usage_by_source': usage_by_source,
+            'daily_usage': daily_usage
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo uso de quota para usuario {user_id}: {e}")
+        return {}
+    finally:
+        if conn:
+            conn.close()
+
+def ensure_quota_table_exists():
+    """
+    Asegura que la tabla quota_usage_events existe
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cur = conn.cursor()
+        
+        # Crear tabla si no existe
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS quota_usage_events (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                ru_consumed INTEGER DEFAULT 1,
+                source VARCHAR(50),
+                keyword VARCHAR(255),
+                country_code VARCHAR(3),
+                timestamp TIMESTAMPTZ DEFAULT NOW(),
+                metadata JSONB,
+                
+                -- Constraints
+                CONSTRAINT chk_ru_consumed CHECK (ru_consumed > 0),
+                CONSTRAINT chk_source CHECK (source IN ('ai_overview', 'manual_ai', 'serp_api'))
+            )
+        ''')
+        
+        # Crear índices
+        indices = [
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_user_date ON quota_usage_events(user_id, timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_source ON quota_usage_events(source)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_timestamp ON quota_usage_events(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_user_month ON quota_usage_events(user_id, DATE_TRUNC('month', timestamp))"
+        ]
+        
+        for index_sql in indices:
+            try:
+                cur.execute(index_sql)
+            except Exception:
+                pass  # Index might already exist
+        
+        conn.commit()
+        logger.info("✅ Tabla quota_usage_events verificada/creada")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creando tabla quota_usage_events: {e}")
+        return False
+    finally:
+        if conn:
             conn.close() 

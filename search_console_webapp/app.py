@@ -1785,6 +1785,13 @@ def analyze_ai_overview_route():
     # ✅ NUEVO FASE 4.5: PAYWALL CHECK
     user = get_current_user()
     
+    # ✅ NUEVO: Asegurar que la tabla de quota existe antes del análisis
+    try:
+        from database import ensure_quota_table_exists
+        ensure_quota_table_exists()
+    except Exception as e:
+        logger.warning(f"No se pudo verificar tabla quota_usage_events: {e}")
+    
     # Paywall: Solo Basic/Premium pueden usar AI Overview
     if user.get('plan') == 'free':
         logger.warning(f"Usuario Free intentó acceder AI Overview: {user.get('email')}")
@@ -2001,6 +2008,37 @@ def analyze_ai_overview_route():
                 logger.warning("⚠️ No se pudo guardar el análisis en base de datos")
         except Exception as e:
             logger.error(f"❌ Error guardando análisis en BD: {e}")
+
+        # ✅ NUEVO: Registrar consumo de RU por cada keyword exitosamente analizada
+        if user_id and successful_analyses_overview > 0:
+            try:
+                from database import track_quota_consumption
+                
+                # Registrar consumo: 1 RU por keyword exitosamente analizada
+                keywords_processed = successful_analyses_overview
+                tracking_success = track_quota_consumption(
+                    user_id=user_id,
+                    ru_consumed=keywords_processed,
+                    source='ai_overview',
+                    keyword=f"{keywords_processed} keywords analyzed",
+                    country_code=country_req,
+                    metadata={
+                        'site_url': site_url_req,
+                        'total_keywords': total_analyzed_overview,
+                        'successful_keywords': successful_analyses_overview,
+                        'keywords_with_ai': summary_overview_stats.get('keywords_with_ai_overview', 0),
+                        'analysis_timestamp': summary_overview_stats.get('analysis_timestamp')
+                    }
+                )
+                
+                if tracking_success:
+                    logger.info(f"✅ Quota tracking exitoso - Usuario {user_id}: +{keywords_processed} RU (AI Overview)")
+                else:
+                    logger.warning(f"⚠️ No se pudo registrar consumo de quota para usuario {user_id}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error registrando consumo de quota: {e}")
+                # No fallar el análisis por problemas de tracking
 
         # ✅ NUEVO: Guardar múltiples análisis en caché por lotes
         try:
