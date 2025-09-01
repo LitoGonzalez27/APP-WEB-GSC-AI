@@ -95,13 +95,13 @@
                     <!-- Header del formulario -->
                     <div class="form-header">
                         <h3>Crear cuenta</h3>
-                        <p>Regístrate con Google para acceder a todas las funcionalidades de Clicandseo</p>
+                        <p>Regístrate con Google o con tu email y contraseña. Podrás conectar Search Console después.</p>
                     </div>
 
                     <!-- Área de notificaciones -->
                     <div id="signupNotifications" class="login-notifications" style="display: none;"></div>
 
-                    <!-- Registro con Google únicamente -->
+                    <!-- Registro con Google o Email/Contraseña -->
                     <div class="signup-form">
                         <div class="google-signup-content">
                             <button type="button" id="googleSignupBtn" class="google-login-btn">
@@ -119,6 +119,26 @@
                                 </div>
                             </button>
                             
+                        </div>
+
+                        <div class="email-login-separator">
+                            <span>o</span>
+                        </div>
+
+                        <div class="email-signup-form">
+                            <div class="form-group">
+                                <label for="signupEmail">Email</label>
+                                <input type="email" id="signupEmail" placeholder="tu@email.com" />
+                            </div>
+                            <div class="form-group">
+                                <label for="signupName">Nombre</label>
+                                <input type="text" id="signupName" placeholder="Tu nombre" />
+                            </div>
+                            <div class="form-group">
+                                <label for="signupPassword">Contraseña</label>
+                                <input type="password" id="signupPassword" placeholder="********" />
+                            </div>
+                            <button type="button" id="emailSignupBtn" class="primary-btn">Crear cuenta</button>
                         </div>
                     </div>
 
@@ -199,6 +219,32 @@
                     showNotification('Error en la redirección. Por favor, intenta de nuevo.', 'error');
                 }
             }, 10000);
+        });
+
+        // Manejar registro con email/contraseña
+        document.getElementById('emailSignupBtn').addEventListener('click', function() {
+            const email = document.getElementById('signupEmail').value.trim();
+            const name = document.getElementById('signupName').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            if (!email || !password) {
+                showNotification('Email y contraseña son obligatorios', 'warning');
+                return;
+            }
+            fetch('/auth/email/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name, password })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Cuenta creada. Redirigiendo a login...', 'success');
+                    setTimeout(() => window.location.href = '/login', 1000);
+                } else {
+                    showNotification(data.error || 'No se pudo crear la cuenta', 'error');
+                }
+            })
+            .catch(() => showNotification('Error de red', 'error'));
         });
 
         // Manejar notificaciones de URL

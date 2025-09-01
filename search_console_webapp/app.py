@@ -39,6 +39,7 @@ from auth import (
     get_user_credentials,
     get_current_user
 )
+from database import get_connection_for_site
 
 # --- NUEVO: Detector de dispositivos móviles ---
 from mobile_detector import (
@@ -324,12 +325,19 @@ def fetch_validated_sites():
         return []
 
 @app.route('/get-properties')
-@auth_required  # NUEVO: Requiere autenticación
+@auth_required
 def get_properties():
-    """Obtiene propiedades de Search Console del usuario autenticado"""
-    sites = fetch_validated_sites()
-    props = [{'siteUrl': s['siteUrl']} for s in sites if s.get('siteUrl')]
-    return jsonify({'properties': props})
+    """Compat: Obtiene propiedades desde el agregado persistido"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        # Delegar al nuevo endpoint interno (sin redirección)
+        from auth import list_aggregated_properties as _list_props
+        return _list_props()
+    except Exception as e:
+        logger.error(f"Error en get-properties (compat): {e}")
+        return jsonify({'error': 'Error obteniendo propiedades'}), 500
 
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
@@ -509,8 +517,17 @@ def get_data():
             country_name = country_config['name'] if country_config else selected_country
             logger.info(f"[GSC REQUEST] País filtrado: {country_name} ({selected_country})")
 
-        # Obtener servicio autenticado
-        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        # Obtener servicio autenticado (seleccionando conexión por site_url si está mapeada)
+        gsc_service = None
+        try:
+            mapping_conn = get_connection_for_site(get_current_user()['id'], site_url_sc)
+            if mapping_conn:
+                from auth import get_authenticated_service_for_connection
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+        except Exception as e:
+            logger.warning(f"No se pudo resolver conexión por site_url: {e}")
+        if not gsc_service:
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
         if not gsc_service:
             error_msg = 'Error de autenticación con Google Search Console.'
             if is_mobile:
@@ -1785,6 +1802,13 @@ def analyze_ai_overview_route():
     # ✅ NUEVO FASE 4.5: PAYWALL CHECK
     user = get_current_user()
     
+    # ✅ NUEVO: Asegurar que la tabla de quota existe antes del análisis
+    try:
+        from database import ensure_quota_table_exists
+        ensure_quota_table_exists()
+    except Exception as e:
+        logger.warning(f"No se pudo verificar tabla quota_usage_events: {e}")
+    
     # Paywall: Solo Basic/Premium pueden usar AI Overview
     if user.get('plan') == 'free':
         logger.warning(f"Usuario Free intentó acceder AI Overview: {user.get('email')}")
@@ -2001,6 +2025,37 @@ def analyze_ai_overview_route():
                 logger.warning("⚠️ No se pudo guardar el análisis en base de datos")
         except Exception as e:
             logger.error(f"❌ Error guardando análisis en BD: {e}")
+
+        # ✅ NUEVO: Registrar consumo de RU por cada keyword exitosamente analizada
+        if user_id and successful_analyses_overview > 0:
+            try:
+                from database import track_quota_consumption
+                
+                # Registrar consumo: 1 RU por keyword exitosamente analizada
+                keywords_processed = successful_analyses_overview
+                tracking_success = track_quota_consumption(
+                    user_id=user_id,
+                    ru_consumed=keywords_processed,
+                    source='ai_overview',
+                    keyword=f"{keywords_processed} keywords analyzed",
+                    country_code=country_req,
+                    metadata={
+                        'site_url': site_url_req,
+                        'total_keywords': total_analyzed_overview,
+                        'successful_keywords': successful_analyses_overview,
+                        'keywords_with_ai': summary_overview_stats.get('keywords_with_ai_overview', 0),
+                        'analysis_timestamp': summary_overview_stats.get('analysis_timestamp')
+                    }
+                )
+                
+                if tracking_success:
+                    logger.info(f"✅ Quota tracking exitoso - Usuario {user_id}: +{keywords_processed} RU (AI Overview)")
+                else:
+                    logger.warning(f"⚠️ No se pudo registrar consumo de quota para usuario {user_id}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error registrando consumo de quota: {e}")
+                # No fallar el análisis por problemas de tracking
 
         # ✅ NUEVO: Guardar múltiples análisis en caché por lotes
         try:

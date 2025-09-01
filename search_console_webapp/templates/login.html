@@ -101,10 +101,10 @@
                     <!-- Área de notificaciones -->
                     <div id="loginNotifications" class="login-notifications" style="display: none;"></div>
 
-                    <!-- Login con Google únicamente -->
+                    <!-- Login con Google o Email/Contraseña -->
                     <div class="login-form">
                         <div class="google-login-content">
-                            
+
                             <button type="button" id="googleLoginBtn" class="google-login-btn">
                                 <div class="google-icon">
                                     <svg width="20" height="20" viewBox="0 0 24 24">
@@ -126,6 +126,22 @@
                                     Tu información está segura. Solo accedemos a tus datos de Search Console.
                                 </p>
                             </div>
+                        </div>
+
+                        <div class="email-login-separator">
+                            <span>o</span>
+                        </div>
+
+                        <div class="email-login-form">
+                            <div class="form-group">
+                                <label for="emailInput">Email</label>
+                                <input type="email" id="emailInput" placeholder="tu@email.com" />
+                            </div>
+                            <div class="form-group">
+                                <label for="passwordInput">Contraseña</label>
+                                <input type="password" id="passwordInput" placeholder="********" />
+                            </div>
+                            <button type="button" id="emailLoginBtn" class="primary-btn">Iniciar sesión</button>
                         </div>
                     </div>
 
@@ -327,6 +343,31 @@
                     showNotification('Error en la redirección. Por favor, intenta de nuevo.', 'error');
                 }
             }, 10000);
+        });
+
+        // Manejar login con email/contraseña
+        document.getElementById('emailLoginBtn').addEventListener('click', function() {
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            if (!email || !password) {
+                showNotification('Introduce email y contraseña', 'warning');
+                return;
+            }
+            fetch('/auth/email/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Inicio de sesión correcto. Redirigiendo...', 'success');
+                    window.location.href = data.next || '/dashboard';
+                } else {
+                    showNotification(data.error || 'Credenciales inválidas', 'error');
+                }
+            })
+            .catch(() => showNotification('Error de red', 'error'));
         });
 
         // Inicialización

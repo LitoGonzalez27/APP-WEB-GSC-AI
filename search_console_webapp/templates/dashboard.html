@@ -211,7 +211,7 @@
                             <div class="status-item">
                                 <i class="fas fa-link"></i>
                                 <span>Connection: 
-                                    <strong class="status-connected">Connected</strong>
+                                    <strong id="gscConnectionStatus" class="status-disconnected">Not connected</strong>
                                 </span>
                             </div>
                             <div class="status-item">
@@ -220,10 +220,34 @@
                                     <strong id="propertiesCount">Loading...</strong>
                                 </span>
                             </div>
+                            <div class="status-item">
+                                <i class="fas fa-user-circle"></i>
+                                <span>Accounts: 
+                                    <strong id="connectionsCount">0</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-features" style="margin-top: 10px;">
+                            <div class="feature-item">
+                                <i class="fas fa-layer-group"></i>
+                                <span>Connect multiple Google accounts</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-database"></i>
+                                <span>We aggregate properties across all accounts</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Read-only access to Search Console</span>
+                            </div>
                         </div>
                     </div>
                     <div class="card-footer">
-                        <!-- Botón de actualizar propiedades eliminado - se actualiza automáticamente -->
+                        <button class="btn btn-primary" id="connectGoogleBtn">
+                            <i class="fas fa-link"></i>
+                            Connect Google
+                        </button>
                     </div>
                 </div>
 
@@ -303,10 +327,27 @@
                 const data = await response.json();
                 
                 const countElement = document.getElementById('propertiesCount');
-                if (data.properties && data.properties.length > 0) {
-                    countElement.textContent = data.properties.length;
+                const props = Array.isArray(data.properties) ? data.properties : [];
+                countElement.textContent = props.length > 0 ? props.length : 'Ninguna';
+
+                // Calcular nº de cuentas distintas por email
+                const emails = new Set((props || []).map(p => p.googleEmail).filter(Boolean));
+                const connCountEl = document.getElementById('connectionsCount');
+                if (connCountEl) connCountEl.textContent = emails.size;
+
+                // Actualizar estado de conexión y texto del botón
+                const statusEl = document.getElementById('gscConnectionStatus');
+                const btn = document.getElementById('connectGoogleBtn');
+                if (emails.size > 0) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.classList.remove('status-disconnected');
+                    statusEl.classList.add('status-connected');
+                    if (btn) btn.innerHTML = '<i class="fas fa-link"></i> Connect another account';
                 } else {
-                    countElement.textContent = 'Ninguna';
+                    statusEl.textContent = 'Not connected';
+                    statusEl.classList.add('status-disconnected');
+                    statusEl.classList.remove('status-connected');
+                    if (btn) btn.innerHTML = '<i class="fas fa-link"></i> Connect Google';
                 }
             } catch (error) {
                 console.error('Error cargando propiedades:', error);
@@ -368,6 +409,14 @@
 
             // Cargar propiedades al iniciar
             loadProperties();
+
+            // Conectar Google al hacer clic
+            const connectBtn = document.getElementById('connectGoogleBtn');
+            if (connectBtn) {
+                connectBtn.addEventListener('click', function(){
+                    window.location.href = '/connections/google/start';
+                });
+            }
         });
     </script>
 
@@ -584,6 +633,10 @@
 
         .status-connected {
             color: var(--dashboard-success);
+        }
+
+        .status-disconnected {
+            color: var(--dashboard-error);
         }
 
         .card-footer {

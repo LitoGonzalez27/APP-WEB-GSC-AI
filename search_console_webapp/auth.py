@@ -9,6 +9,7 @@ from flask import session, redirect, request, jsonify, url_for, flash, render_te
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
 import logging
 from dotenv import load_dotenv
 
@@ -31,7 +32,14 @@ from database import (
     get_user_activity_log,
     get_detailed_user_stats,
     migrate_user_timestamps,
-    ensure_sample_data
+    ensure_sample_data,
+    # NUEVO: funciones para conexiones OAuth y GSC
+    create_or_update_oauth_connection,
+    get_oauth_connections_for_user,
+    get_oauth_connection_by_id,
+    update_oauth_connection_tokens,
+    upsert_gsc_properties_for_connection,
+    list_gsc_properties_for_user
 )
 
 # Carga las variables de entorno desde el .env
@@ -425,12 +433,86 @@ def refresh_credentials_if_needed(credentials):
         logger.error(f"Error refrescando credenciales: {e}")
         return None
 
+def _get_fernet():
+    try:
+        from cryptography.fernet import Fernet
+        key = os.getenv('TOKEN_ENCRYPTION_KEY', '').strip()
+        if not key:
+            return None
+        return Fernet(key)
+    except Exception:
+        return None
+
+def _decrypt_token(enc: str) -> str:
+    if not enc:
+        return enc
+    f = _get_fernet()
+    if not f:
+        return enc
+    try:
+        return f.decrypt(enc.encode('utf-8')).decode('utf-8')
+    except Exception:
+        return enc
+
 def setup_auth_routes(app):
     """Configura todas las rutas de autenticación"""
     
     # Inicializar base de datos
     init_database()
     migrate_user_timestamps() # Ejecutar la migración de timestamps
+
+    # ================================
+    # NUEVO: Flujo de vinculación Google (separado del login)
+    # ================================
+
+    @app.route('/connections/google/start')
+    @auth_required
+    def start_google_link():
+        """Inicia el flujo OAuth para vincular una cuenta de Google adicional"""
+        try:
+            flow = create_flow()
+            if not flow:
+                return jsonify({'error': 'OAuth configuration error'}), 500
+
+            session['state'] = secrets.token_urlsafe(32)
+            session['oauth_action'] = 'link'
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                state=session['state'],
+                prompt='consent'
+            )
+            return redirect(authorization_url)
+        except Exception as e:
+            logger.error(f"Error iniciando link de Google: {e}")
+            return jsonify({'error': 'Failed to start Google linking'}), 500
+
+    @app.route('/gsc/properties')
+    @auth_required
+    def list_aggregated_properties():
+        """Lista propiedades de Search Console agregadas de todas las conexiones del usuario"""
+        try:
+            user = get_current_user()
+            if not user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+
+            # Devolver las que tenemos en base de datos
+            props = list_gsc_properties_for_user(user['id'])
+            return jsonify({
+                'properties': [
+                    {
+                        'id': p['id'],
+                        'siteUrl': p['site_url'],
+                        'connectionId': p['connection_id'],
+                        'googleEmail': p['google_email'],
+                        'googleAccountId': p['google_account_id'],
+                        'permissionLevel': p.get('permission_level')
+                    } for p in props
+                ]
+            })
+        except Exception as e:
+            logger.error(f"Error listando propiedades agregadas: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
 
     @app.route('/login')
     def login_page():
@@ -496,6 +578,61 @@ def setup_auth_routes(app):
         
         return render_template('signup.html')
 
+    # ================================
+    # NUEVO: Email/Password signup & login
+    # ================================
+
+    @app.route('/auth/email/signup', methods=['POST'])
+    def email_signup_route():
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            name = (data.get('name') or '').strip() or email.split('@')[0]
+            password = data.get('password')
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            if get_user_by_email(email):
+                return jsonify({'error': 'El email ya está registrado'}), 400
+
+            new_user = create_user(email=email, name=name, password=password, auto_activate=True)
+            if not new_user:
+                return jsonify({'error': 'No se pudo crear el usuario'}), 500
+
+            # Mantener usuario sin GSC hasta que conecte
+            return jsonify({'success': True, 'message': 'Cuenta creada. Ahora inicia sesión.', 'user': {
+                'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
+            }})
+        except Exception as e:
+            logger.error(f"Error en email signup: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/auth/email/login', methods=['POST'])
+    def email_login_route():
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            password = data.get('password')
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            user = authenticate_user(email, password)
+            if not user:
+                return jsonify({'error': 'Credenciales inválidas'}), 401
+            if not user['is_active']:
+                return jsonify({'error': 'Cuenta suspendida'}), 403
+
+            session['user_id'] = user['id']
+            session['user_email'] = user['email']
+            session['user_name'] = user['name']
+            update_last_activity()
+
+            next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+            return jsonify({'success': True, 'next': next_url})
+        except Exception as e:
+            logger.error(f"Error en email login: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
 
 
 
@@ -514,7 +651,8 @@ def setup_auth_routes(app):
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state']
+                state=session['state'],
+                prompt='consent'
             )
             return redirect(authorization_url)
         except Exception as e:
@@ -535,7 +673,8 @@ def setup_auth_routes(app):
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state']
+                state=session['state'],
+                prompt='consent'
             )
             return redirect(authorization_url)
         except Exception as e:
@@ -581,7 +720,7 @@ def setup_auth_routes(app):
             if not existing_user:
                 existing_user = get_user_by_email(user_info['email'])
             
-            # ✅ DETERMINAR ACCIÓN: registro vs login
+            # ✅ DETERMINAR ACCIÓN: registro vs login vs link
             oauth_action = session.pop('oauth_action', 'login')  # Por defecto es login
             
             if oauth_action == 'signup':
@@ -637,6 +776,44 @@ def setup_auth_routes(app):
                     logger.error(f"Error en registro con Google: {e}")
                     return redirect('/signup?auth_error=registration_failed')
             
+            elif oauth_action == 'link':
+                # ===============================================
+                # FLUJO DE VINCULACIÓN: Guardar conexión para usuario autenticado
+                # ===============================================
+                current_user = get_current_user()
+                if not current_user:
+                    session.pop('temp_credentials', None)
+                    return redirect('/login?auth_error=auth_required')
+
+                # Crear/actualizar conexión persistida
+                connection = create_or_update_oauth_connection(
+                    user_id=current_user['id'],
+                    google_account_id=user_info['id'],
+                    google_email=user_info['email'],
+                    creds=session.get('temp_credentials', {})
+                )
+
+                # Poblar propiedades del usuario desde esta conexión
+                try:
+                    temp_creds_dict = session.get('temp_credentials', {})
+                    temp_credentials = Credentials(
+                        token=temp_creds_dict.get('token'),
+                        refresh_token=temp_creds_dict.get('refresh_token'),
+                        token_uri=temp_creds_dict.get('token_uri'),
+                        client_id=temp_creds_dict.get('client_id'),
+                        client_secret=temp_creds_dict.get('client_secret'),
+                        scopes=temp_creds_dict.get('scopes')
+                    )
+                    sc_service = build('searchconsole', 'v1', credentials=temp_credentials)
+                    sites_resp = sc_service.sites().list().execute()
+                    site_entries = sites_resp.get('siteEntry', []) if sites_resp else []
+                    if connection:
+                        upsert_gsc_properties_for_connection(current_user['id'], connection['id'], site_entries)
+                except Exception as e:
+                    logger.warning(f"No se pudieron sincronizar propiedades GSC en link: {e}")
+
+                session.pop('temp_credentials', None)
+                return redirect('/dashboard?link_success=true')
             else:
                 # ===============================================
                 # FLUJO DE LOGIN: Solo permitir si ya existe
@@ -677,6 +854,17 @@ def setup_auth_routes(app):
                 update_last_activity()
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
+
+                # ✅ NUEVO: Crear/actualizar conexión persistida en login para migración suave
+                try:
+                    create_or_update_oauth_connection(
+                        user_id=existing_user['id'],
+                        google_account_id=user_info['id'],
+                        google_email=user_info['email'],
+                        creds=session.get('credentials', {})
+                    )
+                except Exception as e:
+                    logger.warning(f"No se pudo crear conexión persistida en login: {e}")
                 
                 # ✅ NUEVO: Verificar si hay plan para checkout automático
                 signup_plan = session.pop('signup_plan', None)
@@ -1367,5 +1555,41 @@ def get_authenticated_service(service_name, version):
         return build(service_name, version, credentials=credentials)
     except Exception as e:
         logger.error(f"Error obteniendo servicio autenticado: {e}")
+        return None
+
+def get_authenticated_service_for_connection(connection, service_name, version):
+    """Construye un servicio autenticado usando una conexión persistida (oauth_connections)."""
+    if not connection:
+        return None
+    try:
+        # Construir credenciales con refresh token (descifrado si aplica)
+        refresh_token_enc = connection.get('refresh_token_encrypted')
+        refresh_token = _decrypt_token(refresh_token_enc)
+
+        creds = Credentials(
+            token=connection.get('access_token'),
+            refresh_token=refresh_token,
+            token_uri=connection.get('token_uri'),
+            client_id=connection.get('client_id'),
+            client_secret=connection.get('client_secret'),
+            scopes=json.loads(connection['scopes']) if connection.get('scopes') and connection['scopes'].startswith('[') else connection.get('scopes')
+        )
+
+        # Refrescar si es necesario para garantizar validez
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            try:
+                update_oauth_connection_tokens(
+                    connection_id=connection['id'],
+                    token=creds.token,
+                    refresh_token=creds.refresh_token,
+                    expires_at=None
+                )
+            except Exception as e:
+                logger.warning(f"No se pudieron actualizar tokens en BD: {e}")
+
+        return build(service_name, version, credentials=creds)
+    except Exception as e:
+        logger.error(f"Error construyendo servicio por conexión: {e}")
         return None
 
