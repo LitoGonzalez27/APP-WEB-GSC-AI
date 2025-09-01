@@ -109,7 +109,19 @@ def get_top_country_for_site(site_url):
     para usar como geolocalización en SERP API cuando no se especifica país.
     """
     try:
-        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        # Intentar usar la conexión asociada a la propiedad
+        gsc_service = None
+        try:
+            user = get_current_user()
+            mapping_conn = get_connection_for_site(user['id'], site_url) if user else None
+            if mapping_conn:
+                from auth import get_authenticated_service_for_connection
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+        except Exception as _e_top_map:
+            logger.warning(f"No se pudo resolver conexión por site_url en get_top_country_for_site: {_e_top_map}")
+
+        if not gsc_service:
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
         if not gsc_service:
             logger.warning("No se pudo obtener servicio autenticado para determinar país principal")
             return 'esp'  # fallback
@@ -2131,9 +2143,21 @@ def get_available_countries():
     if not site_url:
         return jsonify({'error': 'site_url es requerido'}), 400
     
-    gsc_service = get_authenticated_service('searchconsole', 'v1')
+    # Resolver servicio: preferir conexión asociada a la propiedad
+    gsc_service = None
+    try:
+        user = get_current_user()
+        mapping_conn = get_connection_for_site(user['id'], site_url) if user else None
+        if mapping_conn:
+            from auth import get_authenticated_service_for_connection
+            gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+    except Exception as e:
+        logger.warning(f"No se pudo resolver conexión por site_url en get_available_countries: {e}")
+
     if not gsc_service:
-        return jsonify({'error': 'Error de autenticación'}), 401
+        gsc_service = get_authenticated_service('searchconsole', 'v1')
+    if not gsc_service:
+        return jsonify({'error': 'Error de autenticación', 'auth_required': True}), 401
     
     try:
         end_date = pd.Timestamp.now()
