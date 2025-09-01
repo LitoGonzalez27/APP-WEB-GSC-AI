@@ -143,6 +143,14 @@
                         <i class="fas fa-info-circle"></i>
                         Personal Information
                     </button>
+                    <button class="tab-button" data-tab="connections">
+                        <i class="fas fa-plug"></i>
+                        Connections
+                    </button>
+                    <button class="tab-button" data-tab="billing">
+                        <i class="fas fa-credit-card"></i>
+                        Billing
+                    </button>
                     <button class="tab-button" data-tab="security">
                         <i class="fas fa-shield-alt"></i>
                         Security
@@ -221,6 +229,87 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Uso y plan -->
+                            <div class="info-grid" style="margin-top:1.5rem;">
+                                <div class="info-item">
+                                    <label>Current Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Quota Usage</label>
+                                    <div class="info-value">
+                                        {{ user.get('quota_used',0) }}/{{ user.get('quota_limit',0) }} RU
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <a href="/billing/portal" class="btn btn-outline">
+                                    <i class="fas fa-credit-card"></i>
+                                    Manage subscription
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de conexiones -->
+                <div id="connectionsTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-plug"></i>
+                                Google Search Console Connections
+                            </h3>
+                            <p>Connect multiple Google accounts and manage their properties</p>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom:1rem;">
+                                <a href="/connections/google/start" class="btn btn-primary">
+                                    <i class="fas fa-link"></i>
+                                    Connect new Google account
+                                </a>
+                            </div>
+                            <div id="connectionsList">Loading connections...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de billing -->
+                <div id="billingTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fas fa-credit-card"></i>
+                                Billing
+                            </h3>
+                            <p>Manage your plan, invoices and payment methods</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Status</label>
+                                    <div class="info-value">{{ user.get('billing_status','inactive')|replace('_',' ')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Quota</label>
+                                    <div class="info-value">{{ user.get('quota_used',0) }}/{{ user.get('quota_limit',0) }} RU</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                                <a href="/billing" class="btn btn-outline">
+                                    <i class="fas fa-receipt"></i>
+                                    Open billing page
+                                </a>
+                                <a href="/billing/portal" class="btn btn-primary">
+                                    <i class="fas fa-cog"></i>
+                                    Manage subscription
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -638,6 +727,40 @@
             }
         }
 
+        async function loadConnections() {
+            const container = document.getElementById('connectionsList');
+            if (!container) return;
+            try {
+                const resp = await fetch('/gsc/properties');
+                const data = await resp.json();
+                const props = Array.isArray(data.properties) ? data.properties : [];
+                if (props.length === 0) {
+                    container.innerHTML = '<div class="security-notice">No connections yet. Connect your first Google account.</div>';
+                    return;
+                }
+                // Agrupar por email
+                const byEmail = {};
+                for (const p of props) {
+                    const email = p.googleEmail || 'Other accounts';
+                    if (!byEmail[email]) byEmail[email] = [];
+                    byEmail[email].push(p);
+                }
+                let html = '';
+                Object.keys(byEmail).sort().forEach(email => {
+                    const items = byEmail[email].sort((a,b)=>a.siteUrl.localeCompare(b.siteUrl));
+                    html += `<div class="security-section"><h4 style="margin:0 0 .5rem 0;"><i class=\"fab fa-google\"></i> ${email} (${items.length})</h4>`;
+                    html += '<ul style="margin:0; padding-left:1rem;">';
+                    items.forEach(it => {
+                        html += `<li style="margin:.25rem 0; color:#374151;">${it.siteUrl}</li>`;
+                    });
+                    html += '</ul></div>';
+                });
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="security-notice">Error loading connections</div>';
+            }
+        }
+
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Pestañas
@@ -679,6 +802,13 @@
                     }
                 });
             });
+            // Cargar conexiones cuando se abra la pestaña
+            document.querySelector('[data-tab="connections"]').addEventListener('click', loadConnections);
+            // Pre-carga opcional si llegas con ?tab=connections
+            if (window.location.search.includes('tab=connections')) {
+                switchTab('connections');
+                loadConnections();
+            }
         });
     </script>
 
