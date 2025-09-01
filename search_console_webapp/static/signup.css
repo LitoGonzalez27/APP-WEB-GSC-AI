@@ -139,7 +139,7 @@ Pestañas de registro - YA NO SE USAN
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #333;
+    color: #f7f7f7;
     font-size: 14px;
 }
 
@@ -420,7 +420,7 @@ Pestañas de registro - YA NO SE USAN
 }
 
 .form-group input:valid {
-    border-color: #28a745;
+    border-color: #D8F9B8;
 }
 
 .form-group input:invalid:not(:placeholder-shown) {
@@ -485,3 +485,21 @@ Pestañas de registro - YA NO SE USAN
         color: #a0aec0;
     }
 } 
+
+#emailSignupBtn{
+    padding: 10px 12px;
+    border-radius:8px;
+    background: #D8F9B8;
+    border: none;
+    cursor: pointer;
+}
+
+#emailSignupBtn:hover{
+    padding: 10px 12px;
+    border-radius:8px;
+    background: #161616;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border: 1px solid white;
+}

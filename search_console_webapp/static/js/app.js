@@ -990,7 +990,7 @@ async function loadSearchConsoleProperties() {
             window.__allProperties = data.properties.map(p => ({
                 siteUrl: p.siteUrl,
                 googleEmail: p.googleEmail || '',
-                label: p.googleEmail ? `${p.siteUrl}  —  ${p.googleEmail}` : p.siteUrl
+                label: p.siteUrl
             }));
 
             const renderOptions = (list) => {

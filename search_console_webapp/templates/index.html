@@ -306,16 +306,23 @@
               <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
             </div> 
 
-            <div class="form-row">
-              <div class="form-group form-group-half">
-                <label for="siteUrlSelect">Select Domain</label>
-                <input type="text" id="siteUrlFilter" placeholder="Search properties (domain or email)" aria-label="Search properties" style="margin-bottom:8px;" />
+            <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+              <!-- Columna 1: Filtro de propiedades -->
+              <div class="form-group">
+                <label for="siteUrlFilter">Filter properties</label>
+                <input type="text" id="siteUrlFilter" placeholder="Search properties (domain or email)" aria-label="Search properties" />
+              </div>
+
+              <!-- Columna 2: Selector de propiedad -->
+              <div class="form-group">
+                <label for="siteUrlSelect">Select property</label>
                 <select id="siteUrlSelect" name="site_url" required>
                   <option value="" disabled selected>Loading properties...</option>
                 </select>
               </div>
 
-              <div class="form-group form-group-half">
+              <!-- Columna 3: Country -->
+              <div class="form-group">
                 <label for="countrySelect">
                   Country
                   <span class="country-info-icon" id="countryInfoIcon">
