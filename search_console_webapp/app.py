@@ -39,7 +39,7 @@ from auth import (
     get_user_credentials,
     get_current_user
 )
-from database import get_connection_for_site
+from database import get_connection_for_site, list_gsc_properties_for_user
 
 # --- NUEVO: Detector de dispositivos móviles ---
 from mobile_detector import (
@@ -327,16 +327,30 @@ def fetch_validated_sites():
 @app.route('/get-properties')
 @auth_required
 def get_properties():
-    """Compat: Obtiene propiedades desde el agregado persistido"""
+    """Compat: Obtiene propiedades agregadas de todas las conexiones del usuario"""
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
-        # Delegar al nuevo endpoint interno (sin redirección)
-        from auth import list_aggregated_properties as _list_props
-        return _list_props()
+
+        props_db = list_gsc_properties_for_user(user['id']) or []
+        # Mantener contrato: lista de objetos con siteUrl (se admiten campos extra)
+        props = []
+        for p in props_db:
+            site_url = p.get('site_url') or p.get('siteUrl')
+            if not site_url:
+                continue
+            props.append({
+                'siteUrl': site_url,
+                'googleEmail': p.get('google_email'),
+                'googleAccountId': p.get('google_account_id'),
+                'connectionId': p.get('connection_id'),
+                'permissionLevel': p.get('permission_level')
+            })
+
+        return jsonify({'properties': props})
     except Exception as e:
-        logger.error(f"Error en get-properties (compat): {e}")
+        logger.error(f"Error en get-properties (compat agregado): {e}", exc_info=True)
         return jsonify({'error': 'Error obteniendo propiedades'}), 500
 
 @app.route('/mobile-not-supported')
