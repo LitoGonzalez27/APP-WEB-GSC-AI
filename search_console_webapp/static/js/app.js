@@ -986,13 +986,57 @@ async function loadSearchConsoleProperties() {
 
         const data = await response.json();
         if (data.properties && data.properties.length > 0) {
-            elems.siteUrlSelect.innerHTML = '';
-            data.properties.forEach(prop => {
-                const option = document.createElement('option');
-                option.value = prop.siteUrl;
-                option.textContent = prop.siteUrl;
-                elems.siteUrlSelect.appendChild(option);
-            });
+            // Guardar propiedades en memoria para filtrar
+            window.__allProperties = data.properties.map(p => ({
+                siteUrl: p.siteUrl,
+                googleEmail: p.googleEmail || '',
+                label: p.googleEmail ? `${p.siteUrl}  —  ${p.googleEmail}` : p.siteUrl
+            }));
+
+            const renderOptions = (list) => {
+                const select = elems.siteUrlSelect;
+                const previousValue = select.value;
+                select.innerHTML = '';
+
+                if (!list || list.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.disabled = true;
+                    opt.selected = true;
+                    opt.textContent = 'No matches';
+                    select.appendChild(opt);
+                    return;
+                }
+
+                // Agrupar por cuenta (email)
+                const groups = {};
+                for (const p of list) {
+                    const key = p.googleEmail || 'Other accounts';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(p);
+                }
+
+                const sortedEmails = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+                for (const email of sortedEmails) {
+                    const items = groups[email].slice().sort((a, b) => a.siteUrl.localeCompare(b.siteUrl));
+                    const og = document.createElement('optgroup');
+                    og.label = `${email} (${items.length})`;
+                    for (const prop of items) {
+                        const option = document.createElement('option');
+                        option.value = prop.siteUrl;
+                        option.textContent = prop.label;
+                        og.appendChild(option);
+                    }
+                    select.appendChild(og);
+                }
+
+                // Intentar restaurar la selección previa si existe todavía
+                if (previousValue && select.querySelector(`option[value="${previousValue}"]`)) {
+                    select.value = previousValue;
+                }
+            };
+
+            renderOptions(window.__allProperties);
 
             const savedSiteUrl = storage.siteUrl;
             if (savedSiteUrl && elems.siteUrlSelect.querySelector(`option[value="${savedSiteUrl}"]`)) {
@@ -1002,6 +1046,28 @@ async function loadSearchConsoleProperties() {
                 storage.siteUrl = elems.siteUrlSelect.value;
             }
             elems.siteUrlSelect.disabled = false;
+
+            // Filtro de búsqueda en vivo
+            const filterInput = document.getElementById('siteUrlFilter');
+            if (filterInput && !filterInput.__initialized) {
+                filterInput.__initialized = true;
+                filterInput.addEventListener('input', () => {
+                    const term = filterInput.value.trim().toLowerCase();
+                    if (!term) {
+                        renderOptions(window.__allProperties);
+                        return;
+                    }
+                    const filtered = window.__allProperties.filter(p =>
+                        p.siteUrl.toLowerCase().includes(term) ||
+                        (p.googleEmail && p.googleEmail.toLowerCase().includes(term))
+                    );
+                    renderOptions(filtered);
+                    // Mantener selección si existe aún
+                    if (storage.siteUrl && elems.siteUrlSelect.querySelector(`option[value="${storage.siteUrl}"]`)) {
+                        elems.siteUrlSelect.value = storage.siteUrl;
+                    }
+                });
+            }
 
             await loadAvailableCountries(elems.siteUrlSelect.value);
             propertiesLoaded = true; // ✅ NUEVO: Marcar como cargado
