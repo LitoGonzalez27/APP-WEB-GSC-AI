@@ -237,15 +237,9 @@
                                     <label>Current Plan</label>
                                     <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
                                 </div>
-                                <div class="info-item">
-                                    <label>Quota Usage</label>
-                                    <div class="info-value">
-                                        {{ user.get('quota_used',0) }}/{{ user.get('quota_limit',0) }} RU
-                                    </div>
-                                </div>
                             </div>
                             <div>
-                                <a href="/billing/portal" class="btn btn-outline">
+                                <a href="/billing/portal" class="btn btn-primary">
                                     <i class="fas fa-credit-card"></i>
                                     Manage subscription
                                 </a>
@@ -298,14 +292,18 @@
                                 </div>
                                 <div class="info-item">
                                     <label>Quota</label>
-                                    <div class="info-value">{{ user.get('quota_used',0) }}/{{ user.get('quota_limit',0) }} RU</div>
+                                    {% set quota_limit = user.get('quota_limit',0) or 0 %}
+                                    {% set quota_used = user.get('quota_used',0) or 0 %}
+                                    {% set quota_pct = (quota_used / quota_limit * 100) if quota_limit > 0 else 0 %}
+                                    <div>
+                                        <div class="progress-bar" style="--quota-pct: {{ quota_pct|int }};">
+                                            <div class="progress-fill"></div>
+                                        </div>
+                                        <div class="progress-label">{{ quota_used }}/{{ quota_limit }} RU ({{ quota_pct|int }}%)</div>
+                                    </div>
                                 </div>
                             </div>
                             <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
-                                <a href="/billing" class="btn btn-outline">
-                                    <i class="fas fa-receipt"></i>
-                                    Open billing page
-                                </a>
                                 <a href="/billing/portal" class="btn btn-primary">
                                     <i class="fas fa-cog"></i>
                                     Manage subscription
@@ -748,14 +746,27 @@
                 let html = '';
                 Object.keys(byEmail).sort().forEach(email => {
                     const items = byEmail[email].sort((a,b)=>a.siteUrl.localeCompare(b.siteUrl));
-                    html += `<div class="security-section"><h4 style="margin:0 0 .5rem 0;"><i class=\"fab fa-google\"></i> ${email} (${items.length})</h4>`;
-                    html += '<ul style="margin:0; padding-left:1rem;">';
-                    items.forEach(it => {
-                        html += `<li style="margin:.25rem 0; color:#374151;">${it.siteUrl}</li>`;
-                    });
-                    html += '</ul></div>';
+                    const sectionId = `conn_${btoa(email).replace(/=/g,'')}`;
+                    html += `<div class=\"security-section\">`;
+                    html += `<button class=\"btn btn-outline\" style=\"justify-content:space-between; width:100%;\" data-toggle=\"${sectionId}\">`+
+                            `<span>${email} (${items.length})</span>`+
+                            `<i class=\"fas fa-chevron-down\"></i></button>`;
+                    html += `<div id=\"${sectionId}\" class=\"conn-items\" style=\"display:none; padding:0.75rem 1rem 0 1rem;\">`;
+                    html += '<ul style=\"margin:0; padding-left:1rem;\">';
+                    items.forEach(it => { html += `<li style=\"margin:.25rem 0; color:#374151;\">${it.siteUrl}</li>`; });
+                    html += '</ul></div></div>';
                 });
                 container.innerHTML = html;
+                container.querySelectorAll('[data-toggle]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-toggle');
+                        const box = document.getElementById(id);
+                        const open = box.style.display !== 'none';
+                        box.style.display = open ? 'none' : 'block';
+                        btn.querySelector('i').classList.toggle('fa-chevron-down', open);
+                        btn.querySelector('i').classList.toggle('fa-chevron-up', !open);
+                    });
+                });
             } catch (e) {
                 container.innerHTML = '<div class="security-notice">Error loading connections</div>';
             }
@@ -1426,6 +1437,11 @@
             margin-left: auto;
             padding: 4px;
         }
+
+        /* Progress bar for quota */
+        .progress-bar { width: 100%; height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; border: 1px solid #e5e7eb; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #d8f9b8, #9fe870); width: calc(var(--quota-pct, 0) * 1%); }
+        .progress-label { font-size: 0.85rem; color: #374151; margin-top: 6px; }
 
         /* Navbar */
         .navbar {
