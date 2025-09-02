@@ -130,7 +130,7 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="openEditProfile()">
+                        <button id="editProfileBtn" type="button" class="btn btn-primary">
                             <i class="fas fa-edit"></i>
                             Edit Profile
                         </button>
@@ -896,6 +896,11 @@
             
             // Logout
             document.querySelector('.logout-btn').addEventListener('click', logout);
+            // Edit profile open
+            const editBtn = document.getElementById('editProfileBtn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => openEditProfile());
+            }
             
             // Modales
             document.querySelectorAll('.modal-close').forEach(btn => {
