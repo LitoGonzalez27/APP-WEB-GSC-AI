@@ -15,6 +15,12 @@ from dotenv import load_dotenv
 
 # Importar servicio de email
 from email_service import send_password_reset_email
+# Importar API de Brevo como alternativa
+try:
+    from brevo_api_service import send_password_reset_via_api
+    BREVO_API_AVAILABLE = True
+except ImportError:
+    BREVO_API_AVAILABLE = False
 
 # Importar funciones de base de datos
 from database import (
@@ -558,14 +564,24 @@ def setup_auth_routes(app):
             # Construir URL de reset
             reset_url = f"{request.url_root}reset-password?token={token}"
             
-            # Enviar email con el token
-            email_sent = send_password_reset_email(email, reset_url, user.get('name'))
+            # Intentar enviar email (API primero, luego SMTP)
+            email_sent = False
+            
+            # Método 1: API de Brevo (más rápido)
+            if BREVO_API_AVAILABLE:
+                logger.info("🚀 Intentando envío via API de Brevo...")
+                email_sent = send_password_reset_via_api(email, reset_url, user.get('name'))
+            
+            # Método 2: SMTP como fallback
+            if not email_sent:
+                logger.info("📧 Intentando envío via SMTP...")
+                email_sent = send_password_reset_email(email, reset_url, user.get('name'))
             
             if email_sent:
                 logger.info(f"✅ Password reset email enviado a {email}")
                 return jsonify({'success': True, 'message': 'Reset link sent'})
             else:
-                # Fallback: loggear el token si el email falla
+                # Fallback: loggear el token si todo falla
                 logger.warning(f"⚠️ Error enviando email, usando fallback log para {email}")
                 logger.info(f"🔑 Password reset token para {email}: {reset_url}")
                 return jsonify({'success': True, 'message': 'Reset link sent'})

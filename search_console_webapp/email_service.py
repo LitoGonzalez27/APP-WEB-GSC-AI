@@ -59,16 +59,27 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: str = Non
         # Crear contexto SSL seguro
         context = ssl.create_default_context()
         
+<<<<<<< HEAD
+        # Conectar al servidor SMTP con timeout más largo
+        if USE_STARTTLS or SMTP_PORT == 587:
+            # Usar STARTTLS (puerto 587)
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
+=======
         # Conectar al servidor SMTP
         if USE_STARTTLS or SMTP_PORT == 587:
             # Usar STARTTLS (puerto 587)
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+>>>>>>> fc17d2116452376c1b97f08826f5b512f5731859
                 server.starttls(context=context)
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 server.sendmail(FROM_EMAIL, to_email, message.as_string())
         else:
             # Usar SSL directo (puerto 465)
+<<<<<<< HEAD
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context, timeout=30) as server:
+=======
             with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context, timeout=10) as server:
+>>>>>>> fc17d2116452376c1b97f08826f5b512f5731859
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 server.sendmail(FROM_EMAIL, to_email, message.as_string())
         
