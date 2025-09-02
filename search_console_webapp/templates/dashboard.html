@@ -120,18 +120,15 @@
                 </div>
                 
                 <!-- Estado de cuenta -->
-                <div class="account-status">
-                    {% if user.is_active %}
-                    <div class="status-badge active">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Active Account</span>
-                    </div>
-                    {% else %}
-                    <div class="status-badge inactive">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Inactive Account</span>
-                    </div>
-                    {% endif %}
+                <div class="account-status" style="gap: 0.75rem;">
+                    <a href="/profile" class="btn btn-outline" style="border:2px solid #161616; background:transparent; color:#161616;">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </a>
+                    <a href="/app" class="btn btn-primary" style="background:#D8F9B8; color:#161616; border:1px solid #D8F9B8;">
+                        <i class="fas fa-play"></i>
+                        Start
+                    </a>
                 </div>
             </div>
 
@@ -228,26 +225,13 @@
                             </div>
                         </div>
 
-                        <div class="card-features" style="margin-top: 10px;">
-                            <div class="feature-item">
-                                <i class="fas fa-layer-group"></i>
-                                <span>Connect multiple Google accounts</span>
-                            </div>
-                            <div class="feature-item">
-                                <i class="fas fa-database"></i>
-                                <span>We aggregate properties across all accounts</span>
-                            </div>
-                            <div class="feature-item">
-                                <i class="fas fa-shield-alt"></i>
-                                <span>Read-only access to Search Console</span>
-                            </div>
-                        </div>
+                        
                     </div>
                     <div class="card-footer">
-                        <button class="btn btn-primary" id="connectGoogleBtn">
+                        <a class="btn btn-primary" id="connectGoogleBtn" href="/profile?tab=connections">
                             <i class="fas fa-link"></i>
                             Connect Google
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -276,10 +260,10 @@
                         </div>
                     </div>
                     <div class="card-footer">
-                        <button class="btn btn-primary" onclick="showSettings()">
+                        <a class="btn btn-primary" href="/profile">
                             <i class="fas fa-cog"></i>
                             Configure
-                        </button>
+                        </a>
                     </div>
                 </div>
 
