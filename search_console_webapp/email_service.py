@@ -13,9 +13,10 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Configuración SMTP
-SMTP_SERVER = os.getenv('SMTP_SERVER', 'mail.clicandseo.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', '465'))  # Puerto SSL
+# Configuración SMTP - Optimizada para Brevo
+SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp-relay.brevo.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))  # Puerto STARTTLS
+USE_STARTTLS = os.getenv('USE_STARTTLS', 'true').lower() == 'true'
 SMTP_USERNAME = os.getenv('SMTP_USERNAME', 'info@clicandseo.com')
 SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'info@clicandseo.com')
@@ -59,9 +60,17 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: str = Non
         context = ssl.create_default_context()
         
         # Conectar al servidor SMTP
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.sendmail(FROM_EMAIL, to_email, message.as_string())
+        if USE_STARTTLS or SMTP_PORT == 587:
+            # Usar STARTTLS (puerto 587)
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+                server.starttls(context=context)
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.sendmail(FROM_EMAIL, to_email, message.as_string())
+        else:
+            # Usar SSL directo (puerto 465)
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context, timeout=10) as server:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.sendmail(FROM_EMAIL, to_email, message.as_string())
         
         logger.info(f"Email enviado exitosamente a {to_email}")
         return True
