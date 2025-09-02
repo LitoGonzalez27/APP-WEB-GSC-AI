@@ -145,14 +145,19 @@ def setup_billing_routes(app):
         
         user = get_current_user()
         
-        if not user.get('stripe_customer_id'):
-            logger.warning(f"Usuario {user['email']} sin stripe_customer_id")
-            return redirect(url_for('billing_page'))
+        # Asegurar que existe un customer de Stripe. Para usuarios free es esperable que no exista.
+        customer_id = user.get('stripe_customer_id')
+        if not customer_id:
+            customer_id = get_or_create_stripe_customer(user)
+            if not customer_id:
+                logger.warning(f"No se pudo crear Stripe customer para {user['email']}")
+                return redirect(url_for('billing_page'))
         
         try:
             portal_session = stripe.billing_portal.Session.create(
-                customer=user['stripe_customer_id'],
-                return_url=url_for('billing_page', _external=True),
+                customer=customer_id,
+                # Retorno a Settings > Billing para mejor UX
+                return_url=url_for('user_profile', _external=True) + '?tab=billing',
             )
             
             return redirect(portal_session.url)
