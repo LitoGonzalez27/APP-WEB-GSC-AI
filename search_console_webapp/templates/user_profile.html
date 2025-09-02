@@ -412,13 +412,13 @@
     </main>
 
     <!-- Modal de edición de perfil -->
-    <div id="editProfileModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="editProfileModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
                 <h3>Editar perfil</h3>
-                <button class="modal-close">&times;</button>
+                <button class="profile-modal-close">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="profile-modal-body">
                 <form id="editProfileForm">
                     <div class="form-group">
                         <label for="editName">Nombre completo</label>
@@ -474,7 +474,7 @@
                     {% endif %}
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="profile-modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">
                     Cancelar
                 </button>
@@ -489,13 +489,13 @@
     </div>
 
     <!-- Modal de cambio de contraseña -->
-    <div id="changePasswordModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="changePasswordModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
                 <h3>Cambiar contraseña</h3>
-                <button class="modal-close">&times;</button>
+                <button class="profile-modal-close">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="profile-modal-body">
                 <form id="changePasswordForm">
                     <div class="form-group">
                         <label for="currentPassword">Contraseña actual</label>
@@ -530,7 +530,7 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="profile-modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
                     Cancelar
                 </button>
@@ -580,12 +580,25 @@
 
         // Función para abrir modal
         function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
+            const modal = document.getElementById(modalId);
+            if (!modal) { console.warn('Modal not found:', modalId); return; }
+            modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            modal.style.zIndex = '9999';
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
         }
 
         // Función para cerrar modal
         function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
             // Limpiar formularios
             const form = document.querySelector(`#${modalId} form`);
             if (form) {
@@ -903,14 +916,14 @@
             }
             
             // Modales
-            document.querySelectorAll('.modal-close').forEach(btn => {
+            document.querySelectorAll('.profile-modal-close').forEach(btn => {
                 btn.addEventListener('click', function() {
                     this.closest('.modal').style.display = 'none';
                 });
             });
             
             // Clicks fuera del modal
-            document.querySelectorAll('.modal').forEach(modal => {
+            document.querySelectorAll('.profile-modal').forEach(modal => {
                 modal.addEventListener('click', function(e) {
                     if (e.target === this) {
                         this.style.display = 'none';
@@ -1302,7 +1315,7 @@
         }
 
         /* Estilos de modales y formularios */
-        .modal {
+        .profile-modal {
             display: none;
             position: fixed;
             z-index: 1000;
@@ -1313,9 +1326,17 @@
             background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
         }
 
-        .modal-content {
+        .profile-modal[aria-hidden="false"] {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .profile-modal-content {
             background: white;
             border-radius: 12px;
             width: 90%;
@@ -1323,9 +1344,15 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             max-height: 90vh;
             overflow-y: auto;
+            transform: translateY(-6px);
+            transition: transform 0.2s ease;
         }
 
-        .modal-header {
+        .profile-modal[aria-hidden="false"] .profile-modal-content {
+            transform: translateY(0);
+        }
+
+        .profile-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -1333,12 +1360,12 @@
             border-bottom: 1px solid #dee2e6;
         }
 
-        .modal-header h3 {
+        .profile-modal-header h3 {
             margin: 0;
             color: var(--profile-gray-900);
         }
 
-        .modal-close {
+        .profile-modal-close {
             background: none;
             border: none;
             font-size: 1.5rem;
@@ -1354,16 +1381,16 @@
             transition: all 0.3s ease;
         }
 
-        .modal-close:hover {
+        .profile-modal-close:hover {
             background: var(--profile-gray-50);
             color: var(--profile-gray-900);
         }
 
-        .modal-body {
+        .profile-modal-body {
             padding: 1.5rem;
         }
 
-        .modal-footer {
+        .profile-modal-footer {
             padding: 1.5rem;
             border-top: 1px solid #dee2e6;
             display: flex;
