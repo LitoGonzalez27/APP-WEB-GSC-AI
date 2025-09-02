@@ -134,6 +134,10 @@
                             <i class="fas fa-edit"></i>
                             Edit Profile
                         </button>
+                        <a href="/dashboard" class="btn btn-outline" style="border:1px solid #161616; background:transparent; color:#161616;">
+                            <i class="fas fa-home"></i>
+                            Go to dashboard
+                        </a>
                     </div>
                 </div>
             </div>
@@ -241,10 +245,18 @@
                                 </div>
                             </div>
                             <div>
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a style="margin-top: 20px;" href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
                                 <a style="margin-top: 20px;" href="/billing/portal" class="btn btn-primary">
                                     <i class="fas fa-credit-card"></i>
                                     Manage subscription
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -310,10 +322,18 @@
                                 </div>
                             </div>
                             <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
                                 <a href="/billing/portal" class="btn btn-primary">
                                     <i class="fas fa-credit-card"></i>
                                     Manage subscription
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
