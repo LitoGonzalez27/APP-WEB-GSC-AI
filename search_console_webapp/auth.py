@@ -1287,6 +1287,73 @@ def setup_auth_routes(app):
                              user=user, 
                              activity_log=activity_log)
 
+    # ================================
+    # NUEVO: Gestión de conexiones desde Settings
+    # ================================
+
+    @app.route('/connections', methods=['GET'])
+    @auth_required
+    def list_connections_route():
+        try:
+            user = get_current_user()
+            conns = get_oauth_connections_for_user(user['id'])
+            # No devolver tokens, sólo metadatos seguros
+            safe = [
+                {
+                    'id': c['id'],
+                    'google_email': c.get('google_email'),
+                    'google_account_id': c.get('google_account_id'),
+                    'updated_at': c.get('updated_at')
+                }
+                for c in conns
+            ]
+            return jsonify({'connections': safe})
+        except Exception as e:
+            logger.error(f"Error listando conexiones: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/connections/<int:connection_id>/refresh', methods=['POST'])
+    @auth_required
+    def refresh_connection_route(connection_id):
+        try:
+            user = get_current_user()
+            conn = get_oauth_connection_by_id(connection_id)
+            if not conn or conn['user_id'] != user['id']:
+                return jsonify({'error': 'Connection not found'}), 404
+
+            service = get_authenticated_service_for_connection(conn, 'searchconsole', 'v1')
+            if not service:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+
+            resp = service.sites().list().execute()
+            site_entries = resp.get('siteEntry', []) if resp else []
+            count = upsert_gsc_properties_for_connection(user['id'], connection_id, site_entries)
+            return jsonify({'success': True, 'properties_synced': count})
+        except Exception as e:
+            logger.error(f"Error refrescando propiedades de conexión {connection_id}: {e}")
+            return jsonify({'error': 'Failed to refresh properties'}), 500
+
+    @app.route('/connections/<int:connection_id>', methods=['DELETE'])
+    @auth_required
+    def delete_connection_route(connection_id):
+        try:
+            user = get_current_user()
+            conn = get_oauth_connection_by_id(connection_id)
+            if not conn or conn['user_id'] != user['id']:
+                return jsonify({'error': 'Connection not found'}), 404
+
+            db = get_db_connection()
+            if not db:
+                return jsonify({'error': 'Database error'}), 500
+            cur = db.cursor()
+            cur.execute('DELETE FROM oauth_connections WHERE id = %s', (connection_id,))
+            db.commit()
+            db.close()
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"Error eliminando conexión {connection_id}: {e}")
+            return jsonify({'error': 'Failed to delete connection'}), 500
+
     @app.route('/profile/update', methods=['POST'])
     @auth_required
     def update_profile():

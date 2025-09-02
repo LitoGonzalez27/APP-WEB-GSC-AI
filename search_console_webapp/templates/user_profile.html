@@ -111,7 +111,6 @@
                             <p class="user-email">{{ user.email }}</p>
                             <div class="user-badges">
                                 <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
-                                    <i class="fas fa-{{ 'crown' if user.role == 'admin' else ('robot' if user.role == 'AI User' else 'user') }}"></i>
                                     {% if user.role == 'admin' %}
                                         Administrador
                                     {% elif user.role == 'AI User' %}
@@ -119,6 +118,9 @@
                                     {% else %}
                                         Usuario
                                     {% endif %}
+                                </span>
+                                <span class="badge badge-plan plan-{{ user.get('plan','free') }}">
+                                    {{ user.get('plan','free')|capitalize }}
                                 </span>
                                 <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
                                     <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
@@ -166,7 +168,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-user"></i>
+                              
                                 Personal Information
                             </h3>
                             <p>Manage your basic profile information</p>
@@ -239,7 +241,7 @@
                                 </div>
                             </div>
                             <div>
-                                <a href="/billing/portal" class="btn btn-primary">
+                                <a style="margin-top: 20px;" href="/billing/portal" class="btn btn-primary">
                                     <i class="fas fa-credit-card"></i>
                                     Manage subscription
                                 </a>
@@ -253,7 +255,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-plug"></i>
+                               
                                 Google Search Console Connections
                             </h3>
                             <p>Connect multiple Google accounts and manage their properties</p>
@@ -275,7 +277,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-credit-card"></i>
+                              
                                 Billing
                             </h3>
                             <p>Manage your plan, invoices and payment methods</p>
@@ -305,7 +307,7 @@
                             </div>
                             <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
                                 <a href="/billing/portal" class="btn btn-primary">
-                                    <i class="fas fa-cog"></i>
+                                    <i class="fas fa-credit-card"></i>
                                     Manage subscription
                                 </a>
                             </div>
@@ -318,7 +320,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-shield-alt"></i>
+                              
                                 Account Security
                             </h3>
                             <p>Manage your account security and password</p>
@@ -376,7 +378,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-history"></i>
+                              
                                 Recent Activity
                             </h3>
                             <p>Log of the most recent actions on your account</p>
@@ -428,6 +430,48 @@
                         <input type="email" id="editEmail" name="email" value="{{ user.email }}" required>
                         <span class="field-error" id="editEmailError"></span>
                     </div>
+
+                    {% if user.password_hash %}
+                    <div class="form-group">
+                        <label for="editCurrentPassword">Contraseña actual</label>
+                        <div class="password-input">
+                            <input type="password" id="editCurrentPassword" name="current_password" placeholder="••••••••">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editCurrentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editCurrentPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editNewPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editNewPassword" name="new_password" placeholder="Mínimo 8 caracteres">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editNewPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editNewPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editConfirmPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editConfirmPassword" name="confirm_password" placeholder="Repite la contraseña">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editConfirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editConfirmPasswordError"></span>
+                    </div>
+                    {% else %}
+                    <div class="security-notice" style="margin-top: .5rem;">
+                        <div class="notice-content">
+                            <div>
+                                <strong>Inicio de sesión con Google</strong>
+                                <p>Tu cuenta no usa contraseña local. Puedes cambiar nombre y email.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </form>
             </div>
             <div class="modal-footer">
@@ -619,6 +663,26 @@
                 
                 if (result.success) {
                     showNotification(result.message, 'success');
+                    // Si hay campos de contraseña y están rellenos, cambiar contraseña
+                    const hasPassword = document.getElementById('editCurrentPassword');
+                    if (hasPassword) {
+                        const current_password = formData.get('current_password');
+                        const new_password = formData.get('new_password');
+                        const confirm_password = formData.get('confirm_password');
+                        if (new_password || confirm_password) {
+                            const pwdResp = await fetch('/profile/change-password', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ current_password, new_password, confirm_password })
+                            });
+                            const pwdResult = await pwdResp.json();
+                            if (!pwdResult.success) {
+                                showNotification(pwdResult.error || 'No se pudo cambiar la contraseña', 'error');
+                                btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Guardar cambios';
+                                return;
+                            }
+                        }
+                    }
                     closeModal('editProfileModal');
                     // Recargar página para mostrar cambios
                     setTimeout(() => {
@@ -752,8 +816,12 @@
                             `<span>${email} (${items.length})</span>`+
                             `<i class=\"fas fa-chevron-down\"></i></button>`;
                     html += `<div id=\"${sectionId}\" class=\"conn-items\" style=\"display:none; padding:0.75rem 1rem 0 1rem;\">`;
+                    html += '<div style=\"display:flex; gap:.5rem; margin:.5rem 0; flex-wrap:wrap;\">';
+                    html += `<button class=\"btn btn-outline js-refresh-conn\" data-email=\"${email}\"><i class=\"fas fa-sync\"></i> Refresh properties</button>`;
+                    html += `<button class=\"btn btn-outline js-disconnect-conn\" data-email=\"${email}\"><i class=\"fas fa-unlink\"></i> Disconnect account</button>`;
+                    html += '</div>';
                     html += '<ul style=\"margin:0; padding-left:1rem;\">';
-                    items.forEach(it => { html += `<li style=\"margin:.25rem 0; color:#374151;\">${it.siteUrl}</li>`; });
+                    items.forEach(it => { html += `<li style=\"margin:.25rem 0; color:#374151;\" data-conn-id=\"${it.connectionId}\">${it.siteUrl}</li>`; });
                     html += '</ul></div></div>';
                 });
                 container.innerHTML = html;
@@ -765,6 +833,37 @@
                         box.style.display = open ? 'none' : 'block';
                         btn.querySelector('i').classList.toggle('fa-chevron-down', open);
                         btn.querySelector('i').classList.toggle('fa-chevron-up', !open);
+                    });
+                });
+                // Mapear email -> connectionId (tomar primero del listado)
+                const emailToConnId = {};
+                props.forEach(p => { if (!emailToConnId[p.googleEmail]) emailToConnId[p.googleEmail] = p.connectionId; });
+                // Handlers
+                container.querySelectorAll('.js-refresh-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        b.disabled = true;
+                        const r = await fetch(`/connections/${id}/refresh`, { method: 'POST' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false;
+                        if (j && j.success) { showNotification('Properties refreshed', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to refresh', 'error'); }
+                    });
+                });
+                container.querySelectorAll('.js-disconnect-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        if (!confirm(`Disconnect account ${email}?`)) return;
+                        b.disabled = true;
+                        const r = await fetch(`/connections/${id}`, { method: 'DELETE' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false;
+                        if (j && j.success) { showNotification('Account disconnected', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to disconnect', 'error'); }
                     });
                 });
             } catch (e) {
@@ -946,6 +1045,14 @@
             font-weight: 600;
         }
 
+        .badge-plan {
+            background: #e8f5e8;
+            color: #14532d;
+            border: 1px solid #bbf7d0;
+            border-radius: var(--profile-border-radius);
+            font-weight: 600;
+        }
+
         .badge-status.active {
             background: var(--profile-secondary-light);
             color: var(--profile-success);
@@ -1086,6 +1193,9 @@
 
         .security-section {
             margin-bottom: 2rem;
+            border: 1px solid #161616;
+            border-radius: 6px;
+            padding:6px;
         }
 
         .security-item {
