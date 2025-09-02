@@ -427,7 +427,12 @@
                     </div>
                     <div class="form-group">
                         <label for="editEmail">Email</label>
+                        {% if user.google_id %}
+                        <input type="email" id="editEmail" name="email" value="{{ user.email }}" disabled>
+                        <div class="field-help">Cuenta vinculada con Google: no puedes cambiar el email desde la aplicación.</div>
+                        {% else %}
                         <input type="email" id="editEmail" name="email" value="{{ user.email }}" required>
+                        {% endif %}
                         <span class="field-error" id="editEmailError"></span>
                     </div>
 
@@ -738,6 +743,23 @@
                     confirm_password: formData.get('confirm_password')
                 };
                 
+                // Validaciones de cliente
+                if (!data.current_password || !data.new_password || !data.confirm_password) {
+                    showNotification('Todos los campos son obligatorios', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password.length < 8) {
+                    showNotification('La nueva contraseña debe tener al menos 8 caracteres', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password !== data.confirm_password) {
+                    showNotification('La nueva contraseña y su confirmación no coinciden', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+
                 const response = await fetch('/profile/change-password', {
                     method: 'POST',
                     headers: {
@@ -749,7 +771,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification(result.message, 'success');
+                    showNotification('Contraseña actualizada correctamente', 'success');
                     closeModal('changePasswordModal');
                 } else {
                     showNotification(result.error, 'error');

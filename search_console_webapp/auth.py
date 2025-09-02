@@ -1377,6 +1377,10 @@ def setup_auth_routes(app):
             # Verificar formato de email básico
             if '@' not in email or '.' not in email:
                 return jsonify({'error': 'Formato de email inválido'}), 400
+
+            # Si el usuario está vinculado con Google, no permitir cambiar email desde la app
+            if current_user.get('google_id') and email != current_user['email']:
+                return jsonify({'error': 'Tu cuenta está vinculada con Google. No puedes cambiar el email desde la aplicación.'}), 400
             
             # Actualizar perfil
             result = update_user_profile(current_user['id'], name=name, email=email)
