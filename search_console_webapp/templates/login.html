@@ -64,14 +64,14 @@
                     </div>
                     
                     <div class="branding-text">
-                        <h2>¡Bienvenido de vuelta!</h2>
-                        <p>Accede a tu cuenta para continuar analizando el rendimiento de tu sitio web con nuestras herramientas avanzadas de SEO.</p>
+                        <h2>Welcome back!</h2>
+                        <p>Sign in to your account to continue analyzing your website's performance with our advanced SEO tools.</p>
                     </div>
 
                     <div class="branding-features">
                         <div class="feature">
                             <i class="fas fa-search"></i>
-                            <span>Análisis de palabras clave</span>
+                            <span>Keyword analysis</span>
                         </div>
                         <div class="feature">
                             <i class="fas fa-robot"></i>
@@ -79,11 +79,11 @@
                         </div>
                         <div class="feature">
                             <i class="fas fa-chart-bar"></i>
-                            <span>Métricas de rendimiento</span>
+                            <span>Performance metrics</span>
                         </div>
                         <div class="feature">
                             <i class="fas fa-globe"></i>
-                            <span>Análisis por países</span>
+                            <span>Country analysis</span>
                         </div>
                     </div>
                 </div>
@@ -94,73 +94,60 @@
                 <div class="login-form-content">
                     <!-- Header del formulario -->
                     <div class="form-header">
-                        <h3>Iniciar Sesión</h3>
-                        <p>Accede con tu email y contraseña o con tu cuenta de Google.</p>
+                        <h3>Sign In</h3>
+                        <p>Don't have an account? <a href="/signup" class="signup-link-header">Create one</a></p>
                     </div>
 
                     <!-- Área de notificaciones -->
                     <div id="loginNotifications" class="login-notifications" style="display: none;"></div>
 
-                    <!-- Login con Google o Email/Contraseña -->
+                    <!-- Email/Password Login Form -->
                     <div class="login-form">
-                        <div class="google-login-content">
-
-                            <button type="button" id="googleLoginBtn" class="google-login-btn">
-                                <div class="google-icon">
-                                    <svg width="20" height="20" viewBox="0 0 24 24">
-                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                    </svg>
-                                </div>
-                                <span class="login-text">Continuar con Google</span>
-                                <div class="login-spinner" style="display: none;">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                </div>
-                            </button>
-                            <div class="email-login-separator">
-                                <span>También puedes iniciar sesión con tu email y contraseña</span>
+                        <div class="email-login-form">
+                            <div class="form-group">
+                                <label for="emailInput">Email</label>
+                                <input type="email" id="emailInput" placeholder="your@email.com" />
                             </div>
-
-                            <div class="email-login-form">
-                                <div class="form-group">
-                                    <label for="emailInput">Email</label>
-                                    <input type="email" id="emailInput" placeholder="tu@email.com" />
-                                </div>
-                                <div class="form-group">
-                                    <label for="passwordInput">Contraseña</label>
-                                    <input type="password" id="passwordInput" placeholder="********" />
-                                </div>
-                                <button type="button" id="emailLoginBtn" class="primary-btn">Iniciar sesión</button>
+                            <div class="form-group">
+                                <label for="passwordInput">Password</label>
+                                <input type="password" id="passwordInput" placeholder="********" />
                             </div>
-
-                            <div class="login-help">
-                                <p class="help-text">
-                                    <i class="fa-solid fa-circle-info"></i>
-                                    
-                                        Acederás a tu cuenta de Google Search Console más tarde.
-                                </p>
-                            </div>
+                            <button type="button" id="emailLoginBtn" class="primary-btn full-width-btn">Sign In</button>
                         </div>
-
-                      
-
                         
+                        <div class="login-separator">
+                            <span>or</span>
+                        </div>
+                        
+                        <!-- Google Login Button -->
+                        <button type="button" id="googleLoginBtn" class="google-login-btn">
+                            <div class="google-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                            </div>
+                            <span class="login-text">Sign In with Google</span>
+                            <div class="login-spinner" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </div>
+                        </button>
                     </div>
 
                     <!-- Enlace de registro -->
                     <div class="form-footer">
-                        <div class="register-link">
+                        <div class="register-link" style="display: none;">
                             <p>¿No tienes una cuenta? <a href="/signup" class="signup-link">Crear cuenta gratis</a></p>
                         </div>
                         <div class="footer-links">
-                            <a href="#" class="footer-link">Política de Privacidad</a>
+                            <a href="#" class="footer-link">Privacy Policy</a>
                             <span class="footer-separator">•</span>
-                            <a href="#" class="footer-link">Términos de Servicio</a>
+                            <a href="#" class="footer-link">Terms of Service</a>
                         </div>
                         <p class="footer-note">
-                            ¿Necesitas ayuda? <a href="#" class="support-link">Contacta con soporte</a>
+                            Need help? <a href="#" class="support-link">Contact support</a>
                         </p>
                     </div>
                 </div>
@@ -180,11 +167,11 @@
                 const firstTime = urlParams.get('first_time');
                 
                 if (action === 'register' && firstTime === 'true') {
-                    showNotification('¡Cuenta creada e iniciada sesión automáticamente! Bienvenido a Clicandseo.', 'success');
+                    showNotification('Account created and automatically signed in! Welcome to Clicandseo.', 'success');
                 } else if (action === 'register') {
-                    showNotification('¡Cuenta creada exitosamente! Bienvenido a Clicandseo.', 'success');
+                    showNotification('Account created successfully! Welcome to Clicandseo.', 'success');
                 } else {
-                    showNotification('¡Autenticación exitosa! Redirigiendo...', 'success');
+                    showNotification('Authentication successful! Redirecting...', 'success');
                 }
                 
                 setTimeout(() => {
@@ -199,15 +186,15 @@
             const userEmail = urlParams.get('email');
             
             if (registrationSuccess === 'true') {
-                let successMessage = '🎉 ¡Registro exitoso!';
+                let successMessage = '🎉 Registration successful!';
                 if (withGoogle === 'true') {
-                    successMessage += `<br>Tu cuenta de ClicandSEO está lista.`;
+                    successMessage += `<br>Your ClicandSEO account is ready.`;
                     if (userEmail) {
                         successMessage += `<br><strong>Email:</strong> ${userEmail}`;
                     }
-                    successMessage += '<br><br>🚀 <strong>Inicia sesión para comenzar con tu plan gratuito</strong>';
+                    successMessage += '<br><br>🚀 <strong>Sign in to start with your free plan</strong>';
                 } else {
-                    successMessage += ' Ahora puedes iniciar sesión.';
+                    successMessage += ' You can now sign in.';
                 }
                 
                 showSuccessMessage(successMessage);
@@ -219,35 +206,35 @@
             
             const authError = urlParams.get('auth_error');
             if (authError) {
-                let errorMessage = 'Error de autenticación. Por favor, intenta de nuevo.';
+                let errorMessage = 'Authentication error. Please try again.';
                 
                 switch (authError) {
                     case 'invalid_state':
-                        errorMessage = 'Error de seguridad. Por favor, intenta de nuevo.';
+                        errorMessage = 'Security error. Please try again.';
                         break;
                     case 'oauth_config':
-                        errorMessage = 'Error de configuración. Contacta con soporte.';
+                        errorMessage = 'Configuration error. Contact support.';
                         break;
                     case 'callback_failed':
-                        errorMessage = 'Error en la autenticación. Intenta de nuevo.';
+                        errorMessage = 'Authentication error. Try again.';
                         break;
                     case 'user_info_failed':
-                        errorMessage = 'No se pudo obtener información del usuario de Google.';
+                        errorMessage = 'Could not get user information from Google.';
                         break;
                     case 'account_suspended':
-                        errorMessage = 'Tu cuenta está en revisión, pronto la activaremos. Si necesitas ayuda, <a href="mailto:info@clicandseo.com" style="color: #667eea; text-decoration: underline;">contacta con soporte</a>';
+                        errorMessage = 'Your account is under review, we will activate it soon. If you need help, <a href="mailto:info@clicandseo.com" style="color: #667eea; text-decoration: underline;">contact support</a>';
                         break;
                     case 'access_denied':
-                        errorMessage = 'Acceso denegado. Necesitas permitir el acceso para continuar.';
+                        errorMessage = 'Access denied. You need to allow access to continue.';
                         break;
                     case 'user_not_found':
-                        errorMessage = 'Usuario no registrado. <a href="/signup" style="color: #667eea; text-decoration: underline;">Crear cuenta</a>';
+                        errorMessage = 'User not registered. <a href="/signup" style="color: #667eea; text-decoration: underline;">Create account</a>';
                         break;
                     case 'user_not_registered':
-                        errorMessage = 'No tienes una cuenta registrada. <a href="/signup" style="color: #667eea; text-decoration: underline;">Crear cuenta primero</a>';
+                        errorMessage = 'You don\'t have a registered account. <a href="/signup" style="color: #667eea; text-decoration: underline;">Create account first</a>';
                         break;
                     case 'user_already_exists':
-                        errorMessage = 'Ya tienes una cuenta creada. Usa "Continuar con Google" para iniciar sesión.';
+                        errorMessage = 'You already have an account created. Use "Sign In with Google" to sign in.';
                         break;
                 }
                 
@@ -255,23 +242,23 @@
             }
             
             if (urlParams.get('session_expired') === 'true') {
-                showNotification('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.', 'warning');
+                showNotification('Your session has expired. Please sign in again.', 'warning');
             }
             
             if (urlParams.get('auth_required') === 'true') {
-                showNotification('Necesitas iniciar sesión para acceder a la aplicación.', 'info');
+                showNotification('You need to sign in to access the application.', 'info');
             }
             
             if (urlParams.get('signup_success') === 'true') {
-                showNotification('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.', 'success');
+                showNotification('Account created successfully! You can now sign in.', 'success');
             }
             
             if (urlParams.get('registration_success') === 'true') {
                 const withGoogle = urlParams.get('with_google') === 'true';
                 if (withGoogle) {
-                    showNotification('¡Cuenta creada con Google exitosamente! Ahora puedes iniciar sesión con Google.', 'success');
+                    showNotification('Account created with Google successfully! You can now sign in with Google.', 'success');
                 } else {
-                    showNotification('¡Registro completado exitosamente! Ahora puedes iniciar sesión.', 'success');
+                    showNotification('Registration completed successfully! You can now sign in.', 'success');
                 }
             }
             
@@ -327,10 +314,10 @@
             btn.disabled = true;
             btn.classList.add('loading');
             spinner.style.display = 'block';
-            text.textContent = 'Conectando...';
+                                text.textContent = 'Connecting...';
             
             // Mostrar notificación
-            showNotification('Redirigiendo a Google para autenticación...', 'info');
+            showNotification('Redirecting to Google for authentication...', 'info');
             
             // Redirigir después de un breve delay
             setTimeout(() => {
@@ -343,8 +330,8 @@
                     btn.disabled = false;
                     btn.classList.remove('loading');
                     spinner.style.display = 'none';
-                    text.textContent = 'Continuar con Google';
-                    showNotification('Error en la redirección. Por favor, intenta de nuevo.', 'error');
+                    text.textContent = 'Sign In with Google';
+                    showNotification('Redirection error. Please try again.', 'error');
                 }
             }, 10000);
         });
@@ -354,7 +341,7 @@
             const email = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value;
             if (!email || !password) {
-                showNotification('Introduce email y contraseña', 'warning');
+                showNotification('Enter email and password', 'warning');
                 return;
             }
             fetch('/auth/email/login', {
@@ -365,13 +352,13 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showNotification('Inicio de sesión correcto. Redirigiendo...', 'success');
+                    showNotification('Sign in successful. Redirecting...', 'success');
                     window.location.href = data.next || '/dashboard';
                 } else {
-                    showNotification(data.error || 'Credenciales inválidas', 'error');
+                    showNotification(data.error || 'Invalid credentials', 'error');
                 }
             })
-            .catch(() => showNotification('Error de red', 'error'));
+            .catch(() => showNotification('Network error', 'error'));
         });
 
         // Inicialización
@@ -389,14 +376,14 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.authenticated) {
-                        showNotification('Ya tienes una sesión activa. Redirigiendo...', 'success');
+                        showNotification('You already have an active session. Redirecting...', 'success');
                         setTimeout(() => {
                             window.location.href = '/dashboard';
                         }, 1500);
                     }
                 })
                 .catch(error => {
-                    console.log('No hay sesión activa');
+                    console.log('No active session');
                 });
         });
 
