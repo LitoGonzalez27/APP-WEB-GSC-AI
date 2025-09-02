@@ -157,6 +157,23 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_word_count ON ai_overview_analysis(keyword_word_count)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_has_ai ON ai_overview_analysis(has_ai_overview)')
         
+        # Crear tabla password reset tokens
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token VARCHAR(255) NOT NULL UNIQUE,
+                expires_at TIMESTAMP NOT NULL,
+                used_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        
+        # Crear índices para la tabla de reset tokens
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)')
+        
         conn.commit()
         logger.info("Todas las tablas inicializadas correctamente")
         return True
@@ -453,6 +470,156 @@ def get_connection_for_site(user_id: int, site_url: str) -> Optional[Dict[str, A
     except Exception as e:
         logger.error(f"Error obteniendo conexión para site_url: {e}")
         return None
+    finally:
+        if conn:
+            conn.close()
+
+# ================================
+# Funciones para Password Reset
+# ================================
+
+def create_password_reset_token(user_id: int) -> Optional[str]:
+    """Crea un token de reset de contraseña para un usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        cur = conn.cursor()
+        
+        # Generar token único
+        token = secrets.token_urlsafe(32)
+        
+        # Token expira en 1 hora
+        expires_at = datetime.now() + timedelta(hours=1)
+        
+        # Invalidar tokens existentes no usados del usuario
+        cur.execute('''
+            UPDATE password_reset_tokens 
+            SET used_at = NOW() 
+            WHERE user_id = %s AND used_at IS NULL
+        ''', (user_id,))
+        
+        # Crear nuevo token
+        cur.execute('''
+            INSERT INTO password_reset_tokens (user_id, token, expires_at)
+            VALUES (%s, %s, %s)
+            RETURNING token
+        ''', (user_id, token, expires_at))
+        
+        result = cur.fetchone()
+        conn.commit()
+        
+        return result['token'] if result else None
+        
+    except Exception as e:
+        logger.error(f"Error creando token de reset: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def validate_password_reset_token(token: str) -> Optional[Dict[str, Any]]:
+    """Valida un token de reset de contraseña y retorna información del usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        cur = conn.cursor()
+        
+        # Buscar token válido (no usado y no expirado)
+        cur.execute('''
+            SELECT prt.id as token_id, prt.user_id, prt.expires_at,
+                   u.email, u.name
+            FROM password_reset_tokens prt
+            JOIN users u ON u.id = prt.user_id
+            WHERE prt.token = %s 
+            AND prt.used_at IS NULL 
+            AND prt.expires_at > NOW()
+        ''', (token,))
+        
+        result = cur.fetchone()
+        return dict(result) if result else None
+        
+    except Exception as e:
+        logger.error(f"Error validando token de reset: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def use_password_reset_token(token: str, new_password: str) -> bool:
+    """Usa un token de reset para cambiar la contraseña del usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
+        cur = conn.cursor()
+        
+        # Verificar token válido
+        token_info = validate_password_reset_token(token)
+        if not token_info:
+            return False
+        
+        user_id = token_info['user_id']
+        
+        # Hashear nueva contraseña
+        new_password_hash = hash_password(new_password)
+        
+        # Actualizar contraseña del usuario
+        cur.execute('''
+            UPDATE users 
+            SET password_hash = %s, updated_at = NOW()
+            WHERE id = %s
+        ''', (new_password_hash, user_id))
+        
+        # Marcar token como usado
+        cur.execute('''
+            UPDATE password_reset_tokens 
+            SET used_at = NOW()
+            WHERE token = %s
+        ''', (token,))
+        
+        conn.commit()
+        
+        logger.info(f"Contraseña reseteada exitosamente para usuario {user_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error usando token de reset: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def cleanup_expired_reset_tokens():
+    """Limpia tokens de reset expirados (para ejecutar periódicamente)"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
+        cur = conn.cursor()
+        
+        # Eliminar tokens expirados
+        cur.execute('''
+            DELETE FROM password_reset_tokens 
+            WHERE expires_at < NOW() - INTERVAL '1 day'
+        ''')
+        
+        deleted_count = cur.rowcount
+        conn.commit()
+        
+        if deleted_count > 0:
+            logger.info(f"Limpiados {deleted_count} tokens de reset expirados")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error limpiando tokens expirados: {e}")
+        return False
     finally:
         if conn:
             conn.close()

@@ -942,3 +942,68 @@ body.loaded {
     font-size: 0.875rem;
     font-weight: 500;
 }
+
+.forgot-password-link {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.forgot-link {
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+.forgot-link:hover {
+    color: #D8F9B8;
+    text-decoration: underline;
+}
+
+/* Password reset specific styles */
+.password-input-container {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 1rem;
+    padding: 4px;
+    transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #374151;
+}
+
+.password-requirements {
+    margin-top: 0.5rem;
+}
+
+.password-requirements small {
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+.back-to-login {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.back-to-login p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Ajustar padding para inputs con toggle */
+.password-input-container input {
+    padding-right: 3rem;
+}

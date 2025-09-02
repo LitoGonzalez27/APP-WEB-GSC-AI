@@ -13,6 +13,9 @@ from google.auth.transport.requests import Request
 import logging
 from dotenv import load_dotenv
 
+# Importar servicio de email
+from email_service import send_password_reset_email
+
 # Importar funciones de base de datos
 from database import (
     init_database, 
@@ -39,7 +42,12 @@ from database import (
     get_oauth_connection_by_id,
     update_oauth_connection_tokens,
     upsert_gsc_properties_for_connection,
-    list_gsc_properties_for_user
+    list_gsc_properties_for_user,
+    # Funciones para password reset
+    create_password_reset_token,
+    validate_password_reset_token,
+    use_password_reset_token,
+    cleanup_expired_reset_tokens
 )
 
 # Carga las variables de entorno desde el .env
@@ -513,6 +521,105 @@ def setup_auth_routes(app):
         except Exception as e:
             logger.error(f"Error listando propiedades agregadas: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
+    # ================================
+    # Rutas para Password Reset
+    # ================================
+
+    @app.route('/forgot-password')
+    def forgot_password_page():
+        """Página para solicitar reset de contraseña"""
+        try:
+            return render_template('forgot_password.html')
+        except Exception as e:
+            logger.error(f"Error renderizando forgot password page: {e}")
+            return redirect('/login?error=page_error')
+
+    @app.route('/auth/forgot-password', methods=['POST'])
+    def forgot_password_request():
+        """Procesar solicitud de reset de contraseña"""
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            
+            if not email:
+                return jsonify({'error': 'Email is required'}), 400
+            
+            # Buscar usuario por email
+            user = get_user_by_email(email)
+            if not user:
+                # Por seguridad, no revelar si el email existe o no
+                return jsonify({'success': True, 'message': 'If an account exists, a reset link will be sent'})
+            
+            # Crear token de reset
+            token = create_password_reset_token(user['id'])
+            if not token:
+                return jsonify({'error': 'Unable to create reset token'}), 500
+            
+            # Construir URL de reset
+            reset_url = f"{request.url_root}reset-password?token={token}"
+            
+            # Enviar email con el token
+            email_sent = send_password_reset_email(email, reset_url, user.get('name'))
+            
+            if email_sent:
+                logger.info(f"✅ Password reset email enviado a {email}")
+                return jsonify({'success': True, 'message': 'Reset link sent'})
+            else:
+                # Fallback: loggear el token si el email falla
+                logger.warning(f"⚠️ Error enviando email, usando fallback log para {email}")
+                logger.info(f"🔑 Password reset token para {email}: {reset_url}")
+                return jsonify({'success': True, 'message': 'Reset link sent'})
+            
+        except Exception as e:
+            logger.error(f"Error en forgot password request: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
+
+    @app.route('/reset-password')
+    def reset_password_page():
+        """Página para resetear contraseña con token"""
+        try:
+            token = request.args.get('token')
+            if not token:
+                return redirect('/forgot-password?error=missing_token')
+            
+            # Validar token
+            token_info = validate_password_reset_token(token)
+            if not token_info:
+                return redirect('/forgot-password?error=invalid_token')
+            
+            return render_template('reset_password.html')
+            
+        except Exception as e:
+            logger.error(f"Error renderizando reset password page: {e}")
+            return redirect('/forgot-password?error=page_error')
+
+    @app.route('/auth/reset-password', methods=['POST'])
+    def reset_password_process():
+        """Procesar cambio de contraseña con token"""
+        try:
+            data = request.get_json() or {}
+            token = data.get('token')
+            new_password = data.get('password')
+            
+            if not token or not new_password:
+                return jsonify({'error': 'Token and password are required'}), 400
+            
+            # Validar contraseña
+            if len(new_password) < 8:
+                return jsonify({'error': 'Password must be at least 8 characters'}), 400
+            
+            # Usar token para cambiar contraseña
+            success = use_password_reset_token(token, new_password)
+            if not success:
+                return jsonify({'error': 'Invalid or expired token'}), 400
+            
+            return jsonify({'success': True, 'message': 'Password reset successfully'})
+            
+        except Exception as e:
+            logger.error(f"Error en reset password process: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
+
+
 
     @app.route('/login')
     def login_page():

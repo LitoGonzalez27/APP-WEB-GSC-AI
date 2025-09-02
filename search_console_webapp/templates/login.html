@@ -113,6 +113,9 @@
                                 <input type="password" id="passwordInput" placeholder="********" />
                             </div>
                             <button type="button" id="emailLoginBtn" class="primary-btn full-width-btn">Sign In</button>
+                            <div class="forgot-password-link">
+                                <a href="/forgot-password" class="forgot-link">Forgot your password?</a>
+                            </div>
                         </div>
                         
                         <div class="login-separator">
@@ -251,6 +254,10 @@
             
             if (urlParams.get('signup_success') === 'true') {
                 showNotification('Account created successfully! You can now sign in.', 'success');
+            }
+            
+            if (urlParams.get('password_reset') === 'success') {
+                showNotification('Password reset successfully! You can now sign in with your new password.', 'success');
             }
             
             if (urlParams.get('registration_success') === 'true') {
