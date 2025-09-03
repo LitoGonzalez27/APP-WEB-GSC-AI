@@ -776,6 +776,17 @@ def setup_auth_routes(app):
             session['user_name'] = user['name']
             update_last_activity()
 
+            # ✅ NUEVO: Registrar last_login_at en login por email
+            try:
+                db = get_db_connection()
+                if db:
+                    cur = db.cursor()
+                    cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (user['id'],))
+                    db.commit()
+                    db.close()
+            except Exception as _e_last_login_email:
+                logger.warning(f"No se pudo actualizar last_login_at (email login): {_e_last_login_email}")
+
             next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
             return jsonify({'success': True, 'next': next_url})
         except Exception as e:
@@ -921,6 +932,16 @@ def setup_auth_routes(app):
                         session['user_email'] = new_user['email']
                         session['user_name'] = new_user['name']
                         update_last_activity()
+                        # ✅ NUEVO: Registrar last_login_at en registro con Google (autologin)
+                        try:
+                            db = get_db_connection()
+                            if db:
+                                cur = db.cursor()
+                                cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (new_user['id'],))
+                                db.commit()
+                                db.close()
+                        except Exception as _e_last_login_signup:
+                            logger.warning(f"No se pudo actualizar last_login_at (Google signup): {_e_last_login_signup}")
                         
                         logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
                         return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}&first_time=true')
@@ -1014,6 +1035,17 @@ def setup_auth_routes(app):
                 session['user_email'] = existing_user['email']
                 session['user_name'] = existing_user['name']
                 update_last_activity()
+
+                # ✅ NUEVO: Registrar last_login_at en login con Google
+                try:
+                    db = get_db_connection()
+                    if db:
+                        cur = db.cursor()
+                        cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (existing_user['id'],))
+                        db.commit()
+                        db.close()
+                except Exception as _e_last_login_google:
+                    logger.warning(f"No se pudo actualizar last_login_at (Google login): {_e_last_login_google}")
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
 

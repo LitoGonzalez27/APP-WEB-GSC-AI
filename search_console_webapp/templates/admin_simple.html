@@ -698,6 +698,7 @@
                         <th>Plan & Quota</th>
                         <th>Estado</th>
                         <th>Registro</th>
+                        <th>Último Acceso</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -840,6 +841,14 @@
                                     <small>{{ user.created_at.strftime('%H:%M') }}</small>
                                 {% else %}
                                     Sin fecha
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_login_at %}
+                                    {{ user.last_login_at.strftime('%d/%m/%Y') }}<br>
+                                    <small>{{ user.last_login_at.strftime('%H:%M') }}</small>
+                                {% else %}
+                                    —
                                 {% endif %}
                             </td>
                             <td>

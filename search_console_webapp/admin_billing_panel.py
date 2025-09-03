@@ -117,7 +117,7 @@ def get_users_with_billing():
         cur.execute('''
             SELECT 
                 id, email, name, picture, role, is_active, 
-                created_at, updated_at, google_id,
+                created_at, updated_at, last_login_at, google_id,
                 -- Campos de billing (con fallbacks seguros)
                 COALESCE(plan, 'free') as plan,
                 COALESCE(current_plan, plan, 'free') as current_plan,

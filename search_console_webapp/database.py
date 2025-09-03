@@ -75,6 +75,12 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)')
 
+        # ✅ NUEVO: Asegurar columna last_login_at para tracking de último acceso
+        try:
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL")
+        except Exception:
+            pass
+
         # ================================
         # Tablas para conexiones OAuth y propiedades GSC
         # ================================
@@ -799,7 +805,7 @@ def get_all_users():
         cur = conn.cursor()
         cur.execute('''
             SELECT 
-                id, email, name, picture, role, is_active, created_at, updated_at,
+                id, email, name, picture, role, is_active, created_at, updated_at, last_login_at,
                 -- Billing fields
                 COALESCE(plan, 'free') as plan,
                 COALESCE(current_plan, plan, 'free') as current_plan,
