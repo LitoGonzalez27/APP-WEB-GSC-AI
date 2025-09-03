@@ -2697,7 +2697,8 @@ class ManualAISystem {
         container.innerHTML = '';
 
         const keywordResults = data.keywordResults || [];
-        const competitorDomains = data.competitorDomains || [];
+        // Asegurar orden y unicidad de competidores para columnas deterministas
+        const competitorDomains = Array.from(new Set((data.competitorDomains || []).map(d => (d || '').toLowerCase()))).sort();
 
         console.log('🏗️ Rendering AI Overview table with:', {
             keywords: keywordResults.length,
@@ -2721,9 +2722,13 @@ class ManualAISystem {
             return;
         }
 
-        // Create Grid.js table
+        // Rebuild Grid.js table from scratch (destroy previous instances)
         try {
             const { columns, gridData } = this.processAIOverviewDataForGrid(keywordResults, competitorDomains);
+            // Hard rebuild: replace container node to avoid stale Grid.js state
+            const parent = container.parentNode;
+            const fresh = container.cloneNode(false);
+            parent.replaceChild(fresh, container);
             
             const grid = new gridjs.Grid({
                 columns: columns,
@@ -2732,10 +2737,7 @@ class ManualAISystem {
                     limit: 10,
                     summary: true
                 },
-                sort: {
-                    enabled: true,
-                    multiColumn: true
-                },
+                sort: true,
                 search: {
                     placeholder: 'Type a keyword...'
                 },
@@ -2748,7 +2750,7 @@ class ManualAISystem {
             });
 
             // Render the grid
-            grid.render(container);
+            grid.render(fresh);
             console.log('✅ AI Overview Grid.js table rendered successfully');
 
         } catch (error) {
@@ -2870,14 +2872,15 @@ class ManualAISystem {
             const row = [
                 keyword,
                 aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
-                aiAnalysis.domain_ai_source_position || 'N/A'
+                (typeof aiAnalysis.domain_ai_source_position === 'number' && aiAnalysis.domain_ai_source_position > 0)
+                    ? aiAnalysis.domain_ai_source_position : 'N/A'
             ];
 
             // Add competitor data
             competitorDomains.forEach(domain => {
                 const competitorData = this.findCompetitorDataInResult(result, domain);
                 row.push(competitorData.isPresent ? 'Yes' : 'No');
-                row.push(competitorData.position || 'N/A');
+                row.push((typeof competitorData.position === 'number' && competitorData.position > 0) ? competitorData.position : 'N/A');
             });
 
             return row;

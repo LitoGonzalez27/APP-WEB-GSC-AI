@@ -958,7 +958,7 @@ def get_project_stats_latest(project_id: int):
                 COUNT(*) as total_keywords,
                 COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
                 COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                AVG(NULLIF(domain_position, 0)) as avg_position,
+                AVG(CASE WHEN domain_mentioned = true AND domain_position IS NOT NULL THEN domain_position END) as avg_position,
                 (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / NULLIF(COUNT(*), 0)::float * 100) as aio_weight_percentage,
                 (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
                 MAX(analysis_date) as last_analysis_date
