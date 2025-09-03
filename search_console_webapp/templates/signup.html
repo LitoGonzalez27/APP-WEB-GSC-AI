@@ -206,7 +206,21 @@
             
             // Redirigir después de un breve delay
             setTimeout(() => {
-                window.location.href = '/auth/signup';
+                // ✅ NUEVO: Preservar parámetros de URL en el redirect
+                const urlParams = new URLSearchParams(window.location.search);
+                const plan = urlParams.get('plan');
+                const source = urlParams.get('source');
+                
+                let redirectUrl = '/auth/signup';
+                if (plan || source) {
+                    const params = new URLSearchParams();
+                    if (plan) params.set('plan', plan);
+                    if (source) params.set('source', source);
+                    redirectUrl += '?' + params.toString();
+                }
+                
+                console.log('🔄 Redirecting to:', redirectUrl);
+                window.location.href = redirectUrl;
             }, 1000);
             
             // Timeout de seguridad

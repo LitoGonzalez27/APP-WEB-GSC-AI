@@ -786,6 +786,15 @@ def setup_auth_routes(app):
     def auth_signup():
         """Registro con Google OAuth - Para usuarios nuevos"""
         try:
+            # ✅ NUEVO: Capturar parámetros también en /auth/signup
+            plan_param = request.args.get('plan')
+            source_param = request.args.get('source')
+            
+            if plan_param and plan_param in ['basic', 'premium']:
+                session['signup_plan'] = plan_param
+                session['signup_source'] = source_param or 'direct'
+                logger.info(f"🔄 /auth/signup con plan: {plan_param} (source: {source_param})")
+            
             flow = create_flow()
             if not flow:
                 return jsonify({'error': 'OAuth configuration error'}), 500
@@ -875,6 +884,10 @@ def setup_auth_routes(app):
                     signup_plan = session.get('signup_plan')
                     signup_source = session.get('signup_source')
                     
+                    # ✅ DEBUG: Log detallado para debugging
+                    logger.info(f"🔍 DEBUG - Callback registro - signup_plan: {signup_plan}, signup_source: {signup_source}")
+                    logger.info(f"🔍 DEBUG - Session keys: {list(session.keys())}")
+                    
                     if signup_plan and signup_plan in ['basic', 'premium']:
                         # ✅ NUEVO: Login automático + redirect directo a checkout
                         session['credentials'] = session.pop('temp_credentials')
@@ -883,7 +896,7 @@ def setup_auth_routes(app):
                         session['user_name'] = new_user['name']
                         update_last_activity()
                         
-                        logger.info(f"Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
+                        logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
                         return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}&first_time=true')
                     else:
                         # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
@@ -993,8 +1006,11 @@ def setup_auth_routes(app):
                 signup_plan = session.pop('signup_plan', None)
                 signup_source = session.pop('signup_source', None)
                 
+                # ✅ DEBUG: Log detallado para debugging
+                logger.info(f"🔍 DEBUG - Callback login - signup_plan: {signup_plan}, signup_source: {signup_source}")
+                
                 if signup_plan and signup_plan in ['basic', 'premium']:
-                    logger.info(f"Login exitoso con plan {signup_plan} - redirigiendo a checkout")
+                    logger.info(f"✅ Login exitoso con plan {signup_plan} - redirigiendo a checkout")
                     return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}')
                 
                 # ✅ FASE 4.5: Usar parámetro next después de autenticación
