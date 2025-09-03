@@ -920,6 +920,77 @@ def get_global_domains_ranking(project_id):
         logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ================================
+# NUEVO: Endpoints “latest” (ignoran Time Range)
+# ================================
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/stats-latest', methods=['GET'])
+@auth_required
+def get_project_stats_latest(project_id: int):
+    """Devuelve métricas de Overview basadas en el último análisis disponible (ignora rango de días)."""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database connection error'}), 500
+        cur = conn.cursor()
+
+        # Tomar el último resultado por keyword activa (sin filtro por rango)
+        cur.execute("""
+            WITH latest_results AS (
+                SELECT DISTINCT ON (k.id)
+                    k.id AS keyword_id,
+                    r.has_ai_overview,
+                    r.domain_mentioned,
+                    r.domain_position,
+                    r.analysis_date
+                FROM manual_ai_keywords k
+                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                WHERE k.project_id = %s
+                AND k.is_active = true
+                ORDER BY k.id, r.analysis_date DESC
+            )
+            SELECT 
+                COUNT(*) as total_keywords,
+                COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                AVG(NULLIF(domain_position, 0)) as avg_position,
+                (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                 NULLIF(COUNT(*), 0)::float * 100) as aio_weight_percentage,
+                MAX(analysis_date) as last_analysis_date
+            FROM latest_results
+        """, (project_id,))
+
+        main_stats = dict(cur.fetchone() or {})
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'main_stats': main_stats})
+    except Exception as e:
+        logger.error(f"Error getting latest overview stats for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/ai-overview-table-latest', methods=['GET'])
+@auth_required
+def get_ai_overview_table_latest(project_id: int):
+    """Tabla de AI Overview basada en el último análisis disponible por keyword (ignora rango)."""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = get_project_ai_overview_keywords_latest(project_id)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        logger.error(f"Error getting latest AI Overview table for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/download-excel', methods=['POST'])
 @auth_required
 def download_manual_ai_excel(project_id):
@@ -3486,6 +3557,85 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
         
     except Exception as e:
         logger.error(f"Error getting AI Overview keywords for project {project_id}: {e}")
+        return {'keywordResults': [], 'competitorDomains': []}
+
+def get_project_ai_overview_keywords_latest(project_id: int) -> Dict:
+    """Obtiene AI Overview Keywords basadas en el último análisis por keyword (sin rango de días)."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Info proyecto
+        cur.execute("""
+            SELECT domain, selected_competitors
+            FROM manual_ai_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_data = cur.fetchone()
+        if not project_data:
+            return {'keywordResults': [], 'competitorDomains': []}
+        project_domain = project_data['domain']
+        selected_competitors = project_data['selected_competitors'] or []
+
+        # Último análisis por keyword activa
+        cur.execute("""
+            WITH latest_analysis AS (
+                SELECT DISTINCT ON (k.id)
+                    k.id as keyword_id,
+                    k.keyword,
+                    r.has_ai_overview,
+                    r.domain_mentioned,
+                    r.domain_position,
+                    r.ai_analysis_data,
+                    r.analysis_date
+                FROM manual_ai_keywords k
+                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                WHERE k.project_id = %s
+                AND k.is_active = true
+                ORDER BY k.id, r.analysis_date DESC
+            )
+            SELECT 
+                keyword_id,
+                keyword,
+                has_ai_overview,
+                domain_mentioned,
+                domain_position,
+                ai_analysis_data,
+                analysis_date
+            FROM latest_analysis
+            WHERE has_ai_overview = true
+            ORDER BY keyword
+        """, (project_id,))
+
+        results = [dict(row) for row in cur.fetchall()]
+
+        keyword_results = []
+        for result in results:
+            entry = {
+                'keyword': result['keyword'],
+                'analysis_date': result['analysis_date'],
+                'ai_analysis': {
+                    'has_ai_overview': result['has_ai_overview'],
+                    'domain_is_ai_source': result['domain_mentioned'],
+                    'domain_ai_source_position': result['domain_position'],
+                    'debug_info': { 'references_found': [] }
+                }
+            }
+            if result['ai_analysis_data']:
+                ai_data = result['ai_analysis_data']
+                refs = (ai_data.get('debug_info') or {}).get('references_found', [])
+                entry['ai_analysis']['debug_info']['references_found'] = refs
+            keyword_results.append(entry)
+
+        cur.close()
+        conn.close()
+        return {
+            'keywordResults': keyword_results,
+            'competitorDomains': selected_competitors,
+            'projectDomain': project_domain
+        }
+    except Exception as e:
+        logger.error(f"Error getting latest AI Overview keywords for project {project_id}: {e}")
         return {'keywordResults': [], 'competitorDomains': []}
 
 def get_project_info(project_id: int) -> Optional[Dict]:

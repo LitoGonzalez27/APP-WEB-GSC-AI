@@ -1313,19 +1313,25 @@ class ManualAISystem {
     renderAnalytics(stats) {
         console.log('📊 Rendering analytics data:', stats);
         
-        // Update summary cards with safe access
-        this.updateSummaryCard('totalKeywords', stats.main_stats?.total_keywords || 0);
-        this.updateSummaryCard('aiKeywords', stats.main_stats?.total_ai_keywords || 0);
-        this.updateSummaryCard('domainMentions', stats.main_stats?.total_mentions || 0);
-        this.updateSummaryCard('visibilityPercentage', 
-            stats.main_stats?.visibility_percentage ? 
-            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%');
-        this.updateSummaryCard('averagePosition', 
-            stats.main_stats?.avg_position ? 
-            Math.round(stats.main_stats.avg_position * 10) / 10 : '-');
-        this.updateSummaryCard('aioWeight', 
-            stats.main_stats?.aio_weight_percentage ? 
-            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%');
+        // Update summary cards — ahora desde endpoint "latest" (ignora rango)
+        const projectIdForLatest = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
+        if (projectIdForLatest) {
+            fetch(`/manual-ai/api/projects/${projectIdForLatest}/stats-latest`)
+                .then(r => r.json())
+                .then(latest => {
+                    const ms = latest?.main_stats || {};
+                    this.updateSummaryCard('totalKeywords', ms.total_keywords || 0);
+                    this.updateSummaryCard('aiKeywords', ms.total_ai_keywords || 0);
+                    this.updateSummaryCard('domainMentions', ms.total_mentions || 0);
+                    this.updateSummaryCard('visibilityPercentage',
+                        typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
+                    this.updateSummaryCard('averagePosition',
+                        typeof ms.avg_position === 'number' ? Math.round(ms.avg_position * 10) / 10 : '-');
+                    this.updateSummaryCard('aioWeight',
+                        typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
+                })
+                .catch(() => {/* silencioso */});
+        }
 
         // Show charts container
         this.hideElement(this.elements.analyticsContent);
@@ -1333,7 +1339,6 @@ class ManualAISystem {
 
         // Get project ID from stats or current selection
         const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
-
         if (!projectId) {
             console.warn('No project ID available for analytics rendering');
             return;
@@ -2642,7 +2647,8 @@ class ManualAISystem {
         const days = this.elements.analyticsTimeRange?.value || 30;
 
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table?days=${days}`);
+            // Tabla de AI Overview debe quedarse fija al último análisis disponible
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table-latest`);
             
             if (!response.ok) {
                 if (response.status === 404) {
