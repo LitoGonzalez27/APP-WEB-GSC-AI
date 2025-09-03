@@ -295,11 +295,12 @@
                 showNotification(errorMessage, 'error');
             }
             
-            // Limpiar URL
-            if (urlParams.toString()) {
-                const newUrl = window.location.pathname;
-                window.history.replaceState({}, '', newUrl);
-            }
+            // Limpiar URL: eliminar parámetros efímeros pero conservar plan/source/next
+            const cleanedParams = new URLSearchParams(window.location.search);
+            ['auth_error','google_signup','error','registration_error','message'].forEach(k => cleanedParams.delete(k));
+            const newQuery = cleanedParams.toString();
+            const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
         }
 
         // Inicialización
