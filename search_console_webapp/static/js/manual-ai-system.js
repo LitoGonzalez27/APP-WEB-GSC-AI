@@ -1316,19 +1316,30 @@ class ManualAISystem {
         // Update summary cards — ahora desde endpoint "latest" (ignora rango)
         const projectIdForLatest = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
         if (projectIdForLatest) {
+            const latestToken = Date.now();
+            this._latestOverviewToken = latestToken;
             fetch(`/manual-ai/api/projects/${projectIdForLatest}/stats-latest`)
                 .then(r => r.json())
                 .then(latest => {
+                    if (this._latestOverviewToken !== latestToken) return; // evitar pisado por race
                     const ms = latest?.main_stats || {};
                     this.updateSummaryCard('totalKeywords', ms.total_keywords || 0);
                     this.updateSummaryCard('aiKeywords', ms.total_ai_keywords || 0);
                     this.updateSummaryCard('domainMentions', ms.total_mentions || 0);
-                    this.updateSummaryCard('visibilityPercentage',
-                        typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
+                    // Mostrar visibilidad con base en último análisis si viene calculada
+                    const visPct = (typeof ms.visibility_percentage === 'number') ? ms.visibility_percentage : ms.aio_weight_percentage;
+                    this.updateSummaryCard('visibilityPercentage', typeof visPct === 'number' ? Math.round(visPct) + '%' : '0%');
                     this.updateSummaryCard('averagePosition',
                         typeof ms.avg_position === 'number' ? Math.round(ms.avg_position * 10) / 10 : '-');
                     this.updateSummaryCard('aioWeight',
                         typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
+
+                    // Badge "Latest analysis"
+                    const header = document.querySelector('.overview-section .section-header p.section-description');
+                    if (header) {
+                        const dt = ms.last_analysis_date ? new Date(ms.last_analysis_date).toLocaleDateString() : '';
+                        header.textContent = `Data from the latest analysis${dt ? ' (' + dt + ')' : ''}`;
+                    }
                 })
                 .catch(() => {/* silencioso */});
         }
@@ -2648,6 +2659,8 @@ class ManualAISystem {
 
         try {
             // Tabla de AI Overview debe quedarse fija al último análisis disponible
+            const latestToken = Date.now();
+            this._latestAIOTableToken = latestToken;
             const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table-latest`);
             
             if (!response.ok) {
@@ -2659,6 +2672,7 @@ class ManualAISystem {
             }
 
             const result = await response.json();
+            if (this._latestAIOTableToken !== latestToken) return; // evitar pisado por race
             const data = result.data || {};
             
             // Render AI Overview keywords table using Grid.js
@@ -2718,7 +2732,10 @@ class ManualAISystem {
                     limit: 10,
                     summary: true
                 },
-                sort: true,
+                sort: {
+                    enabled: true,
+                    multiColumn: true
+                },
                 search: {
                     placeholder: 'Type a keyword...'
                 },
@@ -2753,7 +2770,14 @@ class ManualAISystem {
                 id: 'your_domain_in_aio',
                 name: gridjs.html('Your Domain<br>in AIO'),
                 width: '120px',
-                sort: true,
+                sort: {
+                    compare: (a, b) => {
+                        // Ordenar Yes/No: Yes primero
+                        const va = (a === 'Yes') ? 1 : 0;
+                        const vb = (b === 'Yes') ? 1 : 0;
+                        return vb - va; // Yes > No
+                    }
+                },
                 formatter: (cell) => {
                     const isPresent = cell === 'Yes';
                     return gridjs.html(`
@@ -2798,7 +2822,13 @@ class ManualAISystem {
                 id: `comp_${domainId}_present`,
                 name: gridjs.html(`${truncatedDomain}<br>in AIO`),
                 width: '120px',
-                sort: true,
+                sort: {
+                    compare: (a, b) => {
+                        const va = (a === 'Yes') ? 1 : 0;
+                        const vb = (b === 'Yes') ? 1 : 0;
+                        return vb - va; // Yes > No
+                    }
+                },
                 formatter: (cell) => {
                     const isPresent = cell === 'Yes';
                     return gridjs.html(`
