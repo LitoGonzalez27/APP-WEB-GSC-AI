@@ -1035,6 +1035,6 @@ body.loaded {
 }
 
 .login-form-panel .form-group input::placeholder {
-    color: #9ca3af;
+    color: #161616;
     opacity: 1;
 }

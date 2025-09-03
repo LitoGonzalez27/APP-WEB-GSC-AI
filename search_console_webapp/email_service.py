@@ -59,27 +59,16 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: str = Non
         # Crear contexto SSL seguro
         context = ssl.create_default_context()
         
-<<<<<<< HEAD
-        # Conectar al servidor SMTP con timeout más largo
+        # Conectar al servidor SMTP con timeout más largo para Railway/Brevo
         if USE_STARTTLS or SMTP_PORT == 587:
             # Usar STARTTLS (puerto 587)
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
-=======
-        # Conectar al servidor SMTP
-        if USE_STARTTLS or SMTP_PORT == 587:
-            # Usar STARTTLS (puerto 587)
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
->>>>>>> fc17d2116452376c1b97f08826f5b512f5731859
                 server.starttls(context=context)
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 server.sendmail(FROM_EMAIL, to_email, message.as_string())
         else:
             # Usar SSL directo (puerto 465)
-<<<<<<< HEAD
             with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context, timeout=30) as server:
-=======
-            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context, timeout=10) as server:
->>>>>>> fc17d2116452376c1b97f08826f5b512f5731859
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 server.sendmail(FROM_EMAIL, to_email, message.as_string())
         
@@ -139,10 +128,12 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = No
                 margin-bottom: 30px;
             }}
             .logo {{
-                font-size: 28px;
-                font-weight: 700;
-                color: #D8F9B8;
-                margin-bottom: 10px;
+                margin-bottom: 20px;
+            }}
+            .logo img {{
+                max-width: 180px;
+                height: auto;
+                max-height: 50px;
             }}
             h1 {{
                 color: #1f2937;
@@ -199,7 +190,9 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = No
     <body>
         <div class="container">
             <div class="header">
-                <div class="logo">ClicandSEO</div>
+                <div class="logo">
+                    <img src="https://clicandseo.up.railway.app/static/images/logos/logo%20clicandseo.png" alt="ClicandSEO" />
+                </div>
             </div>
             
             <h1>Reset Your Password</h1>
