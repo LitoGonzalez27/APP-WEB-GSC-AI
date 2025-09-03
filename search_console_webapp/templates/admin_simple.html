@@ -131,35 +131,91 @@
         
         /* ========== TABLE ========== */
         .table-container {
+            position: relative;
             background: white;
+            border-radius: 14px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Sombras laterales que indican scroll disponible */
+        .table-container::before,
+        .table-container::after {
+            content: "";
+            position: sticky;
+            top: 0;
+            width: 24px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .table-container::before {
+            left: 0;
+            background: linear-gradient(to right, rgba(0,0,0,0.08), rgba(0,0,0,0));
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+        .table-container::after {
+            right: 0;
+            background: linear-gradient(to left, rgba(0,0,0,0.08), rgba(0,0,0,0));
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+        .table-container.has-left-shadow::before { opacity: 1; }
+        .table-container.has-right-shadow::after { opacity: 1; }
+
+        /* Scrollbar sutil */
+        .table-container::-webkit-scrollbar {
+            height: 10px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #ced4da;
             border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #adb5bd;
         }
         
         .table {
             width: 100%;
-            border-collapse: collapse;
+            min-width: 1200px; /* Fuerza scroll horizontal cuando no hay espacio */
+            border-collapse: separate;
+            border-spacing: 0;
         }
         
-        .table th {
-            background: #f8f9fa;
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f8f9fb;
+            backdrop-filter: blur(6px);
             padding: 1rem;
             text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #dee2e6;
+            font-weight: 700;
+            color: #3a3f45;
+            border-bottom: 2px solid #e9ecef;
+            white-space: nowrap;
         }
         
         .table td {
-            padding: 1rem;
-            border-bottom: 1px solid #dee2e6;
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid #edf0f2;
             vertical-align: middle;
+            white-space: nowrap;
         }
         
-        .table tr:hover {
-            background: #f8f9fa;
-        }
+        .table tbody tr:nth-child(even) { background: #fcfdff; }
+        .table tbody tr:hover { background: #f3f6ff; }
         
         .user-info {
             display: flex;
@@ -168,15 +224,16 @@
         }
         
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.25);
         }
         
         .user-avatar img {
@@ -277,17 +334,18 @@
         .quota-progress-bar {
             width: 100%;
             height: 8px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
+            background-color: #eef2ff;
+            border-radius: 999px;
             overflow: hidden;
             position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
         }
         
         .quota-progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 80%, #dc3545 100%);
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #3b82f6, #22d3ee);
+            border-radius: 999px;
+            transition: width 0.6s ease;
             position: relative;
         }
         
