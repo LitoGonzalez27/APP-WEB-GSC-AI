@@ -208,8 +208,8 @@
             setTimeout(() => {
                 // ✅ NUEVO: Preservar parámetros de URL en el redirect
                 const urlParams = new URLSearchParams(window.location.search);
-                const plan = urlParams.get('plan');
-                const source = urlParams.get('source');
+                const plan = sessionStorage.getItem('signup_plan') || urlParams.get('plan');
+                const source = sessionStorage.getItem('signup_source') || urlParams.get('source');
                 
                 let redirectUrl = '/auth/signup';
                 if (plan || source) {
@@ -244,16 +244,22 @@
                 showNotification('Email and password are required', 'warning');
                 return;
             }
+            const params = new URLSearchParams(window.location.search);
+            const plan = sessionStorage.getItem('signup_plan') || params.get('plan');
+            const source = sessionStorage.getItem('signup_source') || params.get('source');
+
             fetch('/auth/email/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, name, password })
+                credentials: 'same-origin',
+                body: JSON.stringify({ email, name, password, plan, source })
             })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showNotification('Account created. Redirecting to login...', 'success');
-                    setTimeout(() => window.location.href = '/login', 1000);
+                    const nextUrl = data.next || '/login';
+                    showNotification('Account created. Redirecting...', 'success');
+                    setTimeout(() => window.location.href = nextUrl, 800);
                 } else {
                     showNotification(data.error || 'Could not create account', 'error');
                 }
@@ -307,6 +313,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Manejar notificaciones de URL
             handleUrlNotifications();
+            // Persistir plan/source en sessionStorage para robustez
+            try {
+                const p = new URLSearchParams(window.location.search);
+                const initialPlan = p.get('plan');
+                const initialSource = p.get('source');
+                if (initialPlan) sessionStorage.setItem('signup_plan', initialPlan);
+                if (initialSource) sessionStorage.setItem('signup_source', initialSource);
+            } catch (e) { /* no-op */ }
             
             // Animación de entrada
             setTimeout(() => {

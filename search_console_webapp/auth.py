@@ -722,10 +722,36 @@ def setup_auth_routes(app):
             if not new_user:
                 return jsonify({'error': 'No se pudo crear el usuario'}), 500
 
-            # Mantener usuario sin GSC hasta que conecte
-            return jsonify({'success': True, 'message': 'Cuenta creada. Ahora inicia sesión.', 'user': {
-                'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
-            }})
+            # ✅ Si el signup viene con plan de pago, iniciar sesión y redirigir a checkout
+            signup_plan = session.get('signup_plan')
+            signup_source = session.get('signup_source') or 'registration'
+
+            if signup_plan in ['basic', 'premium']:
+                # Iniciar sesión del usuario recién creado
+                session['user_id'] = new_user['id']
+                session['user_email'] = new_user['email']
+                session['user_name'] = new_user['name']
+                update_last_activity()
+
+                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&first_time=true"
+                return jsonify({
+                    'success': True,
+                    'message': 'Cuenta creada. Redirigiendo a la pasarela de pago...',
+                    'next': checkout_url,
+                    'user': {
+                        'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
+                    }
+                })
+
+            # Mantener usuario sin GSC hasta que conecte; flujo Free → login
+            return jsonify({
+                'success': True,
+                'message': 'Cuenta creada. Ahora inicia sesión.',
+                'next': '/login',
+                'user': {
+                    'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
+                }
+            })
         except Exception as e:
             logger.error(f"Error en email signup: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
