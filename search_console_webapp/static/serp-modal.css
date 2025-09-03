@@ -45,6 +45,12 @@
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Nueva clase: pestaña activa en negro #161616 según requerimiento */
+.serp-tab-active-dark.serp-tab.active {
+  color: #161616 !important;
+  border-bottom-color: #161616 !important;
+}
+
 .tab-content {
   background: var(--card-bg);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
@@ -138,7 +144,7 @@
 }
 
 .result-preview h5 a {
-  color: var(--cta-bg);
+  color: #161616;
   text-decoration: none;
   font-weight: 600;
   font-size: 1.05em;
@@ -205,7 +211,7 @@
 }
 
 .serp-list li strong a {
-  color: var(--cta-bg);
+  color: #161616;
   text-decoration: none;
   transition: color var(--transition-fast);
 }
@@ -548,16 +554,17 @@
   gap: 12px;
 }
 
-#serpModal .modal-header h3 i {
-  color: var(--cta-bg);
-  font-size: 1.1em;
-}
+#serpModal .modal-header h3 i { display: none; }
 
+#serpModal .modal-header { position: relative; }
 #serpModal .close-btn {
+  position: absolute;
+  right: 16px;
+  top: 12px;
   background: transparent;
   border: none;
   color: var(--text-color);
-  font-size: 28px;
+  font-size: 24px;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;

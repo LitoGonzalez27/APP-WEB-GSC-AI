@@ -152,7 +152,7 @@ export function openSerpModal(keyword, userSpecificUrl) {
   const container = document.createElement('div');
   container.innerHTML = `
     <div class="serp-tabs">
-      <button class="serp-tab active" data-tab="quick" aria-selected="true">Quick View</button>
+      <button class="serp-tab active serp-tab-active-dark" data-tab="quick" aria-selected="true">Quick View</button>
       <button class="serp-tab" data-tab="screenshot" aria-selected="false">Screenshot SERP</button>
     </div>
     <div class="serp-content">
@@ -179,6 +179,9 @@ export function openSerpModal(keyword, userSpecificUrl) {
       tabs.forEach(t => t.classList.remove('active'));
       tabContents.forEach(tc => (tc.style.display = 'none'));
       tab.classList.add('active');
+      // Aplicar variante oscura de activo en pestañas solicitada
+      tabs.forEach(t => t.classList.remove('serp-tab-active-dark'));
+      tab.classList.add('serp-tab-active-dark');
       document.getElementById(tab.dataset.tab === 'quick' ? 'quick-view' : 'screenshot-view').style.display = 'block';
     });
   });
