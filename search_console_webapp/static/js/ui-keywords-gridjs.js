@@ -70,6 +70,7 @@ function ensureKwFilterUISetup() {
     const methodEl = document.getElementById('kwFilterMethod');
     const tagsContainer = document.getElementById('kwFilterTagsContainer');
     const clearAll = document.getElementById('kwFilterClearAll');
+    const clearBtn = document.getElementById('kwFilterClearBtn');
     if (!input || !methodEl || !tagsContainer) return; // UI aún no en DOM
 
     // Eventos de input: coma/Enter crean tag; comas pegadas se reparten
@@ -112,8 +113,9 @@ function ensureKwFilterUISetup() {
     });
 
     // Clear All
-    if (clearAll) {
-        clearAll.addEventListener('click', () => clearKwFilterTerms());
+    if (clearBtn && !clearBtn.dataset.bound) {
+        clearBtn.addEventListener('click', () => clearKwFilterTerms());
+        clearBtn.dataset.bound = 'true';
     }
 
     renderKwFilterTags();
@@ -186,7 +188,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Aplicar filtro de palabras clave (si hay)
     // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
-    const filteredKeywords = applyKeywordFilter(keywordsData);
+    const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
 
     // Procesar datos para Grid.js
     const { columns, data } = processKeywordsDataForGrid(filteredKeywords, analysisType);
@@ -206,7 +208,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Crear instancia de Grid.js
     const grid = new gridjs.Grid({
         columns: columns,
-        data: data,
+        data: Array.isArray(data) ? data : [],
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
         search: {
             enabled: true,
@@ -285,7 +287,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         console.log('✅ Keywords Grid.js table rendered successfully');
 
         // Adjuntar botón Apply solo para la tabla principal (no para modales)
-        const isMainGrid = (container && container.id === 'keywordComparisonBlock');
+        const isMainGrid = (container && (container.id === 'keywordComparisonBlock' || container.classList.contains('table-responsive-container')));
 
         // Eventos para aplicar filtro bajo demanda (botón Apply)
         const reRenderWithFilter = () => {
