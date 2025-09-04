@@ -2,6 +2,50 @@
 
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
+// =============================
+// Keyword Filter (frontend)
+// =============================
+function getKeywordFilterConfig() {
+    const methodEl = document.getElementById('kwFilterMethod');
+    const termsContainer = document.getElementById('kwFilterTagsContainer');
+    const inputEl = document.getElementById('kwFilterTerms');
+
+    const method = methodEl ? methodEl.value : 'contains';
+    // Leer términos desde los tags generados o, en su defecto, del input separado por comas
+    const tags = Array.from(termsContainer ? termsContainer.querySelectorAll('.exclusion-tag-text') : [])
+        .map(span => (span.textContent || '').trim().toLowerCase())
+        .filter(Boolean);
+    let terms = tags;
+    if (terms.length === 0 && inputEl && inputEl.value) {
+        terms = inputEl.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    }
+    return { method, terms };
+}
+
+function applyKeywordFilter(keywordsData) {
+    const { method, terms } = getKeywordFilterConfig();
+    if (!Array.isArray(keywordsData) || terms.length === 0) return keywordsData;
+
+    const matches = (kw) => {
+        const k = (kw || '').toString().toLowerCase();
+        switch (method) {
+            case 'contains':
+                return terms.some(t => k.includes(t));
+            case 'equals':
+                return terms.some(t => k === t);
+            case 'notContains':
+                return terms.every(t => !k.includes(t));
+            case 'notEquals':
+                return terms.every(t => k !== t);
+            default:
+                return true;
+        }
+    };
+
+    // keywordsData es array de objetos { keyword, ... }
+    return keywordsData.filter(row => matches(row.keyword));
+}
+
 /**
  * Crea y renderiza la tabla Grid.js de Keywords
  * @param {Array} keywordsData - Datos de keywords procesados
@@ -30,8 +74,11 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         return null;
     }
 
+    // Aplicar filtro de palabras clave (si hay)
+    const filteredKeywords = applyKeywordFilter(keywordsData);
+
     // Procesar datos para Grid.js
-    const { columns, data } = processKeywordsDataForGrid(keywordsData, analysisType);
+    const { columns, data } = processKeywordsDataForGrid(filteredKeywords, analysisType);
 
     // Crear contenedor para la tabla con ID único y consistente
     const uniqueId = `keywords-grid-table-${Date.now()}`;
@@ -125,6 +172,42 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         
         grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
+
+        // Eventos para aplicar filtro y re-render sin perder estado de tabla
+        const reRenderWithFilter = () => {
+            try {
+                const filtered = applyKeywordFilter(keywordsData);
+                const processed = processKeywordsDataForGrid(filtered, analysisType);
+                grid.updateConfig({ data: processed.data }).forceRender();
+            } catch (e) {
+                console.warn('⚠️ No se pudo aplicar filtro dinámico de keywords:', e);
+            }
+        };
+
+        ['kwFilterTerms','kwFilterMethod'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', reRenderWithFilter);
+                el.addEventListener('change', reRenderWithFilter);
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                        setTimeout(reRenderWithFilter, 50);
+                    }
+                });
+            }
+        });
+
+        const tagsContainer = document.getElementById('kwFilterTagsContainer');
+        const clearAll = document.getElementById('kwFilterClearAll');
+        if (tagsContainer) {
+            tagsContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.exclusion-tag-remove');
+                if (target) setTimeout(reRenderWithFilter, 50);
+            });
+        }
+        if (clearAll) {
+            clearAll.addEventListener('click', () => setTimeout(reRenderWithFilter, 50));
+        }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
         setTimeout(() => {

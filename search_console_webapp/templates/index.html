@@ -435,6 +435,84 @@
           <div class="keywords-category-block">
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
           </div>
+
+          <!-- Keyword Filter (estética similar a Keyword Exclusions) -->
+          <div class="collapsible-block" id="keywordFilterBlock">
+            <div class="collapsible-header" id="keywordFilterHeader">
+              <div class="collapsible-title">
+                <i class="fas fa-filter"></i>
+                <span>Keyword Filter</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="keywordFilterSummary">
+                Filter keywords by terms (contains / equals / not contains / not equal)
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="keywordFilterArrow"></i>
+            </div>
+
+            <div class="collapsible-content" id="keywordFilterContent">
+              <div class="exclusion-container">
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-filter"></i>
+                      Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="kwFilterMethod" class="exclusion-method-select">
+                        <option value="contains" selected>Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="notContains">Not Contains</option>
+                        <option value="notEquals">Not Equal</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="kwFilterMethodDescription">Show rows where keyword contains any term</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Terms
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="kwFilterTerms" 
+                        placeholder="Type term, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Use comma (,) or Enter to add</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Active Tags -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-tags"></i>
+                      Active Filters
+                      <span class="exclusion-count" id="kwFilterCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="exclusion-tags-container" id="kwFilterTagsContainer"></div>
+                      <div class="exclusion-clear-all" id="kwFilterClearAll" style="display: none;">
+                        <button type="button" class="clear-all-btn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div id="keywordComparisonBlock" class="table-responsive-container">
             <!-- Grid.js table will be inserted here -->
           </div>
