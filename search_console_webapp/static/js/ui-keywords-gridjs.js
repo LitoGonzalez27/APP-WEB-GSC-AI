@@ -3,22 +3,137 @@
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
 // =============================
+// UI state y helpers para Keyword Filter
+// =============================
+const kwFilterState = {
+    initialized: false,
+    terms: []
+};
+
+function updateKwFilterMethodDescription() {
+    const descEl = document.getElementById('kwFilterMethodDescription');
+    const methodEl = document.getElementById('kwFilterMethod');
+    if (!descEl || !methodEl) return;
+    const m = methodEl.value;
+    const map = {
+        contains: 'Show rows where keyword contains any term',
+        equals: 'Show rows where keyword exactly matches any term',
+        notContains: 'Hide rows where keyword contains any term',
+        notEquals: 'Hide rows where keyword exactly matches any term'
+    };
+    descEl.textContent = map[m] || 'Filter keywords by terms';
+}
+
+function renderKwFilterTags() {
+    const container = document.getElementById('kwFilterTagsContainer');
+    const countEl = document.getElementById('kwFilterCount');
+    const clearAllEl = document.getElementById('kwFilterClearAll');
+    if (!container) return;
+
+    if (countEl) countEl.textContent = kwFilterState.terms.length;
+    if (clearAllEl) clearAllEl.style.display = kwFilterState.terms.length > 0 ? 'flex' : 'none';
+
+    if (kwFilterState.terms.length === 0) {
+        container.innerHTML = '<div class="exclusion-empty">No exclusions yet...</div>';
+        return;
+    }
+
+    container.innerHTML = kwFilterState.terms.map((term, index) => `
+        <div class="exclusion-tag">
+            <span class="exclusion-tag-text">${escapeHtml(term)}</span>
+            <span class="exclusion-tag-remove" data-index="${index}" title="Remove">
+                <i class="fas fa-times"></i>
+            </span>
+        </div>
+    `).join('');
+}
+
+function addKwFilterTerm(raw) {
+    if (!raw) return;
+    const term = raw.trim().toLowerCase();
+    if (!term) return;
+    if (kwFilterState.terms.includes(term)) return;
+    kwFilterState.terms.push(term);
+    renderKwFilterTags();
+}
+
+function clearKwFilterTerms() {
+    kwFilterState.terms = [];
+    const input = document.getElementById('kwFilterTerms');
+    if (input) input.value = '';
+    renderKwFilterTags();
+}
+
+function ensureKwFilterUISetup() {
+    if (kwFilterState.initialized) return;
+    const input = document.getElementById('kwFilterTerms');
+    const methodEl = document.getElementById('kwFilterMethod');
+    const tagsContainer = document.getElementById('kwFilterTagsContainer');
+    const clearAll = document.getElementById('kwFilterClearAll');
+    if (!input || !methodEl || !tagsContainer) return; // UI aún no en DOM
+
+    // Eventos de input: coma/Enter crean tag; comas pegadas se reparten
+    input.addEventListener('keydown', (e) => {
+        const v = input.value.trim();
+        if ((e.key === ',' || e.key === 'Enter') && v) {
+            e.preventDefault();
+            addKwFilterTerm(v);
+            input.value = '';
+        }
+        if (e.key === 'Backspace' && !v && kwFilterState.terms.length > 0) {
+            kwFilterState.terms.pop();
+            renderKwFilterTags();
+        }
+    });
+    input.addEventListener('input', () => {
+        const val = input.value;
+        if (val.includes(',')) {
+            const parts = val.split(',');
+            const last = parts.pop();
+            parts.forEach(p => addKwFilterTerm(p));
+            input.value = (last || '').trim();
+        }
+    });
+
+    // Cambios de método → descripción
+    methodEl.addEventListener('change', updateKwFilterMethodDescription);
+    updateKwFilterMethodDescription();
+
+    // Eliminar tag por click
+    tagsContainer.addEventListener('click', (e) => {
+        const rm = e.target.closest('.exclusion-tag-remove');
+        if (rm && rm.dataset.index !== undefined) {
+            const idx = parseInt(rm.dataset.index, 10);
+            if (!isNaN(idx)) {
+                kwFilterState.terms.splice(idx, 1);
+                renderKwFilterTags();
+            }
+        }
+    });
+
+    // Clear All
+    if (clearAll) {
+        clearAll.addEventListener('click', () => clearKwFilterTerms());
+    }
+
+    renderKwFilterTags();
+    kwFilterState.initialized = true;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// =============================
 // Keyword Filter (frontend)
 // =============================
 function getKeywordFilterConfig() {
     const methodEl = document.getElementById('kwFilterMethod');
-    const termsContainer = document.getElementById('kwFilterTagsContainer');
-    const inputEl = document.getElementById('kwFilterTerms');
-
     const method = methodEl ? methodEl.value : 'contains';
-    // Leer términos desde los tags generados o, en su defecto, del input separado por comas
-    const tags = Array.from(termsContainer ? termsContainer.querySelectorAll('.exclusion-tag-text') : [])
-        .map(span => (span.textContent || '').trim().toLowerCase())
-        .filter(Boolean);
-    let terms = tags;
-    if (terms.length === 0 && inputEl && inputEl.value) {
-        terms = inputEl.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-    }
+    // Usar el estado interno (tags creados por el usuario)
+    const terms = kwFilterState.terms.slice();
     return { method, terms };
 }
 
@@ -75,6 +190,8 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     }
 
     // Aplicar filtro de palabras clave (si hay)
+    // Asegurar inicialización de UI del filtro (tags, botones)
+    ensureKwFilterUISetup();
     const filteredKeywords = applyKeywordFilter(keywordsData);
 
     // Procesar datos para Grid.js
