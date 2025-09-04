@@ -1334,9 +1334,16 @@ class ManualAISystem {
                 .then(latest => {
                     if (this._latestOverviewToken !== latestToken) return; // evitar pisado por race
                     const ms = latest?.main_stats || {};
-                    this.updateSummaryCard('totalKeywords', ms.total_keywords || 0);
-                    this.updateSummaryCard('aiKeywords', ms.total_ai_keywords || 0);
-                    this.updateSummaryCard('domainMentions', ms.total_mentions || 0);
+                    const totalKeywords = Number(ms.total_keywords) || 0;
+                    const totalAi = Number(ms.total_ai_keywords) || 0;
+                    const totalMentions = Number(ms.total_mentions) || 0;
+                    const avgPos = (ms.avg_position !== null && ms.avg_position !== undefined) ? Number(ms.avg_position) : null;
+                    const aioWeightPct = (ms.aio_weight_percentage !== null && ms.aio_weight_percentage !== undefined) ? Number(ms.aio_weight_percentage) : null;
+                    const visPctRaw = (ms.visibility_percentage !== null && ms.visibility_percentage !== undefined) ? Number(ms.visibility_percentage) : null;
+                    
+                    this.updateSummaryCard('totalKeywords', totalKeywords);
+                    this.updateSummaryCard('aiKeywords', totalAi);
+                    this.updateSummaryCard('domainMentions', totalMentions);
                     // Mostrar visibilidad con base en último análisis si viene calculada
                     const visPct = (typeof ms.visibility_percentage === 'number') ? ms.visibility_percentage : ms.aio_weight_percentage;
                     this.updateSummaryCard('visibilityPercentage', typeof visPct === 'number' ? Math.round(visPct) + '%' : '0%');
@@ -4366,16 +4373,25 @@ class ManualAISystem {
                 btnText.textContent = 'Preparing PDF...';
             }
 
-            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-                import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js'),
-                import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
+            const [{ default: html2canvas }] = await Promise.all([
+                import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
             ]);
+            // Cargar jsPDF UMD y acceder via window.jspdf.jsPDF
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+                    s.onload = () => resolve();
+                    s.onerror = () => reject(new Error('Failed to load jsPDF'));
+                    document.head.appendChild(s);
+                });
+            }
 
             const target = document.querySelector('.manual-ai-app') || document.body;
             const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
             const imgData = canvas.toDataURL('image/jpeg', 0.92);
 
-            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const imgWidth = pageWidth;
