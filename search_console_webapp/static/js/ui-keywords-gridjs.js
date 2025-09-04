@@ -40,7 +40,7 @@ function renderKwFilterTags() {
 
     container.innerHTML = kwFilterState.terms.map((term, index) => `
         <div class="exclusion-tag">
-            <span class="exclusion-tag-text">${escapeHtml(term)}</span>
+            <span class="exclusion-tag-text">${escapeHtmlLocal(term)}</span>
             <span class="exclusion-tag-remove" data-index="${index}" title="Remove">
                 <i class="fas fa-times"></i>
             </span>
@@ -118,12 +118,6 @@ function ensureKwFilterUISetup() {
 
     renderKwFilterTags();
     kwFilterState.initialized = true;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 // =============================
@@ -385,7 +379,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
             id: 'keyword',
             name: 'Keyword',
             width: '200px',
-            formatter: (cell) => gridjs.html(`<span class="keyword-text">${escapeHtml(cell)}</span>`)
+            formatter: (cell) => gridjs.html(`<span class="keyword-text">${escapeHtmlLocal(cell)}</span>`)
         }
     ];
 
@@ -591,7 +585,7 @@ function displayErrorMessage(container) {
 /**
  * Escapa HTML para prevenir XSS
  */
-function escapeHtml(text) {
+function escapeHtmlLocal(text) {
     const map = {
         '&': '&amp;',
         '<': '&lt;',
