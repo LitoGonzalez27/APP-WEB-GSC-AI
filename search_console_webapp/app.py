@@ -620,35 +620,71 @@ def get_data():
                 logger.info(f"[GSC URLS] Obtenidas {len(period_data)} páginas de la propiedad completa")
             else:
                 # CON filtro de página - modo tradicional
-                for val_url in form_urls:
-                    url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
-                    combined_filters = get_base_filters(url_filter)
-                    
-                    # Obtener datos para este período
+                if match_type == 'notContains' and len(form_urls) > 1:
+                    # Excluir páginas que contengan cualquiera de las expresiones: combinar con AND
+                    url_filter_group = {
+                        'groupType': 'and',
+                        'filters': [
+                            {'dimension': 'page', 'operator': 'notContains', 'expression': val_url}
+                            for val_url in form_urls
+                        ]
+                    }
+                    combined_filters = get_base_filters([url_filter_group])
+
                     rows_data = fetch_searchconsole_data_single_call(
-                        gsc_service, site_url_sc, 
-                        start_date.strftime('%Y-%m-%d'), 
-                        end_date.strftime('%Y-%m-%d'), 
-                        ['page'], 
+                        gsc_service, site_url_sc,
+                        start_date.strftime('%Y-%m-%d'),
+                        end_date.strftime('%Y-%m-%d'),
+                        ['page'],
                         combined_filters
                     )
-                    
+
                     for r_item in rows_data:
                         page_url = r_item['keys'][0]
                         period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
-                        
+
                         if page_url not in period_data:
                             period_data[page_url] = []
-                        
+
                         period_data[page_url].append({
                             'Period': period_label,
                             'StartDate': start_date.strftime('%Y-%m-%d'),
                             'EndDate': end_date.strftime('%Y-%m-%d'),
-                            'Clicks': r_item['clicks'], 
+                            'Clicks': r_item['clicks'],
                             'Impressions': r_item['impressions'],
-                            'CTR': r_item['ctr'], 
+                            'CTR': r_item['ctr'],
                             'Position': r_item['position']
                         })
+                else:
+                    for val_url in form_urls:
+                        url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
+                        combined_filters = get_base_filters(url_filter)
+                        
+                        # Obtener datos para este período
+                        rows_data = fetch_searchconsole_data_single_call(
+                            gsc_service, site_url_sc, 
+                            start_date.strftime('%Y-%m-%d'), 
+                            end_date.strftime('%Y-%m-%d'), 
+                            ['page'], 
+                            combined_filters
+                        )
+                        
+                        for r_item in rows_data:
+                            page_url = r_item['keys'][0]
+                            period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
+                            
+                            if page_url not in period_data:
+                                period_data[page_url] = []
+                            
+                            period_data[page_url].append({
+                                'Period': period_label,
+                                'StartDate': start_date.strftime('%Y-%m-%d'),
+                                'EndDate': end_date.strftime('%Y-%m-%d'),
+                                'Clicks': r_item['clicks'], 
+                                'Impressions': r_item['impressions'],
+                                'CTR': r_item['ctr'], 
+                                'Position': r_item['position']
+                            })
             
             return period_data
 
@@ -835,10 +871,17 @@ def get_data():
                 logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords agregadas de propiedad completa")
             else:
                 # CON filtro de página - modo tradicional
-                for val_url_kw in form_urls:
-                    url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
-                    combined_filters_kw = get_base_filters(url_filter_kw)
-                    
+                if match_type == 'notContains' and len(form_urls) > 1:
+                    # Excluir páginas que contengan cualquiera de las expresiones: combinar con AND
+                    url_filter_kw_group = {
+                        'groupType': 'and',
+                        'filters': [
+                            {'dimension': 'page', 'operator': 'notContains', 'expression': val_url_kw}
+                            for val_url_kw in form_urls
+                        ]
+                    }
+                    combined_filters_kw = get_base_filters([url_filter_kw_group])
+
                     rows_data = fetch_searchconsole_data_single_call(
                         gsc_service, site_url_sc,
                         start_date.strftime('%Y-%m-%d'),
@@ -846,7 +889,7 @@ def get_data():
                         ['page','query'], 
                         combined_filters_kw
                     )
-                    
+
                     for r_item in rows_data:
                         if len(r_item.get('keys', [])) >= 2:
                             query = r_item['keys'][1]
@@ -855,14 +898,41 @@ def get_data():
                                     'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
                                     'pos_sum': 0.0, 'count': 0, 'url': ''
                                 }
-                            
                             kw_entry = keyword_data[query]
-                            kw_entry['url'] = val_url_kw
                             kw_entry['clicks'] += r_item['clicks']
                             kw_entry['impressions'] += r_item['impressions']
                             kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                             kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                             kw_entry['count'] += r_item['impressions']
+                else:
+                    for val_url_kw in form_urls:
+                        url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
+                        combined_filters_kw = get_base_filters(url_filter_kw)
+                        
+                        rows_data = fetch_searchconsole_data_single_call(
+                            gsc_service, site_url_sc,
+                            start_date.strftime('%Y-%m-%d'),
+                            end_date.strftime('%Y-%m-%d'),
+                            ['page','query'], 
+                            combined_filters_kw
+                        )
+                        
+                        for r_item in rows_data:
+                            if len(r_item.get('keys', [])) >= 2:
+                                query = r_item['keys'][1]
+                                if query not in keyword_data:
+                                    keyword_data[query] = {
+                                        'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
+                                        'pos_sum': 0.0, 'count': 0, 'url': ''
+                                    }
+                                
+                                kw_entry = keyword_data[query]
+                                kw_entry['url'] = val_url_kw
+                                kw_entry['clicks'] += r_item['clicks']
+                                kw_entry['impressions'] += r_item['impressions']
+                                kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
+                                kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
+                                kw_entry['count'] += r_item['impressions']
             
             return keyword_data
 
