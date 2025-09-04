@@ -184,7 +184,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     }
 
     // Aplicar filtro de palabras clave (si hay)
-    // Asegurar inicialización de UI del filtro (tags, botones)
+    // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
     const filteredKeywords = applyKeywordFilter(keywordsData);
 
@@ -284,29 +284,37 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
 
+        // Adjuntar botón Apply solo para la tabla principal (no para modales)
+        const isMainGrid = (container && container.id === 'keywordComparisonBlock');
+
         // Eventos para aplicar filtro bajo demanda (botón Apply)
         const reRenderWithFilter = () => {
             try {
-                const filtered = applyKeywordFilter(keywordsData);
-                const processed = processKeywordsDataForGrid(filtered, analysisType);
-                grid.updateConfig({ data: processed.data }).forceRender();
+                const filtered = applyKeywordFilter(keywordsData) || [];
+                const processed = processKeywordsDataForGrid(filtered, analysisType) || { data: [] };
+                const safeData = Array.isArray(processed.data) ? processed.data : [];
+                // Usar función para que Grid.js retrase el pipeline correctamente
+                grid.updateConfig({ data: () => safeData }).forceRender();
             } catch (e) {
                 console.warn('⚠️ No se pudo aplicar filtro dinámico de keywords:', e);
             }
         };
 
-        // Botón Apply
-        const applyBtn = document.getElementById('kwFilterApplyBtn');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => {
-                applyBtn.disabled = true;
-                applyBtn.classList.add('loading');
-                setTimeout(() => {
-                    reRenderWithFilter();
-                    applyBtn.disabled = false;
-                    applyBtn.classList.remove('loading');
-                }, 10);
-            });
+        // Botón Apply: bind único y solo en la tabla principal
+        if (isMainGrid) {
+            const applyBtn = document.getElementById('kwFilterApplyBtn');
+            if (applyBtn && applyBtn.dataset.bound !== 'true') {
+                applyBtn.addEventListener('click', () => {
+                    applyBtn.disabled = true;
+                    applyBtn.classList.add('loading');
+                    setTimeout(() => {
+                        reRenderWithFilter();
+                        applyBtn.disabled = false;
+                        applyBtn.classList.remove('loading');
+                    }, 0);
+                });
+                applyBtn.dataset.bound = 'true';
+            }
         }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
