@@ -335,6 +335,19 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
                 });
                 applyBtn.dataset.bound = 'true';
             }
+
+            // También re-render al limpiar (Clear All) si el botón existe
+            const clearBtn = document.getElementById('kwFilterClearBtn');
+            if (clearBtn && clearBtn.dataset.rebind !== 'true') {
+                clearBtn.addEventListener('click', () => {
+                    // Tras limpiar términos, restaurar tabla completa
+                    if (window.lastKeywordsData) {
+                        const { data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
+                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
+                    }
+                });
+                clearBtn.dataset.rebind = 'true';
+            }
         }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
