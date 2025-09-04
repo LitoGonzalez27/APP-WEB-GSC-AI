@@ -4373,6 +4373,14 @@ class ManualAISystem {
                 btnText.textContent = 'Preparing PDF...';
             }
 
+            // Ocultar elementos excluidos del PDF
+            const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"]'));
+            const prevDisplay = new Map();
+            excluded.forEach(el => {
+                prevDisplay.set(el, el.style.display);
+                el.style.display = 'none';
+            });
+
             const [{ default: html2canvas }] = await Promise.all([
                 import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
             ]);
@@ -4408,6 +4416,9 @@ class ManualAISystem {
             }
             const fileName = `manual_ai_overview_${Date.now()}.pdf`;
             pdf.save(fileName);
+            
+            // Restaurar elementos excluidos
+            excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
         } catch (err) {
             console.error('Error generating PDF:', err);
             this.showError('Failed to generate PDF.');
