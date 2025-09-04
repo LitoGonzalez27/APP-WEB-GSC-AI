@@ -138,6 +138,9 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
     
     // Crear Grid.js table
     keywordComparisonGridTable = createKeywordsGridTable(keywordData, analysisType, container);
+    // Guardar referencia global para restaurar tras Clear All
+    window.lastKeywordsData = keywordData;
+    window.lastKeywordsAnalysisType = analysisType;
     
     if (keywordComparisonGridTable) {
       console.log('✅ Tabla Grid.js de keywords creada exitosamente');

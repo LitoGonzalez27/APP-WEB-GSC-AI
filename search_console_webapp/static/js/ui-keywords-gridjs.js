@@ -31,7 +31,6 @@ function renderKwFilterTags() {
     if (!container) return;
 
     if (countEl) countEl.textContent = kwFilterState.terms.length;
-    if (clearAllEl) clearAllEl.style.display = kwFilterState.terms.length > 0 ? 'flex' : 'none';
 
     if (kwFilterState.terms.length === 0) {
         container.innerHTML = '<div class="exclusion-empty">No exclusions yet...</div>';
@@ -62,6 +61,25 @@ function clearKwFilterTerms() {
     const input = document.getElementById('kwFilterTerms');
     if (input) input.value = '';
     renderKwFilterTags();
+    // Restaurar tabla completa inmediatamente si hay grid activa
+    try {
+        const container = document.getElementById('keywordComparisonBlock');
+        if (container) {
+            // Buscar la instancia de Grid.js asociada si existe
+            // Reprocesar con datos originales sin filtro
+            const tables = container.querySelectorAll('.gridjs-container');
+            if (tables && tables.length > 0) {
+                // Reemplazar datos usando la función principal de creación
+                if (window.lastKeywordsData && Array.isArray(window.lastKeywordsData)) {
+                    const { columns, data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
+                    const grid = container.querySelector('.gridjs-root')?.gridjs?.instance;
+                    if (grid) {
+                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
+                    }
+                }
+            }
+        }
+    } catch (_) {}
 }
 
 function ensureKwFilterUISetup() {
