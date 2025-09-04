@@ -361,6 +361,17 @@ class ManualAISystem {
             console.log('✅ Manual AI Download Excel event listener added');
         }
 
+        // Download PDF button
+        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('🖱️ Manual AI PDF download button clicked');
+                await this.handleDownloadPDF();
+            });
+            console.log('✅ Manual AI Download PDF event listener added');
+        }
+
         // Detail tabs
         document.querySelectorAll('[data-detail-tab]').forEach(tab => {
             tab.addEventListener('click', (e) => this.switchDetailTab(e.target.dataset.detailTab));
@@ -4226,11 +4237,16 @@ class ManualAISystem {
 
     showDownloadButton(show = true) {
         const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
         const globalSection = document.getElementById('navSectionGlobal');
         
         if (downloadBtn) {
             downloadBtn.style.display = show ? 'flex' : 'none';
             console.log(`📥 Download Excel button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        if (downloadPdfBtn) {
+            downloadPdfBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download PDF button ${show ? 'shown' : 'hidden'} for Manual AI`);
         }
         
         // Show/hide the entire global section based on button visibility
@@ -4337,6 +4353,56 @@ class ManualAISystem {
             if (downloadBtn) downloadBtn.disabled = false;
             if (spinner) spinner.style.display = 'none';
             if (btnText) btnText.style.display = 'inline';
+        }
+    }
+
+    async handleDownloadPDF() {
+        try {
+            const btn = document.getElementById('sidebarDownloadPdfBtn');
+            const spinner = btn?.querySelector('.download-spinner');
+            const btnText = btn?.querySelector('span');
+            if (spinner && btnText) {
+                spinner.style.display = 'inline-block';
+                btnText.textContent = 'Preparing PDF...';
+            }
+
+            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js'),
+                import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js')
+            ]);
+
+            const target = document.querySelector('.manual-ai-app') || document.body;
+            const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth;
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            let position = 0;
+            let heightLeft = imgHeight;
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            const fileName = `manual_ai_overview_${Date.now()}.pdf`;
+            pdf.save(fileName);
+        } catch (err) {
+            console.error('Error generating PDF:', err);
+            this.showError('Failed to generate PDF.');
+        } finally {
+            const btn = document.getElementById('sidebarDownloadPdfBtn');
+            const spinner = btn?.querySelector('.download-spinner');
+            const btnText = btn?.querySelector('span');
+            if (spinner && btnText) {
+                spinner.style.display = 'none';
+                btnText.textContent = 'Download PDF';
+            }
         }
     }
 }
