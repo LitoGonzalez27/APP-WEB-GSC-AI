@@ -173,7 +173,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
 
-        // Eventos para aplicar filtro y re-render sin perder estado de tabla
+        // Eventos para aplicar filtro bajo demanda (botón Apply)
         const reRenderWithFilter = () => {
             try {
                 const filtered = applyKeywordFilter(keywordsData);
@@ -184,29 +184,18 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
             }
         };
 
-        ['kwFilterTerms','kwFilterMethod'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', reRenderWithFilter);
-                el.addEventListener('change', reRenderWithFilter);
-                el.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ',') {
-                        setTimeout(reRenderWithFilter, 50);
-                    }
-                });
-            }
-        });
-
-        const tagsContainer = document.getElementById('kwFilterTagsContainer');
-        const clearAll = document.getElementById('kwFilterClearAll');
-        if (tagsContainer) {
-            tagsContainer.addEventListener('click', (e) => {
-                const target = e.target.closest('.exclusion-tag-remove');
-                if (target) setTimeout(reRenderWithFilter, 50);
+        // Botón Apply
+        const applyBtn = document.getElementById('kwFilterApplyBtn');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                applyBtn.disabled = true;
+                applyBtn.classList.add('loading');
+                setTimeout(() => {
+                    reRenderWithFilter();
+                    applyBtn.disabled = false;
+                    applyBtn.classList.remove('loading');
+                }, 10);
             });
-        }
-        if (clearAll) {
-            clearAll.addEventListener('click', () => setTimeout(reRenderWithFilter, 50));
         }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
