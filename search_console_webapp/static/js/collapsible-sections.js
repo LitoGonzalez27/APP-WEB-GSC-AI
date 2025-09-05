@@ -8,7 +8,8 @@
  */
 const collapsibleState = {
     competitor: false,
-    exclusion: false
+    exclusion: false,
+    keywordFilter: false
 };
 
 /**
@@ -132,6 +133,13 @@ function updateCollapsibleSummary(sectionType) {
         } else {
             summaryText = 'Click to exclude brand terms or irrelevant keywords';
         }
+    } else if (sectionType === 'keywordFilter') {
+        const info = (window.getKwFilterSummaryInfo && window.getKwFilterSummaryInfo()) || { count: 0, method: '', preview: '' };
+        if (info.count > 0) {
+            summaryText = `${info.count} filter${info.count > 1 ? 's' : ''} (${info.method}): ${info.preview}`;
+        } else {
+            summaryText = 'Filter keywords by terms (optional)';
+        }
     }
     
     summary.textContent = summaryText;
@@ -181,7 +189,7 @@ function initCollapsibleSections() {
     console.log('🔧 Inicializando sistema de secciones colapsables');
     
     // Asegurar que todas las secciones empiecen colapsadas
-    ['competitor', 'exclusion'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'keywordFilter'].forEach(sectionType => {
         const content = document.getElementById(`${sectionType}Content`);
         const arrow = document.getElementById(`${sectionType}Arrow`);
         
