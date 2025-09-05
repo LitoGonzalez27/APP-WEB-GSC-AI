@@ -1437,8 +1437,9 @@ class ManualAISystem {
 
         const ctx = canvasEl.getContext('2d');
         
-        // Destroy existing chart
+        // Destroy existing chart (limpiando listeners previos primero)
         if (this.charts.visibility) {
+            this.clearEventAnnotations(this.charts.visibility);
             this.charts.visibility.destroy();
         }
 
@@ -1539,6 +1540,9 @@ class ManualAISystem {
             }
         });
 
+        // 🔄 Limpiar anotaciones y listeners anteriores siempre que re-renderizamos
+        this.clearEventAnnotations(this.charts.visibility);
+
         // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
         if (events && events.length > 0) {
             const annotations = this.createEventAnnotations(data, events);
@@ -1567,6 +1571,10 @@ class ManualAISystem {
                 // Re-render con las anotaciones
                 this.charts.visibility.update();
             }
+        } else {
+            // Asegurar estado limpio cuando no hay eventos
+            this.charts.visibility.options.annotationsData = [];
+            this.clearEventAnnotations(this.charts.visibility);
         }
     }
 
@@ -1805,6 +1813,24 @@ class ManualAISystem {
         return icons[eventType] || '•';
     }
 
+    // 🧹 NUEVO: Limpieza segura de listeners y tooltip de anotaciones
+    clearEventAnnotations(chart) {
+        if (!chart) return;
+        const canvas = chart.canvas;
+        if (chart._annotationHandlers) {
+            try {
+                canvas.removeEventListener('mousemove', chart._annotationHandlers.onMouseMove);
+                canvas.removeEventListener('mouseleave', chart._annotationHandlers.onMouseLeave);
+            } catch (_) { /* noop */ }
+            chart._annotationHandlers = null;
+        }
+        // Ocultar tooltip si existe
+        const tooltip = document.getElementById('chart-annotation-tooltip');
+        if (tooltip) tooltip.style.opacity = 0;
+        // Limpiar datos de anotaciones por si el plugin los lee
+        if (chart.options) chart.options.annotationsData = [];
+    }
+
     showEventAnnotations(chart, annotations) {
         // Enhanced tooltip functionality for annotations
         const canvas = chart.canvas;
@@ -1955,13 +1981,16 @@ class ManualAISystem {
             canvas.style.cursor = 'default';
         };
         
-        // Remove existing listeners
-        canvas.removeEventListener('mousemove', onMouseMove);
-        canvas.removeEventListener('mouseleave', onMouseLeave);
+        // 🔄 Remover listeners previos usando referencias persistentes
+        if (chart._annotationHandlers) {
+            canvas.removeEventListener('mousemove', chart._annotationHandlers.onMouseMove);
+            canvas.removeEventListener('mouseleave', chart._annotationHandlers.onMouseLeave);
+        }
         
-        // Add new listeners
+        // Add new listeners y guardar referencias para próximas limpiezas
         canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('mouseleave', onMouseLeave);
+        chart._annotationHandlers = { onMouseMove, onMouseLeave };
     }
     
     // ================================================
@@ -4144,7 +4173,9 @@ class ManualAISystem {
         this.pendingAnnotation = {
             type: changeType,
             description: changeDescription,
-            projectId: this.currentModalProject ? this.currentModalProject.id : null
+            projectId: (this.currentModalProject && this.currentModalProject.id) ||
+                       (this.currentProject && this.currentProject.id) ||
+                       (this.elements.analyticsProjectSelect ? parseInt(this.elements.analyticsProjectSelect.value) : null)
         };
 
         // Update modal content
