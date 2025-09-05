@@ -327,10 +327,13 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
                 applyBtn.addEventListener('click', () => {
                     applyBtn.disabled = true;
                     applyBtn.classList.add('loading');
+                    const icon = applyBtn.querySelector('i');
+                    if (icon) { icon.classList.remove('fa-check'); icon.classList.add('fa-spinner','fa-spin'); }
                     setTimeout(() => {
                         reRenderWithFilter();
                         applyBtn.disabled = false;
                         applyBtn.classList.remove('loading');
+                        if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-check'); }
                     }, 0);
                 });
                 applyBtn.dataset.bound = 'true';
@@ -340,11 +343,14 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
             const clearBtn = document.getElementById('kwFilterClearBtn');
             if (clearBtn && clearBtn.dataset.rebind !== 'true') {
                 clearBtn.addEventListener('click', () => {
+                    const icon = clearBtn.querySelector('i');
+                    if (icon) { icon.classList.remove('fa-trash-alt'); icon.classList.add('fa-spinner','fa-spin'); }
                     // Tras limpiar términos, restaurar tabla completa
                     if (window.lastKeywordsData) {
                         const { data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
                         grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
                     }
+                    setTimeout(() => { if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-trash-alt'); } }, 150);
                 });
                 clearBtn.dataset.rebind = 'true';
             }
