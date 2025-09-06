@@ -3492,6 +3492,29 @@ label.manual-ai-underline {
     height: 43px;
 }
 
+/* ================================
+   Keyword search (modal) — estilos aislados
+   ================================ */
+
+.manual-ai-keyword-search {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.manual-ai-keyword-search-input {
+    width: 90% !important;
+    max-width: 780px;
+    text-align: left;
+}
+
+.manual-ai-keyword-search-clear {
+    align-self: center;
+}
+
 /* Input de competidor más ancho */
 #newCompetitorInput {
     min-width: 300px !important;
