@@ -1044,6 +1044,12 @@ keyword 3"></textarea>
                     <div class="tab-section">
                         <h4>Current Keywords</h4>
                         <div class="keywords-list-container">
+                            <div class="input-group" style="margin-bottom: 12px;">
+                                <input type="text" id="modalKeywordsSearch" class="form-input" 
+                                       placeholder="Search current keywords..." autocomplete="off">
+                                <button type="button" class="btn-secondary btn-compact" 
+                                        onclick="manualAI.clearModalKeywordsSearch()">Clear</button>
+                            </div>
                             <div id="modalKeywordsList" class="keywords-list">
                                 <!-- Keywords will be loaded here -->
                             </div>

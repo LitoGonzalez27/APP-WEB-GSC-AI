@@ -3838,7 +3838,18 @@ class ManualAISystem {
         }
 
         noKeywords.style.display = 'none';
-        keywordsList.innerHTML = keywords.map(keyword => `
+        // Guardar copia en memoria para filtrado
+        this._modalAllKeywords = keywords;
+
+        // Si existe input de búsqueda, aplicar filtro inicial (si mantiene valor)
+        const searchInput = document.getElementById('modalKeywordsSearch');
+        const query = (searchInput && searchInput.value || '').trim().toLowerCase();
+
+        const filtered = query
+            ? keywords.filter(k => (k.keyword || '').toLowerCase().includes(query))
+            : keywords;
+
+        keywordsList.innerHTML = filtered.map(keyword => `
             <div class="keyword-item" data-keyword-id="${keyword.id}">
                 <div class="keyword-text">${this.escapeHtml(keyword.keyword)}</div>
                 <div class="keyword-meta">${keyword.is_active ? 'Active' : 'Inactive'}</div>
@@ -3850,6 +3861,46 @@ class ManualAISystem {
                 </button>
             </div>
         `).join('');
+
+        // Atachar listener una sola vez
+        if (searchInput && !searchInput._listenerAttached) {
+            const handler = (e) => {
+                const q = e.target.value.trim().toLowerCase();
+                const data = this._modalAllKeywords || [];
+                const subset = q ? data.filter(k => (k.keyword || '').toLowerCase().includes(q)) : data;
+                keywordsList.innerHTML = subset.map(keyword => `
+                    <div class=\"keyword-item\" data-keyword-id=\"${keyword.id}\"> 
+                        <div class=\"keyword-text\">${this.escapeHtml(keyword.keyword)}</div>
+                        <div class=\"keyword-meta\">${keyword.is_active ? 'Active' : 'Inactive'}</div>
+                        <button type=\"button\" class=\"btn-remove-keyword\" onclick=\"manualAI.removeKeywordFromModal(${keyword.id})\" title=\"Remove keyword\"> 
+                            <i class=\"fas fa-trash\"></i> Remove 
+                        </button>
+                    </div>
+                `).join('');
+            };
+            searchInput.addEventListener('input', handler);
+            searchInput._listenerAttached = true;
+        }
+    }
+
+    clearModalKeywordsSearch() {
+        const input = document.getElementById('modalKeywordsSearch');
+        if (input) {
+            input.value = '';
+            // Re-render listado completo con la copia en memoria
+            const data = this._modalAllKeywords || [];
+            const keywordsList = document.getElementById('modalKeywordsList');
+            keywordsList.innerHTML = data.map(keyword => `
+                <div class=\"keyword-item\" data-keyword-id=\"${keyword.id}\"> 
+                    <div class=\"keyword-text\">${this.escapeHtml(keyword.keyword)}</div>
+                    <div class=\"keyword-meta\">${keyword.is_active ? 'Active' : 'Inactive'}</div>
+                    <button type=\"button\" class=\"btn-remove-keyword\" onclick=\"manualAI.removeKeywordFromModal(${keyword.id})\" title=\"Remove keyword\"> 
+                        <i class=\"fas fa-trash\"></i> Remove 
+                    </button>
+                </div>
+            `).join('');
+            input.focus();
+        }
     }
 
     loadModalSettings(project) {
