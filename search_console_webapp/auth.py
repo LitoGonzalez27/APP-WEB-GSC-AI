@@ -1104,6 +1104,15 @@ def setup_auth_routes(app):
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
                 return redirect(next_url)
 
+        except Exception as e:
+            session.pop('temp_credentials', None)
+            session.pop('oauth_action', None)
+            logger.error(f"Error en auth_callback: {e}")
+            return redirect('/login?auth_error=callback_failed')
+
+    # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
+    # El registro con Google ahora es automático en auth_callback
+
     @app.route('/auth/check-email')
     def check_email_route():
         """Verifica si un email ya tiene cuenta creada (para avisar en registro)."""
@@ -1116,15 +1125,6 @@ def setup_auth_routes(app):
         except Exception as e:
             logger.error(f"Error en check-email: {e}")
             return jsonify({'exists': False})
-                
-        except Exception as e:
-            session.pop('temp_credentials', None)
-            session.pop('oauth_action', None)
-            logger.error(f"Error en auth_callback: {e}")
-            return redirect('/login?auth_error=callback_failed')
-
-    # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
-    # El registro con Google ahora es automático en auth_callback
 
     @app.route('/auth/logout', methods=['POST', 'GET'])
     def auth_logout():
