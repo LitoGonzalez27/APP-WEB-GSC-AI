@@ -657,6 +657,9 @@ def setup_auth_routes(app):
             session['signup_plan'] = plan_param
             session['signup_source'] = source_param or 'registration'
             logger.info(f"Login page con plan: {plan_param} (source: {source_param})")
+            # ✅ Si no se proporcionó un next explícito, preparar redirección directa a checkout tras login
+            if not request.args.get('next'):
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'registration')}"
         
         if is_user_authenticated():
             user = get_current_user()
@@ -689,6 +692,9 @@ def setup_auth_routes(app):
             session['signup_plan'] = plan_param
             session['signup_source'] = source_param or 'direct'
             logger.info(f"Usuario viene de pricing con plan: {plan_param} (source: {source_param})")
+            # ✅ Si no se proporcionó un next explícito, preparar redirección a checkout tras login
+            if not request.args.get('next'):
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'direct')}"
         
         if is_user_authenticated():
             user = get_current_user()
@@ -715,8 +721,14 @@ def setup_auth_routes(app):
             if not email or not password:
                 return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
 
+            # ✅ Si el usuario ya existe, indicar que debe iniciar sesión y preservar plan/source
             if get_user_by_email(email):
-                return jsonify({'error': 'El email ya está registrado'}), 400
+                signup_plan = session.get('signup_plan')
+                signup_source = session.get('signup_source') or 'registration'
+                login_url = '/login?auth_error=user_already_exists'
+                if signup_plan in ['basic', 'premium']:
+                    login_url += f"&plan={signup_plan}&source={signup_source}"
+                return jsonify({'error': 'Ya tienes una cuenta activa. Inicia sesión para continuar.', 'next': login_url}), 400
 
             new_user = create_user(email=email, name=name, password=password, auto_activate=True)
             if not new_user:
@@ -787,7 +799,13 @@ def setup_auth_routes(app):
             except Exception as _e_last_login_email:
                 logger.warning(f"No se pudo actualizar last_login_at (email login): {_e_last_login_email}")
 
-            next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+            # ✅ Soportar redirect directo a checkout si venía con plan desde pricing/login
+            signup_plan = session.pop('signup_plan', None)
+            signup_source = session.pop('signup_source', None)
+            if signup_plan in ['basic', 'premium']:
+                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}"
+            else:
+                next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
             return jsonify({'success': True, 'next': next_url})
         except Exception as e:
             logger.error(f"Error en email login: {e}")
@@ -900,7 +918,18 @@ def setup_auth_routes(app):
                     # Usuario ya existe, no se puede registrar de nuevo
                     session.pop('temp_credentials', None)
                     logger.warning(f"Usuario {user_info['email']} ya existe, no se puede registrar de nuevo")
-                    return redirect('/login?auth_error=user_already_exists')
+                    # ✅ Preservar plan/source para continuar flujo de pago
+                    try:
+                        preserved_plan = session.get('signup_plan')
+                        preserved_source = session.get('signup_source')
+                        login_url = '/login?auth_error=user_already_exists'
+                        if preserved_plan in ['basic', 'premium']:
+                            login_url += f"&plan={preserved_plan}"
+                            if preserved_source:
+                                login_url += f"&source={preserved_source}"
+                        return redirect(login_url)
+                    except Exception:
+                        return redirect('/login?auth_error=user_already_exists')
                 
                 # ✅ NUEVO FASE 4.5: Crear usuario con activación automática
                 try:
@@ -1074,6 +1103,19 @@ def setup_auth_routes(app):
                 # ✅ FASE 4.5: Usar parámetro next después de autenticación
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
                 return redirect(next_url)
+
+    @app.route('/auth/check-email')
+    def check_email_route():
+        """Verifica si un email ya tiene cuenta creada (para avisar en registro)."""
+        try:
+            email = (request.args.get('email') or '').strip().lower()
+            if not email:
+                return jsonify({'exists': False})
+            user = get_user_by_email(email)
+            return jsonify({'exists': bool(user)})
+        except Exception as e:
+            logger.error(f"Error en check-email: {e}")
+            return jsonify({'exists': False})
                 
         except Exception as e:
             session.pop('temp_credentials', None)

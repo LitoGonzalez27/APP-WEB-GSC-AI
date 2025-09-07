@@ -237,7 +237,16 @@
                         errorMessage = 'You don\'t have a registered account. <a href="/signup" style="color: #667eea; text-decoration: underline;">Create account first</a>';
                         break;
                     case 'user_already_exists':
-                        errorMessage = 'You already have an account created. Use "Sign In with Google" to sign in.';
+                        // Adaptar mensaje y preservar plan/source para seguir con checkout tras login
+                        const p = new URLSearchParams(window.location.search);
+                        const plan = p.get('plan');
+                        const source = p.get('source');
+                        let nextLoginUrl = '/login';
+                        const extra = new URLSearchParams();
+                        if (plan) extra.set('plan', plan);
+                        if (source) extra.set('source', source);
+                        if ([...extra.keys()].length) nextLoginUrl += '?' + extra.toString();
+                        errorMessage = 'Ya tienes una cuenta activa. En lugar de registrarte, <a href="' + nextLoginUrl + '" style="color: #667eea; text-decoration: underline;">haz login</a>.';
                         break;
                 }
                 

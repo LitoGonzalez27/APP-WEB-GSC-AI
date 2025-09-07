@@ -261,7 +261,13 @@
                     showNotification('Account created. Redirecting...', 'success');
                     setTimeout(() => window.location.href = nextUrl, 800);
                 } else {
-                    showNotification(data.error || 'Could not create account', 'error');
+                    // Si el backend nos indica a dónde ir (usuario ya existe), redirigir a login preservando plan/source
+                    if (data.next) {
+                        showNotification('Ya tienes una cuenta activa. Redirigiendo al login...', 'info');
+                        setTimeout(() => window.location.href = data.next, 900);
+                        return;
+                    }
+                    showNotification(data.error || 'No se pudo crear la cuenta', 'error');
                 }
             })
             .catch(() => showNotification('Network error', 'error'));
@@ -288,7 +294,16 @@
                         errorMessage = 'Registration error. Please try again.';
                         break;
                     case 'user_already_exists':
-                        errorMessage = 'You already have an account created. <a href="/login" style="color: #667eea; text-decoration: underline;">Sign in</a>';
+                        // Mostrar aviso en español e incluir plan/source si están presentes en la URL
+                        const p = new URLSearchParams(window.location.search);
+                        const plan = p.get('plan');
+                        const source = p.get('source');
+                        let loginUrl = '/login';
+                        const extra = new URLSearchParams();
+                        if (plan) extra.set('plan', plan);
+                        if (source) extra.set('source', source);
+                        if ([...extra.keys()].length) loginUrl += '?' + extra.toString();
+                        errorMessage = 'Ya tienes una cuenta activa. En lugar de registrarte, <a href="' + loginUrl + '" style="color: #667eea; text-decoration: underline;">haz login</a>.';
                         break;
                     case 'oauth_config':
                         errorMessage = 'Configuration error. Contact support.';
@@ -341,6 +356,33 @@
                 .catch(error => {
                     console.error('Error verifying authentication:', error);
                 });
+
+            // ✅ Comprobación automática: si el email ya existe, sugerir login en vez de registro
+            const emailInput = document.getElementById('signupEmail');
+            let emailDebounce = null;
+            emailInput.addEventListener('input', function() {
+                const email = emailInput.value.trim();
+                if (emailDebounce) clearTimeout(emailDebounce);
+                emailDebounce = setTimeout(() => {
+                    if (!email || email.indexOf('@') === -1) return;
+                    fetch('/auth/check-email?email=' + encodeURIComponent(email))
+                        .then(r => r.json())
+                        .then(resp => {
+                            if (resp && resp.exists) {
+                                const p = new URLSearchParams(window.location.search);
+                                const plan = sessionStorage.getItem('signup_plan') || p.get('plan');
+                                const source = sessionStorage.getItem('signup_source') || p.get('source');
+                                let loginUrl = '/login';
+                                const extra = new URLSearchParams();
+                                if (plan) extra.set('plan', plan);
+                                if (source) extra.set('source', source);
+                                if ([...extra.keys()].length) loginUrl += '?' + extra.toString();
+                                showNotification('Ya tienes una cuenta activa. En lugar de registrarte, <a href="' + loginUrl + '" style="color: #667eea; text-decoration: underline;">haz login</a>.', 'info');
+                            }
+                        })
+                        .catch(() => {/* no-op */});
+                }, 450);
+            });
         });
 
         // Efecto de partículas en el fondo
