@@ -887,50 +887,52 @@ def delete_user(user_id):
             return False
         
         cur = conn.cursor()
-        
+
+        def table_exists(tbl: str) -> bool:
+            try:
+                cur.execute("SELECT to_regclass(%s) AS reg", (f"public.{tbl}",))
+                row = cur.fetchone()
+                return bool(row['reg'] if isinstance(row, dict) else row[0])
+            except Exception:
+                return False
+
+        def safe_delete(sql: str, params: tuple, savepoint_name: str) -> None:
+            try:
+                cur.execute(f"SAVEPOINT {savepoint_name}")
+                cur.execute(sql, params)
+                cur.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+            except Exception as e:
+                # Revertir solo esta operación y continuar
+                try:
+                    cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+                    cur.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                except Exception:
+                    pass
+                logger.warning(f"delete_user: omitiendo error en '{savepoint_name}': {e}")
+
         # Eliminar dependencias en orden seguro (algunas tablas no tienen ON DELETE CASCADE)
-        # 1) Resultados de AI Overview (no tienen ON DELETE CASCADE sobre users)
-        try:
-            cur.execute('DELETE FROM ai_overview_analysis WHERE user_id = %s', (user_id,))
-        except Exception as _:
-            # Si la tabla no existe o falla, continuar
-            pass
-        
-        # 2) Eventos de uso de cuota (por si no hubiera cascade)
-        try:
-            cur.execute('DELETE FROM quota_usage_events WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        
-        # 3) Tokens de reseteo de contraseña
-        try:
-            cur.execute('DELETE FROM password_reset_tokens WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        
-        # 4) Proyectos Manual AI (tienen ON DELETE CASCADE hacia sus tablas hijas)
-        try:
-            cur.execute('DELETE FROM manual_ai_projects WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        
-        # 5) Propiedades GSC y conexiones OAuth (redundante con CASCADE, pero por seguridad)
-        try:
-            cur.execute('DELETE FROM gsc_properties WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        try:
-            cur.execute('DELETE FROM oauth_connections WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        
-        # 6) Suscripciones locales si existieran
-        try:
-            cur.execute('DELETE FROM subscriptions WHERE user_id = %s', (user_id,))
-        except Exception:
-            pass
-        
-        # 7) Finalmente, eliminar el usuario
+        if table_exists('ai_overview_analysis'):
+            safe_delete('DELETE FROM ai_overview_analysis WHERE user_id = %s', (user_id,), 'sp_ai_overview')
+
+        if table_exists('quota_usage_events'):
+            safe_delete('DELETE FROM quota_usage_events WHERE user_id = %s', (user_id,), 'sp_quota_events')
+
+        if table_exists('password_reset_tokens'):
+            safe_delete('DELETE FROM password_reset_tokens WHERE user_id = %s', (user_id,), 'sp_reset_tokens')
+
+        if table_exists('manual_ai_projects'):
+            safe_delete('DELETE FROM manual_ai_projects WHERE user_id = %s', (user_id,), 'sp_manual_ai_projects')
+
+        if table_exists('gsc_properties'):
+            safe_delete('DELETE FROM gsc_properties WHERE user_id = %s', (user_id,), 'sp_gsc_props')
+
+        if table_exists('oauth_connections'):
+            safe_delete('DELETE FROM oauth_connections WHERE user_id = %s', (user_id,), 'sp_oauth_conns')
+
+        if table_exists('subscriptions'):
+            safe_delete('DELETE FROM subscriptions WHERE user_id = %s', (user_id,), 'sp_subs')
+
+        # Finalmente, eliminar el usuario
         cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
         
         conn.commit()
