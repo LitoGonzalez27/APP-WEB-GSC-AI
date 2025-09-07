@@ -179,6 +179,16 @@ class StripeWebhookHandler:
                         updated_at = NOW()
                     WHERE stripe_customer_id = %s
                 ''', (customer_id,))
+
+                # Opcional: desactivar proyectos del usuario para evitar cron
+                try:
+                    cur.execute('''
+                        UPDATE manual_ai_projects
+                        SET is_active = false, updated_at = NOW()
+                        WHERE user_id = (SELECT id FROM users WHERE stripe_customer_id = %s)
+                    ''', (customer_id,))
+                except Exception as _e:
+                    logger.warning(f"⚠️ Could not deactivate user's projects on cancellation: {_e}")
             else:
                 # Crear/actualizar suscripción
                 quota_limit = self.config.get_plan_limits().get(plan, 0)

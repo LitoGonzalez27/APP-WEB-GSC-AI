@@ -1851,8 +1851,11 @@ def run_daily_analysis_for_all_projects():
             SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
                    COUNT(k.id) as keyword_count
             FROM manual_ai_projects p
+            JOIN users u ON u.id = p.user_id
             LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
+              AND COALESCE(u.plan, 'free') <> 'free'
+              AND COALESCE(u.billing_status, '') NOT IN ('canceled')
             GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
             HAVING COUNT(k.id) > 0
             ORDER BY p.id
@@ -1899,21 +1902,40 @@ def run_daily_analysis_for_all_projects():
                 project_dict = dict(project)
             
             try:
-                # Verificar si ya se ejecutó hoy
+                # Verificar estado de facturación del usuario y si ya se ejecutó hoy
                 today = date.today()
                 conn = get_db_connection()
                 cur = conn.cursor()
                 
+                # 1) Estado del usuario: si está en free o cancelado, saltar
+                cur.execute("""
+                    SELECT COALESCE(plan, 'free') AS plan,
+                           COALESCE(billing_status, '') AS billing_status
+                    FROM users
+                    WHERE id = %s
+                """, (project_dict['user_id'],))
+                user_state = cur.fetchone() or {}
+                user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
+                    user_state[0] if user_state else 'free'
+                )
+                user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
+                    user_state[1] if user_state and len(user_state) > 1 else ''
+                )
+                if user_plan == 'free' or user_billing in ('canceled',):
+                    logger.info(f"⏭️ Skipping project {project_dict['id']} due to user plan/billing status (plan={user_plan}, billing={user_billing})")
+                    skipped_analyses += 1
+                    cur.close(); conn.close()
+                    continue
+                
+                # 2) Verificar si ya hay resultados hoy
                 cur.execute("""
                     SELECT COUNT(*) as count
                     FROM manual_ai_results 
                     WHERE project_id = %s AND analysis_date = %s
                 """, (project_dict['id'], today))
-                
                 result_row = cur.fetchone()
                 existing_results = result_row['count'] if result_row else 0
-                cur.close()
-                conn.close()
+                cur.close(); conn.close()
                 
                 if existing_results > 0:
                     logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) already analyzed today with {existing_results} results, skipping")
