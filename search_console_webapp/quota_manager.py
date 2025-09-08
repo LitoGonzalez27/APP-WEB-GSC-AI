@@ -22,6 +22,7 @@ PLAN_LIMITS = {
     'free': 0,
     'basic': 1225,
     'premium': 2950,
+    'business': 8000,
     'enterprise': 0  # Enterprise usa custom_quota_limit
 }
 
@@ -29,7 +30,8 @@ PLAN_LIMITS = {
 PLAN_PRICES = {
     'free': 0,
     'basic': 29.99,
-    'premium': 59.99,
+    'premium': 49.99,
+    'business': 139.99,
     'enterprise': 0  # Custom pricing
 }
 

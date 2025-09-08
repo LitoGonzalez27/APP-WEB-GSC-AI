@@ -17,6 +17,7 @@ from datetime import datetime
 from flask import request, jsonify, redirect, url_for, render_template, session
 from auth import auth_required, get_current_user
 from database import get_db_connection
+from stripe_config import get_stripe_config
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,23 @@ def get_price_id_for_plan(plan):
         'premium': os.getenv('PRICE_ID_PREMIUM')
     }
     return price_ids.get(plan)
+
+def get_price_id_for_plan_interval(plan, interval):
+    """Obtiene el price_id para (plan, interval) usando la config centralizada.
+    Mantiene compatibilidad con variables legacy si faltan las nuevas.
+    interval: 'monthly' | 'annual'
+    """
+    try:
+        config = get_stripe_config()
+        price_id = config.get_price_id(plan, interval)
+        if not price_id and interval == 'monthly':
+            # Fallback a legacy PRICE_ID_<PLAN>
+            legacy = config.get_plan_price_ids().get(plan)
+            return legacy
+        return price_id
+    except Exception as _e:
+        logger.warning(f"No se pudo obtener price_id para {plan}/{interval}: {_e}")
+        return None
 
 def get_or_create_stripe_customer(user):
     """Obtener o crear customer de Stripe para el usuario"""
@@ -72,7 +90,7 @@ def setup_billing_routes(app):
         """Crear Stripe Checkout Session para un plan específico - Con validaciones de seguridad"""
         
         # ✅ SEGURIDAD: Whitelist de planes permitidos (no confiar en query params)
-        ALLOWED_PLANS = ['basic', 'premium']
+        ALLOWED_PLANS = ['basic', 'premium', 'business']
         if plan not in ALLOWED_PLANS:
             logger.warning(f"Plan inválido intentado: {plan}")
             return redirect('/billing?error=invalid_plan')
@@ -100,8 +118,13 @@ def setup_billing_routes(app):
             logger.info(f"Usuario {user['email']} plan {current_plan} → {plan} - usando Customer Portal")
             return redirect(f'/billing/portal?intended_plan={plan}&message=use_portal_for_changes')
         
+        # Intervalo mensual/anual (por defecto mensual)
+        interval = request.args.get('interval', 'monthly').lower()
+        if interval not in ['monthly', 'annual']:
+            interval = 'monthly'
+
         # ✅ Continuar con checkout para usuarios Free o inactive
-        price_id = get_price_id_for_plan(plan)
+        price_id = get_price_id_for_plan_interval(plan, interval)
         
         if not price_id:
             logger.error(f"Price ID not configured for plan: {plan}")
@@ -123,10 +146,11 @@ def setup_billing_routes(app):
                 }],
                 mode='subscription',
                 success_url=url_for('billing_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-                cancel_url=url_for('billing_cancel', _external=True) + '?plan=' + plan,
+                cancel_url=url_for('billing_cancel', _external=True) + f'?plan={plan}&interval={interval}',
                 metadata={
                     'user_id': user['id'],
                     'plan': plan,
+                    'interval': interval,
                     'source': request.args.get('source', 'direct')
                 }
             )

@@ -28,9 +28,18 @@ class StripeConfig:
         self.publishable_key = os.getenv('STRIPE_PUBLISHABLE_KEY')
         self.webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
         
-        # Price IDs
+        # Price IDs (legacy - compatibilidad)
         self.price_id_basic = os.getenv('PRICE_ID_BASIC')
         self.price_id_premium = os.getenv('PRICE_ID_PREMIUM')
+
+        # Price IDs extendidos (mensual/anual). Opcionales pero recomendados.
+        # Para mantener compatibilidad, los "_monthly" hacen fallback a los legacy si no existen.
+        self.price_id_basic_monthly = os.getenv('PRICE_ID_BASIC_MONTHLY', self.price_id_basic)
+        self.price_id_basic_annual = os.getenv('PRICE_ID_BASIC_ANNUAL')
+        self.price_id_premium_monthly = os.getenv('PRICE_ID_PREMIUM_MONTHLY', self.price_id_premium)
+        self.price_id_premium_annual = os.getenv('PRICE_ID_PREMIUM_ANNUAL')
+        self.price_id_business_monthly = os.getenv('PRICE_ID_BUSINESS_MONTHLY')
+        self.price_id_business_annual = os.getenv('PRICE_ID_BUSINESS_ANNUAL')
         
         # Enterprise
         self.enterprise_product_id = os.getenv('STRIPE_ENTERPRISE_PRODUCT_ID')
@@ -65,7 +74,8 @@ class StripeConfig:
         if not self.webhook_secret:
             missing.append('STRIPE_WEBHOOK_SECRET')
         
-        # Required Price IDs
+        # Required Price IDs (legacy mínimos para compatibilidad).
+        # Los nuevos price IDs mensuales/anuales son recomendados pero no obligatorios para no romper staging.
         if not self.price_id_basic:
             missing.append('PRICE_ID_BASIC')
         if not self.price_id_premium:
@@ -102,6 +112,42 @@ class StripeConfig:
             'premium': self.price_id_premium
             # Enterprise no tiene price_id fijo - tiene múltiples precios custom
         }
+
+    def get_price_id(self, plan: str, interval: str) -> Optional[str]:
+        """Retorna el price_id para combinación (plan, interval). Interval: 'monthly' | 'annual'"""
+        key = f"{plan}_{interval}".lower()
+        mapping = {
+            'basic_monthly': self.price_id_basic_monthly,
+            'basic_annual': self.price_id_basic_annual,
+            'premium_monthly': self.price_id_premium_monthly,
+            'premium_annual': self.price_id_premium_annual,
+            'business_monthly': self.price_id_business_monthly,
+            'business_annual': self.price_id_business_annual,
+        }
+        return mapping.get(key)
+
+    def get_price_to_plan_map(self) -> Dict[str, str]:
+        """Mapa inverso price_id → plan (cubre mensual y anual). Ignora None."""
+        mapping: Dict[str, str] = {}
+        for pid in [
+            self.price_id_basic,  # legacy
+            self.price_id_premium,  # legacy
+            self.price_id_basic_monthly,
+            self.price_id_basic_annual,
+            self.price_id_premium_monthly,
+            self.price_id_premium_annual,
+            self.price_id_business_monthly,
+            self.price_id_business_annual,
+        ]:
+            if pid:
+                # Inferir plan por nombre de variable
+                if pid in [self.price_id_basic, self.price_id_basic_monthly, self.price_id_basic_annual]:
+                    mapping[pid] = 'basic'
+                elif pid in [self.price_id_premium, self.price_id_premium_monthly, self.price_id_premium_annual]:
+                    mapping[pid] = 'premium'
+                elif pid in [self.price_id_business_monthly, self.price_id_business_annual]:
+                    mapping[pid] = 'business'
+        return mapping
     
     def get_plan_limits(self) -> Dict[str, int]:
         """Retorna límites de RU por plan"""
@@ -109,6 +155,7 @@ class StripeConfig:
             'free': 0,
             'basic': 1225,
             'premium': 2950,
+            'business': 8000,
             'enterprise': None  # Enterprise usa custom_quota_limit
         }
     
@@ -117,7 +164,8 @@ class StripeConfig:
         return {
             'free': 0.0,
             'basic': 29.99,
-            'premium': 59.99,
+            'premium': 49.99,
+            'business': 139.99,
             'enterprise': None  # Enterprise precio custom
         }
     

@@ -300,9 +300,16 @@ class StripeWebhookHandler:
     
     def _get_plan_from_price_id(self, price_id: str, product_id: str) -> str:
         """Determina el plan basado en price_id o product_id"""
+        # Primero, probar con mapa inverso (mensual/anual + legacy)
+        try:
+            price_to_plan = self.config.get_price_to_plan_map()
+            if price_id in price_to_plan:
+                return price_to_plan[price_id]
+        except Exception as _e:
+            logger.warning(f"No se pudo resolver price_to_plan map: {_e}")
+
+        # Fallback: mapeo legacy de un único price por plan
         price_ids = self.config.get_plan_price_ids()
-        
-        # Planes estándar
         for plan, plan_price_id in price_ids.items():
             if price_id == plan_price_id:
                 return plan

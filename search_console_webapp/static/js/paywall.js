@@ -8,7 +8,7 @@ class PaywallManager {
         console.log('PaywallManager initialized');
     }
     
-    showPaywallModal(upgradeOptions = ['basic', 'premium'], featureName = 'This feature') {
+    showPaywallModal(upgradeOptions = ['basic', 'premium', 'business'], featureName = 'This feature') {
         const modal = this.createPaywallModal(upgradeOptions, featureName);
         
         // ✅ NUEVO: Guardar featureName para restaurar estado al cerrar
@@ -44,13 +44,21 @@ class PaywallManager {
                 quota: '2,950 RU/month',
                 description: 'Perfect for agencies',
                 highlight: true
+            },
+            business: {
+                name: 'Business Plan',
+                price: '€139.99',
+                period: '/month',
+                quota: '8,000 RU/month',
+                description: 'For high-volume teams',
+                highlight: false
             }
         };
         
         const planCards = upgradeOptions.map(planKey => {
             const plan = plans[planKey];
             return `
-                <a href="/billing/checkout/${planKey}" class="plan-card ${plan.highlight ? 'premium-highlight' : ''}">
+                <a href="/billing/checkout/${planKey}?interval=monthly" class="plan-card ${plan.highlight ? 'premium-highlight' : ''}">
                     ${plan.highlight ? '<div class="plan-badge">MOST POPULAR</div>' : ''}
                     <h4>${plan.name}</h4>
                     <div class="plan-price">

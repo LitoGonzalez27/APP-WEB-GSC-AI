@@ -22,7 +22,7 @@ const QUOTA_MESSAGES = {
     },
     freeBlocked: {
         title: "🔒 Premium Feature",
-        message: "AI Overview and Manual AI are available with Basic and Premium plans.",
+        message: "AI Overview and Manual AI are available with Basic, Premium and Business plans.",
         action: "Upgrade to access advanced SERP analysis features."
     },
     enterpriseBlocked: {
@@ -36,9 +36,9 @@ const QUOTA_MESSAGES = {
  * URLs de upgrade por plan
  */
 const UPGRADE_URLS = {
-    free: "/upgrade?plan=basic",
-    basic: "/upgrade?plan=premium", 
-    premium: "/upgrade?plan=premium",
+    free: "/billing",
+    basic: "/billing/checkout/premium?interval=monthly", 
+    premium: "/billing/checkout/business?interval=monthly",
     enterprise: "/contact"
 };
 

@@ -540,6 +540,7 @@ def get_effective_quota_limit(user_data):
         'free': 0,
         'basic': 1225,
         'premium': 2950,
+        'business': 8000,
         'enterprise': 0  # Sin custom quota = sin acceso
     }
     
