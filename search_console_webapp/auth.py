@@ -164,7 +164,20 @@ def auth_required(f):
         if not is_user_authenticated():
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?auth_required=true')
+            # ✅ Preservar plan/interval/source si venimos de /billing/checkout/<plan>
+            try:
+                login_url = url_for('login_page') + '?auth_required=true'
+                path = request.path or ''
+                if path.startswith('/billing/checkout/'):
+                    parts = path.split('/')
+                    plan = parts[3] if len(parts) > 3 else None
+                    if plan:
+                        interval = (request.args.get('interval') or 'monthly').lower()
+                        source = request.args.get('source') or 'direct'
+                        login_url += f"&plan={plan}&interval={interval}&source={source}"
+                return redirect(login_url)
+            except Exception:
+                return redirect(url_for('login_page') + '?auth_required=true')
         
         # Verificar expiración por inactividad
         if is_session_expired():
