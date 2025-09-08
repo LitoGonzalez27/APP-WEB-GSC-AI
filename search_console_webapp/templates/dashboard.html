@@ -108,6 +108,21 @@
     <!-- Contenido principal -->
     <main class="main-content">
         <div class="container">
+            {# Banner de upgrade solo para usuarios FREE #}
+            {% if (user.plan is defined and user.plan == 'free') or (user.plan is not defined) %}
+            <div class="upgrade-banner" role="region" aria-label="Aviso de mejora de plan">
+                <div class="upgrade-banner-content">
+                    <i class="fas fa-bolt" aria-hidden="true"></i>
+                    <span class="upgrade-text">
+                        Estás usando el <span class="highlight">plan gratuito</span>. Para analizar el rendimiento de <span class="highlight">AI Overview</span>, mejora tu plan.
+                    </span>
+                    <a class="btn btn-upgrade" href="https://clicandseo.com/pricing/" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-arrow-up-right-from-square"></i>
+                        Ver planes
+                    </a>
+                </div>
+            </div>
+            {% endif %}
             <!-- Header del dashboard -->
             <div class="dashboard-header">
                 <div class="header-content">
@@ -903,6 +918,41 @@
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
+        }
+    </style>
+    <style>
+        /* Banner de upgrade (consistente con el estilo del dashboard) */
+        .upgrade-banner {
+            margin-bottom: 1rem;
+            border-radius: var(--dashboard-border-radius-lg);
+            border: 1px solid var(--dashboard-gray-200);
+            background: linear-gradient(90deg, var(--dashboard-primary) 0%, var(--dashboard-primary-light) 100%);
+            box-shadow: var(--dashboard-shadow-md);
+            padding: 0.75rem 1rem;
+        }
+        .upgrade-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #fff;
+        }
+        .upgrade-banner i { color: var(--dashboard-secondary); }
+        .upgrade-text { font-size: 0.95rem; }
+        .upgrade-text .highlight { color: var(--dashboard-secondary); font-weight: 700; }
+        .btn-upgrade {
+            background: var(--dashboard-secondary);
+            color: var(--dashboard-primary);
+            border: 1px solid var(--dashboard-secondary);
+            padding: 0.45rem 0.9rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .btn-upgrade:hover { filter: brightness(0.95); }
+        @media (max-width: 768px) {
+            .upgrade-banner-content { flex-wrap: wrap; }
+            .btn-upgrade { margin-left: 0; }
         }
     </style>
 </body>
