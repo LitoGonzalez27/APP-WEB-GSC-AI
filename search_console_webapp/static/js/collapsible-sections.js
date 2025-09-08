@@ -64,6 +64,17 @@ function expandSection(content, arrow, summary, sectionType) {
     content.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
     content.style.maxHeight = content.scrollHeight + 'px';
     content.style.opacity = '1';
+
+    // Tras la animación, permitir crecimiento dinámico (evita que botones queden ocultos)
+    setTimeout(() => {
+        // Si sigue expandida esta sección, quitar límite de altura
+        if (collapsibleState[sectionType] === false) { // aún estaba colapsada previo toggle
+            // nada
+        }
+        // Permitir que el contenido crezca si se añaden chips/etiquetas dinámicamente
+        content.style.maxHeight = 'none';
+        content.style.overflow = 'visible';
+    }, 320);
     
     // Rotar flecha
     arrow.style.transform = 'rotate(180deg)';
@@ -86,9 +97,16 @@ function expandSection(content, arrow, summary, sectionType) {
  */
 function collapseSection(content, arrow, summary, sectionType) {
     // Animar colapso
+    // Si estaba sin límite, fijar altura actual para habilitar la transición a 0
+    if (content.style.maxHeight === '' || content.style.maxHeight === 'none') {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        // Forzar reflow antes de iniciar transición
+        content.offsetHeight;
+    }
     content.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
     content.style.maxHeight = '0px';
     content.style.opacity = '0';
+    content.style.overflow = 'hidden';
     
     // Rotar flecha de vuelta
     arrow.style.transform = 'rotate(0deg)';
