@@ -661,6 +661,13 @@ def setup_auth_routes(app):
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
         interval_param = (request.args.get('interval') or 'monthly').lower()
+        # ✅ Tracking genérico (UTM/ref/gclid...)
+        try:
+            tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+            if tracking_keys:
+                session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+        except Exception:
+            pass
         
         # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
         if plan_param == 'enterprise':
@@ -698,6 +705,13 @@ def setup_auth_routes(app):
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
         interval_param = (request.args.get('interval') or 'monthly').lower()
+        # ✅ Tracking genérico (UTM/ref/gclid...)
+        try:
+            tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+            if tracking_keys:
+                session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+        except Exception:
+            pass
         
         # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
         if plan_param == 'enterprise':
@@ -745,7 +759,16 @@ def setup_auth_routes(app):
                 signup_interval = session.get('signup_interval') or 'monthly'
                 login_url = '/login?auth_error=user_already_exists'
                 if signup_plan in ['basic', 'premium', 'business']:
-                    login_url += f"&plan={signup_plan}&source={signup_source}&interval={signup_interval}"
+                    # Añadir tracking si existe
+                    extra_qs = ''
+                    try:
+                        track = session.get('signup_tracking') or {}
+                        if track:
+                            from urllib.parse import urlencode
+                            extra_qs = '&' + urlencode(track)
+                    except Exception:
+                        pass
+                    login_url += f"&plan={signup_plan}&source={signup_source}&interval={signup_interval}{extra_qs}"
                 return jsonify({'error': 'Ya tienes una cuenta activa. Inicia sesión para continuar.', 'next': login_url}), 400
 
             new_user = create_user(email=email, name=name, password=password, auto_activate=True)
@@ -764,7 +787,16 @@ def setup_auth_routes(app):
                 session['user_name'] = new_user['name']
                 update_last_activity()
 
-                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true"
+                # Construir checkout URL preservando tracking
+                extra_qs = ''
+                try:
+                    track = session.get('signup_tracking') or {}
+                    if track:
+                        from urllib.parse import urlencode
+                        extra_qs = '&' + urlencode(track)
+                except Exception:
+                    pass
+                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}"
                 return jsonify({
                     'success': True,
                     'message': 'Cuenta creada. Redirigiendo a la pasarela de pago...',
@@ -822,8 +854,16 @@ def setup_auth_routes(app):
             signup_plan = session.pop('signup_plan', None)
             signup_source = session.pop('signup_source', None)
             signup_interval = session.pop('signup_interval', None) or 'monthly'
+            signup_tracking = session.pop('signup_tracking', None) or {}
             if signup_plan in ['basic', 'premium', 'business']:
-                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}&interval={signup_interval}"
+                extra_qs = ''
+                try:
+                    if signup_tracking:
+                        from urllib.parse import urlencode
+                        extra_qs = '&' + urlencode(signup_tracking)
+                except Exception:
+                    pass
+                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}&interval={signup_interval}{extra_qs}"
             else:
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
             return jsonify({'success': True, 'next': next_url})
@@ -870,6 +910,13 @@ def setup_auth_routes(app):
                 session['signup_plan'] = plan_param
                 session['signup_source'] = source_param or 'direct'
                 session['signup_interval'] = interval_param
+                # Guardar tracking si venía en /auth/signup
+                try:
+                    tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+                    if tracking_keys:
+                        session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+                except Exception:
+                    pass
                 logger.info(f"🔄 /auth/signup con plan: {plan_param} (source: {source_param})")
             
             flow = create_flow()
@@ -945,11 +992,20 @@ def setup_auth_routes(app):
                         preserved_plan = session.get('signup_plan')
                         preserved_source = session.get('signup_source')
                         preserved_interval = session.get('signup_interval') or 'monthly'
+                        preserved_tracking = session.get('signup_tracking') or {}
                         login_url = '/login?auth_error=user_already_exists'
                         if preserved_plan in ['basic', 'premium', 'business']:
+                            try:
+                                extra_qs = ''
+                                if preserved_tracking:
+                                    from urllib.parse import urlencode
+                                    extra_qs = '&' + urlencode(preserved_tracking)
+                            except Exception:
+                                extra_qs = ''
                             login_url += f"&plan={preserved_plan}&interval={preserved_interval}"
                             if preserved_source:
                                 login_url += f"&source={preserved_source}"
+                            login_url += extra_qs
                         return redirect(login_url)
                     except Exception:
                         return redirect('/login?auth_error=user_already_exists')
@@ -973,6 +1029,7 @@ def setup_auth_routes(app):
                     signup_plan = session.get('signup_plan')
                     signup_source = session.get('signup_source')
                     signup_interval = session.get('signup_interval') or 'monthly'
+                    signup_tracking = session.get('signup_tracking') or {}
                     
                     # ✅ DEBUG: Log detallado para debugging
                     logger.info(f"🔍 DEBUG - Callback registro - signup_plan: {signup_plan}, signup_source: {signup_source}")
@@ -997,7 +1054,14 @@ def setup_auth_routes(app):
                             logger.warning(f"No se pudo actualizar last_login_at (Google signup): {_e_last_login_signup}")
                         
                         logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
-                        return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true")
+                        try:
+                            extra_qs = ''
+                            if signup_tracking:
+                                from urllib.parse import urlencode
+                                extra_qs = '&' + urlencode(signup_tracking)
+                        except Exception:
+                            extra_qs = ''
+                        return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}")
                     else:
                         # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
                         session.pop('temp_credentials', None)
@@ -1117,13 +1181,21 @@ def setup_auth_routes(app):
                 signup_plan = session.pop('signup_plan', None)
                 signup_source = session.pop('signup_source', None)
                 signup_interval = session.pop('signup_interval', None) or 'monthly'
+                signup_tracking = session.pop('signup_tracking', None) or {}
                 
                 # ✅ DEBUG: Log detallado para debugging
                 logger.info(f"🔍 DEBUG - Callback login - signup_plan: {signup_plan}, signup_source: {signup_source}")
                 
                 if signup_plan and signup_plan in ['basic', 'premium', 'business']:
                     logger.info(f"✅ Login exitoso con plan {signup_plan} - redirigiendo a checkout")
-                    return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}")
+                    try:
+                        extra_qs = ''
+                        if signup_tracking:
+                            from urllib.parse import urlencode
+                            extra_qs = '&' + urlencode(signup_tracking)
+                    except Exception:
+                        extra_qs = ''
+                    return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}{extra_qs}")
                 
                 # ✅ FASE 4.5: Usar parámetro next después de autenticación
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
