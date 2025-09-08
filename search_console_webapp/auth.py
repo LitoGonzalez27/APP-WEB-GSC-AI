@@ -154,7 +154,7 @@ def is_user_ai_enabled():
     """DEPRECATED: Funcionalidades AI ahora dependen del plan, no del rol"""
     user = get_current_user()
     # ✅ NUEVO: AI depende del plan de pago, no del rol
-    return user and user.get('plan') in ['basic', 'premium', 'enterprise']
+    return user and user.get('plan') in ['basic', 'premium', 'business', 'enterprise']
 
 def auth_required(f):
     """Decorador que requiere autenticación"""
@@ -647,26 +647,28 @@ def setup_auth_routes(app):
         # ✅ NUEVO: Manejar parámetros de plan que vienen del registro
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
+        interval_param = (request.args.get('interval') or 'monthly').lower()
         
         # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
         if plan_param == 'enterprise':
             logger.info("Plan Enterprise detectado en login - redirigiendo a contacto")
             return redirect('https://clicandseo.com/contact?plan=enterprise&source=login')
         
-        if plan_param and plan_param in ['basic', 'premium']:
+        if plan_param and plan_param in ['basic', 'premium', 'business']:
             session['signup_plan'] = plan_param
             session['signup_source'] = source_param or 'registration'
+            session['signup_interval'] = interval_param
             logger.info(f"Login page con plan: {plan_param} (source: {source_param})")
             # ✅ Si no se proporcionó un next explícito, preparar redirección directa a checkout tras login
             if not request.args.get('next'):
-                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'registration')}"
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'registration')}&interval={interval_param}"
         
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
                 # Si ya está autenticado y viene con plan, ir directo a checkout
-                if plan_param and plan_param in ['basic', 'premium']:
-                    return redirect(f'/billing/checkout/{plan_param}?source={source_param}')
+                if plan_param and plan_param in ['basic', 'premium', 'business']:
+                    return redirect(f"/billing/checkout/{plan_param}?source={source_param}&interval={interval_param}")
                 # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
@@ -682,26 +684,28 @@ def setup_auth_routes(app):
         # ✅ NUEVO: Guardar parámetro plan para checkout automático
         plan_param = request.args.get('plan')
         source_param = request.args.get('source')
+        interval_param = (request.args.get('interval') or 'monthly').lower()
         
         # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
         if plan_param == 'enterprise':
             logger.info("Plan Enterprise detectado en signup - redirigiendo a contacto")
             return redirect('https://clicandseo.com/contact?plan=enterprise&source=signup')
         
-        if plan_param and plan_param in ['basic', 'premium']:
+        if plan_param and plan_param in ['basic', 'premium', 'business']:
             session['signup_plan'] = plan_param
             session['signup_source'] = source_param or 'direct'
+            session['signup_interval'] = interval_param
             logger.info(f"Usuario viene de pricing con plan: {plan_param} (source: {source_param})")
             # ✅ Si no se proporcionó un next explícito, preparar redirección a checkout tras login
             if not request.args.get('next'):
-                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'direct')}"
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'direct')}&interval={interval_param}"
         
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
                 # Si ya está autenticado y viene con plan, ir directo a checkout
-                if plan_param and plan_param in ['basic', 'premium']:
-                    return redirect(f'/billing/checkout/{plan_param}')
+                if plan_param and plan_param in ['basic', 'premium', 'business']:
+                    return redirect(f"/billing/checkout/{plan_param}?interval={interval_param}")
                 # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
@@ -725,9 +729,10 @@ def setup_auth_routes(app):
             if get_user_by_email(email):
                 signup_plan = session.get('signup_plan')
                 signup_source = session.get('signup_source') or 'registration'
+                signup_interval = session.get('signup_interval') or 'monthly'
                 login_url = '/login?auth_error=user_already_exists'
-                if signup_plan in ['basic', 'premium']:
-                    login_url += f"&plan={signup_plan}&source={signup_source}"
+                if signup_plan in ['basic', 'premium', 'business']:
+                    login_url += f"&plan={signup_plan}&source={signup_source}&interval={signup_interval}"
                 return jsonify({'error': 'Ya tienes una cuenta activa. Inicia sesión para continuar.', 'next': login_url}), 400
 
             new_user = create_user(email=email, name=name, password=password, auto_activate=True)
@@ -737,15 +742,16 @@ def setup_auth_routes(app):
             # ✅ Si el signup viene con plan de pago, iniciar sesión y redirigir a checkout
             signup_plan = session.get('signup_plan')
             signup_source = session.get('signup_source') or 'registration'
+            signup_interval = session.get('signup_interval') or 'monthly'
 
-            if signup_plan in ['basic', 'premium']:
+            if signup_plan in ['basic', 'premium', 'business']:
                 # Iniciar sesión del usuario recién creado
                 session['user_id'] = new_user['id']
                 session['user_email'] = new_user['email']
                 session['user_name'] = new_user['name']
                 update_last_activity()
 
-                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&first_time=true"
+                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true"
                 return jsonify({
                     'success': True,
                     'message': 'Cuenta creada. Redirigiendo a la pasarela de pago...',
@@ -802,8 +808,9 @@ def setup_auth_routes(app):
             # ✅ Soportar redirect directo a checkout si venía con plan desde pricing/login
             signup_plan = session.pop('signup_plan', None)
             signup_source = session.pop('signup_source', None)
-            if signup_plan in ['basic', 'premium']:
-                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}"
+            signup_interval = session.pop('signup_interval', None) or 'monthly'
+            if signup_plan in ['basic', 'premium', 'business']:
+                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}&interval={signup_interval}"
             else:
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
             return jsonify({'success': True, 'next': next_url})
@@ -844,10 +851,12 @@ def setup_auth_routes(app):
             # ✅ NUEVO: Capturar parámetros también en /auth/signup
             plan_param = request.args.get('plan')
             source_param = request.args.get('source')
+            interval_param = (request.args.get('interval') or 'monthly').lower()
             
-            if plan_param and plan_param in ['basic', 'premium']:
+            if plan_param and plan_param in ['basic', 'premium', 'business']:
                 session['signup_plan'] = plan_param
                 session['signup_source'] = source_param or 'direct'
+                session['signup_interval'] = interval_param
                 logger.info(f"🔄 /auth/signup con plan: {plan_param} (source: {source_param})")
             
             flow = create_flow()
@@ -922,9 +931,10 @@ def setup_auth_routes(app):
                     try:
                         preserved_plan = session.get('signup_plan')
                         preserved_source = session.get('signup_source')
+                        preserved_interval = session.get('signup_interval') or 'monthly'
                         login_url = '/login?auth_error=user_already_exists'
-                        if preserved_plan in ['basic', 'premium']:
-                            login_url += f"&plan={preserved_plan}"
+                        if preserved_plan in ['basic', 'premium', 'business']:
+                            login_url += f"&plan={preserved_plan}&interval={preserved_interval}"
                             if preserved_source:
                                 login_url += f"&source={preserved_source}"
                         return redirect(login_url)
@@ -949,12 +959,13 @@ def setup_auth_routes(app):
                     # ✅ MEJORADO UX: Flujo directo sin login intermedio
                     signup_plan = session.get('signup_plan')
                     signup_source = session.get('signup_source')
+                    signup_interval = session.get('signup_interval') or 'monthly'
                     
                     # ✅ DEBUG: Log detallado para debugging
                     logger.info(f"🔍 DEBUG - Callback registro - signup_plan: {signup_plan}, signup_source: {signup_source}")
                     logger.info(f"🔍 DEBUG - Session keys: {list(session.keys())}")
                     
-                    if signup_plan and signup_plan in ['basic', 'premium']:
+                    if signup_plan and signup_plan in ['basic', 'premium', 'business']:
                         # ✅ NUEVO: Login automático + redirect directo a checkout
                         session['credentials'] = session.pop('temp_credentials')
                         session['user_id'] = new_user['id']
@@ -973,7 +984,7 @@ def setup_auth_routes(app):
                             logger.warning(f"No se pudo actualizar last_login_at (Google signup): {_e_last_login_signup}")
                         
                         logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
-                        return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}&first_time=true')
+                        return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true")
                     else:
                         # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
                         session.pop('temp_credentials', None)
@@ -1092,13 +1103,14 @@ def setup_auth_routes(app):
                 # ✅ NUEVO: Verificar si hay plan para checkout automático
                 signup_plan = session.pop('signup_plan', None)
                 signup_source = session.pop('signup_source', None)
+                signup_interval = session.pop('signup_interval', None) or 'monthly'
                 
                 # ✅ DEBUG: Log detallado para debugging
                 logger.info(f"🔍 DEBUG - Callback login - signup_plan: {signup_plan}, signup_source: {signup_source}")
                 
-                if signup_plan and signup_plan in ['basic', 'premium']:
+                if signup_plan and signup_plan in ['basic', 'premium', 'business']:
                     logger.info(f"✅ Login exitoso con plan {signup_plan} - redirigiendo a checkout")
-                    return redirect(f'/billing/checkout/{signup_plan}?source={signup_source}')
+                    return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}")
                 
                 # ✅ FASE 4.5: Usar parámetro next después de autenticación
                 next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
