@@ -108,6 +108,21 @@
     <!-- Contenido principal -->
     <main class="main-content">
         <div class="container">
+            {# Banner de upgrade solo para usuarios FREE #}
+            {% if (user.plan is defined and user.plan == 'free') or (user.plan is not defined) %}
+            <div class="upgrade-banner" role="region" aria-label="Aviso de mejora de plan">
+                <div class="upgrade-banner-content">
+                    <i class="fas fa-bolt" aria-hidden="true"></i>
+                    <span class="upgrade-text">
+                        You are on the <span class="highlight">Free plan</span>. To analyze <span class="highlight">AI Overview</span> performance, upgrade your plan.
+                    </span>
+                    <a class="btn btn-upgrade" href="https://clicandseo.com/pricing/" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-arrow-up-right-from-square upgrade-icon"></i>
+                        View pricing
+                    </a>
+                </div>
+            </div>
+            {% endif %}
             <!-- Header del dashboard -->
             <div class="dashboard-header">
                 <div class="header-content">
@@ -120,18 +135,15 @@
                 </div>
                 
                 <!-- Estado de cuenta -->
-                <div class="account-status">
-                    {% if user.is_active %}
-                    <div class="status-badge active">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Active Account</span>
-                    </div>
-                    {% else %}
-                    <div class="status-badge inactive">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Inactive Account</span>
-                    </div>
-                    {% endif %}
+                <div class="account-status" style="gap: 0.75rem;">
+                    <a href="/profile" class="btn btn-outline" style="border:1px solid #161616 !important; background:transparent; color:#161616;">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </a>
+                    <a href="/app" class="btn btn-primary" style="background:#D8F9B8; color:#161616; border:1px solid #D8F9B8 !important;">
+                        <i class="fas fa-play"></i>
+                        Start
+                    </a>
                 </div>
             </div>
 
@@ -211,7 +223,7 @@
                             <div class="status-item">
                                 <i class="fas fa-link"></i>
                                 <span>Connection: 
-                                    <strong class="status-connected">Connected</strong>
+                                    <strong id="gscConnectionStatus" class="status-disconnected">Not connected</strong>
                                 </span>
                             </div>
                             <div class="status-item">
@@ -220,10 +232,21 @@
                                     <strong id="propertiesCount">Loading...</strong>
                                 </span>
                             </div>
+                            <div class="status-item">
+                                <i class="fas fa-user-circle"></i>
+                                <span>Accounts: 
+                                    <strong id="connectionsCount">0</strong>
+                                </span>
+                            </div>
                         </div>
+
+                        
                     </div>
                     <div class="card-footer">
-                        <!-- Botón de actualizar propiedades eliminado - se actualiza automáticamente -->
+                        <a class="btn btn-primary" id="connectGoogleBtn" href="/profile?tab=connections">
+                            <i class="fas fa-link"></i>
+                            Connect Google
+                        </a>
                     </div>
                 </div>
 
@@ -252,10 +275,10 @@
                         </div>
                     </div>
                     <div class="card-footer">
-                        <button class="btn btn-primary" onclick="showSettings()">
+                        <a class="btn btn-primary" href="/profile">
                             <i class="fas fa-cog"></i>
                             Configure
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -303,10 +326,27 @@
                 const data = await response.json();
                 
                 const countElement = document.getElementById('propertiesCount');
-                if (data.properties && data.properties.length > 0) {
-                    countElement.textContent = data.properties.length;
+                const props = Array.isArray(data.properties) ? data.properties : [];
+                countElement.textContent = props.length > 0 ? props.length : 'Ninguna';
+
+                // Calcular nº de cuentas distintas por email
+                const emails = new Set((props || []).map(p => p.googleEmail).filter(Boolean));
+                const connCountEl = document.getElementById('connectionsCount');
+                if (connCountEl) connCountEl.textContent = emails.size;
+
+                // Actualizar estado de conexión y texto del botón
+                const statusEl = document.getElementById('gscConnectionStatus');
+                const btn = document.getElementById('connectGoogleBtn');
+                if (emails.size > 0) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.classList.remove('status-disconnected');
+                    statusEl.classList.add('status-connected');
+                    if (btn) btn.innerHTML = '<i class="fas fa-link"></i> Connect another account';
                 } else {
-                    countElement.textContent = 'Ninguna';
+                    statusEl.textContent = 'Not connected';
+                    statusEl.classList.add('status-disconnected');
+                    statusEl.classList.remove('status-connected');
+                    if (btn) btn.innerHTML = '<i class="fas fa-link"></i> Connect Google';
                 }
             } catch (error) {
                 console.error('Error cargando propiedades:', error);
@@ -368,6 +408,14 @@
 
             // Cargar propiedades al iniciar
             loadProperties();
+
+            // Conectar Google al hacer clic
+            const connectBtn = document.getElementById('connectGoogleBtn');
+            if (connectBtn) {
+                connectBtn.addEventListener('click', function(){
+                    window.location.href = '/connections/google/start';
+                });
+            }
         });
     </script>
 
@@ -522,12 +570,6 @@
             transition: var(--dashboard-transition);
         }
 
-        .dashboard-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--dashboard-shadow-lg);
-            border-color: var(--dashboard-gray-300);
-        }
-
         .card-header {
             padding: 2rem 2rem 1.5rem 2rem;
             border-bottom: 1px solid var(--dashboard-gray-200);
@@ -586,6 +628,10 @@
             color: var(--dashboard-success);
         }
 
+        .status-disconnected {
+            color: var(--dashboard-error);
+        }
+
         .card-footer {
             padding: 2rem;
             border-top: 1px solid var(--dashboard-gray-200);
@@ -596,9 +642,9 @@
             display: inline-flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.875rem 1.75rem;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: var(--dashboard-border-radius);
+            border-radius: 8px;
             font-size: 0.875rem;
             font-weight: 600;
             cursor: pointer;
@@ -614,8 +660,8 @@
         }
 
         .btn-primary:hover {
-            background: var(--dashboard-primary-light);
-            transform: translateY(-1px);
+            background: #161616;
+            color: #D8F9B8;
             box-shadow: var(--dashboard-shadow);
         }
 
@@ -626,9 +672,8 @@
         }
 
         .btn-outline:hover {
-            background: var(--dashboard-accent);
+            background: #161616;
             color: white;
-            transform: translateY(-1px);
             box-shadow: var(--dashboard-shadow);
         }
 
@@ -873,6 +918,42 @@
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
+        }
+    </style>
+    <style>
+        /* Banner de upgrade (consistente con el estilo del dashboard) */
+        .upgrade-banner {
+            margin-bottom: 1rem;
+            border-radius: var(--dashboard-border-radius-lg);
+            border: 1px solid var(--dashboard-gray-200);
+            background: linear-gradient(90deg, var(--dashboard-primary) 0%, var(--dashboard-primary-light) 100%);
+            box-shadow: var(--dashboard-shadow-md);
+            padding: 0.75rem 1rem;
+        }
+        .upgrade-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #fff;
+        }
+        .upgrade-banner i { color: var(--dashboard-secondary); }
+        .upgrade-text { font-size: 0.95rem; }
+        .upgrade-text .highlight { color: var(--dashboard-secondary); font-weight: 700; }
+        .btn-upgrade {
+            background: var(--dashboard-secondary);
+            color: var(--dashboard-primary);
+            border: 1px solid var(--dashboard-secondary);
+            padding: 0.45rem 0.9rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .btn-upgrade:hover { filter: brightness(0.95); }
+        .btn-upgrade .upgrade-icon { color: #161616; }
+        @media (max-width: 768px) {
+            .upgrade-banner-content { flex-wrap: wrap; }
+            .btn-upgrade { margin-left: 0; }
         }
     </style>
 </body>

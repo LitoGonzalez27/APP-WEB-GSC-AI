@@ -9,8 +9,18 @@ from flask import session, redirect, request, jsonify, url_for, flash, render_te
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
 import logging
 from dotenv import load_dotenv
+
+# Importar servicio de email
+from email_service import send_password_reset_email
+# Importar API de Brevo como alternativa
+try:
+    from brevo_api_service import send_password_reset_via_api
+    BREVO_API_AVAILABLE = True
+except ImportError:
+    BREVO_API_AVAILABLE = False
 
 # Importar funciones de base de datos
 from database import (
@@ -31,7 +41,19 @@ from database import (
     get_user_activity_log,
     get_detailed_user_stats,
     migrate_user_timestamps,
-    ensure_sample_data
+    ensure_sample_data,
+    # NUEVO: funciones para conexiones OAuth y GSC
+    create_or_update_oauth_connection,
+    get_oauth_connections_for_user,
+    get_oauth_connection_by_id,
+    update_oauth_connection_tokens,
+    upsert_gsc_properties_for_connection,
+    list_gsc_properties_for_user,
+    # Funciones para password reset
+    create_password_reset_token,
+    validate_password_reset_token,
+    use_password_reset_token,
+    cleanup_expired_reset_tokens
 )
 
 # Carga las variables de entorno desde el .env
@@ -129,9 +151,10 @@ def is_user_admin():
     return user and user['role'] == 'admin'
 
 def is_user_ai_enabled():
-    """Verifica si el usuario tiene acceso a funcionalidades AI (admin o AI User)"""
+    """DEPRECATED: Funcionalidades AI ahora dependen del plan, no del rol"""
     user = get_current_user()
-    return user and user['role'] in ['admin', 'AI User']
+    # ✅ NUEVO: AI depende del plan de pago, no del rol
+    return user and user.get('plan') in ['basic', 'premium', 'business', 'enterprise']
 
 def auth_required(f):
     """Decorador que requiere autenticación"""
@@ -141,7 +164,20 @@ def auth_required(f):
         if not is_user_authenticated():
             if request.headers.get('Content-Type') == 'application/json' or request.is_json:
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?auth_required=true')
+            # ✅ Preservar plan/interval/source si venimos de /billing/checkout/<plan>
+            try:
+                login_url = url_for('login_page') + '?auth_required=true'
+                path = request.path or ''
+                if path.startswith('/billing/checkout/'):
+                    parts = path.split('/')
+                    plan = parts[3] if len(parts) > 3 else None
+                    if plan:
+                        interval = (request.args.get('interval') or 'monthly').lower()
+                        source = request.args.get('source') or 'direct'
+                        login_url += f"&plan={plan}&interval={interval}&source={source}"
+                return redirect(login_url)
+            except Exception:
+                return redirect(url_for('login_page') + '?auth_required=true')
         
         # Verificar expiración por inactividad
         if is_session_expired():
@@ -278,15 +314,9 @@ def ai_user_required(f):
                 return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
             return redirect(url_for('login_page') + '?account_suspended=true')
         
-        # Verificar si el usuario tiene acceso a funcionalidades AI
-        if not user['role'] in ['admin', 'AI User']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({
-                    'error': 'AI User privileges required',
-                    'ai_user_required': True
-                }), 403
-            # Para acceso directo via navegador, redirigir a /app
-            return redirect(url_for('app_main'))
+        # ✅ NUEVO: AI User role eliminado - solo verificar autenticación
+        # Las funcionalidades AI ahora se controlan por plan en cada endpoint
+        logger.warning("@ai_user_required está deprecated. Las funcionalidades AI se controlan por plan.")
         
         # Actualizar última actividad
         update_last_activity()
@@ -430,6 +460,27 @@ def refresh_credentials_if_needed(credentials):
         logger.error(f"Error refrescando credenciales: {e}")
         return None
 
+def _get_fernet():
+    try:
+        from cryptography.fernet import Fernet
+        key = os.getenv('TOKEN_ENCRYPTION_KEY', '').strip()
+        if not key:
+            return None
+        return Fernet(key)
+    except Exception:
+        return None
+
+def _decrypt_token(enc: str) -> str:
+    if not enc:
+        return enc
+    f = _get_fernet()
+    if not f:
+        return enc
+    try:
+        return f.decrypt(enc.encode('utf-8')).decode('utf-8')
+    except Exception:
+        return enc
+
 def setup_auth_routes(app):
     """Configura todas las rutas de autenticación"""
     
@@ -437,25 +488,388 @@ def setup_auth_routes(app):
     init_database()
     migrate_user_timestamps() # Ejecutar la migración de timestamps
 
+    # ================================
+    # NUEVO: Flujo de vinculación Google (separado del login)
+    # ================================
+
+    @app.route('/connections/google/start')
+    @auth_required
+    def start_google_link():
+        """Inicia el flujo OAuth para vincular una cuenta de Google adicional"""
+        try:
+            flow = create_flow()
+            if not flow:
+                return jsonify({'error': 'OAuth configuration error'}), 500
+
+            session['state'] = secrets.token_urlsafe(32)
+            session['oauth_action'] = 'link'
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                state=session['state'],
+                prompt='consent'
+            )
+            return redirect(authorization_url)
+        except Exception as e:
+            logger.error(f"Error iniciando link de Google: {e}")
+            return jsonify({'error': 'Failed to start Google linking'}), 500
+
+    @app.route('/gsc/properties')
+    @auth_required
+    def list_aggregated_properties():
+        """Lista propiedades de Search Console agregadas de todas las conexiones del usuario"""
+        try:
+            user = get_current_user()
+            if not user:
+                return jsonify({'error': 'Usuario no encontrado'}), 404
+
+            # Devolver las que tenemos en base de datos
+            props = list_gsc_properties_for_user(user['id'])
+            return jsonify({
+                'properties': [
+                    {
+                        'id': p['id'],
+                        'siteUrl': p['site_url'],
+                        'connectionId': p['connection_id'],
+                        'googleEmail': p['google_email'],
+                        'googleAccountId': p['google_account_id'],
+                        'permissionLevel': p.get('permission_level')
+                    } for p in props
+                ]
+            })
+        except Exception as e:
+            logger.error(f"Error listando propiedades agregadas: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+    # ================================
+    # Rutas para Password Reset
+    # ================================
+
+    @app.route('/forgot-password')
+    def forgot_password_page():
+        """Página para solicitar reset de contraseña"""
+        try:
+            return render_template('forgot_password.html')
+        except Exception as e:
+            logger.error(f"Error renderizando forgot password page: {e}")
+            return redirect('/login?error=page_error')
+
+    @app.route('/auth/forgot-password', methods=['POST'])
+    def forgot_password_request():
+        """Procesar solicitud de reset de contraseña"""
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            
+            if not email:
+                return jsonify({'error': 'Email is required'}), 400
+            
+            # Buscar usuario por email
+            user = get_user_by_email(email)
+            if not user:
+                # Por seguridad, no revelar si el email existe o no
+                return jsonify({'success': True, 'message': 'If an account exists, a reset link will be sent'})
+            
+            # Crear token de reset
+            token = create_password_reset_token(user['id'])
+            if not token:
+                return jsonify({'error': 'Unable to create reset token'}), 500
+            
+            # Construir URL de reset
+            reset_url = f"{request.url_root}reset-password?token={token}"
+            
+            # Intentar enviar email (API primero, luego SMTP)
+            email_sent = False
+            
+            # Método 1: API de Brevo (más rápido)
+            if BREVO_API_AVAILABLE:
+                logger.info("🚀 Intentando envío via API de Brevo...")
+                email_sent = send_password_reset_via_api(email, reset_url, user.get('name'))
+            
+            # Método 2: SMTP como fallback
+            if not email_sent:
+                logger.info("📧 Intentando envío via SMTP...")
+                email_sent = send_password_reset_email(email, reset_url, user.get('name'))
+            
+            if email_sent:
+                logger.info(f"✅ Password reset email enviado a {email}")
+                return jsonify({'success': True, 'message': 'Reset link sent'})
+            else:
+                # Fallback: loggear el token si todo falla
+                logger.warning(f"⚠️ Error enviando email, usando fallback log para {email}")
+                logger.info(f"🔑 Password reset token para {email}: {reset_url}")
+                return jsonify({'success': True, 'message': 'Reset link sent'})
+            
+        except Exception as e:
+            logger.error(f"Error en forgot password request: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
+
+    @app.route('/reset-password')
+    def reset_password_page():
+        """Página para resetear contraseña con token"""
+        try:
+            token = request.args.get('token')
+            if not token:
+                return redirect('/forgot-password?error=missing_token')
+            
+            # Validar token
+            token_info = validate_password_reset_token(token)
+            if not token_info:
+                return redirect('/forgot-password?error=invalid_token')
+            
+            return render_template('reset_password.html')
+            
+        except Exception as e:
+            logger.error(f"Error renderizando reset password page: {e}")
+            return redirect('/forgot-password?error=page_error')
+
+    @app.route('/auth/reset-password', methods=['POST'])
+    def reset_password_process():
+        """Procesar cambio de contraseña con token"""
+        try:
+            data = request.get_json() or {}
+            token = data.get('token')
+            new_password = data.get('password')
+            
+            if not token or not new_password:
+                return jsonify({'error': 'Token and password are required'}), 400
+            
+            # Validar contraseña
+            if len(new_password) < 8:
+                return jsonify({'error': 'Password must be at least 8 characters'}), 400
+            
+            # Usar token para cambiar contraseña
+            success = use_password_reset_token(token, new_password)
+            if not success:
+                return jsonify({'error': 'Invalid or expired token'}), 400
+            
+            return jsonify({'success': True, 'message': 'Password reset successfully'})
+            
+        except Exception as e:
+            logger.error(f"Error en reset password process: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
+
+
+
     @app.route('/login')
     def login_page():
-        """Página de inicio de sesión"""
+        """Página de inicio de sesión - FASE 4.5: Soporte parámetros next y plan"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
+        # ✅ NUEVO: Manejar parámetros de plan que vienen del registro
+        plan_param = request.args.get('plan')
+        source_param = request.args.get('source')
+        interval_param = (request.args.get('interval') or 'monthly').lower()
+        # ✅ Tracking genérico (UTM/ref/gclid...)
+        try:
+            tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+            if tracking_keys:
+                session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+        except Exception:
+            pass
+        
+        # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
+        if plan_param == 'enterprise':
+            logger.info("Plan Enterprise detectado en login - redirigiendo a contacto")
+            return redirect('https://clicandseo.com/contact?plan=enterprise&source=login')
+        
+        if plan_param and plan_param in ['basic', 'premium', 'business']:
+            session['signup_plan'] = plan_param
+            session['signup_source'] = source_param or 'registration'
+            session['signup_interval'] = interval_param
+            logger.info(f"Login page con plan: {plan_param} (source: {source_param})")
+            # ✅ Si no se proporcionó un next explícito, preparar redirección directa a checkout tras login
+            if not request.args.get('next'):
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'registration')}&interval={interval_param}"
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Si ya está autenticado y viene con plan, ir directo a checkout
+                if plan_param and plan_param in ['basic', 'premium', 'business']:
+                    return redirect(f"/billing/checkout/{plan_param}?source={source_param}&interval={interval_param}")
+                # Sino, redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('login.html')
 
     @app.route('/signup')
     def signup_page():
-        """Página de registro"""
+        """Página de registro - FASE 4.5: Soporte parámetros next y plan"""
+        # ✅ NUEVO: Guardar parámetro next en sesión
+        next_url = request.args.get('next', '/')
+        session['auth_next'] = next_url
+        
+        # ✅ NUEVO: Guardar parámetro plan para checkout automático
+        plan_param = request.args.get('plan')
+        source_param = request.args.get('source')
+        interval_param = (request.args.get('interval') or 'monthly').lower()
+        # ✅ Tracking genérico (UTM/ref/gclid...)
+        try:
+            tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+            if tracking_keys:
+                session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+        except Exception:
+            pass
+        
+        # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
+        if plan_param == 'enterprise':
+            logger.info("Plan Enterprise detectado en signup - redirigiendo a contacto")
+            return redirect('https://clicandseo.com/contact?plan=enterprise&source=signup')
+        
+        if plan_param and plan_param in ['basic', 'premium', 'business']:
+            session['signup_plan'] = plan_param
+            session['signup_source'] = source_param or 'direct'
+            session['signup_interval'] = interval_param
+            logger.info(f"Usuario viene de pricing con plan: {plan_param} (source: {source_param})")
+            # ✅ Si no se proporcionó un next explícito, preparar redirección a checkout tras login
+            if not request.args.get('next'):
+                session['auth_next'] = f"/billing/checkout/{plan_param}?source={(source_param or 'direct')}&interval={interval_param}"
+        
         if is_user_authenticated():
             user = get_current_user()
             if user and user['is_active']:
-                return redirect(url_for('dashboard'))
+                # Si ya está autenticado y viene con plan, ir directo a checkout
+                if plan_param and plan_param in ['basic', 'premium', 'business']:
+                    return redirect(f"/billing/checkout/{plan_param}?interval={interval_param}")
+                # Sino, redirigir a next o dashboard
+                return redirect(session.pop('auth_next', url_for('dashboard')))
         
         return render_template('signup.html')
+
+    # ================================
+    # NUEVO: Email/Password signup & login
+    # ================================
+
+    @app.route('/auth/email/signup', methods=['POST'])
+    def email_signup_route():
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            name = (data.get('name') or '').strip() or email.split('@')[0]
+            password = data.get('password')
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            # ✅ Si el usuario ya existe, indicar que debe iniciar sesión y preservar plan/source
+            if get_user_by_email(email):
+                signup_plan = session.get('signup_plan')
+                signup_source = session.get('signup_source') or 'registration'
+                signup_interval = session.get('signup_interval') or 'monthly'
+                login_url = '/login?auth_error=user_already_exists'
+                if signup_plan in ['basic', 'premium', 'business']:
+                    # Añadir tracking si existe
+                    extra_qs = ''
+                    try:
+                        track = session.get('signup_tracking') or {}
+                        if track:
+                            from urllib.parse import urlencode
+                            extra_qs = '&' + urlencode(track)
+                    except Exception:
+                        pass
+                    login_url += f"&plan={signup_plan}&source={signup_source}&interval={signup_interval}{extra_qs}"
+                return jsonify({'error': 'Ya tienes una cuenta activa. Inicia sesión para continuar.', 'next': login_url}), 400
+
+            new_user = create_user(email=email, name=name, password=password, auto_activate=True)
+            if not new_user:
+                return jsonify({'error': 'No se pudo crear el usuario'}), 500
+
+            # ✅ Si el signup viene con plan de pago, iniciar sesión y redirigir a checkout
+            signup_plan = session.get('signup_plan')
+            signup_source = session.get('signup_source') or 'registration'
+            signup_interval = session.get('signup_interval') or 'monthly'
+
+            if signup_plan in ['basic', 'premium', 'business']:
+                # Iniciar sesión del usuario recién creado
+                session['user_id'] = new_user['id']
+                session['user_email'] = new_user['email']
+                session['user_name'] = new_user['name']
+                update_last_activity()
+
+                # Construir checkout URL preservando tracking
+                extra_qs = ''
+                try:
+                    track = session.get('signup_tracking') or {}
+                    if track:
+                        from urllib.parse import urlencode
+                        extra_qs = '&' + urlencode(track)
+                except Exception:
+                    pass
+                checkout_url = f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}"
+                return jsonify({
+                    'success': True,
+                    'message': 'Cuenta creada. Redirigiendo a la pasarela de pago...',
+                    'next': checkout_url,
+                    'user': {
+                        'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
+                    }
+                })
+
+            # Mantener usuario sin GSC hasta que conecte; flujo Free → login
+            return jsonify({
+                'success': True,
+                'message': 'Cuenta creada. Ahora inicia sesión.',
+                'next': '/login',
+                'user': {
+                    'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error en email signup: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/auth/email/login', methods=['POST'])
+    def email_login_route():
+        try:
+            data = request.get_json() or {}
+            email = (data.get('email') or '').strip().lower()
+            password = data.get('password')
+            if not email or not password:
+                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            user = authenticate_user(email, password)
+            if not user:
+                return jsonify({'error': 'Credenciales inválidas'}), 401
+            if not user['is_active']:
+                return jsonify({'error': 'Cuenta suspendida'}), 403
+
+            session['user_id'] = user['id']
+            session['user_email'] = user['email']
+            session['user_name'] = user['name']
+            update_last_activity()
+
+            # ✅ NUEVO: Registrar last_login_at en login por email
+            try:
+                db = get_db_connection()
+                if db:
+                    cur = db.cursor()
+                    cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (user['id'],))
+                    db.commit()
+                    db.close()
+            except Exception as _e_last_login_email:
+                logger.warning(f"No se pudo actualizar last_login_at (email login): {_e_last_login_email}")
+
+            # ✅ Soportar redirect directo a checkout si venía con plan desde pricing/login
+            signup_plan = session.pop('signup_plan', None)
+            signup_source = session.pop('signup_source', None)
+            signup_interval = session.pop('signup_interval', None) or 'monthly'
+            signup_tracking = session.pop('signup_tracking', None) or {}
+            if signup_plan in ['basic', 'premium', 'business']:
+                extra_qs = ''
+                try:
+                    if signup_tracking:
+                        from urllib.parse import urlencode
+                        extra_qs = '&' + urlencode(signup_tracking)
+                except Exception:
+                    pass
+                next_url = f"/billing/checkout/{signup_plan}?source={(signup_source or 'direct')}&interval={signup_interval}{extra_qs}"
+            else:
+                next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+            return jsonify({'success': True, 'next': next_url})
+        except Exception as e:
+            logger.error(f"Error en email login: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 
@@ -475,7 +889,8 @@ def setup_auth_routes(app):
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state']
+                state=session['state'],
+                prompt='consent'
             )
             return redirect(authorization_url)
         except Exception as e:
@@ -486,6 +901,24 @@ def setup_auth_routes(app):
     def auth_signup():
         """Registro con Google OAuth - Para usuarios nuevos"""
         try:
+            # ✅ NUEVO: Capturar parámetros también en /auth/signup
+            plan_param = request.args.get('plan')
+            source_param = request.args.get('source')
+            interval_param = (request.args.get('interval') or 'monthly').lower()
+            
+            if plan_param and plan_param in ['basic', 'premium', 'business']:
+                session['signup_plan'] = plan_param
+                session['signup_source'] = source_param or 'direct'
+                session['signup_interval'] = interval_param
+                # Guardar tracking si venía en /auth/signup
+                try:
+                    tracking_keys = [k for k in request.args.keys() if k.startswith('utm_') or k in ['ref','gclid','fbclid','cid','campaign','loc','rid']]
+                    if tracking_keys:
+                        session['signup_tracking'] = {k: request.args.get(k) for k in tracking_keys}
+                except Exception:
+                    pass
+                logger.info(f"🔄 /auth/signup con plan: {plan_param} (source: {source_param})")
+            
             flow = create_flow()
             if not flow:
                 return jsonify({'error': 'OAuth configuration error'}), 500
@@ -496,7 +929,8 @@ def setup_auth_routes(app):
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state']
+                state=session['state'],
+                prompt='consent'
             )
             return redirect(authorization_url)
         except Exception as e:
@@ -542,7 +976,7 @@ def setup_auth_routes(app):
             if not existing_user:
                 existing_user = get_user_by_email(user_info['email'])
             
-            # ✅ DETERMINAR ACCIÓN: registro vs login
+            # ✅ DETERMINAR ACCIÓN: registro vs login vs link
             oauth_action = session.pop('oauth_action', 'login')  # Por defecto es login
             
             if oauth_action == 'signup':
@@ -553,15 +987,37 @@ def setup_auth_routes(app):
                     # Usuario ya existe, no se puede registrar de nuevo
                     session.pop('temp_credentials', None)
                     logger.warning(f"Usuario {user_info['email']} ya existe, no se puede registrar de nuevo")
-                    return redirect('/login?auth_error=user_already_exists')
+                    # ✅ Preservar plan/source para continuar flujo de pago
+                    try:
+                        preserved_plan = session.get('signup_plan')
+                        preserved_source = session.get('signup_source')
+                        preserved_interval = session.get('signup_interval') or 'monthly'
+                        preserved_tracking = session.get('signup_tracking') or {}
+                        login_url = '/login?auth_error=user_already_exists'
+                        if preserved_plan in ['basic', 'premium', 'business']:
+                            try:
+                                extra_qs = ''
+                                if preserved_tracking:
+                                    from urllib.parse import urlencode
+                                    extra_qs = '&' + urlencode(preserved_tracking)
+                            except Exception:
+                                extra_qs = ''
+                            login_url += f"&plan={preserved_plan}&interval={preserved_interval}"
+                            if preserved_source:
+                                login_url += f"&source={preserved_source}"
+                            login_url += extra_qs
+                        return redirect(login_url)
+                    except Exception:
+                        return redirect('/login?auth_error=user_already_exists')
                 
-                # Crear nuevo usuario
+                # ✅ NUEVO FASE 4.5: Crear usuario con activación automática
                 try:
                     new_user = create_user(
                         email=user_info['email'],
                         name=user_info['name'],
                         google_id=user_info['id'],
-                        picture=user_info.get('picture')
+                        picture=user_info.get('picture'),
+                        auto_activate=True  # ✅ ACTIVACIÓN AUTOMÁTICA para SaaS
                     )
                     
                     if not new_user:
@@ -569,19 +1025,95 @@ def setup_auth_routes(app):
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
                     
-                    # NO ACTIVAR automáticamente - dejar inactivo para revisión admin
+                    # ✅ MEJORADO UX: Flujo directo sin login intermedio
+                    signup_plan = session.get('signup_plan')
+                    signup_source = session.get('signup_source')
+                    signup_interval = session.get('signup_interval') or 'monthly'
+                    signup_tracking = session.get('signup_tracking') or {}
                     
-                    # ✅ NO INICIAR SESIÓN - Solo limpiar credenciales temporales
-                    session.pop('temp_credentials', None)
+                    # ✅ DEBUG: Log detallado para debugging
+                    logger.info(f"🔍 DEBUG - Callback registro - signup_plan: {signup_plan}, signup_source: {signup_source}")
+                    logger.info(f"🔍 DEBUG - Session keys: {list(session.keys())}")
                     
-                    logger.info(f"Usuario registrado con Google (sin iniciar sesión): {user_info['email']}")
-                    return redirect('/login?registration_success=true&with_google=true')
+                    if signup_plan and signup_plan in ['basic', 'premium', 'business']:
+                        # ✅ NUEVO: Login automático + redirect directo a checkout
+                        session['credentials'] = session.pop('temp_credentials')
+                        session['user_id'] = new_user['id']
+                        session['user_email'] = new_user['email']
+                        session['user_name'] = new_user['name']
+                        update_last_activity()
+                        # ✅ NUEVO: Registrar last_login_at en registro con Google (autologin)
+                        try:
+                            db = get_db_connection()
+                            if db:
+                                cur = db.cursor()
+                                cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (new_user['id'],))
+                                db.commit()
+                                db.close()
+                        except Exception as _e_last_login_signup:
+                            logger.warning(f"No se pudo actualizar last_login_at (Google signup): {_e_last_login_signup}")
+                        
+                        logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
+                        try:
+                            extra_qs = ''
+                            if signup_tracking:
+                                from urllib.parse import urlencode
+                                extra_qs = '&' + urlencode(signup_tracking)
+                        except Exception:
+                            extra_qs = ''
+                        return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}")
+                    else:
+                        # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
+                        session.pop('temp_credentials', None)
+                        
+                        login_url = f'/login?registration_success=true&with_google=true&email=' + user_info['email']
+                        logger.info(f"Usuario registrado (redirigiendo a login): {user_info['email']}")
+                        
+                        return redirect(login_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)
                     logger.error(f"Error en registro con Google: {e}")
                     return redirect('/signup?auth_error=registration_failed')
             
+            elif oauth_action == 'link':
+                # ===============================================
+                # FLUJO DE VINCULACIÓN: Guardar conexión para usuario autenticado
+                # ===============================================
+                current_user = get_current_user()
+                if not current_user:
+                    session.pop('temp_credentials', None)
+                    return redirect('/login?auth_error=auth_required')
+
+                # Crear/actualizar conexión persistida
+                connection = create_or_update_oauth_connection(
+                    user_id=current_user['id'],
+                    google_account_id=user_info['id'],
+                    google_email=user_info['email'],
+                    creds=session.get('temp_credentials', {})
+                )
+
+                # Poblar propiedades del usuario desde esta conexión
+                try:
+                    temp_creds_dict = session.get('temp_credentials', {})
+                    temp_credentials = Credentials(
+                        token=temp_creds_dict.get('token'),
+                        refresh_token=temp_creds_dict.get('refresh_token'),
+                        token_uri=temp_creds_dict.get('token_uri'),
+                        client_id=temp_creds_dict.get('client_id'),
+                        client_secret=temp_creds_dict.get('client_secret'),
+                        scopes=temp_creds_dict.get('scopes')
+                    )
+                    sc_service = build('searchconsole', 'v1', credentials=temp_credentials)
+                    sites_resp = sc_service.sites().list().execute()
+                    site_entries = sites_resp.get('siteEntry', []) if sites_resp else []
+                    if connection:
+                        upsert_gsc_properties_for_connection(current_user['id'], connection['id'], site_entries)
+                except Exception as e:
+                    logger.warning(f"No se pudieron sincronizar propiedades GSC en link: {e}")
+
+                session.pop('temp_credentials', None)
+                return redirect('/dashboard?link_success=true')
             else:
                 # ===============================================
                 # FLUJO DE LOGIN: Solo permitir si ya existe
@@ -620,10 +1152,55 @@ def setup_auth_routes(app):
                 session['user_email'] = existing_user['email']
                 session['user_name'] = existing_user['name']
                 update_last_activity()
+
+                # ✅ NUEVO: Registrar last_login_at en login con Google
+                try:
+                    db = get_db_connection()
+                    if db:
+                        cur = db.cursor()
+                        cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (existing_user['id'],))
+                        db.commit()
+                        db.close()
+                except Exception as _e_last_login_google:
+                    logger.warning(f"No se pudo actualizar last_login_at (Google login): {_e_last_login_google}")
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
-                return redirect('/dashboard?auth_success=true&action=login')
+
+                # ✅ NUEVO: Crear/actualizar conexión persistida en login para migración suave
+                try:
+                    create_or_update_oauth_connection(
+                        user_id=existing_user['id'],
+                        google_account_id=user_info['id'],
+                        google_email=user_info['email'],
+                        creds=session.get('credentials', {})
+                    )
+                except Exception as e:
+                    logger.warning(f"No se pudo crear conexión persistida en login: {e}")
                 
+                # ✅ NUEVO: Verificar si hay plan para checkout automático
+                signup_plan = session.pop('signup_plan', None)
+                signup_source = session.pop('signup_source', None)
+                signup_interval = session.pop('signup_interval', None) or 'monthly'
+                signup_tracking = session.pop('signup_tracking', None) or {}
+                
+                # ✅ DEBUG: Log detallado para debugging
+                logger.info(f"🔍 DEBUG - Callback login - signup_plan: {signup_plan}, signup_source: {signup_source}")
+                
+                if signup_plan and signup_plan in ['basic', 'premium', 'business']:
+                    logger.info(f"✅ Login exitoso con plan {signup_plan} - redirigiendo a checkout")
+                    try:
+                        extra_qs = ''
+                        if signup_tracking:
+                            from urllib.parse import urlencode
+                            extra_qs = '&' + urlencode(signup_tracking)
+                    except Exception:
+                        extra_qs = ''
+                    return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}{extra_qs}")
+                
+                # ✅ FASE 4.5: Usar parámetro next después de autenticación
+                next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+                return redirect(next_url)
+
         except Exception as e:
             session.pop('temp_credentials', None)
             session.pop('oauth_action', None)
@@ -632,6 +1209,19 @@ def setup_auth_routes(app):
 
     # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
     # El registro con Google ahora es automático en auth_callback
+
+    @app.route('/auth/check-email')
+    def check_email_route():
+        """Verifica si un email ya tiene cuenta creada (para avisar en registro)."""
+        try:
+            email = (request.args.get('email') or '').strip().lower()
+            if not email:
+                return jsonify({'exists': False})
+            user = get_user_by_email(email)
+            return jsonify({'exists': bool(user)})
+        except Exception as e:
+            logger.error(f"Error en check-email: {e}")
+            return jsonify({'exists': False})
 
     @app.route('/auth/logout', methods=['POST', 'GET'])
     def auth_logout():
@@ -780,19 +1370,83 @@ def setup_auth_routes(app):
     @app.route('/admin/users')
     @admin_required
     def admin_users():
-        """Panel de administración de usuarios"""
-        # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
-        ensure_sample_data()
-        
-        users = get_all_users()
-        stats = get_user_stats()
-        current_user = get_current_user()
-        
-        # Debug logging
-        logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {stats}")
-        
-        # ✅ USANDO TEMPLATE SIMPLE Y LIMPIO CON MODALES GARANTIZADOS
-        return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+        """Panel de administración de usuarios - MEJORADO con datos de billing"""
+        try:
+            # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
+            ensure_sample_data()
+            
+            # 🚀 MEJORA: Usar funciones de billing para datos completos
+            try:
+                from admin_billing_panel import get_users_with_billing, get_billing_stats
+                users = get_users_with_billing()
+                # Fusionar stats básicos con stats de billing
+                basic_stats = get_user_stats()
+                billing_stats = get_billing_stats()
+                stats = {**basic_stats, **billing_stats}
+                logger.info(f"✅ Admin panel mejorado - Usuarios con billing: {len(users)}")
+            except ImportError as e:
+                logger.warning(f"⚠️ Fallback a función básica - admin_billing_panel no disponible: {e}")
+                users = get_all_users()
+                stats = get_user_stats()
+            
+            current_user = get_current_user()
+            
+            # Debug logging
+            logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {list(stats.keys())}")
+            
+            # ✅ TEMPLATE MEJORADO CON DATOS COMPLETOS DE BILLING
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+            
+        except Exception as e:
+            logger.error(f"Error en panel admin: {e}")
+            # Fallback básico en caso de error
+            users = get_all_users() if 'get_all_users' in globals() else []
+            stats = get_user_stats() if 'get_user_stats' in globals() else {}
+            current_user = get_current_user()
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+
+    @app.route('/admin/users/<int:user_id>/billing-details')
+    @admin_required
+    def user_billing_details(user_id):
+        """Obtener detalles completos de billing de un usuario para el modal Ver"""
+        try:
+            from admin_billing_panel import get_user_billing_details
+            user_details = get_user_billing_details(user_id)
+            
+            if not user_details:
+                return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+            
+            return jsonify({'success': True, 'user': user_details})
+            
+        except ImportError:
+            # Fallback a datos básicos si admin_billing_panel no está disponible
+            logger.warning("⚠️ admin_billing_panel no disponible, usando datos básicos")
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute('''
+                    SELECT id, email, name, picture, role, is_active, created_at,
+                           plan, quota_limit, quota_used, current_period_start, current_period_end
+                    FROM users WHERE id = %s
+                ''', (user_id,))
+                user = cur.fetchone()
+                
+                if not user:
+                    return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
+                
+                user_dict = dict(user)
+                return jsonify({'success': True, 'user': user_dict})
+                
+            except Exception as fallback_error:
+                logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
+                return jsonify({'success': False, 'error': 'Error obteniendo datos del usuario'}), 500
+            finally:
+                if conn:
+                    conn.close()
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
     @app.route('/admin/debug-stats')
     @admin_required 
@@ -927,8 +1581,8 @@ def setup_auth_routes(app):
             data = request.get_json()
             new_role = data.get('role')
             
-            if new_role not in ['user', 'admin', 'AI User']:
-                return jsonify({'error': 'Rol inválido'}), 400
+            if new_role not in ['user', 'admin']:
+                return jsonify({'error': 'Rol inválido. Solo permitidos: user, admin'}), 400
             
             user = get_user_by_id(user_id)
             if not user:
@@ -969,6 +1623,73 @@ def setup_auth_routes(app):
                              user=user, 
                              activity_log=activity_log)
 
+    # ================================
+    # NUEVO: Gestión de conexiones desde Settings
+    # ================================
+
+    @app.route('/connections', methods=['GET'])
+    @auth_required
+    def list_connections_route():
+        try:
+            user = get_current_user()
+            conns = get_oauth_connections_for_user(user['id'])
+            # No devolver tokens, sólo metadatos seguros
+            safe = [
+                {
+                    'id': c['id'],
+                    'google_email': c.get('google_email'),
+                    'google_account_id': c.get('google_account_id'),
+                    'updated_at': c.get('updated_at')
+                }
+                for c in conns
+            ]
+            return jsonify({'connections': safe})
+        except Exception as e:
+            logger.error(f"Error listando conexiones: {e}")
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+    @app.route('/connections/<int:connection_id>/refresh', methods=['POST'])
+    @auth_required
+    def refresh_connection_route(connection_id):
+        try:
+            user = get_current_user()
+            conn = get_oauth_connection_by_id(connection_id)
+            if not conn or conn['user_id'] != user['id']:
+                return jsonify({'error': 'Connection not found'}), 404
+
+            service = get_authenticated_service_for_connection(conn, 'searchconsole', 'v1')
+            if not service:
+                return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
+
+            resp = service.sites().list().execute()
+            site_entries = resp.get('siteEntry', []) if resp else []
+            count = upsert_gsc_properties_for_connection(user['id'], connection_id, site_entries)
+            return jsonify({'success': True, 'properties_synced': count})
+        except Exception as e:
+            logger.error(f"Error refrescando propiedades de conexión {connection_id}: {e}")
+            return jsonify({'error': 'Failed to refresh properties'}), 500
+
+    @app.route('/connections/<int:connection_id>', methods=['DELETE'])
+    @auth_required
+    def delete_connection_route(connection_id):
+        try:
+            user = get_current_user()
+            conn = get_oauth_connection_by_id(connection_id)
+            if not conn or conn['user_id'] != user['id']:
+                return jsonify({'error': 'Connection not found'}), 404
+
+            db = get_db_connection()
+            if not db:
+                return jsonify({'error': 'Database error'}), 500
+            cur = db.cursor()
+            cur.execute('DELETE FROM oauth_connections WHERE id = %s', (connection_id,))
+            db.commit()
+            db.close()
+            return jsonify({'success': True})
+        except Exception as e:
+            logger.error(f"Error eliminando conexión {connection_id}: {e}")
+            return jsonify({'error': 'Failed to delete connection'}), 500
+
     @app.route('/profile/update', methods=['POST'])
     @auth_required
     def update_profile():
@@ -992,6 +1713,10 @@ def setup_auth_routes(app):
             # Verificar formato de email básico
             if '@' not in email or '.' not in email:
                 return jsonify({'error': 'Formato de email inválido'}), 400
+
+            # Si el usuario está vinculado con Google, no permitir cambiar email desde la app
+            if current_user.get('google_id') and email != current_user['email']:
+                return jsonify({'error': 'Tu cuenta está vinculada con Google. No puedes cambiar el email desde la aplicación.'}), 400
             
             # Actualizar perfil
             result = update_user_profile(current_user['id'], name=name, email=email)
@@ -1128,6 +1853,101 @@ def setup_auth_routes(app):
             logger.error(f"Error obteniendo estadísticas detalladas: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
 
+    @app.route('/admin/users/<int:user_id>/change-plan', methods=['POST'])
+    @admin_required
+    def admin_change_user_plan(user_id):
+        """Cambiar plan de un usuario desde admin panel"""
+        try:
+            from admin_billing_panel import update_user_plan_manual
+            
+            data = request.get_json()
+            new_plan = data.get('plan')
+            current_user = get_current_user()
+            
+            if not new_plan:
+                return jsonify({'success': False, 'error': 'Plan no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = update_user_plan_manual(user_id, new_plan, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error cambiando plan de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/assign-custom-quota', methods=['POST'])
+    @admin_required  
+    def admin_assign_custom_quota(user_id):
+        """Asignar quota personalizada (Enterprise) desde admin panel"""
+        try:
+            from admin_billing_panel import assign_custom_quota
+            
+            data = request.get_json()
+            custom_limit = data.get('custom_limit')
+            notes = data.get('notes', '')
+            current_user = get_current_user()
+            
+            if custom_limit is None:
+                return jsonify({'success': False, 'error': 'Custom limit no especificado'}), 400
+            
+            # Usar función del admin billing panel
+            result = assign_custom_quota(user_id, custom_limit, notes, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error asignando custom quota a usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/remove-custom-quota', methods=['POST'])
+    @admin_required
+    def admin_remove_custom_quota(user_id):
+        """Remover quota personalizada y volver a plan estándar"""
+        try:
+            from admin_billing_panel import remove_custom_quota
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = remove_custom_quota(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error removiendo custom quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/reset-quota', methods=['POST'])
+    @admin_required
+    def admin_reset_quota(user_id):
+        """Resetear manualmente la quota de un usuario (admin override)"""
+        try:
+            from admin_billing_panel import reset_user_quota_manual
+            
+            current_user = get_current_user()
+            
+            # Usar función del admin billing panel
+            result = reset_user_quota_manual(user_id, current_user['id'])
+            
+            if result['success']:
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+                
+        except Exception as e:
+            logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""
     credentials = get_user_credentials()
@@ -1142,5 +1962,41 @@ def get_authenticated_service(service_name, version):
         return build(service_name, version, credentials=credentials)
     except Exception as e:
         logger.error(f"Error obteniendo servicio autenticado: {e}")
+        return None
+
+def get_authenticated_service_for_connection(connection, service_name, version):
+    """Construye un servicio autenticado usando una conexión persistida (oauth_connections)."""
+    if not connection:
+        return None
+    try:
+        # Construir credenciales con refresh token (descifrado si aplica)
+        refresh_token_enc = connection.get('refresh_token_encrypted')
+        refresh_token = _decrypt_token(refresh_token_enc)
+
+        creds = Credentials(
+            token=connection.get('access_token'),
+            refresh_token=refresh_token,
+            token_uri=connection.get('token_uri'),
+            client_id=connection.get('client_id'),
+            client_secret=connection.get('client_secret'),
+            scopes=json.loads(connection['scopes']) if connection.get('scopes') and connection['scopes'].startswith('[') else connection.get('scopes')
+        )
+
+        # Refrescar si es necesario para garantizar validez
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            try:
+                update_oauth_connection_tokens(
+                    connection_id=connection['id'],
+                    token=creds.token,
+                    refresh_token=creds.refresh_token,
+                    expires_at=None
+                )
+            except Exception as e:
+                logger.warning(f"No se pudieron actualizar tokens en BD: {e}")
+
+        return build(service_name, version, credentials=creds)
+    except Exception as e:
+        logger.error(f"Error construyendo servicio por conexión: {e}")
         return None
 

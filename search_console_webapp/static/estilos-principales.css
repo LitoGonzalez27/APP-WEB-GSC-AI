@@ -1368,6 +1368,9 @@ body.dark-mode .analysis-info-icon::before {
   background: rgba(216, 249, 184, 0.1);
   transition: all 0.2s ease;
   align-content: flex-start;
+  /* Evita que los botones inferiores queden fuera cuando hay muchas chips */
+  max-height: none;
+  overflow: visible;
 }
 
 .exclusion-tags-container:empty::after {
@@ -1384,7 +1387,8 @@ body.dark-mode .analysis-info-icon::before {
 }
 
 .exclusion-clear-all {
-  margin-top: auto;
+  /* Antes se empujaba al fondo con margin-top:auto; podía quedar fuera de vista. */
+  margin-top: 0.25rem;
 }
 
 .clear-all-btn {

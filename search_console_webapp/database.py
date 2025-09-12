@@ -3,12 +3,19 @@
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from dotenv import load_dotenv
 import hashlib
 import secrets
 import json
+from typing import Optional, List, Dict, Any
+
+# Cifrado opcional de tokens
+try:
+    from cryptography.fernet import Fernet
+except Exception:
+    Fernet = None  # type: ignore
 
 # Cargar variables de entorno
 load_dotenv()
@@ -67,6 +74,56 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)')
+
+        # ✅ NUEVO: Asegurar columna last_login_at para tracking de último acceso
+        try:
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP NULL")
+        except Exception:
+            pass
+
+        # ================================
+        # Tablas para conexiones OAuth y propiedades GSC
+        # ================================
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS oauth_connections (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                provider TEXT NOT NULL DEFAULT 'google',
+                google_account_id TEXT,
+                google_email TEXT,
+                access_token TEXT,
+                refresh_token_encrypted TEXT NOT NULL,
+                token_uri TEXT,
+                client_id TEXT,
+                client_secret TEXT,
+                scopes TEXT,
+                expires_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (user_id, provider, google_account_id)
+            )
+        ''')
+
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_oauth_connections_user ON oauth_connections(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_oauth_connections_provider ON oauth_connections(provider)')
+
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS gsc_properties (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                connection_id INTEGER REFERENCES oauth_connections(id) ON DELETE CASCADE,
+                site_url TEXT NOT NULL,
+                permission_level TEXT,
+                verified BOOLEAN,
+                last_seen TIMESTAMP DEFAULT NOW(),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (user_id, site_url)
+            )
+        ''')
+
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_gsc_props_user ON gsc_properties(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_gsc_props_conn ON gsc_properties(connection_id)')
         
         # ✅ NUEVO: Crear tabla de análisis AI Overview
         cur.execute('''
@@ -106,12 +163,468 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_word_count ON ai_overview_analysis(keyword_word_count)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_has_ai ON ai_overview_analysis(has_ai_overview)')
         
+        # Crear tabla password reset tokens
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token VARCHAR(255) NOT NULL UNIQUE,
+                expires_at TIMESTAMP NOT NULL,
+                used_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        
+        # Crear índices para la tabla de reset tokens
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)')
+        
         conn.commit()
         logger.info("Todas las tablas inicializadas correctamente")
         return True
         
     except Exception as e:
         logger.error(f"Error inicializando la base de datos: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+# ================================
+# Utilidades de cifrado de tokens
+# ================================
+
+def _get_fernet() -> Optional["Fernet"]:
+    try:
+        if Fernet is None:
+            return None
+        key = os.getenv('TOKEN_ENCRYPTION_KEY', '').strip()
+        if not key:
+            return None
+        # Permitir clave sin base64 padding
+        return Fernet(key)
+    except Exception as e:
+        logger.warning(f"TOKEN_ENCRYPTION_KEY inválida o no disponible: {e}")
+        return None
+
+def _encrypt(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return text
+    f = _get_fernet()
+    if not f:
+        return text
+    try:
+        return f.encrypt(text.encode('utf-8')).decode('utf-8')
+    except Exception:
+        return text
+
+def _decrypt(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return text
+    f = _get_fernet()
+    if not f:
+        return text
+    try:
+        return f.decrypt(text.encode('utf-8')).decode('utf-8')
+    except Exception:
+        return text
+
+# ================================
+# Funciones para conexiones OAuth
+# ================================
+
+def create_or_update_oauth_connection(user_id: int, google_account_id: str, google_email: str, creds: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Crea o actualiza una conexión OAuth de Google para un usuario.
+    Almacena de forma segura el refresh_token (cifrado si hay clave).
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+
+        refresh_token = creds.get('refresh_token')
+        token = creds.get('token')
+        token_uri = creds.get('token_uri')
+        client_id = creds.get('client_id')
+        client_secret = creds.get('client_secret')
+        scopes = creds.get('scopes')
+        expires_at = None
+        # Algunas libs pasan expiry como datetime o seconds; aceptar ambos via creds.get('expiry')
+        expiry = creds.get('expiry') or creds.get('expires_at')
+        if expiry and isinstance(expiry, str):
+            try:
+                # Intento simple: ISO
+                from datetime import datetime as _dt
+                expires_at = _dt.fromisoformat(expiry)
+            except Exception:
+                expires_at = None
+        elif expiry:
+            expires_at = expiry
+
+        # ¿Existe conexión?
+        cur.execute('''
+            SELECT id FROM oauth_connections 
+            WHERE user_id = %s AND provider = 'google' AND google_account_id = %s
+        ''', (user_id, google_account_id))
+        existing = cur.fetchone()
+
+        if existing:
+            connection_id = existing['id']
+            cur.execute('''
+                UPDATE oauth_connections
+                SET google_email = %s,
+                    access_token = %s,
+                    refresh_token_encrypted = %s,
+                    token_uri = %s,
+                    client_id = %s,
+                    client_secret = %s,
+                    scopes = %s,
+                    expires_at = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                RETURNING *
+            ''', (
+                google_email,
+                token,
+                _encrypt(refresh_token),
+                token_uri,
+                client_id,
+                client_secret,
+                json.dumps(scopes) if isinstance(scopes, (list, dict)) else (scopes or None),
+                expires_at,
+                connection_id
+            ))
+        else:
+            cur.execute('''
+                INSERT INTO oauth_connections (
+                    user_id, provider, google_account_id, google_email,
+                    access_token, refresh_token_encrypted, token_uri,
+                    client_id, client_secret, scopes, expires_at
+                ) VALUES (
+                    %s, 'google', %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s, %s
+                ) RETURNING *
+            ''', (
+                user_id, google_account_id, google_email,
+                token, _encrypt(refresh_token), token_uri,
+                client_id, client_secret,
+                json.dumps(scopes) if isinstance(scopes, (list, dict)) else (scopes or None),
+                expires_at
+            ))
+
+        row = cur.fetchone()
+        conn.commit()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error creando/actualizando conexión OAuth: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def get_oauth_connections_for_user(user_id: int) -> List[Dict[str, Any]]:
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return []
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT * FROM oauth_connections 
+            WHERE user_id = %s AND provider = 'google'
+            ORDER BY created_at DESC
+        ''', (user_id,))
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"Error obteniendo conexiones OAuth: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+def get_oauth_connection_by_id(connection_id: int) -> Optional[Dict[str, Any]]:
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM oauth_connections WHERE id = %s', (connection_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error obteniendo conexión OAuth por id: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def update_oauth_connection_tokens(connection_id: int, token: Optional[str], refresh_token: Optional[str], expires_at=None) -> bool:
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        if refresh_token:
+            cur.execute('''
+                UPDATE oauth_connections
+                SET access_token = %s,
+                    refresh_token_encrypted = %s,
+                    expires_at = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+            ''', (token, _encrypt(refresh_token), expires_at, connection_id))
+        else:
+            cur.execute('''
+                UPDATE oauth_connections
+                SET access_token = %s,
+                    expires_at = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+            ''', (token, expires_at, connection_id))
+        conn.commit()
+        return cur.rowcount > 0
+    except Exception as e:
+        logger.error(f"Error actualizando tokens de conexión OAuth: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+# ================================
+# Funciones para propiedades de GSC
+# ================================
+
+def upsert_gsc_properties_for_connection(user_id: int, connection_id: int, site_entries: List[Dict[str, Any]]) -> int:
+    """Inserta/actualiza propiedades de GSC para una conexión. Retorna cantidad procesada."""
+    try:
+        if not site_entries:
+            return 0
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        cur = conn.cursor()
+        processed = 0
+        for s in site_entries:
+            site_url = s.get('siteUrl') or s.get('site_url')
+            if not site_url:
+                continue
+            permission_level = s.get('permissionLevel') or s.get('permission_level')
+            verified = None
+            # Heurística: si tiene permissionLevel, considerarlo verificado
+            if permission_level:
+                verified = True
+            cur.execute('''
+                INSERT INTO gsc_properties (user_id, connection_id, site_url, permission_level, verified, last_seen)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (user_id, site_url)
+                DO UPDATE SET connection_id = EXCLUDED.connection_id,
+                              permission_level = COALESCE(EXCLUDED.permission_level, gsc_properties.permission_level),
+                              verified = COALESCE(EXCLUDED.verified, gsc_properties.verified),
+                              last_seen = NOW(),
+                              updated_at = NOW()
+            ''', (user_id, connection_id, site_url, permission_level, verified))
+            processed += 1
+        conn.commit()
+        return processed
+    except Exception as e:
+        logger.error(f"Error upsert de propiedades GSC: {e}")
+        return 0
+    finally:
+        if conn:
+            conn.close()
+
+def list_gsc_properties_for_user(user_id: int) -> List[Dict[str, Any]]:
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return []
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT p.id, p.site_url, p.permission_level, p.verified, p.connection_id,
+                   c.google_email, c.google_account_id
+            FROM gsc_properties p
+            JOIN oauth_connections c ON c.id = p.connection_id
+            WHERE p.user_id = %s
+            ORDER BY p.site_url
+        ''', (user_id,))
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"Error listando propiedades GSC: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+def get_connection_for_site(user_id: int, site_url: str) -> Optional[Dict[str, Any]]:
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT c.* FROM gsc_properties p
+            JOIN oauth_connections c ON c.id = p.connection_id
+            WHERE p.user_id = %s AND p.site_url = %s
+            LIMIT 1
+        ''', (user_id, site_url))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error obteniendo conexión para site_url: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+# ================================
+# Funciones para Password Reset
+# ================================
+
+def create_password_reset_token(user_id: int) -> Optional[str]:
+    """Crea un token de reset de contraseña para un usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        cur = conn.cursor()
+        
+        # Generar token único
+        token = secrets.token_urlsafe(32)
+        
+        # Token expira en 1 hora
+        expires_at = datetime.now() + timedelta(hours=1)
+        
+        # Invalidar tokens existentes no usados del usuario
+        cur.execute('''
+            UPDATE password_reset_tokens 
+            SET used_at = NOW() 
+            WHERE user_id = %s AND used_at IS NULL
+        ''', (user_id,))
+        
+        # Crear nuevo token
+        cur.execute('''
+            INSERT INTO password_reset_tokens (user_id, token, expires_at)
+            VALUES (%s, %s, %s)
+            RETURNING token
+        ''', (user_id, token, expires_at))
+        
+        result = cur.fetchone()
+        conn.commit()
+        
+        return result['token'] if result else None
+        
+    except Exception as e:
+        logger.error(f"Error creando token de reset: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def validate_password_reset_token(token: str) -> Optional[Dict[str, Any]]:
+    """Valida un token de reset de contraseña y retorna información del usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        cur = conn.cursor()
+        
+        # Buscar token válido (no usado y no expirado)
+        cur.execute('''
+            SELECT prt.id as token_id, prt.user_id, prt.expires_at,
+                   u.email, u.name
+            FROM password_reset_tokens prt
+            JOIN users u ON u.id = prt.user_id
+            WHERE prt.token = %s 
+            AND prt.used_at IS NULL 
+            AND prt.expires_at > NOW()
+        ''', (token,))
+        
+        result = cur.fetchone()
+        return dict(result) if result else None
+        
+    except Exception as e:
+        logger.error(f"Error validando token de reset: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def use_password_reset_token(token: str, new_password: str) -> bool:
+    """Usa un token de reset para cambiar la contraseña del usuario"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
+        cur = conn.cursor()
+        
+        # Verificar token válido
+        token_info = validate_password_reset_token(token)
+        if not token_info:
+            return False
+        
+        user_id = token_info['user_id']
+        
+        # Hashear nueva contraseña
+        new_password_hash = hash_password(new_password)
+        
+        # Actualizar contraseña del usuario
+        cur.execute('''
+            UPDATE users 
+            SET password_hash = %s, updated_at = NOW()
+            WHERE id = %s
+        ''', (new_password_hash, user_id))
+        
+        # Marcar token como usado
+        cur.execute('''
+            UPDATE password_reset_tokens 
+            SET used_at = NOW()
+            WHERE token = %s
+        ''', (token,))
+        
+        conn.commit()
+        
+        logger.info(f"Contraseña reseteada exitosamente para usuario {user_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error usando token de reset: {e}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def cleanup_expired_reset_tokens():
+    """Limpia tokens de reset expirados (para ejecutar periódicamente)"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        
+        cur = conn.cursor()
+        
+        # Eliminar tokens expirados
+        cur.execute('''
+            DELETE FROM password_reset_tokens 
+            WHERE expires_at < NOW() - INTERVAL '1 day'
+        ''')
+        
+        deleted_count = cur.rowcount
+        conn.commit()
+        
+        if deleted_count > 0:
+            logger.info(f"Limpiados {deleted_count} tokens de reset expirados")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error limpiando tokens expirados: {e}")
         return False
     finally:
         if conn:
@@ -135,8 +648,8 @@ def verify_password(password, stored_hash):
     
     return password_hash.hex() == stored_password_hash
 
-def create_user(email, name, password=None, google_id=None, picture=None):
-    """Crea un nuevo usuario en la base de datos"""
+def create_user(email, name, password=None, google_id=None, picture=None, auto_activate=True):
+    """Crea un nuevo usuario en la base de datos - FASE 4.5: auto_activate=True para self-service"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -153,20 +666,43 @@ def create_user(email, name, password=None, google_id=None, picture=None):
         # Preparar datos del usuario
         password_hash = hash_password(password) if password else None
         
-        # Usuarios se crean inactivos por defecto
-        is_active = False
+        # ✅ NUEVO FASE 4.5: Activación automática para self-service
+        is_active = auto_activate  # True para SaaS, False para enterprise
+        plan = 'free' if auto_activate else None  # Plan por defecto para SaaS
         
-        cur.execute('''
-            INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
-            VALUES (%s, %s, %s, %s, %s, 'user', %s)
-            RETURNING id, email, name, picture, role, is_active, created_at
-        ''', (email, name, password_hash, google_id, picture, is_active))
+        # Verificar si las columnas de billing existen
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name IN ('plan', 'quota_limit', 'quota_used')
+        """)
+        billing_columns = [row['column_name'] for row in cur.fetchall()]
+        has_billing_columns = len(billing_columns) >= 3
+        
+        if has_billing_columns:
+            # Insertar con campos de billing (Fase 1 aplicada)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, 
+                                  role, is_active, plan, quota_limit, quota_used)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s, %s, 0, 0)
+                RETURNING id, email, name, picture, role, is_active, created_at, plan
+            ''', (email, name, password_hash, google_id, picture, is_active, plan))
+        else:
+            # Insertar sin campos de billing (compatibilidad)
+            cur.execute('''
+                INSERT INTO users (email, name, password_hash, google_id, picture, role, is_active)
+                VALUES (%s, %s, %s, %s, %s, 'user', %s)
+                RETURNING id, email, name, picture, role, is_active, created_at
+            ''', (email, name, password_hash, google_id, picture, is_active))
         
         user = cur.fetchone()
-        conn.commit()
         
-        logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active})")
-        return dict(user)
+        if user:
+            conn.commit()
+            logger.info(f"Usuario creado exitosamente: {email} (activo: {is_active}, plan: {plan})")
+            return dict(user)
+        else:
+            logger.error(f"INSERT no retornó usuario para: {email}")
+            return None
         
     except Exception as e:
         logger.error(f"Error creando usuario: {e}")
@@ -260,7 +796,7 @@ def update_user_activity(user_id, is_active=True):
             conn.close()
 
 def get_all_users():
-    """Obtiene todos los usuarios (para administración)"""
+    """Obtiene todos los usuarios (para administración) - INCLUYE BILLING INFO"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -268,7 +804,22 @@ def get_all_users():
             
         cur = conn.cursor()
         cur.execute('''
-            SELECT id, email, name, picture, role, is_active, created_at, updated_at
+            SELECT 
+                id, email, name, picture, role, is_active, created_at, updated_at, last_login_at,
+                -- Billing fields
+                COALESCE(plan, 'free') as plan,
+                COALESCE(current_plan, plan, 'free') as current_plan,
+                COALESCE(billing_status, 'active') as billing_status,
+                COALESCE(quota_limit, 0) as quota_limit,
+                COALESCE(quota_used, 0) as quota_used,
+                quota_reset_date,
+                stripe_customer_id,
+                subscription_id,
+                -- Custom quota fields
+                custom_quota_limit,
+                custom_quota_notes,
+                custom_quota_assigned_by,
+                custom_quota_assigned_date
             FROM users
             ORDER BY created_at DESC
         ''')
@@ -334,8 +885,54 @@ def delete_user(user_id):
         conn = get_db_connection()
         if not conn:
             return False
-            
+        
         cur = conn.cursor()
+
+        def table_exists(tbl: str) -> bool:
+            try:
+                cur.execute("SELECT to_regclass(%s) AS reg", (f"public.{tbl}",))
+                row = cur.fetchone()
+                return bool(row['reg'] if isinstance(row, dict) else row[0])
+            except Exception:
+                return False
+
+        def safe_delete(sql: str, params: tuple, savepoint_name: str) -> None:
+            try:
+                cur.execute(f"SAVEPOINT {savepoint_name}")
+                cur.execute(sql, params)
+                cur.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+            except Exception as e:
+                # Revertir solo esta operación y continuar
+                try:
+                    cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+                    cur.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                except Exception:
+                    pass
+                logger.warning(f"delete_user: omitiendo error en '{savepoint_name}': {e}")
+
+        # Eliminar dependencias en orden seguro (algunas tablas no tienen ON DELETE CASCADE)
+        if table_exists('ai_overview_analysis'):
+            safe_delete('DELETE FROM ai_overview_analysis WHERE user_id = %s', (user_id,), 'sp_ai_overview')
+
+        if table_exists('quota_usage_events'):
+            safe_delete('DELETE FROM quota_usage_events WHERE user_id = %s', (user_id,), 'sp_quota_events')
+
+        if table_exists('password_reset_tokens'):
+            safe_delete('DELETE FROM password_reset_tokens WHERE user_id = %s', (user_id,), 'sp_reset_tokens')
+
+        if table_exists('manual_ai_projects'):
+            safe_delete('DELETE FROM manual_ai_projects WHERE user_id = %s', (user_id,), 'sp_manual_ai_projects')
+
+        if table_exists('gsc_properties'):
+            safe_delete('DELETE FROM gsc_properties WHERE user_id = %s', (user_id,), 'sp_gsc_props')
+
+        if table_exists('oauth_connections'):
+            safe_delete('DELETE FROM oauth_connections WHERE user_id = %s', (user_id,), 'sp_oauth_conns')
+
+        if table_exists('subscriptions'):
+            safe_delete('DELETE FROM subscriptions WHERE user_id = %s', (user_id,), 'sp_subs')
+
+        # Finalmente, eliminar el usuario
         cur.execute('DELETE FROM users WHERE id = %s', (user_id,))
         
         conn.commit()
@@ -1079,6 +1676,211 @@ def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100):
     except Exception as e:
         logger.error(f"Error obteniendo historial de AI Overview: {e}")
         return []
+    finally:
+        if conn:
+            conn.close()
+
+# ====================================
+# 📊 SISTEMA DE TRACKING DE CONSUMO
+# ====================================
+
+def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_code=None, metadata=None):
+    """
+    Registra el consumo de RU (Recursos Únicos) de un usuario
+    
+    Args:
+        user_id (int): ID del usuario que consume RU
+        ru_consumed (int): Cantidad de RU consumidas (típicamente 1 por keyword)
+        source (str): Fuente del consumo ('ai_overview', 'manual_ai', 'serp_api')
+        keyword (str, optional): Keyword analizada
+        country_code (str, optional): Código del país
+        metadata (dict, optional): Datos adicionales del análisis
+    
+    Returns:
+        bool: True si se registró correctamente, False si hubo error
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            logger.error("No se pudo conectar a la base de datos para tracking")
+            return False
+            
+        cur = conn.cursor()
+        
+        # 1. Registrar evento en quota_usage_events
+        cur.execute('''
+            INSERT INTO quota_usage_events (
+                user_id, ru_consumed, source, keyword, country_code, metadata, timestamp
+            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        ''', (
+            user_id,
+            ru_consumed,
+            source,
+            keyword,
+            country_code,
+            json.dumps(metadata) if metadata else None
+        ))
+        
+        # 2. Actualizar quota_used en users
+        cur.execute('''
+            UPDATE users 
+            SET 
+                quota_used = COALESCE(quota_used, 0) + %s,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (ru_consumed, user_id))
+        
+        # 3. Verificar que el usuario fue actualizado
+        if cur.rowcount == 0:
+            logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
+            conn.rollback()
+            return False
+        
+        conn.commit()
+        
+        # Log de éxito
+        logger.info(f"✅ Quota tracking - Usuario {user_id}: +{ru_consumed} RU ({source})")
+        if keyword:
+            logger.info(f"   📝 Keyword: {keyword}")
+        if country_code:
+            logger.info(f"   🌍 País: {country_code}")
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error en track_quota_consumption: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+def get_user_quota_usage(user_id, days=30):
+    """
+    Obtiene el uso de quota de un usuario en los últimos N días
+    
+    Args:
+        user_id (int): ID del usuario
+        days (int): Días hacia atrás para consultar (default: 30)
+    
+    Returns:
+        dict: Estadísticas de uso de quota
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return {}
+            
+        cur = conn.cursor()
+        
+        # Uso total en el período
+        cur.execute('''
+            SELECT 
+                COALESCE(SUM(ru_consumed), 0) as total_ru,
+                COUNT(*) as total_events,
+                COUNT(DISTINCT source) as sources_used,
+                MAX(timestamp) as last_usage
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+        ''', (user_id, days))
+        
+        stats = cur.fetchone()
+        
+        # Uso por fuente
+        cur.execute('''
+            SELECT 
+                source,
+                COALESCE(SUM(ru_consumed), 0) as ru_consumed,
+                COUNT(*) as events_count
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '%s days'
+            GROUP BY source
+            ORDER BY ru_consumed DESC
+        ''', (user_id, days))
+        
+        usage_by_source = [dict(row) for row in cur.fetchall()]
+        
+        # Uso diario (últimos 7 días)
+        cur.execute('''
+            SELECT 
+                DATE(timestamp) as date,
+                COALESCE(SUM(ru_consumed), 0) as daily_ru
+            FROM quota_usage_events 
+            WHERE user_id = %s AND timestamp >= NOW() - INTERVAL '7 days'
+            GROUP BY DATE(timestamp)
+            ORDER BY date DESC
+        ''', (user_id,))
+        
+        daily_usage = [dict(row) for row in cur.fetchall()]
+        
+        return {
+            'period_days': days,
+            'total_ru': stats['total_ru'],
+            'total_events': stats['total_events'],
+            'sources_used': stats['sources_used'],
+            'last_usage': stats['last_usage'],
+            'usage_by_source': usage_by_source,
+            'daily_usage': daily_usage
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo uso de quota para usuario {user_id}: {e}")
+        return {}
+    finally:
+        if conn:
+            conn.close()
+
+def ensure_quota_table_exists():
+    """
+    Asegura que la tabla quota_usage_events existe
+    """
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+            
+        cur = conn.cursor()
+        
+        # Crear tabla si no existe
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS quota_usage_events (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                ru_consumed INTEGER DEFAULT 1,
+                source VARCHAR(50),
+                keyword VARCHAR(255),
+                country_code VARCHAR(3),
+                timestamp TIMESTAMPTZ DEFAULT NOW(),
+                metadata JSONB,
+                
+                -- Constraints
+                CONSTRAINT chk_ru_consumed CHECK (ru_consumed > 0),
+                CONSTRAINT chk_source CHECK (source IN ('ai_overview', 'manual_ai', 'serp_api'))
+            )
+        ''')
+        
+        # Crear índices
+        indices = [
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_user_date ON quota_usage_events(user_id, timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_source ON quota_usage_events(source)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_timestamp ON quota_usage_events(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_quota_events_user_month ON quota_usage_events(user_id, DATE_TRUNC('month', timestamp))"
+        ]
+        
+        for index_sql in indices:
+            try:
+                cur.execute(index_sql)
+            except Exception:
+                pass  # Index might already exist
+        
+        conn.commit()
+        logger.info("✅ Tabla quota_usage_events verificada/creada")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error creando tabla quota_usage_events: {e}")
+        return False
     finally:
         if conn:
             conn.close() 

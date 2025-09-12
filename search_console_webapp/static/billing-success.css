@@ -1,0 +1,403 @@
+/*
+ * Billing Success - Diseño profesional y curado
+ * Consistente con Manual AI Overview styling
+ */
+
+/* ================================
+   VARIABLES (Manual AI Consistency)
+   ================================ */
+
+:root {
+  /* Colores Manual AI */
+  --billing-primary: #161616;
+  --billing-secondary: #D8F9B8;
+  --billing-accent: #4F46E5;
+  --billing-success: #10b981;
+  --billing-warning: #f59e0b;
+  --billing-error: #ef4444;
+  
+  /* Grises Manual AI */
+  --billing-gray-50: #f9fafb;
+  --billing-gray-100: #f3f4f6;
+  --billing-gray-200: #e5e7eb;
+  --billing-gray-300: #d1d5db;
+  --billing-gray-400: #9ca3af;
+  --billing-gray-500: #6b7280;
+  --billing-gray-600: #4b5563;
+  --billing-gray-700: #374151;
+  --billing-gray-800: #1f2937;
+  --billing-gray-900: #111827;
+  
+  /* Espaciado Manual AI */
+  --billing-spacing-xs: 0.25rem;
+  --billing-spacing-sm: 0.5rem;
+  --billing-spacing-md: 1rem;
+  --billing-spacing-lg: 1.5rem;
+  --billing-spacing-xl: 2rem;
+  --billing-spacing-2xl: 3rem;
+  --billing-spacing-3xl: 4rem;
+  
+  /* Bordes y sombras Manual AI */
+  --billing-border-radius: 8px;
+  --billing-border-radius-lg: 12px;
+  --billing-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --billing-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --billing-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --billing-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  
+  /* Transición Manual AI */
+  --billing-transition: all 0.15s ease-in-out;
+}
+
+/* ================================
+   LAYOUT PRINCIPAL
+   ================================ */
+
+body.billing-success-body {
+  background: var(--billing-gray-50);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  color: var(--billing-gray-900);
+}
+
+.billing-success-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--billing-spacing-xl);
+}
+
+/* ================================
+   TARJETA PRINCIPAL (GRAN DIV BLANCO)
+   ================================ */
+
+.billing-card {
+  background: white;
+  border-radius: var(--billing-border-radius);
+  box-shadow: var(--billing-shadow-lg);
+  padding: var(--billing-spacing-3xl);
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  border: 1px solid var(--billing-gray-100);
+}
+
+/* ================================
+   HEADER - SUCCESS CHECK Y TÍTULO
+   ================================ */
+
+.billing-header {
+  margin-bottom: var(--billing-spacing-2xl);
+}
+
+.success-check {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--billing-spacing-lg);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #D8F9B8 0%, var(--billing-success) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.15);
+  position: relative;
+}
+
+.success-check::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  animation: successPulse 2s infinite;
+}
+
+@keyframes successPulse {
+  0% { transform: scale(1); opacity: 1; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.success-check svg {
+  width: 40px;
+  height: 40px;
+  fill: white;
+  z-index: 1;
+  position: relative;
+}
+
+.billing-title {
+  color: var(--billing-primary);
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.025em;
+  text-align: center;
+}
+
+.billing-subtitle {
+  color: var(--billing-gray-600);
+  font-size: 1.125rem;
+  margin-top: var(--billing-spacing-sm);
+  font-weight: 400;
+}
+
+/* ================================
+   TRANSACTION DETAILS
+   ================================ */
+
+.transaction-details {
+  background: var(--billing-gray-50);
+  border: 1px solid var(--billing-gray-200);
+  border-radius: var(--billing-border-radius);
+  padding: var(--billing-spacing-xl);
+  margin-bottom: var(--billing-spacing-lg);
+  text-align: left;
+}
+
+.section-title {
+  color: var(--billing-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 var(--billing-spacing-lg) 0;
+  text-align: center;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--billing-spacing-md) 0;
+  border-bottom: 1px solid var(--billing-gray-200);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--billing-gray-600);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  color: var(--billing-gray-900);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.amount-highlight {
+  color: var(--billing-success);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* ================================
+   STATUS BADGES
+   ================================ */
+
+.status-badge {
+  padding: var(--billing-spacing-xs) var(--billing-spacing-sm);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-confirmed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--billing-success);
+}
+
+.status-processing {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--billing-warning);
+}
+
+.status-failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--billing-error);
+}
+
+/* ================================
+   BOTONES DE ACCIÓN (MISMO TAMAÑO)
+   ================================ */
+
+.action-buttons {
+  display: flex;
+  gap: var(--billing-spacing-md);
+  justify-content: center;
+  margin: var(--billing-spacing-2xl) 0 var(--billing-spacing-xl) 0;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: var(--billing-spacing-md) var(--billing-spacing-xl);
+  border-radius: var(--billing-border-radius);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: var(--billing-transition);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  height: 48px;
+  text-align: center;
+}
+
+.btn-primary {
+  background: var(--billing-primary);
+  color: #D8F9B8;
+  border-color: var(--billing-primary);
+}
+
+.btn-primary:hover {
+  background: #D8F9B8;
+  border-color: var(--billing-gray-800);
+  transform: translateY(-1px);
+  box-shadow: var(--billing-shadow-md);
+  color: #161616;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--billing-primary);
+  border-color: var(--billing-gray-300);
+}
+
+.btn-secondary:hover {
+  background: var(--billing-gray-50);
+  border-color: var(--billing-gray-400);
+  transform: translateY(-1px);
+  box-shadow: var(--billing-shadow-md);
+}
+
+.btn-no-underline {
+  text-decoration: none !important;
+}
+
+/* ================================
+   SUPPORT SECTION
+   ================================ */
+
+.support-section {
+  background: var(--billing-gray-50);
+  border-radius: var(--billing-border-radius);
+  padding: var(--billing-spacing-lg);
+  margin-top: var(--billing-spacing-xl);
+  border: 1px solid var(--billing-gray-200);
+}
+
+.support-section h4 {
+  color: var(--billing-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 var(--billing-spacing-sm) 0;
+}
+
+.support-section p {
+  color: var(--billing-gray-700);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.support-section a {
+  color: var(--billing-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.support-section a:hover {
+  color: var(--billing-success);
+}
+
+/* ================================
+   INVOICE LINKS
+   ================================ */
+
+.invoice-link {
+  color: var(--billing-primary);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid var(--billing-gray-300);
+  transition: var(--billing-transition);
+}
+
+.invoice-link:hover {
+  color: var(--billing-success);
+  border-bottom-color: var(--billing-success);
+}
+
+/* ================================
+   RESPONSIVE DESIGN
+   ================================ */
+
+@media (max-width: 640px) {
+  .billing-success-container {
+    padding: var(--billing-spacing-lg);
+  }
+  
+  .billing-card {
+    padding: var(--billing-spacing-xl);
+  }
+  
+  .billing-title {
+    font-size: 1.875rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: var(--billing-spacing-sm);
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    min-width: 100%;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--billing-spacing-xs);
+  }
+  
+  .detail-value {
+    font-weight: 700;
+  }
+}
+
+/* ================================
+   UTILIDADES
+   ================================ */
+
+.hide-icons .success-icon,
+.hide-icons .emoji {
+  display: none !important;
+}
+
+/* Animación suave de entrada */
+.billing-card {
+  animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

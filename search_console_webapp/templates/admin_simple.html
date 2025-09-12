@@ -131,35 +131,91 @@
         
         /* ========== TABLE ========== */
         .table-container {
+            position: relative;
             background: white;
+            border-radius: 14px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Sombras laterales que indican scroll disponible */
+        .table-container::before,
+        .table-container::after {
+            content: "";
+            position: sticky;
+            top: 0;
+            width: 24px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .table-container::before {
+            left: 0;
+            background: linear-gradient(to right, rgba(0,0,0,0.08), rgba(0,0,0,0));
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+        .table-container::after {
+            right: 0;
+            background: linear-gradient(to left, rgba(0,0,0,0.08), rgba(0,0,0,0));
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+        .table-container.has-left-shadow::before { opacity: 1; }
+        .table-container.has-right-shadow::after { opacity: 1; }
+
+        /* Scrollbar sutil */
+        .table-container::-webkit-scrollbar {
+            height: 10px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f3f5;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #ced4da;
             border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #adb5bd;
         }
         
         .table {
             width: 100%;
-            border-collapse: collapse;
+            min-width: 1200px; /* Fuerza scroll horizontal cuando no hay espacio */
+            border-collapse: separate;
+            border-spacing: 0;
         }
         
-        .table th {
-            background: #f8f9fa;
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f8f9fb;
+            backdrop-filter: blur(6px);
             padding: 1rem;
             text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #dee2e6;
+            font-weight: 700;
+            color: #3a3f45;
+            border-bottom: 2px solid #e9ecef;
+            white-space: nowrap;
         }
         
         .table td {
-            padding: 1rem;
-            border-bottom: 1px solid #dee2e6;
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid #edf0f2;
             vertical-align: middle;
+            white-space: nowrap;
         }
         
-        .table tr:hover {
-            background: #f8f9fa;
-        }
+        .table tbody tr:nth-child(even) { background: #fcfdff; }
+        .table tbody tr:hover { background: #f3f6ff; }
         
         .user-info {
             display: flex;
@@ -168,15 +224,16 @@
         }
         
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.25);
         }
         
         .user-avatar img {
@@ -226,6 +283,165 @@
         .badge.inactive {
             background: #dc3545;
             color: white;
+        }
+        
+        /* Plan badges */
+        .badge.free {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .badge.basic {
+            background: #007bff;
+            color: white;
+        }
+        
+        .badge.premium {
+            background: #28a745;
+            color: white;
+        }
+        
+        .badge.enterprise {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
+        /* Plan & Quota container */
+        .plan-quota-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .plan-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+        
+        .plan-info small {
+            color: #666;
+            font-size: 0.7rem;
+        }
+        
+        /* 🚀 NUEVO: Barra progresiva de cuotas */
+        .quota-progress-container {
+            margin-top: 0.25rem;
+            width: 100%;
+        }
+        
+        .quota-progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #eef2ff;
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .quota-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #22d3ee);
+            border-radius: 999px;
+            transition: width 0.6s ease;
+            position: relative;
+        }
+        
+        .quota-progress-fill.danger {
+            background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+        }
+        
+        .quota-progress-fill.warning {
+            background: linear-gradient(90deg, #ffc107 0%, #f39c12 100%);
+        }
+        
+        .quota-progress-fill.success {
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .quota-progress-text {
+            font-size: 0.65rem;
+            color: #666;
+            margin-top: 0.125rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quota-percentage {
+            font-weight: 600;
+        }
+        
+        .quota-percentage.danger {
+            color: #dc3545;
+        }
+        
+        .quota-percentage.warning {
+            color: #ffc107;
+        }
+        
+        .quota-percentage.success {
+            color: #28a745;
+        }
+        
+        .custom-note {
+            color: #6f42c1;
+            font-style: italic;
+            font-size: 0.65rem;
+        }
+        
+        /* Plan actions buttons */
+        .plan-actions {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+        }
+        
+        .btn-plan-change, .btn-custom-quota, .btn-remove-custom, .btn-reset-quota {
+            padding: 0.125rem 0.25rem;
+            border: none;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-plan-change {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-plan-change:hover {
+            background: #0056b3;
+        }
+        
+        .btn-custom-quota {
+            background: #6f42c1;
+            color: white;
+        }
+        
+        .btn-custom-quota:hover {
+            background: #5a32a3;
+        }
+        
+        .btn-remove-custom {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-remove-custom:hover {
+            background: #c82333;
+        }
+        
+        .btn-reset-quota {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-reset-quota:hover {
+            background: #e0a800;
         }
         
         .actions {
@@ -537,8 +753,10 @@
                         <th>Usuario</th>
                         <th>Email</th>
                         <th>Rol</th>
+                        <th>Plan & Quota</th>
                         <th>Estado</th>
                         <th>Registro</th>
+                        <th>Último Acceso</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -567,8 +785,6 @@
                                     <span class="badge {{ user.role }}">
                                         {% if user.role == 'admin' %}
                             Administrador
-                        {% elif user.role == 'AI User' %}
-                            AI User
                         {% else %}
                             Usuario
                         {% endif %}
@@ -581,6 +797,85 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <!-- Plan & Quota Column MEJORADA -->
+                                <div class="plan-quota-container">
+                                    <div class="plan-info">
+                                        {% if user.custom_quota_limit %}
+                                            <span class="badge enterprise">Enterprise</span>
+                                            <small>Custom: {{ user.custom_quota_limit }} RU</small>
+                                        {% else %}
+                                            <span class="badge {{ user.plan or 'free' }}">
+                                                {% if user.plan == 'free' %}Free
+                                                {% elif user.plan == 'basic' %}Basic
+                                                {% elif user.plan == 'premium' %}Premium  
+                                                {% else %}{{ user.plan|title }}
+                                                {% endif %}
+                                            </span>
+                                            <small>{{ user.quota_used or 0 }}/{{ user.quota_limit or 0 }} RU</small>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- 🚀 NUEVA: Barra progresiva de cuotas -->
+                                    {% set quota_limit = user.custom_quota_limit if user.custom_quota_limit else (user.quota_limit or 0) %}
+                                    {% set quota_used = user.quota_used or 0 %}
+                                    {% if quota_limit > 0 %}
+                                        {% set quota_percentage = ((quota_used / quota_limit) * 100)|round(1) %}
+                                        <div class="quota-progress-container" 
+                                             data-quota-used="{{ quota_used }}" 
+                                             data-quota-limit="{{ quota_limit }}" 
+                                             data-quota-percentage="{{ quota_percentage }}">
+                                            <div class="quota-progress-bar">
+                                                <div class="quota-progress-fill" data-percentage="{{ quota_percentage }}"></div>
+                                            </div>
+                                            <div class="quota-progress-text">
+                                                <span>{{ quota_used }}/{{ quota_limit }} RU</span>
+                                                <span class="quota-percentage" data-percentage="{{ quota_percentage }}">{{ quota_percentage }}%</span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if user.custom_quota_assigned_by %}
+                                        <small class="custom-note">By: {{ user.custom_quota_assigned_by }}</small>
+                                    {% endif %}
+                                    <!-- Admin Actions -->
+                                    <div class="plan-actions">
+                                        <button class="btn-plan-change btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                data-user-plan="{{ user.plan or 'free' }}"
+                                                title="Change Plan">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </button>
+                                        {% if not user.custom_quota_limit %}
+                                        <button class="btn-custom-quota btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                title="Assign Custom Quota">
+                                            <i class="fas fa-crown"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn-remove-custom btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                title="Remove Custom Quota">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <!-- Reset Quota Button (solo si hay uso de quota) -->
+                                        {% if user.quota_used and user.quota_used > 0 %}
+                                        <button class="btn-reset-quota btn-sm" 
+                                                data-user-id="{{ user.id }}"
+                                                data-user-name="{{ user.name or user.email }}"
+                                                data-quota-used="{{ user.quota_used }}"
+                                                title="Reset Quota Usage">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </td>
                             <td>
@@ -604,6 +899,14 @@
                                     <small>{{ user.created_at.strftime('%H:%M') }}</small>
                                 {% else %}
                                     Sin fecha
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.last_login_at %}
+                                    {{ user.last_login_at.strftime('%d/%m/%Y') }}<br>
+                                    <small>{{ user.last_login_at.strftime('%H:%M') }}</small>
+                                {% else %}
+                                    —
                                 {% endif %}
                             </td>
                             <td>
@@ -644,44 +947,143 @@
         </div>
     </div>
 
-    <!-- Modal de Detalles de Usuario -->
+    <!-- Modal de Detalles de Usuario MEJORADO -->
     <div id="userModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h3><i class="fas fa-user"></i> Detalles del Usuario</h3>
+                <h3><i class="fas fa-user-circle"></i> Detalles Completos del Usuario</h3>
                 <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">ID:</span>
-                        <span class="detail-value" id="detailId">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Nombre:</span>
-                        <span class="detail-value" id="detailName">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Email:</span>
-                        <span class="detail-value" id="detailEmail">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Rol:</span>
-                        <span class="detail-value" id="detailRole">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Estado:</span>
-                        <span class="detail-value" id="detailStatus">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Registro:</span>
-                        <span class="detail-value" id="detailCreated">-</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Autenticación:</span>
-                        <span class="detail-value" id="detailAuth">-</span>
+                <!-- Sección: Información Básica -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-user"></i> Información Básica
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">ID:</span>
+                            <span class="detail-value" id="detailId">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Nombre:</span>
+                            <span class="detail-value" id="detailName">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Email:</span>
+                            <span class="detail-value" id="detailEmail">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Rol:</span>
+                            <span class="detail-value" id="detailRole">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Estado:</span>
+                            <span class="detail-value" id="detailStatus">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Registro:</span>
+                            <span class="detail-value" id="detailCreated">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Autenticación:</span>
+                            <span class="detail-value" id="detailAuth">-</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 🚀 NUEVA: Sección Plan y Facturación -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-credit-card"></i> Plan y Facturación
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Plan Actual:</span>
+                            <span class="detail-value" id="detailPlan">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Estado de Facturación:</span>
+                            <span class="detail-value" id="detailBillingStatus">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Stripe Customer ID:</span>
+                            <span class="detail-value" id="detailStripeId">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Período de Facturación:</span>
+                            <span class="detail-value" id="detailBillingPeriod">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Próxima Renovación:</span>
+                            <span class="detail-value" id="detailNextRenewal">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🚀 NUEVA: Sección Cuotas y Uso -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-tachometer-alt"></i> Cuotas y Uso
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Límite de Cuota:</span>
+                            <span class="detail-value" id="detailQuotaLimit">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Cuota Utilizada:</span>
+                            <span class="detail-value" id="detailQuotaUsed">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Porcentaje de Uso:</span>
+                            <span class="detail-value" id="detailQuotaPercentage">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Reset de Cuota:</span>
+                            <span class="detail-value" id="detailQuotaReset">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progreso en modal -->
+                    <div id="detailProgressContainer" style="margin-top: 1rem; display: none;">
+                        <div style="margin-bottom: 0.25rem; font-size: 0.8rem; color: #666;">Progreso de Uso:</div>
+                        <div class="quota-progress-bar">
+                            <div id="detailProgressFill" class="quota-progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🚀 NUEVA: Sección Custom Quota (Enterprise) -->
+                <div id="detailCustomQuotaSection" style="margin-bottom: 1.5rem; display: none;">
+                    <h4 style="color: #6f42c1; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-crown"></i> Custom Quota (Enterprise)
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Custom Limit:</span>
+                            <span class="detail-value" id="detailCustomLimit">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Notas:</span>
+                            <span class="detail-value" id="detailCustomNotes">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Asignado por:</span>
+                            <span class="detail-value" id="detailCustomAssignedBy">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Fecha de Asignación:</span>
+                            <span class="detail-value" id="detailCustomAssignedDate">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('userModal')">Cerrar</button>
+                <button class="btn btn-primary" id="refreshUserDetails" style="display: none;">
+                    <i class="fas fa-sync"></i> Actualizar
+                </button>
             </div>
         </div>
     </div>
@@ -723,15 +1125,13 @@
                     <label for="roleSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar rol:</label>
                     <select id="roleSelect" class="role-select">
                         <option value="user">Usuario</option>
-                        <option value="AI User">AI User</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Nota:</strong></p>
                     <p style="margin: 0.5rem 0 0 0; color: #666;">
-                        • <strong>Usuario:</strong> Acceso básico al sistema<br>
-                        • <strong>AI User:</strong> Acceso básico + funcionalidades AI Overview<br>
+                        • <strong>Usuario:</strong> Acceso básico - funcionalidades AI según plan de pago<br>
                         • <strong>Administrador:</strong> Acceso completo y gestión de usuarios
                     </p>
                 </div>
@@ -780,12 +1180,87 @@
         </div>
     </div>
 
+    <!-- Modal de Cambio de Plan -->
+    <div id="planModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exchange-alt"></i> Cambiar Plan de Usuario</h3>
+                <button class="modal-close" onclick="closeModal('planModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Qué plan quieres asignar a <strong id="planUserName">-</strong>?</p>
+                <div style="margin-top: 1rem;">
+                    <label for="planSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Seleccionar plan:</label>
+                    <select id="planSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="free">Free (0€ - 0 RU/month)</option>
+                        <option value="basic">Basic (29,99€ - 1.225 RU/month)</option>
+                        <option value="premium">Premium (59,99€ - 2.950 RU/month)</option>
+                    </select>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Nota:</strong></p>
+                    <p style="margin: 0.5rem 0 0 0; color: #666;">
+                        • Para Enterprise use "Assign Custom Quota"<br>
+                        • El cambio aplicará en el próximo ciclo de facturación<br>
+                        • Los usuarios beta pueden requerir configuración manual
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('planModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmPlanBtn">
+                    <i class="fas fa-save"></i>
+                    Cambiar Plan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Custom Quota (Enterprise) -->
+    <div id="customQuotaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-crown"></i> Assign Custom Quota (Enterprise)</h3>
+                <button class="modal-close" onclick="closeModal('customQuotaModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Assign custom quota to <strong id="customQuotaUserName">-</strong></p>
+                <div style="margin-top: 1rem;">
+                    <label for="customQuotaLimit" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Custom RU Limit per month:</label>
+                    <input type="number" id="customQuotaLimit" min="0" max="100000" step="100" placeholder="e.g., 5000" 
+                           style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+                <div style="margin-top: 1rem;">
+                    <label for="customQuotaNotes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Notes (optional):</label>
+                    <textarea id="customQuotaNotes" placeholder="e.g., Special agreement with Agency XYZ" 
+                              style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px; min-height: 60px; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #e8f4fd; border-radius: 5px; font-size: 0.9rem;">
+                    <p style="margin: 0;"><strong>Enterprise Features:</strong></p>
+                    <p style="margin: 0.5rem 0 0 0; color: #0066cc;">
+                        • Plan will automatically change to "Enterprise"<br>
+                        • User will bypass standard plan limits<br>
+                        • Custom quota takes priority over plan quotas
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('customQuotaModal')">Cancelar</button>
+                <button class="btn btn-primary" id="confirmCustomQuotaBtn">
+                    <i class="fas fa-crown"></i>
+                    Assign Custom Quota
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== FUNCIONES BÁSICAS Y DIRECTAS ==========
         
-        function showUserDetails(id, name, email, role, status, created, authType) {
-            console.log('📋 Mostrando detalles de usuario:', id);
+        async function showUserDetails(id, name, email, role, status, created, authType) {
+            console.log('📋 Cargando detalles completos de usuario:', id);
             
+            // Llenar información básica inmediatamente
             document.getElementById('detailId').textContent = id;
             document.getElementById('detailName').textContent = name;
             document.getElementById('detailEmail').textContent = email;
@@ -794,7 +1269,155 @@
             document.getElementById('detailCreated').textContent = created;
             document.getElementById('detailAuth').textContent = authType;
             
+            // Mostrar modal inmediatamente
             openModal('userModal');
+            
+            try {
+                // 🚀 NUEVO: Cargar detalles completos de billing
+                console.log('🔄 Cargando datos de billing...');
+                const response = await fetch(`/admin/users/${id}/billing-details`);
+                const result = await response.json();
+                
+                if (result.success && result.user) {
+                    const user = result.user;
+                    console.log('✅ Datos de billing cargados:', user);
+                    
+                    // Plan y Facturación
+                    document.getElementById('detailPlan').textContent = getPlanDisplayName(user.plan || 'free');
+                    document.getElementById('detailBillingStatus').textContent = getBillingStatusDisplay(user.billing_status || 'active');
+                    document.getElementById('detailStripeId').textContent = user.stripe_customer_id || 'No configurado';
+                    
+                    // Período de facturación
+                    if (user.current_period_start && user.current_period_end) {
+                        const startDate = new Date(user.current_period_start).toLocaleDateString('es-ES');
+                        const endDate = new Date(user.current_period_end).toLocaleDateString('es-ES');
+                        document.getElementById('detailBillingPeriod').textContent = `${startDate} - ${endDate}`;
+                        document.getElementById('detailNextRenewal').textContent = `${endDate} (${getDaysUntilRenewal(user.current_period_end)} días)`;
+                    } else {
+                        document.getElementById('detailBillingPeriod').textContent = 'No configurado';
+                        document.getElementById('detailNextRenewal').textContent = 'No configurado';
+                    }
+                    
+                    // Cuotas y Uso
+                    const quotaLimit = user.custom_quota_limit || user.quota_limit || 0;
+                    const quotaUsed = user.quota_used || 0;
+                    
+                    document.getElementById('detailQuotaLimit').textContent = `${quotaLimit} RU/mes`;
+                    document.getElementById('detailQuotaUsed').textContent = `${quotaUsed} RU`;
+                    
+                    if (quotaLimit > 0) {
+                        const percentage = Math.round((quotaUsed / quotaLimit) * 100);
+                        document.getElementById('detailQuotaPercentage').textContent = `${percentage}%`;
+                        
+                        // Mostrar barra de progreso
+                        const progressContainer = document.getElementById('detailProgressContainer');
+                        const progressFill = document.getElementById('detailProgressFill');
+                        
+                        progressContainer.style.display = 'block';
+                        progressFill.style.width = `${percentage}%`;
+                        
+                        // Aplicar colores según porcentaje
+                        progressFill.className = 'quota-progress-fill';
+                        if (percentage >= 90) {
+                            progressFill.classList.add('danger');
+                        } else if (percentage >= 75) {
+                            progressFill.classList.add('warning');
+                        } else {
+                            progressFill.classList.add('success');
+                        }
+                    } else {
+                        document.getElementById('detailQuotaPercentage').textContent = 'N/A';
+                        document.getElementById('detailProgressContainer').style.display = 'none';
+                    }
+                    
+                    // Reset de cuota
+                    if (user.quota_reset_date) {
+                        const resetDate = new Date(user.quota_reset_date).toLocaleDateString('es-ES');
+                        document.getElementById('detailQuotaReset').textContent = resetDate;
+                    } else {
+                        document.getElementById('detailQuotaReset').textContent = 'No configurado';
+                    }
+                    
+                    // Custom Quota (Enterprise)
+                    const customQuotaSection = document.getElementById('detailCustomQuotaSection');
+                    if (user.custom_quota_limit) {
+                        customQuotaSection.style.display = 'block';
+                        document.getElementById('detailCustomLimit').textContent = `${user.custom_quota_limit} RU/mes`;
+                        document.getElementById('detailCustomNotes').textContent = user.custom_quota_notes || 'Sin notas';
+                        document.getElementById('detailCustomAssignedBy').textContent = user.custom_quota_assigned_by || 'N/A';
+                        
+                        if (user.custom_quota_assigned_date) {
+                            const assignedDate = new Date(user.custom_quota_assigned_date).toLocaleDateString('es-ES');
+                            document.getElementById('detailCustomAssignedDate').textContent = assignedDate;
+                        } else {
+                            document.getElementById('detailCustomAssignedDate').textContent = 'N/A';
+                        }
+                    } else {
+                        customQuotaSection.style.display = 'none';
+                    }
+                    
+                } else {
+                    console.warn('⚠️ No se pudieron cargar los detalles de billing:', result.error);
+                    // Mantener solo la información básica visible
+                    document.getElementById('detailPlan').textContent = 'No disponible';
+                    document.getElementById('detailBillingStatus').textContent = 'No disponible';
+                    document.getElementById('detailStripeId').textContent = 'No disponible';
+                    document.getElementById('detailBillingPeriod').textContent = 'No disponible';
+                    document.getElementById('detailNextRenewal').textContent = 'No disponible';
+                    document.getElementById('detailQuotaLimit').textContent = 'No disponible';
+                    document.getElementById('detailQuotaUsed').textContent = 'No disponible';
+                    document.getElementById('detailQuotaPercentage').textContent = 'No disponible';
+                    document.getElementById('detailQuotaReset').textContent = 'No disponible';
+                    document.getElementById('detailProgressContainer').style.display = 'none';
+                    document.getElementById('detailCustomQuotaSection').style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('❌ Error cargando detalles de billing:', error);
+                // En caso de error, mantener la funcionalidad básica
+            }
+        }
+        
+        // 🚀 NUEVAS: Funciones helper para el modal
+        function getPlanDisplayName(plan) {
+            const planNames = {
+                'free': 'Free (0€)',
+                'basic': 'Basic (29,99€)', 
+                'premium': 'Premium (59,99€)',
+                'enterprise': 'Enterprise (Custom)',
+                'beta': 'Beta'
+            };
+            return planNames[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+        }
+        
+        function getBillingStatusDisplay(status) {
+            const statusNames = {
+                'active': '✅ Activo',
+                'trialing': '🆓 Período de prueba',
+                'past_due': '⚠️ Pago atrasado',
+                'canceled': '❌ Cancelado',
+                'unpaid': '💸 Sin pagar',
+                'incomplete': '⏳ Incompleto',
+                'beta': '🧪 Beta'
+            };
+            return statusNames[status] || status;
+        }
+        
+        function getDaysUntilRenewal(endDate) {
+            const now = new Date();
+            const end = new Date(endDate);
+            const diffTime = end - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                return 'Vencido';
+            } else if (diffDays === 0) {
+                return 'Hoy';
+            } else if (diffDays === 1) {
+                return '1 día';
+            } else {
+                return `${diffDays} días`;
+            }
         }
         
         function showDeleteConfirm(userId, userName) {
@@ -969,8 +1592,8 @@
                     let roleDisplayName = 'Usuario';
                     if (newRole === 'admin') {
                         roleDisplayName = 'Administrador';
-                    } else if (newRole === 'AI User') {
-                        roleDisplayName = 'AI User';
+                    } else {
+                        roleDisplayName = 'Usuario';
                     }
                     alert(`✅ Rol actualizado exitosamente a: ${roleDisplayName}`);
                     location.reload(); // Recargar página para actualizar lista
@@ -1022,6 +1645,35 @@
             }
         });
         
+        // 🚀 NUEVO: Inicializar barras progresivas de cuotas
+        function initializeQuotaProgressBars() {
+            console.log('🔄 Inicializando barras progresivas de cuotas...');
+            
+            document.querySelectorAll('.quota-progress-container').forEach(container => {
+                const percentage = parseFloat(container.dataset.quotaPercentage || 0);
+                const progressFill = container.querySelector('.quota-progress-fill');
+                const percentageSpan = container.querySelector('.quota-percentage');
+                
+                if (progressFill && percentageSpan) {
+                    // Aplicar ancho
+                    progressFill.style.width = percentage + '%';
+                    
+                    // Aplicar clases de color según porcentaje
+                    let colorClass = 'success';
+                    if (percentage >= 90) {
+                        colorClass = 'danger';
+                    } else if (percentage >= 75) {
+                        colorClass = 'warning';
+                    }
+                    
+                    progressFill.classList.add(colorClass);
+                    percentageSpan.classList.add(colorClass);
+                    
+                    console.log(`✅ Barra inicializada: ${percentage}% (${colorClass})`);
+                }
+            });
+        }
+
         // Debug simple
         console.log('🚀 Admin Panel Simple cargado correctamente');
         
@@ -1041,6 +1693,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 🚀 NUEVO: Inicializar barras progresivas al cargar la página
+            initializeQuotaProgressBars();
+            
             // Obtener todas las rows de users
             const userRows = document.querySelectorAll('.table tbody tr');
 
@@ -1094,6 +1749,208 @@
                 }).catch(error => alert('Error en la conexión: ' + error));
             }
         });
+
+        // ========== PLAN MANAGEMENT ==========
+        
+        // Event listeners para los nuevos botones
+        document.addEventListener('click', function(e) {
+            // Plan change button
+            if (e.target.closest('.btn-plan-change')) {
+                const btn = e.target.closest('.btn-plan-change');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                const currentPlan = btn.dataset.userPlan;
+                
+                showPlanModal(userId, userName, currentPlan);
+            }
+            
+            // Custom quota button
+            if (e.target.closest('.btn-custom-quota')) {
+                const btn = e.target.closest('.btn-custom-quota');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                
+                showCustomQuotaModal(userId, userName);
+            }
+            
+            // Remove custom quota button
+            if (e.target.closest('.btn-remove-custom')) {
+                const btn = e.target.closest('.btn-remove-custom');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                
+                if (confirm(`¿Estás seguro de que quieres remover la custom quota de ${userName}? El usuario volverá al plan Free.`)) {
+                    removeCustomQuota(userId, userName);
+                }
+            }
+            
+            // Reset quota button
+            if (e.target.closest('.btn-reset-quota')) {
+                const btn = e.target.closest('.btn-reset-quota');
+                const userId = btn.dataset.userId;
+                const userName = btn.dataset.userName;
+                const quotaUsed = btn.dataset.quotaUsed;
+                
+                resetQuota(userId, userName, quotaUsed);
+            }
+        });
+
+        function showPlanModal(userId, userName, currentPlan) {
+            console.log('🔄 Abriendo modal de cambio de plan:', userId);
+            
+            document.getElementById('planUserName').textContent = userName;
+            document.getElementById('planSelect').value = currentPlan;
+            
+            // Remove previous event listeners
+            const oldBtn = document.getElementById('confirmPlanBtn');
+            const newBtn = oldBtn.cloneNode(true);
+            oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+            
+            // Add new event listener
+            newBtn.addEventListener('click', () => changePlan(userId, userName));
+            
+            document.getElementById('planModal').style.display = 'flex';
+        }
+
+        function showCustomQuotaModal(userId, userName) {
+            console.log('👑 Abriendo modal de custom quota:', userId);
+            
+            document.getElementById('customQuotaUserName').textContent = userName;
+            document.getElementById('customQuotaLimit').value = '';
+            document.getElementById('customQuotaNotes').value = '';
+            
+            // Remove previous event listeners
+            const oldBtn = document.getElementById('confirmCustomQuotaBtn');
+            const newBtn = oldBtn.cloneNode(true);
+            oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+            
+            // Add new event listener
+            newBtn.addEventListener('click', () => assignCustomQuota(userId, userName));
+            
+            document.getElementById('customQuotaModal').style.display = 'flex';
+        }
+
+        async function changePlan(userId, userName) {
+            const newPlan = document.getElementById('planSelect').value;
+            
+            console.log(`🔄 Cambiando plan de usuario ${userId} a ${newPlan}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/change-plan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ plan: newPlan })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Plan cambiado exitosamente para ${userName}: ${result.message}`);
+                    closeModal('planModal');
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error changing plan:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function assignCustomQuota(userId, userName) {
+            const customLimit = parseInt(document.getElementById('customQuotaLimit').value);
+            const notes = document.getElementById('customQuotaNotes').value;
+            
+            if (!customLimit || customLimit < 0) {
+                alert('❌ Por favor ingresa un límite válido (mayor a 0)');
+                return;
+            }
+            
+            console.log(`👑 Asignando custom quota ${customLimit} RU a usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/assign-custom-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        custom_limit: customLimit,
+                        notes: notes 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Custom quota asignada exitosamente para ${userName}: ${result.message}`);
+                    closeModal('customQuotaModal');
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error assigning custom quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function removeCustomQuota(userId, userName) {
+            console.log(`🗑️ Removiendo custom quota de usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/remove-custom-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Custom quota removida exitosamente para ${userName}: ${result.message}`);
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error removing custom quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+
+        async function resetQuota(userId, userName, currentUsage) {
+            if (!confirm(`⚠️ ¿Estás seguro de que quieres resetear la quota de ${userName}?\n\nUso actual: ${currentUsage} RU\nSe reseteará a: 0 RU`)) {
+                return;
+            }
+            
+            console.log(`🔄 Reseteando quota de usuario ${userId}`);
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/reset-quota`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Quota reseteada exitosamente para ${userName}\n\n${result.message}`);
+                    location.reload(); // Recargar para ver cambios
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error resetting quota:', error);
+                alert('❌ Error en la conexión: ' + error.message);
+            }
+        }
+        
     </script>
 </body>
 </html> 

@@ -104,7 +104,32 @@ async function handleExecuteAnalysis() {
         
     } catch (error) {
         console.error('❌ Error en análisis IA:', error);
-        showErrorState(error.message);
+        
+        // ✅ NUEVO FASE 4.5: Limpiar TODOS los timers de progreso en caso de error
+        if (aiProgressTimer) {
+            clearTimeout(aiProgressTimer);
+            aiProgressTimer = null;
+        }
+        
+        // Limpiar timer de startSimpleProgress (que programa startRealisticProgress)
+        if (window.simpleProgressTimeout) {
+            clearTimeout(window.simpleProgressTimeout);
+            window.simpleProgressTimeout = null;
+        }
+        
+        // ✅ NUEVO: Para paywalls/quotas, mostrar modal pero NO error genérico
+        if (error.message === 'paywall' || error.message === 'quota_exceeded') {
+            console.log('🚫 Paywall/quota error - modal mostrado, ocultando progreso');
+            // Ocultar overlay de progreso inmediatamente
+            const progressOverlay = document.getElementById('aiProgressOverlay');
+            if (progressOverlay) {
+                progressOverlay.classList.remove('active');
+            }
+            // NO mostrar showErrorState para paywalls (ya tienen modal)
+        } else {
+            // Solo mostrar error genérico para errores reales
+            showErrorState(error.message);
+        }
     } finally {
         isAnalysisRunning = false;
     }
@@ -324,8 +349,8 @@ function startSimpleProgress() {
     // Progreso inicial inmediato
     updateProgress(3, 'Validating configuration...', `Preparing analysis of ${selectedCount} keywords`, 1);
     
-    // Iniciar progreso realista
-    setTimeout(() => {
+    // Iniciar progreso realista (guardar timer para poder cancelarlo)
+    window.simpleProgressTimeout = setTimeout(() => {
         startRealisticProgress(selectedCount);
     }, 500);
 }
@@ -340,6 +365,12 @@ async function completeProgress() {
     if (aiProgressTimer) {
         clearTimeout(aiProgressTimer);
         aiProgressTimer = null;
+    }
+    
+    // Limpiar timer de startSimpleProgress
+    if (window.simpleProgressTimeout) {
+        clearTimeout(window.simpleProgressTimeout);
+        window.simpleProgressTimeout = null;
     }
     
     // Progreso final
@@ -461,6 +492,12 @@ export function resetAIOverlay() {
     if (aiProgressTimer) {
         clearTimeout(aiProgressTimer);
         aiProgressTimer = null;
+    }
+    
+    // Limpiar timer de startSimpleProgress
+    if (window.simpleProgressTimeout) {
+        clearTimeout(window.simpleProgressTimeout);
+        window.simpleProgressTimeout = null;
     }
     
     // Limpiar intervalos y timeouts de progreso (legacy)

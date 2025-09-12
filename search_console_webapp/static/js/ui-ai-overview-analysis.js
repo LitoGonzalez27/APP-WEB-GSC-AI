@@ -185,6 +185,26 @@ async function analyzeAIOverview(keywords, siteUrl) {
         });
         
         clearTimeout(timeoutId);
+        
+        // ✅ NUEVO FASE 4.5: Manejar paywalls
+        if (response.status === 402) {
+            // Paywall - usuario Free
+            const data = await response.json();
+            if (window.showPaywall) {
+                window.showPaywall('AI Overview Analysis', data.upgrade_options || ['basic', 'premium']);
+            }
+            throw new Error('AI Overview requires a paid plan. Please upgrade to continue.');
+        }
+        
+        if (response.status === 429) {
+            // Quota exceeded
+            const data = await response.json();
+            if (window.showQuotaExceeded) {
+                window.showQuotaExceeded(data.quota_info || {});
+            }
+            throw new Error('You have reached your monthly limit. Please upgrade to continue.');
+        }
+        
         return response.json();
     } catch (error) {
         clearTimeout(timeoutId);
@@ -327,8 +347,37 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
 
     console.log('[AI DEBUG] Datos recibidos del análisis:', analysisData);
 
+    // ✅ FASE 4: Manejar errores de quota específicamente
     if (analysisData.error) {
-      throw new Error(analysisData.error);
+      // Verificar si hay errores de quota en los resultados
+      const quotaErrors = analysisData.results ? 
+        analysisData.results.filter(result => result.error === 'quota_exceeded') : [];
+      
+      if (quotaErrors.length > 0) {
+        console.warn(`🚫 ${quotaErrors.length} keywords bloqueadas por quota`);
+        
+        // Mostrar UI de quota si hay errores de quota
+        const quotaInfo = quotaErrors[0].quota_info || {};
+        if (window.QuotaUI) {
+          window.QuotaUI.showBlockModal({
+            error: analysisData.error,
+            quota_blocked: true,
+            quota_info: quotaInfo,
+            action_required: quotaErrors[0].action_required || 'upgrade'
+          });
+        }
+        
+        // Si todos están bloqueados por quota, no continuar
+        if (quotaErrors.length === analysisData.results.length) {
+          throw new Error(`Analysis blocked: ${analysisData.error}. Please upgrade your plan to continue.`);
+        }
+        
+        // Si solo algunos están bloqueados, mostrar warning y continuar con los exitosos
+        showToast(`⚠️ ${quotaErrors.length} keywords blocked by quota limit. Consider upgrading for full analysis.`, 'warning', 6000);
+      } else {
+        // Error normal, no de quota
+        throw new Error(analysisData.error);
+      }
     }
 
     const displayData = {

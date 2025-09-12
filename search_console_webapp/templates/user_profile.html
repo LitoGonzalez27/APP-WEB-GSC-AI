@@ -111,7 +111,6 @@
                             <p class="user-email">{{ user.email }}</p>
                             <div class="user-badges">
                                 <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
-                                    <i class="fas fa-{{ 'crown' if user.role == 'admin' else ('robot' if user.role == 'AI User' else 'user') }}"></i>
                                     {% if user.role == 'admin' %}
                                         Administrador
                                     {% elif user.role == 'AI User' %}
@@ -119,6 +118,9 @@
                                     {% else %}
                                         Usuario
                                     {% endif %}
+                                </span>
+                                <span class="badge badge-plan plan-{{ user.get('plan','free') }}">
+                                    {{ user.get('plan','free')|capitalize }}
                                 </span>
                                 <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
                                     <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
@@ -128,7 +130,12 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="openEditProfile()">
+                        
+                        <a href="/dashboard" class="btn btn-outline" style="border:1px solid #161616; background:transparent; color:#161616;">
+                            <i class="fas fa-home"></i>
+                            Go to dashboard
+                        </a>
+                        <button id="editProfileBtn" type="button" class="btn btn-primary" onclick="openEditProfile()">
                             <i class="fas fa-edit"></i>
                             Edit Profile
                         </button>
@@ -142,6 +149,14 @@
                     <button class="tab-button active" data-tab="info">
                         <i class="fas fa-info-circle"></i>
                         Personal Information
+                    </button>
+                    <button class="tab-button" data-tab="connections">
+                        <i class="fas fa-plug"></i>
+                        Connections
+                    </button>
+                    <button class="tab-button" data-tab="billing">
+                        <i class="fas fa-credit-card"></i>
+                        Billing
                     </button>
                     <button class="tab-button" data-tab="security">
                         <i class="fas fa-shield-alt"></i>
@@ -158,7 +173,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-user"></i>
+                              
                                 Personal Information
                             </h3>
                             <p>Manage your basic profile information</p>
@@ -222,6 +237,105 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Uso y plan -->
+                            <div class="info-grid" style="margin-top:1.5rem;">
+                                <div class="info-item">
+                                    <label>Current Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                            </div>
+                            <div>
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a style="margin-top: 20px;" href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
+                                <a style="margin-top: 20px;" href="/billing/portal" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    Manage subscription
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de conexiones -->
+                <div id="connectionsTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                               
+                                Google Search Console Connections
+                            </h3>
+                            <p>Connect multiple Google accounts and manage their properties
+                                <span title="You can connect multiple Google accounts, we aggregate properties across all accounts, and we only request read-only access to Search Console." style="margin-left:6px; cursor:help; color:#6b7280;">
+                                    <i class="fas fa-info-circle"></i>
+                                </span>
+                            </p>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom:1rem;">
+                                <a href="/connections/google/start" class="btn btn-primary">
+                                    <i class="fas fa-link"></i>
+                                    Connect new Google account
+                                </a>
+                            </div>
+                            <div id="connectionsList">Loading connections...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de billing -->
+                <div id="billingTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                              
+                                Billing
+                            </h3>
+                            <p>Manage your plan, invoices and payment methods</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Status</label>
+                                    <div class="info-value">{{ user.get('billing_status','inactive')|replace('_',' ')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Quota</label>
+                                    {% set quota_limit = user.get('quota_limit',0) or 0 %}
+                                    {% set quota_used = user.get('quota_used',0) or 0 %}
+                                    {% set quota_pct = (quota_used / quota_limit * 100) if quota_limit > 0 else 0 %}
+                                    <div>
+                                        <div class="progress-bar" style="--quota-pct: {{ quota_pct|int }};">
+                                            <div class="progress-fill"></div>
+                                        </div>
+                                        <div class="progress-label">{{ quota_used }}/{{ quota_limit }} RU ({{ quota_pct|int }}%)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
+                                <a href="/billing/portal" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    Manage subscription
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -231,7 +345,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-shield-alt"></i>
+                              
                                 Account Security
                             </h3>
                             <p>Manage your account security and password</p>
@@ -289,7 +403,7 @@
                     <div class="profile-card">
                         <div class="card-header">
                             <h3>
-                                <i class="fas fa-history"></i>
+                              
                                 Recent Activity
                             </h3>
                             <p>Log of the most recent actions on your account</p>
@@ -323,13 +437,13 @@
     </main>
 
     <!-- Modal de edición de perfil -->
-    <div id="editProfileModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="editProfileModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
                 <h3>Editar perfil</h3>
-                <button class="modal-close">&times;</button>
+                <button class="profile-modal-close">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="profile-modal-body">
                 <form id="editProfileForm">
                     <div class="form-group">
                         <label for="editName">Nombre completo</label>
@@ -338,12 +452,59 @@
                     </div>
                     <div class="form-group">
                         <label for="editEmail">Email</label>
+                        {% if user.google_id %}
+                        <input type="email" id="editEmail" name="email" value="{{ user.email }}" disabled>
+                        <div class="field-help">Cuenta vinculada con Google: no puedes cambiar el email desde la aplicación.</div>
+                        {% else %}
                         <input type="email" id="editEmail" name="email" value="{{ user.email }}" required>
+                        {% endif %}
                         <span class="field-error" id="editEmailError"></span>
                     </div>
+
+                    {% if user.password_hash %}
+                    <div class="form-group">
+                        <label for="editCurrentPassword">Contraseña actual</label>
+                        <div class="password-input">
+                            <input type="password" id="editCurrentPassword" name="current_password" placeholder="••••••••">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editCurrentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editCurrentPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editNewPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editNewPassword" name="new_password" placeholder="Mínimo 8 caracteres">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editNewPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editNewPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editConfirmPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editConfirmPassword" name="confirm_password" placeholder="Repite la contraseña">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editConfirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editConfirmPasswordError"></span>
+                    </div>
+                    {% else %}
+                    <div class="security-notice" style="margin-top: .5rem;">
+                        <div class="notice-content">
+                            <div>
+                                <strong>Inicio de sesión con Google</strong>
+                                <p>Tu cuenta no usa contraseña local. Puedes cambiar nombre y email.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="profile-modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">
                     Cancelar
                 </button>
@@ -358,13 +519,13 @@
     </div>
 
     <!-- Modal de cambio de contraseña -->
-    <div id="changePasswordModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="changePasswordModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
                 <h3>Cambiar contraseña</h3>
-                <button class="modal-close">&times;</button>
+                <button class="profile-modal-close">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="profile-modal-body">
                 <form id="changePasswordForm">
                     <div class="form-group">
                         <label for="currentPassword">Contraseña actual</label>
@@ -399,7 +560,7 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
+            <div class="profile-modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
                     Cancelar
                 </button>
@@ -449,12 +610,25 @@
 
         // Función para abrir modal
         function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
+            const modal = document.getElementById(modalId);
+            if (!modal) { console.warn('Modal not found:', modalId); return; }
+            modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            modal.style.zIndex = '9999';
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
         }
 
         // Función para cerrar modal
         function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
             // Limpiar formularios
             const form = document.querySelector(`#${modalId} form`);
             if (form) {
@@ -532,6 +706,26 @@
                 
                 if (result.success) {
                     showNotification(result.message, 'success');
+                    // Si hay campos de contraseña y están rellenos, cambiar contraseña
+                    const hasPassword = document.getElementById('editCurrentPassword');
+                    if (hasPassword) {
+                        const current_password = formData.get('current_password');
+                        const new_password = formData.get('new_password');
+                        const confirm_password = formData.get('confirm_password');
+                        if (new_password || confirm_password) {
+                            const pwdResp = await fetch('/profile/change-password', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ current_password, new_password, confirm_password })
+                            });
+                            const pwdResult = await pwdResp.json();
+                            if (!pwdResult.success) {
+                                showNotification(pwdResult.error || 'No se pudo cambiar la contraseña', 'error');
+                                btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Guardar cambios';
+                                return;
+                            }
+                        }
+                    }
                     closeModal('editProfileModal');
                     // Recargar página para mostrar cambios
                     setTimeout(() => {
@@ -574,6 +768,23 @@
                     confirm_password: formData.get('confirm_password')
                 };
                 
+                // Validaciones de cliente
+                if (!data.current_password || !data.new_password || !data.confirm_password) {
+                    showNotification('Todos los campos son obligatorios', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password.length < 8) {
+                    showNotification('La nueva contraseña debe tener al menos 8 caracteres', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password !== data.confirm_password) {
+                    showNotification('La nueva contraseña y su confirmación no coinciden', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+
                 const response = await fetch('/profile/change-password', {
                     method: 'POST',
                     headers: {
@@ -585,7 +796,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    showNotification(result.message, 'success');
+                    showNotification('Contraseña actualizada correctamente', 'success');
                     closeModal('changePasswordModal');
                 } else {
                     showNotification(result.error, 'error');
@@ -638,6 +849,88 @@
             }
         }
 
+        async function loadConnections() {
+            const container = document.getElementById('connectionsList');
+            if (!container) return;
+            try {
+                const resp = await fetch('/gsc/properties');
+                const data = await resp.json();
+                const props = Array.isArray(data.properties) ? data.properties : [];
+                if (props.length === 0) {
+                    container.innerHTML = '<div class="security-notice">No connections yet. Connect your first Google account.</div>';
+                    return;
+                }
+                // Agrupar por email
+                const byEmail = {};
+                for (const p of props) {
+                    const email = p.googleEmail || 'Other accounts';
+                    if (!byEmail[email]) byEmail[email] = [];
+                    byEmail[email].push(p);
+                }
+                let html = '';
+                Object.keys(byEmail).sort().forEach(email => {
+                    const items = byEmail[email].sort((a,b)=>a.siteUrl.localeCompare(b.siteUrl));
+                    const sectionId = `conn_${btoa(email).replace(/=/g,'')}`;
+                    html += `<div class=\"security-section\">`;
+                    html += `<button class=\"btn btn-outline\" style=\"justify-content:space-between; width:100%;\" data-toggle=\"${sectionId}\">`+
+                            `<span>${email} (${items.length})</span>`+
+                            `<i class=\"fas fa-chevron-down\"></i></button>`;
+                    html += `<div id=\"${sectionId}\" class=\"conn-items\" style=\"display:none; padding:0.75rem 1rem 0 1rem;\">`;
+                    html += '<div style=\"display:flex; gap:.5rem; margin:.5rem 0; flex-wrap:wrap;\">';
+                    html += `<button class=\"btn btn-primary btn-sm js-refresh-conn\" data-email=\"${email}\"><i class=\"fas fa-sync\"></i> Refresh properties</button>`;
+                    html += `<button class=\"btn btn-primary btn-sm js-disconnect-conn\" data-email=\"${email}\"><i class=\"fas fa-unlink\"></i> Disconnect account</button>`;
+                    html += '</div>';
+                    html += '<ul style=\"margin:0; padding-left:1rem;\">';
+                    items.forEach(it => { html += `<li style=\"margin:.25rem 0; color:#374151;\" data-conn-id=\"${it.connectionId}\">${it.siteUrl}</li>`; });
+                    html += '</ul></div></div>';
+                });
+                container.innerHTML = html;
+                container.querySelectorAll('[data-toggle]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-toggle');
+                        const box = document.getElementById(id);
+                        const open = box.style.display !== 'none';
+                        box.style.display = open ? 'none' : 'block';
+                        btn.querySelector('i').classList.toggle('fa-chevron-down', open);
+                        btn.querySelector('i').classList.toggle('fa-chevron-up', !open);
+                    });
+                });
+                // Mapear email -> connectionId (tomar primero del listado)
+                const emailToConnId = {};
+                props.forEach(p => { if (!emailToConnId[p.googleEmail]) emailToConnId[p.googleEmail] = p.connectionId; });
+                // Handlers
+                container.querySelectorAll('.js-refresh-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        b.disabled = true; b.classList.add('loading');
+                        const r = await fetch(`/connections/${id}/refresh`, { method: 'POST' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false; b.classList.remove('loading');
+                        if (j && j.success) { showNotification('Properties refreshed', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to refresh', 'error'); }
+                    });
+                });
+                container.querySelectorAll('.js-disconnect-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        if (!confirm(`Disconnect account ${email}?`)) return;
+                        b.disabled = true; b.classList.add('loading');
+                        const r = await fetch(`/connections/${id}`, { method: 'DELETE' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false; b.classList.remove('loading');
+                        if (j && j.success) { showNotification('Account disconnected', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to disconnect', 'error'); }
+                    });
+                });
+            } catch (e) {
+                container.innerHTML = '<div class="security-notice">Error loading connections</div>';
+            }
+        }
+
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Pestañas
@@ -663,22 +956,34 @@
             
             // Logout
             document.querySelector('.logout-btn').addEventListener('click', logout);
+            // Edit profile open
+            const editBtn = document.getElementById('editProfileBtn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => openEditProfile());
+            }
             
             // Modales
-            document.querySelectorAll('.modal-close').forEach(btn => {
+            document.querySelectorAll('.profile-modal-close').forEach(btn => {
                 btn.addEventListener('click', function() {
                     this.closest('.modal').style.display = 'none';
                 });
             });
             
             // Clicks fuera del modal
-            document.querySelectorAll('.modal').forEach(modal => {
+            document.querySelectorAll('.profile-modal').forEach(modal => {
                 modal.addEventListener('click', function(e) {
                     if (e.target === this) {
                         this.style.display = 'none';
                     }
                 });
             });
+            // Cargar conexiones cuando se abra la pestaña
+            document.querySelector('[data-tab="connections"]').addEventListener('click', loadConnections);
+            // Pre-carga opcional si llegas con ?tab=connections
+            if (window.location.search.includes('tab=connections')) {
+                switchTab('connections');
+                loadConnections();
+            }
         });
     </script>
 
@@ -801,6 +1106,14 @@
         .badge-role {
             background: var(--profile-primary);
             color: var(--profile-secondary);
+            border-radius: var(--profile-border-radius);
+            font-weight: 600;
+        }
+
+        .badge-plan {
+            background: #e8f5e8;
+            color: #14532d;
+            border: 1px solid #bbf7d0;
             border-radius: var(--profile-border-radius);
             font-weight: 600;
         }
@@ -945,6 +1258,9 @@
 
         .security-section {
             margin-bottom: 2rem;
+            border: 1px solid #161616;
+            border-radius: 6px;
+            padding:6px;
         }
 
         .security-item {
@@ -1046,7 +1362,7 @@
         }
 
         /* Estilos de modales y formularios */
-        .modal {
+        .profile-modal {
             display: none;
             position: fixed;
             z-index: 1000;
@@ -1057,9 +1373,17 @@
             background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
         }
 
-        .modal-content {
+        .profile-modal[aria-hidden="false"] {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .profile-modal-content {
             background: white;
             border-radius: 12px;
             width: 90%;
@@ -1067,9 +1391,15 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             max-height: 90vh;
             overflow-y: auto;
+            transform: translateY(-6px);
+            transition: transform 0.2s ease;
         }
 
-        .modal-header {
+        .profile-modal[aria-hidden="false"] .profile-modal-content {
+            transform: translateY(0);
+        }
+
+        .profile-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -1077,12 +1407,12 @@
             border-bottom: 1px solid #dee2e6;
         }
 
-        .modal-header h3 {
+        .profile-modal-header h3 {
             margin: 0;
             color: var(--profile-gray-900);
         }
 
-        .modal-close {
+        .profile-modal-close {
             background: none;
             border: none;
             font-size: 1.5rem;
@@ -1098,16 +1428,16 @@
             transition: all 0.3s ease;
         }
 
-        .modal-close:hover {
+        .profile-modal-close:hover {
             background: var(--profile-gray-50);
             color: var(--profile-gray-900);
         }
 
-        .modal-body {
+        .profile-modal-body {
             padding: 1.5rem;
         }
 
-        .modal-footer {
+        .profile-modal-footer {
             padding: 1.5rem;
             border-top: 1px solid #dee2e6;
             display: flex;
@@ -1200,6 +1530,8 @@
             background: #d8f9b8;
             color:#161616;
         }
+
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.8rem; }
 
         .btn-secondary {
             background: #6c757d;
@@ -1296,6 +1628,11 @@
             margin-left: auto;
             padding: 4px;
         }
+
+        /* Progress bar for quota */
+        .progress-bar { width: 100%; height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; border: 1px solid #e5e7eb; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #d8f9b8, #9fe870); width: calc(var(--quota-pct, 0) * 1%); }
+        .progress-label { font-size: 0.85rem; color: #374151; margin-top: 6px; }
 
         /* Navbar */
         .navbar {

@@ -1,0 +1,326 @@
+/**
+ * QUOTA UI STYLES - FASE 4
+ * ========================
+ * 
+ * Estilos para componentes de quota, warnings y bloqueos.
+ */
+
+/* ===== QUOTA WARNING BANNER ===== */
+.quota-warning-banner {
+    position: relative;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: slideDown 0.3s ease-out;
+    z-index: 1000;
+}
+
+.quota-warning-banner.warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-left: 4px solid #f39c12;
+    color: #856404;
+}
+
+.quota-warning-banner.danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #e74c3c 100%);
+    border-left: 4px solid #dc3545;
+    color: #721c24;
+}
+
+.quota-warning-content {
+    max-width: 100%;
+}
+
+.quota-warning-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.quota-warning-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.quota-warning-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quota-warning-close:hover {
+    opacity: 1;
+}
+
+.quota-warning-message {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.quota-warning-action {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.quota-warning-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.quota-upgrade-btn {
+    background: #3498db !important;
+    border-color: #3498db !important;
+}
+
+.quota-upgrade-btn:hover {
+    background: #2980b9 !important;
+    border-color: #2980b9 !important;
+}
+
+/* ===== QUOTA BLOCK MODAL ===== */
+.quota-block-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.quota-block-modal {
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.quota-block-header {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px 12px 0 0;
+}
+
+.quota-block-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.quota-block-content {
+    padding: 24px;
+}
+
+.quota-block-message {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+}
+
+.quota-block-action {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin: 0 0 20px 0;
+    font-style: italic;
+}
+
+.quota-usage-info {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.quota-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.quota-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+    transition: width 0.3s ease;
+}
+
+.quota-usage-text {
+    margin: 0;
+    font-size: 14px;
+    color: #6c757d;
+    text-align: center;
+}
+
+.quota-block-buttons {
+    padding: 20px 24px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.quota-block-buttons .btn {
+    min-width: 120px;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .quota-warning-buttons {
+        flex-direction: column;
+    }
+    
+    .quota-warning-buttons .btn {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .quota-block-modal {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .quota-block-buttons {
+        flex-direction: column;
+    }
+    
+    .quota-block-buttons .btn {
+        width: 100%;
+    }
+}
+
+/* ===== INTEGRATION WITH EXISTING STYLES ===== */
+
+/* Asegurar que los banners de quota se vean bien con el tema existente */
+.container-fluid .quota-warning-banner:first-child {
+    margin-top: 0;
+}
+
+/* Estilos para botones que coincidan con el tema existente */
+.quota-warning-banner .btn,
+.quota-block-modal .btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid;
+}
+
+.quota-warning-banner .btn-primary,
+.quota-block-modal .btn-primary {
+    background: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.quota-warning-banner .btn-primary:hover,
+.quota-block-modal .btn-primary:hover {
+    background: #0056b3;
+    border-color: #004085;
+}
+
+.quota-warning-banner .btn-secondary,
+.quota-block-modal .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.quota-warning-banner .btn-secondary:hover,
+.quota-block-modal .btn-secondary:hover {
+    background: #545b62;
+    border-color: #4e555b;
+}
+
+/* ===== ESTADO DE BLOQUEO GLOBAL ===== */
+.quota-blocked {
+    pointer-events: none;
+    opacity: 0.6;
+    position: relative;
+}
+
+.quota-blocked::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(231, 76, 60, 0.1);
+    z-index: 1;
+}

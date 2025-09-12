@@ -79,7 +79,7 @@ body.dark-mode .ai-overlay {
 
 .ai-overlay-icon {
   font-size: 3rem;
-  color: #667eea;
+  color: #161616;
   margin-bottom: 1rem;
   display: block;
   animation: float 3s ease-in-out infinite;
@@ -106,25 +106,24 @@ body.dark-mode .ai-overlay {
    ======================================== */
 
 .btn-execute-ai {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 16px 32px;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  position: relative;
-  overflow: hidden;
-  min-width: 200px;
-  justify-content: center;
+  background: #161616;
+    color: #D8F9B8;
+    border: none;
+    padding: 16px 32px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+    min-width: 200px;
+    justify-content: center;
 }
 
 .btn-execute-ai::before {
@@ -145,7 +144,8 @@ body.dark-mode .ai-overlay {
 .btn-execute-ai:hover:not(:disabled) {
   transform: translateY(-3px);
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #7684ea 0%, #8659b2 100%);
+  background: #D8F9B8;
+  color: #161616;
 }
 
 .btn-execute-ai:active:not(:disabled) {
@@ -746,7 +746,7 @@ body.dark-mode .ai-progress-step.active {
 
 #keywordCountSelect {
   padding: 8px 12px;
-  border: 2px solid #667eea;
+  border: 3px solid #D8F9B8;
   border-radius: 8px;
   background: white;
   color: #333;
@@ -766,7 +766,7 @@ body.dark-mode #keywordCountSelect {
 }
 
 #keywordCountSelect:hover {
-  border-color: #5a6fd8;
+  border-color: #D8F9B8;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
   transform: translateY(-1px);
 }
@@ -777,7 +777,7 @@ body.dark-mode #keywordCountSelect:hover {
 }
 
 #keywordCountSelect:focus {
-  border-color: #4c63d2;
+  border-color: #161616;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   transform: translateY(-1px);
 }

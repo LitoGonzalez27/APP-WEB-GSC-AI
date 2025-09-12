@@ -14,7 +14,7 @@ import pytz
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
-from auth import auth_required, cron_or_auth_required, ai_user_required, get_current_user
+from auth import auth_required, cron_or_auth_required, get_current_user
 from services.serp_service import get_serp_json
 from services.ai_analysis import detect_ai_overview_elements
 from services.utils import extract_domain, normalize_search_console_url
@@ -25,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 # Blueprint independiente - no interfiere con rutas existentes
 manual_ai_bp = Blueprint('manual_ai', __name__, url_prefix='/manual-ai')
+
+# ✅ NUEVO FASE 4.5: Helper para control de plan
+def check_manual_ai_access(user):
+    """Verifica si el usuario tiene acceso a Manual AI"""
+    if user.get('plan') == 'free':
+        return False, {'error': 'Manual AI requires a paid plan', 'upgrade_required': True}
+    return True, None
 
 # ================================
 # UTILIDADES DE OBSERVABILIDAD
@@ -114,17 +121,26 @@ def manual_ai_health():
 # ================================
 
 @manual_ai_bp.route('/')
-@ai_user_required
+@auth_required  # Solo requiere autenticación, NO restricción por plan
 def manual_ai_dashboard():
-    """Dashboard principal del sistema Manual AI Analysis"""
+    """Dashboard principal del sistema Manual AI Analysis - ACCESO LIBRE CON PAYWALLS EN ACCIONES"""
     user = get_current_user()
+    
+    # ✅ NUEVO: Manual AI siempre accesible, paywall en acciones específicas
+    logger.info(f"Usuario accediendo Manual AI dashboard: {user.get('email')} (plan: {user.get('plan')})")
+    
     return render_template('manual_ai_dashboard.html', user=user)
 
 @manual_ai_bp.route('/api/projects', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_projects():
     """Obtener todos los proyectos del usuario actual"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     projects = get_user_projects(user['id'])
     
     return jsonify({
@@ -133,10 +149,15 @@ def get_projects():
     })
 
 @manual_ai_bp.route('/api/projects', methods=['POST'])
-@ai_user_required
+@auth_required
 def create_project():
     """Crear un nuevo proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     data = request.get_json()
     
     # Validaciones básicas
@@ -172,10 +193,15 @@ def create_project():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_details(project_id):
     """Obtener detalles completos de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -328,10 +354,15 @@ def delete_project(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/keywords', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_keywords(project_id):
     """Obtener keywords de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -681,17 +712,63 @@ def update_project_keyword(project_id, keyword_id):
 # ================================
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/analyze', methods=['POST'])
-@ai_user_required
+@auth_required
 def analyze_project(project_id):
     """Ejecutar análisis completo de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:
         # Ejecutar análisis manual con sobreescritura forzada
-        results = run_project_analysis(project_id, force_overwrite=True)
+        analysis_result = run_project_analysis(project_id, force_overwrite=True)
+        
+        # ✅ FASE 4: Manejar respuesta que puede incluir información de quota
+        if isinstance(analysis_result, dict) and analysis_result.get('quota_exceeded'):
+            # Análisis interrumpido por quota
+            quota_info = analysis_result.get('quota_info', {})
+            partial_results = analysis_result.get('results', [])
+            
+            logger.warning(f"Manual AI analysis for project {project_id} stopped due to quota limit")
+            
+            # Crear snapshot con resultados parciales si hay algunos
+            if partial_results:
+                create_daily_snapshot(project_id)
+            
+            # Crear evento de análisis parcial
+            create_project_event(
+                project_id=project_id,
+                event_type='manual_analysis_quota_exceeded',
+                event_title=f'Manual analysis stopped: quota exceeded ({len(partial_results)} keywords analyzed)',
+                keywords_affected=len(partial_results),
+                user_id=user['id']
+            )
+            
+            return jsonify({
+                'success': False,
+                'error': 'quota_exceeded',
+                'quota_exceeded': True,
+                'quota_info': quota_info,
+                'action_required': analysis_result.get('action_required', 'upgrade'),
+                'results_count': len(partial_results),
+                'keywords_analyzed': analysis_result.get('keywords_analyzed', 0),
+                'keywords_remaining': analysis_result.get('keywords_remaining', 0),
+                'analysis_date': str(date.today()),
+                'message': f'Analysis stopped due to quota limit. {len(partial_results)} keywords analyzed successfully.'
+            }), 429  # Too Many Requests
+        
+        # Análisis normal (lista de resultados)
+        if isinstance(analysis_result, list):
+            results = analysis_result
+        else:
+            # Fallback por si hay otra estructura
+            results = analysis_result.get('results', []) if isinstance(analysis_result, dict) else []
         
         if not results:
             logger.warning(f"No results returned for project {project_id} analysis")
@@ -730,10 +807,15 @@ def analyze_project(project_id):
         return jsonify({'success': False, 'error': 'Analysis failed due to internal error'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/results', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_results(project_id):
     """Obtener resultados de análisis de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -751,10 +833,15 @@ def get_project_results(project_id):
     })
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/stats', methods=['GET'])
-@ai_user_required
+@auth_required
 def get_project_stats(project_id):
     """Obtener estadísticas y gráficos de un proyecto"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -833,11 +920,87 @@ def get_global_domains_ranking(project_id):
         logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ================================
+# NUEVO: Endpoints “latest” (ignoran Time Range)
+# ================================
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/stats-latest', methods=['GET'])
+@auth_required
+def get_project_stats_latest(project_id: int):
+    """Devuelve métricas de Overview basadas en el último análisis disponible (ignora rango de días)."""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database connection error'}), 500
+        cur = conn.cursor()
+
+        # Tomar el último resultado por keyword activa (sin filtro por rango)
+        cur.execute("""
+            WITH latest_results AS (
+                SELECT DISTINCT ON (k.id)
+                    k.id AS keyword_id,
+                    r.has_ai_overview,
+                    r.domain_mentioned,
+                    r.domain_position,
+                    r.analysis_date
+                FROM manual_ai_keywords k
+                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                WHERE k.project_id = %s
+                AND k.is_active = true
+                ORDER BY k.id, r.analysis_date DESC
+            )
+            SELECT 
+                COUNT(*) as total_keywords,
+                COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                AVG(CASE WHEN domain_mentioned = true AND domain_position IS NOT NULL THEN domain_position END)::float as avg_position,
+                (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / NULLIF(COUNT(*), 0)::float * 100)::float as aio_weight_percentage,
+                (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100)::float as visibility_percentage,
+                MAX(analysis_date) as last_analysis_date
+            FROM latest_results
+        """, (project_id,))
+
+        main_stats = dict(cur.fetchone() or {})
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'main_stats': main_stats})
+    except Exception as e:
+        logger.error(f"Error getting latest overview stats for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/ai-overview-table-latest', methods=['GET'])
+@auth_required
+def get_ai_overview_table_latest(project_id: int):
+    """Tabla de AI Overview basada en el último análisis disponible por keyword (ignora rango)."""
+    user = get_current_user()
+    
+    if not user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = get_project_ai_overview_keywords_latest(project_id)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        logger.error(f"Error getting latest AI Overview table for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/download-excel', methods=['POST'])
-@ai_user_required
+@auth_required
 def download_manual_ai_excel(project_id):
     """Generar y descargar Excel con datos de Manual AI según especificaciones"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -1133,10 +1296,15 @@ def update_project_competitors(project_id):
         return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
-@ai_user_required
+@auth_required
 def export_project_data(project_id):
     """Exportar datos del proyecto a CSV"""
     user = get_current_user()
+    
+    # ✅ NUEVO FASE 4.5: Control por plan, no por rol
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
     
     if not user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -1479,8 +1647,25 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                     @with_backoff(max_attempts=3, base_delay_sec=1.0)
                     def fetch_serp():
                         data = get_serp_json(dict(serp_params_base))
-                        if not data or data.get('error'):
+                        
+                        # ✅ FASE 4: Manejar errores de quota específicamente
+                        if not data:
+                            raise RuntimeError('No SERP data returned')
+                        
+                        # Verificar errores de quota primero
+                        if data.get('quota_blocked'):
+                            logger.warning(f"🚫 Manual AI bloqueado por quota para '{keyword}': {data.get('error')}")
+                            # Crear una excepción específica para quota que pueda ser manejada diferente
+                            quota_error = RuntimeError(f"QUOTA_EXCEEDED: {data.get('error', 'Quota limit reached')}")
+                            quota_error.quota_info = data.get('quota_info', {})
+                            quota_error.action_required = data.get('action_required', 'upgrade')
+                            quota_error.is_quota_error = True
+                            raise quota_error
+                        
+                        # Verificar otros errores de SerpAPI
+                        if data.get('error'):
                             raise RuntimeError(data.get('error', 'SERP fetch error'))
+                            
                         return data
 
                     serp_data = fetch_serp()
@@ -1545,9 +1730,57 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
             logger.debug(f"Analyzed keyword '{keyword}': AI={ai_result.get('has_ai_overview')}, Mentioned={ai_result.get('domain_is_ai_source')}")
             
         except Exception as e:
-            logger.error(f"Error analyzing keyword '{keyword}': {e}")
-            failed_keywords += 1
-            continue
+            # ✅ FASE 4: Manejar errores de quota específicamente
+            if hasattr(e, 'is_quota_error') and e.is_quota_error:
+                logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {e}")
+                
+                # Guardar un resultado específico para quota exceeded
+                cur.execute('''
+                    INSERT INTO manual_ai_results 
+                    (project_id, keyword_id, keyword, analysis_date, has_ai_overview, 
+                     domain_mentioned, error_details, country_code)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (project_id, keyword_id, analysis_date) 
+                    DO UPDATE SET 
+                        has_ai_overview = EXCLUDED.has_ai_overview,
+                        domain_mentioned = EXCLUDED.domain_mentioned,
+                        error_details = EXCLUDED.error_details,
+                        updated_at = NOW()
+                ''', (
+                    project_id, keyword_id, keyword, today, False, False,
+                    f"QUOTA_EXCEEDED: {getattr(e, 'quota_info', {}).get('message', 'Quota limit reached')}",
+                    project['country_code']
+                ))
+                
+                # ✅ IMPORTANTE: Si es error de quota, probablemente todas las siguientes también fallarán
+                # Así que terminamos el análisis aquí con información específica
+                quota_info = getattr(e, 'quota_info', {})
+                action_required = getattr(e, 'action_required', 'upgrade')
+                
+                logger.error(f"🚫 Manual AI analysis stopped due to quota limit. "
+                           f"Plan: {quota_info.get('plan', 'unknown')}, "
+                           f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
+                
+                # Hacer commit y salir con información específica de quota
+                conn.commit()
+                cur.close()
+                conn.close()
+                
+                # Retornar resultados parciales + información de quota
+                return {
+                    'results': results,
+                    'quota_exceeded': True,
+                    'quota_info': quota_info,
+                    'action_required': action_required,
+                    'keywords_analyzed': len(results),
+                    'keywords_remaining': len(keywords) - len(results),
+                    'error': 'QUOTA_EXCEEDED'
+                }
+            else:
+                # Error normal (no de quota)
+                logger.error(f"Error analyzing keyword '{keyword}': {e}")
+                failed_keywords += 1
+                continue
     
     conn.commit()
     cur.close()
@@ -1618,8 +1851,11 @@ def run_daily_analysis_for_all_projects():
             SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
                    COUNT(k.id) as keyword_count
             FROM manual_ai_projects p
+            JOIN users u ON u.id = p.user_id
             LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
+              AND COALESCE(u.plan, 'free') <> 'free'
+              AND COALESCE(u.billing_status, '') NOT IN ('canceled')
             GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
             HAVING COUNT(k.id) > 0
             ORDER BY p.id
@@ -1666,21 +1902,40 @@ def run_daily_analysis_for_all_projects():
                 project_dict = dict(project)
             
             try:
-                # Verificar si ya se ejecutó hoy
+                # Verificar estado de facturación del usuario y si ya se ejecutó hoy
                 today = date.today()
                 conn = get_db_connection()
                 cur = conn.cursor()
                 
+                # 1) Estado del usuario: si está en free o cancelado, saltar
+                cur.execute("""
+                    SELECT COALESCE(plan, 'free') AS plan,
+                           COALESCE(billing_status, '') AS billing_status
+                    FROM users
+                    WHERE id = %s
+                """, (project_dict['user_id'],))
+                user_state = cur.fetchone() or {}
+                user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
+                    user_state[0] if user_state else 'free'
+                )
+                user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
+                    user_state[1] if user_state and len(user_state) > 1 else ''
+                )
+                if user_plan == 'free' or user_billing in ('canceled',):
+                    logger.info(f"⏭️ Skipping project {project_dict['id']} due to user plan/billing status (plan={user_plan}, billing={user_billing})")
+                    skipped_analyses += 1
+                    cur.close(); conn.close()
+                    continue
+                
+                # 2) Verificar si ya hay resultados hoy
                 cur.execute("""
                     SELECT COUNT(*) as count
                     FROM manual_ai_results 
                     WHERE project_id = %s AND analysis_date = %s
                 """, (project_dict['id'], today))
-                
                 result_row = cur.fetchone()
                 existing_results = result_row['count'] if result_row else 0
-                cur.close()
-                conn.close()
+                cur.close(); conn.close()
                 
                 if existing_results > 0:
                     logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) already analyzed today with {existing_results} results, skipping")
@@ -3324,6 +3579,85 @@ def get_project_ai_overview_keywords(project_id: int, days: int = 30) -> Dict:
         
     except Exception as e:
         logger.error(f"Error getting AI Overview keywords for project {project_id}: {e}")
+        return {'keywordResults': [], 'competitorDomains': []}
+
+def get_project_ai_overview_keywords_latest(project_id: int) -> Dict:
+    """Obtiene AI Overview Keywords basadas en el último análisis por keyword (sin rango de días)."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Info proyecto
+        cur.execute("""
+            SELECT domain, selected_competitors
+            FROM manual_ai_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_data = cur.fetchone()
+        if not project_data:
+            return {'keywordResults': [], 'competitorDomains': []}
+        project_domain = project_data['domain']
+        selected_competitors = project_data['selected_competitors'] or []
+
+        # Último análisis por keyword activa
+        cur.execute("""
+            WITH latest_analysis AS (
+                SELECT DISTINCT ON (k.id)
+                    k.id as keyword_id,
+                    k.keyword,
+                    r.has_ai_overview,
+                    r.domain_mentioned,
+                    r.domain_position,
+                    r.ai_analysis_data,
+                    r.analysis_date
+                FROM manual_ai_keywords k
+                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                WHERE k.project_id = %s
+                AND k.is_active = true
+                ORDER BY k.id, r.analysis_date DESC
+            )
+            SELECT 
+                keyword_id,
+                keyword,
+                has_ai_overview,
+                domain_mentioned,
+                domain_position,
+                ai_analysis_data,
+                analysis_date
+            FROM latest_analysis
+            WHERE has_ai_overview = true
+            ORDER BY keyword
+        """, (project_id,))
+
+        results = [dict(row) for row in cur.fetchall()]
+
+        keyword_results = []
+        for result in results:
+            entry = {
+                'keyword': result['keyword'],
+                'analysis_date': result['analysis_date'],
+                'ai_analysis': {
+                    'has_ai_overview': result['has_ai_overview'],
+                    'domain_is_ai_source': result['domain_mentioned'],
+                    'domain_ai_source_position': result['domain_position'],
+                    'debug_info': { 'references_found': [] }
+                }
+            }
+            if result['ai_analysis_data']:
+                ai_data = result['ai_analysis_data']
+                refs = (ai_data.get('debug_info') or {}).get('references_found', [])
+                entry['ai_analysis']['debug_info']['references_found'] = refs
+            keyword_results.append(entry)
+
+        cur.close()
+        conn.close()
+        return {
+            'keywordResults': keyword_results,
+            'competitorDomains': selected_competitors,
+            'projectDomain': project_domain
+        }
+    except Exception as e:
+        logger.error(f"Error getting latest AI Overview keywords for project {project_id}: {e}")
         return {'keywordResults': [], 'competitorDomains': []}
 
 def get_project_info(project_id: int) -> Optional[Dict]:

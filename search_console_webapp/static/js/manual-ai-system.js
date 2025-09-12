@@ -286,8 +286,13 @@ class ManualAISystem {
         // Auto-refresh projects every 2 minutes to catch cron updates
         this.refreshInterval = setInterval(() => {
             if (this.currentTab === 'projects') {
-                console.log('🔄 Auto-refreshing projects...');
-                this.loadProjects();
+                // ✅ NUEVO: Solo auto-refresh para usuarios con plan de pago
+                if (window.currentUser && window.currentUser.plan !== 'free') {
+                    console.log('🔄 Auto-refreshing projects...');
+                    this.loadProjects();
+                } else {
+                    console.log('🆓 Auto-refresh omitido para usuario gratuito');
+                }
             }
         }, 120000); // 2 minutos
         
@@ -356,6 +361,17 @@ class ManualAISystem {
             console.log('✅ Manual AI Download Excel event listener added');
         }
 
+        // Download PDF button
+        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                console.log('🖱️ Manual AI PDF download button clicked');
+                await this.handleDownloadPDF();
+            });
+            console.log('✅ Manual AI Download PDF event listener added');
+        }
+
         // Detail tabs
         document.querySelectorAll('[data-detail-tab]').forEach(tab => {
             tab.addEventListener('click', (e) => this.switchDetailTab(e.target.dataset.detailTab));
@@ -379,8 +395,29 @@ class ManualAISystem {
     }
 
     async loadInitialData() {
-        await this.loadProjects();
+        // ✅ NUEVO: Solo cargar proyectos para usuarios con plan de pago
+        if (window.currentUser && window.currentUser.plan !== 'free') {
+            console.log('💳 Usuario con plan de pago - cargando proyectos:', window.currentUser.plan);
+            await this.loadProjects();
+        } else {
+            console.log('🆓 Usuario gratuito - mostrando estado sin proyectos');
+            // Mostrar estado sin proyectos (el botón "Crear proyecto" activará paywall)
+            this.showFreeUserState();
+        }
+        
         this.populateAnalyticsProjectSelect();
+    }
+
+    // ✅ NUEVO: Estado para usuarios gratuitos
+    showFreeUserState() {
+        // Ocultar loading
+        this.hideElement(this.elements.projectsLoading);
+        
+        // Mostrar estado "sin proyectos" que es compatible con usuarios gratuitos
+        this.projects = []; // Array vacío
+        this.renderProjects(); // Esto mostrará el empty state con "Crear proyecto"
+        
+        console.log('🆓 Estado gratuito mostrado - botón "Crear proyecto" disponible para paywall');
     }
 
     // ================================
@@ -680,6 +717,14 @@ class ManualAISystem {
     // ================================
 
     showCreateProject() {
+        // ✅ NUEVO: Verificar plan antes de mostrar formulario
+        if (window.currentUser && window.currentUser.plan === 'free') {
+            console.log('🆓 Usuario gratuito intentó crear proyecto - mostrando paywall');
+            window.showPaywall('Manual AI Analysis');
+            return;
+        }
+        
+        console.log('💳 Usuario con plan - mostrando formulario de creación');
         this.elements.createProjectForm.reset();
         this.showElement(this.elements.createProjectModal);
     }
@@ -1101,11 +1146,68 @@ class ManualAISystem {
             
             clearTimeout(timeoutId);
 
+            const data = await response.json();
+
+            // ✅ NUEVO FASE 4.5: Manejar paywalls (402)
+            if (response.status === 402) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                console.warn(`🚫 Manual AI analysis blocked by paywall: ${data.error}`);
+                
+                // Mostrar paywall si está disponible
+                if (window.showPaywall) {
+                    window.showPaywall('Manual AI Analysis', data.upgrade_options || ['basic', 'premium']);
+                }
+                
+                this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
+                return;
+            }
+
+            // ✅ FASE 4: Manejar errores de quota específicamente
+            if (response.status === 429 && data.quota_exceeded) {
+                clearInterval(backupPolling);
+                this.hideProgress();
+                
+                const quotaInfo = data.quota_info || {};
+                const analyzed = data.keywords_analyzed || 0;
+                const remaining = data.keywords_remaining || 0;
+                
+                console.warn(`🚫 Manual AI analysis blocked by quota: ${data.error}`);
+                
+                // Mostrar UI de quota si está disponible
+                if (window.QuotaUI) {
+                    window.QuotaUI.showBlockModal({
+                        error: data.error,
+                        quota_blocked: true,
+                        quota_info: quotaInfo,
+                        action_required: data.action_required || 'upgrade'
+                    });
+                }
+                
+                // Mostrar mensaje específico de quota
+                const quotaMessage = analyzed > 0 
+                    ? `Analysis stopped due to quota limit. ${analyzed} keywords were analyzed successfully before reaching the limit. ${remaining} keywords remain.`
+                    : `Analysis blocked: You have reached your monthly quota limit. Please upgrade your plan to continue.`;
+                    
+                this.showError(quotaMessage);
+                
+                // Refresh project stats en caso de que se hayan analizado algunas keywords
+                if (analyzed > 0) {
+                    await this.loadProjects();
+                    
+                    // Refresh analytics if needed
+                    if (this.elements.analyticsProjectSelect.value == projectId) {
+                        await this.loadAnalytics();
+                    }
+                }
+                
+                return; // No continuar con el flujo normal
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
-
-            const data = await response.json();
 
             if (data.success) {
                 clearInterval(backupPolling); // Stop backup polling
@@ -1222,19 +1324,43 @@ class ManualAISystem {
     renderAnalytics(stats) {
         console.log('📊 Rendering analytics data:', stats);
         
-        // Update summary cards with safe access
-        this.updateSummaryCard('totalKeywords', stats.main_stats?.total_keywords || 0);
-        this.updateSummaryCard('aiKeywords', stats.main_stats?.total_ai_keywords || 0);
-        this.updateSummaryCard('domainMentions', stats.main_stats?.total_mentions || 0);
-        this.updateSummaryCard('visibilityPercentage', 
-            stats.main_stats?.visibility_percentage ? 
-            Math.round(stats.main_stats.visibility_percentage) + '%' : '0%');
-        this.updateSummaryCard('averagePosition', 
-            stats.main_stats?.avg_position ? 
-            Math.round(stats.main_stats.avg_position * 10) / 10 : '-');
-        this.updateSummaryCard('aioWeight', 
-            stats.main_stats?.aio_weight_percentage ? 
-            Math.round(stats.main_stats.aio_weight_percentage) + '%' : '0%');
+        // Update summary cards — ahora desde endpoint "latest" (ignora rango)
+        const projectIdForLatest = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
+        if (projectIdForLatest) {
+            const latestToken = Date.now();
+            this._latestOverviewToken = latestToken;
+            fetch(`/manual-ai/api/projects/${projectIdForLatest}/stats-latest`)
+                .then(r => r.json())
+                .then(latest => {
+                    if (this._latestOverviewToken !== latestToken) return; // evitar pisado por race
+                    const ms = latest?.main_stats || {};
+                    const totalKeywords = Number(ms.total_keywords) || 0;
+                    const totalAi = Number(ms.total_ai_keywords) || 0;
+                    const totalMentions = Number(ms.total_mentions) || 0;
+                    const avgPos = (ms.avg_position !== null && ms.avg_position !== undefined) ? Number(ms.avg_position) : null;
+                    const aioWeightPct = (ms.aio_weight_percentage !== null && ms.aio_weight_percentage !== undefined) ? Number(ms.aio_weight_percentage) : null;
+                    const visPctRaw = (ms.visibility_percentage !== null && ms.visibility_percentage !== undefined) ? Number(ms.visibility_percentage) : null;
+                    
+                    this.updateSummaryCard('totalKeywords', totalKeywords);
+                    this.updateSummaryCard('aiKeywords', totalAi);
+                    this.updateSummaryCard('domainMentions', totalMentions);
+                    // Mostrar visibilidad con base en último análisis si viene calculada
+                    const visPct = (typeof ms.visibility_percentage === 'number') ? ms.visibility_percentage : ms.aio_weight_percentage;
+                    this.updateSummaryCard('visibilityPercentage', typeof visPct === 'number' ? Math.round(visPct) + '%' : '0%');
+                    this.updateSummaryCard('averagePosition',
+                        typeof ms.avg_position === 'number' ? Math.round(ms.avg_position * 10) / 10 : '-');
+                    this.updateSummaryCard('aioWeight',
+                        typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
+
+                    // Badge "Latest analysis"
+                    const header = document.querySelector('.overview-section .section-header p.section-description');
+                    if (header) {
+                        const dt = ms.last_analysis_date ? new Date(ms.last_analysis_date).toLocaleDateString() : '';
+                        header.textContent = `Data from the latest analysis${dt ? ' (' + dt + ')' : ''}`;
+                    }
+                })
+                .catch(() => {/* silencioso */});
+        }
 
         // Show charts container
         this.hideElement(this.elements.analyticsContent);
@@ -1242,7 +1368,6 @@ class ManualAISystem {
 
         // Get project ID from stats or current selection
         const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
-
         if (!projectId) {
             console.warn('No project ID available for analytics rendering');
             return;
@@ -1312,8 +1437,9 @@ class ManualAISystem {
 
         const ctx = canvasEl.getContext('2d');
         
-        // Destroy existing chart
+        // Destroy existing chart (limpiando listeners previos primero)
         if (this.charts.visibility) {
+            this.clearEventAnnotations(this.charts.visibility);
             this.charts.visibility.destroy();
         }
 
@@ -1414,6 +1540,9 @@ class ManualAISystem {
             }
         });
 
+        // 🔄 Limpiar anotaciones y listeners anteriores siempre que re-renderizamos
+        this.clearEventAnnotations(this.charts.visibility);
+
         // ✅ MEJORADO: Aplicar anotaciones de eventos de keywords
         if (events && events.length > 0) {
             const annotations = this.createEventAnnotations(data, events);
@@ -1442,6 +1571,10 @@ class ManualAISystem {
                 // Re-render con las anotaciones
                 this.charts.visibility.update();
             }
+        } else {
+            // Asegurar estado limpio cuando no hay eventos
+            this.charts.visibility.options.annotationsData = [];
+            this.clearEventAnnotations(this.charts.visibility);
         }
     }
 
@@ -1680,6 +1813,24 @@ class ManualAISystem {
         return icons[eventType] || '•';
     }
 
+    // 🧹 NUEVO: Limpieza segura de listeners y tooltip de anotaciones
+    clearEventAnnotations(chart) {
+        if (!chart) return;
+        const canvas = chart.canvas;
+        if (chart._annotationHandlers) {
+            try {
+                canvas.removeEventListener('mousemove', chart._annotationHandlers.onMouseMove);
+                canvas.removeEventListener('mouseleave', chart._annotationHandlers.onMouseLeave);
+            } catch (_) { /* noop */ }
+            chart._annotationHandlers = null;
+        }
+        // Ocultar tooltip si existe
+        const tooltip = document.getElementById('chart-annotation-tooltip');
+        if (tooltip) tooltip.style.opacity = 0;
+        // Limpiar datos de anotaciones por si el plugin los lee
+        if (chart.options) chart.options.annotationsData = [];
+    }
+
     showEventAnnotations(chart, annotations) {
         // Enhanced tooltip functionality for annotations
         const canvas = chart.canvas;
@@ -1830,13 +1981,16 @@ class ManualAISystem {
             canvas.style.cursor = 'default';
         };
         
-        // Remove existing listeners
-        canvas.removeEventListener('mousemove', onMouseMove);
-        canvas.removeEventListener('mouseleave', onMouseLeave);
+        // 🔄 Remover listeners previos usando referencias persistentes
+        if (chart._annotationHandlers) {
+            canvas.removeEventListener('mousemove', chart._annotationHandlers.onMouseMove);
+            canvas.removeEventListener('mouseleave', chart._annotationHandlers.onMouseLeave);
+        }
         
-        // Add new listeners
+        // Add new listeners y guardar referencias para próximas limpiezas
         canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('mouseleave', onMouseLeave);
+        chart._annotationHandlers = { onMouseMove, onMouseLeave };
     }
     
     // ================================================
@@ -2551,7 +2705,10 @@ class ManualAISystem {
         const days = this.elements.analyticsTimeRange?.value || 30;
 
         try {
-            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table?days=${days}`);
+            // Tabla de AI Overview debe quedarse fija al último análisis disponible
+            const latestToken = Date.now();
+            this._latestAIOTableToken = latestToken;
+            const response = await fetch(`/manual-ai/api/projects/${projectId}/ai-overview-table-latest`);
             
             if (!response.ok) {
                 if (response.status === 404) {
@@ -2562,6 +2719,7 @@ class ManualAISystem {
             }
 
             const result = await response.json();
+            if (this._latestAIOTableToken !== latestToken) return; // evitar pisado por race
             const data = result.data || {};
             
             // Render AI Overview keywords table using Grid.js
@@ -2586,7 +2744,8 @@ class ManualAISystem {
         container.innerHTML = '';
 
         const keywordResults = data.keywordResults || [];
-        const competitorDomains = data.competitorDomains || [];
+        // Asegurar orden y unicidad de competidores para columnas deterministas
+        const competitorDomains = Array.from(new Set((data.competitorDomains || []).map(d => (d || '').toLowerCase()))).sort();
 
         console.log('🏗️ Rendering AI Overview table with:', {
             keywords: keywordResults.length,
@@ -2610,9 +2769,13 @@ class ManualAISystem {
             return;
         }
 
-        // Create Grid.js table
+        // Rebuild Grid.js table from scratch (destroy previous instances)
         try {
             const { columns, gridData } = this.processAIOverviewDataForGrid(keywordResults, competitorDomains);
+            // Hard rebuild: replace container node to avoid stale Grid.js state
+            const parent = container.parentNode;
+            const fresh = container.cloneNode(false);
+            parent.replaceChild(fresh, container);
             
             const grid = new gridjs.Grid({
                 columns: columns,
@@ -2634,7 +2797,7 @@ class ManualAISystem {
             });
 
             // Render the grid
-            grid.render(container);
+            grid.render(fresh);
             console.log('✅ AI Overview Grid.js table rendered successfully');
 
         } catch (error) {
@@ -2656,7 +2819,14 @@ class ManualAISystem {
                 id: 'your_domain_in_aio',
                 name: gridjs.html('Your Domain<br>in AIO'),
                 width: '120px',
-                sort: true,
+                sort: {
+                    compare: (a, b) => {
+                        // Ordenar Yes/No: Yes primero
+                        const va = (a === 'Yes') ? 1 : 0;
+                        const vb = (b === 'Yes') ? 1 : 0;
+                        return vb - va; // Yes > No
+                    }
+                },
                 formatter: (cell) => {
                     const isPresent = cell === 'Yes';
                     return gridjs.html(`
@@ -2701,7 +2871,13 @@ class ManualAISystem {
                 id: `comp_${domainId}_present`,
                 name: gridjs.html(`${truncatedDomain}<br>in AIO`),
                 width: '120px',
-                sort: true,
+                sort: {
+                    compare: (a, b) => {
+                        const va = (a === 'Yes') ? 1 : 0;
+                        const vb = (b === 'Yes') ? 1 : 0;
+                        return vb - va; // Yes > No
+                    }
+                },
                 formatter: (cell) => {
                     const isPresent = cell === 'Yes';
                     return gridjs.html(`
@@ -2743,14 +2919,15 @@ class ManualAISystem {
             const row = [
                 keyword,
                 aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
-                aiAnalysis.domain_ai_source_position || 'N/A'
+                (typeof aiAnalysis.domain_ai_source_position === 'number' && aiAnalysis.domain_ai_source_position > 0)
+                    ? aiAnalysis.domain_ai_source_position : 'N/A'
             ];
 
             // Add competitor data
             competitorDomains.forEach(domain => {
                 const competitorData = this.findCompetitorDataInResult(result, domain);
                 row.push(competitorData.isPresent ? 'Yes' : 'No');
-                row.push(competitorData.position || 'N/A');
+                row.push((typeof competitorData.position === 'number' && competitorData.position > 0) ? competitorData.position : 'N/A');
             });
 
             return row;
@@ -3661,7 +3838,18 @@ class ManualAISystem {
         }
 
         noKeywords.style.display = 'none';
-        keywordsList.innerHTML = keywords.map(keyword => `
+        // Guardar copia en memoria para filtrado
+        this._modalAllKeywords = keywords;
+
+        // Si existe input de búsqueda, aplicar filtro inicial (si mantiene valor)
+        const searchInput = document.getElementById('modalKeywordsSearch');
+        const query = (searchInput && searchInput.value || '').trim().toLowerCase();
+
+        const filtered = query
+            ? keywords.filter(k => (k.keyword || '').toLowerCase().includes(query))
+            : keywords;
+
+        keywordsList.innerHTML = filtered.map(keyword => `
             <div class="keyword-item" data-keyword-id="${keyword.id}">
                 <div class="keyword-text">${this.escapeHtml(keyword.keyword)}</div>
                 <div class="keyword-meta">${keyword.is_active ? 'Active' : 'Inactive'}</div>
@@ -3673,6 +3861,46 @@ class ManualAISystem {
                 </button>
             </div>
         `).join('');
+
+        // Atachar listener una sola vez
+        if (searchInput && !searchInput._listenerAttached) {
+            const handler = (e) => {
+                const q = e.target.value.trim().toLowerCase();
+                const data = this._modalAllKeywords || [];
+                const subset = q ? data.filter(k => (k.keyword || '').toLowerCase().includes(q)) : data;
+                keywordsList.innerHTML = subset.map(keyword => `
+                    <div class=\"keyword-item\" data-keyword-id=\"${keyword.id}\"> 
+                        <div class=\"keyword-text\">${this.escapeHtml(keyword.keyword)}</div>
+                        <div class=\"keyword-meta\">${keyword.is_active ? 'Active' : 'Inactive'}</div>
+                        <button type=\"button\" class=\"btn-remove-keyword\" onclick=\"manualAI.removeKeywordFromModal(${keyword.id})\" title=\"Remove keyword\"> 
+                            <i class=\"fas fa-trash\"></i> Remove 
+                        </button>
+                    </div>
+                `).join('');
+            };
+            searchInput.addEventListener('input', handler);
+            searchInput._listenerAttached = true;
+        }
+    }
+
+    clearModalKeywordsSearch() {
+        const input = document.getElementById('modalKeywordsSearch');
+        if (input) {
+            input.value = '';
+            // Re-render listado completo con la copia en memoria
+            const data = this._modalAllKeywords || [];
+            const keywordsList = document.getElementById('modalKeywordsList');
+            keywordsList.innerHTML = data.map(keyword => `
+                <div class=\"keyword-item\" data-keyword-id=\"${keyword.id}\"> 
+                    <div class=\"keyword-text\">${this.escapeHtml(keyword.keyword)}</div>
+                    <div class=\"keyword-meta\">${keyword.is_active ? 'Active' : 'Inactive'}</div>
+                    <button type=\"button\" class=\"btn-remove-keyword\" onclick=\"manualAI.removeKeywordFromModal(${keyword.id})\" title=\"Remove keyword\"> 
+                        <i class=\"fas fa-trash\"></i> Remove 
+                    </button>
+                </div>
+            `).join('');
+            input.focus();
+        }
     }
 
     loadModalSettings(project) {
@@ -3996,7 +4224,9 @@ class ManualAISystem {
         this.pendingAnnotation = {
             type: changeType,
             description: changeDescription,
-            projectId: this.currentModalProject ? this.currentModalProject.id : null
+            projectId: (this.currentModalProject && this.currentModalProject.id) ||
+                       (this.currentProject && this.currentProject.id) ||
+                       (this.elements.analyticsProjectSelect ? parseInt(this.elements.analyticsProjectSelect.value) : null)
         };
 
         // Update modal content
@@ -4096,11 +4326,16 @@ class ManualAISystem {
 
     showDownloadButton(show = true) {
         const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
         const globalSection = document.getElementById('navSectionGlobal');
         
         if (downloadBtn) {
             downloadBtn.style.display = show ? 'flex' : 'none';
             console.log(`📥 Download Excel button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        if (downloadPdfBtn) {
+            downloadPdfBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download PDF button ${show ? 'shown' : 'hidden'} for Manual AI`);
         }
         
         // Show/hide the entire global section based on button visibility
@@ -4207,6 +4442,76 @@ class ManualAISystem {
             if (downloadBtn) downloadBtn.disabled = false;
             if (spinner) spinner.style.display = 'none';
             if (btnText) btnText.style.display = 'inline';
+        }
+    }
+
+    async handleDownloadPDF() {
+        try {
+            const btn = document.getElementById('sidebarDownloadPdfBtn');
+            const spinner = btn?.querySelector('.download-spinner');
+            const btnText = btn?.querySelector('span');
+            if (spinner && btnText) {
+                spinner.style.display = 'inline-block';
+                btnText.textContent = 'Preparing PDF...';
+            }
+
+            // Ocultar elementos excluidos del PDF
+            const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"]'));
+            const prevDisplay = new Map();
+            excluded.forEach(el => {
+                prevDisplay.set(el, el.style.display);
+                el.style.display = 'none';
+            });
+
+            const [{ default: html2canvas }] = await Promise.all([
+                import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
+            ]);
+            // Cargar jsPDF UMD y acceder via window.jspdf.jsPDF
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+                    s.onload = () => resolve();
+                    s.onerror = () => reject(new Error('Failed to load jsPDF'));
+                    document.head.appendChild(s);
+                });
+            }
+
+            const target = document.querySelector('.manual-ai-app') || document.body;
+            const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+            const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth;
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            let position = 0;
+            let heightLeft = imgHeight;
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            const fileName = `manual_ai_overview_${Date.now()}.pdf`;
+            pdf.save(fileName);
+            
+            // Restaurar elementos excluidos
+            excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
+        } catch (err) {
+            console.error('Error generating PDF:', err);
+            this.showError('Failed to generate PDF.');
+        } finally {
+            const btn = document.getElementById('sidebarDownloadPdfBtn');
+            const spinner = btn?.querySelector('.download-spinner');
+            const btnText = btn?.querySelector('span');
+            if (spinner && btnText) {
+                spinner.style.display = 'none';
+                btnText.textContent = 'Download PDF';
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
 from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE
 from services.ai_analysis import detect_ai_overview_elements
+from stripe_webhooks import create_webhook_route
 from services.utils import extract_domain, normalize_search_console_url, urls_match
 from services.country_config import get_country_config
 
@@ -32,13 +33,13 @@ from auth import (
     login_required,
     auth_required,
     admin_required,
-    ai_user_required,
     is_user_authenticated,
     is_user_ai_enabled,
     get_authenticated_service,
     get_user_credentials,
     get_current_user
 )
+from database import get_connection_for_site, list_gsc_properties_for_user
 
 # --- NUEVO: Detector de dispositivos móviles ---
 from mobile_detector import (
@@ -98,6 +99,9 @@ if is_production or is_staging:
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)
 
+# --- NUEVO: Configurar webhook de Stripe ---
+create_webhook_route(app)
+
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
     """
@@ -105,7 +109,19 @@ def get_top_country_for_site(site_url):
     para usar como geolocalización en SERP API cuando no se especifica país.
     """
     try:
-        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        # Intentar usar la conexión asociada a la propiedad
+        gsc_service = None
+        try:
+            user = get_current_user()
+            mapping_conn = get_connection_for_site(user['id'], site_url) if user else None
+            if mapping_conn:
+                from auth import get_authenticated_service_for_connection
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+        except Exception as _e_top_map:
+            logger.warning(f"No se pudo resolver conexión por site_url en get_top_country_for_site: {_e_top_map}")
+
+        if not gsc_service:
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
         if not gsc_service:
             logger.warning("No se pudo obtener servicio autenticado para determinar país principal")
             return 'esp'  # fallback
@@ -321,12 +337,33 @@ def fetch_validated_sites():
         return []
 
 @app.route('/get-properties')
-@auth_required  # NUEVO: Requiere autenticación
+@auth_required
 def get_properties():
-    """Obtiene propiedades de Search Console del usuario autenticado"""
-    sites = fetch_validated_sites()
-    props = [{'siteUrl': s['siteUrl']} for s in sites if s.get('siteUrl')]
-    return jsonify({'properties': props})
+    """Compat: Obtiene propiedades agregadas de todas las conexiones del usuario"""
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        props_db = list_gsc_properties_for_user(user['id']) or []
+        # Mantener contrato: lista de objetos con siteUrl (se admiten campos extra)
+        props = []
+        for p in props_db:
+            site_url = p.get('site_url') or p.get('siteUrl')
+            if not site_url:
+                continue
+            props.append({
+                'siteUrl': site_url,
+                'googleEmail': p.get('google_email'),
+                'googleAccountId': p.get('google_account_id'),
+                'connectionId': p.get('connection_id'),
+                'permissionLevel': p.get('permission_level')
+            })
+
+        return jsonify({'properties': props})
+    except Exception as e:
+        logger.error(f"Error en get-properties (compat agregado): {e}", exc_info=True)
+        return jsonify({'error': 'Error obteniendo propiedades'}), 500
 
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
@@ -506,8 +543,17 @@ def get_data():
             country_name = country_config['name'] if country_config else selected_country
             logger.info(f"[GSC REQUEST] País filtrado: {country_name} ({selected_country})")
 
-        # Obtener servicio autenticado
-        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        # Obtener servicio autenticado (seleccionando conexión por site_url si está mapeada)
+        gsc_service = None
+        try:
+            mapping_conn = get_connection_for_site(get_current_user()['id'], site_url_sc)
+            if mapping_conn:
+                from auth import get_authenticated_service_for_connection
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+        except Exception as e:
+            logger.warning(f"No se pudo resolver conexión por site_url: {e}")
+        if not gsc_service:
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
         if not gsc_service:
             error_msg = 'Error de autenticación con Google Search Console.'
             if is_mobile:
@@ -574,35 +620,71 @@ def get_data():
                 logger.info(f"[GSC URLS] Obtenidas {len(period_data)} páginas de la propiedad completa")
             else:
                 # CON filtro de página - modo tradicional
-                for val_url in form_urls:
-                    url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
-                    combined_filters = get_base_filters(url_filter)
-                    
-                    # Obtener datos para este período
+                if match_type == 'notContains' and len(form_urls) > 1:
+                    # Excluir páginas que contengan cualquiera de las expresiones: combinar con AND
+                    url_filter_group = {
+                        'groupType': 'and',
+                        'filters': [
+                            {'dimension': 'page', 'operator': 'notContains', 'expression': val_url}
+                            for val_url in form_urls
+                        ]
+                    }
+                    combined_filters = get_base_filters([url_filter_group])
+
                     rows_data = fetch_searchconsole_data_single_call(
-                        gsc_service, site_url_sc, 
-                        start_date.strftime('%Y-%m-%d'), 
-                        end_date.strftime('%Y-%m-%d'), 
-                        ['page'], 
+                        gsc_service, site_url_sc,
+                        start_date.strftime('%Y-%m-%d'),
+                        end_date.strftime('%Y-%m-%d'),
+                        ['page'],
                         combined_filters
                     )
-                    
+
                     for r_item in rows_data:
                         page_url = r_item['keys'][0]
                         period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
-                        
+
                         if page_url not in period_data:
                             period_data[page_url] = []
-                        
+
                         period_data[page_url].append({
                             'Period': period_label,
                             'StartDate': start_date.strftime('%Y-%m-%d'),
                             'EndDate': end_date.strftime('%Y-%m-%d'),
-                            'Clicks': r_item['clicks'], 
+                            'Clicks': r_item['clicks'],
                             'Impressions': r_item['impressions'],
-                            'CTR': r_item['ctr'], 
+                            'CTR': r_item['ctr'],
                             'Position': r_item['position']
                         })
+                else:
+                    for val_url in form_urls:
+                        url_filter = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url}]}]
+                        combined_filters = get_base_filters(url_filter)
+                        
+                        # Obtener datos para este período
+                        rows_data = fetch_searchconsole_data_single_call(
+                            gsc_service, site_url_sc, 
+                            start_date.strftime('%Y-%m-%d'), 
+                            end_date.strftime('%Y-%m-%d'), 
+                            ['page'], 
+                            combined_filters
+                        )
+                        
+                        for r_item in rows_data:
+                            page_url = r_item['keys'][0]
+                            period_label = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}{label_suffix}"
+                            
+                            if page_url not in period_data:
+                                period_data[page_url] = []
+                            
+                            period_data[page_url].append({
+                                'Period': period_label,
+                                'StartDate': start_date.strftime('%Y-%m-%d'),
+                                'EndDate': end_date.strftime('%Y-%m-%d'),
+                                'Clicks': r_item['clicks'], 
+                                'Impressions': r_item['impressions'],
+                                'CTR': r_item['ctr'], 
+                                'Position': r_item['position']
+                            })
             
             return period_data
 
@@ -789,10 +871,17 @@ def get_data():
                 logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords agregadas de propiedad completa")
             else:
                 # CON filtro de página - modo tradicional
-                for val_url_kw in form_urls:
-                    url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
-                    combined_filters_kw = get_base_filters(url_filter_kw)
-                    
+                if match_type == 'notContains' and len(form_urls) > 1:
+                    # Excluir páginas que contengan cualquiera de las expresiones: combinar con AND
+                    url_filter_kw_group = {
+                        'groupType': 'and',
+                        'filters': [
+                            {'dimension': 'page', 'operator': 'notContains', 'expression': val_url_kw}
+                            for val_url_kw in form_urls
+                        ]
+                    }
+                    combined_filters_kw = get_base_filters([url_filter_kw_group])
+
                     rows_data = fetch_searchconsole_data_single_call(
                         gsc_service, site_url_sc,
                         start_date.strftime('%Y-%m-%d'),
@@ -800,7 +889,7 @@ def get_data():
                         ['page','query'], 
                         combined_filters_kw
                     )
-                    
+
                     for r_item in rows_data:
                         if len(r_item.get('keys', [])) >= 2:
                             query = r_item['keys'][1]
@@ -809,14 +898,41 @@ def get_data():
                                     'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
                                     'pos_sum': 0.0, 'count': 0, 'url': ''
                                 }
-                            
                             kw_entry = keyword_data[query]
-                            kw_entry['url'] = val_url_kw
                             kw_entry['clicks'] += r_item['clicks']
                             kw_entry['impressions'] += r_item['impressions']
                             kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                             kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                             kw_entry['count'] += r_item['impressions']
+                else:
+                    for val_url_kw in form_urls:
+                        url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
+                        combined_filters_kw = get_base_filters(url_filter_kw)
+                        
+                        rows_data = fetch_searchconsole_data_single_call(
+                            gsc_service, site_url_sc,
+                            start_date.strftime('%Y-%m-%d'),
+                            end_date.strftime('%Y-%m-%d'),
+                            ['page','query'], 
+                            combined_filters_kw
+                        )
+                        
+                        for r_item in rows_data:
+                            if len(r_item.get('keys', [])) >= 2:
+                                query = r_item['keys'][1]
+                                if query not in keyword_data:
+                                    keyword_data[query] = {
+                                        'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
+                                        'pos_sum': 0.0, 'count': 0, 'url': ''
+                                    }
+                                
+                                kw_entry = keyword_data[query]
+                                kw_entry['url'] = val_url_kw
+                                kw_entry['clicks'] += r_item['clicks']
+                                kw_entry['impressions'] += r_item['impressions']
+                                kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
+                                kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
+                                kw_entry['count'] += r_item['impressions']
             
             return keyword_data
 
@@ -1120,6 +1236,20 @@ def get_serp_raw_json():
     
     try:
         serp_data_json = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_json.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp bloqueado por quota para user - keyword: '{keyword_query}'")
+            return jsonify({
+                'error': serp_data_json.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_json.get('quota_info', {}),
+                'action_required': serp_data_json.get('action_required'),
+                'organic_results': [],
+                'ads': []
+            }), 429  # Too Many Requests
+        
+        # ✅ Respuesta normal exitosa
         return jsonify({
             'organic_results': serp_data_json.get('organic_results', []), 
             'ads': serp_data_json.get('ads', [])
@@ -1149,6 +1279,25 @@ def get_serp_position():
     
     try:
         serp_data_pos = get_serp_json(params_serp)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente
+        if serp_data_pos.get('quota_blocked'):
+            logger.warning(f"🚫 /api/serp/position bloqueado por quota para user - keyword: '{keyword_val}'")
+            return jsonify({
+                'error': serp_data_pos.get('error', 'Quota exceeded'),
+                'quota_blocked': True,
+                'quota_info': serp_data_pos.get('quota_info', {}),
+                'action_required': serp_data_pos.get('action_required'),
+                'keyword': keyword_val,
+                'domain': normalize_search_console_url(site_url_val),
+                'found': False,
+                'position': None,
+                'result': None,
+                'result_type': None,
+                'all_matches': [],
+                'total_results': 0,
+                'timestamp': time.time()
+            }), 429  # Too Many Requests
         
         if not serp_data_pos:
             logger.error(f"[SERP POSITION] No se obtuvo respuesta de SerpAPI para '{keyword_val}'")
@@ -1233,6 +1382,39 @@ def get_serp_screenshot_route():
         logger.error(f"[SCREENSHOT ROUTE] Error para keyword '{keyword_param}': {e}", exc_info=True)
         return jsonify({'error': f'Error general al generar screenshot: {e}'}), 500
 
+# ✅ FASE 4: Nueva ruta para verificar estado de quota
+@app.route('/api/quota/status')
+@auth_required
+def get_quota_status():
+    """Obtiene el estado actual de quota del usuario autenticado"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        # Importar función de quota middleware
+        from quota_middleware import get_quota_warning_info
+        from quota_manager import get_user_quota_status, get_user_access_permissions
+        
+        # Obtener estado de quota completo
+        quota_status = get_user_quota_status(user_id)
+        access_permissions = get_user_access_permissions(user_id)
+        warning_info = get_quota_warning_info(user_id)
+        
+        response_data = {
+            'quota_status': quota_status,
+            'access_permissions': access_permissions,
+            'warning_info': warning_info
+        }
+        
+        logger.info(f"📊 Quota status para user {user_id}: {quota_status['quota_used']}/{quota_status['quota_limit']} RU")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo quota status: {e}")
+        return jsonify({'error': 'Could not retrieve quota status'}), 500
+
 def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=None):
     """
     Analiza el impacto de AI Overview para una keyword específica con sistema de caché
@@ -1268,9 +1450,42 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
     
     try:
         serp_data_from_service = get_serp_json(params_ai)
+        
+        # ✅ FASE 4: Manejar errores de quota específicamente en AI Overview
+        if not serp_data_from_service:
+            raise Exception("El servicio get_serp_json devolvió datos vacíos")
+        
+        # Verificar errores de quota primero
+        if serp_data_from_service.get("quota_blocked"):
+            logger.warning(f"🚫 AI Overview bloqueado por quota para '{keyword_arg}': {serp_data_from_service.get('error')}")
+            quota_error_result = {
+                'keyword': keyword_arg,
+                'error': 'quota_exceeded',
+                'quota_info': serp_data_from_service.get('quota_info', {}),
+                'action_required': serp_data_from_service.get('action_required'),
+                'ai_analysis': {
+                    'has_ai_overview': False,
+                    'quota_blocked': True,
+                    'debug_info': {
+                        'error': 'Quota limit reached',
+                        'message': serp_data_from_service.get('error'),
+                        'quota_info': serp_data_from_service.get('quota_info', {})
+                    }
+                },
+                'site_position': 'Quota Exceeded',
+                'serp_features': [],
+                'timestamp': time.time(),
+                'country_analyzed': country_code or 'esp'
+            }
             
-        if not serp_data_from_service or "error" in serp_data_from_service:
-            error_msg = serp_data_from_service.get("error", "El servicio get_serp_json devolvió datos vacíos o con error")
+            # ✅ NUEVO: Guardar en caché el resultado de quota para evitar repetir llamadas
+            ai_cache.cache_analysis(keyword_arg, site_url_arg, country_code or '', quota_error_result)
+            
+            return quota_error_result
+        
+        # Verificar otros errores de SerpAPI
+        if "error" in serp_data_from_service:
+            error_msg = serp_data_from_service.get("error", "Error desconocido de SerpAPI")
             logger.warning(f"Error SERP para '{keyword_arg}': {error_msg}")
             raise Exception(error_msg)
 
@@ -1630,6 +1845,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                     logger.info(f"✅ Progreso: {i}/{len(keywords_data_list)} keywords procesadas")
                     # TODO: En futuras versiones, enviar progreso real al frontend via SSE
                 
+                # ✅ FASE 4: Manejar resultados de quota en análisis paralelo
                 if 'ai_analysis' not in ai_result_item:
                     ai_result_item['ai_analysis'] = {
                         'has_ai_overview': False,
@@ -1640,6 +1856,12 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
                         'domain_ai_source_position': None,
                         'domain_ai_source_link': None
                     }
+                
+                # ✅ NUEVO: Verificar si es error de quota para marcar apropiadamente
+                is_quota_error = ai_result_item.get('error') == 'quota_exceeded'
+                if is_quota_error:
+                    logger.info(f"⚠️ Keyword '{keyword_str}' bloqueada por quota - incluida en resultados")
+                    # El resultado de quota ya tiene la estructura correcta, no necesita modificación
 
                 combined_result = {
                     **kw_data_item,
@@ -1673,6 +1895,44 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
 @app.route('/api/analyze-ai-overview', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
 def analyze_ai_overview_route():
+    # ✅ NUEVO FASE 4.5: PAYWALL CHECK
+    user = get_current_user()
+    
+    # ✅ NUEVO: Asegurar que la tabla de quota existe antes del análisis
+    try:
+        from database import ensure_quota_table_exists
+        ensure_quota_table_exists()
+    except Exception as e:
+        logger.warning(f"No se pudo verificar tabla quota_usage_events: {e}")
+    
+    # Paywall: Solo Basic/Premium pueden usar AI Overview
+    if user.get('plan') == 'free':
+        logger.warning(f"Usuario Free intentó acceder AI Overview: {user.get('email')}")
+        return jsonify({
+            'error': 'paywall',
+            'message': 'AI Overview requires a paid plan',
+            'upgrade_options': ['basic', 'premium'],
+            'current_plan': 'free'
+        }), 402  # Payment Required
+    
+    # Quota check: Verificar límites de RU
+    quota_used = user.get('quota_used', 0)
+    quota_limit = user.get('quota_limit', 0)
+    
+    if quota_limit > 0 and quota_used >= quota_limit:
+        logger.warning(f"Usuario excedió quota: {user.get('email')} ({quota_used}/{quota_limit} RU)")
+        return jsonify({
+            'error': 'quota_exceeded',
+            'message': 'You have reached your monthly limit',
+            'quota_info': {
+                'quota_used': quota_used,
+                'quota_limit': quota_limit,
+                'percentage': round((quota_used / quota_limit) * 100, 1) if quota_limit > 0 else 0
+            },
+            'action_required': 'upgrade',
+            'current_plan': user.get('plan', 'free')
+        }), 429  # Too Many Requests
+    
     try:
         request_payload = request.get_json()
         keywords_data_list = request_payload.get('keywords', [])
@@ -1862,6 +2122,37 @@ def analyze_ai_overview_route():
         except Exception as e:
             logger.error(f"❌ Error guardando análisis en BD: {e}")
 
+        # ✅ NUEVO: Registrar consumo de RU por cada keyword exitosamente analizada
+        if user_id and successful_analyses_overview > 0:
+            try:
+                from database import track_quota_consumption
+                
+                # Registrar consumo: 1 RU por keyword exitosamente analizada
+                keywords_processed = successful_analyses_overview
+                tracking_success = track_quota_consumption(
+                    user_id=user_id,
+                    ru_consumed=keywords_processed,
+                    source='ai_overview',
+                    keyword=f"{keywords_processed} keywords analyzed",
+                    country_code=country_req,
+                    metadata={
+                        'site_url': site_url_req,
+                        'total_keywords': total_analyzed_overview,
+                        'successful_keywords': successful_analyses_overview,
+                        'keywords_with_ai': summary_overview_stats.get('keywords_with_ai_overview', 0),
+                        'analysis_timestamp': summary_overview_stats.get('analysis_timestamp')
+                    }
+                )
+                
+                if tracking_success:
+                    logger.info(f"✅ Quota tracking exitoso - Usuario {user_id}: +{keywords_processed} RU (AI Overview)")
+                else:
+                    logger.warning(f"⚠️ No se pudo registrar consumo de quota para usuario {user_id}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error registrando consumo de quota: {e}")
+                # No fallar el análisis por problemas de tracking
+
         # ✅ NUEVO: Guardar múltiples análisis en caché por lotes
         try:
             cached_count = ai_cache.cache_analysis_batch(results_list_overview)
@@ -1922,9 +2213,21 @@ def get_available_countries():
     if not site_url:
         return jsonify({'error': 'site_url es requerido'}), 400
     
-    gsc_service = get_authenticated_service('searchconsole', 'v1')
+    # Resolver servicio: preferir conexión asociada a la propiedad
+    gsc_service = None
+    try:
+        user = get_current_user()
+        mapping_conn = get_connection_for_site(user['id'], site_url) if user else None
+        if mapping_conn:
+            from auth import get_authenticated_service_for_connection
+            gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+    except Exception as e:
+        logger.warning(f"No se pudo resolver conexión por site_url en get_available_countries: {e}")
+
     if not gsc_service:
-        return jsonify({'error': 'Error de autenticación'}), 401
+        gsc_service = get_authenticated_service('searchconsole', 'v1')
+    if not gsc_service:
+        return jsonify({'error': 'Error de autenticación', 'auth_required': True}), 401
     
     try:
         end_date = pd.Timestamp.now()
@@ -2668,6 +2971,24 @@ def initialize_database_on_startup():
 
 # Registrar Manual AI System siempre (no solo en __main__)
 register_manual_ai_system()
+
+# ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
+def register_billing_routes():
+    """Register Billing Routes for SaaS self-service flow"""
+    try:
+        from billing_routes import setup_billing_routes
+        setup_billing_routes(app)
+        logger.info("✅ Billing routes (SaaS self-service) registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ Billing routes not available: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering billing routes: {e}")
+        return False
+
+# Registrar Billing Routes para flujo SaaS
+register_billing_routes()
 
 if __name__ == '__main__':
     # Initialize database first

@@ -2,6 +2,179 @@
 
 import { formatInteger, formatPercentage, formatPercentageChange, formatPosition, formatPositionDelta, formatAbsoluteDelta, calculateAbsoluteDelta, parsePositionValue, parseIntegerValue, parseNumericValue } from './number-utils.js';
 
+// =============================
+// UI state y helpers para Keyword Filter
+// =============================
+const kwFilterState = {
+    initialized: false,
+    terms: []
+};
+
+function updateKwFilterMethodDescription() {
+    const descEl = document.getElementById('kwFilterMethodDescription');
+    const methodEl = document.getElementById('kwFilterMethod');
+    if (!descEl || !methodEl) return;
+    const m = methodEl.value;
+    const map = {
+        contains: 'Show rows where keyword contains any term',
+        equals: 'Show rows where keyword exactly matches any term',
+        notContains: 'Hide rows where keyword contains any term',
+        notEquals: 'Hide rows where keyword exactly matches any term'
+    };
+    descEl.textContent = map[m] || 'Filter keywords by terms';
+}
+
+function renderKwFilterTags() {
+    const container = document.getElementById('kwFilterTagsContainer');
+    const countEl = document.getElementById('kwFilterCount');
+    const clearAllEl = document.getElementById('kwFilterClearAll');
+    if (!container) return;
+
+    if (countEl) countEl.textContent = kwFilterState.terms.length;
+
+    if (kwFilterState.terms.length === 0) {
+        container.innerHTML = '<div class="exclusion-empty">No exclusions yet...</div>';
+        return;
+    }
+
+    container.innerHTML = kwFilterState.terms.map((term, index) => `
+        <div class="exclusion-tag">
+            <span class="exclusion-tag-text">${escapeHtmlLocal(term)}</span>
+            <span class="exclusion-tag-remove" data-index="${index}" title="Remove">
+                <i class="fas fa-times"></i>
+            </span>
+        </div>
+    `).join('');
+}
+
+function addKwFilterTerm(raw) {
+    if (!raw) return;
+    const term = raw.trim().toLowerCase();
+    if (!term) return;
+    if (kwFilterState.terms.includes(term)) return;
+    kwFilterState.terms.push(term);
+    renderKwFilterTags();
+}
+
+function clearKwFilterTerms() {
+    kwFilterState.terms = [];
+    const input = document.getElementById('kwFilterTerms');
+    if (input) input.value = '';
+    renderKwFilterTags();
+    // Restaurar tabla completa inmediatamente si hay grid activa
+    try {
+        const container = document.getElementById('keywordComparisonBlock');
+        if (container) {
+            // Buscar la instancia de Grid.js asociada si existe
+            // Reprocesar con datos originales sin filtro
+            const tables = container.querySelectorAll('.gridjs-container');
+            if (tables && tables.length > 0) {
+                // Reemplazar datos usando la función principal de creación
+                if (window.lastKeywordsData && Array.isArray(window.lastKeywordsData)) {
+                    const { columns, data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
+                    const grid = container.querySelector('.gridjs-root')?.gridjs?.instance;
+                    if (grid) {
+                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
+                    }
+                }
+            }
+        }
+    } catch (_) {}
+}
+
+function ensureKwFilterUISetup() {
+    if (kwFilterState.initialized) return;
+    const input = document.getElementById('kwFilterTerms');
+    const methodEl = document.getElementById('kwFilterMethod');
+    const tagsContainer = document.getElementById('kwFilterTagsContainer');
+    const clearAll = document.getElementById('kwFilterClearAll');
+    const clearBtn = document.getElementById('kwFilterClearBtn');
+    if (!input || !methodEl || !tagsContainer) return; // UI aún no en DOM
+
+    // Eventos de input: coma/Enter crean tag; comas pegadas se reparten
+    input.addEventListener('keydown', (e) => {
+        const v = input.value.trim();
+        if ((e.key === ',' || e.key === 'Enter') && v) {
+            e.preventDefault();
+            addKwFilterTerm(v);
+            input.value = '';
+        }
+        if (e.key === 'Backspace' && !v && kwFilterState.terms.length > 0) {
+            kwFilterState.terms.pop();
+            renderKwFilterTags();
+        }
+    });
+    input.addEventListener('input', () => {
+        const val = input.value;
+        if (val.includes(',')) {
+            const parts = val.split(',');
+            const last = parts.pop();
+            parts.forEach(p => addKwFilterTerm(p));
+            input.value = (last || '').trim();
+        }
+    });
+
+    // Cambios de método → descripción
+    methodEl.addEventListener('change', updateKwFilterMethodDescription);
+    updateKwFilterMethodDescription();
+
+    // Eliminar tag por click
+    tagsContainer.addEventListener('click', (e) => {
+        const rm = e.target.closest('.exclusion-tag-remove');
+        if (rm && rm.dataset.index !== undefined) {
+            const idx = parseInt(rm.dataset.index, 10);
+            if (!isNaN(idx)) {
+                kwFilterState.terms.splice(idx, 1);
+                renderKwFilterTags();
+            }
+        }
+    });
+
+    // Clear All
+    if (clearBtn && !clearBtn.dataset.bound) {
+        clearBtn.addEventListener('click', () => clearKwFilterTerms());
+        clearBtn.dataset.bound = 'true';
+    }
+
+    renderKwFilterTags();
+    kwFilterState.initialized = true;
+}
+
+// =============================
+// Keyword Filter (frontend)
+// =============================
+function getKeywordFilterConfig() {
+    const methodEl = document.getElementById('kwFilterMethod');
+    const method = methodEl ? methodEl.value : 'contains';
+    // Usar el estado interno (tags creados por el usuario)
+    const terms = kwFilterState.terms.slice();
+    return { method, terms };
+}
+
+function applyKeywordFilter(keywordsData) {
+    const { method, terms } = getKeywordFilterConfig();
+    if (!Array.isArray(keywordsData) || terms.length === 0) return keywordsData;
+
+    const matches = (kw) => {
+        const k = (kw || '').toString().toLowerCase();
+        switch (method) {
+            case 'contains':
+                return terms.some(t => k.includes(t));
+            case 'equals':
+                return terms.some(t => k === t);
+            case 'notContains':
+                return terms.every(t => !k.includes(t));
+            case 'notEquals':
+                return terms.every(t => k !== t);
+            default:
+                return true;
+        }
+    };
+
+    // keywordsData es array de objetos { keyword, ... }
+    return keywordsData.filter(row => matches(row.keyword));
+}
+
 /**
  * Crea y renderiza la tabla Grid.js de Keywords
  * @param {Array} keywordsData - Datos de keywords procesados
@@ -30,8 +203,13 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         return null;
     }
 
+    // Aplicar filtro de palabras clave (si hay)
+    // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
+    ensureKwFilterUISetup();
+    const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
+
     // Procesar datos para Grid.js
-    const { columns, data } = processKeywordsDataForGrid(keywordsData, analysisType);
+    const { columns, data } = processKeywordsDataForGrid(filteredKeywords, analysisType);
 
     // Crear contenedor para la tabla con ID único y consistente
     const uniqueId = `keywords-grid-table-${Date.now()}`;
@@ -48,7 +226,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Crear instancia de Grid.js
     const grid = new gridjs.Grid({
         columns: columns,
-        data: data,
+        data: Array.isArray(data) ? data : [],
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
         search: {
             enabled: true,
@@ -125,6 +303,58 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         
         grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
+
+        // Adjuntar botón Apply solo para la tabla principal (no para modales)
+        const isMainGrid = (container && (container.id === 'keywordComparisonBlock' || container.classList.contains('table-responsive-container')));
+
+        // Eventos para aplicar filtro bajo demanda (botón Apply)
+        const reRenderWithFilter = () => {
+            try {
+                const filtered = applyKeywordFilter(keywordsData) || [];
+                const processed = processKeywordsDataForGrid(filtered, analysisType) || { data: [] };
+                const safeData = Array.isArray(processed.data) ? processed.data : [];
+                // Usar función para que Grid.js retrase el pipeline correctamente
+                grid.updateConfig({ data: () => safeData }).forceRender();
+            } catch (e) {
+                console.warn('⚠️ No se pudo aplicar filtro dinámico de keywords:', e);
+            }
+        };
+
+        // Botón Apply: bind único y solo en la tabla principal
+        if (isMainGrid) {
+            const applyBtn = document.getElementById('kwFilterApplyBtn');
+            if (applyBtn && applyBtn.dataset.bound !== 'true') {
+                applyBtn.addEventListener('click', () => {
+                    applyBtn.disabled = true;
+                    applyBtn.classList.add('loading');
+                    const icon = applyBtn.querySelector('i');
+                    if (icon) { icon.classList.remove('fa-check'); icon.classList.add('fa-spinner','fa-spin'); }
+                    setTimeout(() => {
+                        reRenderWithFilter();
+                        applyBtn.disabled = false;
+                        applyBtn.classList.remove('loading');
+                        if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-check'); }
+                    }, 0);
+                });
+                applyBtn.dataset.bound = 'true';
+            }
+
+            // También re-render al limpiar (Clear All) si el botón existe
+            const clearBtn = document.getElementById('kwFilterClearBtn');
+            if (clearBtn && clearBtn.dataset.rebind !== 'true') {
+                clearBtn.addEventListener('click', () => {
+                    const icon = clearBtn.querySelector('i');
+                    if (icon) { icon.classList.remove('fa-trash-alt'); icon.classList.add('fa-spinner','fa-spin'); }
+                    // Tras limpiar términos, restaurar tabla completa
+                    if (window.lastKeywordsData) {
+                        const { data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
+                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
+                    }
+                    setTimeout(() => { if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-trash-alt'); } }, 150);
+                });
+                clearBtn.dataset.rebind = 'true';
+            }
+        }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
         setTimeout(() => {
@@ -196,7 +426,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
             id: 'keyword',
             name: 'Keyword',
             width: '200px',
-            formatter: (cell) => gridjs.html(`<span class="keyword-text">${escapeHtml(cell)}</span>`)
+            formatter: (cell) => gridjs.html(`<span class="keyword-text">${escapeHtmlLocal(cell)}</span>`)
         }
     ];
 
@@ -402,7 +632,7 @@ function displayErrorMessage(container) {
 /**
  * Escapa HTML para prevenir XSS
  */
-function escapeHtml(text) {
+function escapeHtmlLocal(text) {
     const map = {
         '&': '&amp;',
         '<': '&lt;',

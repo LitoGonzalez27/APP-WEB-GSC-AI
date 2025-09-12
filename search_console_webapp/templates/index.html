@@ -45,8 +45,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='sidebar-navigation.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-reset-styles.css') }}">
   
+  <!-- ✅ FASE 4: Estilos de Quota UI -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='quota-ui.css') }}">
+  
   <!-- ClicAndSEO Style Guide - Search Performance Consistency -->
   <link rel="stylesheet" href="{{ url_for('static', filename='search-performance-styles.css') }}">
+  
+  <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='paywall.css') }}">
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
   <!-- Google Tag Manager (noscript) -->
@@ -241,7 +247,7 @@
             </div>
           </button>
 
-          {% if user and user.role in ['admin', 'AI User'] %}
+          {% if user %}
           <button type="button" class="nav-item" id="navManualAI" onclick="openManualAI()">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
@@ -252,7 +258,7 @@
             </div>
           </button>
           {% else %}
-          <div class="nav-item disabled" id="navManualAI" title="This functionality is only available for AI Users">
+          <div class="nav-item disabled" id="navManualAI" title="Authentication required">
             <div class="nav-icon">
               <i class="fas fa-cogs"></i>
             </div>
@@ -300,15 +306,23 @@
               <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
             </div> 
 
-            <div class="form-row">
-              <div class="form-group form-group-half">
-                <label for="siteUrlSelect">Select Domain</label>
+            <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+              <!-- Columna 1: Filtro de propiedades -->
+              <div class="form-group">
+                <label for="siteUrlFilter">Filter properties</label>
+                <input type="text" id="siteUrlFilter" placeholder="Search properties (domain or email)" aria-label="Search properties" />
+              </div>
+
+              <!-- Columna 2: Selector de propiedad -->
+              <div class="form-group">
+                <label for="siteUrlSelect">Select property</label>
                 <select id="siteUrlSelect" name="site_url" required>
                   <option value="" disabled selected>Loading properties...</option>
                 </select>
               </div>
 
-              <div class="form-group form-group-half">
+              <!-- Columna 3: Country -->
+              <div class="form-group">
                 <label for="countrySelect">
                   Country
                   <span class="country-info-icon" id="countryInfoIcon">
@@ -420,6 +434,88 @@
 
           <div class="keywords-category-block">
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
+          </div>
+
+          <!-- Keyword Filter (estética similar a Keyword Exclusions) -->
+          <div class="collapsible-block" id="keywordFilterBlock">
+            <div class="collapsible-header" id="keywordFilterHeader" onclick="toggleCollapsible('keywordFilter')">
+              <div class="collapsible-title">
+                <i class="fas fa-filter"></i>
+                <span>Keyword Filter</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="keywordFilterSummary">
+                Filter keywords by terms (contains / equals / not contains / not equal)
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="keywordFilterArrow"></i>
+            </div>
+
+            <div class="collapsible-content" id="keywordFilterContent">
+              <div class="exclusion-container">
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-filter"></i>
+                      Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="kwFilterMethod" class="exclusion-method-select">
+                        <option value="contains" selected>Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="notContains">Not Contains</option>
+                        <option value="notEquals">Not Equal</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="kwFilterMethodDescription">Show rows where keyword contains any term</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Terms
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="kwFilterTerms" 
+                        placeholder="Type term, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Use comma (,) or Enter to add</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Active Tags -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-tags"></i>
+                      Active Filters
+                      <span class="exclusion-count" id="kwFilterCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="exclusion-tags-container" id="kwFilterTagsContainer"></div>
+                      <div class="exclusion-clear-all" id="kwFilterClearAll" style="gap: 8px; display: flex; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="clear-all-btn" id="kwFilterClearBtn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                        <button type="button" class="clear-all-btn" id="kwFilterApplyBtn" style="background:#161616; color:#fff; border-color:#161616;">
+                          <i class="fas fa-check"></i>
+                          Apply Filter
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div id="keywordComparisonBlock" class="table-responsive-container">
             <!-- Grid.js table will be inserted here -->
@@ -792,11 +888,10 @@
     </main>
   </div>
 
-  <div id="serpModal" class="modal">
+  <div id="serpModal" class="modal serp-dark-links">
     <div class="modal-content">
       <div class="modal-header">
         <h3>
-          <i class="fas fa-search"></i> 
           SERP Analysis: <span id="serpKeyword"></span>
         </h3>
         <span class="close-btn">&times;</span>
@@ -989,8 +1084,15 @@
 
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+      <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+  
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+    
   <script type="module" src="{{ url_for('static', filename='js/ui-table-enhancements.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ai-reset-manager.js') }}"></script>
 
