@@ -107,14 +107,16 @@ def setup_billing_routes(app):
         # ✅ CRÍTICO: Verificar suscripción existente ANTES de crear checkout
         current_plan = user.get('plan', 'free')
         current_status = user.get('billing_status', 'inactive')
+        # Considerar 'trialing' como suscripción activa a efectos de UX
+        SUBSCRIBED_STATUSES = ['active', 'trialing']
         
-        # Si ya tiene el mismo plan activo → redirigir al portal
-        if current_plan == plan and current_status == 'active':
+        # Si ya tiene el mismo plan activo (o en trial) → redirigir al portal
+        if current_plan == plan and current_status in SUBSCRIBED_STATUSES:
             logger.info(f"Usuario {user['email']} ya tiene plan {plan} activo - redirigiendo a portal")
             return redirect('/billing/portal?message=already_subscribed')
         
-        # Si tiene plan diferente pero activo → usar Customer Portal para upgrade/downgrade
-        if current_status == 'active' and current_plan != 'free':
+        # Si tiene plan diferente pero activo/trial → usar Customer Portal para upgrade/downgrade
+        if current_status in SUBSCRIBED_STATUSES and current_plan != 'free':
             logger.info(f"Usuario {user['email']} plan {current_plan} → {plan} - usando Customer Portal")
             return redirect(f'/billing/portal?intended_plan={plan}&message=use_portal_for_changes')
         
@@ -135,25 +137,42 @@ def setup_billing_routes(app):
             return jsonify({'error': 'Could not create customer'}), 500
         
         try:
-            # Crear Checkout Session
-            checkout_session = stripe.checkout.Session.create(
-                customer=customer_id,
-                client_reference_id=str(user['id']),  # ✅ CRÍTICO: Para identificar usuario en webhook
-                payment_method_types=['card'],
-                line_items=[{
+            # Elegibilidad para trial (una sola vez por cliente)
+            eligible_for_trial = not bool(user.get('trial_used'))
+            try:
+                if eligible_for_trial and customer_id:
+                    subs = stripe.Subscription.list(customer=customer_id, status='all', limit=1)
+                    if getattr(subs, 'data', []) and len(subs.data) > 0:
+                        eligible_for_trial = False
+            except Exception as _e:
+                logger.warning(f"No se pudo verificar historial de suscripciones para trial: {_e}")
+
+            # Crear parámetros base de Checkout Session
+            create_params = {
+                'customer': customer_id,
+                'client_reference_id': str(user['id']),  # ✅ CRÍTICO
+                'payment_method_types': ['card'],
+                'line_items': [{
                     'price': price_id,
                     'quantity': 1,
                 }],
-                mode='subscription',
-                success_url=url_for('billing_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-                cancel_url=url_for('billing_cancel', _external=True) + f'?plan={plan}&interval={interval}',
-                metadata={
+                'mode': 'subscription',
+                'success_url': url_for('billing_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url': url_for('billing_cancel', _external=True) + f'?plan={plan}&interval={interval}',
+                'metadata': {
                     'user_id': user['id'],
                     'plan': plan,
                     'interval': interval,
-                    'source': request.args.get('source', 'direct')
+                    'source': request.args.get('source', 'direct'),
+                    'trial_eligible': 'true' if eligible_for_trial else 'false'
                 }
-            )
+            }
+
+            if eligible_for_trial:
+                create_params['subscription_data'] = {'trial_period_days': 7}
+
+            # Crear Checkout Session
+            checkout_session = stripe.checkout.Session.create(**create_params)
             
             logger.info(f"Checkout session creada para usuario {user['email']}, plan {plan}")
             return redirect(checkout_session.url)
@@ -288,6 +307,8 @@ def setup_billing_routes(app):
                     'created_at': datetime.fromtimestamp(checkout_session.created) if hasattr(checkout_session, 'created') else datetime.now(),
                     'current_period_start': datetime.fromtimestamp(subscription.current_period_start) if subscription and hasattr(subscription, 'current_period_start') else None,
                     'current_period_end': datetime.fromtimestamp(subscription.current_period_end) if subscription and hasattr(subscription, 'current_period_end') else None,
+                    'trialing': getattr(subscription, 'status', None) == 'trialing' if subscription else False,
+                    'trial_end': datetime.fromtimestamp(getattr(subscription, 'trial_end', 0)) if (subscription and getattr(subscription, 'trial_end', None)) else None,
                     
                     # Customer info
                     'customer_email': getattr(customer, 'email', user.get('email')),
@@ -368,5 +389,6 @@ def setup_billing_routes(app):
             'quota_used': user.get('quota_used', 0),
             'subscription_id': user.get('subscription_id'),
             'current_period_end': user.get('current_period_end'),
-            'activated': user.get('billing_status') == 'active' and user.get('plan') != 'free'
+            # Considerar 'trialing' como activación válida durante el periodo de prueba
+            'activated': (user.get('billing_status') in ['active', 'trialing']) and user.get('plan') != 'free'
         })

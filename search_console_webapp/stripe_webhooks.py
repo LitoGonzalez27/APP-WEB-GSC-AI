@@ -15,6 +15,7 @@ from datetime import datetime
 from flask import request, jsonify
 from stripe_config import get_stripe_config
 from database import get_db_connection
+from email_service import send_email
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,7 @@ class StripeWebhookHandler:
             status = subscription.get('status')
             current_period_start = subscription.get('current_period_start')
             current_period_end = subscription.get('current_period_end')
+            trial_end_ts = subscription.get('trial_end')
             
             # Obtener producto y plan de los items de la suscripción
             items = subscription.get('items', {}).get('data', [])
@@ -217,6 +219,50 @@ class StripeWebhookHandler:
             conn.close()
             
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
+            
+            # Enviar email de inicio de trial (una sola vez)
+            try:
+                if status == 'trialing' and action in ['created', 'updated']:
+                    conn2 = get_db_connection()
+                    if conn2:
+                        cur2 = conn2.cursor()
+                        # Asegurar columna para idempotencia
+                        try:
+                            cur2.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_started_email_sent_at TIMESTAMPTZ")
+                        except Exception:
+                            pass
+                        cur2.execute('SELECT email, name, trial_started_email_sent_at FROM users WHERE stripe_customer_id = %s LIMIT 1', (customer_id,))
+                        row = cur2.fetchone()
+                        if row and (not row.get('trial_started_email_sent_at')):
+                            user_email = row['email']
+                            user_name = row.get('name')
+                            trial_end = datetime.fromtimestamp(trial_end_ts) if trial_end_ts else period_end
+                            subject = "Tu prueba gratis de 7 días ha comenzado"
+                            html = f"""
+                            <html><body style=\"font-family: Arial, sans-serif;\">
+                                <h2>¡Bienvenido a tu prueba de {plan.title()}!</h2>
+                                <p>Acabas de activar una prueba gratuita de 7 días del plan <strong>{plan.title()}</strong>.</p>
+                                <p>Al finalizar el periodo de prueba, el {trial_end.strftime('%Y-%m-%d') if trial_end else 'día 7'}, se realizará el cargo automáticamente salvo cancelación previa.</p>
+                                <p>Puedes gestionar tu suscripción en cualquier momento desde el portal de cliente.</p>
+                                <p><a href=\"https://app.clicandseo.com/billing/portal\" style=\"display:inline-block;padding:10px 16px;background:#D8F9B8;color:#111;text-decoration:none;border-radius:8px;\">Abrir portal de suscripción</a></p>
+                                <p style=\"color:#666;font-size:12px;margin-top:20px;\">Este email es informativo. Si no esperabas este mensaje, contacta con soporte.</p>
+                            </body></html>
+                            """
+                            text = (
+                                f"Tu prueba de 7 días del plan {plan.title()} ha comenzado. "
+                                f"Se cobrará automáticamente en {trial_end.strftime('%Y-%m-%d') if trial_end else '7 días'} salvo cancelación. "
+                                "Gestiona tu suscripción en https://app.clicandseo.com/billing/portal"
+                            )
+                            try:
+                                send_email(user_email, subject, html, text)
+                                cur2.execute('UPDATE users SET trial_started_email_sent_at = NOW() WHERE stripe_customer_id = %s', (customer_id,))
+                                conn2.commit()
+                                logger.info(f"✉️ Trial-start email enviado a {user_email}")
+                            except Exception as _em:
+                                logger.warning(f"No se pudo enviar email de trial-start: {_em}")
+                        conn2.close()
+            except Exception as _e:
+                logger.warning(f"Post-processing (trial email) falló: {_e}")
             return {'success': True, 'message': f'Subscription {action} processed'}
             
         except Exception as e:
