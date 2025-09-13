@@ -96,41 +96,78 @@ def validate_quota_access(user_id: int, operation_type: str = "serp_call") -> Di
     try:
         # Obtener permisos de acceso del usuario
         permissions = get_user_access_permissions(user_id)
-        
+        quota_status = permissions['quota_status']
+        plan = quota_status.get('plan', 'unknown')
+
+        # Ramas por tipo de operación
+        is_serp = str(operation_type).startswith('serp_')
+
+        if is_serp:
+            # Política: SERP está permitido para plan Free (no consume RU),
+            # y para planes de pago si tienen RU disponible
+            if plan == 'free':
+                return {
+                    'allowed': True,
+                    'reason': 'Plan Free: SERP permitido (sin consumo de RU)',
+                    'quota_info': quota_status,
+                    'action_required': None
+                }
+
+            # Para planes de pago, verificar RU disponible
+            can_consume_bool = can_user_consume_ru(user_id, 1)
+            if not can_consume_bool:
+                # Diferenciar mensaje de agotamiento
+                if quota_status['quota_limit'] is not None and quota_status['quota_used'] >= quota_status['quota_limit']:
+                    return {
+                        'allowed': False,
+                        'reason': f'Cuota agotada ({quota_status["quota_used"]}/{quota_status["quota_limit"]} RU)',
+                        'quota_info': quota_status,
+                        'action_required': 'upgrade' if quota_status['plan'] != 'enterprise' else 'contact_support'
+                    }
+                return {
+                    'allowed': False,
+                    'reason': 'No hay cuota suficiente',
+                    'quota_info': quota_status,
+                    'action_required': 'contact_support'
+                }
+
+            return {
+                'allowed': True,
+                'reason': 'Quota disponible',
+                'quota_info': quota_status,
+                'action_required': None
+            }
+
+        # Para módulos de IA, requerir permisos explícitos
         if not permissions['can_use_ai_overview'] and not permissions['can_use_manual_ai']:
             return {
                 'allowed': False,
-                'reason': 'Plan Free no tiene acceso a módulos de IA',
-                'quota_info': permissions['quota_status'],
+                'reason': 'Plan actual no tiene acceso a módulos de IA',
+                'quota_info': quota_status,
                 'action_required': 'upgrade'
             }
-        
-        # Verificar si puede consumir RU
-        can_consume = can_user_consume_ru(user_id, 1)  # 1 RU para esta llamada
-        
-        if not can_consume['allowed']:
-            quota_status = permissions['quota_status']
-            
-            # Diferentes razones de bloqueo
-            if quota_status['quota_used'] >= quota_status['quota_limit']:
+
+        # Verificar RU para módulos de IA
+        can_consume_bool = can_user_consume_ru(user_id, 1)
+        if not can_consume_bool:
+            if quota_status['quota_limit'] is not None and quota_status['quota_used'] >= quota_status['quota_limit']:
                 return {
                     'allowed': False,
                     'reason': f'Cuota agotada ({quota_status["quota_used"]}/{quota_status["quota_limit"]} RU)',
                     'quota_info': quota_status,
                     'action_required': 'upgrade' if quota_status['plan'] != 'enterprise' else 'contact_support'
                 }
-            else:
-                return {
-                    'allowed': False,
-                    'reason': can_consume['reason'],
-                    'quota_info': quota_status,
-                    'action_required': 'contact_support'
-                }
-        
+            return {
+                'allowed': False,
+                'reason': 'No hay cuota suficiente',
+                'quota_info': quota_status,
+                'action_required': 'contact_support'
+            }
+
         return {
             'allowed': True,
             'reason': 'Quota disponible',
-            'quota_info': permissions['quota_status'],
+            'quota_info': quota_status,
             'action_required': None
         }
         
@@ -197,23 +234,28 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
     # 🔍 PASO 5: Registrar consumo si fue exitosa
     if success:
         try:
-            record_quota_usage(
-                user_id=user_id,
-                ru_consumed=1,
-                operation_type=f"serp_{call_type}",
-                metadata={
-                    'keyword': params.get('q', 'unknown'),
-                    'country': params.get('gl', 'unknown'),
-                    'call_type': call_type
-                }
-            )
-            logger.info(f"📊 RU registrado: user {user_id} consumió 1 RU ({call_type})")
-            
+            # No registrar consumo para plan Free (permitido sin RU)
+            status = get_user_quota_status(user_id)
+            if status.get('plan') != 'free':
+                record_quota_usage(
+                    user_id=user_id,
+                    ru_consumed=1,
+                    operation_type=f"serp_{call_type}",
+                    metadata={
+                        'keyword': params.get('q', 'unknown'),
+                        'country': params.get('gl', 'unknown'),
+                        'call_type': call_type
+                    }
+                )
+                logger.info(f"📊 RU registrado: user {user_id} consumió 1 RU ({call_type})")
+            else:
+                logger.info("🆓 Plan Free - SERP permitido sin consumo de RU")
+
             # Marcar en caché para futuras llamadas
             _mark_call_cached(params)
             
         except Exception as e:
-            logger.error(f"Error registrando consumo RU para user {user_id}: {e}")
+            logger.error(f"Error registrando consumo RU/caché para user {user_id}: {e}")
     
     return success, result
 
