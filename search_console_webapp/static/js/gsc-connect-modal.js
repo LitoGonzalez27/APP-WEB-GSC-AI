@@ -13,8 +13,7 @@
         </div>
 
         <div class="paywall-footer">
-          <a href="/connections/google/start" class="btn-primary">Connect Google</a>
-          <a href="/manual-ai/" class="btn-secondary btn-secondary-dashboard">Open Manual AI (no GSC)</a>
+          <a href="/connections/google/start" class="btn-primary">Connect Google Search Console</a>
         </div>
       </div>
     `;
