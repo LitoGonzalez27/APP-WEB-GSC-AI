@@ -19,14 +19,16 @@
       </div>
     `;
 
-    // Cierre al hacer click fuera
+    // Cierre al hacer click fuera o con ESC
     modal.addEventListener('click', (e) => {
       if (e.target === modal) hide();
     });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hide();
+    }, { once: true });
 
     function hide() { modal.remove(); }
 
-    modal.querySelector('#gscModalClose').addEventListener('click', hide);
     return modal;
   }
 

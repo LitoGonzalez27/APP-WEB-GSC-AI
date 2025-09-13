@@ -126,10 +126,20 @@
    UPGRADE OPTIONS (Plan Cards)
    ================================ */
 
-.upgrade-options {
-  display: flex;
+.upgrade-options { display: none; }
+
+/* Nueva disposición: dos columnas arriba (basic/premium), una abajo (business) */
+.upgrade-options-two {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--paywall-spacing-md);
   margin: var(--paywall-spacing-lg) 0;
+}
+
+.upgrade-options-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--paywall-spacing-md);
 }
 
 .plan-card {

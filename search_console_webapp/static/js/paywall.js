@@ -55,8 +55,9 @@ class PaywallManager {
             }
         };
         
-        const planCards = upgradeOptions.map(planKey => {
+        const renderCard = (planKey) => {
             const plan = plans[planKey];
+            if (!plan) return '';
             return `
                 <a href="/billing/checkout/${planKey}?interval=monthly" class="plan-card ${plan.highlight ? 'premium-highlight' : ''}">
                     ${plan.highlight ? '<div class="plan-badge">MOST POPULAR</div>' : ''}
@@ -69,7 +70,18 @@ class PaywallManager {
                     <div class="plan-cta">Start ${plan.name} →</div>
                 </a>
             `;
-        }).join('');
+        };
+
+        // Ordenar: Basic y Premium arriba (2 columnas), Business abajo (una columna)
+        const hasBusiness = upgradeOptions.includes('business');
+        const topPlans = upgradeOptions.filter(p => p !== 'business');
+        // Garantizar orden básico → premium si ambos existen
+        topPlans.sort((a,b) => {
+            const order = { 'basic': 0, 'premium': 1 };
+            return (order[a] ?? 99) - (order[b] ?? 99);
+        });
+        const topCards = topPlans.map(renderCard).join('');
+        const businessCard = hasBusiness ? renderCard('business') : '';
         
         modal.innerHTML = `
             <div class="paywall-content">
@@ -90,9 +102,10 @@ class PaywallManager {
                         </ul>
                     </div>
                     
-                    <div class="upgrade-options">
-                        ${planCards}
+                    <div class="upgrade-options-two">
+                        ${topCards}
                     </div>
+                    ${hasBusiness ? `<div class="upgrade-options-single">${businessCard}</div>` : ''}
                     
                     <div class="paywall-info">
                         <p><strong>What are RU?</strong> Request Units = API calls to analyze keywords (1 API Call = 1 keyword analyzed). Cached results use 0 RU, so you save on repeated searches!</p>
