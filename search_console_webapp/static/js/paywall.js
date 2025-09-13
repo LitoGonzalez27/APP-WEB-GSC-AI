@@ -103,7 +103,7 @@ class PaywallManager {
                     <button class="btn-secondary" onclick="window.PaywallManager.hidePaywallModal()">
                         Maybe Later
                     </button>
-                    <a href="/billing" class="btn-primary">
+                    <a href="https://clicandseo.com/pricing/" target="_blank" rel="noopener noreferrer" class="btn-primary">
                         View All Plans
                     </a>
                 </div>
@@ -243,17 +243,17 @@ class PaywallManager {
             // Añadir nuevo event listener
             const newClickHandler = (e) => {
                 e.preventDefault();
-                console.log('🎯 Redirigiendo a /billing desde View Plans button');
-                window.location.href = '/billing';
+                console.log('🎯 Redirigiendo a pricing desde View Plans button');
+                window.location.href = 'https://clicandseo.com/pricing/';
             };
             
             executeBtn._oldClickHandler = newClickHandler;
             executeBtn.addEventListener('click', newClickHandler);
             
             // También añadir onclick como fallback
-            executeBtn.setAttribute('onclick', "window.location.href='/billing'");
+            executeBtn.setAttribute('onclick', "window.location.href='https://clicandseo.com/pricing/'");
             
-            console.log('🎯 Botón AI Overview cambiado a "View Plans" con redirection a /billing');
+            console.log('🎯 Botón AI Overview cambiado a "View Plans" con redirection a pricing');
         } else {
             console.error('❌ No se encontró el botón executeAIBtn para cambiar a View Plans');
         }
@@ -264,5 +264,5 @@ class PaywallManager {
 window.PaywallManager = new PaywallManager();
 
 // Helper functions for modules
-window.showPaywall = (featureName, upgradeOptions = ['basic', 'premium']) => window.PaywallManager.showPaywallModal(upgradeOptions, featureName);
+window.showPaywall = (featureName, upgradeOptions = ['basic', 'premium', 'business']) => window.PaywallManager.showPaywallModal(upgradeOptions, featureName);
 window.showQuotaExceeded = (info) => window.PaywallManager.showQuotaExceededModal(info);
