@@ -50,12 +50,23 @@ def get_price_id_for_plan_interval(plan, interval):
         return None
 
 def get_or_create_stripe_customer(user):
-    """Obtener o crear customer de Stripe para el usuario"""
-    if user.get('stripe_customer_id'):
-        return user['stripe_customer_id']
-    
-    # Crear nuevo customer
+    """Obtener o crear customer de Stripe para el usuario.
+    Si existe un customer_id previo pero no pertenece al entorno actual (Live/Test),
+    se crea uno nuevo y se guarda en BD.
+    """
     try:
+        existing_id = user.get('stripe_customer_id')
+        if existing_id:
+            try:
+                # Verificar que el customer existe en el entorno actual
+                _ = stripe.Customer.retrieve(existing_id)
+                return existing_id
+            except stripe.error.InvalidRequestError as e:  # No such customer en esta cuenta/entorno
+                logger.warning(f"stripe_customer_id inválido en este entorno: {existing_id} ({e}) - creando uno nuevo")
+            except Exception as e:
+                logger.warning(f"No se pudo verificar customer existente ({existing_id}): {e} - intentaremos crear uno nuevo")
+
+        # Crear nuevo customer en el entorno actual
         customer = stripe.Customer.create(
             email=user['email'],
             name=user['name'],
@@ -64,19 +75,22 @@ def get_or_create_stripe_customer(user):
                 'app_name': 'clicandseo'
             }
         )
-        
+
         # Guardar customer_id en base de datos
         conn = get_db_connection()
+        if not conn:
+            logger.error("Sin conexión a BD para guardar stripe_customer_id")
+            return customer.id
         cur = conn.cursor()
         cur.execute(
-            'UPDATE users SET stripe_customer_id = %s WHERE id = %s',
+            'UPDATE users SET stripe_customer_id = %s, updated_at = NOW() WHERE id = %s',
             (customer.id, user['id'])
         )
         conn.commit()
         conn.close()
-        
+
         return customer.id
-        
+
     except Exception as e:
         logger.error(f"Error creando Stripe customer: {e}")
         return None
@@ -273,13 +287,17 @@ def setup_billing_routes(app):
                 # Obtener customer para email y detalles
                 customer = stripe.Customer.retrieve(checkout_session.customer)
                 
-                # Determinar estado del pago
-                if checkout_session.payment_status == 'paid' and user.get('billing_status') == 'active':
+                # Determinar estado del pago / trial
+                sub_status = getattr(checkout_session.subscription, 'status', None) if checkout_session.subscription else None
+                cs_payment_status = getattr(checkout_session, 'payment_status', 'unknown')
+                if sub_status == 'trialing':
+                    payment_status = 'trialing'
+                elif cs_payment_status == 'paid' and user.get('billing_status') in ['active', 'trialing']:
                     payment_status = 'confirmed'
-                elif checkout_session.payment_status == 'paid':
+                elif cs_payment_status == 'paid':
                     payment_status = 'webhook_pending'
-                elif checkout_session.payment_status == 'unpaid':
-                    payment_status = 'failed'
+                else:
+                    payment_status = 'processing'
                 
                 # Actualizar con datos completos de transacción de Stripe
                 subscription = checkout_session.subscription
@@ -320,6 +338,49 @@ def setup_billing_routes(app):
                 })
                 
                 logger.info(f"Success page - transacción completa para {user['email']}: {transaction_data['plan']}")
+
+                # ✅ Fallback de sincronización inmediata:
+                # Si la suscripción ya está 'trialing' o 'active' pero el webhook aún no ha actualizado el usuario,
+                # reflejar el estado en BD para que la UI lo muestre al instante.
+                try:
+                    if subscription and getattr(subscription, 'status', None) in ['trialing', 'active']:
+                        config_limits = get_stripe_config().get_plan_limits()
+                        new_plan = checkout_session.metadata.get('plan', user.get('plan', 'basic'))
+                        new_status = 'trialing' if subscription.status == 'trialing' else 'active'
+                        new_quota = config_limits.get(new_plan, 0)
+
+                        conn_fb = get_db_connection()
+                        if conn_fb:
+                            cur_fb = conn_fb.cursor()
+                            cur_fb.execute('''
+                                UPDATE users 
+                                SET 
+                                    plan = %s,
+                                    current_plan = %s,
+                                    billing_status = %s,
+                                    quota_limit = %s,
+                                    subscription_id = %s,
+                                    current_period_start = %s,
+                                    current_period_end = %s,
+                                    updated_at = NOW()
+                                WHERE id = %s
+                            ''', (
+                                new_plan, new_plan, new_status, new_quota,
+                                subscription.id if subscription else None,
+                                datetime.fromtimestamp(subscription.current_period_start) if hasattr(subscription, 'current_period_start') else None,
+                                datetime.fromtimestamp(subscription.current_period_end) if hasattr(subscription, 'current_period_end') else None,
+                                user['id']
+                            ))
+                            conn_fb.commit()
+                            conn_fb.close()
+                            # Refrescar user_status local para render
+                            user['plan'] = new_plan
+                            user['billing_status'] = new_status
+                            user['quota_limit'] = new_quota
+                            user['subscription_id'] = subscription.id if subscription else None
+                            logger.info(f"Fallback sync aplicado para usuario {user['email']} ({new_plan}, {new_status})")
+                except Exception as _sync_e:
+                    logger.warning(f"Fallback sync no aplicado: {_sync_e}")
                 
             except Exception as e:
                 logger.error(f"Error obteniendo datos de transacción: {e}")

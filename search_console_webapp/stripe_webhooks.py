@@ -196,6 +196,7 @@ class StripeWebhookHandler:
                 quota_limit = self.config.get_plan_limits().get(plan, 0)
                 billing_status = 'active' if status == 'active' else status
                 
+                # Si es trialing, marcar explícitamente plan y estado
                 cur.execute('''
                     UPDATE users 
                     SET 
