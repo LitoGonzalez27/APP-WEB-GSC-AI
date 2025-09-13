@@ -126,10 +126,20 @@
    UPGRADE OPTIONS (Plan Cards)
    ================================ */
 
-.upgrade-options {
-  display: flex;
+.upgrade-options { display: none; }
+
+/* Nueva disposición: dos columnas arriba (basic/premium), una abajo (business) */
+.upgrade-options-two {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--paywall-spacing-md);
   margin: var(--paywall-spacing-lg) 0;
+}
+
+.upgrade-options-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--paywall-spacing-md);
 }
 
 .plan-card {
@@ -408,6 +418,17 @@
   color: var(--paywall-gray-700);
   border: var(--paywall-border-width) solid var(--paywall-gray-300);
   border-radius: 8px;
+}
+
+/* Secundario estilo dashboard (coincide visualmente con /dashboard .btn-secondary) */
+.btn-secondary-dashboard {
+  background: var(--paywall-gray-700);
+  color: #ffffff;
+  border: 1px solid var(--paywall-gray-700);
+}
+
+.btn-secondary-dashboard:hover {
+  filter: brightness(1.05);
 }
 
 .btn-secondary:hover {

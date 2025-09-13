@@ -55,8 +55,9 @@ class PaywallManager {
             }
         };
         
-        const planCards = upgradeOptions.map(planKey => {
+        const renderCard = (planKey) => {
             const plan = plans[planKey];
+            if (!plan) return '';
             return `
                 <a href="/billing/checkout/${planKey}?interval=monthly" class="plan-card ${plan.highlight ? 'premium-highlight' : ''}">
                     ${plan.highlight ? '<div class="plan-badge">MOST POPULAR</div>' : ''}
@@ -69,7 +70,18 @@ class PaywallManager {
                     <div class="plan-cta">Start ${plan.name} →</div>
                 </a>
             `;
-        }).join('');
+        };
+
+        // Ordenar: Basic y Premium arriba (2 columnas), Business abajo (una columna)
+        const hasBusiness = upgradeOptions.includes('business');
+        const topPlans = upgradeOptions.filter(p => p !== 'business');
+        // Garantizar orden básico → premium si ambos existen
+        topPlans.sort((a,b) => {
+            const order = { 'basic': 0, 'premium': 1 };
+            return (order[a] ?? 99) - (order[b] ?? 99);
+        });
+        const topCards = topPlans.map(renderCard).join('');
+        const businessCard = hasBusiness ? renderCard('business') : '';
         
         modal.innerHTML = `
             <div class="paywall-content">
@@ -90,9 +102,10 @@ class PaywallManager {
                         </ul>
                     </div>
                     
-                    <div class="upgrade-options">
-                        ${planCards}
+                    <div class="upgrade-options-two">
+                        ${topCards}
                     </div>
+                    ${hasBusiness ? `<div class="upgrade-options-single">${businessCard}</div>` : ''}
                     
                     <div class="paywall-info">
                         <p><strong>What are RU?</strong> Request Units = API calls to analyze keywords (1 API Call = 1 keyword analyzed). Cached results use 0 RU, so you save on repeated searches!</p>
@@ -103,7 +116,7 @@ class PaywallManager {
                     <button class="btn-secondary" onclick="window.PaywallManager.hidePaywallModal()">
                         Maybe Later
                     </button>
-                    <a href="/billing" class="btn-primary">
+                    <a href="https://clicandseo.com/pricing/" target="_blank" rel="noopener noreferrer" class="btn-primary">
                         View All Plans
                     </a>
                 </div>
@@ -243,17 +256,17 @@ class PaywallManager {
             // Añadir nuevo event listener
             const newClickHandler = (e) => {
                 e.preventDefault();
-                console.log('🎯 Redirigiendo a /billing desde View Plans button');
-                window.location.href = '/billing';
+                console.log('🎯 Redirigiendo a pricing desde View Plans button');
+                window.location.href = 'https://clicandseo.com/pricing/';
             };
             
             executeBtn._oldClickHandler = newClickHandler;
             executeBtn.addEventListener('click', newClickHandler);
             
             // También añadir onclick como fallback
-            executeBtn.setAttribute('onclick', "window.location.href='/billing'");
+            executeBtn.setAttribute('onclick', "window.location.href='https://clicandseo.com/pricing/'");
             
-            console.log('🎯 Botón AI Overview cambiado a "View Plans" con redirection a /billing');
+            console.log('🎯 Botón AI Overview cambiado a "View Plans" con redirection a pricing');
         } else {
             console.error('❌ No se encontró el botón executeAIBtn para cambiar a View Plans');
         }
@@ -264,5 +277,5 @@ class PaywallManager {
 window.PaywallManager = new PaywallManager();
 
 // Helper functions for modules
-window.showPaywall = (featureName, upgradeOptions = ['basic', 'premium']) => window.PaywallManager.showPaywallModal(upgradeOptions, featureName);
+window.showPaywall = (featureName, upgradeOptions = ['basic', 'premium', 'business']) => window.PaywallManager.showPaywallModal(upgradeOptions, featureName);
 window.showQuotaExceeded = (info) => window.PaywallManager.showQuotaExceededModal(info);

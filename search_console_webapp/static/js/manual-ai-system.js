@@ -720,7 +720,7 @@ class ManualAISystem {
         // ✅ NUEVO: Verificar plan antes de mostrar formulario
         if (window.currentUser && window.currentUser.plan === 'free') {
             console.log('🆓 Usuario gratuito intentó crear proyecto - mostrando paywall');
-            window.showPaywall('Manual AI Analysis');
+            window.showPaywall('Manual AI Analysis', ['basic','premium','business']);
             return;
         }
         
@@ -1157,7 +1157,7 @@ class ManualAISystem {
                 
                 // Mostrar paywall si está disponible
                 if (window.showPaywall) {
-                    window.showPaywall('Manual AI Analysis', data.upgrade_options || ['basic', 'premium']);
+                    window.showPaywall('Manual AI Analysis', data.upgrade_options || ['basic','premium','business']);
                 }
                 
                 this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
