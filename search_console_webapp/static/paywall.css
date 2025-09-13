@@ -410,6 +410,17 @@
   border-radius: 8px;
 }
 
+/* Secundario estilo dashboard (coincide visualmente con /dashboard .btn-secondary) */
+.btn-secondary-dashboard {
+  background: var(--paywall-gray-700);
+  color: #ffffff;
+  border: 1px solid var(--paywall-gray-700);
+}
+
+.btn-secondary-dashboard:hover {
+  filter: brightness(1.05);
+}
+
 .btn-secondary:hover {
   background: var(--paywall-gray-50);
   border-color: var(--paywall-gray-400);

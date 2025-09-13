@@ -12,21 +12,9 @@
           <p>To use the main app features, connect at least one Search Console property. Manual AI Overview does not require GSC and can be used right away.</p>
         </div>
 
-        <div class="paywall-body">
-          <div class="feature-benefits">
-            <h4>Why connect?</h4>
-            <ul>
-              <li>Unlock <strong>AI Overview Analysis</strong> with your verified sites</li>
-              <li>See <strong>clicks, impressions and positions</strong> with real GSC data</li>
-              <li>Enable <strong>country-aware</strong> analysis and SERP lookups</li>
-            </ul>
-          </div>
-        </div>
-
         <div class="paywall-footer">
           <a href="/connections/google/start" class="btn-primary">Connect Google</a>
-          <a href="/manual-ai/" class="btn-secondary">Open Manual AI (no GSC)</a>
-          <button class="btn-secondary" id="gscModalClose">Maybe Later</button>
+          <a href="/manual-ai/" class="btn-secondary btn-secondary-dashboard">Open Manual AI (no GSC)</a>
         </div>
       </div>
     `;
@@ -36,10 +24,7 @@
       if (e.target === modal) hide();
     });
 
-    function hide() {
-      localStorage.setItem('gsc_connect_dismissed', 'true');
-      modal.remove();
-    }
+    function hide() { modal.remove(); }
 
     modal.querySelector('#gscModalClose').addEventListener('click', hide);
     return modal;
@@ -49,7 +34,6 @@
     try {
       const auth = document.body.getAttribute('data-authenticated');
       if (auth !== 'true') return false;
-      if (localStorage.getItem('gsc_connect_dismissed') === 'true') return false;
 
       const resp = await fetch('/gsc/properties', { credentials: 'include' });
       if (!resp.ok) return false;
