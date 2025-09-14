@@ -718,7 +718,7 @@ body.loaded {
         align-items: center;
         text-align: center;
         padding: 2rem 2rem 1rem 2rem;
-        background: var(--white);
+        background: white;
         border-bottom: 1px solid var(--gray-200);
         order: 0; /* Va primero de todo */
     }
@@ -755,6 +755,9 @@ body.loaded {
     /* Mejorar la separación visual entre secciones */
     .login-form-panel {
         border-bottom: 1px solid var(--gray-200);
+    }
+    .login-branding{
+        display:none;
     }
 }
 
