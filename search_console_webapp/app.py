@@ -102,6 +102,24 @@ setup_auth_routes(app)
 # --- NUEVO: Configurar webhook de Stripe ---
 create_webhook_route(app)
 
+# --- Bloqueo global de acceso desde móviles excepto login/signup ---
+@app.before_request
+def _block_mobile_globally_except_login_signup():
+    try:
+        path = request.path or ''
+        # Excepciones necesarias: assets, webhooks y la propia página de error móvil
+        if path.startswith('/static/') or path.startswith('/webhooks/') or path == '/mobile-not-supported':
+            return None
+        # Permitir login, signup y endpoints de autenticación auxiliares
+        if path in ['/login', '/signup'] or path.startswith('/auth/'):
+            return None
+        # Si es móvil (no tablet) bloquear
+        if should_block_mobile_access():
+            return redirect(url_for('mobile_not_supported'))
+    except Exception as _e_mobile_gate:
+        logger.warning(f"Mobile gate error: {_e_mobile_gate}")
+        return None
+
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
     """
