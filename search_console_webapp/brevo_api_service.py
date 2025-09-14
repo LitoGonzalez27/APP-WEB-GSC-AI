@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'info@clicandseo.com')
 FROM_NAME = os.getenv('FROM_NAME', 'ClicandSEO')
+PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
+LOGO_URL = f"{PUBLIC_BASE_URL}/static/images/logos/logo%20clicandseo.png"
 
 def send_email_via_api(to_email: str, subject: str, html_body: str) -> bool:
     """
@@ -42,7 +44,11 @@ def send_email_via_api(to_email: str, subject: str, html_body: str) -> bool:
                 }
             ],
             "subject": subject,
-            "htmlContent": html_body
+            "htmlContent": html_body,
+            "headers": {
+                "X-Mailer": "ClicandSEO-App",
+                "List-Id": "clicandseo.app"
+            }
         }
         
         response = requests.post(url, json=payload, headers=headers, timeout=10)

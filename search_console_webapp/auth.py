@@ -14,7 +14,7 @@ import logging
 from dotenv import load_dotenv
 
 # Importar servicio de email
-from email_service import send_password_reset_email
+from email_service import send_password_reset_email, send_welcome_email
 # Importar API de Brevo como alternativa
 try:
     from brevo_api_service import send_password_reset_via_api
@@ -775,6 +775,13 @@ def setup_auth_routes(app):
             if not new_user:
                 return jsonify({'error': 'No se pudo crear el usuario'}), 500
 
+            # Enviar email de bienvenida (no bloquear flujo)
+            try:
+                send_welcome_email(new_user['email'], new_user.get('name'))
+                logger.info(f"✉️ Welcome email enqueued/enviado a {new_user['email']}")
+            except Exception as _e_send_welcome:
+                logger.warning(f"No se pudo enviar welcome email: {_e_send_welcome}")
+
             # ✅ Si el signup viene con plan de pago, iniciar sesión y redirigir a checkout
             signup_plan = session.get('signup_plan')
             signup_source = session.get('signup_source') or 'registration'
@@ -1024,6 +1031,13 @@ def setup_auth_routes(app):
                         session.pop('temp_credentials', None)
                         logger.error(f"Error creando usuario en registro: {user_info['email']}")
                         return redirect('/signup?auth_error=user_creation_failed')
+
+                    # Enviar email de bienvenida (no bloquear flujo)
+                    try:
+                        send_welcome_email(new_user['email'], new_user.get('name'))
+                        logger.info(f"✉️ Welcome email enqueued/enviado a {new_user['email']}")
+                    except Exception as _e_send_welcome:
+                        logger.warning(f"No se pudo enviar welcome email: {_e_send_welcome}")
                     
                     # ✅ MEJORADO UX: Flujo directo sin login intermedio
                     signup_plan = session.get('signup_plan')

@@ -15,7 +15,7 @@ from datetime import datetime
 from flask import request, jsonify
 from stripe_config import get_stripe_config
 from database import get_db_connection
-from email_service import send_email
+from email_service import send_email, send_trial_started_email
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ class StripeWebhookHandler:
             
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
             
-            # Enviar email de inicio de trial (una sola vez)
+            # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
             try:
                 if status == 'trialing' and action in ['created', 'updated']:
                     conn2 = get_db_connection()
@@ -236,26 +236,9 @@ class StripeWebhookHandler:
                         row = cur2.fetchone()
                         if row and (not row.get('trial_started_email_sent_at')):
                             user_email = row['email']
-                            user_name = row.get('name')
                             trial_end = datetime.fromtimestamp(trial_end_ts) if trial_end_ts else period_end
-                            subject = "Tu prueba gratis de 7 días ha comenzado"
-                            html = f"""
-                            <html><body style=\"font-family: Arial, sans-serif;\">
-                                <h2>¡Bienvenido a tu prueba de {plan.title()}!</h2>
-                                <p>Acabas de activar una prueba gratuita de 7 días del plan <strong>{plan.title()}</strong>.</p>
-                                <p>Al finalizar el periodo de prueba, el {trial_end.strftime('%Y-%m-%d') if trial_end else 'día 7'}, se realizará el cargo automáticamente salvo cancelación previa.</p>
-                                <p>Puedes gestionar tu suscripción en cualquier momento desde el portal de cliente.</p>
-                                <p><a href=\"https://app.clicandseo.com/billing/portal\" style=\"display:inline-block;padding:10px 16px;background:#D8F9B8;color:#111;text-decoration:none;border-radius:8px;\">Abrir portal de suscripción</a></p>
-                                <p style=\"color:#666;font-size:12px;margin-top:20px;\">Este email es informativo. Si no esperabas este mensaje, contacta con soporte.</p>
-                            </body></html>
-                            """
-                            text = (
-                                f"Tu prueba de 7 días del plan {plan.title()} ha comenzado. "
-                                f"Se cobrará automáticamente en {trial_end.strftime('%Y-%m-%d') if trial_end else '7 días'} salvo cancelación. "
-                                "Gestiona tu suscripción en https://app.clicandseo.com/billing/portal"
-                            )
                             try:
-                                send_email(user_email, subject, html, text)
+                                send_trial_started_email(user_email, plan, trial_end)
                                 cur2.execute('UPDATE users SET trial_started_email_sent_at = NOW() WHERE stripe_customer_id = %s', (customer_id,))
                                 conn2.commit()
                                 logger.info(f"✉️ Trial-start email enviado a {user_email}")
