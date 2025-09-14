@@ -342,7 +342,7 @@ def send_welcome_email(to_email: str, user_name: Optional[str] = None) -> bool:
                 <div style="text-align:center;">
                     <a href="https://app.clicandseo.com/" class="button">Go to the App</a>
                 </div>
-                <p>If you need any help, contact us at <a href="mailto:hola@clicandseo.com" style="color:#111; text-decoration:none; font-weight:600;">hola@clicandseo.com</a>.</p>
+                <p>If you need any help, contact us at <a href="mailto:info@clicandseo.com" style="color:#111; text-decoration:none; font-weight:600;">info@clicandseo.com</a>.</p>
             </div>
             <div class="footer">
                 <p>This email was sent by ClicandSEO</p>
@@ -358,7 +358,7 @@ def send_welcome_email(to_email: str, user_name: Optional[str] = None) -> bool:
     Thanks for signing up! Your account has been created successfully.
     You can now sign in and start using the app: https://app.clicandseo.com/
 
-    Need help? Email us at hola@clicandseo.com
+    Need help? Email us at info@clicandseo.com
 
     --
     ClicandSEO Team
