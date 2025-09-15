@@ -46,6 +46,8 @@ class StripeConfig:
         
         # URLs
         self.customer_portal_return_url = os.getenv('CUSTOMER_PORTAL_RETURN_URL')
+        # Customer Portal configuration (optional)
+        self.portal_configuration_id = os.getenv('STRIPE_PORTAL_CONFIGURATION_ID')
         
         # Control Flags
         self.billing_enabled = os.getenv('BILLING_ENABLED', 'false').lower() == 'true'
@@ -200,6 +202,7 @@ class StripeConfig:
             'quota_soft_limit_pct': self.quota_soft_limit_pct,
             'quota_grace_period_hours': self.quota_grace_period_hours,
             'customer_portal_return_url': self.customer_portal_return_url,
+            'portal_configuration_id': self.portal_configuration_id,
             'enterprise_product_id': self.enterprise_product_id,
             'plan_limits': self.get_plan_limits(),
             'plan_prices': self.get_plan_prices()

@@ -179,11 +179,25 @@ def setup_billing_routes(app):
                     'interval': interval,
                     'source': request.args.get('source', 'direct'),
                     'trial_eligible': 'true' if eligible_for_trial else 'false'
-                }
+                },
+                # Permitir introducción de códigos promocionales en Checkout
+                'allow_promotion_codes': True
             }
 
             if eligible_for_trial:
                 create_params['subscription_data'] = {'trial_period_days': 7}
+
+            # Preaplicar descuentos opcionalmente si se pasan por query
+            # Soporta: ?promo=<promotion_code_id> o ?coupon=<coupon_id>
+            promotion_code = request.args.get('promo')
+            coupon_id = request.args.get('coupon')
+            discounts = []
+            if promotion_code:
+                discounts.append({'promotion_code': promotion_code})
+            elif coupon_id:
+                discounts.append({'coupon': coupon_id})
+            if discounts:
+                create_params['discounts'] = discounts
 
             # Crear Checkout Session
             checkout_session = stripe.checkout.Session.create(**create_params)
@@ -211,11 +225,19 @@ def setup_billing_routes(app):
                 return redirect(url_for('billing_page'))
         
         try:
-            portal_session = stripe.billing_portal.Session.create(
-                customer=customer_id,
+            portal_create_params = {
+                'customer': customer_id,
                 # Retorno a Settings > Billing para mejor UX
-                return_url=url_for('user_profile', _external=True) + '?tab=billing',
-            )
+                'return_url': url_for('user_profile', _external=True) + '?tab=billing',
+            }
+            try:
+                config = get_stripe_config()
+                if getattr(config, 'portal_configuration_id', None):
+                    portal_create_params['configuration'] = config.portal_configuration_id
+            except Exception:
+                pass
+
+            portal_session = stripe.billing_portal.Session.create(**portal_create_params)
             
             return redirect(portal_session.url)
             
