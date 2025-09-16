@@ -15,7 +15,7 @@ import stripe
 import logging
 from datetime import datetime
 from flask import request, jsonify, redirect, url_for, render_template, session
-from auth import auth_required, get_current_user
+from auth import auth_required, get_current_user, is_user_admin
 from database import get_db_connection
 from stripe_config import get_stripe_config
 
@@ -146,6 +146,16 @@ def setup_billing_routes(app):
             logger.error(f"Price ID not configured for plan: {plan}")
             return jsonify({'error': 'Plan not available'}), 500
         
+        # Validar que el Price existe en el entorno/clave actual (evita errores de live vs test)
+        try:
+            _ = stripe.Price.retrieve(price_id)
+        except Exception as _e:
+            logger.error(f"Price ID inválido o no existe en esta cuenta/entorno: {price_id} ({_e})")
+            app_env = os.getenv('APP_ENV', 'staging')
+            if app_env != 'production':
+                return jsonify({'error': 'Invalid price configuration', 'details': str(_e)}), 500
+            return jsonify({'error': 'Plan not available'}), 500
+        
         customer_id = get_or_create_stripe_customer(user)
         if not customer_id:
             return jsonify({'error': 'Could not create customer'}), 500
@@ -188,25 +198,74 @@ def setup_billing_routes(app):
                 create_params['subscription_data'] = {'trial_period_days': 7}
 
             # Preaplicar descuentos opcionalmente si se pasan por query
-            # Soporta: ?promo=<promotion_code_id> o ?coupon=<coupon_id>
-            promotion_code = request.args.get('promo')
-            coupon_id = request.args.get('coupon')
+            # Soporta: ?promo=<promotion_code_id|human_code> y ?coupon=<coupon_id>
+            promotion_code_param = request.args.get('promo')
+            coupon_param = request.args.get('coupon')
             discounts = []
-            if promotion_code:
-                discounts.append({'promotion_code': promotion_code})
-            elif coupon_id:
-                discounts.append({'coupon': coupon_id})
+            # Resolver promotion code: aceptar ID (promo_...) o código legible (p.ej. SEPTIEMBRE20)
+            if promotion_code_param:
+                try:
+                    if promotion_code_param.startswith('promo_'):
+                        discounts.append({'promotion_code': promotion_code_param})
+                    else:
+                        # Buscar el ID por código legible
+                        pc_list = stripe.PromotionCode.list(code=promotion_code_param, active=True, limit=1)
+                        if getattr(pc_list, 'data', []) and len(pc_list.data) > 0:
+                            discounts.append({'promotion_code': pc_list.data[0].id})
+                        else:
+                            logger.warning(f"Promotion code no encontrado o inactivo: {promotion_code_param} - ignorando")
+                except Exception as _e:
+                    logger.warning(f"No se pudo resolver promotion code '{promotion_code_param}': {_e} - ignorando")
+            # Resolver cupón: por seguridad aceptar solo IDs válidos (coupon_...)
+            if coupon_param and not discounts:
+                if coupon_param.startswith('coupon_'):
+                    discounts.append({'coupon': coupon_param})
+                else:
+                    logger.warning(f"Coupon no parece un ID válido: {coupon_param} - ignoro para evitar errores")
             if discounts:
                 create_params['discounts'] = discounts
 
             # Crear Checkout Session
-            checkout_session = stripe.checkout.Session.create(**create_params)
+            try:
+                checkout_session = stripe.checkout.Session.create(**create_params)
+            except Exception as e_first:
+                # Fallback: reintentar sin parámetros opcionales (allow_promotion_codes/discounts)
+                logger.warning(f"Primer intento de Checkout falló, probando sin códigos promocionales: {e_first}")
+                sanitized_params = dict(create_params)
+                sanitized_params.pop('allow_promotion_codes', None)
+                sanitized_params.pop('discounts', None)
+                try:
+                    checkout_session = stripe.checkout.Session.create(**sanitized_params)
+                except Exception as e_second:
+                    # Segundo fallback: probar sin trial ni overrides antiguos
+                    logger.warning(f"Segundo intento de Checkout falló, probando sin trial/payment_method_types/client_reference_id: {e_second}")
+                    sanitized_params2 = dict(sanitized_params)
+                    sanitized_params2.pop('subscription_data', None)
+                    sanitized_params2.pop('payment_method_types', None)
+                    sanitized_params2.pop('client_reference_id', None)
+                    checkout_session = stripe.checkout.Session.create(**sanitized_params2)
             
             logger.info(f"Checkout session creada para usuario {user['email']}, plan {plan}")
             return redirect(checkout_session.url)
             
         except Exception as e:
-            logger.error(f"Error creando checkout session: {e}")
+            # Contexto básico para diagnóstico (sin datos sensibles)
+            try:
+                debug_ctx = {
+                    'plan': plan,
+                    'interval': interval,
+                    'price_id': price_id,
+                    'has_discounts': bool(create_params.get('discounts')),
+                    'allow_promotion_codes': bool(create_params.get('allow_promotion_codes')),
+                    'trial_days': create_params.get('subscription_data', {}).get('trial_period_days') if isinstance(create_params.get('subscription_data'), dict) else None,
+                }
+            except Exception:
+                debug_ctx = {}
+            logger.error(f"Error creando checkout session: {e} | ctx={debug_ctx}", exc_info=True)
+            # Exponer detalles solo fuera de producción para diagnóstico rápido
+            app_env = os.getenv('APP_ENV', 'staging')
+            if app_env != 'production' or (request.args.get('debug') == '1' and is_user_admin()):
+                return jsonify({'error': 'Could not create checkout session', 'details': str(e), 'ctx': debug_ctx}), 500
             return jsonify({'error': 'Could not create checkout session'}), 500
     
     @app.route('/billing/portal')
