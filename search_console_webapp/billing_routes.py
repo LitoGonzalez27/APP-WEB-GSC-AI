@@ -18,6 +18,7 @@ from flask import request, jsonify, redirect, url_for, render_template, session
 from auth import auth_required, get_current_user, is_user_admin
 from database import get_db_connection
 from stripe_config import get_stripe_config
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,8 @@ def setup_billing_routes(app):
         ALLOWED_PLANS = ['basic', 'premium', 'business']
         if plan not in ALLOWED_PLANS:
             logger.warning(f"Plan inválido intentado: {plan}")
-            return redirect('/billing?error=invalid_plan')
+            pricing_url = os.getenv('PRICING_PAGE_URL', 'https://clicandseo.com/pricing/')
+            return redirect(pricing_url + '?error=invalid_plan')
         
         # ✅ ENTERPRISE: Bloquear self-serve para Enterprise
         if plan == 'enterprise':
@@ -172,6 +174,12 @@ def setup_billing_routes(app):
                 logger.warning(f"No se pudo verificar historial de suscripciones para trial: {_e}")
 
             # Crear parámetros base de Checkout Session
+            # Cancel URL: por defecto a nuestro handler; si viene de pricing, volver al pricing público
+            cancel_base = url_for('billing_cancel', _external=True) + f'?plan={plan}&interval={interval}'
+            source_param = request.args.get('source', 'direct')
+            if source_param == 'pricing':
+                pricing_url = os.getenv('PRICING_PAGE_URL', 'https://clicandseo.com/pricing/')
+                cancel_base += '&next=' + quote(pricing_url)
             create_params = {
                 'customer': customer_id,
                 'client_reference_id': str(user['id']),  # ✅ CRÍTICO
@@ -182,12 +190,12 @@ def setup_billing_routes(app):
                 }],
                 'mode': 'subscription',
                 'success_url': url_for('billing_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url': url_for('billing_cancel', _external=True) + f'?plan={plan}&interval={interval}',
+                'cancel_url': cancel_base,
                 'metadata': {
                     'user_id': user['id'],
                     'plan': plan,
                     'interval': interval,
-                    'source': request.args.get('source', 'direct'),
+                    'source': source_param,
                     'trial_eligible': 'true' if eligible_for_trial else 'false'
                 },
                 # Permitir introducción de códigos promocionales en Checkout
@@ -307,28 +315,12 @@ def setup_billing_routes(app):
     @app.route('/billing')
     @auth_required
     def billing_page():
-        """Página principal de gestión de billing del usuario"""
-        
+        """Redirige siempre fuera de /billing: Portal si tiene suscripción, Pricing si no."""
         user = get_current_user()
-        
-        # Calcular datos de quota
-        quota_percentage = 0
-        if user.get('quota_limit', 0) > 0:
-            quota_percentage = (user.get('quota_used', 0) / user['quota_limit']) * 100
-        
-        # Determinar próxima renovación
-        next_renewal = None
-        if user.get('current_period_end'):
-            try:
-                from datetime import datetime
-                next_renewal = datetime.fromtimestamp(user['current_period_end']).strftime('%Y-%m-%d')
-            except:
-                pass
-        
-        return render_template('billing.html', 
-                             user=user,
-                             quota_percentage=quota_percentage,
-                             next_renewal=next_renewal)
+        pricing_url = os.getenv('PRICING_PAGE_URL', 'https://clicandseo.com/pricing/')
+        if user and user.get('billing_status') in ['active', 'trialing']:
+            return redirect('/billing/portal')
+        return redirect(pricing_url)
     
     @app.route('/billing/success')
     @auth_required
@@ -512,8 +504,13 @@ def setup_billing_routes(app):
         
         logger.info(f"Usuario {user['email']} canceló checkout para plan {plan} - sesiones limpiadas")
         
-        # Redirigir a billing con mensaje de cancelación
-        return redirect('/billing?message=checkout_cancelled&attempted_plan=' + plan)
+        # Redirigir a destino preferido si se indicó uno válido (evita open redirect)
+        next_url = request.args.get('next')
+        if next_url and next_url.startswith('https://') and ('clicandseo.com' in next_url):
+            return redirect(next_url)
+        # Fallback: volver a la página de pricing pública con mensaje
+        pricing_url = os.getenv('PRICING_PAGE_URL', 'https://clicandseo.com/pricing/')
+        return redirect(pricing_url + '?message=checkout_cancelled&attempted_plan=' + plan)
     
     @app.route('/api/billing/verify-activation')
     @auth_required

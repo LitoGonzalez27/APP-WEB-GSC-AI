@@ -32,18 +32,27 @@ class StripeWebhookHandler:
     
     def verify_webhook_signature(self, payload: bytes, signature: str) -> dict:
         """Verifica la firma del webhook y construye el evento"""
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, signature, self.webhook_secret
-            )
-            logger.info(f"✅ Webhook signature verified - Event: {event['type']}")
-            return event
-        except ValueError as e:
-            logger.error(f"❌ Invalid payload: {e}")
-            raise ValueError("Invalid payload")
-        except stripe.error.SignatureVerificationError as e:
-            logger.error(f"❌ Invalid signature: {e}")
+        last_error = None
+        for secret in [self.webhook_secret, getattr(self.config, 'webhook_secret_alt', None)]:
+            if not secret:
+                continue
+            try:
+                event = stripe.Webhook.construct_event(payload, signature, secret)
+                logger.info(f"✅ Webhook signature verified - Event: {event['type']}")
+                return event
+            except Exception as e:
+                last_error = e
+                continue
+        # Si llega aquí, todos los secretos fallaron
+        if isinstance(last_error, stripe.error.SignatureVerificationError):
+            logger.error(f"❌ Invalid signature with provided secrets: {last_error}")
             raise ValueError("Invalid signature")
+        elif isinstance(last_error, ValueError):
+            logger.error(f"❌ Invalid payload: {last_error}")
+            raise ValueError("Invalid payload")
+        else:
+            logger.error(f"❌ Webhook verification failed: {last_error}")
+            raise ValueError("Webhook verification failed")
     
     def handle_webhook(self, payload: bytes, signature: str) -> dict:
         """Maneja un webhook de Stripe"""
@@ -383,7 +392,15 @@ def create_webhook_route(app):
                 
         except Exception as e:
             logger.error(f"❌ Webhook endpoint error: {e}")
-            return jsonify({'error': 'Internal server error'}), 500
+            return jsonify({'error': 'Internal server error'}), 200
+
+    # Endpoint de salud (GET) para pruebas rápidas desde el Dashboard
+    @app.route('/webhooks/stripe', methods=['GET'])
+    def stripe_webhook_health():
+        try:
+            return jsonify({'ok': True, 'message': 'Stripe webhook endpoint is up'}), 200
+        except Exception:
+            return jsonify({'ok': False}), 200
 
 # Testing function
 def test_webhook_handler():

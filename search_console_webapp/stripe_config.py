@@ -27,6 +27,8 @@ class StripeConfig:
         self.secret_key = os.getenv('STRIPE_SECRET_KEY')
         self.publishable_key = os.getenv('STRIPE_PUBLISHABLE_KEY')
         self.webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+        # Optional: soporte de rotación de secretos de webhook
+        self.webhook_secret_alt = os.getenv('STRIPE_WEBHOOK_SECRET_ALT')
         
         # Price IDs (legacy - compatibilidad)
         self.price_id_basic = os.getenv('PRICE_ID_BASIC')
