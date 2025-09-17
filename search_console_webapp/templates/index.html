@@ -393,6 +393,8 @@
           <h2 id="insightsTitle">Performance Overview</h2>
           <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
           <div id="summaryDisclaimer" class="summary-disclaimer"></div>
+          <!-- Contenedor para el gráfico React de Performance Overview -->
+          <div id="performanceOverviewRoot" style="margin-top: 12px;"></div>
         </section>
 
         <section id="performanceSection" class="glass-effect">
@@ -995,6 +997,9 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- React + Recharts para Performance Overview (sin build step) -->
+  <script type="module" src="{{ url_for('static', filename='js/performance-overview.js') }}"></script>
+  <link rel="preload" href="{{ url_for('static', filename='js/performance-overview.js') }}" as="script" crossorigin>
   
   <!-- Grid.js para tablas avanzadas -->
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />

@@ -6,7 +6,8 @@ import logging
 import traceback
 import zipfile
 from io import BytesIO
-from datetime import datetime, timedelta # Importación añadida
+from datetime import datetime, timedelta, date # Importación añadida
+import hashlib
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 import pandas as pd
 from excel_generator import generate_excel_from_data
@@ -36,6 +37,7 @@ from auth import (
     is_user_authenticated,
     is_user_ai_enabled,
     get_authenticated_service,
+    get_authenticated_service_for_connection,
     get_user_credentials,
     get_current_user
 )
@@ -57,6 +59,7 @@ from database import (
     get_ai_overview_history
 )
 from services.ai_cache import ai_cache
+from googleapiclient.errors import HttpError
 
 # Configurar logging mejorado
 logging.basicConfig(
@@ -382,6 +385,168 @@ def get_properties():
     except Exception as e:
         logger.error(f"Error en get-properties (compat agregado): {e}", exc_info=True)
         return jsonify({'error': 'Error obteniendo propiedades'}), 500
+
+@app.route('/api/gsc/performance')
+@auth_required
+def api_gsc_performance():
+    """Endpoint fiel a GSC que devuelve series diarias de clicks, impressions, ctr y position.
+
+    Query params:
+    - start: YYYY-MM-DD
+    - end:   YYYY-MM-DD
+    - siteUrl (opcional)
+    """
+    try:
+        start = (request.args.get('start') or '').strip()
+        end = (request.args.get('end') or '').strip()
+        site_url_sc = (request.args.get('siteUrl') or '').strip()
+
+        if not start or not end:
+            return jsonify({'error': 'start y end son obligatorios'}), 400
+
+        # Usuario autenticado
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'No autorizado'}), 401
+
+        # Resolver siteUrl por defecto si no llega
+        def _resolve_default_site(user_id: int) -> str:
+            try:
+                props = list_gsc_properties_for_user(user_id) or []
+                if props:
+                    p = props[0]
+                    return p.get('site_url') or p.get('siteUrl') or ''
+            except Exception:
+                pass
+            return ''
+
+        if not site_url_sc:
+            site_url_sc = _resolve_default_site(user['id'])
+            if not site_url_sc:
+                return jsonify({'error': 'No se encontró una propiedad de Search Console para el usuario'}), 400
+
+        # Caché (Redis si disponible) por (userId, siteUrl, start, end)
+        cache_client = getattr(ai_cache, 'redis_client', None)
+        cache_key = None
+        if cache_client:
+            cache_key = f"gsc:perf:{user['id']}:{site_url_sc.lower()}:{start}:{end}"
+            try:
+                cached = cache_client.get(cache_key)
+                if cached:
+                    return Response(cached, mimetype='application/json')
+            except Exception:
+                pass
+
+        # Construir servicio autenticado (respetar conexión ligada a la propiedad si existe)
+        gsc_service = None
+        try:
+            mapping_conn = get_connection_for_site(user['id'], site_url_sc)
+            if mapping_conn:
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+        except Exception as e:
+            logger.warning(f"No se pudo resolver conexión por site_url: {e}")
+        if not gsc_service:
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
+        if not gsc_service:
+            return jsonify({'error': 'Error de autenticación con Google Search Console', 'auth_required': True}), 401
+
+        # Query sin muestreo adicional
+        body = {
+            'startDate': start,
+            'endDate': end,
+            'dimensions': ['date'],
+            'rowLimit': 25000
+        }
+
+        try:
+            resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
+        except HttpError as e:
+            status = getattr(e, 'status_code', 500)
+            # 403 si no hay acceso a esa propiedad
+            if status == 403:
+                return jsonify({'error': 'Acceso denegado a la propiedad', 'forbidden': True}), 403
+            logger.error(f"HTTPError GSC: {e}")
+            return jsonify({'error': 'Error consultando Search Console'}), 500
+        except Exception as e:
+            logger.error(f"Error consultando Search Console: {e}")
+            return jsonify({'error': 'Error consultando Search Console'}), 500
+
+        rows = (resp or {}).get('rows', [])
+
+        # Indexar por fecha y preparar estructura fiel
+        by_date = {}
+        for r in rows:
+            try:
+                d = r['keys'][0]
+            except Exception:
+                continue
+            clicks = r.get('clicks', 0)
+            impressions = r.get('impressions', 0)
+            ctr_ratio = r.get('ctr', 0)  # 0–1
+            position = r.get('position', 0)
+            by_date[d] = {
+                'date': d,
+                'clicks': int(round(clicks)),
+                'impressions': int(round(impressions)),
+                'ctr': ctr_ratio * 100.0,  # devolver en % (frontend soporta ambos)
+                'position': float(position)
+            }
+
+        # Rellenar huecos de fechas con ceros para continuidad
+        def _daterange(start_d: date, end_d: date):
+            current = start_d
+            while current <= end_d:
+                yield current
+                current = current + timedelta(days=1)
+
+        try:
+            s = date.fromisoformat(start)
+            e = date.fromisoformat(end)
+        except Exception:
+            return jsonify({'error': 'Formato de fecha inválido (YYYY-MM-DD)'}), 400
+
+        out = []
+        for d in _daterange(s, e):
+            iso = d.isoformat()
+            out.append(by_date.get(iso, {
+                'date': iso,
+                'clicks': 0,
+                'impressions': 0,
+                'ctr': 0.0,
+                'position': 0.0
+            }))
+
+        # Serializar
+        result_json = json.dumps(out)
+
+        # ETag + Cache-Control (600s)
+        try:
+            etag = 'W/"' + hashlib.sha256((site_url_sc + start + end + result_json).encode('utf-8')).hexdigest()[:32] + '"'
+        except Exception:
+            etag = None
+
+        inm = request.headers.get('If-None-Match')
+        if etag and inm == etag:
+            resp304 = Response(status=304)
+            resp304.headers['ETag'] = etag
+            resp304.headers['Cache-Control'] = 'public, max-age=600'
+            return resp304
+
+        # Cachear 10 minutos para evitar recomputar
+        if cache_client and cache_key:
+            try:
+                cache_client.setex(cache_key, 600, result_json)
+            except Exception:
+                pass
+
+        resp_out = Response(result_json, mimetype='application/json')
+        if etag:
+            resp_out.headers['ETag'] = etag
+        resp_out.headers['Cache-Control'] = 'public, max-age=600'
+        return resp_out
+    except Exception as e:
+        logger.error(f"Error interno en /api/gsc/performance: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
