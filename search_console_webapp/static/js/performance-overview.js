@@ -22,9 +22,14 @@ async function ensureReact() {
 }
 
 async function ensureRecharts() {
-  if (window.Recharts) return window.Recharts;
-  await loadScript('https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js');
-  return window.Recharts;
+  try {
+    if (window.Recharts) return window.Recharts;
+    await loadScript('https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js');
+    return window.Recharts;
+  } catch (e) {
+    console.warn('Recharts no disponible (CORS/CSP). Usando fallback Chart.js');
+    return null;
+  }
 }
 
 async function ensureLucide() {
@@ -68,10 +73,14 @@ function getGlobalDateRange() {
 }
 
 async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetchUrl = '/api/gsc/performance') {
+  const Recharts = await ensureRecharts();
+  if (!Recharts) {
+    // Fallback inmediato a Chart.js
+    return mountChartJSOverview(rootId, fetchUrl);
+  }
   await ensureReact();
   const React = window.React;
   const ReactDOM = window.ReactDOM;
-  const Recharts = await ensureRecharts();
   const Lucide = await ensureLucide();
 
   const { useMemo, useState, useEffect } = React;
@@ -271,5 +280,150 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.mountPerformanceOverview = mountPerformanceOverview;
+
+
+// ==============================
+// Fallback Chart.js (sin React)
+// ==============================
+function formatNumberIntl(n){try{return (n??0).toLocaleString()}catch(_){return String(n??0)}}
+
+async function mountChartJSOverview(rootId, fetchUrl){
+  const container = document.getElementById(rootId);
+  if(!container) return;
+
+  // Ocultar bloque antiguo
+  try{const d=document.getElementById('summaryDisclaimer'); if(d) d.style.display='none';}catch(_){}
+
+  // UI básica
+  container.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="po-top-toggles">
+      <button type="button" data-k="clicks" class="po-btn">Clicks</button>
+      <button type="button" data-k="impressions" class="po-btn">Impressions</button>
+      <button type="button" data-k="ctr" class="po-btn">CTR</button>
+      <button type="button" data-k="position" class="po-btn">Avg. Position</button>
+      <button type="button" id="po-invert" class="po-btn">Invert position</button>
+      <style>
+        .po-btn{padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
+        .po-btn.active{background:#161616;color:#D8F9B8;border-color:#161616}
+      </style>
+    </div>
+    <div style="width:100%;height:320px"><canvas id="po-canvas" aria-label="Performance Overview Chart" role="img"></canvas></div>
+  `;
+
+  const savedToggles = JSON.parse(localStorage.getItem('po_toggles')||'{}');
+  const state = { 
+    show: { clicks: savedToggles.clicks!==false, impressions: savedToggles.impressions||false, ctr: savedToggles.ctr||false, position: savedToggles.position||false },
+    invert: localStorage.getItem('po_invert_pos')==='1'
+  };
+
+  const syncButtons = ()=>{
+    container.querySelectorAll('#po-top-toggles .po-btn[data-k]').forEach(btn=>{
+      const k = btn.getAttribute('data-k');
+      btn.classList.toggle('active', !!state.show[k]);
+    });
+    container.querySelector('#po-invert')?.classList.toggle('active', !!state.invert);
+  };
+
+  syncButtons();
+
+  const ctx = container.querySelector('#po-canvas');
+  if(!ctx || !window.Chart){
+    console.warn('Chart.js no está disponible');
+    return;
+  }
+
+  const siteSelect = document.getElementById('siteUrlSelect');
+  const range = getGlobalDateRange();
+  const siteUrl = siteSelect?.value || '';
+  if(!range || !siteUrl){ /* esperar cambios */ }
+
+  const fetchAndRender = async ()=>{
+    const r = getGlobalDateRange();
+    const s = document.getElementById('siteUrlSelect')?.value || siteUrl;
+    if(!r || !r.start || !r.end || !s) return;
+    const url = buildFetchUrl(fetchUrl, r.start, r.end, s);
+    let rows=[];
+    try{
+      const resp = await fetch(url);
+      rows = await resp.json();
+    }catch(e){ console.warn('No se pudo cargar /api/gsc/performance', e); return; }
+
+    const labels = rows.map(d=>d.date);
+    const clicks = rows.map(d=>d.clicks||0);
+    const impressions = rows.map(d=>d.impressions||0);
+    const ctr = rows.map(d=> (d.ctr||0) <=1 ? (d.ctr||0)*100 : (d.ctr||0));
+    const position = rows.map(d=>d.position||0);
+
+    if(container._chart){ container._chart.destroy(); }
+
+    container._chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {label:'Clicks', data:clicks, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.2)', fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
+          {label:'Impressions', data:impressions, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', fill:true, yAxisID:'y', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
+          {label:'CTR (%)', data:ctr, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.15)', fill:true, yAxisID:'y1', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
+          {label:'Avg. Position', data:position, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true, yAxisID:'y1', hidden: !state.show.position, pointRadius:0, tension:0.25}
+        ]
+      },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        animation:false,
+        plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{
+          label: (ctx)=>{
+            const n = ctx.dataset.label;
+            const v = ctx.parsed.y;
+            if(n.includes('CTR')) return `${n}: ${v?.toFixed(2)}%`;
+            if(n.includes('Position')) return `${n}: ${v?.toFixed(2)}`;
+            return `${n}: ${formatNumberIntl(v)}`;
+          }
+        } } },
+        scales:{
+          y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
+          y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>v }},
+          x:{ ticks:{ maxTicksLimit: 10 } }
+        }
+      }
+    });
+  };
+
+  // Eventos de toggles
+  container.querySelectorAll('#po-top-toggles .po-btn[data-k]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const k = btn.getAttribute('data-k');
+      state.show[k] = !state.show[k];
+      localStorage.setItem('po_toggles', JSON.stringify(state.show));
+      syncButtons();
+      if(container._chart){
+        const mapIndex = { clicks:0, impressions:1, ctr:2, position:3 };
+        const idx = mapIndex[k];
+        container._chart.data.datasets[idx].hidden = !state.show[k];
+        container._chart.update('none');
+      }
+    });
+  });
+
+  container.querySelector('#po-invert')?.addEventListener('click', ()=>{
+    state.invert = !state.invert;
+    localStorage.setItem('po_invert_pos', state.invert ? '1' : '0');
+    syncButtons();
+    if(container._chart){
+      container._chart.options.scales.y1.reverse = !!state.invert;
+      container._chart.update('none');
+    }
+  });
+
+  // Reaccionar a cambios del selector de fechas
+  const applyBtn = document.getElementById('modalApplyBtn');
+  if(applyBtn){ applyBtn.addEventListener('click', fetchAndRender); }
+  // Reaccionar a cambios de propiedad
+  const siteSelectEl = document.getElementById('siteUrlSelect');
+  if(siteSelectEl){ siteSelectEl.addEventListener('change', fetchAndRender); }
+
+  // Primera carga (con reintento breve hasta que haya fechas y siteUrl)
+  let tries=0; const timer = setInterval(()=>{ tries++; fetchAndRender(); if(tries>10) clearInterval(timer); }, 800);
+}
 
 
