@@ -1,22 +1,30 @@
 // performance-overview.js - Montaje del gráfico Recharts estilo GSC
 // Nota: Se usa import dinámico ESM desde CDN para evitar build steps.
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Script load error: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
 async function ensureReact() {
   if (window.React && window.ReactDOM && window.ReactDOM.createRoot) return window.React;
-  const [ReactMod, ReactDOMMod] = await Promise.all([
-    import('https://esm.sh/react@18?bundle'),
-    import('https://esm.sh/react-dom@18/client?bundle')
-  ]);
-  window.React = ReactMod.default || ReactMod;
-  window.ReactDOM = ReactDOMMod;
+  // Cargar UMD para evitar múltiples instancias de React
+  await loadScript('https://unpkg.com/react@18/umd/react.production.min.js');
+  await loadScript('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
   return window.React;
 }
 
 async function ensureRecharts() {
   if (window.Recharts) return window.Recharts;
-  const recharts = await import('https://esm.sh/recharts@2.12.7?bundle');
-  window.Recharts = recharts;
-  return recharts;
+  await loadScript('https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js');
+  return window.Recharts;
 }
 
 async function ensureLucide() {
@@ -243,6 +251,12 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
   const rootEl = document.getElementById(rootId);
   if (!rootEl) return;
   try {
+    // Ocultar contenido previo del bloque Performance Overview (disclaimer/placeholder)
+    try {
+      const disclaimer = document.getElementById('summaryDisclaimer');
+      if (disclaimer) disclaimer.style.display = 'none';
+    } catch (_) {}
+
     const root = window.ReactDOM.createRoot(rootEl);
     root.render(window.React.createElement(Overview));
     if (window.sidebarOnContentReady) window.sidebarOnContentReady('performance');
