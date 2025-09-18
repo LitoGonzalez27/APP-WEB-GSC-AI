@@ -306,7 +306,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // UI básica
   container.innerHTML = `
-    <div id="po-metrics" style="display:flex;gap:22px;align-items:flex-start;margin:2px 0 40px 0;flex-wrap:wrap;font-size:16px;color:#111827">
+    <div id="po-metrics" style="display:flex;gap:22px;align-items:flex-start;justify-content:space-evenly;margin:2px 0 40px 0;flex-wrap:wrap;font-size:16px;color:#111827">
       <div class="po-metric" data-k="clicks" style="display:flex;gap:10px;align-items:flex-start">
         <i class="fas fa-mouse-pointer" style="color:#2563eb;font-size:18px;margin-top:2px"></i>
         <div>
@@ -360,15 +360,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
         <button type="button" data-k="position" class="po-btn">Avg. Position</button>
       </div>
       <div id="po-trend-controls" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:relative">
-        <span id="po-trend-info" class="urls-info-icon" aria-label="Trend info">ℹ️</span>
-        <div id="po-trend-tooltip" class="urls-info-tooltip" style="top:auto;bottom:120%;left:0;min-width:260px">
-          <strong>Trend lines behavior</strong>
-          <p>When comparison is active, trend lines are computed over the current period only. They do not use the comparison period nor combined totals.</p>
-        </div>
         <button type="button" data-trend="clicks" class="po-btn po-trend-btn">Trend clicks</button>
         <button type="button" data-trend="impressions" class="po-btn po-trend-btn">Trend impressions</button>
         <button type="button" data-trend="ctr" class="po-btn po-trend-btn">Trend CTR</button>
         <button type="button" data-trend="position" class="po-btn po-trend-btn">Trend position</button>
+        <span id="po-trend-info" class="urls-info-icon" aria-label="Trend info">ℹ️</span>
+        <div id="po-trend-tooltip" class="urls-info-tooltip" style="top:auto;bottom:120%;right:0;min-width:260px">
+          <strong>Trend lines behavior</strong>
+          <p>When comparison is active, trend lines are computed over the current period only. They do not use the comparison period or combined totals.</p>
+        </div>
       </div>
       <style>
         .po-btn{padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
@@ -737,17 +737,20 @@ async function mountChartJSOverview(rootId, fetchUrl){
       if(!ds) return;
       ds.hidden = !ds.hidden;
       btn.classList.toggle('active', !ds.hidden);
-      // Atenuar relleno de la métrica correspondiente cuando la tendencia esté visible
+      // Atenuar relleno y línea de la métrica correspondiente cuando la tendencia esté visible
       const baseIndex = (container._baseIndexMap||{})[which];
       if(typeof baseIndex === 'number'){
         const baseDs = container._chart.data.datasets[baseIndex];
-        const factor = ds.hidden ? 1 : 0.6; // 0.6 con tendencia
+        const factor = ds.hidden ? 1 : 0.5; // 0.5 con tendencia
         const color = baseDs.borderColor;
         const gradFn = container._makeGrad;
         if (typeof gradFn === 'function') {
           const rgba = (typeof color === 'string' && color.startsWith('rgba')) ? color : (typeof color === 'string' && color.startsWith('rgb(') ? color.replace('rgb(', 'rgba(').replace(')', ',1)') : 'rgba(0,0,0,1)');
           baseDs.backgroundColor = (ctx)=> gradFn(rgba, factor);
         }
+        // También atenuar la opacidad de la línea
+        baseDs.borderColor = (typeof color === 'string') ? color.replace(/rgba\(([^)]+),\s*([01](?:\.\d+)?)\)/, 'rgba($1,'+(factor)+')').replace(/rgb\(/,'rgba(').replace(/\)$/,' ,'+factor+')') : color;
+        baseDs.borderWidth = ds.hidden ? baseDs.borderWidth : (baseDs.borderWidth || 2);
       }
       container._chart.update('none');
     });
