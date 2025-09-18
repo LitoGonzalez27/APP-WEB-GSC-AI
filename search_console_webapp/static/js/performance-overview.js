@@ -538,6 +538,9 @@ async function mountChartJSOverview(rootId, fetchUrl){
       g.addColorStop(1.00, withAlpha(aStrong));
       return g;
     };
+    // Exponer helpers para handlers externos
+    container._makeGrad = makeGrad;
+    container._baseIndexMap = { clicks:0, impressions:1, ctr:2, position:3 };
     // Colores base en rgba fuertes para líneas
     const colClicks = 'rgba(37,99,235,1)';
     const colImpr = 'rgba(16,185,129,1)';
@@ -562,6 +565,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const trendImpr = linReg(impressions);
     const trendCtr = linReg(ctr);
     const trendPos = linReg(position);
+    const hasComparison = rowsComp.length > 0;
+    const trendStartIndex = 4 + (hasComparison ? 4 : 0);
 
     container._chart = new Chart(ctx, {
       type: 'line',
@@ -603,6 +608,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
         elements: { point: { radius: 0, hoverRadius: 4, hitRadius: 6 } }
       }
     });
+    // Guardar mapa de índices de tendencias
+    container._trendIndexMap = { clicks: trendStartIndex, impressions: trendStartIndex+1, ctr: trendStartIndex+2, position: trendStartIndex+3 };
 
     // Actualizar indicadores minimalistas con P1, P2 y delta si hay comparación
     const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
@@ -693,23 +700,28 @@ async function mountChartJSOverview(rootId, fetchUrl){
     btn.addEventListener('click', ()=>{
       const which = btn.getAttribute('data-trend');
       if(!container._chart) return;
-      const mapIndex = { clicks:8, impressions:9, ctr:10, position:11 };
+      const mapIndex = container._trendIndexMap || {};
       const idx = mapIndex[which];
+      if(typeof idx !== 'number') return;
       const ds = container._chart.data.datasets[idx];
       if(!ds) return;
       ds.hidden = !ds.hidden;
       btn.classList.toggle('active', !ds.hidden);
-      // Atenuar relleno de la m9trica correspondiente cuando la tendencia est9 visible
-      const baseIndex = { clicks:0, impressions:1, ctr:2, position:3 }[which];
+      // Atenuar relleno de la métrica correspondiente cuando la tendencia esté visible
+      const baseIndex = (container._baseIndexMap||{})[which];
       if(typeof baseIndex === 'number'){
         const baseDs = container._chart.data.datasets[baseIndex];
-        // Calcular factor (0.6 con tendencia, 1 sin tendencia)
-        const factor = ds.hidden ? 1 : 0.6;
+        const factor = ds.hidden ? 1 : 0.6; // 0.6 con tendencia, 1 sin tendencia
         const color = baseDs.borderColor;
-        baseDs.backgroundColor = (ctx)=>{
-          const c = typeof color === 'string' ? color : '#000000';
-          return makeGrad(c.replace('rgb','rgba').replace(')',' ,1)'), factor);
-        };
+        let rgba = 'rgba(37,99,235,1)';
+        if (typeof color === 'string') {
+          if (color.startsWith('rgba')) rgba = color;
+          else if (color.startsWith('rgb(')) rgba = color.replace('rgb(', 'rgba(').replace(')', ',1)');
+        }
+        const gradFn = container._makeGrad;
+        if (typeof gradFn === 'function') {
+          baseDs.backgroundColor = (ctx)=> gradFn(rgba, factor);
+        }
       }
       container._chart.update('none');
     });
