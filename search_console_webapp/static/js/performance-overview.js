@@ -352,20 +352,24 @@ async function mountChartJSOverview(rootId, fetchUrl){
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center" id="po-top-toggles">
-      <button type="button" data-k="clicks" class="po-btn">Clicks</button>
-      <button type="button" data-k="impressions" class="po-btn">Impressions</button>
-      <button type="button" data-k="ctr" class="po-btn">CTR</button>
-      <button type="button" data-k="position" class="po-btn">Avg. Position</button>
-      <span id="po-trend-info" class="urls-info-icon" style="margin-left:6px" aria-label="Trend info">ℹ️</span>
-      <div id="po-trend-tooltip" class="urls-info-tooltip" style="left:auto;right:auto;min-width:260px">
-        <strong>Trend lines behavior</strong>
-        <p>When comparison is active, trend lines are computed over the current period only. They do not use the comparison period nor combined totals.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;justify-content:space-between" id="po-top-toggles">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" data-k="clicks" class="po-btn">Clicks</button>
+        <button type="button" data-k="impressions" class="po-btn">Impressions</button>
+        <button type="button" data-k="ctr" class="po-btn">CTR</button>
+        <button type="button" data-k="position" class="po-btn">Avg. Position</button>
       </div>
-      <button type="button" data-trend="clicks" class="po-btn po-trend-btn">Trend clicks</button>
-      <button type="button" data-trend="impressions" class="po-btn po-trend-btn">Trend impressions</button>
-      <button type="button" data-trend="ctr" class="po-btn po-trend-btn">Trend CTR</button>
-      <button type="button" data-trend="position" class="po-btn po-trend-btn">Trend position</button>
+      <div id="po-trend-controls" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:relative">
+        <span id="po-trend-info" class="urls-info-icon" aria-label="Trend info">ℹ️</span>
+        <div id="po-trend-tooltip" class="urls-info-tooltip" style="top:auto;bottom:120%;left:0;min-width:260px">
+          <strong>Trend lines behavior</strong>
+          <p>When comparison is active, trend lines are computed over the current period only. They do not use the comparison period nor combined totals.</p>
+        </div>
+        <button type="button" data-trend="clicks" class="po-btn po-trend-btn">Trend clicks</button>
+        <button type="button" data-trend="impressions" class="po-btn po-trend-btn">Trend impressions</button>
+        <button type="button" data-trend="ctr" class="po-btn po-trend-btn">Trend CTR</button>
+        <button type="button" data-trend="position" class="po-btn po-trend-btn">Trend position</button>
+      </div>
       <style>
         .po-btn{padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
         .po-btn.active{background:#161616;color:#D8F9B8;border-color:#161616}
