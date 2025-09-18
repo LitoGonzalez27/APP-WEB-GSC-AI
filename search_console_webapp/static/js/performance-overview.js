@@ -296,26 +296,30 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // UI básica
   container.innerHTML = `
-    <div id="po-metrics" style="display:flex;gap:18px;align-items:center;margin:2px 0 10px 0;flex-wrap:wrap;font-size:13px;color:#111827">
-      <div class="po-metric" data-k="clicks" style="display:flex;gap:6px;align-items:baseline">
-        <span style="font-weight:600">Clicks</span>
-        <span class="po-value" aria-label="clicks value">–</span>
-        <span class="po-delta" aria-label="clicks delta" style="font-size:12px;color:#059669"> </span>
+    <div id=\"po-metrics\" style=\"display:flex;gap:18px;align-items:center;margin:2px 0 10px 0;flex-wrap:wrap;font-size:13px;color:#111827\">
+      <div class=\"po-metric\" data-k=\"clicks\" style=\"display:flex;gap:6px;align-items:center\">
+        <i class=\"fas fa-mouse-pointer\" style=\"color:#2563eb\"></i>
+        <span style=\"font-weight:600\">Clicks</span>
+        <span class=\"po-value\" aria-label=\"clicks value\">–</span>
+        <span class=\"po-delta\" aria-label=\"clicks delta\" style=\"font-size:12px;color:#059669\"> </span>
       </div>
-      <div class="po-metric" data-k="impressions" style="display:flex;gap:6px;align-items:baseline">
-        <span style="font-weight:600">Impr.</span>
-        <span class="po-value" aria-label="impressions value">–</span>
-        <span class="po-delta" aria-label="impressions delta" style="font-size:12px;color:#059669"> </span>
+      <div class=\"po-metric\" data-k=\"impressions\" style=\"display:flex;gap:6px;align-items:center\">
+        <i class=\"fas fa-eye\" style=\"color:#10b981\"></i>
+        <span style=\"font-weight:600\">Impr.</span>
+        <span class=\"po-value\" aria-label=\"impressions value\">–</span>
+        <span class=\"po-delta\" aria-label=\"impressions delta\" style=\"font-size:12px;color:#059669\"> </span>
       </div>
-      <div class="po-metric" data-k="ctr" style="display:flex;gap:6px;align-items:baseline">
-        <span style="font-weight:600">CTR</span>
-        <span class="po-value" aria-label="ctr value">–</span>
-        <span class="po-delta" aria-label="ctr delta" style="font-size:12px;color:#059669"> </span>
+      <div class=\"po-metric\" data-k=\"ctr\" style=\"display:flex;gap:6px;align-items:center\">
+        <i class=\"fas fa-percentage\" style=\"color:#f59e0b\"></i>
+        <span style=\"font-weight:600\">CTR</span>
+        <span class=\"po-value\" aria-label=\"ctr value\">–</span>
+        <span class=\"po-delta\" aria-label=\"ctr delta\" style=\"font-size:12px;color:#059669\"> </span>
       </div>
-      <div class="po-metric" data-k="position" style="display:flex;gap:6px;align-items:baseline">
-        <span style="font-weight:600">Pos.</span>
-        <span class="po-value" aria-label="position value">–</span>
-        <span class="po-delta" aria-label="position delta" style="font-size:12px;color:#059669"> </span>
+      <div class=\"po-metric\" data-k=\"position\" style=\"display:flex;gap:6px;align-items:center\">
+        <i class=\"fas fa-location-arrow\" style=\"color:#ef4444\"></i>
+        <span style=\"font-weight:600\">Pos.</span>
+        <span class=\"po-value\" aria-label=\"position value\">–</span>
+        <span class=\"po-delta\" aria-label=\"position delta\" style=\"font-size:12px;color:#059669\"> </span>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="po-top-toggles">
@@ -479,21 +483,39 @@ async function mountChartJSOverview(rootId, fetchUrl){
       tt.style.display = 'block';
     };
 
+    // Puntos interactivos en hover
+    const hoverStyle = { mode: 'index', intersect: false, onHover: (e, active) => { /* noop */ } };
+
+    // Definir gradientes verticales (blanco -> color)
+    const ctx2 = ctx.getContext('2d');
+    const makeGrad = (hex)=>{
+      const g = ctx2.createLinearGradient(0, ctx.height, 0, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0.0)');
+      g.addColorStop(0.9, hex.replace('1)', '0.25)').replace('rgb(', 'rgba('));
+      g.addColorStop(1, hex);
+      return g;
+    };
+    // Colores base en rgba fuertes para líneas
+    const colClicks = 'rgba(37,99,235,1)';
+    const colImpr = 'rgba(16,185,129,1)';
+    const colCtr = 'rgba(245,158,11,1)';
+    const colPos = 'rgba(239,68,68,1)';
+
     container._chart = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
         datasets: [
-          {label:'Clicks', data:clicks, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.2)', fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
-          {label:'Impressions', data:impressions, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
-          {label:'CTR (%)', data:ctr, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.15)', fill:true, yAxisID:'y1', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
-          {label:'Avg. Position', data:position, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true, yAxisID:'y1', hidden: !state.show.position, pointRadius:0, tension:0.25}
+          {label:'Clicks', data:clicks, borderColor:colClicks, backgroundColor:makeGrad('rgba(37,99,235,1)'), fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
+          {label:'Impressions', data:impressions, borderColor:colImpr, backgroundColor:makeGrad('rgba(16,185,129,1)'), fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
+          {label:'CTR (%)', data:ctr, borderColor:colCtr, backgroundColor:makeGrad('rgba(245,158,11,1)'), fill:true, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
+          {label:'Avg. Position', data:position, borderColor:colPos, backgroundColor:makeGrad('rgba(239,68,68,1)'), fill:true, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25}
           // Periodo comparado (solo líneas punteadas, sin fill)
           , ...(rowsComp.length ? [
-            {label:'Clicks (comp)', data:clicksComp, borderColor:'#2563eb', fill:false, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
-            {label:'Impressions (comp)', data:impressionsComp, borderColor:'#10b981', fill:false, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
-            {label:'CTR (comp) %', data:ctrComp, borderColor:'#f59e0b', fill:false, yAxisID:'y1', hidden: !state.show.ctr, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
-            {label:'Position (comp)', data:positionComp, borderColor:'#ef4444', fill:false, yAxisID:'y1', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
+            {label:'Clicks (comp)', data:clicksComp, borderColor:colClicks, fill:false, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'Impressions (comp)', data:impressionsComp, borderColor:colImpr, fill:false, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'CTR (comp) %', data:ctrComp, borderColor:colCtr, fill:false, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'Position (comp)', data:positionComp, borderColor:colPos, fill:false, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
           ] : [])
         ]
       },
@@ -505,8 +527,13 @@ async function mountChartJSOverview(rootId, fetchUrl){
         scales:{
           y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
           y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
+          // Ejes internos no visibles para escalado dinámico
+          y2:{ display:false, suggestedMin: 0, suggestedMax: Math.max(10, Math.ceil(Math.max(...ctr) * 1.2)) },
+          y3:{ display:false, suggestedMin: 0, suggestedMax: 20 },
           x:{ ticks:{ maxTicksLimit: 10 } }
-        }
+        },
+        hover: hoverStyle,
+        elements: { point: { radius: 0, hoverRadius: 4, hitRadius: 6 } }
       }
     });
 
