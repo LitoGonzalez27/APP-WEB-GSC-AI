@@ -400,6 +400,9 @@ def api_gsc_performance():
         start = (request.args.get('start') or '').strip()
         end = (request.args.get('end') or '').strip()
         site_url_sc = (request.args.get('siteUrl') or '').strip()
+        country = (request.args.get('country') or '').strip()
+        match_type = (request.args.get('match_type') or '').strip() or 'contains'
+        urls_raw = (request.args.get('urls') or '').strip()
 
         if not start or not end:
             return jsonify({'error': 'start y end son obligatorios'}), 400
@@ -429,7 +432,8 @@ def api_gsc_performance():
         cache_client = getattr(ai_cache, 'redis_client', None)
         cache_key = None
         if cache_client:
-            cache_key = f"gsc:perf:{user['id']}:{site_url_sc.lower()}:{start}:{end}"
+            urls_fingerprint = hashlib.sha1((urls_raw or '').encode('utf-8')).hexdigest()[:8]
+            cache_key = f"gsc:perf:{user['id']}:{site_url_sc.lower()}:{start}:{end}:{country or '-'}:{match_type or '-'}:{urls_fingerprint}"
             try:
                 cached = cache_client.get(cache_key)
                 if cached:
@@ -458,6 +462,45 @@ def api_gsc_performance():
             'rowLimit': 25000
         }
 
+        # Filtros avanzados: país (searchAppearance o dimension country) y URLs (dimension page)
+        filters = []
+        # País: si llega código (ej. 'esp', 'usa' o código GSC), se aplica como dimensión 'country'
+        if country:
+            filters.append({
+                'filters': [
+                    {
+                        'dimension': 'country',
+                        'operator': 'equals',
+                        'expression': country
+                    }
+                ]
+            })
+        # URLs: sólo si el usuario definió alguna. Se aplica sobre dimension 'page'
+        if urls_raw:
+            # Asegurar que la dimensión page esté presente (GSC permite combinar)
+            if 'dimensions' in body and 'page' not in body['dimensions']:
+                body['dimensions'] = ['date', 'page']
+            url_list = [u.strip() for u in urls_raw.split('\n') if u.strip()]
+            op_map = {
+                'contains': 'contains',
+                'equals': 'equals',
+                'notContains': 'notContains',
+                'notEquals': 'notEquals'
+            }
+            operator = op_map.get(match_type, 'contains')
+            url_filters = []
+            for u in url_list:
+                url_filters.append({
+                    'dimension': 'page',
+                    'operator': operator,
+                    'expression': u
+                })
+            if url_filters:
+                filters.append({'filters': url_filters})
+
+        if filters:
+            body['dimensionFilterGroups'] = filters
+
         try:
             resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
         except HttpError as e:
@@ -473,23 +516,44 @@ def api_gsc_performance():
 
         rows = (resp or {}).get('rows', [])
 
-        # Indexar por fecha y preparar estructura fiel
-        by_date = {}
+        # Indexar por fecha y agregar resultados. Si hay dimensión page, agregamos por fecha.
+        aggregates = {}
         for r in rows:
-            try:
-                d = r['keys'][0]
-            except Exception:
+            # Encontrar fecha en keys
+            d = None
+            for k in r.get('keys', []):
+                if isinstance(k, str) and len(k) == 10 and k[4] == '-' and k[7] == '-':
+                    d = k
+                    break
+            if not d:
                 continue
-            clicks = r.get('clicks', 0)
-            impressions = r.get('impressions', 0)
-            ctr_ratio = r.get('ctr', 0)  # 0–1
-            position = r.get('position', 0)
+            clicks = float(r.get('clicks', 0) or 0)
+            impressions = float(r.get('impressions', 0) or 0)
+            position = float(r.get('position', 0) or 0)
+            if d not in aggregates:
+                aggregates[d] = {
+                    'clicks': 0.0,
+                    'impressions': 0.0,
+                    'pos_weighted_sum': 0.0
+                }
+            aggregates[d]['clicks'] += clicks
+            aggregates[d]['impressions'] += impressions
+            # Media ponderada por impresiones (aprox. al agregado de GSC)
+            aggregates[d]['pos_weighted_sum'] += position * impressions
+
+        # Convertir agregados a salida fiel por fecha
+        by_date = {}
+        for d, ag in aggregates.items():
+            clicks_sum = int(round(ag['clicks']))
+            impr_sum = int(round(ag['impressions']))
+            ctr_pct = (ag['clicks'] / ag['impressions'] * 100.0) if ag['impressions'] > 0 else 0.0
+            pos_avg = (ag['pos_weighted_sum'] / ag['impressions']) if ag['impressions'] > 0 else 0.0
             by_date[d] = {
                 'date': d,
-                'clicks': int(round(clicks)),
-                'impressions': int(round(impressions)),
-                'ctr': ctr_ratio * 100.0,  # devolver en % (frontend soporta ambos)
-                'position': float(position)
+                'clicks': clicks_sum,
+                'impressions': impr_sum,
+                'ctr': round(ctr_pct, 6),
+                'position': round(pos_avg, 6)
             }
 
         # Rellenar huecos de fechas con ceros para continuidad

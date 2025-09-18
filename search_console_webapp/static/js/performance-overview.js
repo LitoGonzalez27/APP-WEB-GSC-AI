@@ -53,11 +53,28 @@ function formatNumber(n) {
   return (n ?? 0).toLocaleString();
 }
 
+function getConfigParams() {
+  const country = document.getElementById('countrySelect')?.value || '';
+  const urlsRaw = document.getElementById('urlsInput')?.value || '';
+  const matchType = (document.querySelector('input[name="match_type"]:checked')?.value) || (window.utils?.matchType) || 'contains';
+  // Normalizar URLs: líneas no vacías
+  const urls = urlsRaw
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  return { country, urls, matchType };
+}
+
 function buildFetchUrl(base, start, end, siteUrl) {
   const u = new URL(base, window.location.origin);
   u.searchParams.set('start', start);
   u.searchParams.set('end', end);
   if (siteUrl) u.searchParams.set('siteUrl', siteUrl);
+  // Añadir filtros de configuration
+  const cfg = getConfigParams();
+  if (cfg.country) u.searchParams.set('country', cfg.country);
+  if (cfg.matchType) u.searchParams.set('match_type', cfg.matchType);
+  if (cfg.urls && cfg.urls.length) u.searchParams.set('urls', cfg.urls.join('\n'));
   return u.toString();
 }
 
@@ -564,8 +581,20 @@ async function mountChartJSOverview(rootId, fetchUrl){
       g.addColorStop(1.00, withAlpha(aStrong));
       return g;
     };
+    // Normaliza un color a 'rgba(r,g,b,1)'
+    const ensureRgba1 = (c)=>{
+      if (typeof c !== 'string') return 'rgba(0,0,0,1)';
+      if (c.startsWith('rgba(')) {
+        return c.replace(/rgba\((\s*\d+\s*,\s*\d+\s*,\s*\d+\s*),\s*[^)]+\)/, 'rgba($1,1)');
+      }
+      if (c.startsWith('rgb(')) {
+        return c.replace(/rgb\(([^)]+)\)/, 'rgba($1,1)');
+      }
+      return 'rgba(0,0,0,1)';
+    };
     // Exponer helpers a nivel del contenedor para usarlos en handlers externos
     container._makeGrad = makeGrad;
+    container._ensureRgba1 = ensureRgba1;
     container._baseIndexMap = { clicks:0, impressions:1, ctr:2, position:3 };
     // Colores base en rgba fuertes para líneas
     const colClicks = 'rgba(37,99,235,1)';
@@ -744,12 +773,14 @@ async function mountChartJSOverview(rootId, fetchUrl){
         const factor = ds.hidden ? 1 : 0.5; // 0.5 con tendencia
         const color = baseDs.borderColor;
         const gradFn = container._makeGrad;
+        const toRgba1 = container._ensureRgba1 || ((x)=>x);
         if (typeof gradFn === 'function') {
-          const rgba = (typeof color === 'string' && color.startsWith('rgba')) ? color : (typeof color === 'string' && color.startsWith('rgb(') ? color.replace('rgb(', 'rgba(').replace(')', ',1)') : 'rgba(0,0,0,1)');
+          const rgba = toRgba1(color);
           baseDs.backgroundColor = (ctx)=> gradFn(rgba, factor);
         }
         // También atenuar la opacidad de la línea
-        baseDs.borderColor = (typeof color === 'string') ? color.replace(/rgba\(([^)]+),\s*([01](?:\.\d+)?)\)/, 'rgba($1,'+(factor)+')').replace(/rgb\(/,'rgba(').replace(/\)$/,' ,'+factor+')') : color;
+        const baseRgba = toRgba1(color);
+        baseDs.borderColor = baseRgba.replace(/rgba\(([^)]+),\s*([01](?:\.\d+)?)\)/, 'rgba($1,'+factor+')');
         baseDs.borderWidth = ds.hidden ? baseDs.borderWidth : (baseDs.borderWidth || 2);
       }
       container._chart.update('none');
