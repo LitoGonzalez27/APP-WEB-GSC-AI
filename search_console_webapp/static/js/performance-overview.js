@@ -573,6 +573,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
       return out;
     };
 
+    const endpointTrend = (ys)=>{
+      const n = ys.length; if(n < 2) return [];
+      const y0 = ys[0] || 0; const yN = ys[n-1] || 0;
+      const slope = (yN - y0) / (n - 1);
+      const out = new Array(n);
+      for(let i=0;i<n;i++){ out[i] = y0 + slope * i; }
+      return out;
+    };
+
     const useDelta = rowsComp.length > 0;
     const seriesForTrend = {
       clicks: useDelta ? buildDeltaSeries(clicks, clicksComp, false) : clicks,
@@ -581,10 +590,10 @@ async function mountChartJSOverview(rootId, fetchUrl){
       position: useDelta ? buildDeltaSeries(position, positionComp, false) : position,
     };
 
-    const trendClicks = seriesForTrend.clicks.length >= 3 ? linReg(seriesForTrend.clicks) : [];
-    const trendImpr = seriesForTrend.impressions.length >= 3 ? linReg(seriesForTrend.impressions) : [];
-    const trendCtr = seriesForTrend.ctr.length >= 3 ? linReg(seriesForTrend.ctr) : [];
-    const trendPos = seriesForTrend.position.length >= 3 ? linReg(seriesForTrend.position) : [];
+    const trendClicks = seriesForTrend.clicks.length >= 2 ? (useDelta ? endpointTrend(seriesForTrend.clicks) : linReg(seriesForTrend.clicks)) : [];
+    const trendImpr = seriesForTrend.impressions.length >= 2 ? (useDelta ? endpointTrend(seriesForTrend.impressions) : linReg(seriesForTrend.impressions)) : [];
+    const trendCtr = seriesForTrend.ctr.length >= 2 ? (useDelta ? endpointTrend(seriesForTrend.ctr) : linReg(seriesForTrend.ctr)) : [];
+    const trendPos = seriesForTrend.position.length >= 2 ? (useDelta ? endpointTrend(seriesForTrend.position) : linReg(seriesForTrend.position)) : [];
     const hasComparison = rowsComp.length > 0;
     const trendStartIndex = 4 + (hasComparison ? 4 : 0);
 
