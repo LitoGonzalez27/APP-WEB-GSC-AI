@@ -492,15 +492,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
     // Definir gradientes verticales (blanco -> color)
     const ctx2 = ctx.getContext('2d');
     const makeGrad = (hex)=>{
-      const g = ctx2.createLinearGradient(0, ctx.height, 0, 0);
-      // 0% → 75% alto: color con alta opacidad
-      const rgbaStrong = hex; // ej. rgba(37,99,235,1)
-      const rgbaMedium = hex.replace('1)', '0.6)');
-      g.addColorStop(0.0, rgbaStrong);
-      g.addColorStop(0.75, rgbaMedium);
-      // 75% → 100%: desvanecer a blanco
-      g.addColorStop(0.98, 'rgba(255,255,255,0.15)');
-      g.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+      const g = ctx2.createLinearGradient(0, ctx.height, 0, 0); // de abajo (0) hacia arriba (1)
+      // Más soft: blanco transparente en la base → color suave hacia la línea
+      const rgbaStrong = hex.replace('1)', '0.45)');  // suave en el borde de la línea
+      const rgbaMedium = hex.replace('1)', '0.28)');
+      const rgbaLight  = hex.replace('1)', '0.12)');
+      g.addColorStop(0.0, 'rgba(255,255,255,0)');     // base blanca/transparente
+      g.addColorStop(0.5, rgbaLight);                 // a mitad ya se aprecia ligeramente
+      g.addColorStop(0.85, rgbaMedium);               // más intenso cerca de la línea
+      g.addColorStop(1.0, rgbaStrong);                // máximo (pero suave) justo bajo la línea
       return g;
     };
     // Colores base en rgba fuertes para líneas
@@ -563,7 +563,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
       if(vEl) vEl.textContent = k==='ctr' ? `${val.toFixed(2)}%` : (k==='position' ? val.toFixed(2) : formatNumberIntl(val));
       if(dEl){
         if(isFinite(delta)){
-          const up = delta >= 0; dEl.style.color = up ? '#16a34a' : '#dc2626';
+          // Regla de negocio: position (negativo mejora -> verde), resto (positivo mejora -> verde)
+          let isPositive = delta >= 0;
+          let good;
+          if(k === 'position'){
+            good = delta < 0; // menor es mejor
+          } else {
+            good = isPositive; // mayor es mejor
+          }
+          dEl.style.color = good ? '#16a34a' : '#dc2626';
           dEl.textContent = (k==='position') ? `${(delta).toFixed(2)}` : `${(delta).toFixed(2)}%`;
         }else{
           dEl.textContent = '';
