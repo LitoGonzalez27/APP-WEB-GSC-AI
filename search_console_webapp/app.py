@@ -524,23 +524,44 @@ def api_gsc_performance():
             if country_filter:
                 filter_groups.append({ 'groupType': 'and', 'filters': [country_filter] })
 
-        if filter_groups:
-            body['dimensionFilterGroups'] = filter_groups
-
-        try:
-            resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
-        except HttpError as e:
-            status = getattr(e, 'status_code', 500)
-            # 403 si no hay acceso a esa propiedad
-            if status == 403:
-                return jsonify({'error': 'Acceso denegado a la propiedad', 'forbidden': True}), 403
-            logger.error(f"HTTPError GSC: {e}")
-            return jsonify({'error': 'Error consultando Search Console'}), 500
-        except Exception as e:
-            logger.error(f"Error consultando Search Console: {e}")
-            return jsonify({'error': 'Error consultando Search Console'}), 500
-
-        rows = (resp or {}).get('rows', [])
+        # Ejecutar consulta a GSC, con tratamiento especial para operadores positivos con múltiples URLs
+        rows = []
+        if has_urls and operator in ('contains', 'equals'):
+            # Replicar semántica previa: una llamada por URL (AND con country si aplica) y agregamos resultados
+            for u in url_list:
+                group_filters = []
+                if country_filter:
+                    group_filters.append(country_filter)
+                group_filters.append({ 'dimension': 'page', 'operator': operator, 'expression': u })
+                local_body = {
+                    'startDate': start,
+                    'endDate': end,
+                    'dimensions': body.get('dimensions', ['date']),
+                    'rowLimit': body.get('rowLimit', 25000),
+                    'dimensionFilterGroups': [{ 'groupType': 'and', 'filters': group_filters }]
+                }
+                try:
+                    resp_local = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=local_body).execute()
+                    rows.extend(resp_local.get('rows', []))
+                except HttpError as e:
+                    logger.error(f"HTTPError GSC (per-URL): {e}")
+                except Exception as e:
+                    logger.error(f"Error consultando Search Console (per-URL): {e}")
+        else:
+            if filter_groups:
+                body['dimensionFilterGroups'] = filter_groups
+            try:
+                resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
+            except HttpError as e:
+                status = getattr(e, 'status_code', 500)
+                if status == 403:
+                    return jsonify({'error': 'Acceso denegado a la propiedad', 'forbidden': True}), 403
+                logger.error(f"HTTPError GSC: {e}")
+                return jsonify({'error': 'Error consultando Search Console'}), 500
+            except Exception as e:
+                logger.error(f"Error consultando Search Console: {e}")
+                return jsonify({'error': 'Error consultando Search Console'}), 500
+            rows = (resp or {}).get('rows', [])
 
         # Indexar por fecha y agregar resultados. Si hay dimensión page, agregamos por fecha.
         aggregates = {}
