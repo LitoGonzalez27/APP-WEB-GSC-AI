@@ -353,6 +353,20 @@ function createMiniChart(canvasId, data, color, labels, type = 'line') {
 
 // ✅ ACTUALIZADA: Renderiza el bloque de resumen con períodos específicos
 export function renderSummary(periodSummary) {
+  // Compatibilidad: si las tarjetas antiguas ya no existen, evitar errores y solo notificar "content ready"
+  const summaryIds = ['#summaryClicks', '#summaryImpressions', '#summaryCTR', '#summaryPosition'];
+  const legacyExists = summaryIds.some(sel => document.querySelector(sel));
+  if (!legacyExists) {
+    // Habilitar sección performance y navegar a Overview cuando no usamos las tarjetas antiguas
+    if (window.sidebarOnContentReady) window.sidebarOnContentReady('performance');
+    if (window.navigateToSection) {
+      window.navigateToSection('performance');
+    } else if (window.showSection) {
+      window.showSection('performance');
+    }
+    return; // No intentar render de legacy cards
+  }
+
   ['#summaryClicks', '#summaryImpressions', '#summaryCTR', '#summaryPosition'].forEach(sel => {
     const el = document.querySelector(`${sel} .summary-content`);
     if (el) el.innerHTML = '';
@@ -542,16 +556,20 @@ export function renderSummary(periodSummary) {
   };
 
   // Limpiar y actualizar HTML de cada card completamente
-  document.querySelector('#summaryClicks').innerHTML = 
+  const clicksCard = document.querySelector('#summaryClicks');
+  if (clicksCard) clicksCard.innerHTML = 
     createSummaryCard('clicks', 'Total Clicks', 'fas fa-mouse-pointer', null, clicksData, chartLabels, colors.clicks);
   
-  document.querySelector('#summaryImpressions').innerHTML = 
+  const imprCard = document.querySelector('#summaryImpressions');
+  if (imprCard) imprCard.innerHTML = 
     createSummaryCard('impressions', 'Total Impressions', 'fas fa-eye', null, impressionsData, chartLabels, colors.impressions);
   
-  document.querySelector('#summaryCTR').innerHTML = 
+  const ctrCard = document.querySelector('#summaryCTR');
+  if (ctrCard) ctrCard.innerHTML = 
     createSummaryCard('ctr', 'Average CTR', 'fas fa-percentage', null, ctrData, chartLabels, colors.ctr, true);
   
-  document.querySelector('#summaryPosition').innerHTML = 
+  const posCard = document.querySelector('#summaryPosition');
+  if (posCard) posCard.innerHTML = 
     createSummaryCard('position', 'Average Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
 
   // ✅ ACTUALIZADO: Solo crear mini-gráficos si hay múltiples períodos

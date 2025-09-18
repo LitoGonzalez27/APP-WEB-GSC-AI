@@ -298,30 +298,50 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // UI básica
   container.innerHTML = `
-    <div id="po-metrics" style="display:flex;gap:22px;align-items:center;margin:2px 0 30px 0;flex-wrap:wrap;font-size:16px;color:#111827">
-      <div class="po-metric" data-k="clicks" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-mouse-pointer" style="color:#2563eb;font-size:18px"></i>
-        <span style="font-weight:600">Clicks</span>
-        <span class="po-value" aria-label="clicks value">–</span>
-        <span class="po-delta" aria-label="clicks delta" style="font-size:13px;color:#059669"> </span>
+    <div id="po-metrics" style="display:flex;gap:22px;align-items:flex-start;margin:2px 0 30px 0;flex-wrap:wrap;font-size:16px;color:#111827">
+      <div class="po-metric" data-k="clicks" style="display:flex;gap:10px;align-items:flex-start">
+        <i class="fas fa-mouse-pointer" style="color:#2563eb;font-size:18px;margin-top:2px"></i>
+        <div>
+          <div style="font-weight:600">Clicks</div>
+          <div class="po-lines" style="display:flex;flex-direction:column;gap:2px;font-size:13px;color:#374151">
+            <div class="po-p1"></div>
+            <div class="po-p2"></div>
+            <div class="po-delta" style="font-size:13px"></div>
+          </div>
+        </div>
       </div>
-      <div class="po-metric" data-k="impressions" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-eye" style="color:#10b981;font-size:18px"></i>
-        <span style="font-weight:600">Impr.</span>
-        <span class="po-value" aria-label="impressions value">–</span>
-        <span class="po-delta" aria-label="impressions delta" style="font-size:13px;color:#059669"> </span>
+      <div class="po-metric" data-k="impressions" style="display:flex;gap:10px;align-items:flex-start">
+        <i class="fas fa-eye" style="color:#10b981;font-size:18px;margin-top:2px"></i>
+        <div>
+          <div style="font-weight:600">Impr.</div>
+          <div class="po-lines" style="display:flex;flex-direction:column;gap:2px;font-size:13px;color:#374151">
+            <div class="po-p1"></div>
+            <div class="po-p2"></div>
+            <div class="po-delta" style="font-size:13px"></div>
+          </div>
+        </div>
       </div>
-      <div class="po-metric" data-k="ctr" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-percentage" style="color:#f59e0b;font-size:18px"></i>
-        <span style="font-weight:600">CTR</span>
-        <span class="po-value" aria-label="ctr value">–</span>
-        <span class="po-delta" aria-label="ctr delta" style="font-size:13px;color:#059669"> </span>
+      <div class="po-metric" data-k="ctr" style="display:flex;gap:10px;align-items:flex-start">
+        <i class="fas fa-percentage" style="color:#f59e0b;font-size:18px;margin-top:2px"></i>
+        <div>
+          <div style="font-weight:600">CTR</div>
+          <div class="po-lines" style="display:flex;flex-direction:column;gap:2px;font-size:13px;color:#374151">
+            <div class="po-p1"></div>
+            <div class="po-p2"></div>
+            <div class="po-delta" style="font-size:13px"></div>
+          </div>
+        </div>
       </div>
-      <div class="po-metric" data-k="position" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-location-arrow" style="color:#ef4444;font-size:18px"></i>
-        <span style="font-weight:600">Pos.</span>
-        <span class="po-value" aria-label="position value">–</span>
-        <span class="po-delta" aria-label="position delta" style="font-size:13px;color:#059669"> </span>
+      <div class="po-metric" data-k="position" style="display:flex;gap:10px;align-items:flex-start">
+        <i class="fas fa-location-arrow" style="color:#ef4444;font-size:18px;margin-top:2px"></i>
+        <div>
+          <div style="font-weight:600">Pos.</div>
+          <div class="po-lines" style="display:flex;flex-direction:column;gap:2px;font-size:13px;color:#374151">
+            <div class="po-p1"></div>
+            <div class="po-p2"></div>
+            <div class="po-delta" style="font-size:13px"></div>
+          </div>
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="po-top-toggles">
@@ -489,14 +509,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const ctx2 = ctx.getContext('2d');
     const makeGrad = (hex)=>{
       const g = ctx2.createLinearGradient(0, ctx.height, 0, 0); // de abajo (0) hacia arriba (1)
-      // Más soft: blanco transparente en la base → color suave hacia la línea
-      const rgbaStrong = hex.replace('1)', '0.45)');  // suave en el borde de la línea
-      const rgbaMedium = hex.replace('1)', '0.28)');
-      const rgbaLight  = hex.replace('1)', '0.12)');
-      g.addColorStop(0.0, 'rgba(255,255,255,0)');     // base blanca/transparente
-      g.addColorStop(0.3, rgbaLight);                 // a mitad ya se aprecia ligeramente
-      g.addColorStop(0.55, rgbaMedium);               // más intenso cerca de la línea
-      g.addColorStop(1.0, rgbaStrong);                // máximo (pero suave) justo bajo la línea
+      // Más relleno hacia abajo y transiciones suaves
+      const rgbaStrong = hex.replace('1)', '0.42)');  // suave junto a la línea
+      const rgbaMedium = hex.replace('1)', '0.26)');
+      const rgbaLight  = hex.replace('1)', '0.10)');
+      g.addColorStop(0.0, 'rgba(255,255,255,0.0)');   // base casi transparente
+      g.addColorStop(0.2, 'rgba(255,255,255,0.0)');   // prolongar transparencia para bajar el relleno
+      g.addColorStop(0.45, rgbaLight);                // empieza a aparecer color
+      g.addColorStop(0.72, rgbaMedium);               // notable pero suave
+      g.addColorStop(1.0, rgbaStrong);                // máximo bajo la línea
       return g;
     };
     // Colores base en rgba fuertes para líneas
@@ -541,7 +562,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
       }
     });
 
-    // Actualizar indicadores minimalistas con deltas si hay comparación
+    // Actualizar indicadores minimalistas con P1, P2 y delta si hay comparación
     const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
     const avg = (arr)=> arr.length ? (arr.reduce((a,b)=>a+(b||0),0)/arr.length) : 0;
     const tClicks = sum(clicks);
@@ -552,33 +573,57 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const tImprC = sum(impressionsComp);
     const tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
     const tPosC = avg(positionComp);
-    const setMetric = (k, val, delta)=>{
-      const root = container.querySelector(`.po-metric[data-k="${k}"]`) || container.querySelector(`[data-k="${k}"]`);
-      const vEl = container.querySelector(`.po-metric[data-k="${k}"] .po-value`);
-      const dEl = container.querySelector(`.po-metric[data-k="${k}"] .po-delta`);
-      if(vEl) vEl.textContent = k==='ctr' ? `${val.toFixed(2)}%` : (k==='position' ? val.toFixed(2) : formatNumberIntl(val));
+    const updateMetricBlock = (key, labelFormatter, isPercentDelta=false, isPosition=false)=>{
+      const root = container.querySelector(`.po-metric[data-k="${key}"]`);
+      if(!root) return;
+      const p1 = root.querySelector('.po-p1');
+      const p2 = root.querySelector('.po-p2');
+      const dEl = root.querySelector('.po-delta');
+      let v1, v2;
+      if(key==='clicks'){ v1=tClicks; v2=tClicksC; }
+      else if(key==='impressions'){ v1=tImpr; v2=tImprC; }
+      else if(key==='ctr'){ v1=tCtr; v2=tCtrC; }
+      else { v1=tPos; v2=tPosC; }
+
+      const formatVal = (v)=>{
+        if(key==='ctr') return `${(v||0).toFixed(2)}%`;
+        if(key==='position') return (v||0).toFixed(2);
+        return formatNumberIntl(v||0);
+      };
+      const formatDateRange = ()=>{
+        try{
+          const ds = window.dateSelector;
+          const fmt=(d)=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+          const cur = ds?.currentPeriod; const comp = ds?.comparisonPeriod;
+          const p1Label = (cur?.startDate && cur?.endDate) ? `${fmt(cur.startDate)} - ${fmt(cur.endDate)}` : 'Periodo actual';
+          const p2Label = (comp?.startDate && comp?.endDate) ? `${fmt(comp.startDate)} - ${fmt(comp.endDate)}` : 'Periodo anterior';
+          return { p1Label, p2Label };
+        }catch(_){ return { p1Label:'Periodo actual', p2Label:'Periodo anterior' }; }
+      };
+      const { p1Label, p2Label } = formatDateRange();
+
+      if(p1) p1.innerHTML = `<span style="color:#6b7280">${p1Label}</span> · <strong style="color:#111827">${formatVal(v1)}</strong>`;
+      if(p2) p2.innerHTML = `<span style="color:#6b7280">${p2Label}</span> · <span>${formatVal(v2)}</span>`;
+
       if(dEl){
-        if(isFinite(delta)){
-          // Regla de negocio: position (negativo mejora -> verde), resto (positivo mejora -> verde)
-          let isPositive = delta >= 0;
-          let good;
-          if(k === 'position'){
-            good = delta < 0; // menor es mejor
-          } else {
-            good = isPositive; // mayor es mejor
-          }
+        if(rowsComp.length){
+          let delta;
+          if(isPosition){ delta = (v1 - v2); }
+          else if(isPercentDelta){ delta = ((v1 - (v2||1)) / (v2||1)) * 100; }
+          else { delta = (v1 - v2); }
+          const good = isPosition ? (delta < 0) : (delta >= 0);
           dEl.style.color = good ? '#16a34a' : '#dc2626';
-          dEl.textContent = (k==='position') ? `${(delta).toFixed(2)}` : `${(delta).toFixed(2)}%`;
-        }else{
+          dEl.textContent = isPosition ? `${delta.toFixed(2)}` : (key==='ctr' ? `${delta.toFixed(2)}%` : `${delta.toFixed(0)}%`);
+        } else {
           dEl.textContent = '';
         }
       }
     };
 
-    setMetric('clicks', tClicks, rowsComp.length? ((tClicks - tClicksC) / (tClicksC||1))*100 : NaN);
-    setMetric('impressions', tImpr, rowsComp.length? ((tImpr - tImprC) / (tImprC||1))*100 : NaN);
-    setMetric('ctr', tCtr, rowsComp.length? (tCtr - tCtrC) : NaN);
-    setMetric('position', tPos, rowsComp.length? (tPos - tPosC) : NaN);
+    updateMetricBlock('clicks', formatNumberIntl, true, false);
+    updateMetricBlock('impressions', formatNumberIntl, true, false);
+    updateMetricBlock('ctr', (v)=>`${v.toFixed(2)}%`, false, false);
+    updateMetricBlock('position', (v)=>v.toFixed(2), false, true);
   };
 
   // Eventos de toggles
