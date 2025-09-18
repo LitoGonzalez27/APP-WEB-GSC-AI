@@ -463,24 +463,23 @@ def api_gsc_performance():
         }
 
         # Filtros avanzados: país (searchAppearance o dimension country) y URLs (dimension page)
-        filters = []
-        # País: si llega código (ej. 'esp', 'usa' o código GSC), se aplica como dimensión 'country'
+        filter_groups = []
+        # Construir filtros avanzados con semántica correcta (AND/OR) según GSC:
+        # - Grupos se combinan con OR entre sí
+        # - Dentro de un grupo, los filtros se combinan con AND (o groupType explícito)
+        country_filter = None
         if country:
-            filters.append({
-                'filters': [
-                    {
-                        'dimension': 'country',
-                        'operator': 'equals',
-                        'expression': country
-                    }
-                ]
-            })
-        # URLs: sólo si el usuario definió alguna. Se aplica sobre dimension 'page'
-        if urls_raw:
-            # Asegurar que la dimensión page esté presente (GSC permite combinar)
+            country_filter = {
+                'dimension': 'country',
+                'operator': 'equals',
+                'expression': country
+            }
+
+        url_list = [u.strip() for u in (urls_raw.split('\n') if urls_raw else []) if u.strip()]
+        has_urls = len(url_list) > 0
+        if has_urls:
             if 'dimensions' in body and 'page' not in body['dimensions']:
                 body['dimensions'] = ['date', 'page']
-            url_list = [u.strip() for u in urls_raw.split('\n') if u.strip()]
             op_map = {
                 'contains': 'contains',
                 'equals': 'equals',
@@ -488,18 +487,45 @@ def api_gsc_performance():
                 'notEquals': 'notEquals'
             }
             operator = op_map.get(match_type, 'contains')
-            url_filters = []
-            for u in url_list:
-                url_filters.append({
-                    'dimension': 'page',
-                    'operator': operator,
-                    'expression': u
-                })
-            if url_filters:
-                filters.append({'filters': url_filters})
 
-        if filters:
-            body['dimensionFilterGroups'] = filters
+            # Operadores negativos requieren AND sobre todas las URLs (excluir cualquiera que coincida)
+            if operator in ('notContains', 'notEquals'):
+                group_filters = []
+                if country_filter:
+                    group_filters.append(country_filter)
+                for u in url_list:
+                    group_filters.append({
+                        'dimension': 'page',
+                        'operator': operator,
+                        'expression': u
+                    })
+                filter_groups.append({ 'groupType': 'and', 'filters': group_filters })
+            else:
+                # Positivos: (country AND page=u1) OR (country AND page=u2) ...
+                if country_filter:
+                    for u in url_list:
+                        filter_groups.append({
+                            'groupType': 'and',
+                            'filters': [
+                                country_filter,
+                                {
+                                    'dimension': 'page',
+                                    'operator': operator,
+                                    'expression': u
+                                }
+                            ]
+                        })
+                else:
+                    # Sin país: un solo grupo con OR de páginas
+                    url_filters = [{ 'dimension': 'page', 'operator': operator, 'expression': u } for u in url_list]
+                    filter_groups.append({ 'groupType': 'or', 'filters': url_filters })
+        else:
+            # Sólo país sin URLs
+            if country_filter:
+                filter_groups.append({ 'groupType': 'and', 'filters': [country_filter] })
+
+        if filter_groups:
+            body['dimensionFilterGroups'] = filter_groups
 
         try:
             resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
