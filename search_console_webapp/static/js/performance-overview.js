@@ -401,6 +401,84 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
     if(container._chart){ container._chart.destroy(); }
 
+    // Crear tooltip externo
+    let tt = container.querySelector('#po-tooltip');
+    if(!tt){
+      tt = document.createElement('div');
+      tt.id = 'po-tooltip';
+      tt.style.cssText = 'position:absolute;pointer-events:none;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;box-shadow:0 8px 30px rgba(0,0,0,0.08);font-size:13px;color:#111827;z-index:5;display:none;min-width:220px;';
+      container.style.position = 'relative';
+      container.appendChild(tt);
+    }
+
+    const externalTooltip = (context)=>{
+      const {chart, tooltip} = context;
+      if(!tooltip || tooltip.opacity === 0){ tt.style.display='none'; return; }
+
+      const i = tooltip.dataPoints?.[0]?.dataIndex ?? 0;
+      const dateCur = labels[i] || '';
+      const dateComp = rowsComp[i]?.date || '';
+
+      const fmtDate = (iso)=>{
+        try{ const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString(undefined,{month:'short', day:'2-digit', year:'numeric'});}catch(_){return iso}
+      };
+
+      const rowsHTML = [];
+      const pushRow = (name, color, curVal, compVal, isPercentDelta, isPosition=false)=>{
+        // Delta
+        let deltaHtml = '';
+        if(rowsComp.length){
+          if(isPosition){
+            const d = (curVal - compVal);
+            const sign = d >= 0 ? '+' : '';
+            const col = d >= 0 ? '#16a34a' : '#dc2626';
+            deltaHtml = `<span style="color:${col};margin-left:6px">${sign}${d.toFixed(2)}</span>`;
+          }else if(isPercentDelta){
+            const base = compVal || 1;
+            const d = ((curVal - base) / base) * 100;
+            const sign = d >= 0 ? '+' : '';
+            const col = d >= 0 ? '#16a34a' : '#dc2626';
+            deltaHtml = `<span style="color:${col};margin-left:6px">${sign}${d.toFixed(0)}%</span>`;
+          }else{
+            const d = (curVal - compVal);
+            const sign = d >= 0 ? '+' : '';
+            const col = d >= 0 ? '#16a34a' : '#dc2626';
+            deltaHtml = `<span style="color:${col};margin-left:6px">${sign}${d.toFixed(2)}</span>`;
+          }
+        }
+        const curFmt = isPosition ? curVal.toFixed(2) : (name.includes('CTR') ? `${curVal.toFixed(2)}%` : formatNumberIntl(curVal));
+        const compFmt = rowsComp.length ? (isPosition ? compVal.toFixed(2) : (name.includes('CTR') ? `${compVal.toFixed(2)}%` : formatNumberIntl(compVal))) : '';
+        rowsHTML.push(`
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:8px;height:8px;background:${color};border-radius:50%;display:inline-block"></span>
+              <span>${name}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <strong>${curFmt}</strong>${deltaHtml}
+              ${rowsComp.length ? `<span style="opacity:0.7;min-width:64px;text-align:right">${compFmt}</span>` : ''}
+            </div>
+          </div>`);
+      };
+
+      if(state.show.clicks) pushRow('Clicks','#2563eb', clicks[i]||0, clicksComp[i]||0, true);
+      if(state.show.impressions) pushRow('Impressions','#10b981', impressions[i]||0, impressionsComp[i]||0, true);
+      if(state.show.ctr) pushRow('CTR','#f59e0b', ctr[i]||0, ctrComp[i]||0, false);
+      if(state.show.position) pushRow('Avg. Position','#ef4444', position[i]||0, positionComp[i]||0, false, true);
+
+      tt.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px">
+          <div><div style="font-weight:600;">${fmtDate(dateCur)}</div></div>
+          ${rowsComp.length ? `<div style="opacity:0.8;text-align:right"><div style="font-weight:600;">${fmtDate(dateComp)}</div></div>` : ''}
+        </div>
+        ${rowsHTML.join('')}
+      `;
+      const {offsetLeft: positionX, offsetTop: positionY} = chart.canvas;
+      tt.style.left = positionX + tooltip.caretX + 12 + 'px';
+      tt.style.top = positionY + tooltip.caretY - tt.offsetHeight - 12 + 'px';
+      tt.style.display = 'block';
+    };
+
     container._chart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -423,15 +501,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
         responsive:true,
         maintainAspectRatio:false,
         animation:false,
-        plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false, callbacks:{
-          label: (ctx)=>{
-            const n = ctx.dataset.label;
-            const v = ctx.parsed.y;
-            if(n.includes('CTR')) return `${n}: ${v?.toFixed(2)}%`;
-            if(n.includes('Position')) return `${n}: ${v?.toFixed(2)}`;
-            return `${n}: ${formatNumberIntl(v)}`;
-          }
-        } } },
+        plugins:{ legend:{ display:false }, tooltip:{ enabled:false, mode:'index', intersect:false, external: externalTooltip } },
         scales:{
           y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
           y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
@@ -483,6 +553,10 @@ async function mountChartJSOverview(rootId, fetchUrl){
         const mapIndex = { clicks:0, impressions:1, ctr:2, position:3 };
         const idx = mapIndex[k];
         container._chart.data.datasets[idx].hidden = !state.show[k];
+        // También ocultar/mostrar comparativas si existen (mismo orden +4)
+        if(container._chart.data.datasets[idx+4]){
+          container._chart.data.datasets[idx+4].hidden = !state.show[k];
+        }
         container._chart.update('none');
       }
     });
