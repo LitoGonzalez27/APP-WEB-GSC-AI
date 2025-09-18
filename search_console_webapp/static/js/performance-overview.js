@@ -131,7 +131,7 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
         return { clicks: true, impressions: false, ctr: false, position: false };
       }
     });
-    const [invertPosition, setInvertPosition] = useState(() => localStorage.getItem('po_invert_pos') === '1');
+    // Eliminado invert position
 
     // Sincronizar con selector de fechas (cuando usuario pulsa Apply)
     useEffect(() => {
@@ -206,11 +206,10 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
         ToggleButton({ active: show.clicks, onClick: () => setShow((s)=>{const n={ ...s, clicks: !s.clicks }; localStorage.setItem('po_toggles', JSON.stringify(n)); return n; }), title: 'Clicks', Icon: (window.lucideReact?.MousePointerClick || window.lucideReact?.MousePointer || null) }),
         ToggleButton({ active: show.impressions, onClick: () => setShow((s)=>{const n={ ...s, impressions: !s.impressions }; localStorage.setItem('po_toggles', JSON.stringify(n)); return n; }), title: 'Impressions', Icon: (window.lucideReact?.Eye || null) }),
         ToggleButton({ active: show.ctr, onClick: () => setShow((s)=>{const n={ ...s, ctr: !s.ctr }; localStorage.setItem('po_toggles', JSON.stringify(n)); return n; }), title: 'CTR', Icon: (window.lucideReact?.Percent || null) }),
-        ToggleButton({ active: show.position, onClick: () => setShow((s)=>{const n={ ...s, position: !s.position }; localStorage.setItem('po_toggles', JSON.stringify(n)); return n; }), title: 'Avg. Position', Icon: (window.lucideReact?.MapPin || null) }),
-        ToggleButton({ active: invertPosition, onClick: ()=>{ const v=!invertPosition; setInvertPosition(v); localStorage.setItem('po_invert_pos', v?'1':'0'); }, title: 'Invert position', Icon: (window.lucideReact?.ArrowUpDown || null) }),
+        ToggleButton({ active: show.position, onClick: () => setShow((s)=>{const n={ ...s, position: !s.position }; localStorage.setItem('po_toggles', JSON.stringify(n)); return n; }), title: 'Avg. Position', Icon: (window.lucideReact?.MapPin || null) })
       ),
       // Cabecera de totales
-      React.createElement('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: '#111827' } },
+      React.createElement('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 16, color: '#111827', marginBottom: 30 } },
         React.createElement('div', null, `Clicks: ${formatNumber(totals.clicks)}`),
         React.createElement('div', null, `Impressions: ${formatNumber(totals.impressions)}`),
         React.createElement('div', null, `CTR: ${totals.ctr.toFixed(2)}%`),
@@ -227,7 +226,7 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
             React.createElement(CartesianGrid, { strokeDasharray: '3 3' }),
             React.createElement(XAxis, { dataKey: 'date' }),
             React.createElement(YAxis, { yAxisId: 'left', orientation: 'left', allowDecimals: false }),
-            React.createElement(YAxis, { yAxisId: 'right', orientation: 'right', domain: yRightDomain, reversed: invertPosition }),
+            React.createElement(YAxis, { yAxisId: 'right', orientation: 'right', domain: yRightDomain }),
             React.createElement(Tooltip, {
               formatter: (value, name) => {
                 if (name === 'ctr') return [`${(value ?? 0).toFixed(2)}%`, 'CTR'];
@@ -299,30 +298,30 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // UI básica
   container.innerHTML = `
-    <div id="po-metrics" style="display:flex;gap:18px;align-items:center;margin:2px 0 16px 0;flex-wrap:wrap;font-size:14px;color:#111827">
+    <div id="po-metrics" style="display:flex;gap:22px;align-items:center;margin:2px 0 30px 0;flex-wrap:wrap;font-size:16px;color:#111827">
       <div class="po-metric" data-k="clicks" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-mouse-pointer" style="color:#2563eb"></i>
+        <i class="fas fa-mouse-pointer" style="color:#2563eb;font-size:18px"></i>
         <span style="font-weight:600">Clicks</span>
         <span class="po-value" aria-label="clicks value">–</span>
-        <span class="po-delta" aria-label="clicks delta" style="font-size:12px;color:#059669"> </span>
+        <span class="po-delta" aria-label="clicks delta" style="font-size:13px;color:#059669"> </span>
       </div>
       <div class="po-metric" data-k="impressions" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-eye" style="color:#10b981"></i>
+        <i class="fas fa-eye" style="color:#10b981;font-size:18px"></i>
         <span style="font-weight:600">Impr.</span>
         <span class="po-value" aria-label="impressions value">–</span>
-        <span class="po-delta" aria-label="impressions delta" style="font-size:12px;color:#059669"> </span>
+        <span class="po-delta" aria-label="impressions delta" style="font-size:13px;color:#059669"> </span>
       </div>
       <div class="po-metric" data-k="ctr" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-percentage" style="color:#f59e0b"></i>
+        <i class="fas fa-percentage" style="color:#f59e0b;font-size:18px"></i>
         <span style="font-weight:600">CTR</span>
         <span class="po-value" aria-label="ctr value">–</span>
-        <span class="po-delta" aria-label="ctr delta" style="font-size:12px;color:#059669"> </span>
+        <span class="po-delta" aria-label="ctr delta" style="font-size:13px;color:#059669"> </span>
       </div>
       <div class="po-metric" data-k="position" style="display:flex;gap:6px;align-items:center">
-        <i class="fas fa-location-arrow" style="color:#ef4444"></i>
+        <i class="fas fa-location-arrow" style="color:#ef4444;font-size:18px"></i>
         <span style="font-weight:600">Pos.</span>
         <span class="po-value" aria-label="position value">–</span>
-        <span class="po-delta" aria-label="position delta" style="font-size:12px;color:#059669"> </span>
+        <span class="po-delta" aria-label="position delta" style="font-size:13px;color:#059669"> </span>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="po-top-toggles">
@@ -330,7 +329,6 @@ async function mountChartJSOverview(rootId, fetchUrl){
       <button type="button" data-k="impressions" class="po-btn">Impressions</button>
       <button type="button" data-k="ctr" class="po-btn">CTR</button>
       <button type="button" data-k="position" class="po-btn">Avg. Position</button>
-      <button type="button" id="po-invert" class="po-btn">Invert position</button>
       <style>
         .po-btn{padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
         .po-btn.active{background:#161616;color:#D8F9B8;border-color:#161616}
@@ -341,8 +339,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   const savedToggles = JSON.parse(localStorage.getItem('po_toggles')||'{}');
   const state = { 
-    show: { clicks: savedToggles.clicks!==false, impressions: savedToggles.impressions||false, ctr: savedToggles.ctr||false, position: savedToggles.position||false },
-    invert: localStorage.getItem('po_invert_pos')==='1'
+    show: { clicks: savedToggles.clicks!==false, impressions: savedToggles.impressions||false, ctr: savedToggles.ctr||false, position: savedToggles.position||false }
   };
 
   const syncButtons = ()=>{
@@ -350,7 +347,6 @@ async function mountChartJSOverview(rootId, fetchUrl){
       const k = btn.getAttribute('data-k');
       btn.classList.toggle('active', !!state.show[k]);
     });
-    container.querySelector('#po-invert')?.classList.toggle('active', !!state.invert);
   };
 
   syncButtons();
@@ -487,7 +483,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
     };
 
     // Puntos interactivos en hover
-    const hoverStyle = { mode: 'index', intersect: false, onHover: (e, active) => { /* noop */ } };
+  const hoverStyle = { mode: 'index', intersect: false, onHover: (e, active) => { /* noop */ } };
 
     // Definir gradientes verticales (blanco -> color)
     const ctx2 = ctx.getContext('2d');
@@ -498,8 +494,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
       const rgbaMedium = hex.replace('1)', '0.28)');
       const rgbaLight  = hex.replace('1)', '0.12)');
       g.addColorStop(0.0, 'rgba(255,255,255,0)');     // base blanca/transparente
-      g.addColorStop(0.5, rgbaLight);                 // a mitad ya se aprecia ligeramente
-      g.addColorStop(0.85, rgbaMedium);               // más intenso cerca de la línea
+      g.addColorStop(0.3, rgbaLight);                 // a mitad ya se aprecia ligeramente
+      g.addColorStop(0.55, rgbaMedium);               // más intenso cerca de la línea
       g.addColorStop(1.0, rgbaStrong);                // máximo (pero suave) justo bajo la línea
       return g;
     };
@@ -517,7 +513,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
           {label:'Clicks', data:clicks, borderColor:colClicks, backgroundColor:makeGrad('rgba(37,99,235,1)'), fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
           {label:'Impressions', data:impressions, borderColor:colImpr, backgroundColor:makeGrad('rgba(16,185,129,1)'), fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
           {label:'CTR (%)', data:ctr, borderColor:colCtr, backgroundColor:makeGrad('rgba(245,158,11,1)'), fill:true, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
-          {label:'Avg. Position', data:position, borderColor:colPos, backgroundColor:makeGrad('rgba(239,68,68,1)'), fill:true, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25}
+          {label:'Avg. Position', data:position, borderColor:colPos, backgroundColor:makeGrad('rgba(239,68,68,1)'), fill:true, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.2, borderWidth:1.5}
           // Periodo comparado (solo líneas punteadas, sin fill)
           , ...(rowsComp.length ? [
             {label:'Clicks (comp)', data:clicksComp, borderColor:colClicks, fill:false, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
@@ -534,7 +530,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
         plugins:{ legend:{ display:false }, tooltip:{ enabled:false, mode:'index', intersect:false, external: externalTooltip } },
         scales:{
           y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
-          y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
+          y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
           // Ejes internos no visibles para escalado dinámico
           y2:{ display:false, suggestedMin: 0, suggestedMax: Math.max(10, Math.ceil(Math.max(...ctr) * 1.2)) },
           y3:{ display:false, suggestedMin: 0, suggestedMax: 20 },
@@ -605,15 +601,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
     });
   });
 
-  container.querySelector('#po-invert')?.addEventListener('click', ()=>{
-    state.invert = !state.invert;
-    localStorage.setItem('po_invert_pos', state.invert ? '1' : '0');
-    syncButtons();
-    if(container._chart){
-      container._chart.options.scales.y1.reverse = !!state.invert;
-      container._chart.update('none');
-    }
-  });
+  // invert position eliminado
 
   // Reaccionar a cambios del selector de fechas
   const applyBtn = document.getElementById('modalApplyBtn');
