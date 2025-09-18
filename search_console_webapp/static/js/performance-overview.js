@@ -294,35 +294,38 @@ async function mountChartJSOverview(rootId, fetchUrl){
   // Ocultar bloque antiguo
   try{const d=document.getElementById('summaryDisclaimer'); if(d) d.style.display='none';}catch(_){}
 
+  // Padding del contenedor raíz
+  container.style.padding = '30px';
+
   // UI básica
   container.innerHTML = `
-    <div id=\"po-metrics\" style=\"display:flex;gap:18px;align-items:center;margin:2px 0 10px 0;flex-wrap:wrap;font-size:13px;color:#111827\">
-      <div class=\"po-metric\" data-k=\"clicks\" style=\"display:flex;gap:6px;align-items:center\">
-        <i class=\"fas fa-mouse-pointer\" style=\"color:#2563eb\"></i>
-        <span style=\"font-weight:600\">Clicks</span>
-        <span class=\"po-value\" aria-label=\"clicks value\">–</span>
-        <span class=\"po-delta\" aria-label=\"clicks delta\" style=\"font-size:12px;color:#059669\"> </span>
+    <div id="po-metrics" style="display:flex;gap:18px;align-items:center;margin:2px 0 16px 0;flex-wrap:wrap;font-size:14px;color:#111827">
+      <div class="po-metric" data-k="clicks" style="display:flex;gap:6px;align-items:center">
+        <i class="fas fa-mouse-pointer" style="color:#2563eb"></i>
+        <span style="font-weight:600">Clicks</span>
+        <span class="po-value" aria-label="clicks value">–</span>
+        <span class="po-delta" aria-label="clicks delta" style="font-size:12px;color:#059669"> </span>
       </div>
-      <div class=\"po-metric\" data-k=\"impressions\" style=\"display:flex;gap:6px;align-items:center\">
-        <i class=\"fas fa-eye\" style=\"color:#10b981\"></i>
-        <span style=\"font-weight:600\">Impr.</span>
-        <span class=\"po-value\" aria-label=\"impressions value\">–</span>
-        <span class=\"po-delta\" aria-label=\"impressions delta\" style=\"font-size:12px;color:#059669\"> </span>
+      <div class="po-metric" data-k="impressions" style="display:flex;gap:6px;align-items:center">
+        <i class="fas fa-eye" style="color:#10b981"></i>
+        <span style="font-weight:600">Impr.</span>
+        <span class="po-value" aria-label="impressions value">–</span>
+        <span class="po-delta" aria-label="impressions delta" style="font-size:12px;color:#059669"> </span>
       </div>
-      <div class=\"po-metric\" data-k=\"ctr\" style=\"display:flex;gap:6px;align-items:center\">
-        <i class=\"fas fa-percentage\" style=\"color:#f59e0b\"></i>
-        <span style=\"font-weight:600\">CTR</span>
-        <span class=\"po-value\" aria-label=\"ctr value\">–</span>
-        <span class=\"po-delta\" aria-label=\"ctr delta\" style=\"font-size:12px;color:#059669\"> </span>
+      <div class="po-metric" data-k="ctr" style="display:flex;gap:6px;align-items:center">
+        <i class="fas fa-percentage" style="color:#f59e0b"></i>
+        <span style="font-weight:600">CTR</span>
+        <span class="po-value" aria-label="ctr value">–</span>
+        <span class="po-delta" aria-label="ctr delta" style="font-size:12px;color:#059669"> </span>
       </div>
-      <div class=\"po-metric\" data-k=\"position\" style=\"display:flex;gap:6px;align-items:center\">
-        <i class=\"fas fa-location-arrow\" style=\"color:#ef4444\"></i>
-        <span style=\"font-weight:600\">Pos.</span>
-        <span class=\"po-value\" aria-label=\"position value\">–</span>
-        <span class=\"po-delta\" aria-label=\"position delta\" style=\"font-size:12px;color:#059669\"> </span>
+      <div class="po-metric" data-k="position" style="display:flex;gap:6px;align-items:center">
+        <i class="fas fa-location-arrow" style="color:#ef4444"></i>
+        <span style="font-weight:600">Pos.</span>
+        <span class="po-value" aria-label="position value">–</span>
+        <span class="po-delta" aria-label="position delta" style="font-size:12px;color:#059669"> </span>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="po-top-toggles">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="po-top-toggles">
       <button type="button" data-k="clicks" class="po-btn">Clicks</button>
       <button type="button" data-k="impressions" class="po-btn">Impressions</button>
       <button type="button" data-k="ctr" class="po-btn">CTR</button>
@@ -490,9 +493,14 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const ctx2 = ctx.getContext('2d');
     const makeGrad = (hex)=>{
       const g = ctx2.createLinearGradient(0, ctx.height, 0, 0);
-      g.addColorStop(0, 'rgba(255,255,255,0.0)');
-      g.addColorStop(0.9, hex.replace('1)', '0.25)').replace('rgb(', 'rgba('));
-      g.addColorStop(1, hex);
+      // 0% → 75% alto: color con alta opacidad
+      const rgbaStrong = hex; // ej. rgba(37,99,235,1)
+      const rgbaMedium = hex.replace('1)', '0.6)');
+      g.addColorStop(0.0, rgbaStrong);
+      g.addColorStop(0.75, rgbaMedium);
+      // 75% → 100%: desvanecer a blanco
+      g.addColorStop(0.98, 'rgba(255,255,255,0.15)');
+      g.addColorStop(1.0, 'rgba(255,255,255,0.0)');
       return g;
     };
     // Colores base en rgba fuertes para líneas
