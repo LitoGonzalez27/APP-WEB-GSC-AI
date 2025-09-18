@@ -290,15 +290,23 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const container = document.getElementById(rootId);
   if(!container) return;
 
-  // Mantener visible el bloque de summaryDisclaimer para mostrar insights P1/P2
-  try{const d=document.getElementById('summaryDisclaimer'); if(d) d.style.display='';}catch(_){ }
+  // Ocultar por CSS el summaryDisclaimer de forma global y usar performanceOverviewRoot como ancla
+  try{
+    let hideStyle = document.getElementById('po-hide-disclaimer');
+    if(!hideStyle){
+      hideStyle = document.createElement('style');
+      hideStyle.id = 'po-hide-disclaimer';
+      hideStyle.textContent = '#summaryDisclaimer{display:none !important;}';
+      document.head.appendChild(hideStyle);
+    }
+  }catch(_){ }
   
   // Padding del contenedor raíz
   container.style.padding = '30px';
 
   // UI básica
   container.innerHTML = `
-    <div id="po-metrics" style="display:flex;gap:22px;align-items:flex-start;margin:2px 0 30px 0;flex-wrap:wrap;font-size:16px;color:#111827">
+    <div id="po-metrics" style="display:flex;gap:22px;align-items:flex-start;margin:2px 0 40px 0;flex-wrap:wrap;font-size:16px;color:#111827">
       <div class="po-metric" data-k="clicks" style="display:flex;gap:10px;align-items:flex-start">
         <i class="fas fa-mouse-pointer" style="color:#2563eb;font-size:18px;margin-top:2px"></i>
         <div>
@@ -349,9 +357,18 @@ async function mountChartJSOverview(rootId, fetchUrl){
       <button type="button" data-k="impressions" class="po-btn">Impressions</button>
       <button type="button" data-k="ctr" class="po-btn">CTR</button>
       <button type="button" data-k="position" class="po-btn">Avg. Position</button>
+      <button type="button" data-trend="clicks" class="po-btn po-trend-btn">Trend clicks</button>
+      <button type="button" data-trend="impressions" class="po-btn po-trend-btn">Trend impressions</button>
+      <button type="button" data-trend="ctr" class="po-btn po-trend-btn">Trend CTR</button>
+      <button type="button" data-trend="position" class="po-btn po-trend-btn">Trend position</button>
       <style>
         .po-btn{padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
         .po-btn.active{background:#161616;color:#D8F9B8;border-color:#161616}
+        .po-trend-btn{border-style:dashed}
+        /* Tipografías para P1/P2 y valores */
+        #po-metrics .po-lines .po-date{font-size:12px;color:#6b7280}
+        #po-metrics .po-lines .po-value-strong{font-size:15px;color:#111827}
+        #po-metrics .po-lines .po-value-small{font-size:12px;color:#374151;opacity:0.85}
       </style>
     </div>
     <div style="width:100%;height:320px"><canvas id="po-canvas" aria-label="Performance Overview Chart" role="img"></canvas></div>
@@ -507,16 +524,18 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
     // Definir gradientes verticales (blanco -> color)
     const ctx2 = ctx.getContext('2d');
-    const makeGrad = (hex)=>{
+    const makeGrad = (hex, dim=1)=>{
+      const clamp = (v)=> Math.max(0, Math.min(1, v));
+      const withAlpha = (a)=> hex.replace(/1\)$/,'') + clamp(a) + ')';
       const g = ctx2.createLinearGradient(0, ctx.height, 0, 0);
-      // Estilo GSC: mucha base rellena con muy baja opacidad y aumento progresivo
-      const rgbaStrong = hex.replace('1)', '0.40)');
-      const rgbaMedium = hex.replace('1)', '0.22)');
-      const rgbaLight  = hex.replace('1)', '0.08)');
-      g.addColorStop(0.00, rgbaLight);   // base ya con ligero color
-      g.addColorStop(0.35, rgbaLight);   // mantener cuerpo bajo
-      g.addColorStop(0.70, rgbaMedium);  // transición suave
-      g.addColorStop(1.00, rgbaStrong);  // más intenso cerca de la línea
+      // Estilo GSC con factor dim para atenuar el relleno cuando se activa la tendencia
+      const aLight = 0.08 * dim;
+      const aMedium = 0.22 * dim;
+      const aStrong = 0.40 * dim;
+      g.addColorStop(0.00, withAlpha(aLight));
+      g.addColorStop(0.35, withAlpha(aLight));
+      g.addColorStop(0.70, withAlpha(aMedium));
+      g.addColorStop(1.00, withAlpha(aStrong));
       return g;
     };
     // Colores base en rgba fuertes para líneas
@@ -525,22 +544,46 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const colCtr = 'rgba(245,158,11,1)';
     const colPos = 'rgba(239,68,68,1)';
 
+    // Calcular series de tendencia lineal (mínimos cuadrados) por métrica
+    const linReg = (ys)=>{
+      const n = ys.length; if(!n) return [];
+      const xs = ys.map((_,i)=>i);
+      const sumX = xs.reduce((a,b)=>a+b,0);
+      const sumY = ys.reduce((a,b)=>a+(b||0),0);
+      const sumXX = xs.reduce((a,b)=>a+b*b,0);
+      const sumXY = xs.reduce((a,xi,i)=>a+xi*(ys[i]||0),0);
+      const denom = (n*sumXX - sumX*sumX) || 1;
+      const a = (n*sumXY - sumX*sumY) / denom; // slope
+      const b = (sumY - a*sumX) / n; // intercept
+      return xs.map(x=> a*x + b);
+    };
+
+    const trendClicks = linReg(clicks);
+    const trendImpr = linReg(impressions);
+    const trendCtr = linReg(ctr);
+    const trendPos = linReg(position);
+
     container._chart = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
         datasets: [
-          {label:'Clicks', data:clicks, borderColor:colClicks, backgroundColor:makeGrad('rgba(37,99,235,1)'), fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
-          {label:'Impressions', data:impressions, borderColor:colImpr, backgroundColor:makeGrad('rgba(16,185,129,1)'), fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
-          {label:'CTR (%)', data:ctr, borderColor:colCtr, backgroundColor:makeGrad('rgba(245,158,11,1)'), fill:true, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
-          {label:'Avg. Position', data:position, borderColor:colPos, backgroundColor:makeGrad('rgba(239,68,68,1)'), fill:true, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.2, borderWidth:1.5}
+          {label:'Clicks', data:clicks, borderColor:colClicks, backgroundColor:makeGrad('rgba(37,99,235,1)', 1), fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
+          {label:'Impressions', data:impressions, borderColor:colImpr, backgroundColor:makeGrad('rgba(16,185,129,1)', 1), fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
+          {label:'CTR (%)', data:ctr, borderColor:colCtr, backgroundColor:makeGrad('rgba(245,158,11,1)', 1), fill:true, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
+          {label:'Avg. Position', data:position, borderColor:colPos, backgroundColor:makeGrad('rgba(239,68,68,1)', 1), fill:true, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.2, borderWidth:1.5}
           // Periodo comparado (solo líneas punteadas, sin fill)
           , ...(rowsComp.length ? [
             {label:'Clicks (comp)', data:clicksComp, borderColor:colClicks, fill:false, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
             {label:'Impressions (comp)', data:impressionsComp, borderColor:colImpr, fill:false, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
             {label:'CTR (comp) %', data:ctrComp, borderColor:colCtr, fill:false, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
             {label:'Position (comp)', data:positionComp, borderColor:colPos, fill:false, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
-          ] : [])
+          ] : []),
+          // Tendencias (inicialmente ocultas, se activan con botones)
+          {label:'Trend Clicks', data: trendClicks, borderColor: colClicks, yAxisID:'y', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
+          {label:'Trend Impressions', data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
+          {label:'Trend CTR', data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
+          {label:'Trend Position', data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden:true}
         ]
       },
       options: {
@@ -601,8 +644,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
       };
       const { p1Label, p2Label } = formatDateRange();
 
-      if(p1) p1.innerHTML = `<span style="color:#6b7280">${p1Label}</span> · <strong style="color:#111827">${formatVal(v1)}</strong>`;
-      if(p2) p2.innerHTML = `<span style="color:#6b7280">${p2Label}</span> · <span>${formatVal(v2)}</span>`;
+      if(p1) p1.innerHTML = `<span class="po-date">${p1Label}</span> · <strong class="po-value-strong">${formatVal(v1)}</strong>`;
+      if(p2) p2.innerHTML = `<span class="po-date">${p2Label}</span> · <span class="po-value-small">${formatVal(v2)}</span>`;
 
       if(dEl){
         if(rowsComp.length){
@@ -642,6 +685,33 @@ async function mountChartJSOverview(rootId, fetchUrl){
         }
         container._chart.update('none');
       }
+    });
+  });
+
+  // Botones de tendencia: alternan visibilidad de datasets finales
+  container.querySelectorAll('#po-top-toggles .po-trend-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const which = btn.getAttribute('data-trend');
+      if(!container._chart) return;
+      const mapIndex = { clicks:8, impressions:9, ctr:10, position:11 };
+      const idx = mapIndex[which];
+      const ds = container._chart.data.datasets[idx];
+      if(!ds) return;
+      ds.hidden = !ds.hidden;
+      btn.classList.toggle('active', !ds.hidden);
+      // Atenuar relleno de la m9trica correspondiente cuando la tendencia est9 visible
+      const baseIndex = { clicks:0, impressions:1, ctr:2, position:3 }[which];
+      if(typeof baseIndex === 'number'){
+        const baseDs = container._chart.data.datasets[baseIndex];
+        // Calcular factor (0.6 con tendencia, 1 sin tendencia)
+        const factor = ds.hidden ? 1 : 0.6;
+        const color = baseDs.borderColor;
+        baseDs.backgroundColor = (ctx)=>{
+          const c = typeof color === 'string' ? color : '#000000';
+          return makeGrad(c.replace('rgb','rgba').replace(')',' ,1)'), factor);
+        };
+      }
+      container._chart.update('none');
     });
   });
 
