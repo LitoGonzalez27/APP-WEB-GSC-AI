@@ -290,9 +290,9 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const container = document.getElementById(rootId);
   if(!container) return;
 
-  // Ocultar bloque antiguo
-  try{const d=document.getElementById('summaryDisclaimer'); if(d) d.style.display='none';}catch(_){}
-
+  // Mantener visible el bloque de summaryDisclaimer para mostrar insights P1/P2
+  try{const d=document.getElementById('summaryDisclaimer'); if(d) d.style.display='';}catch(_){ }
+  
   // Padding del contenedor raíz
   container.style.padding = '30px';
 
@@ -508,16 +508,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
     // Definir gradientes verticales (blanco -> color)
     const ctx2 = ctx.getContext('2d');
     const makeGrad = (hex)=>{
-      const g = ctx2.createLinearGradient(0, ctx.height, 0, 0); // de abajo (0) hacia arriba (1)
-      // Más relleno hacia abajo y transiciones suaves
-      const rgbaStrong = hex.replace('1)', '0.42)');  // suave junto a la línea
-      const rgbaMedium = hex.replace('1)', '0.26)');
-      const rgbaLight  = hex.replace('1)', '0.10)');
-      g.addColorStop(0.0, 'rgba(255,255,255,0.0)');   // base casi transparente
-      g.addColorStop(0.2, 'rgba(255,255,255,0.0)');   // prolongar transparencia para bajar el relleno
-      g.addColorStop(0.45, rgbaLight);                // empieza a aparecer color
-      g.addColorStop(0.72, rgbaMedium);               // notable pero suave
-      g.addColorStop(1.0, rgbaStrong);                // máximo bajo la línea
+      const g = ctx2.createLinearGradient(0, ctx.height, 0, 0);
+      // Estilo GSC: mucha base rellena con muy baja opacidad y aumento progresivo
+      const rgbaStrong = hex.replace('1)', '0.40)');
+      const rgbaMedium = hex.replace('1)', '0.22)');
+      const rgbaLight  = hex.replace('1)', '0.08)');
+      g.addColorStop(0.00, rgbaLight);   // base ya con ligero color
+      g.addColorStop(0.35, rgbaLight);   // mantener cuerpo bajo
+      g.addColorStop(0.70, rgbaMedium);  // transición suave
+      g.addColorStop(1.00, rgbaStrong);  // más intenso cerca de la línea
       return g;
     };
     // Colores base en rgba fuertes para líneas
