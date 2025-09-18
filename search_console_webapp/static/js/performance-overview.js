@@ -296,6 +296,28 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // UI básica
   container.innerHTML = `
+    <div id="po-metrics" style="display:flex;gap:18px;align-items:center;margin:2px 0 10px 0;flex-wrap:wrap;font-size:13px;color:#111827">
+      <div class="po-metric" data-k="clicks" style="display:flex;gap:6px;align-items:baseline">
+        <span style="font-weight:600">Clicks</span>
+        <span class="po-value" aria-label="clicks value">–</span>
+        <span class="po-delta" aria-label="clicks delta" style="font-size:12px;color:#059669"> </span>
+      </div>
+      <div class="po-metric" data-k="impressions" style="display:flex;gap:6px;align-items:baseline">
+        <span style="font-weight:600">Impr.</span>
+        <span class="po-value" aria-label="impressions value">–</span>
+        <span class="po-delta" aria-label="impressions delta" style="font-size:12px;color:#059669"> </span>
+      </div>
+      <div class="po-metric" data-k="ctr" style="display:flex;gap:6px;align-items:baseline">
+        <span style="font-weight:600">CTR</span>
+        <span class="po-value" aria-label="ctr value">–</span>
+        <span class="po-delta" aria-label="ctr delta" style="font-size:12px;color:#059669"> </span>
+      </div>
+      <div class="po-metric" data-k="position" style="display:flex;gap:6px;align-items:baseline">
+        <span style="font-weight:600">Pos.</span>
+        <span class="po-value" aria-label="position value">–</span>
+        <span class="po-delta" aria-label="position delta" style="font-size:12px;color:#059669"> </span>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="po-top-toggles">
       <button type="button" data-k="clicks" class="po-btn">Clicks</button>
       <button type="button" data-k="impressions" class="po-btn">Impressions</button>
@@ -337,6 +359,11 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const siteUrl = siteSelect?.value || '';
   if(!range || !siteUrl){ /* esperar cambios */ }
 
+  const fmt = (d)=>{
+    const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  };
+
   const fetchAndRender = async ()=>{
     const r = getGlobalDateRange();
     const s = document.getElementById('siteUrlSelect')?.value || siteUrl;
@@ -348,11 +375,29 @@ async function mountChartJSOverview(rootId, fetchUrl){
       rows = await resp.json();
     }catch(e){ console.warn('No se pudo cargar /api/gsc/performance', e); return; }
 
+    // ¿Hay comparación activa?
+    let rowsComp = [];
+    try{
+      const ds = window.dateSelector;
+      if(ds && ds.comparisonMode && ds.comparisonMode !== 'none' && ds.comparisonPeriod?.startDate && ds.comparisonPeriod?.endDate){
+        const cs = fmt(ds.comparisonPeriod.startDate);
+        const ce = fmt(ds.comparisonPeriod.endDate);
+        const compUrl = buildFetchUrl(fetchUrl, cs, ce, s);
+        const resp2 = await fetch(compUrl);
+        rowsComp = await resp2.json();
+      }
+    }catch(_){ rowsComp = []; }
+
     const labels = rows.map(d=>d.date);
     const clicks = rows.map(d=>d.clicks||0);
     const impressions = rows.map(d=>d.impressions||0);
     const ctr = rows.map(d=> (d.ctr||0) <=1 ? (d.ctr||0)*100 : (d.ctr||0));
     const position = rows.map(d=>d.position||0);
+
+    const clicksComp = rowsComp.map(d=>d.clicks||0);
+    const impressionsComp = rowsComp.map(d=>d.impressions||0);
+    const ctrComp = rowsComp.map(d=> ((d.ctr||0) <=1 ? (d.ctr||0)*100 : (d.ctr||0)));
+    const positionComp = rowsComp.map(d=>d.position||0);
 
     if(container._chart){ container._chart.destroy(); }
 
@@ -362,9 +407,16 @@ async function mountChartJSOverview(rootId, fetchUrl){
         labels,
         datasets: [
           {label:'Clicks', data:clicks, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.2)', fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
-          {label:'Impressions', data:impressions, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', fill:true, yAxisID:'y', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
+          {label:'Impressions', data:impressions, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.2)', fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
           {label:'CTR (%)', data:ctr, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.15)', fill:true, yAxisID:'y1', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
           {label:'Avg. Position', data:position, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true, yAxisID:'y1', hidden: !state.show.position, pointRadius:0, tension:0.25}
+          // Periodo comparado (solo líneas punteadas, sin fill)
+          , ...(rowsComp.length ? [
+            {label:'Clicks (comp)', data:clicksComp, borderColor:'#2563eb', fill:false, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'Impressions (comp)', data:impressionsComp, borderColor:'#10b981', fill:false, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'CTR (comp) %', data:ctrComp, borderColor:'#f59e0b', fill:false, yAxisID:'y1', hidden: !state.show.ctr, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'},
+            {label:'Position (comp)', data:positionComp, borderColor:'#ef4444', fill:false, yAxisID:'y1', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
+          ] : [])
         ]
       },
       options: {
@@ -382,11 +434,42 @@ async function mountChartJSOverview(rootId, fetchUrl){
         } } },
         scales:{
           y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
-          y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>v }},
+          y1:{ position:'right', reverse: !!state.invert, grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
           x:{ ticks:{ maxTicksLimit: 10 } }
         }
       }
     });
+
+    // Actualizar indicadores minimalistas con deltas si hay comparación
+    const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
+    const avg = (arr)=> arr.length ? (arr.reduce((a,b)=>a+(b||0),0)/arr.length) : 0;
+    const tClicks = sum(clicks);
+    const tImpr = sum(impressions);
+    const tCtr = tImpr>0 ? (tClicks/tImpr)*100 : 0;
+    const tPos = avg(position);
+    const tClicksC = sum(clicksComp);
+    const tImprC = sum(impressionsComp);
+    const tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
+    const tPosC = avg(positionComp);
+    const setMetric = (k, val, delta)=>{
+      const root = container.querySelector(`.po-metric[data-k="${k}"]`) || container.querySelector(`[data-k="${k}"]`);
+      const vEl = container.querySelector(`.po-metric[data-k="${k}"] .po-value`);
+      const dEl = container.querySelector(`.po-metric[data-k="${k}"] .po-delta`);
+      if(vEl) vEl.textContent = k==='ctr' ? `${val.toFixed(2)}%` : (k==='position' ? val.toFixed(2) : formatNumberIntl(val));
+      if(dEl){
+        if(isFinite(delta)){
+          const up = delta >= 0; dEl.style.color = up ? '#16a34a' : '#dc2626';
+          dEl.textContent = (k==='position') ? `${(delta).toFixed(2)}` : `${(delta).toFixed(2)}%`;
+        }else{
+          dEl.textContent = '';
+        }
+      }
+    };
+
+    setMetric('clicks', tClicks, rowsComp.length? ((tClicks - tClicksC) / (tClicksC||1))*100 : NaN);
+    setMetric('impressions', tImpr, rowsComp.length? ((tImpr - tImprC) / (tImprC||1))*100 : NaN);
+    setMetric('ctr', tCtr, rowsComp.length? (tCtr - tCtrC) : NaN);
+    setMetric('position', tPos, rowsComp.length? (tPos - tPosC) : NaN);
   };
 
   // Eventos de toggles
