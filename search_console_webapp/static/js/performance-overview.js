@@ -402,7 +402,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   const savedToggles = JSON.parse(localStorage.getItem('po_toggles')||'{}');
   const state = { 
-    show: { clicks: savedToggles.clicks!==false, impressions: savedToggles.impressions||false, ctr: savedToggles.ctr||false, position: savedToggles.position||false }
+    // Forzar Clicks activo por defecto al entrar (aunque haya estado guardado apagado)
+    show: { clicks: true, impressions: !!savedToggles.impressions, ctr: !!savedToggles.ctr, position: !!savedToggles.position }
   };
 
   const syncButtons = ()=>{
@@ -712,7 +713,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
       const { p1Label, p2Label } = formatDateRange();
 
       if(p1) p1.innerHTML = `<span class="po-date">${p1Label}</span> · <strong class="po-value-strong">${formatVal(v1)}</strong>`;
-      if(p2) p2.innerHTML = `<span class="po-date">${p2Label}</span> · <span class="po-value-small">${formatVal(v2)}</span>`;
+      if(p2) p2.innerHTML = rowsComp.length ? `<span class="po-date">${p2Label}</span> · <span class="po-value-small">${formatVal(v2)}</span>` : '';
 
       if(dEl){
         if(rowsComp.length){
