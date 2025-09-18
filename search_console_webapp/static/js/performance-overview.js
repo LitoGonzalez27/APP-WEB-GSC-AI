@@ -561,6 +561,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
       return xs.map(x=> a*x + b);
     };
 
+    // Si hay comparativa, calcular tendencia sobre la serie delta (P1 - P2) para reflejar mejor el cambio; si no, sobre P1
     const buildDeltaSeries = (cur, prev, pct=false)=>{
       const n = Math.min(cur.length, prev.length);
       const out = [];
@@ -572,12 +573,12 @@ async function mountChartJSOverview(rootId, fetchUrl){
       return out;
     };
 
-    // Serie para tendencia: si hay comparativa, usar delta; si no, serie actual
+    const useDelta = rowsComp.length > 0;
     const seriesForTrend = {
-      clicks: rowsComp.length ? buildDeltaSeries(clicks, clicksComp, false) : clicks,
-      impressions: rowsComp.length ? buildDeltaSeries(impressions, impressionsComp, false) : impressions,
-      ctr: rowsComp.length ? buildDeltaSeries(ctr, ctrComp, false) : ctr,
-      position: rowsComp.length ? buildDeltaSeries(position, positionComp, false) : position,
+      clicks: useDelta ? buildDeltaSeries(clicks, clicksComp, false) : clicks,
+      impressions: useDelta ? buildDeltaSeries(impressions, impressionsComp, false) : impressions,
+      ctr: useDelta ? buildDeltaSeries(ctr, ctrComp, false) : ctr,
+      position: useDelta ? buildDeltaSeries(position, positionComp, false) : position,
     };
 
     const trendClicks = seriesForTrend.clicks.length >= 3 ? linReg(seriesForTrend.clicks) : [];
@@ -604,10 +605,10 @@ async function mountChartJSOverview(rootId, fetchUrl){
             {label:'Position (comp)', data:positionComp, borderColor:colPos, fill:false, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
           ] : []),
           // Tendencias (inicialmente ocultas, se activan con botones)
-          {label: rowsComp.length ? 'Trend (Δ Clicks)' : 'Trend Clicks', data: trendClicks, borderColor: colClicks, yAxisID:'y', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendClicks.length<3},
-          {label: rowsComp.length ? 'Trend (Δ Impr.)' : 'Trend Impressions', data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendImpr.length<3},
-          {label: rowsComp.length ? 'Trend (Δ CTR)' : 'Trend CTR', data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendCtr.length<3},
-          {label: rowsComp.length ? 'Trend (Δ Pos.)' : 'Trend Position', data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendPos.length<3}
+          {label: (useDelta ? 'Trend (Δ Clicks)' : 'Trend Clicks'), data: trendClicks, borderColor: colClicks, yAxisID:'y', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendClicks.length<3},
+          {label: (useDelta ? 'Trend (Δ Impr.)' : 'Trend Impressions'), data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendImpr.length<3},
+          {label: (useDelta ? 'Trend (Δ CTR)' : 'Trend CTR'), data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendCtr.length<3},
+          {label: (useDelta ? 'Trend (Δ Pos.)' : 'Trend Position'), data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden: trendPos.length<3}
         ]
       },
       options: {
@@ -695,7 +696,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
   };
 
   // Eventos de toggles
-  container.querySelectorAll('#po-top-toggles .po-btn[data-k]').forEach(btn=>{
+    container.querySelectorAll('#po-top-toggles .po-btn[data-k]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const k = btn.getAttribute('data-k');
       state.show[k] = !state.show[k];
@@ -709,17 +710,17 @@ async function mountChartJSOverview(rootId, fetchUrl){
         if(container._chart.data.datasets[idx+4]){
           container._chart.data.datasets[idx+4].hidden = !state.show[k];
         }
-        // Si se desactiva una métrica, apagar su tendencia y deshabilitar botón
-        const trendIdxMap = container._trendIndexMap || {};
-        const tIdx = trendIdxMap[k];
-        const trendBtn = container.querySelector(`#po-top-toggles .po-trend-btn[data-trend="${k}"]`);
-        if(!state.show[k] && typeof tIdx === 'number'){
-          const tDs = container._chart.data.datasets[tIdx];
-          if(tDs){ tDs.hidden = true; }
-          if(trendBtn){ trendBtn.classList.remove('active'); trendBtn.disabled = true; trendBtn.setAttribute('aria-disabled','true'); }
-        } else if(state.show[k] && trendBtn){
-          trendBtn.disabled = false; trendBtn.removeAttribute('aria-disabled');
-        }
+          // Si se desactiva una métrica, ocultar también su tendencia y deshabilitar el botón
+          const trendIdxMap = container._trendIndexMap || {};
+          const tIdx = trendIdxMap[k];
+          const trendBtn = container.querySelector(`#po-top-toggles .po-trend-btn[data-trend="${k}"]`);
+          if(!state.show[k] && typeof tIdx === 'number'){
+            const tDs = container._chart.data.datasets[tIdx];
+            if(tDs){ tDs.hidden = true; }
+            if(trendBtn){ trendBtn.classList.remove('active'); trendBtn.disabled = true; trendBtn.setAttribute('aria-disabled','true'); }
+          } else if(state.show[k] && trendBtn){
+            trendBtn.disabled = false; trendBtn.removeAttribute('aria-disabled');
+          }
         container._chart.update('none');
       }
     });
@@ -727,13 +728,13 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // Botones de tendencia: alternan visibilidad de datasets finales
   container.querySelectorAll('#po-top-toggles .po-trend-btn').forEach(btn=>{
-    // Deshabilitar trend si su métrica está apagada
-    const which = btn.getAttribute('data-trend');
-    if(state.show && state.show[which] === false){ btn.disabled = true; btn.setAttribute('aria-disabled','true'); }
+    // Deshabilitar trend si su métrica está apagada inicialmente
+    const whichInit = btn.getAttribute('data-trend');
+    if(state.show && state.show[whichInit] === false){ btn.disabled = true; btn.setAttribute('aria-disabled','true'); }
     btn.addEventListener('click', ()=>{
       const which = btn.getAttribute('data-trend');
       if(!container._chart) return;
-      if(state.show && state.show[which] === false){ return; }
+      if(state.show && state.show[which] === false) return; // si métrica apagada, no hacer nada
       const mapIndex = container._trendIndexMap || {};
       const idx = mapIndex[which];
       if(typeof idx !== 'number') return;
