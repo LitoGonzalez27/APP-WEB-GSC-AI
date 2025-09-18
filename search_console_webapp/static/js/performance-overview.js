@@ -402,8 +402,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   const savedToggles = JSON.parse(localStorage.getItem('po_toggles')||'{}');
   const state = { 
-    // Forzar Clicks activo por defecto al entrar (aunque haya estado guardado apagado)
-    show: { clicks: true, impressions: !!savedToggles.impressions, ctr: !!savedToggles.ctr, position: !!savedToggles.position }
+    // Forzar Clicks e Impressions activos por defecto al entrar
+    show: { clicks: true, impressions: true, ctr: !!savedToggles.ctr, position: !!savedToggles.position }
   };
 
   const syncButtons = ()=>{
