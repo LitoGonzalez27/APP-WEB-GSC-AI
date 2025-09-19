@@ -41,8 +41,18 @@ function ensureRgba1(color) {
   if (typeof color !== 'string') return 'rgba(0,0,0,1)';
   if (color.startsWith('rgba(')) return color.replace(/rgba\((\s*\d+\s*,\s*\d+\s*,\s*\d+\s*),\s*[^)]+\)/, 'rgba($1,1)');
   if (color.startsWith('rgb(')) return color.replace(/rgb\(([^)]+)\)/, 'rgba($1,1)');
-  // Hex not supported here; fallback to blue-ish
-  return 'rgba(37,99,235,1)';
+  // Hex (#RGB, #RRGGBB)
+  if (color.startsWith('#')) {
+    let hex = color.slice(1);
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const int = parseInt(hex, 16);
+    const r = (int >> 16) & 255;
+    const g = (int >> 8) & 255;
+    const b = int & 255;
+    return `rgba(${r},${g},${b},1)`;
+  }
+  // Fallback
+  return 'rgba(0,0,0,1)';
 }
 
 function makeGradDim(ctx, canvas, rgba1, dim) {
@@ -240,10 +250,11 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
     const ctr = rows.map(d => toPercentage(d.ctr));
     const position = rows.map(d => d.position);
 
-    const clicksPrev = labels.map(l => (prevByDate[l]?.clicks) ?? 0);
-    const impressionsPrev = labels.map(l => (prevByDate[l]?.impressions) ?? 0);
-    const ctrPrev = labels.map(l => toPercentage((prevByDate[l]?.ctr) ?? 0));
-    const positionPrev = labels.map(l => (prevByDate[l]?.position) ?? 0);
+    const indexAligned = prev.length && prev.length === labels.length;
+    const clicksPrev = indexAligned ? prev.map(d=>d.clicks) : labels.map(l => (prevByDate[l]?.clicks) ?? 0);
+    const impressionsPrev = indexAligned ? prev.map(d=>d.impressions) : labels.map(l => (prevByDate[l]?.impressions) ?? 0);
+    const ctrPrev = indexAligned ? prev.map(d=>toPercentage(d.ctr||0)) : labels.map(l => toPercentage((prevByDate[l]?.ctr) ?? 0));
+    const positionPrev = indexAligned ? prev.map(d=>d.position) : labels.map(l => (prevByDate[l]?.position) ?? 0);
 
     const trendClicks = state.trend.clicks ? linearRegression(clicks) : clicks.map(()=>null);
     const trendImpr = state.trend.impressions ? linearRegression(impressions) : impressions.map(()=>null);
@@ -261,11 +272,13 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
       { label:'Impressions', data:impressions, borderColor:ensureRgba1(COLORS.impressions), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.impressions), dimImpr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y1', hidden: !state.show.impressions },
       { label:'CTR (%)', data:ctr, borderColor:ensureRgba1(COLORS.ctr), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.ctr), dimCtr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y2', hidden: !state.show.ctr },
       { label:'Avg. Position', data:position, borderColor:ensureRgba1(COLORS.position), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.position), dimPos), fill:'origin', pointRadius:0, tension:0.2, yAxisID:'y3', hidden: !state.show.position },
-      // comparativas
-      { label:'Clicks (prev)', data:clicksPrev, borderColor:ensureRgba1(COLORS.clicks), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.show.clicks },
-      { label:'Impressions (prev)', data:impressionsPrev, borderColor:ensureRgba1(COLORS.impressions), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.show.impressions },
-      { label:'CTR (prev) %', data:ctrPrev, borderColor:ensureRgba1(COLORS.ctr), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.show.ctr },
-      { label:'Position (prev)', data:positionPrev, borderColor:ensureRgba1(COLORS.position), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.show.position },
+      // comparativas (solo si hay prev)
+      ...(prev.length ? [
+        { label:'Clicks (prev)', data:clicksPrev, borderColor:ensureRgba1(COLORS.clicks), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.show.clicks },
+        { label:'Impressions (prev)', data:impressionsPrev, borderColor:ensureRgba1(COLORS.impressions), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.show.impressions },
+        { label:'CTR (prev) %', data:ctrPrev, borderColor:ensureRgba1(COLORS.ctr), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.show.ctr },
+        { label:'Position (prev)', data:positionPrev, borderColor:ensureRgba1(COLORS.position), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.show.position }
+      ] : []),
       // tendencias
       { label:'Trend Clicks', data: trendClicks, borderColor:ensureRgba1(COLORS.clicks), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.trend.clicks },
       { label:'Trend Impressions', data: trendImpr, borderColor:ensureRgba1(COLORS.impressions), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.trend.impressions },
@@ -289,7 +302,8 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
 
     // Mapas de índices para toggles avanzados
     container._baseIndexMap = { clicks:0, impressions:1, ctr:2, position:3 };
-    const trendStartIndex = 8; // después de 4 base + 4 comp
+    const compCount = prev.length ? 4 : 0;
+    const trendStartIndex = 4 + compCount;
     container._trendIndexMap = { clicks: trendStartIndex, impressions: trendStartIndex+1, ctr: trendStartIndex+2, position: trendStartIndex+3 };
 
     if (container._chart) container._chart.destroy();
