@@ -507,6 +507,93 @@ window.debugPerformanceOverview = {
     }
     
     return { clicksEl, imprEl, ctrEl, posEl };
+  },
+  // ✅ NUEVA función para forzar actualización de métricas
+  forceMetricsUpdate: async () => {
+    console.log('🔄 Forzando actualización de métricas...');
+    
+    const container = document.getElementById('performanceOverviewRoot');
+    if (!container || !container._chart) {
+      console.error('❌ No se encontró container o chart');
+      return;
+    }
+    
+    // Intentar obtener datos del gráfico existente
+    const chart = container._chart;
+    if (!chart || !chart.data || !chart.data.datasets) {
+      console.error('❌ No hay datos en el gráfico');
+      return;
+    }
+    
+    // Obtener datos del primer dataset (clicks)
+    const clicksData = chart.data.datasets[0]?.data || [];
+    const impressionsData = chart.data.datasets[1]?.data || [];
+    const ctrData = chart.data.datasets[2]?.data || [];
+    const positionData = chart.data.datasets[3]?.data || [];
+    
+    console.log('📊 Datos extraídos del gráfico:', {
+      clicks: clicksData.length,
+      impressions: impressionsData.length,
+      ctr: ctrData.length,
+      position: positionData.length
+    });
+    
+    if (clicksData.length === 0) {
+      console.error('❌ No hay datos de clicks en el gráfico');
+      return;
+    }
+    
+    // Calcular totales
+    const sum = (arr) => arr.reduce((a, b) => a + (b || 0), 0);
+    const avg = (arr) => arr.length ? (arr.reduce((a, b) => a + (b || 0), 0) / arr.length) : 0;
+    
+    const tClicks = sum(clicksData);
+    const tImpr = sum(impressionsData);
+    const tCtr = tImpr > 0 ? (tClicks / tImpr) * 100 : 0;
+    const tPos = avg(positionData);
+    
+    console.log('📊 Totales calculados:', {
+      clicks: tClicks,
+      impressions: tImpr,
+      ctr: tCtr.toFixed(2) + '%',
+      position: tPos.toFixed(2)
+    });
+    
+    // Formatear números
+    const formatNumberIntl = (n) => {
+      try { return (n ?? 0).toLocaleString('es-ES'); } catch(_) { return String(n ?? 0); }
+    };
+    
+    // Actualizar cada métrica manualmente
+    const updateMetric = (key, value) => {
+      const metricEl = container.querySelector(`.po-metric[data-k="${key}"]`);
+      if (!metricEl) {
+        console.warn(`⚠️ No se encontró métrica ${key}`);
+        return;
+      }
+      
+      const p1 = metricEl.querySelector('.po-p1');
+      if (p1) {
+        let formattedValue;
+        if (key === 'clicks' || key === 'impressions') {
+          formattedValue = formatNumberIntl(value);
+        } else if (key === 'ctr') {
+          formattedValue = `${value.toFixed(2)}%`;
+        } else if (key === 'position') {
+          formattedValue = value.toFixed(2);
+        }
+        
+        p1.innerHTML = `<span class="po-date">Periodo actual</span> · <strong class="po-value-strong">${formattedValue}</strong>`;
+        console.log(`✅ Métrica ${key} actualizada: ${formattedValue}`);
+      }
+    };
+    
+    updateMetric('clicks', tClicks);
+    updateMetric('impressions', tImpr);
+    updateMetric('ctr', tCtr);
+    updateMetric('position', tPos);
+    
+    return { tClicks, tImpr, tCtr, tPos };
   }
 };
 
@@ -514,6 +601,7 @@ console.log('🚀 Performance Overview debugging functions available:');
 console.log('📍 window.debugPerformanceOverview.checkCurrentData()');
 console.log('📍 window.debugPerformanceOverview.testTableRender()');
 console.log('📍 window.debugPerformanceOverview.testMetricsUpdate()');
+console.log('📍 window.debugPerformanceOverview.forceMetricsUpdate() // ⭐ NUEVA!');
 
 
 // ==============================
@@ -941,11 +1029,23 @@ async function mountChartJSOverview(rootId, fetchUrl){
         return;
       }
       
+      // ✅ DEBUG: Mostrar estructura de datos antes de procesar
+      if (kwords.length > 0) {
+        console.log('🔍 DEBUG: Primer elemento de keywords:', kwords[0]);
+        console.log('🔍 DEBUG: Propiedades disponibles keywords:', Object.keys(kwords[0]));
+      }
+      if (pagesList.length > 0) {
+        console.log('🔍 DEBUG: Primer elemento de pages:', pagesList[0]);
+        console.log('🔍 DEBUG: Propiedades disponibles pages:', Object.keys(pagesList[0]));
+      }
+      
       // ✅ Mejorado: Función de ordenamiento más robusta
       const sortByClicks = (a, b) => {
         // Intentar múltiples propiedades para obtener clics
-        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 0;
-        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 0;
+        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 
+                       (a.Metrics && a.Metrics[0] && a.Metrics[0].Clicks) ?? 0;
+        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 
+                       (b.Metrics && b.Metrics[0] && b.Metrics[0].Clicks) ?? 0;
         return bClicks - aClicks;
       };
       
@@ -994,10 +1094,36 @@ async function mountChartJSOverview(rootId, fetchUrl){
             (r.keyword || r.query || r.Query || '') : 
             (r.url || r.page || r.URL || r.Page || '');
             
-          const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
-          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
-          const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
-          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? 0;
+          // ✅ MEJORADO: Acceso más robusto a métricas incluyendo estructura Metrics[]
+          const getMetric = (item, metricName) => {
+            // Intentar propiedades directas primero
+            const direct = item[`${metricName}_m1`] ?? item[`${metricName}_p1`] ?? 
+                          item[metricName.charAt(0).toUpperCase() + metricName.slice(1)] ?? 
+                          item[metricName];
+            if (direct !== undefined) return direct;
+            
+            // Intentar estructura anidada Metrics[]
+            if (item.Metrics && Array.isArray(item.Metrics) && item.Metrics[0]) {
+              return item.Metrics[0][metricName.charAt(0).toUpperCase() + metricName.slice(1)] ?? 0;
+            }
+            
+            return 0;
+          };
+          
+          const c1 = getMetric(r, 'clicks');
+          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? (r.Metrics && r.Metrics[1] && r.Metrics[1].Clicks) ?? 0;
+          const i1 = getMetric(r, 'impressions');
+          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? (r.Metrics && r.Metrics[1] && r.Metrics[1].Impressions) ?? 0;
+          
+          // Log para debugging del primer elemento
+          if (index === 0) {
+            console.log(`🔍 DEBUG buildTable ${isKeyword ? 'keyword' : 'page'}:`, {
+              name,
+              clicks: c1,
+              impressions: i1,
+              originalData: r
+            });
+          }
           
           // Calcular deltas para clicks e impressions
           const clicksDelta = hasComp && c2 > 0 ? deltaChip(c1, c2, true) : '';
@@ -1218,10 +1344,20 @@ async function mountChartJSOverview(rootId, fetchUrl){
         return;
       }
       
+      // ✅ DEBUG: Mostrar estructura de datos en updateTopTables
+      if (kwords.length > 0) {
+        console.log('🔍 DEBUG updateTopTables: Primer elemento de keywords:', kwords[0]);
+      }
+      if (pagesList.length > 0) {
+        console.log('🔍 DEBUG updateTopTables: Primer elemento de pages:', pagesList[0]);
+      }
+      
       // Función de ordenamiento más robusta
       const sortByClicks = (a, b) => {
-        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 0;
-        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 0;
+        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 
+                       (a.Metrics && a.Metrics[0] && a.Metrics[0].Clicks) ?? 0;
+        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 
+                       (b.Metrics && b.Metrics[0] && b.Metrics[0].Clicks) ?? 0;
         return bClicks - aClicks;
       };
       
@@ -1263,10 +1399,36 @@ async function mountChartJSOverview(rootId, fetchUrl){
             (r.keyword || r.query || r.Query || '') : 
             (r.url || r.page || r.URL || r.Page || '');
             
-          const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
-          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
-          const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
-          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? 0;
+          // ✅ MEJORADO: Acceso más robusto a métricas incluyendo estructura Metrics[]
+          const getMetric = (item, metricName) => {
+            // Intentar propiedades directas primero
+            const direct = item[`${metricName}_m1`] ?? item[`${metricName}_p1`] ?? 
+                          item[metricName.charAt(0).toUpperCase() + metricName.slice(1)] ?? 
+                          item[metricName];
+            if (direct !== undefined) return direct;
+            
+            // Intentar estructura anidada Metrics[]
+            if (item.Metrics && Array.isArray(item.Metrics) && item.Metrics[0]) {
+              return item.Metrics[0][metricName.charAt(0).toUpperCase() + metricName.slice(1)] ?? 0;
+            }
+            
+            return 0;
+          };
+          
+          const c1 = getMetric(r, 'clicks');
+          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? (r.Metrics && r.Metrics[1] && r.Metrics[1].Clicks) ?? 0;
+          const i1 = getMetric(r, 'impressions');
+          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? (r.Metrics && r.Metrics[1] && r.Metrics[1].Impressions) ?? 0;
+          
+          // Log para debugging del primer elemento
+          if (index === 0) {
+            console.log(`🔍 DEBUG buildTable ${isKeyword ? 'keyword' : 'page'}:`, {
+              name,
+              clicks: c1,
+              impressions: i1,
+              originalData: r
+            });
+          }
           
           // Calcular deltas para clicks e impressions
           const clicksDelta = hasComp && c2 > 0 ? deltaChip(c1, c2, true) : '';
