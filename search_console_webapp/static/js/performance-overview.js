@@ -835,6 +835,55 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const ctrComp = rowsComp.map(d=> ((d.ctr||0) <=1 ? (d.ctr||0)*100 : (d.ctr||0)));
     const positionComp = rowsComp.map(d=>d.position||0);
 
+    // 1) Actualizar métricas inmediatamente aunque el gráfico aún no exista
+    try{
+      const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
+      const avg = (arr)=> arr.length ? (arr.reduce((a,b)=>a+(b||0),0)/arr.length) : 0;
+      const tClicks = sum(clicks);
+      const tImpr = sum(impressions);
+      const tCtr = tImpr>0 ? (tClicks/tImpr)*100 : 0;
+      const tPos = avg(position);
+      const tClicksC = sum(clicksComp);
+      const tImprC = sum(impressionsComp);
+      const tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
+      const tPosC = avg(positionComp);
+
+      const formatNumberIntl = (n) => { try { return (n ?? 0).toLocaleString('es-ES'); } catch(_) { return String(n ?? 0); } };
+      const updateQuick = (key, value, compValue, isPercent=false, isPosition=false)=>{
+        const root = container.querySelector(`.po-metric[data-k="${key}"]`);
+        if(!root) return;
+        const p1 = root.querySelector('.po-p1');
+        const p2 = root.querySelector('.po-p2');
+        const dEl = root.querySelector('.po-delta');
+        const formatVal = (v)=> isPercent ? `${(v||0).toFixed(2)}%` : (isPosition ? (v||0).toFixed(2) : formatNumberIntl(v||0));
+        const ds = window.dateSelector;
+        const fmtDate=(d)=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        const cur = ds?.currentPeriod; const comp = ds?.comparisonPeriod;
+        const p1Label = (cur?.startDate && cur?.endDate) ? `${fmtDate(cur.startDate)} - ${fmtDate(cur.endDate)}` : 'Periodo actual';
+        const p2Label = (comp?.startDate && comp?.endDate) ? `${fmtDate(comp.startDate)} - ${fmtDate(comp.endDate)}` : 'Periodo anterior';
+        if(p1) p1.innerHTML = `<span class="po-date">${p1Label}</span> · <strong class="po-value-strong">${formatVal(value)}</strong>`;
+        if(p2) p2.innerHTML = rowsComp.length ? `<span class="po-date">${p2Label}</span> · <span class="po-value-small">${formatVal(compValue)}</span>` : '';
+        if(dEl){
+          if(rowsComp.length){
+            let delta;
+            if(isPosition){ delta = (value - compValue); }
+            else if(isPercent){ delta = ((value - (compValue||1)) / (compValue||1)) * 100; }
+            else { delta = (value - compValue); }
+            const good = isPosition ? (delta < 0) : (delta >= 0);
+            dEl.style.color = good ? '#16a34a' : '#dc2626';
+            dEl.textContent = isPosition ? `${delta.toFixed(2)}` : (isPercent ? `${delta.toFixed(2)}%` : `${delta.toFixed(0)}%`);
+          } else {
+            dEl.textContent = '';
+          }
+        }
+      };
+      updateQuick('clicks', tClicks, tClicksC, true, false);
+      updateQuick('impressions', tImpr, tImprC, true, false);
+      updateQuick('ctr', tCtr, tCtrC, false, false);
+      updateQuick('position', tPos, tPosC, false, true);
+      console.log('✅ Métricas Overview actualizadas (modo rápido)');
+    }catch(e){ console.warn('⚠️ No se pudieron actualizar métricas en modo rápido:', e); }
+
     if(container._chart){ container._chart.destroy(); }
 
     // Crear tooltip externo
@@ -975,7 +1024,21 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const trendPos = linReg(position);
 
     try {
-      container._chart = new Chart(ctx, {
+    // 2) Preparar mapa de índices de tendencia ANTES de crear el gráfico
+    const trendStartIndex = 4 + (rowsComp.length ? 4 : 0);
+    container._trendIndexMap = {
+      clicks: trendStartIndex,
+      impressions: trendStartIndex + 1,
+      ctr: trendStartIndex + 2,
+      position: trendStartIndex + 3,
+    };
+
+    // Asegurar Chart.js cargado en cada render
+    if(!window.Chart){
+      try{ await ensureChartJS(); }catch(_){ /* noop */ }
+    }
+
+    container._chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
@@ -1191,14 +1254,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
       console.log('🔍 currentData structure:', window.currentData);
     }
 
-    // Mapear índices de datasets de tendencia en función de si hay comparativa
-    const trendStartIndex = 4 + (rowsComp.length ? 4 : 0);
-    container._trendIndexMap = {
-      clicks: trendStartIndex,
-      impressions: trendStartIndex + 1,
-      ctr: trendStartIndex + 2,
-      position: trendStartIndex + 3,
-    };
+    // Mapa de índices de tendencias ya calculado arriba
 
     // Actualizar indicadores minimalistas con P1, P2 y delta si hay comparación
     const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
