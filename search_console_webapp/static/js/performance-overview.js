@@ -868,13 +868,17 @@ async function mountChartJSOverview(rootId, fetchUrl){
       }
 
       const formatNumberIntl = (n) => { try { return (n ?? 0).toLocaleString('es-ES'); } catch(_) { return String(n ?? 0); } };
-      const updateQuick = (key, value, compValue, isPercent=false, isPosition=false)=>{
+      const updateQuick = (key, value, compValue)=>{
         const root = container.querySelector(`.po-metric[data-k="${key}"]`);
         if(!root) return;
         const p1 = root.querySelector('.po-p1');
         const p2 = root.querySelector('.po-p2');
         const dEl = root.querySelector('.po-delta');
-        const formatVal = (v)=> isPercent ? `${(v||0).toFixed(2)}%` : (isPosition ? (v||0).toFixed(2) : formatNumberIntl(v||0));
+        // Reglas por métrica
+        const valueIsPercent = (key === 'ctr');
+        const isPosition = (key === 'position');
+        const deltaIsPercent = (key === 'clicks' || key === 'impressions');
+        const formatVal = (v)=> valueIsPercent ? `${(v||0).toFixed(2)}%` : (isPosition ? (v||0).toFixed(2) : formatNumberIntl(v||0));
         const ds = window.dateSelector;
         const fmtDate=(d)=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
         const cur = ds?.currentPeriod; const comp = ds?.comparisonPeriod;
@@ -886,20 +890,20 @@ async function mountChartJSOverview(rootId, fetchUrl){
           if(rowsComp.length){
             let delta;
             if(isPosition){ delta = (value - compValue); }
-            else if(isPercent){ delta = ((value - (compValue||1)) / (compValue||1)) * 100; }
+            else if(deltaIsPercent){ delta = ((value - (compValue||1)) / (compValue||1)) * 100; }
             else { delta = (value - compValue); }
             const good = isPosition ? (delta < 0) : (delta >= 0);
             dEl.style.color = good ? '#16a34a' : '#dc2626';
-            dEl.textContent = isPosition ? `${delta.toFixed(2)}` : (isPercent ? `${delta.toFixed(2)}%` : `${delta.toFixed(0)}%`);
+            dEl.textContent = isPosition ? `${delta.toFixed(2)}` : (deltaIsPercent ? `${delta.toFixed(2)}%` : (key==='ctr' ? `${delta.toFixed(2)}%` : `${delta.toFixed(0)}%`));
           } else {
             dEl.textContent = '';
           }
         }
       };
-      updateQuick('clicks', tClicks, tClicksC, true, false);
-      updateQuick('impressions', tImpr, tImprC, true, false);
-      updateQuick('ctr', tCtr, tCtrC, false, false);
-      updateQuick('position', tPos, tPosC, false, true);
+      updateQuick('clicks', tClicks, tClicksC);
+      updateQuick('impressions', tImpr, tImprC);
+      updateQuick('ctr', tCtr, tCtrC);
+      updateQuick('position', tPos, tPosC);
       console.log('✅ Métricas Overview actualizadas (modo rápido)');
     }catch(e){ console.warn('⚠️ No se pudieron actualizar métricas en modo rápido:', e); }
 
