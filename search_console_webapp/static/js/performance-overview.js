@@ -432,7 +432,11 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
   const rootEl = document.getElementById(rootId);
   if (!rootEl) return;
   try {
-    // Mantener visible #summaryDisclaimer (contiene los insights y métricas del resumen)
+    // Ocultar el disclaimer/insights legacy para que solo se vea el bloque PO
+    try {
+      const disclaimer = document.getElementById('summaryDisclaimer');
+      if (disclaimer) disclaimer.style.display = 'none';
+    } catch (_) {}
 
     const root = window.ReactDOM.createRoot(rootEl);
     root.render(window.React.createElement(Overview));
@@ -609,8 +613,16 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const container = document.getElementById(rootId);
   if(!container) return;
 
-  // No ocultar #summaryDisclaimer: contiene los insights/summary que el usuario espera ver
-  // (antes se ocultaba para evitar solapamiento con el nuevo Overview)
+  // Ocultar por CSS el summaryDisclaimer de forma global y usar performanceOverviewRoot como ancla
+  try{
+    let hideStyle = document.getElementById('po-hide-disclaimer');
+    if(!hideStyle){
+      hideStyle = document.createElement('style');
+      hideStyle.id = 'po-hide-disclaimer';
+      hideStyle.textContent = '#summaryDisclaimer{display:none !important;}';
+      document.head.appendChild(hideStyle);
+    }
+  }catch(_){ }
   
   // Padding del contenedor raíz
   container.style.padding = '30px';
@@ -980,10 +992,10 @@ async function mountChartJSOverview(rootId, fetchUrl){
             {label:'Position (comp)', data:positionComp, borderColor:colPos, fill:false, yAxisID:'y3', hidden: !state.show.position, pointRadius:0, tension:0.25, borderDash:[5,5], borderWidth:2, backgroundColor:'transparent'}
           ] : []),
           // Tendencias (inicialmente ocultas, se activan con botones)
-          {label:'Trend Clicks', data: trendClicks, borderColor: colClicks, yAxisID:'y', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
-          {label:'Trend Impressions', data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
-          {label:'Trend CTR', data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
-          {label:'Trend Position', data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden:true}
+          {label:'Trend Clicks', data: trendClicks, borderColor: colClicks, yAxisID:'y', pointRadius:0, tension:0, borderDash:[2,2], hidden:true, order: 999, backgroundColor:'transparent'},
+          {label:'Trend Impressions', data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden:true, order: 999, backgroundColor:'transparent'},
+          {label:'Trend CTR', data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden:true, order: 999, backgroundColor:'transparent'},
+          {label:'Trend Position', data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden:true, order: 999, backgroundColor:'transparent'}
           ]
         },
         options: {
@@ -1300,8 +1312,15 @@ async function mountChartJSOverview(rootId, fetchUrl){
       if(!container._chart) return;
       const mapIndex = container._trendIndexMap || {};
       const idx = mapIndex[which];
+      if(typeof idx !== 'number'){
+        console.warn('⚠️ Trend index no disponible para', which, mapIndex);
+        return;
+      }
       const ds = container._chart.data.datasets[idx];
-      if(!ds) return;
+      if(!ds){
+        console.warn('⚠️ Dataset de tendencia no encontrado en índice', idx);
+        return;
+      }
       ds.hidden = !ds.hidden;
       btn.classList.toggle('active', !ds.hidden);
       // Atenuar relleno y línea de la métrica correspondiente cuando la tendencia esté visible
@@ -1321,6 +1340,7 @@ async function mountChartJSOverview(rootId, fetchUrl){
         baseDs.borderColor = baseRgba.replace(/rgba\(([^)]+),\s*([01](?:\.\d+)?)\)/, 'rgba($1,'+factor+')');
         baseDs.borderWidth = ds.hidden ? baseDs.borderWidth : (baseDs.borderWidth || 2);
       }
+      console.log('🔀 Trend toggle', { which, index: idx, nowHidden: ds.hidden });
       container._chart.update('none');
     });
   });
