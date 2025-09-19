@@ -839,14 +839,38 @@ async function mountChartJSOverview(rootId, fetchUrl){
     try{
       const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
       const avg = (arr)=> arr.length ? (arr.reduce((a,b)=>a+(b||0),0)/arr.length) : 0;
-      const tClicks = sum(clicks);
-      const tImpr = sum(impressions);
-      const tCtr = tImpr>0 ? (tClicks/tImpr)*100 : 0;
-      const tPos = avg(position);
-      const tClicksC = sum(clicksComp);
-      const tImprC = sum(impressionsComp);
-      const tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
-      const tPosC = avg(positionComp);
+
+      // Preferir los totales del summary (ponderados por impresiones) si existen
+      let tClicks, tImpr, tCtr, tPos, tClicksC, tImprC, tCtrC, tPosC;
+      const ps = window.currentPeriodSummary;
+      if (ps && typeof ps === 'object' && Object.keys(ps).length >= 1) {
+        const periodKeys = Object.keys(ps).sort((a,b)=>{
+          const A = ps[a], B = ps[b];
+          if (A.StartDate && B.StartDate) return new Date(A.StartDate) - new Date(B.StartDate);
+          return a.localeCompare(b);
+        });
+        const p1 = ps[periodKeys[periodKeys.length-1]]; // período actual
+        const p2 = periodKeys.length>1 ? ps[periodKeys[0]] : null; // comparación si existe
+        tClicks = p1?.Clicks || 0;
+        tImpr = p1?.Impressions || 0;
+        tCtr = (p1?.CTR || 0) * 100; // viene como ratio
+        tPos = p1?.Position ?? 0;
+        tClicksC = p2?.Clicks || 0;
+        tImprC = p2?.Impressions || 0;
+        tCtrC = (p2?.CTR || 0) * 100;
+        tPosC = p2?.Position ?? 0;
+      } else {
+        // Fallback: agregados desde las series diarias
+        tClicks = sum(clicks);
+        tImpr = sum(impressions);
+        tCtr = tImpr>0 ? (tClicks/tImpr)*100 : 0;
+        // Posición: media simple en fallback (la ponderada requiere info de impresiones por fila); mantenemos simple
+        tPos = avg(position);
+        tClicksC = sum(clicksComp);
+        tImprC = sum(impressionsComp);
+        tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
+        tPosC = avg(positionComp);
+      }
 
       const formatNumberIntl = (n) => { try { return (n ?? 0).toLocaleString('es-ES'); } catch(_) { return String(n ?? 0); } };
       const updateQuick = (key, value, compValue, isPercent=false, isPosition=false)=>{
