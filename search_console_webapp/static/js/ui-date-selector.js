@@ -442,6 +442,10 @@ export class DateRangeSelector {
     applyPreset(preset) {
         const endDate = new Date(this.maxDate);
         let startDate = new Date(endDate);
+        
+        // ✅ NUEVO: Guardar la configuración original para validación
+        const originalMaxDate = new Date(this.maxDate);
+        const currentTime = new Date();
 
         switch (preset) {
             case 'last7days':
@@ -487,6 +491,27 @@ export class DateRangeSelector {
         if (endDate > this.maxDate) endDate = new Date(this.maxDate);
 
         // ✅ DEBUGGING: Log de preset aplicado
+        // ✅ NUEVO: Validación específica para errores de medianoche
+        if (startDate < this.minDate || endDate > originalMaxDate) {
+            // Detectar si es un problema de cruce de medianoche
+            const isLikelyMidnightIssue = currentTime.getHours() >= 0 && currentTime.getHours() <= 2;
+            
+            let errorMessage;
+            if (isLikelyMidnightIssue) {
+                errorMessage = `The "${this.getPresetDisplayName(preset)}" period is temporarily unavailable.\n\n` +
+                              `This sometimes happens around midnight when date ranges update. ` +
+                              `Please try selecting dates manually or wait a few minutes and try again.\n\n` +
+                              `Available date range: ${this.formatDateForDisplay(this.minDate)} to ${this.formatDateForDisplay(this.maxDate)}`;
+            } else {
+                errorMessage = `The "${this.getPresetDisplayName(preset)}" period is outside the available date range.\n\n` +
+                              `Available range: ${this.formatDateForDisplay(this.minDate)} to ${this.formatDateForDisplay(this.maxDate)}\n` +
+                              `Requested range: ${this.formatDateForDisplay(startDate)} to ${this.formatDateForDisplay(endDate)}`;
+            }
+            
+            this.showDateError(errorMessage);
+            return; // No aplicar el preset si es inválido
+        }
+
         console.log(`📅 Preset "${preset}" aplicado:`, {
             inicio: this.formatDateForDisplay(startDate),
             fin: this.formatDateForDisplay(endDate)
@@ -497,12 +522,8 @@ export class DateRangeSelector {
         this.updateUI();
         this.saveToStorage();
         
-        // Activar animación en el preset seleccionado
-        document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`[data-preset="${preset}"]`)?.classList.add('active');
-        setTimeout(() => {
-            document.querySelector(`[data-preset="${preset}"]`)?.classList.remove('active');
-        }, 300);
+        // Activar el preset seleccionado
+        this.updateActivePreset(preset);
     }
 
     handleCurrentDateChange() {
@@ -538,6 +559,9 @@ export class DateRangeSelector {
         this.updateComparison();
         this.updateUI();
         this.saveToStorage();
+        
+        // ✅ NUEVO: Actualizar preset activo cuando se cambian fechas manualmente
+        this.updateActivePreset();
     }
 
     handleComparisonModeChange() {
@@ -633,6 +657,8 @@ export class DateRangeSelector {
     updateUI() {
         this.updatePeriodPreviews();
         this.updateDateInfo();
+        // ✅ NUEVO: Actualizar presets activos visualmente
+        this.updateActivePreset();
     }
 
     updatePeriodPreviews() {
@@ -687,6 +713,20 @@ export class DateRangeSelector {
         }
         
         return count;
+    }
+
+    // ✅ NUEVO: Obtener nombre amigable para mostrar en errores
+    getPresetDisplayName(preset) {
+        const displayNames = {
+            'last7days': 'Last 7 days',
+            'last30days': 'Last 30 days', 
+            'last3months': 'Last 3 months',
+            'last6months': 'Last 6 months',
+            'thisYear': 'This Year',
+            'currentMonth': 'Current Month',
+            'lastMonth': 'Last Month'
+        };
+        return displayNames[preset] || preset;
     }
 
     showDateError(message) {
@@ -887,6 +927,95 @@ export class DateRangeSelector {
             isValid: errors.length === 0,
             errors
         };
+    }
+
+    // ✅ NUEVO: Actualizar preset activo visualmente
+    updateActivePreset(activePreset = null) {
+        // Quitar clase active de todos los presets
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Si se proporciona un preset específico, marcarlo como activo
+        if (activePreset) {
+            const presetBtn = document.querySelector(`[data-preset="${activePreset}"]`);
+            if (presetBtn) {
+                presetBtn.classList.add('active');
+            }
+        } else {
+            // Si no se proporciona preset, detectar cuál debería estar activo
+            const detectedPreset = this.detectActivePreset();
+            if (detectedPreset) {
+                const presetBtn = document.querySelector(`[data-preset="${detectedPreset}"]`);
+                if (presetBtn) {
+                    presetBtn.classList.add('active');
+                }
+            }
+        }
+    }
+
+    // ✅ NUEVO: Detectar qué preset está actualmente seleccionado
+    detectActivePreset() {
+        if (!this.currentPeriod.startDate || !this.currentPeriod.endDate) {
+            return null;
+        }
+
+        const currentStart = new Date(this.currentPeriod.startDate);
+        const currentEnd = new Date(this.currentPeriod.endDate);
+
+        // Definir todos los presets y calcular sus fechas
+        const presets = [
+            'last7days', 'last30days', 'last3months', 'last6months', 
+            'thisYear', 'currentMonth', 'lastMonth'
+        ];
+
+        for (const preset of presets) {
+            const endDate = new Date(this.maxDate);
+            let startDate = new Date(endDate);
+
+            // Calcular fechas del preset (misma lógica que applyPreset)
+            switch (preset) {
+                case 'last7days':
+                    startDate.setDate(endDate.getDate() - 7);
+                    break;
+                case 'last30days':
+                    startDate.setDate(endDate.getDate() - 30);
+                    break;
+                case 'last3months':
+                    startDate.setMonth(endDate.getMonth() - 3);
+                    break;
+                case 'last6months':
+                    startDate.setMonth(endDate.getMonth() - 6);
+                    break;
+                case 'thisYear':
+                    const currentYear = endDate.getFullYear();
+                    startDate = new Date(currentYear, 0, 1);
+                    break;
+                case 'currentMonth':
+                    const currentMonth = new Date();
+                    currentMonth.setDate(currentMonth.getDate() - 3);
+                    startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                    endDate.setTime(Math.min(
+                        new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getTime(),
+                        this.maxDate.getTime()
+                    ));
+                    break;
+                case 'lastMonth':
+                    const lastMonth = new Date(this.maxDate);
+                    lastMonth.setMonth(lastMonth.getMonth() - 1);
+                    startDate = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+                    endDate.setTime(new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).getTime());
+                    break;
+            }
+
+            // Comparar fechas (misma fecha = mismo preset)
+            if (this.formatDate(currentStart) === this.formatDate(startDate) && 
+                this.formatDate(currentEnd) === this.formatDate(endDate)) {
+                return preset;
+            }
+        }
+
+        return null; // No coincide con ningún preset
     }
 }
 

@@ -38,7 +38,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-overlay-styles.css') }}">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='responsive-enhancements.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='feedback-button.css') }}">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-typology-chart.css') }}">
 
@@ -418,30 +417,6 @@
               <div class="card-icon"><i class="fas fa-location-arrow"></i></div>
               <strong>Average Position</strong>
               <div class="summary-content"></div>
-            </div>
-          </div>
-          
-          <!-- Performance Overview (Chart.js) -->
-          <div id="performanceOverview" class="performance-overview" style="margin-top:24px; display:none;">
-            <!-- Tabs de métricas -->
-            <div class="po-metric-tabs" role="tablist" aria-label="Metric tabs">
-              <button class="po-metric-tab active" data-metric="clicks" role="tab" aria-selected="true">Clicks</button>
-              <button class="po-metric-tab" data-metric="impressions" role="tab" aria-selected="false">Impressions</button>
-              <button class="po-metric-tab" data-metric="ctr" role="tab" aria-selected="false">CTR</button>
-              <button class="po-metric-tab" data-metric="position" role="tab" aria-selected="false">Avg. Position</button>
-            </div>
-
-            <!-- Botones de tendencia -->
-            <div class="po-trend-controls" aria-label="Trend toggles" style="margin:8px 0; display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="po-trend-btn" data-trend="clicks">Trend clicks</button>
-              <button class="po-trend-btn" data-trend="impressions">Trend impressions</button>
-              <button class="po-trend-btn" data-trend="ctr">Trend CTR</button>
-              <button class="po-trend-btn" data-trend="position">Trend position</button>
-            </div>
-
-            <!-- Lienzo para Chart.js -->
-            <div class="po-chart-wrapper" style="position:relative; width:100%; height:320px;">
-              <canvas id="poChartCanvas" aria-label="Performance chart" role="img"></canvas>
             </div>
           </div>
         </section>
@@ -1076,15 +1051,6 @@
     }
   </style>
 
-  <div class="feedback-button-container">
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfVN-ZILnx6wzfaxaZ6dwSJNgG4CSSyuctaNOoVdsWnFE4GFw/viewform?usp=sharing&ouid=107199513026819931698" 
-       target="_blank" 
-       class="feedback-btn" 
-       data-tooltip="Reporta un error">
-      <i class="fas fa-bug"></i>
-      <span>Feedback Beta Tester</span>
-    </a>
-  </div>
 
   <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
@@ -1108,8 +1074,7 @@
 
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/performance-overview.js') }}"></script>
+      <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
     
     <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->

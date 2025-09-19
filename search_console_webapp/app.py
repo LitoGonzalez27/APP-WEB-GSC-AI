@@ -754,111 +754,6 @@ def get_data():
             
             return summary_data
 
-        # ✅ NUEVO: Obtener series diarias para la gráfica (no rompe contrato existente)
-        def fetch_daily_series(start_date, end_date):
-            daily_map = {}
-
-            def accumulate_rows(rows):
-                for r in rows:
-                    date_key = r.get('keys', [''])[0]
-                    if not date_key:
-                        continue
-                    if date_key not in daily_map:
-                        daily_map[date_key] = {
-                            'date': date_key,
-                            'clicks': 0,
-                            'impressions': 0,
-                            '_ctr_weight': 0.0,
-                            '_pos_weight': 0.0
-                        }
-                    entry = daily_map[date_key]
-                    clicks = r.get('clicks', 0) or 0
-                    impressions = r.get('impressions', 0) or 0
-                    ctr = r.get('ctr', 0.0) or 0.0
-                    pos = r.get('position', 0.0) or 0.0
-                    entry['clicks'] += clicks
-                    entry['impressions'] += impressions
-                    entry['_ctr_weight'] += ctr * impressions
-                    entry['_pos_weight'] += pos * impressions
-
-            # Propiedad completa: usar solo 'date' con filtros base
-            if analysis_mode == "property":
-                combined_filters = get_base_filters()
-                rows = fetch_searchconsole_data_single_call(
-                    gsc_service, site_url_sc,
-                    start_date.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d'),
-                    ['date'],
-                    combined_filters
-                )
-                accumulate_rows(rows)
-            else:
-                # Páginas seleccionadas: sumar por fecha filtrando por página
-                if match_type == 'notContains' and len(form_urls) > 1:
-                    url_filter_group = {
-                        'groupType': 'and',
-                        'filters': [
-                            {'dimension': 'page', 'operator': 'notContains', 'expression': val}
-                            for val in form_urls
-                        ]
-                    }
-                    combined_filters = get_base_filters([url_filter_group])
-                    rows = fetch_searchconsole_data_single_call(
-                        gsc_service, site_url_sc,
-                        start_date.strftime('%Y-%m-%d'),
-                        end_date.strftime('%Y-%m-%d'),
-                        ['date'],
-                        combined_filters
-                    )
-                    accumulate_rows(rows)
-                else:
-                    for val_url in form_urls:
-                        url_filter = [{'filters': [{'dimension': 'page', 'operator': match_type, 'expression': val_url}]}]
-                        combined_filters = get_base_filters(url_filter)
-                        rows = fetch_searchconsole_data_single_call(
-                            gsc_service, site_url_sc,
-                            start_date.strftime('%Y-%m-%d'),
-                            end_date.strftime('%Y-%m-%d'),
-                            ['date'],
-                            combined_filters
-                        )
-                        accumulate_rows(rows)
-
-            # Convertir a lista ordenada y calcular CTR/Position promedio ponderado
-            points = []
-            for date_key in sorted(daily_map.keys()):
-                entry = daily_map[date_key]
-                impr = entry['impressions']
-                ctr_val = (entry['_ctr_weight'] / impr) if impr > 0 else 0.0
-                pos_val = (entry['_pos_weight'] / impr) if impr > 0 else 0.0
-                points.append({
-                    'date': entry['date'],
-                    'clicks': entry['clicks'],
-                    'impressions': impr,
-                    'ctr': ctr_val,
-                    'position': pos_val
-                })
-
-            # Rellenar huecos de fechas con 0s para continuidad
-            try:
-                from datetime import timedelta as _td
-                date_cursor = start_date
-                filled = []
-                idx = {p['date']: p for p in points}
-                while date_cursor <= end_date:
-                    ds = date_cursor.strftime('%Y-%m-%d')
-                    if ds in idx:
-                        filled.append(idx[ds])
-                    else:
-                        filled.append({'date': ds, 'clicks': 0, 'impressions': 0, 'ctr': 0.0, 'position': 0.0})
-                    date_cursor += _td(days=1)
-                points = filled
-            except Exception:
-                # Si algo falla en rellenado, usar lo ya calculado
-                pass
-
-            return points
-
         # ✅ SEPARADO: Obtener datos de URLs (para tabla) y datos de summary (para métricas)
         
         # Datos para tabla de URLs (páginas individuales)
@@ -1279,20 +1174,6 @@ def get_data():
                 'label': f"{comparison_start_date} to {comparison_end_date}"
             }
         
-        # ✅ NUEVO: Adjuntar series diarias SOLO para la gráfica del frontend
-        try:
-            daily_current = fetch_daily_series(current_start, current_end)
-            daily_prev = []
-            if has_comparison and comparison_start and comparison_end:
-                daily_prev = fetch_daily_series(comparison_start, comparison_end)
-            response_data['daily_series'] = {
-                'current': daily_current,
-                'prev': daily_prev
-            }
-            logger.info(f"[RESPONSE] Series diarias: cur={len(daily_current)} prev={len(daily_prev)}")
-        except Exception as _e:
-            logger.warning(f"No se pudieron generar series diarias: {_e}")
-
         logger.info(f"[RESPONSE] Keywords encontradas: {len(keyword_comparison_data)}")
         logger.info(f"[RESPONSE] Total KWs: {kw_stats_data.get('overall', {}).get('total', 0)}")
         
