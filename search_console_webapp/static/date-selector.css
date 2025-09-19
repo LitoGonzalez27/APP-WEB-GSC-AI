@@ -419,7 +419,7 @@ body.dark-mode {
 .preset-btn.active {
   background: var(--date-primary);
   border-color: var(--date-primary);
-  color: #161616;
+  color: white;
   transform: scale(0.95);
 }
 

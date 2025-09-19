@@ -1968,9 +1968,9 @@ def analyze_ai_overview_route():
         requested_count = request_payload.get('keyword_count', 50)  # Default 50
         
         # 🆕 NUEVO: Validar límites razonables
-        if requested_count > 200:  # Límite máximo de seguridad
-            logger.warning(f"Cantidad solicitada {requested_count} excede límite máximo. Usando 200.")
-            requested_count = 200
+        if requested_count > 300:  # Límite máximo de seguridad
+            logger.warning(f"Cantidad solicitada {requested_count} excede límite máximo. Usando 300.")
+            requested_count = 300
         elif requested_count < 10:  # Límite mínimo
             logger.warning(f"Cantidad solicitada {requested_count} es muy baja. Usando 10.")
             requested_count = 10
@@ -2388,11 +2388,68 @@ def get_url_keywords():
             return jsonify({'error': 'Fechas son requeridas'}), 400
         
         logger.info(f"[URL KEYWORDS] Buscando keywords para URL: {target_url}")
+        logger.info(f"[URL KEYWORDS] Site URL: {site_url_sc}")
+        logger.info(f"[URL KEYWORDS] Usuario: {get_current_user()['id']}")
         
-        # Obtener servicio autenticado
-        gsc_service = get_authenticated_service('searchconsole', 'v1')
+        # ✅ ARREGLO: Usar la misma lógica de autenticación que el endpoint principal
+        gsc_service = None
+        try:
+            mapping_conn = get_connection_for_site(get_current_user()['id'], site_url_sc)
+            if mapping_conn:
+                from auth import get_authenticated_service_for_connection
+                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
+                logger.info(f"[URL KEYWORDS] Usando conexión específica para sitio: {site_url_sc}")
+        except Exception as e:
+            logger.warning(f"[URL KEYWORDS] No se pudo resolver conexión por site_url: {e}")
+        
         if not gsc_service:
-            return jsonify({'error': 'Error de autenticación con Search Console'}), 401
+            gsc_service = get_authenticated_service('searchconsole', 'v1')
+            logger.info(f"[URL KEYWORDS] Usando autenticación genérica")
+            
+        if not gsc_service:
+            return jsonify({
+                'error': 'Authentication error with Google Search Console',
+                'error_type': 'auth_error',
+                'details': 'Unable to establish authenticated connection to Search Console.',
+                'suggestions': [
+                    'Please refresh the page to re-authenticate',
+                    'Verify you still have access to this property in Google Search Console'
+                ]
+            }), 401
+            
+        # ✅ ARREGLO: Verificar que tenemos acceso al sitio antes de proceder
+        try:
+            # Hacer una pequeña consulta de prueba para verificar acceso
+            test_request = {
+                'startDate': current_start_date,
+                'endDate': current_end_date,
+                'dimensions': ['page'],
+                'rowLimit': 1
+            }
+            
+            # Si hay filtro de país, incluirlo en la prueba
+            if selected_country:
+                test_request['dimensionFilterGroups'] = [{
+                    'filters': [{'dimension': 'country', 'operator': 'equals', 'expression': selected_country}]
+                }]
+            
+            logger.info(f"[URL KEYWORDS] Verificando acceso al sitio con query de prueba...")
+            test_response = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=test_request).execute()
+            logger.info(f"[URL KEYWORDS] ✅ Acceso verificado, test query exitoso")
+            
+        except Exception as access_error:
+            logger.error(f"[URL KEYWORDS] ❌ Error verificando acceso al sitio: {access_error}")
+            # Si la verificación falla, devolver un error específico
+            return jsonify({
+                'error': 'Access verification failed',
+                'error_type': 'auth_error',
+                'details': f'Unable to access Search Console data for {site_url_sc}. You may have lost access to this property.',
+                'suggestions': [
+                    'Verify you still have access to this property in Google Search Console',
+                    'Try refreshing the page to re-authenticate',
+                    'Contact the site owner to regain access'
+                ]
+            }), 403
         
         # Configurar filtros base (país)
         def get_base_filters_url_keywords(additional_filters=None):
@@ -2418,13 +2475,23 @@ def get_url_keywords():
             url_filter = [{'filters': [{'dimension': 'page', 'operator': 'equals', 'expression': url}]}]
             combined_filters = get_base_filters_url_keywords(url_filter)
             
+            # ✅ ARREGLO: Logging detallado para diagnóstico
+            logger.info(f"[URL KEYWORDS] Filtros combinados: {combined_filters}")
+            logger.info(f"[URL KEYWORDS] Fechas: {start_date} a {end_date}")
+            logger.info(f"[URL KEYWORDS] Site URL para API: {site_url_sc}")
+            
             # Obtener datos de Search Console
-            rows_data = fetch_searchconsole_data_single_call(
-                gsc_service, site_url_sc,
-                start_date, end_date,
-                ['page', 'query'],  # Dimensiones: página y keyword
-                combined_filters
-            )
+            try:
+                rows_data = fetch_searchconsole_data_single_call(
+                    gsc_service, site_url_sc,
+                    start_date, end_date,
+                    ['page', 'query'],  # Dimensiones: página y keyword
+                    combined_filters
+                )
+            except Exception as api_error:
+                logger.error(f"[URL KEYWORDS] Error en API de Search Console: {api_error}")
+                logger.error(f"[URL KEYWORDS] Tipo de error: {type(api_error)}")
+                raise api_error  # Re-lanzar para que sea manejado por el catch principal
             
             logger.info(f"[URL KEYWORDS] Obtenidas {len(rows_data)} filas para URL: {url}")
             
@@ -2592,7 +2659,54 @@ def get_url_keywords():
         
     except Exception as e:
         logger.error(f"Error en get_url_keywords: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo keywords de URL: {str(e)}'}), 500
+        
+        # ✅ NUEVO: Detectar errores específicos de autenticación
+        error_str = str(e)
+        
+        # Error 403 - Permisos insuficientes
+        if 'HttpError 403' in error_str or 'insufficient permission' in error_str.lower():
+            return jsonify({
+                'error': 'Authentication issue with Google Search Console',
+                'error_type': 'auth_error',
+                'details': 'Your session may have expired or you may have lost access to this property in Search Console.',
+                'suggestions': [
+                    'Please refresh the page to re-authenticate',
+                    'Verify you still have access to this property in Google Search Console',
+                    'Try logging out and logging back in'
+                ]
+            }), 403
+            
+        # Error 401 - No autenticado
+        elif 'HttpError 401' in error_str or 'unauthorized' in error_str.lower():
+            return jsonify({
+                'error': 'Authentication required',
+                'error_type': 'auth_required',
+                'details': 'Your authentication session has expired.',
+                'suggestions': [
+                    'Please refresh the page to re-authenticate',
+                    'Try logging out and logging back in'
+                ]
+            }), 401
+            
+        # Error 429 - Rate limit
+        elif 'HttpError 429' in error_str or 'rate limit' in error_str.lower():
+            return jsonify({
+                'error': 'Too many requests',
+                'error_type': 'rate_limit',
+                'details': 'Google Search Console API rate limit exceeded.',
+                'suggestions': [
+                    'Please wait a few minutes and try again',
+                    'Try reducing the number of simultaneous requests'
+                ]
+            }), 429
+            
+        # Error genérico
+        else:
+            return jsonify({
+                'error': f'Error obteniendo keywords de URL: {str(e)}',
+                'error_type': 'server_error',
+                'details': 'An unexpected error occurred while fetching keywords.'
+            }), 500
 
 # ====================================
 # 📊 NUEVAS RUTAS AI OVERVIEW ANALYTICS
