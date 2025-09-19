@@ -835,48 +835,118 @@ async function mountChartJSOverview(rootId, fetchUrl){
       }
     });
 
-    // Top 10 tablas (Keywords y URLs) desde window.currentData
+    // ✅ MEJORADO: Top 10 tablas (Keywords y URLs) desde window.currentData
     try{
       const cd = window.currentData || {};
+      console.log('🔍 DEBUG: Estructura de currentData:', cd);
+      
       const hasComp = !!(cd.periods && cd.periods.has_comparison);
+      
+      // ✅ Mejorado: Obtener keywords con más opciones de acceso
       let kwords = [];
-      if (Array.isArray(cd.keywords)) kwords = cd.keywords.slice();
-      else if (Array.isArray(cd.keyword_comparison_data)) kwords = cd.keyword_comparison_data.slice();
-      const pagesList = Array.isArray(cd.pages) ? cd.pages.slice() : [];
-      const sortByClicks = (a,b)=> ((b.clicks_m1 ?? b.Clicks ?? 0) - (a.clicks_m1 ?? a.Clicks ?? 0));
-      const topK = kwords.sort(sortByClicks).slice(0,10);
-      const topU = pagesList.sort(sortByClicks).slice(0,10);
-      const fmtNum = (n)=>{ try{ return (n??0).toLocaleString(); }catch(_){ return String(n??0);} };
-      const fmtCtr = (n)=> `${(n??0).toFixed(2)}%`;
-      const fmtPos = (n)=> (n==null? '' : (n).toFixed(2));
-      const deltaChip = (cur, prev, positiveIsGood=true)=>{
-        if(!hasComp) return '';
-        if(prev==null || prev===0) return `<span style=\"font-size:12px;color:#6b7280\">New</span>`;
-        const val = ((cur - prev)/prev)*100;
-        const good = positiveIsGood ? (val>=0) : (val<0);
-        const col = good ? '#16a34a' : '#dc2626';
-        const sign = val>0? '+':'';
-        return `<span style=\"font-size:12px;color:${col}\">${sign}${val.toFixed(0)}%</span>`;
+      if (Array.isArray(cd.keyword_comparison_data)) {
+        kwords = cd.keyword_comparison_data.slice();
+        console.log('📋 Keywords desde keyword_comparison_data:', kwords.length);
+      } else if (Array.isArray(cd.keywords)) {
+        kwords = cd.keywords.slice();
+        console.log('📋 Keywords desde keywords:', kwords.length);
+      } else if (Array.isArray(cd.keywordStats)) {
+        kwords = cd.keywordStats.slice();
+        console.log('📋 Keywords desde keywordStats:', kwords.length);
+      }
+      
+      // ✅ Mejorado: Obtener páginas con más opciones de acceso
+      let pagesList = [];
+      if (Array.isArray(cd.pages)) {
+        pagesList = cd.pages.slice();
+        console.log('📋 URLs desde pages:', pagesList.length);
+      }
+      
+      // Si no hay datos, salir sin error
+      if (kwords.length === 0 && pagesList.length === 0) {
+        console.log('⚠️ No hay datos para tablas Top 10, esperando...');
+        return;
+      }
+      
+      // ✅ Mejorado: Función de ordenamiento más robusta
+      const sortByClicks = (a, b) => {
+        // Intentar múltiples propiedades para obtener clics
+        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 0;
+        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 0;
+        return bClicks - aClicks;
       };
-      const buildTable = (rows, isKeyword=true)=>{
-        const cols = hasComp?'1fr 100px 70px 70px 70px 60px':'1fr 120px 80px 80px 80px';
-        const head = `<div style=\"display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px\"><div>${isKeyword?'Query':'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp?'<div>Δ</div>':''}</div>`;
-        const body = rows.map(r=>{
-          const name = isKeyword ? (r.keyword||r.query||'') : (r.url||r.page||'');
-          const c1 = (r.clicks_m1!=null? r.clicks_m1 : (r.Clicks!=null? r.Clicks : 0));
-          const c2 = (r.clicks_m2!=null? r.clicks_m2 : 0);
-          const i1 = (r.impressions_m1!=null? r.impressions_m1 : (r.Impressions!=null? r.Impressions : 0));
-          const ctr1 = (r.ctr_m1!=null? r.ctr_m1 : (r.CTR!=null? (r.CTR*100) : 0));
-          const p1 = (r.position_m1!=null? r.position_m1 : (r.Position!=null? r.Position : null));
-          return `<div style=\"display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center\"><div style=\"overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827\">${name}</div><div style=\"font-weight:600;color:#111827\">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctr1)}</div><div>${fmtPos(p1)}</div>${hasComp?`<div>${deltaChip(c1,c2,true)}</div>`:''}</div>`;
+      
+      const topK = kwords.sort(sortByClicks).slice(0, 10);
+      const topU = pagesList.sort(sortByClicks).slice(0, 10);
+      
+      console.log('🔝 Top 10 Keywords:', topK.length, topK.slice(0,2));
+      console.log('🔝 Top 10 URLs:', topU.length, topU.slice(0,2));
+      
+      const fmtNum = (n) => {
+        try { 
+          return (n ?? 0).toLocaleString('es-ES'); 
+        } catch(_) { 
+          return String(n ?? 0);
+        } 
+      };
+      const fmtCtr = (n) => `${(n ?? 0).toFixed(2)}%`;
+      const fmtPos = (n) => (n == null ? '' : (n).toFixed(2));
+      
+      const deltaChip = (cur, prev, positiveIsGood = true) => {
+        if (!hasComp) return '';
+        if (prev == null || prev === 0) return `<span style="font-size:12px;color:#6b7280">New</span>`;
+        const val = ((cur - prev) / prev) * 100;
+        const good = positiveIsGood ? (val >= 0) : (val < 0);
+        const col = good ? '#16a34a' : '#dc2626';
+        const sign = val > 0 ? '+' : '';
+        return `<span style="font-size:12px;color:${col}">${sign}${val.toFixed(0)}%</span>`;
+      };
+      
+      const buildTable = (rows, isKeyword = true) => {
+        if (!rows || rows.length === 0) {
+          return `<div style="padding:16px;text-align:center;color:#6b7280;font-style:italic">No hay datos disponibles</div>`;
+        }
+        
+        const cols = hasComp ? '1fr 100px 70px 70px 70px 60px' : '1fr 120px 80px 80px 80px';
+        const head = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px"><div>${isKeyword ? 'Query' : 'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp ? '<div>Δ</div>' : ''}</div>`;
+        
+        const body = rows.map((r, index) => {
+          // ✅ Mejorado: Acceso a propiedades más flexible
+          const name = isKeyword ? 
+            (r.keyword || r.query || r.Query || '') : 
+            (r.url || r.page || r.URL || r.Page || '');
+            
+          const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
+          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
+          const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
+          const ctr1 = r.ctr_m1 ?? r.ctr_p1 ?? r.CTR ?? r.ctr ?? 0;
+          const p1 = r.position_m1 ?? r.position_p1 ?? r.Position ?? r.position ?? null;
+          
+          // Convertir CTR si está en formato decimal (0.05 -> 5.0)
+          const ctrFormatted = ctr1 <= 1 ? ctr1 * 100 : ctr1;
+          
+          return `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827" title="${name}">${name}</div><div style="font-weight:600;color:#111827">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctrFormatted)}</div><div>${fmtPos(p1)}</div>${hasComp ? `<div>${deltaChip(c1, c2, true)}</div>` : ''}</div>`;
         }).join('');
+        
         return head + body;
       };
+      
       const kwEl = container.querySelector('#po-topkeywords');
       const urlEl = container.querySelector('#po-topurls');
-      if(kwEl) kwEl.innerHTML = buildTable(topK, true);
-      if(urlEl) urlEl.innerHTML = buildTable(topU, false);
-    }catch(err){ console.warn('Top lists render error', err); }
+      
+      if (kwEl && topK.length > 0) {
+        kwEl.innerHTML = buildTable(topK, true);
+        console.log('✅ Tabla Keywords renderizada');
+      }
+      if (urlEl && topU.length > 0) {
+        urlEl.innerHTML = buildTable(topU, false);
+        console.log('✅ Tabla URLs renderizada');
+      }
+      
+    } catch(err) { 
+      console.error('❌ Error rendering Top lists:', err);
+      console.log('🔍 currentData structure:', window.currentData);
+    }
 
     // Mapear índices de datasets de tendencia en función de si hay comparativa
     const trendStartIndex = 4 + (rowsComp.length ? 4 : 0);
@@ -1005,12 +1075,160 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   // invert position eliminado
 
+  // ✅ NUEVO: Función para actualizar solo las tablas Top 10
+  const updateTopTables = () => {
+    try {
+      const cd = window.currentData || {};
+      console.log('🔄 Actualizando tablas Top 10 con currentData:', !!cd);
+      
+      const hasComp = !!(cd.periods && cd.periods.has_comparison);
+      
+      // Obtener keywords con más opciones de acceso
+      let kwords = [];
+      if (Array.isArray(cd.keyword_comparison_data)) {
+        kwords = cd.keyword_comparison_data.slice();
+      } else if (Array.isArray(cd.keywords)) {
+        kwords = cd.keywords.slice();
+      } else if (Array.isArray(cd.keywordStats)) {
+        kwords = cd.keywordStats.slice();
+      }
+      
+      // Obtener páginas
+      let pagesList = [];
+      if (Array.isArray(cd.pages)) {
+        pagesList = cd.pages.slice();
+      }
+      
+      if (kwords.length === 0 && pagesList.length === 0) {
+        console.log('⚠️ No hay datos para tablas Top 10 en updateTopTables');
+        return;
+      }
+      
+      // Función de ordenamiento más robusta
+      const sortByClicks = (a, b) => {
+        const aClicks = a.clicks_m1 ?? a.clicks_p1 ?? a.Clicks ?? a.clicks ?? 0;
+        const bClicks = b.clicks_m1 ?? b.clicks_p1 ?? b.Clicks ?? b.clicks ?? 0;
+        return bClicks - aClicks;
+      };
+      
+      const topK = kwords.sort(sortByClicks).slice(0, 10);
+      const topU = pagesList.sort(sortByClicks).slice(0, 10);
+      
+      const fmtNum = (n) => {
+        try { return (n ?? 0).toLocaleString('es-ES'); } catch(_) { return String(n ?? 0); } 
+      };
+      const fmtCtr = (n) => `${(n ?? 0).toFixed(2)}%`;
+      const fmtPos = (n) => (n == null ? '' : (n).toFixed(2));
+      
+      const deltaChip = (cur, prev, positiveIsGood = true) => {
+        if (!hasComp) return '';
+        if (prev == null || prev === 0) return `<span style="font-size:12px;color:#6b7280">New</span>`;
+        const val = ((cur - prev) / prev) * 100;
+        const good = positiveIsGood ? (val >= 0) : (val < 0);
+        const col = good ? '#16a34a' : '#dc2626';
+        const sign = val > 0 ? '+' : '';
+        return `<span style="font-size:12px;color:${col}">${sign}${val.toFixed(0)}%</span>`;
+      };
+      
+      const buildTable = (rows, isKeyword = true) => {
+        if (!rows || rows.length === 0) {
+          return `<div style="padding:16px;text-align:center;color:#6b7280;font-style:italic">No hay datos disponibles</div>`;
+        }
+        
+        const cols = hasComp ? '1fr 100px 70px 70px 70px 60px' : '1fr 120px 80px 80px 80px';
+        const head = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px"><div>${isKeyword ? 'Query' : 'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp ? '<div>Δ</div>' : ''}</div>`;
+        
+        const body = rows.map((r, index) => {
+          const name = isKeyword ? 
+            (r.keyword || r.query || r.Query || '') : 
+            (r.url || r.page || r.URL || r.Page || '');
+            
+          const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
+          const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
+          const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
+          const ctr1 = r.ctr_m1 ?? r.ctr_p1 ?? r.CTR ?? r.ctr ?? 0;
+          const p1 = r.position_m1 ?? r.position_p1 ?? r.Position ?? r.position ?? null;
+          
+          // Convertir CTR si está en formato decimal (0.05 -> 5.0)
+          const ctrFormatted = ctr1 <= 1 ? ctr1 * 100 : ctr1;
+          
+          return `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827" title="${name}">${name}</div><div style="font-weight:600;color:#111827">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctrFormatted)}</div><div>${fmtPos(p1)}</div>${hasComp ? `<div>${deltaChip(c1, c2, true)}</div>` : ''}</div>`;
+        }).join('');
+        
+        return head + body;
+      };
+      
+      const kwEl = container.querySelector('#po-topkeywords');
+      const urlEl = container.querySelector('#po-topurls');
+      
+      if (kwEl && topK.length > 0) {
+        kwEl.innerHTML = buildTable(topK, true);
+        console.log('✅ Tabla Keywords actualizada en updateTopTables');
+      }
+      if (urlEl && topU.length > 0) {
+        urlEl.innerHTML = buildTable(topU, false);
+        console.log('✅ Tabla URLs actualizada en updateTopTables');
+      }
+      
+    } catch(err) { 
+      console.error('❌ Error en updateTopTables:', err);
+    }
+  };
+  
+  // ✅ NUEVO: Escuchar cambios en window.currentData
+  let currentDataWatcher;
+  const watchCurrentData = () => {
+    if (currentDataWatcher) clearInterval(currentDataWatcher);
+    
+    let lastDataHash = '';
+    currentDataWatcher = setInterval(() => {
+      const cd = window.currentData;
+      if (cd) {
+        // Crear un hash simple de los datos para detectar cambios
+        const dataString = JSON.stringify({
+          keywordCount: cd.keyword_comparison_data?.length || cd.keywords?.length || 0,
+          pagesCount: cd.pages?.length || 0,
+          hasComparison: !!(cd.periods && cd.periods.has_comparison)
+        });
+        
+        if (dataString !== lastDataHash && dataString !== '{"keywordCount":0,"pagesCount":0,"hasComparison":false}') {
+          lastDataHash = dataString;
+          console.log('🔄 Detectado cambio en currentData, actualizando tablas');
+          updateTopTables();
+        }
+      }
+    }, 1000);
+    
+    // Limpiar después de 30 segundos
+    setTimeout(() => {
+      if (currentDataWatcher) {
+        clearInterval(currentDataWatcher);
+        currentDataWatcher = null;
+      }
+    }, 30000);
+  };
+  
+  // Iniciar el watcher
+  watchCurrentData();
+
   // Reaccionar a cambios del selector de fechas
   const applyBtn = document.getElementById('modalApplyBtn');
-  if(applyBtn){ applyBtn.addEventListener('click', fetchAndRender); }
+  if(applyBtn){ 
+    applyBtn.addEventListener('click', () => {
+      fetchAndRender();
+      // Reiniciar watcher después de nueva consulta
+      setTimeout(watchCurrentData, 2000);
+    }); 
+  }
   // Reaccionar a cambios de propiedad
   const siteSelectEl = document.getElementById('siteUrlSelect');
-  if(siteSelectEl){ siteSelectEl.addEventListener('change', fetchAndRender); }
+  if(siteSelectEl){ 
+    siteSelectEl.addEventListener('change', () => {
+      fetchAndRender();
+      // Reiniciar watcher después de nueva consulta
+      setTimeout(watchCurrentData, 2000);
+    }); 
+  }
 
   // Primera carga (con reintento breve hasta que haya fechas y siteUrl)
   let tries=0; const timer = setInterval(()=>{ tries++; fetchAndRender(); if(tries>10) clearInterval(timer); }, 800);
