@@ -2381,11 +2381,11 @@ def get_url_keywords():
         has_comparison = data.get('has_comparison', False)
         
         if not target_url:
-            return jsonify({'error': 'URL es requerida'}), 400
+            return jsonify({'error': 'URL is required'}), 400
         if not site_url_sc:
-            return jsonify({'error': 'site_url es requerido'}), 400
+            return jsonify({'error': 'site_url is required'}), 400
         if not current_start_date or not current_end_date:
-            return jsonify({'error': 'Fechas son requeridas'}), 400
+            return jsonify({'error': 'Dates are required'}), 400
         
         logger.info(f"[URL KEYWORDS] Buscando keywords para URL: {target_url}")
         logger.info(f"[URL KEYWORDS] Site URL: {site_url_sc}")

@@ -1786,7 +1786,7 @@ export function openUrlKeywordsModal(url) {
   // Actualizar título del modal
   const modalTitle = document.getElementById('keywordModalTitle-url');
   if (modalTitle) {
-    modalTitle.innerHTML = `<i class="fas fa-search"></i> Keywords para: ${escapeHtml(url)}`;
+    modalTitle.innerHTML = `<i class="fas fa-search"></i> Keywords for: ${escapeHtml(url)}`;
   }
   
   // Mostrar modal con loading
@@ -1795,7 +1795,7 @@ export function openUrlKeywordsModal(url) {
     modalBody.innerHTML = `
       <div class="loading-container" style="text-align: center; padding: 2em;">
         <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #007bff;"></i>
-        <p style="margin-top: 1em; color: #666;">Obteniendo keywords para esta URL...</p>
+        <p style="margin-top: 1em; color: #666;">Getting keywords for this URL...</p>
       </div>
     `;
   }
@@ -1824,11 +1824,11 @@ function createUrlKeywordsModal() {
     <div id="keywordModal-url" class="modal">
       <div class="modal-content">
         <div class="modal-header">
-          <h3 id="keywordModalTitle-url"><i class="fas fa-search"></i> Keywords por URL</h3>
+          <h3 id="keywordModalTitle-url"><i class="fas fa-search"></i> Keywords by URL</h3>
           <span class="close-btn" onclick="closeKeywordModal('url')">&times;</span>
         </div>
         <div class="modal-body" id="keywordModalBody-url">
-          <!-- Contenido dinámico -->
+          <!-- Dynamic content -->
         </div>
       </div>
     </div>
@@ -1984,7 +1984,7 @@ function renderUrlKeywordsData(data) {
     modalBody.innerHTML = `
       <div style="text-align: center; padding: 2em; color: #666;">
         <i class="fas fa-info-circle" style="font-size: 2em;"></i>
-        <p style="margin-top: 1em;">No se encontraron keywords para esta URL en el período seleccionado.</p>
+        <p style="margin-top: 1em;">No keywords found for this URL in the selected period.</p>
       </div>
     `;
     return;
@@ -1993,10 +1993,10 @@ function renderUrlKeywordsData(data) {
   // Crear información de la URL
   const infoHTML = `
     <div class="url-keywords-info" style="margin-bottom: 1em; padding: 1em; background: #f8f9fa; border-radius: 5px;">
-      <p><strong>URL analizada:</strong> ${escapeHtml(data.url)}</p>
-      <p><strong>Keywords encontradas:</strong> ${keywords.length}</p>
-      <p><strong>Período:</strong> ${data.periods.current.label}</p>
-      ${hasComparison ? `<p><strong>Comparando con:</strong> ${data.periods.comparison.label}</p>` : ''}
+      <p><strong>Analyzed URL:</strong> ${escapeHtml(data.url)}</p>
+      <p><strong>Keywords found:</strong> ${keywords.length}</p>
+      <p><strong>Period:</strong> ${data.periods.current.label}</p>
+      ${hasComparison ? `<p><strong>Comparing with:</strong> ${data.periods.comparison.label}</p>` : ''}
     </div>
   `;
   
