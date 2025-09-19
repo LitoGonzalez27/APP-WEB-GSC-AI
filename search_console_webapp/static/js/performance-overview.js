@@ -125,6 +125,135 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
     );
   }
 
+  // ✅ NUEVO: Componente para las tablas Top 10 Keywords y URLs
+  function OverviewTables() {
+    const [tablesData, setTablesData] = useState({ keywords: [], urls: [], hasComparison: false });
+
+    // Obtener datos de window.currentData
+    useEffect(() => {
+      try {
+        const cd = window.currentData || {};
+        const hasComp = !!(cd.periods && cd.periods.has_comparison);
+        
+        // Keywords: de keyword_comparison_data o keywords
+        let kwords = [];
+        if (Array.isArray(cd.keywords)) kwords = cd.keywords.slice();
+        else if (Array.isArray(cd.keyword_comparison_data)) kwords = cd.keyword_comparison_data.slice();
+        
+        // URLs: de pages
+        const pagesList = Array.isArray(cd.pages) ? cd.pages.slice() : [];
+        
+        // Ordenar por clics descendente
+        const sortByClicks = (a, b) => ((b.clicks_m1 ?? b.Clicks ?? 0) - (a.clicks_m1 ?? a.Clicks ?? 0));
+        const topK = kwords.sort(sortByClicks).slice(0, 10);
+        const topU = pagesList.sort(sortByClicks).slice(0, 10);
+
+        setTablesData({ keywords: topK, urls: topU, hasComparison: hasComp });
+      } catch (err) {
+        console.warn('Error processing overview tables data:', err);
+        setTablesData({ keywords: [], urls: [], hasComparison: false });
+      }
+    }, []);
+
+    // Función para calcular delta
+    const calcDelta = (current, previous, positiveIsGood = true) => {
+      if (!tablesData.hasComparison || previous == null || previous === 0) return 'New';
+      const val = ((current - previous) / previous) * 100;
+      return val;
+    };
+
+    // Función para formatear delta
+    const formatDelta = (delta, positiveIsGood = true) => {
+      if (delta === 'New') return React.createElement('span', { style: { fontSize: 12, color: '#6b7280' } }, 'New');
+      const good = positiveIsGood ? (delta >= 0) : (delta < 0);
+      const color = good ? '#16a34a' : '#dc2626';
+      const sign = delta > 0 ? '+' : '';
+      return React.createElement('span', { style: { fontSize: 12, color } }, `${sign}${delta.toFixed(0)}%`);
+    };
+
+    // Renderizar tabla individual
+    const renderTable = (items, isKeyword = true, title, icon) => {
+      if (!items || items.length === 0) return null;
+      
+      const gridCols = tablesData.hasComparison ? '1fr 100px 70px 70px 70px 60px' : '1fr 120px 80px 80px 80px';
+      
+      return React.createElement(
+        'div',
+        { style: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12 } },
+        React.createElement(
+          'div',
+          { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
+          React.createElement('i', { className: icon, style: { color: isKeyword ? '#2563eb' : '#10b981' } }),
+          React.createElement('h4', { style: { margin: 0, fontWeight: 600, color: '#111827' } }, title)
+        ),
+        React.createElement(
+          'div',
+          { style: { fontSize: 13 } },
+          // Header
+          React.createElement(
+            'div',
+            { style: { display: 'grid', gridTemplateColumns: gridCols, gap: 8, padding: '6px 8px', borderBottom: '1px solid #f3f4f6', color: '#6b7280', fontSize: 12 } },
+            React.createElement('div', null, isKeyword ? 'Query' : 'URL'),
+            React.createElement('div', null, 'Clicks'),
+            React.createElement('div', null, 'Impr.'),
+            React.createElement('div', null, 'CTR'),
+            React.createElement('div', null, 'Pos.'),
+            tablesData.hasComparison ? React.createElement('div', null, 'Δ') : null
+          ),
+          // Rows
+          items.map((item, index) => {
+            const name = isKeyword ? (item.keyword || item.query || '') : (item.url || item.page || '');
+            const c1 = item.clicks_m1 != null ? item.clicks_m1 : (item.Clicks != null ? item.Clicks : 0);
+            const c2 = item.clicks_m2 != null ? item.clicks_m2 : 0;
+            const i1 = item.impressions_m1 != null ? item.impressions_m1 : (item.Impressions != null ? item.Impressions : 0);
+            const ctr1 = item.ctr_m1 != null ? item.ctr_m1 : (item.CTR != null ? (item.CTR * 100) : 0);
+            const p1 = item.position_m1 != null ? item.position_m1 : (item.Position != null ? item.Position : null);
+            
+            const delta = calcDelta(c1, c2, true);
+            
+            return React.createElement(
+              'div',
+              { 
+                key: index,
+                style: { 
+                  display: 'grid', 
+                  gridTemplateColumns: gridCols, 
+                  gap: 8, 
+                  padding: '8px 8px', 
+                  borderBottom: '1px solid #f9fafb', 
+                  alignItems: 'center' 
+                } 
+              },
+              React.createElement('div', { 
+                style: { 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap', 
+                  color: '#111827',
+                  title: name
+                } 
+              }, name),
+              React.createElement('div', { style: { fontWeight: 600, color: '#111827' } }, formatNumber(c1)),
+              React.createElement('div', null, formatNumber(i1)),
+              React.createElement('div', null, `${ctr1.toFixed(2)}%`),
+              React.createElement('div', null, p1 != null ? p1.toFixed(2) : ''),
+              tablesData.hasComparison ? React.createElement('div', null, formatDelta(delta, true)) : null
+            );
+          })
+        )
+      );
+    };
+
+    if (tablesData.keywords.length === 0 && tablesData.urls.length === 0) return null;
+
+    return React.createElement(
+      'div',
+      { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '16px 0' } },
+      renderTable(tablesData.keywords, true, 'Top 10 Keywords', 'fas fa-search'),
+      renderTable(tablesData.urls, false, 'Top 10 URLs', 'fas fa-link')
+    );
+  }
+
   function Overview() {
     const siteUrlSelect = document.getElementById('siteUrlSelect');
     const [siteUrl, setSiteUrl] = useState(siteUrlSelect?.value || '');
@@ -180,8 +309,33 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
           return r.json();
         })
         .then((rows) => {
-          const normalized = (rows || []).map((p) => ({ ...p, ctr: normalizeCtrValue(p.ctr) }));
-          setData(normalized);
+          // ✅ MEJORA: Validar y limpiar datos antes de renderizar
+          const normalized = (rows || []).map((p) => ({ 
+            ...p, 
+            ctr: normalizeCtrValue(p.ctr),
+            // Validar que las métricas no sean negativas
+            clicks: Math.max(0, p.clicks || 0),
+            impressions: Math.max(0, p.impressions || 0),
+            position: p.position > 0 ? p.position : null
+          }));
+          
+          // ✅ MEJORA: Filtrar días sin datos reales si están al final del período
+          const filteredData = normalized.filter((p, index, arr) => {
+            // Mantener todos los días con datos
+            if (p.clicks > 0 || p.impressions > 0) return true;
+            
+            // Para días sin datos, solo mantener si no están al final de la serie
+            const isLastDay = index === arr.length - 1;
+            if (isLastDay) {
+              // Solo mantener el último día si es parte de una secuencia de días con datos
+              const hasRecentData = arr.slice(Math.max(0, index - 2), index)
+                .some(d => d.clicks > 0 || d.impressions > 0);
+              return hasRecentData;
+            }
+            return true;
+          });
+          
+          setData(filteredData);
         })
         .catch((e) => setError(e.message || 'Error cargando datos'))
         .finally(() => setLoading(false));
@@ -258,6 +412,8 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
           )
         )
       ),
+      // ✅ NUEVO: Tablas Top 10 Keywords y URLs
+      React.createElement(OverviewTables, null),
       React.createElement(
         'div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' } },
         ['clicks', 'impressions', 'ctr', 'position'].map((key) => (

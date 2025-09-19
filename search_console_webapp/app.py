@@ -8,6 +8,7 @@ import zipfile
 from io import BytesIO
 from datetime import datetime, timedelta, date # Importación añadida
 import hashlib
+import pytz
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 import pandas as pd
 from excel_generator import generate_excel_from_data
@@ -616,16 +617,32 @@ def api_gsc_performance():
         except Exception:
             return jsonify({'error': 'Formato de fecha inválido (YYYY-MM-DD)'}), 400
 
-        # Determinar hasta qué fecha hay datos reales para evitar "caídas a 0" por el delay de GSC
+        # ✅ MEJORADO: Determinar hasta qué fecha hay datos reales y mostrar datos disponibles
         data_dates = []
         try:
             data_dates = [date.fromisoformat(k) for k in by_date.keys()]
         except Exception:
             data_dates = []
-        # GSC tiene 48–72h de retraso
-        max_gsc_date = date.today() - timedelta(days=3)
-        # Siempre rellenamos hasta el límite GSC (o end), incluso si ese día no tiene filas (se rellena con 0)
-        fill_end = min(e, max_gsc_date)
+        
+        # ✅ MEJORADO: Usar zona horaria Europa/Madrid para calcular fechas correctamente
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        today_madrid = datetime.now(madrid_tz).date()
+        
+        # ✅ SOLUCIÓN: En lugar de asumir un retraso fijo de 3 días, usar la fecha más reciente 
+        # con datos reales o la fecha solicitada si hay datos recientes
+        if data_dates:
+            # Si hay datos, usar hasta la fecha más reciente con datos reales
+            max_data_date = max(data_dates)
+            # Solo aplicar límite si no hay datos muy recientes (mayor a 2 días)
+            if max_data_date >= today_madrid - timedelta(days=2):
+                # Hay datos recientes, usar fecha solicitada
+                fill_end = e
+            else:
+                # No hay datos muy recientes, usar hasta la fecha más reciente con datos + 1 día
+                fill_end = min(e, max_data_date + timedelta(days=1))
+        else:
+            # Sin datos, usar fecha solicitada menos 2 días como fallback conservador
+            fill_end = min(e, today_madrid - timedelta(days=2))
 
         out = []
         for d in _daterange(s, fill_end):
