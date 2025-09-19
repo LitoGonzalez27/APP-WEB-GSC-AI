@@ -453,6 +453,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.mountPerformanceOverview = mountPerformanceOverview;
 
+// ✅ DEBUGGING: Funciones globales para probar desde la consola
+window.debugPerformanceOverview = {
+  checkCurrentData: () => {
+    console.log('🔍 window.currentData:', window.currentData);
+    return window.currentData;
+  },
+  testTableRender: () => {
+    const container = document.getElementById('performanceOverviewRoot');
+    if (!container) {
+      console.error('❌ No se encontró performanceOverviewRoot');
+      return;
+    }
+    
+    const kwEl = container.querySelector('#po-topkeywords');
+    const urlEl = container.querySelector('#po-topurls');
+    
+    console.log('🔍 Estado de elementos de tablas:', {
+      hasContainer: !!container,
+      hasKeywordsEl: !!kwEl,
+      hasUrlsEl: !!urlEl,
+      containerHTML: container.innerHTML.length > 100 ? 'HTML presente' : 'HTML vacío'
+    });
+    
+    return { container, kwEl, urlEl };
+  },
+  testMetricsUpdate: () => {
+    const container = document.getElementById('performanceOverviewRoot');
+    if (!container) {
+      console.error('❌ No se encontró performanceOverviewRoot');
+      return;
+    }
+    
+    const clicksEl = container.querySelector('.po-metric[data-k="clicks"]');
+    const imprEl = container.querySelector('.po-metric[data-k="impressions"]');
+    const ctrEl = container.querySelector('.po-metric[data-k="ctr"]');
+    const posEl = container.querySelector('.po-metric[data-k="position"]');
+    
+    console.log('🔍 Estado de elementos de métricas:', {
+      hasClicks: !!clicksEl,
+      hasImpressions: !!imprEl,
+      hasCtr: !!ctrEl,
+      hasPosition: !!posEl
+    });
+    
+    // Probar actualización manual con datos de prueba
+    if (clicksEl) {
+      const p1 = clicksEl.querySelector('.po-p1');
+      if (p1) {
+        p1.innerHTML = '<span class="po-date">Periodo actual</span> · <strong class="po-value-strong">12.345</strong>';
+        console.log('✅ Métrica de prueba insertada en clicks');
+      }
+    }
+    
+    return { clicksEl, imprEl, ctrEl, posEl };
+  }
+};
+
+console.log('🚀 Performance Overview debugging functions available:');
+console.log('📍 window.debugPerformanceOverview.checkCurrentData()');
+console.log('📍 window.debugPerformanceOverview.testTableRender()');
+console.log('📍 window.debugPerformanceOverview.testMetricsUpdate()');
+
 
 // ==============================
 // Fallback Chart.js (sin React)
@@ -558,14 +620,14 @@ async function mountChartJSOverview(rootId, fetchUrl){
       <div class="po-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <i class="fas fa-search" style="color:#2563eb"></i>
-          <h4 style="margin:0;font-weight:600;color:#111827">Top 10 Keywords</h4>
+          <h4 style="margin:0;font-weight:600;color:#111827">Queries</h4>
         </div>
         <div class="po-table" id="po-topkeywords"></div>
       </div>
       <div class="po-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <i class="fas fa-link" style="color:#10b981"></i>
-          <h4 style="margin:0;font-weight:600;color:#111827">Top 10 URLs</h4>
+          <h4 style="margin:0;font-weight:600;color:#111827">Pages</h4>
         </div>
         <div class="po-table" id="po-topurls"></div>
       </div>
@@ -623,13 +685,24 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const fetchAndRender = async ()=>{
     const r = getGlobalDateRange();
     const s = document.getElementById('siteUrlSelect')?.value || siteUrl;
-    if(!r || !r.start || !r.end || !s) return;
+    if(!r || !r.start || !r.end || !s) {
+      console.log('⚠️ Faltan datos para cargar gráfico:', {range: r, siteUrl: s});
+      return;
+    }
     const url = buildFetchUrl(fetchUrl, r.start, r.end, s);
+    console.log('📊 Cargando datos de:', url);
     let rows=[];
     try{
       const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      }
       rows = await resp.json();
-    }catch(e){ console.warn('No se pudo cargar /api/gsc/performance', e); return; }
+      console.log('📊 Datos recibidos:', rows.length, 'días');
+    }catch(e){ 
+      console.error('❌ Error cargando /api/gsc/performance:', e); 
+      return; 
+    }
 
     // ¿Hay comparación activa?
     let rowsComp = [];
@@ -902,16 +975,21 @@ async function mountChartJSOverview(rootId, fetchUrl){
         return `<span style="font-size:12px;color:${col}">${sign}${val.toFixed(0)}%</span>`;
       };
       
+      // ✅ SIMPLIFICADO: Solo clicks e impressions con deltas como en el ejemplo
       const buildTable = (rows, isKeyword = true) => {
         if (!rows || rows.length === 0) {
           return `<div style="padding:16px;text-align:center;color:#6b7280;font-style:italic">No hay datos disponibles</div>`;
         }
         
-        const cols = hasComp ? '1fr 100px 70px 70px 70px 60px' : '1fr 120px 80px 80px 80px';
-        const head = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px"><div>${isKeyword ? 'Query' : 'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp ? '<div>Δ</div>' : ''}</div>`;
+        // Simplificado: solo name, clicks, impressions
+        const cols = '1fr 120px 120px';
+        const head = `<div style="display:grid;grid-template-columns:${cols};gap:12px;padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px;font-weight:500">
+          <div>${isKeyword ? 'Query' : 'Page'}</div>
+          <div style="text-align:center">Clicks</div>
+          <div style="text-align:center">Impressions</div>
+        </div>`;
         
         const body = rows.map((r, index) => {
-          // ✅ Mejorado: Acceso a propiedades más flexible
           const name = isKeyword ? 
             (r.keyword || r.query || r.Query || '') : 
             (r.url || r.page || r.URL || r.Page || '');
@@ -919,13 +997,23 @@ async function mountChartJSOverview(rootId, fetchUrl){
           const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
           const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
           const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
-          const ctr1 = r.ctr_m1 ?? r.ctr_p1 ?? r.CTR ?? r.ctr ?? 0;
-          const p1 = r.position_m1 ?? r.position_p1 ?? r.Position ?? r.position ?? null;
+          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? 0;
           
-          // Convertir CTR si está en formato decimal (0.05 -> 5.0)
-          const ctrFormatted = ctr1 <= 1 ? ctr1 * 100 : ctr1;
+          // Calcular deltas para clicks e impressions
+          const clicksDelta = hasComp && c2 > 0 ? deltaChip(c1, c2, true) : '';
+          const imprDelta = hasComp && i2 > 0 ? deltaChip(i1, i2, true) : '';
           
-          return `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827" title="${name}">${name}</div><div style="font-weight:600;color:#111827">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctrFormatted)}</div><div>${fmtPos(p1)}</div>${hasComp ? `<div>${deltaChip(c1, c2, true)}</div>` : ''}</div>`;
+          return `<div style="display:grid;grid-template-columns:${cols};gap:12px;padding:10px 12px;border-bottom:1px solid #f9fafb;align-items:center">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827;font-size:13px" title="${name}">${name}</div>
+            <div style="text-align:center">
+              <div style="font-weight:600;color:#111827;font-size:14px">${fmtNum(c1)}</div>
+              ${clicksDelta ? `<div style="margin-top:2px">${clicksDelta}</div>` : ''}
+            </div>
+            <div style="text-align:center">
+              <div style="color:#111827;font-size:14px">${fmtNum(i1)}</div>
+              ${imprDelta ? `<div style="margin-top:2px">${imprDelta}</div>` : ''}
+            </div>
+          </div>`;
         }).join('');
         
         return head + body;
@@ -936,11 +1024,16 @@ async function mountChartJSOverview(rootId, fetchUrl){
       
       if (kwEl && topK.length > 0) {
         kwEl.innerHTML = buildTable(topK, true);
-        console.log('✅ Tabla Keywords renderizada');
+        console.log('✅ Tabla Queries renderizada con', topK.length, 'elementos');
+      } else if (kwEl) {
+        kwEl.innerHTML = '<div style="padding:16px;text-align:center;color:#6b7280">No hay datos de queries disponibles</div>';
       }
+      
       if (urlEl && topU.length > 0) {
         urlEl.innerHTML = buildTable(topU, false);
-        console.log('✅ Tabla URLs renderizada');
+        console.log('✅ Tabla Pages renderizada con', topU.length, 'elementos');
+      } else if (urlEl) {
+        urlEl.innerHTML = '<div style="padding:16px;text-align:center;color:#6b7280">No hay datos de páginas disponibles</div>';
       }
       
     } catch(err) { 
@@ -970,10 +1063,20 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const tPosC = avg(positionComp);
     const updateMetricBlock = (key, labelFormatter, isPercentDelta=false, isPosition=false)=>{
       const root = container.querySelector(`.po-metric[data-k="${key}"]`);
-      if(!root) return;
+      if(!root) {
+        console.warn(`⚠️ No se encontró elemento .po-metric[data-k="${key}"]`);
+        return;
+      }
       const p1 = root.querySelector('.po-p1');
       const p2 = root.querySelector('.po-p2');
       const dEl = root.querySelector('.po-delta');
+      
+      console.log(`🔍 Actualizando métrica ${key}:`, {
+        found: !!root,
+        hasP1: !!p1,
+        hasP2: !!p2,
+        hasDelta: !!dEl
+      });
       let v1, v2;
       if(key==='clicks'){ v1=tClicks; v2=tClicksC; }
       else if(key==='impressions'){ v1=tImpr; v2=tImprC; }
@@ -1015,10 +1118,21 @@ async function mountChartJSOverview(rootId, fetchUrl){
       }
     };
 
+    // ✅ MEJORADO: Logging para debuggear las métricas
+    console.log('📊 Actualizando métricas de Overview:', {
+      clicks: tClicks,
+      impressions: tImpr,
+      ctr: tCtr.toFixed(2) + '%',
+      position: tPos.toFixed(2),
+      hasComparison: rowsComp.length > 0
+    });
+    
     updateMetricBlock('clicks', formatNumberIntl, true, false);
     updateMetricBlock('impressions', formatNumberIntl, true, false);
     updateMetricBlock('ctr', (v)=>`${v.toFixed(2)}%`, false, false);
     updateMetricBlock('position', (v)=>v.toFixed(2), false, true);
+    
+    console.log('✅ Métricas de Overview actualizadas');
   };
 
   // Eventos de toggles
@@ -1130,13 +1244,19 @@ async function mountChartJSOverview(rootId, fetchUrl){
         return `<span style="font-size:12px;color:${col}">${sign}${val.toFixed(0)}%</span>`;
       };
       
+      // ✅ SIMPLIFICADO: Solo clicks e impressions con deltas como en el ejemplo
       const buildTable = (rows, isKeyword = true) => {
         if (!rows || rows.length === 0) {
           return `<div style="padding:16px;text-align:center;color:#6b7280;font-style:italic">No hay datos disponibles</div>`;
         }
         
-        const cols = hasComp ? '1fr 100px 70px 70px 70px 60px' : '1fr 120px 80px 80px 80px';
-        const head = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px"><div>${isKeyword ? 'Query' : 'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp ? '<div>Δ</div>' : ''}</div>`;
+        // Simplificado: solo name, clicks, impressions
+        const cols = '1fr 120px 120px';
+        const head = `<div style="display:grid;grid-template-columns:${cols};gap:12px;padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px;font-weight:500">
+          <div>${isKeyword ? 'Query' : 'Page'}</div>
+          <div style="text-align:center">Clicks</div>
+          <div style="text-align:center">Impressions</div>
+        </div>`;
         
         const body = rows.map((r, index) => {
           const name = isKeyword ? 
@@ -1146,13 +1266,23 @@ async function mountChartJSOverview(rootId, fetchUrl){
           const c1 = r.clicks_m1 ?? r.clicks_p1 ?? r.Clicks ?? r.clicks ?? 0;
           const c2 = r.clicks_m2 ?? r.clicks_p2 ?? 0;
           const i1 = r.impressions_m1 ?? r.impressions_p1 ?? r.Impressions ?? r.impressions ?? 0;
-          const ctr1 = r.ctr_m1 ?? r.ctr_p1 ?? r.CTR ?? r.ctr ?? 0;
-          const p1 = r.position_m1 ?? r.position_p1 ?? r.Position ?? r.position ?? null;
+          const i2 = r.impressions_m2 ?? r.impressions_p2 ?? 0;
           
-          // Convertir CTR si está en formato decimal (0.05 -> 5.0)
-          const ctrFormatted = ctr1 <= 1 ? ctr1 * 100 : ctr1;
+          // Calcular deltas para clicks e impressions
+          const clicksDelta = hasComp && c2 > 0 ? deltaChip(c1, c2, true) : '';
+          const imprDelta = hasComp && i2 > 0 ? deltaChip(i1, i2, true) : '';
           
-          return `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827" title="${name}">${name}</div><div style="font-weight:600;color:#111827">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctrFormatted)}</div><div>${fmtPos(p1)}</div>${hasComp ? `<div>${deltaChip(c1, c2, true)}</div>` : ''}</div>`;
+          return `<div style="display:grid;grid-template-columns:${cols};gap:12px;padding:10px 12px;border-bottom:1px solid #f9fafb;align-items:center">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827;font-size:13px" title="${name}">${name}</div>
+            <div style="text-align:center">
+              <div style="font-weight:600;color:#111827;font-size:14px">${fmtNum(c1)}</div>
+              ${clicksDelta ? `<div style="margin-top:2px">${clicksDelta}</div>` : ''}
+            </div>
+            <div style="text-align:center">
+              <div style="color:#111827;font-size:14px">${fmtNum(i1)}</div>
+              ${imprDelta ? `<div style="margin-top:2px">${imprDelta}</div>` : ''}
+            </div>
+          </div>`;
         }).join('');
         
         return head + body;
@@ -1163,11 +1293,16 @@ async function mountChartJSOverview(rootId, fetchUrl){
       
       if (kwEl && topK.length > 0) {
         kwEl.innerHTML = buildTable(topK, true);
-        console.log('✅ Tabla Keywords actualizada en updateTopTables');
+        console.log('✅ Tabla Queries actualizada en updateTopTables con', topK.length, 'elementos');
+      } else if (kwEl) {
+        kwEl.innerHTML = '<div style="padding:16px;text-align:center;color:#6b7280">No hay datos de queries disponibles</div>';
       }
+      
       if (urlEl && topU.length > 0) {
         urlEl.innerHTML = buildTable(topU, false);
-        console.log('✅ Tabla URLs actualizada en updateTopTables');
+        console.log('✅ Tabla Pages actualizada en updateTopTables con', topU.length, 'elementos');
+      } else if (urlEl) {
+        urlEl.innerHTML = '<div style="padding:16px;text-align:center;color:#6b7280">No hay datos de páginas disponibles</div>';
       }
       
     } catch(err) { 
@@ -1230,8 +1365,30 @@ async function mountChartJSOverview(rootId, fetchUrl){
     }); 
   }
 
+  // ✅ MEJORADO: Función para verificar estado del container
+  const checkContainerState = () => {
+    const metricsEl = container.querySelector('#po-metrics');
+    const clicksEl = container.querySelector('.po-metric[data-k="clicks"]');
+    console.log('🔍 Estado del container:', {
+      hasMetrics: !!metricsEl,
+      hasClicksMetric: !!clicksEl,
+      containerId: container.id,
+      containerChildren: container.children.length
+    });
+  };
+  
   // Primera carga (con reintento breve hasta que haya fechas y siteUrl)
-  let tries=0; const timer = setInterval(()=>{ tries++; fetchAndRender(); if(tries>10) clearInterval(timer); }, 800);
+  let tries=0; 
+  const timer = setInterval(()=>{ 
+    tries++; 
+    console.log(`🔄 Intento ${tries}/10 de cargar gráfico Chart.js`);
+    checkContainerState();
+    fetchAndRender(); 
+    if(tries>10) {
+      clearInterval(timer);
+      console.log('⚠️ Máximo de intentos alcanzado para Chart.js');
+    }
+  }, 800);
 }
 
 
