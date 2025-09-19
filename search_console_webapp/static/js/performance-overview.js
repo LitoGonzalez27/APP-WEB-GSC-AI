@@ -432,11 +432,7 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
   const rootEl = document.getElementById(rootId);
   if (!rootEl) return;
   try {
-    // Ocultar contenido previo del bloque Performance Overview (disclaimer/placeholder)
-    try {
-      const disclaimer = document.getElementById('summaryDisclaimer');
-      if (disclaimer) disclaimer.style.display = 'none';
-    } catch (_) {}
+    // Mantener visible #summaryDisclaimer (contiene los insights y métricas del resumen)
 
     const root = window.ReactDOM.createRoot(rootEl);
     root.render(window.React.createElement(Overview));
@@ -613,16 +609,8 @@ async function mountChartJSOverview(rootId, fetchUrl){
   const container = document.getElementById(rootId);
   if(!container) return;
 
-  // Ocultar por CSS el summaryDisclaimer de forma global y usar performanceOverviewRoot como ancla
-  try{
-    let hideStyle = document.getElementById('po-hide-disclaimer');
-    if(!hideStyle){
-      hideStyle = document.createElement('style');
-      hideStyle.id = 'po-hide-disclaimer';
-      hideStyle.textContent = '#summaryDisclaimer{display:none !important;}';
-      document.head.appendChild(hideStyle);
-    }
-  }catch(_){ }
+  // No ocultar #summaryDisclaimer: contiene los insights/summary que el usuario espera ver
+  // (antes se ocultaba para evitar solapamiento con el nuevo Overview)
   
   // Padding del contenedor raíz
   container.style.padding = '30px';
@@ -737,8 +725,27 @@ async function mountChartJSOverview(rootId, fetchUrl){
 
   syncButtons();
 
+  // Asegurar que Chart.js esté disponible (carga perezosa si hace falta)
+  const ensureChartJS = async ()=>{
+    if (window.Chart) return window.Chart;
+    try{
+      await loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js');
+      return window.Chart;
+    }catch(e){
+      console.warn('No fue posible cargar Chart.js dinámicamente:', e);
+      return null;
+    }
+  };
+
   const ctx = container.querySelector('#po-canvas');
-  if(!ctx || !window.Chart){
+  if(!ctx){
+    console.warn('No se encontró el canvas #po-canvas');
+    return;
+  }
+  if(!window.Chart){
+    await ensureChartJS();
+  }
+  if(!window.Chart){
     console.warn('Chart.js no está disponible');
     return;
   }
@@ -955,11 +962,12 @@ async function mountChartJSOverview(rootId, fetchUrl){
     const trendCtr = linReg(ctr);
     const trendPos = linReg(position);
 
-    container._chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
+    try {
+      container._chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
           {label:'Clicks', data:clicks, borderColor:colClicks, backgroundColor:makeGrad('rgba(37,99,235,1)', 1), fill:true, yAxisID:'y', hidden: !state.show.clicks, pointRadius:0, tension:0.25},
           {label:'Impressions', data:impressions, borderColor:colImpr, backgroundColor:makeGrad('rgba(16,185,129,1)', 1), fill:true, yAxisID:'y1', hidden: !state.show.impressions, pointRadius:0, tension:0.25},
           {label:'CTR (%)', data:ctr, borderColor:colCtr, backgroundColor:makeGrad('rgba(245,158,11,1)', 1), fill:true, yAxisID:'y2', hidden: !state.show.ctr, pointRadius:0, tension:0.25},
@@ -976,25 +984,29 @@ async function mountChartJSOverview(rootId, fetchUrl){
           {label:'Trend Impressions', data: trendImpr, borderColor: colImpr, yAxisID:'y1', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
           {label:'Trend CTR', data: trendCtr, borderColor: colCtr, yAxisID:'y2', pointRadius:0, tension:0, borderDash:[2,2], hidden:true},
           {label:'Trend Position', data: trendPos, borderColor: colPos, yAxisID:'y3', pointRadius:0, tension:0, borderDash:[2,2], hidden:true}
-        ]
-      },
-      options: {
-        responsive:true,
-        maintainAspectRatio:false,
-        animation:false,
-        plugins:{ legend:{ display:false }, tooltip:{ enabled:false, mode:'index', intersect:false, external: externalTooltip } },
-        scales:{
-          y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
-          y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
-          // Ejes internos no visibles para escalado dinámico
-          y2:{ display:false, suggestedMin: 0, suggestedMax: Math.max(10, Math.ceil(Math.max(...ctr) * 1.2)) },
-          y3:{ display:false, suggestedMin: 0, suggestedMax: 20 },
-          x:{ ticks:{ maxTicksLimit: 10 } }
+          ]
         },
-        hover: hoverStyle,
-        elements: { point: { radius: 0, hoverRadius: 4, hitRadius: 6 } }
-      }
-    });
+        options: {
+          responsive:true,
+          maintainAspectRatio:false,
+          animation:false,
+          plugins:{ legend:{ display:false }, tooltip:{ enabled:false, mode:'index', intersect:false, external: externalTooltip } },
+          scales:{
+            y:{ position:'left', ticks:{ callback:(v)=>formatNumberIntl(v) }},
+            y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>formatNumberIntl(v) }},
+            // Ejes internos no visibles para escalado dinámico
+            y2:{ display:false, suggestedMin: 0, suggestedMax: Math.max(10, Math.ceil(Math.max(...ctr) * 1.2)) },
+            y3:{ display:false, suggestedMin: 0, suggestedMax: Math.max(10, Math.ceil(Math.max(...position) * 1.2)) },
+            x:{ ticks:{ maxTicksLimit: 10 } }
+          },
+          hover: hoverStyle,
+          elements: { point: { radius: 0, hoverRadius: 4, hitRadius: 6 } }
+        }
+      });
+    } catch(chartErr) {
+      console.error('❌ Error creando gráfico Chart.js:', chartErr);
+      container._chart = null; // Continuar para actualizar métricas y tablas
+    }
 
     // ✅ MEJORADO: Top 10 tablas (Keywords y URLs) desde window.currentData
     try{
