@@ -90,20 +90,14 @@ function getGlobalDateRange() {
 }
 
 async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetchUrl = '/api/gsc/performance') {
-  const Recharts = await ensureRecharts();
-  if (!Recharts) {
-    // Fallback inmediato a Chart.js
-    return mountChartJSOverview(rootId, fetchUrl);
-  }
-  await ensureReact();
-  const React = window.React;
-  const ReactDOM = window.ReactDOM;
-  const Lucide = await ensureLucide();
+  // Usar exclusivamente Chart.js (desactivar completamente flujo Recharts/React)
+  return mountChartJSOverview(rootId, fetchUrl);
+  // Código legacy Recharts/React queda debajo sin ejecutarse
 
-  const { useMemo, useState, useEffect } = React;
+  const { useMemo, useState, useEffect } = {};
   const {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  } = Recharts;
+  } = {};
 
   function ToggleButton({ active, onClick, title, Icon }) {
     return React.createElement(
@@ -432,14 +426,16 @@ async function mountPerformanceOverview(rootId = 'performanceOverviewRoot', fetc
   const rootEl = document.getElementById(rootId);
   if (!rootEl) return;
   try {
-    // Ocultar el disclaimer/insights legacy para que solo se vea el bloque PO
+    // Desactivado: flujo React/Recharts no se usa cuando forzamos Chart.js
+    // Mantener oculto el disclaimer por consistencia visual
     try {
       const disclaimer = document.getElementById('summaryDisclaimer');
       if (disclaimer) disclaimer.style.display = 'none';
     } catch (_) {}
 
-    const root = window.ReactDOM.createRoot(rootEl);
-    root.render(window.React.createElement(Overview));
+    // No render React. El montaje real lo hace mountChartJSOverview antes de entrar aquí
+    // const root = window.ReactDOM.createRoot(rootEl);
+    // root.render(window.React.createElement(Overview));
     if (window.sidebarOnContentReady) window.sidebarOnContentReady('performance');
   } catch (e) {
     console.error('Error montando PerformanceOverview:', e);
@@ -840,32 +836,31 @@ async function mountChartJSOverview(rootId, fetchUrl){
       const sum = (arr)=>arr.reduce((a,b)=>a+(b||0),0);
       const avg = (arr)=> arr.length ? (arr.reduce((a,b)=>a+(b||0),0)/arr.length) : 0;
 
-      // Preferir los totales del summary (ponderados por impresiones) si existen
+      // Preferir datos de summary del backend (agregado por día, sin límite de filas)
       let tClicks, tImpr, tCtr, tPos, tClicksC, tImprC, tCtrC, tPosC;
-      const ps = window.currentPeriodSummary;
-      if (ps && typeof ps === 'object' && Object.keys(ps).length >= 1) {
-        const periodKeys = Object.keys(ps).sort((a,b)=>{
-          const A = ps[a], B = ps[b];
-          if (A.StartDate && B.StartDate) return new Date(A.StartDate) - new Date(B.StartDate);
-          return a.localeCompare(b);
-        });
-        const p1 = ps[periodKeys[periodKeys.length-1]]; // período actual
-        const p2 = periodKeys.length>1 ? ps[periodKeys[0]] : null; // comparación si existe
-        tClicks = p1?.Clicks || 0;
-        tImpr = p1?.Impressions || 0;
-        tCtr = (p1?.CTR || 0) * 100; // viene como ratio
-        tPos = p1?.Position ?? 0;
-        tClicksC = p2?.Clicks || 0;
-        tImprC = p2?.Impressions || 0;
-        tCtrC = (p2?.CTR || 0) * 100;
-        tPosC = p2?.Position ?? 0;
-      } else {
-        // Fallback: agregados desde las series diarias
+      const cd = window.currentData || {};
+      if (Array.isArray(cd.summary) && cd.summary.length > 0) {
+        const metrics = (cd.summary||[]).flatMap(s => Array.isArray(s.Metrics) ? s.Metrics : []);
+        const findBySuffix = (suffix)=> metrics.find(m => (m.Period||'').includes(suffix)) || null;
+        // Buscar explícitamente etiquetas añadidas por el backend
+        const mCur = findBySuffix('(Current)');
+        const mCmp = findBySuffix('(Comparison)');
+        if (mCur) {
+          tClicks = mCur.Clicks||0; tImpr = mCur.Impressions||0; tCtr = (mCur.CTR||0)*100; tPos = mCur.Position ?? 0;
+        }
+        if (mCmp) {
+          tClicksC = mCmp.Clicks||0; tImprC = mCmp.Impressions||0; tCtrC = (mCmp.CTR||0)*100; tPosC = mCmp.Position ?? 0;
+        }
+      }
+
+      // Fallback a series del gráfico si no hay summary
+      if (typeof tClicks === 'undefined') {
         tClicks = sum(clicks);
         tImpr = sum(impressions);
         tCtr = tImpr>0 ? (tClicks/tImpr)*100 : 0;
-        // Posición: media simple en fallback (la ponderada requiere info de impresiones por fila); mantenemos simple
         tPos = avg(position);
+      }
+      if (typeof tClicksC === 'undefined') {
         tClicksC = sum(clicksComp);
         tImprC = sum(impressionsComp);
         tCtrC = tImprC>0 ? (tClicksC/tImprC)*100 : 0;
