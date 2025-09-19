@@ -4,6 +4,14 @@ function numberFormatInteger(v) {
   return new Intl.NumberFormat().format(Math.round(Number(v) || 0));
 }
 
+function formatShortNumber(v) {
+  const n = Number(v) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (abs >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(Math.round(n));
+}
+
 function toPercentage(v) {
   const num = Number(v) || 0;
   return num <= 1 ? num * 100 : num;
@@ -59,9 +67,10 @@ function makeGradDim(ctx, canvas, rgba1, dim) {
   const clamp = (v) => Math.max(0, Math.min(1, v));
   const withAlpha = (a) => rgba1.replace(/rgba\(([^)]+),\s*([01](?:\.\d+)?)\)/, 'rgba($1,' + clamp(a) + ')');
   const g = ctx.createLinearGradient(0, canvas.height, 0, 0);
-  const aLight = 0.08 * dim;
-  const aMedium = 0.22 * dim;
-  const aStrong = 0.40 * dim;
+  // Suavizar el degradado ~25% para un look más elegante
+  const aLight = 0.06 * dim;
+  const aMedium = 0.16 * dim;
+  const aStrong = 0.30 * dim;
   g.addColorStop(0.00, withAlpha(aLight));
   g.addColorStop(0.35, withAlpha(aLight));
   g.addColorStop(0.70, withAlpha(aMedium));
@@ -160,9 +169,9 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
       el = document.createElement('div');
       el.className = 'po-tooltip';
       el.style.cssText = [
-        'position:absolute', 'pointer-events:none', 'background:#0b1220', 'color:#fff',
-        'border-radius:10px', 'padding:10px 12px', 'box-shadow:0 6px 24px rgba(0,0,0,0.25)',
-        'z-index:30', 'opacity:0', 'transform:translate(-50%, -120%)', 'transition:opacity .12s ease'
+        'position:absolute', 'pointer-events:none', 'background:#fff', 'color:#111827',
+        'border-radius:10px', 'padding:10px 12px', 'box-shadow:0 8px 30px rgba(0,0,0,0.08)', 'border:1px solid #e5e7eb',
+        'z-index:30', 'display:none', 'min-width:260px'
       ].join(';');
       container.style.position = container.style.position || 'relative';
       container.appendChild(el);
@@ -198,21 +207,31 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
     const curDate = dataRef.labels[i] || '';
     const prevDate = dataRef.prevDateByLabel?.[curDate] || '';
 
+    const fmtDate = (iso) => {
+      try {
+        const d = new Date(iso + 'T00:00:00');
+        const wd = d.toLocaleDateString(undefined, { weekday: 'short' });
+        const yr = d.getFullYear();
+        const mon = d.toLocaleDateString(undefined, { month: 'short' });
+        const day = String(d.getDate()).padStart(2, '0');
+        return { top: `${wd} · ${yr}`, big: `${mon} ${day}` };
+      } catch(_) { return { top: '', big: iso }; }
+    };
+
     const rows = [];
     const pushRow = (name, color, curVal, prevVal, metricKey) => {
       const delta = formatPctDelta(curVal, prevVal, metricKey);
-      const curFmt = buildTooltipLabel(metricKey==='ctr'?'ctr':metricKey==='position'?'position':'', curVal) || (metricKey==='ctr'?`${Number(curVal).toFixed(2)}%`:(metricKey==='position'?Number(curVal).toFixed(2):numberFormatInteger(curVal)));
-      const prevFmt = prevVal==null?'' : (metricKey==='ctr'?`${Number(prevVal).toFixed(2)}%`:(metricKey==='position'?Number(prevVal).toFixed(2):numberFormatInteger(prevVal)));
+      const curFmt = metricKey==='ctr' ? `${Number(curVal).toFixed(2)}%` : (metricKey==='position' ? Number(curVal).toFixed(2) : formatShortNumber(curVal));
+      const prevFmt = prevVal==null?'' : (metricKey==='ctr' ? `${Number(prevVal).toFixed(2)}%` : (metricKey==='position' ? Number(prevVal).toFixed(2) : formatShortNumber(prevVal)));
       rows.push(`
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:8px;height:8px;background:${color};border-radius:50%;display:inline-block"></span>
-            <span>${name}</span>
+            <span style="width:10px;height:10px;background:${color};border-radius:50%;display:inline-block"></span>
+            <span style="font-weight:500">${name}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <strong>${curFmt}</strong>
-            <span style="margin-left:6px; ${delta.startsWith('+') ? 'color:#16a34a' : (delta.startsWith('-') ? 'color:#dc2626' : 'opacity:.75')}">${delta}</span>
-            ${prevFmt ? `<span style="opacity:.7;min-width:64px;text-align:right">${prevFmt}</span>` : ''}
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><strong style="font-size:14px">${curFmt}</strong> ${prevVal!=null ? `<span style=\"color:${delta.startsWith('+')?'#16a34a':(delta.startsWith('-')?'#dc2626':'#6b7280')}\">${delta}</span>` : ''}</div>
+            ${prevFmt ? `<div style="min-width:64px;text-align:right;opacity:.8">${prevFmt}</div>` : ''}
           </div>
         </div>`);
     };
@@ -222,18 +241,25 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
     if (dataRef.show.ctr) pushRow('CTR', COLORS.ctr, dataRef.ctr[i]||0, dataRef.ctrPrevByLabel[curDate]??0, 'ctr');
     if (dataRef.show.position) pushRow('Avg. Position', COLORS.position, dataRef.position[i]||0, dataRef.positionPrevByLabel[curDate]??0, 'position');
 
+    const h1 = fmtDate(curDate);
+    const h2 = prevDate ? fmtDate(prevDate) : null;
+    const accent = '#6366f1';
+    const accent2 = '#a78bfa';
     tooltipEl.innerHTML = `
-      <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px">
-        <div><div style="font-weight:600;">${curDate}</div></div>
-        ${prevDate ? `<div style="opacity:0.8;text-align:right"><div style=\"font-weight:600;\">${prevDate}</div></div>` : ''}
+      <div style="display:flex;justify-content:space-between;gap:24px;margin-bottom:8px;align-items:flex-end">
+        <div style="min-width:120px">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:2px">${h1.top}</div>
+          <div style="font-size:18px;font-weight:700;border-bottom:2px solid ${accent};line-height:1.2">${h1.big}</div>
+        </div>
+        ${h2 ? `<div style=\"min-width:120px;text-align:right\"><div style=\"font-size:12px;color:#6b7280;margin-bottom:2px\">${h2.top}</div><div style=\"font-size:18px;font-weight:700;border-bottom:2px dotted ${accent2};line-height:1.2\">${h2.big}</div></div>` : ''}
       </div>
       ${rows.join('')}
     `;
 
     const { offsetLeft: positionX, offsetTop: positionY } = chart.canvas;
-    tooltipEl.style.left = positionX + tooltip.caretX + 'px';
-    tooltipEl.style.top = positionY + tooltip.caretY + 'px';
-    tooltipEl.style.opacity = '1';
+    tooltipEl.style.left = positionX + tooltip.caretX + 12 + 'px';
+    tooltipEl.style.top = positionY + tooltip.caretY - tooltipEl.offsetHeight - 12 + 'px';
+    tooltipEl.style.display = 'block';
   }
 
   function render() {
@@ -250,7 +276,7 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
     const ctr = rows.map(d => toPercentage(d.ctr));
     const position = rows.map(d => d.position);
 
-    const indexAligned = prev.length && prev.length === labels.length;
+    const indexAligned = prev.length && prev.length === labels.length && prev.every((p, idx)=> p.date === labels[idx]);
     const clicksPrev = indexAligned ? prev.map(d=>d.clicks) : labels.map(l => (prevByDate[l]?.clicks) ?? 0);
     const impressionsPrev = indexAligned ? prev.map(d=>d.impressions) : labels.map(l => (prevByDate[l]?.impressions) ?? 0);
     const ctrPrev = indexAligned ? prev.map(d=>toPercentage(d.ctr||0)) : labels.map(l => toPercentage((prevByDate[l]?.ctr) ?? 0));
@@ -268,22 +294,22 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
     const dimPos = state.trend.position ? 0.5 : 1;
 
     const datasets = [
-      { label:'Clicks', data:clicks, borderColor:ensureRgba1(COLORS.clicks), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.clicks), dimClicks), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y', hidden: !state.show.clicks },
-      { label:'Impressions', data:impressions, borderColor:ensureRgba1(COLORS.impressions), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.impressions), dimImpr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y1', hidden: !state.show.impressions },
-      { label:'CTR (%)', data:ctr, borderColor:ensureRgba1(COLORS.ctr), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.ctr), dimCtr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y2', hidden: !state.show.ctr },
-      { label:'Avg. Position', data:position, borderColor:ensureRgba1(COLORS.position), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.position), dimPos), fill:'origin', pointRadius:0, tension:0.2, yAxisID:'y3', hidden: !state.show.position },
-      // comparativas (solo si hay prev)
+      { label:'Clicks', data:clicks, borderColor:ensureRgba1(COLORS.clicks), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.clicks), dimClicks), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y', hidden: !state.show.clicks, borderWidth: 2 },
+      { label:'Impressions', data:impressions, borderColor:ensureRgba1(COLORS.impressions), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.impressions), dimImpr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y1', hidden: !state.show.impressions, borderWidth: 2 },
+      { label:'CTR (%)', data:ctr, borderColor:ensureRgba1(COLORS.ctr), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.ctr), dimCtr), fill:'origin', pointRadius:0, tension:0.25, yAxisID:'y2', hidden: !state.show.ctr, borderWidth: 2 },
+      { label:'Avg. Position', data:position, borderColor:ensureRgba1(COLORS.position), backgroundColor: (c)=> makeGradDim(ctx, canvas, ensureRgba1(COLORS.position), dimPos), fill:'origin', pointRadius:0, tension:0.2, yAxisID:'y3', hidden: !state.show.position, borderWidth: 2 },
+      // comparativas (solo si hay prev) – asegurar que al menos una serie visible
       ...(prev.length ? [
-        { label:'Clicks (prev)', data:clicksPrev, borderColor:ensureRgba1(COLORS.clicks), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.show.clicks },
-        { label:'Impressions (prev)', data:impressionsPrev, borderColor:ensureRgba1(COLORS.impressions), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.show.impressions },
-        { label:'CTR (prev) %', data:ctrPrev, borderColor:ensureRgba1(COLORS.ctr), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.show.ctr },
-        { label:'Position (prev)', data:positionPrev, borderColor:ensureRgba1(COLORS.position), borderDash:[6,6], borderWidth:2, pointRadius:0, tension:0.25, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.show.position }
+        { label:'Clicks (prev)', data:clicksPrev, borderColor:ensureRgba1(COLORS.clicks), borderDash:[6,6], borderWidth:1.5, pointRadius:0, tension:0.25, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.show.clicks },
+        { label:'Impressions (prev)', data:impressionsPrev, borderColor:ensureRgba1(COLORS.impressions), borderDash:[6,6], borderWidth:1.5, pointRadius:0, tension:0.25, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.show.impressions },
+        { label:'CTR (prev) %', data:ctrPrev, borderColor:ensureRgba1(COLORS.ctr), borderDash:[6,6], borderWidth:1.5, pointRadius:0, tension:0.25, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.show.ctr },
+        { label:'Position (prev)', data:positionPrev, borderColor:ensureRgba1(COLORS.position), borderDash:[6,6], borderWidth:1.5, pointRadius:0, tension:0.25, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.show.position }
       ] : []),
       // tendencias
-      { label:'Trend Clicks', data: trendClicks, borderColor:ensureRgba1(COLORS.clicks), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.trend.clicks },
-      { label:'Trend Impressions', data: trendImpr, borderColor:ensureRgba1(COLORS.impressions), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.trend.impressions },
-      { label:'Trend CTR', data: trendCtr, borderColor:ensureRgba1(COLORS.ctr), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.trend.ctr },
-      { label:'Trend Position', data: trendPos, borderColor:ensureRgba1(COLORS.position), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.trend.position }
+      { label:'Trend Clicks', data: trendClicks, borderColor:ensureRgba1(COLORS.clicks), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y', fill:false, backgroundColor:'transparent', hidden: !state.trend.clicks, borderWidth: 1.25 },
+      { label:'Trend Impressions', data: trendImpr, borderColor:ensureRgba1(COLORS.impressions), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y1', fill:false, backgroundColor:'transparent', hidden: !state.trend.impressions, borderWidth: 1.25 },
+      { label:'Trend CTR', data: trendCtr, borderColor:ensureRgba1(COLORS.ctr), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y2', fill:false, backgroundColor:'transparent', hidden: !state.trend.ctr, borderWidth: 1.25 },
+      { label:'Trend Position', data: trendPos, borderColor:ensureRgba1(COLORS.position), borderDash:[2,2], pointRadius:0, tension:0, yAxisID:'y3', fill:false, backgroundColor:'transparent', hidden: !state.trend.position, borderWidth: 1.25 }
     ];
 
     // Guardar datos para tooltip externo
@@ -340,8 +366,18 @@ export async function mountChartJSOverview(rootId, fetchUrlOrData) {
       payload = fetchUrlOrData; // datos ya construidos desde front
     }
 
-    const current = normalizePoints(payload.current || (window.currentData?.daily_series?.current) || []);
-    const prev = normalizePoints(payload.prev || (window.currentData?.daily_series?.prev) || []);
+    // Preferir daily_series de currentData si es más completa que el payload
+    const ds = (window.currentData && window.currentData.daily_series) ? window.currentData.daily_series : {};
+    let rawCurrent = payload && Array.isArray(payload.current) ? payload.current : null;
+    let rawPrev = payload && Array.isArray(payload.prev) ? payload.prev : null;
+    if ((!rawCurrent || (rawCurrent.length < 2)) && Array.isArray(ds.current) && ds.current.length > (rawCurrent ? rawCurrent.length : 0)) {
+      rawCurrent = ds.current;
+    }
+    if ((!rawPrev || (rawPrev.length < 2)) && Array.isArray(ds.prev) && ds.prev.length > (rawPrev ? rawPrev.length : 0)) {
+      rawPrev = ds.prev;
+    }
+    const current = normalizePoints(rawCurrent || []);
+    const prev = normalizePoints(rawPrev || []);
 
     // Mostrar contenedor si hay datos
     const section = document.getElementById('performanceOverview');
