@@ -839,7 +839,32 @@ async function mountChartJSOverview(rootId, fetchUrl){
       // Preferir datos de summary del backend (agregado por día, sin límite de filas)
       let tClicks, tImpr, tCtr, tPos, tClicksC, tImprC, tCtrC, tPosC;
       const cd = window.currentData || {};
-      if (Array.isArray(cd.summary) && cd.summary.length > 0) {
+      const cfg = getConfigParams();
+
+      // Si hay filtro de URLs, calcular agregados desde pages (respetando el filtro)
+      if (cfg.urls && cfg.urls.length && Array.isArray(cd.pages) && cd.pages.length) {
+        let c1=0, i1=0, posImprs1=0;
+        let c2=0, i2=0, posImprs2=0;
+        cd.pages.forEach(p => {
+          const ms = Array.isArray(p.Metrics) ? p.Metrics.slice() : [];
+          if (!ms.length) return;
+          // Ordenar por fecha y seleccionar P1 (más reciente) y P2 (más antiguo) si existen
+          const sorted = ms.slice().sort((a,b)=>{
+            if (a.StartDate && b.StartDate) return new Date(a.StartDate) - new Date(b.StartDate);
+            return 0;
+          });
+          const m2 = sorted[0];
+          const m1 = sorted[sorted.length-1];
+          if (m1) {
+            c1 += m1.Clicks||0; i1 += m1.Impressions||0; posImprs1 += (m1.Position||0)*(m1.Impressions||0);
+          }
+          if (sorted.length>1 && m2) {
+            c2 += m2.Clicks||0; i2 += m2.Impressions||0; posImprs2 += (m2.Position||0)*(m2.Impressions||0);
+          }
+        });
+        tClicks = c1; tImpr = i1; tCtr = i1>0 ? (c1/i1)*100 : 0; tPos = i1>0 ? (posImprs1/i1) : 0;
+        tClicksC = c2; tImprC = i2; tCtrC = i2>0 ? (c2/i2)*100 : 0; tPosC = i2>0 ? (posImprs2/i2) : 0;
+      } else if (Array.isArray(cd.summary) && cd.summary.length > 0) {
         const metrics = (cd.summary||[]).flatMap(s => Array.isArray(s.Metrics) ? s.Metrics : []);
         const findBySuffix = (suffix)=> metrics.find(m => (m.Period||'').includes(suffix)) || null;
         // Buscar explícitamente etiquetas añadidas por el backend
@@ -1106,11 +1131,22 @@ async function mountChartJSOverview(rootId, fetchUrl){
       container._chart = null; // Continuar para actualizar métricas y tablas
     }
 
-    // ✅ MEJORADO: Top 10 tablas (Keywords y URLs) desde window.currentData
+    // ✅ MEJORADO: Top 10 tablas (Keywords y URLs) desde window.currentData, respetando filtros de URLs
     try{
       const cd = window.currentData || {};
       console.log('🔍 DEBUG: Estructura de currentData:', cd);
-      
+      const cfg = getConfigParams();
+      const filterUrls = Array.isArray(cfg.urls) ? cfg.urls.map(u=>u.toLowerCase()) : [];
+      const matchType = cfg.matchType || 'contains';
+      const matchesUrl = (u)=>{
+        if(!filterUrls.length) return true;
+        const url = (u||'').toLowerCase();
+        if(matchType==='equals') return filterUrls.some(f=> url === f);
+        if(matchType==='notContains') return filterUrls.every(f=> !url.includes(f));
+        // contains por defecto
+        return filterUrls.some(f=> url.includes(f));
+      };
+
       const hasComp = !!(cd.periods && cd.periods.has_comparison);
       
       // ✅ Mejorado: Obtener keywords con más opciones de acceso
@@ -1125,12 +1161,23 @@ async function mountChartJSOverview(rootId, fetchUrl){
         kwords = cd.keywordStats.slice();
         console.log('📋 Keywords desde keywordStats:', kwords.length);
       }
-      
+      // Aplicar filtro de URLs a keywords solo si existe propiedad url/page
+      if (filterUrls.length) {
+        const before = kwords.length;
+        kwords = kwords.filter(it => matchesUrl(it.url || it.page || it.URL || it.Page || ''));
+        console.log(`🔎 Keywords filtradas por URLs (${before} -> ${kwords.length})`);
+      }
+
       // ✅ Mejorado: Obtener páginas con más opciones de acceso
       let pagesList = [];
       if (Array.isArray(cd.pages)) {
         pagesList = cd.pages.slice();
         console.log('📋 URLs desde pages:', pagesList.length);
+      }
+      if (filterUrls.length) {
+        const before = pagesList.length;
+        pagesList = pagesList.filter(p => matchesUrl(p.URL || p.url || p.Page || p.page || ''));
+        console.log(`🔎 Pages filtradas por URLs (${before} -> ${pagesList.length})`);
       }
       
       // Si no hay datos, salir sin error
