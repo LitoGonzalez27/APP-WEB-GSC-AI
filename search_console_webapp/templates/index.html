@@ -393,11 +393,58 @@
           <h2 id="insightsTitle">Performance Overview</h2>
           <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
           <div id="summaryDisclaimer" class="summary-disclaimer"></div>
-          <!-- Contenedor para el gráfico React de Performance Overview -->
-          <div id="performanceOverviewRoot" style="margin-top: 12px;"></div>
         </section>
 
-        <!-- performanceSection eliminado: tarjetas antiguas no utilizadas -->
+        <section id="performanceSection" class="glass-effect">
+          <h2 id="performanceTitle">Selected Periods Performance</h2>
+          <div id="summaryBlock" class="summary-block">
+
+            <div class="summary-card" id="summaryClicks">
+              <div class="card-icon"><i class="fas fa-mouse-pointer"></i></div>
+              <strong>Clicks</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryImpressions">
+              <div class="card-icon"><i class="fas fa-eye"></i></div>
+              <strong>Impressions</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryCTR">
+              <div class="card-icon"><i class="fas fa-percentage"></i></div>
+              <strong>Average CTR</strong>
+              <div class="summary-content"></div>
+            </div>
+            <div class="summary-card" id="summaryPosition">
+              <div class="card-icon"><i class="fas fa-location-arrow"></i></div>
+              <strong>Average Position</strong>
+              <div class="summary-content"></div>
+            </div>
+          </div>
+          
+          <!-- Performance Overview (Chart.js) -->
+          <div id="performanceOverview" class="performance-overview" style="margin-top:24px; display:none;">
+            <!-- Tabs de métricas -->
+            <div class="po-metric-tabs" role="tablist" aria-label="Metric tabs">
+              <button class="po-metric-tab active" data-metric="clicks" role="tab" aria-selected="true">Clicks</button>
+              <button class="po-metric-tab" data-metric="impressions" role="tab" aria-selected="false">Impressions</button>
+              <button class="po-metric-tab" data-metric="ctr" role="tab" aria-selected="false">CTR</button>
+              <button class="po-metric-tab" data-metric="position" role="tab" aria-selected="false">Avg. Position</button>
+            </div>
+
+            <!-- Botones de tendencia -->
+            <div class="po-trend-controls" aria-label="Trend toggles" style="margin:8px 0; display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="po-trend-btn" data-trend="clicks">Trend clicks</button>
+              <button class="po-trend-btn" data-trend="impressions">Trend impressions</button>
+              <button class="po-trend-btn" data-trend="ctr">Trend CTR</button>
+              <button class="po-trend-btn" data-trend="position">Trend position</button>
+            </div>
+
+            <!-- Lienzo para Chart.js -->
+            <div class="po-chart-wrapper" style="position:relative; width:100%; height:320px;">
+              <canvas id="poChartCanvas" aria-label="Performance chart" role="img"></canvas>
+            </div>
+          </div>
+        </section>
       </div>
 
       <div class="content-section" id="keywordsContent" data-section="keywords">
@@ -972,9 +1019,6 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- React + Recharts para Performance Overview (sin build step) -->
-  <script type="module" src="{{ url_for('static', filename='js/performance-overview.js') }}?v=20250919b" crossorigin="anonymous"></script>
-  <link rel="preload" href="{{ url_for('static', filename='js/performance-overview.js') }}?v=20250919b" as="script" crossorigin>
   
   <!-- Grid.js para tablas avanzadas -->
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
@@ -1064,7 +1108,8 @@
 
   <script type="module" src="{{ url_for('static', filename='js/sidebar-navigation.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
-      <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/performance-overview.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-ai-overlay.js') }}"></script>
     
     <!-- ✅ FASE 4: Scripts de Quota UI para AI Overview -->

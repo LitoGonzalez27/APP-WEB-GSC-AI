@@ -350,6 +350,45 @@ export async function handleFormSubmit(e) {
 
     renderInsights(summary);
     
+    // 📊 Montar Performance Overview (Chart.js) consumiendo el mismo backend
+    try {
+      const { mountChartJSOverview, buildDailySeriesFromCurrentData } = await import('./performance-overview.js');
+      const siteUrl = elems.siteUrlSelect ? elems.siteUrlSelect.value : '';
+      const periodsInfo = data.periods || {};
+      const current = periodsInfo.current || {};
+      const comparison = periodsInfo.comparison || {};
+      const hasComparison = !!periodsInfo.has_comparison && comparison.start_date && comparison.end_date;
+      const selectedCountry = (window.getCountryToUse && window.getCountryToUse()) || null;
+
+      // Intentar usar un endpoint existente si la app lo tiene (sin cambiar backend)
+      // Contrato esperado: GET /api/gsc/performance?start=YYYY-MM-DD&end=YYYY-MM-DD&siteUrl=...&prevStart=...&prevEnd=...&country=...
+      let perfUrl = null;
+      if (siteUrl && current.start_date && current.end_date) {
+        const p = new URLSearchParams();
+        p.set('start', current.start_date);
+        p.set('end', current.end_date);
+        p.set('siteUrl', siteUrl);
+        if (hasComparison) {
+          p.set('prevStart', comparison.start_date);
+          p.set('prevEnd', comparison.end_date);
+        }
+        if (selectedCountry) {
+          p.set('country', selectedCountry);
+        }
+        perfUrl = `/api/gsc/performance?${p.toString()}`;
+      }
+
+      if (perfUrl) {
+        await mountChartJSOverview('performanceOverview', perfUrl);
+      } else {
+        // Fallback absoluto: construir con datos actuales si no hay endpoint
+        const series = buildDailySeriesFromCurrentData();
+        await mountChartJSOverview('performanceOverview', series);
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo inicializar Performance Overview Chart:', e);
+    }
+    
     // ✅ NUEVO: Almacenar datos globales para el modal de keywords por URL
     window.currentData = data;
     

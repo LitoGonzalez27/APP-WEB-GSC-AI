@@ -1,3 +1,16 @@
+/* Performance Overview (Chart.js) */
+.performance-overview { padding: 16px; border-top: 1px solid rgba(0,0,0,0.06); }
+.performance-overview .po-metric-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.performance-overview .po-metric-tab { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.12); background: #fff; cursor: pointer; font-size: 13px; }
+.performance-overview .po-metric-tab.active { background: #161616; color: #fff; border-color: #161616; }
+.performance-overview .po-trend-controls .po-trend-btn { padding: 6px 10px; border-radius: 8px; border: 1px dashed rgba(0,0,0,0.2); background: #f8fafc; cursor: pointer; font-size: 12px; }
+.performance-overview .po-trend-controls .po-trend-btn.active { background: #e2e8f0; border-style: solid; }
+.performance-overview .po-chart-wrapper { margin-top: 6px; }
+
+body.dark-mode .performance-overview .po-metric-tab { background: #111827; color: #e5e7eb; border-color: rgba(255,255,255,0.12); }
+body.dark-mode .performance-overview .po-metric-tab.active { background: #e5e7eb; color: #111827; border-color: #e5e7eb; }
+body.dark-mode .performance-overview .po-trend-controls .po-trend-btn { background: #0f172a; color: #e5e7eb; border-color: rgba(255,255,255,0.12); }
+body.dark-mode .performance-overview .po-trend-controls .po-trend-btn.active { background: #1f2937; }
 /*=============================================
   ESTRUCTURA DEL ARCHIVO:
   1. Tablas Específicas
@@ -226,7 +239,7 @@
   transform: translateX(-50%);
   width: 80px;
   height: 3px;
-  background: #D8F9B8;
+  background: linear-gradient(90deg, #3B82F6, #8B45FF);
   border-radius: 2px;
 }
 

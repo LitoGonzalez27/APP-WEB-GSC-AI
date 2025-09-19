@@ -6,9 +6,7 @@ import logging
 import traceback
 import zipfile
 from io import BytesIO
-from datetime import datetime, timedelta, date # Importación añadida
-import hashlib
-import pytz
+from datetime import datetime, timedelta # Importación añadida
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 import pandas as pd
 from excel_generator import generate_excel_from_data
@@ -38,7 +36,6 @@ from auth import (
     is_user_authenticated,
     is_user_ai_enabled,
     get_authenticated_service,
-    get_authenticated_service_for_connection,
     get_user_credentials,
     get_current_user
 )
@@ -60,7 +57,6 @@ from database import (
     get_ai_overview_history
 )
 from services.ai_cache import ai_cache
-from googleapiclient.errors import HttpError
 
 # Configurar logging mejorado
 logging.basicConfig(
@@ -386,306 +382,6 @@ def get_properties():
     except Exception as e:
         logger.error(f"Error en get-properties (compat agregado): {e}", exc_info=True)
         return jsonify({'error': 'Error obteniendo propiedades'}), 500
-
-@app.route('/api/gsc/performance')
-@auth_required
-def api_gsc_performance():
-    """Endpoint fiel a GSC que devuelve series diarias de clicks, impressions, ctr y position.
-
-    Query params:
-    - start: YYYY-MM-DD
-    - end:   YYYY-MM-DD
-    - siteUrl (opcional)
-    """
-    try:
-        start = (request.args.get('start') or '').strip()
-        end = (request.args.get('end') or '').strip()
-        site_url_sc = (request.args.get('siteUrl') or '').strip()
-        country = (request.args.get('country') or '').strip()
-        match_type = (request.args.get('match_type') or '').strip() or 'contains'
-        urls_raw = (request.args.get('urls') or '').strip()
-
-        if not start or not end:
-            return jsonify({'error': 'start y end son obligatorios'}), 400
-
-        # Usuario autenticado
-        user = get_current_user()
-        if not user:
-            return jsonify({'error': 'No autorizado'}), 401
-
-        # Resolver siteUrl por defecto si no llega
-        def _resolve_default_site(user_id: int) -> str:
-            try:
-                props = list_gsc_properties_for_user(user_id) or []
-                if props:
-                    p = props[0]
-                    return p.get('site_url') or p.get('siteUrl') or ''
-            except Exception:
-                pass
-            return ''
-
-        if not site_url_sc:
-            site_url_sc = _resolve_default_site(user['id'])
-            if not site_url_sc:
-                return jsonify({'error': 'No se encontró una propiedad de Search Console para el usuario'}), 400
-
-        # Caché (Redis si disponible) por (userId, siteUrl, start, end)
-        cache_client = getattr(ai_cache, 'redis_client', None)
-        cache_key = None
-        if cache_client:
-            urls_fingerprint = hashlib.sha1((urls_raw or '').encode('utf-8')).hexdigest()[:8]
-            cache_key = f"gsc:perf:{user['id']}:{site_url_sc.lower()}:{start}:{end}:{country or '-'}:{match_type or '-'}:{urls_fingerprint}"
-            try:
-                cached = cache_client.get(cache_key)
-                if cached:
-                    return Response(cached, mimetype='application/json')
-            except Exception:
-                pass
-
-        # Construir servicio autenticado (respetar conexión ligada a la propiedad si existe)
-        gsc_service = None
-        try:
-            mapping_conn = get_connection_for_site(user['id'], site_url_sc)
-            if mapping_conn:
-                gsc_service = get_authenticated_service_for_connection(mapping_conn, 'searchconsole', 'v1')
-        except Exception as e:
-            logger.warning(f"No se pudo resolver conexión por site_url: {e}")
-        if not gsc_service:
-            gsc_service = get_authenticated_service('searchconsole', 'v1')
-        if not gsc_service:
-            return jsonify({'error': 'Error de autenticación con Google Search Console', 'auth_required': True}), 401
-
-        # Query sin muestreo adicional
-        body = {
-            'startDate': start,
-            'endDate': end,
-            'dimensions': ['date'],
-            'rowLimit': 25000
-        }
-
-        # Filtros avanzados: país (searchAppearance o dimension country) y URLs (dimension page)
-        filter_groups = []
-        # Construir filtros avanzados con semántica correcta (AND/OR) según GSC:
-        # - Grupos se combinan con OR entre sí
-        # - Dentro de un grupo, los filtros se combinan con AND (o groupType explícito)
-        country_filter = None
-        if country:
-            country_filter = {
-                'dimension': 'country',
-                'operator': 'equals',
-                'expression': country
-            }
-
-        url_list = [u.strip() for u in (urls_raw.split('\n') if urls_raw else []) if u.strip()]
-        has_urls = len(url_list) > 0
-        if has_urls:
-            if 'dimensions' in body and 'page' not in body['dimensions']:
-                body['dimensions'] = ['date', 'page']
-            op_map = {
-                'contains': 'contains',
-                'equals': 'equals',
-                'notContains': 'notContains',
-                'notEquals': 'notEquals'
-            }
-            operator = op_map.get(match_type, 'contains')
-
-            # Operadores negativos requieren AND sobre todas las URLs (excluir cualquiera que coincida)
-            if operator in ('notContains', 'notEquals'):
-                group_filters = []
-                if country_filter:
-                    group_filters.append(country_filter)
-                for u in url_list:
-                    group_filters.append({
-                        'dimension': 'page',
-                        'operator': operator,
-                        'expression': u
-                    })
-                filter_groups.append({ 'groupType': 'and', 'filters': group_filters })
-            else:
-                # Positivos: (country AND page=u1) OR (country AND page=u2) ...
-                if country_filter:
-                    for u in url_list:
-                        filter_groups.append({
-                            'groupType': 'and',
-                            'filters': [
-                                country_filter,
-                                {
-                                    'dimension': 'page',
-                                    'operator': operator,
-                                    'expression': u
-                                }
-                            ]
-                        })
-                else:
-                    # Sin país: un solo grupo con OR de páginas
-                    url_filters = [{ 'dimension': 'page', 'operator': operator, 'expression': u } for u in url_list]
-                    filter_groups.append({ 'groupType': 'or', 'filters': url_filters })
-        else:
-            # Sólo país sin URLs
-            if country_filter:
-                filter_groups.append({ 'groupType': 'and', 'filters': [country_filter] })
-
-        # Ejecutar consulta a GSC, con tratamiento especial para operadores positivos con múltiples URLs
-        rows = []
-        if has_urls and operator in ('contains', 'equals'):
-            # Replicar semántica previa: una llamada por URL (AND con country si aplica) y agregamos resultados
-            for u in url_list:
-                group_filters = []
-                if country_filter:
-                    group_filters.append(country_filter)
-                group_filters.append({ 'dimension': 'page', 'operator': operator, 'expression': u })
-                local_body = {
-                    'startDate': start,
-                    'endDate': end,
-                    'dimensions': body.get('dimensions', ['date']),
-                    'rowLimit': body.get('rowLimit', 25000),
-                    'dimensionFilterGroups': [{ 'groupType': 'and', 'filters': group_filters }]
-                }
-                try:
-                    resp_local = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=local_body).execute()
-                    rows.extend(resp_local.get('rows', []))
-                except HttpError as e:
-                    logger.error(f"HTTPError GSC (per-URL): {e}")
-                except Exception as e:
-                    logger.error(f"Error consultando Search Console (per-URL): {e}")
-        else:
-            if filter_groups:
-                body['dimensionFilterGroups'] = filter_groups
-            try:
-                resp = gsc_service.searchanalytics().query(siteUrl=site_url_sc, body=body).execute()
-            except HttpError as e:
-                status = getattr(e, 'status_code', 500)
-                if status == 403:
-                    return jsonify({'error': 'Acceso denegado a la propiedad', 'forbidden': True}), 403
-                logger.error(f"HTTPError GSC: {e}")
-                return jsonify({'error': 'Error consultando Search Console'}), 500
-            except Exception as e:
-                logger.error(f"Error consultando Search Console: {e}")
-                return jsonify({'error': 'Error consultando Search Console'}), 500
-            rows = (resp or {}).get('rows', [])
-
-        # Indexar por fecha y agregar resultados. Si hay dimensión page, agregamos por fecha.
-        aggregates = {}
-        for r in rows:
-            # Encontrar fecha en keys
-            d = None
-            for k in r.get('keys', []):
-                if isinstance(k, str) and len(k) == 10 and k[4] == '-' and k[7] == '-':
-                    d = k
-                    break
-            if not d:
-                continue
-            clicks = float(r.get('clicks', 0) or 0)
-            impressions = float(r.get('impressions', 0) or 0)
-            position = float(r.get('position', 0) or 0)
-            if d not in aggregates:
-                aggregates[d] = {
-                    'clicks': 0.0,
-                    'impressions': 0.0,
-                    'pos_weighted_sum': 0.0
-                }
-            aggregates[d]['clicks'] += clicks
-            aggregates[d]['impressions'] += impressions
-            # Media ponderada por impresiones (aprox. al agregado de GSC)
-            aggregates[d]['pos_weighted_sum'] += position * impressions
-
-        # Convertir agregados a salida fiel por fecha
-        by_date = {}
-        for d, ag in aggregates.items():
-            clicks_sum = int(round(ag['clicks']))
-            impr_sum = int(round(ag['impressions']))
-            ctr_pct = (ag['clicks'] / ag['impressions'] * 100.0) if ag['impressions'] > 0 else 0.0
-            pos_avg = (ag['pos_weighted_sum'] / ag['impressions']) if ag['impressions'] > 0 else 0.0
-            by_date[d] = {
-                'date': d,
-                'clicks': clicks_sum,
-                'impressions': impr_sum,
-                'ctr': round(ctr_pct, 6),
-                'position': round(pos_avg, 6)
-            }
-
-        # Rellenar huecos de fechas con ceros para continuidad
-        def _daterange(start_d: date, end_d: date):
-            current = start_d
-            while current <= end_d:
-                yield current
-                current = current + timedelta(days=1)
-
-        try:
-            s = date.fromisoformat(start)
-            e = date.fromisoformat(end)
-        except Exception:
-            return jsonify({'error': 'Formato de fecha inválido (YYYY-MM-DD)'}), 400
-
-        # ✅ MEJORADO: Determinar hasta qué fecha hay datos reales y mostrar datos disponibles
-        data_dates = []
-        try:
-            data_dates = [date.fromisoformat(k) for k in by_date.keys()]
-        except Exception:
-            data_dates = []
-        
-        # ✅ MEJORADO: Usar zona horaria Europa/Madrid para calcular fechas correctamente
-        madrid_tz = pytz.timezone('Europe/Madrid')
-        today_madrid = datetime.now(madrid_tz).date()
-        
-        # ✅ SOLUCIÓN: En lugar de asumir un retraso fijo de 3 días, usar la fecha más reciente 
-        # con datos reales o la fecha solicitada si hay datos recientes
-        if data_dates:
-            # Si hay datos, usar hasta la fecha más reciente con datos reales
-            max_data_date = max(data_dates)
-            # Solo aplicar límite si no hay datos muy recientes (mayor a 2 días)
-            if max_data_date >= today_madrid - timedelta(days=2):
-                # Hay datos recientes, usar fecha solicitada
-                fill_end = e
-            else:
-                # No hay datos muy recientes, usar hasta la fecha más reciente con datos + 1 día
-                fill_end = min(e, max_data_date + timedelta(days=1))
-        else:
-            # Sin datos, usar fecha solicitada menos 2 días como fallback conservador
-            fill_end = min(e, today_madrid - timedelta(days=2))
-
-        out = []
-        for d in _daterange(s, fill_end):
-            iso = d.isoformat()
-            out.append(by_date.get(iso, {
-                'date': iso,
-                'clicks': 0,
-                'impressions': 0,
-                'ctr': 0.0,
-                'position': 0.0
-            }))
-
-        # Serializar
-        result_json = json.dumps(out)
-
-        # ETag + Cache-Control (600s)
-        try:
-            etag = 'W/"' + hashlib.sha256((site_url_sc + start + end + result_json).encode('utf-8')).hexdigest()[:32] + '"'
-        except Exception:
-            etag = None
-
-        inm = request.headers.get('If-None-Match')
-        if etag and inm == etag:
-            resp304 = Response(status=304)
-            resp304.headers['ETag'] = etag
-            resp304.headers['Cache-Control'] = 'public, max-age=600'
-            return resp304
-
-        # Cachear 10 minutos para evitar recomputar
-        if cache_client and cache_key:
-            try:
-                cache_client.setex(cache_key, 600, result_json)
-            except Exception:
-                pass
-
-        resp_out = Response(result_json, mimetype='application/json')
-        if etag:
-            resp_out.headers['ETag'] = etag
-        resp_out.headers['Cache-Control'] = 'public, max-age=600'
-        return resp_out
-    except Exception as e:
-        logger.error(f"Error interno en /api/gsc/performance: {e}", exc_info=True)
-        return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/mobile-not-supported')
 def mobile_not_supported():
@@ -1057,6 +753,111 @@ def get_data():
                 summary_data = fetch_urls_data(start_date, end_date, label_suffix)
             
             return summary_data
+
+        # ✅ NUEVO: Obtener series diarias para la gráfica (no rompe contrato existente)
+        def fetch_daily_series(start_date, end_date):
+            daily_map = {}
+
+            def accumulate_rows(rows):
+                for r in rows:
+                    date_key = r.get('keys', [''])[0]
+                    if not date_key:
+                        continue
+                    if date_key not in daily_map:
+                        daily_map[date_key] = {
+                            'date': date_key,
+                            'clicks': 0,
+                            'impressions': 0,
+                            '_ctr_weight': 0.0,
+                            '_pos_weight': 0.0
+                        }
+                    entry = daily_map[date_key]
+                    clicks = r.get('clicks', 0) or 0
+                    impressions = r.get('impressions', 0) or 0
+                    ctr = r.get('ctr', 0.0) or 0.0
+                    pos = r.get('position', 0.0) or 0.0
+                    entry['clicks'] += clicks
+                    entry['impressions'] += impressions
+                    entry['_ctr_weight'] += ctr * impressions
+                    entry['_pos_weight'] += pos * impressions
+
+            # Propiedad completa: usar solo 'date' con filtros base
+            if analysis_mode == "property":
+                combined_filters = get_base_filters()
+                rows = fetch_searchconsole_data_single_call(
+                    gsc_service, site_url_sc,
+                    start_date.strftime('%Y-%m-%d'),
+                    end_date.strftime('%Y-%m-%d'),
+                    ['date'],
+                    combined_filters
+                )
+                accumulate_rows(rows)
+            else:
+                # Páginas seleccionadas: sumar por fecha filtrando por página
+                if match_type == 'notContains' and len(form_urls) > 1:
+                    url_filter_group = {
+                        'groupType': 'and',
+                        'filters': [
+                            {'dimension': 'page', 'operator': 'notContains', 'expression': val}
+                            for val in form_urls
+                        ]
+                    }
+                    combined_filters = get_base_filters([url_filter_group])
+                    rows = fetch_searchconsole_data_single_call(
+                        gsc_service, site_url_sc,
+                        start_date.strftime('%Y-%m-%d'),
+                        end_date.strftime('%Y-%m-%d'),
+                        ['date'],
+                        combined_filters
+                    )
+                    accumulate_rows(rows)
+                else:
+                    for val_url in form_urls:
+                        url_filter = [{'filters': [{'dimension': 'page', 'operator': match_type, 'expression': val_url}]}]
+                        combined_filters = get_base_filters(url_filter)
+                        rows = fetch_searchconsole_data_single_call(
+                            gsc_service, site_url_sc,
+                            start_date.strftime('%Y-%m-%d'),
+                            end_date.strftime('%Y-%m-%d'),
+                            ['date'],
+                            combined_filters
+                        )
+                        accumulate_rows(rows)
+
+            # Convertir a lista ordenada y calcular CTR/Position promedio ponderado
+            points = []
+            for date_key in sorted(daily_map.keys()):
+                entry = daily_map[date_key]
+                impr = entry['impressions']
+                ctr_val = (entry['_ctr_weight'] / impr) if impr > 0 else 0.0
+                pos_val = (entry['_pos_weight'] / impr) if impr > 0 else 0.0
+                points.append({
+                    'date': entry['date'],
+                    'clicks': entry['clicks'],
+                    'impressions': impr,
+                    'ctr': ctr_val,
+                    'position': pos_val
+                })
+
+            # Rellenar huecos de fechas con 0s para continuidad
+            try:
+                from datetime import timedelta as _td
+                date_cursor = start_date
+                filled = []
+                idx = {p['date']: p for p in points}
+                while date_cursor <= end_date:
+                    ds = date_cursor.strftime('%Y-%m-%d')
+                    if ds in idx:
+                        filled.append(idx[ds])
+                    else:
+                        filled.append({'date': ds, 'clicks': 0, 'impressions': 0, 'ctr': 0.0, 'position': 0.0})
+                    date_cursor += _td(days=1)
+                points = filled
+            except Exception:
+                # Si algo falla en rellenado, usar lo ya calculado
+                pass
+
+            return points
 
         # ✅ SEPARADO: Obtener datos de URLs (para tabla) y datos de summary (para métricas)
         
@@ -1478,6 +1279,20 @@ def get_data():
                 'label': f"{comparison_start_date} to {comparison_end_date}"
             }
         
+        # ✅ NUEVO: Adjuntar series diarias SOLO para la gráfica del frontend
+        try:
+            daily_current = fetch_daily_series(current_start, current_end)
+            daily_prev = []
+            if has_comparison and comparison_start and comparison_end:
+                daily_prev = fetch_daily_series(comparison_start, comparison_end)
+            response_data['daily_series'] = {
+                'current': daily_current,
+                'prev': daily_prev
+            }
+            logger.info(f"[RESPONSE] Series diarias: cur={len(daily_current)} prev={len(daily_prev)}")
+        except Exception as _e:
+            logger.warning(f"No se pudieron generar series diarias: {_e}")
+
         logger.info(f"[RESPONSE] Keywords encontradas: {len(keyword_comparison_data)}")
         logger.info(f"[RESPONSE] Total KWs: {kw_stats_data.get('overall', {}).get('total', 0)}")
         
