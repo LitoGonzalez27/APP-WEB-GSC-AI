@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+      <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clicandseo</title>
+
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Favicon y Apple Touch Icons -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='estilos-principales.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base-y-componentes.css') }}">
+</head>
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+          <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+               alt="Clicandseo Logo" 
+               class="logo-image">
+      </div>
+            
+            <div class="navbar-menu">
+                <div class="navbar-links">
+                    <a href="/app" class="navbar-link custom-btn-analizar">
+                        <i class="fas fa-analytics"></i>
+                        Start Analysis
+                    </a>
+                    {% if user.role == 'admin' %}
+                    <a href="/admin/users" class="navbar-link">
+                        <i class="fas fa-users-cog"></i>
+                        Administración
+                    </a>
+                    {% endif %}
+                </div>
+                
+                <div class="navbar-user">
+                    <div class="user-dropdown">
+                        <button class="user-btn">
+                            <div class="user-avatar">
+                                {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar">
+                                {% else %}
+                                <i class="fas fa-user"></i>
+                                {% endif %}
+                            </div>
+                            <span class="user-name">{{ user.name }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="user-dropdown-menu">
+                            <a href="/profile" class="dropdown-item active">
+                                <i class="fas fa-user-circle"></i>
+                                Mi Perfil
+                            </a>
+                            <a href="/dashboard" class="dropdown-item">
+                                <i class="fas fa-home"></i>
+                                Dashboard
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <button class="dropdown-item logout-btn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Cerrar sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Header -->
+            <div class="profile-header">
+                <div class="header-content">
+                    <div class="user-info">
+                        <div class="user-avatar-large">
+                            {% if user.picture %}
+                            <img src="{{ user.picture }}" alt="Avatar de {{ user.name }}">
+                            {% else %}
+                            <i class="fas fa-user"></i>
+                            {% endif %}
+                        </div>
+                        <div class="user-details">
+                            <h1>{{ user.name }}</h1>
+                            <p class="user-email">{{ user.email }}</p>
+                            <div class="user-badges">
+                                <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
+                                    {% if user.role == 'admin' %}
+                                        Administrador
+                                    {% elif user.role == 'AI User' %}
+                                        AI User
+                                    {% else %}
+                                        Usuario
+                                    {% endif %}
+                                </span>
+                                <span class="badge badge-plan plan-{{ user.get('plan','free') }}">
+                                    {{ user.get('plan','free')|capitalize }}
+                                </span>
+                                <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
+                                    <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
+                                    {{ 'Activo' if user.is_active else 'Inactivo' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        
+                        <a href="/dashboard" class="btn btn-outline" style="border:1px solid #161616; background:transparent; color:#161616;">
+                            <i class="fas fa-home"></i>
+                            Go to dashboard
+                        </a>
+                        <button id="editProfileBtn" type="button" class="btn btn-primary" onclick="openEditProfile()">
+                            <i class="fas fa-edit"></i>
+                            Edit Profile
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenido en pestañas -->
+            <div class="profile-tabs">
+                <div class="tab-nav">
+                    <button class="tab-button active" data-tab="info">
+                        <i class="fas fa-info-circle"></i>
+                        Personal Information
+                    </button>
+                    <button class="tab-button" data-tab="connections">
+                        <i class="fas fa-plug"></i>
+                        Connections
+                    </button>
+                    <button class="tab-button" data-tab="billing">
+                        <i class="fas fa-credit-card"></i>
+                        Billing
+                    </button>
+                    <button class="tab-button" data-tab="security">
+                        <i class="fas fa-shield-alt"></i>
+                        Security
+                    </button>
+                    <button class="tab-button" data-tab="activity">
+                        <i class="fas fa-history"></i>
+                        Activity
+                    </button>
+                </div>
+
+                <!-- Pestaña de información -->
+                <div id="infoTab" class="tab-content active">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                              
+                                Personal Information
+                            </h3>
+                            <p>Manage your basic profile information</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Full Name</label>
+                                    <div class="info-value">{{ user.name }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Email</label>
+                                    <div class="info-value">{{ user.email }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Role</label>
+                                    <div class="info-value">
+                                        <span class="badge badge-role {{ user.role.lower().replace(' ', '-') if user.role else 'user' }}">
+                                            {% if user.role == 'admin' %}
+                                                Admin
+                                            {% elif user.role == 'AI User' %}
+                                                AI User
+                                            {% else %}
+                                                User
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Account Status</label>
+                                    <div class="info-value">
+                                        <span class="badge badge-status {{ 'active' if user.is_active else 'inactive' }}">
+                                            {{ 'Active' if user.is_active else 'Inactive' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Registration Date</label>
+                                    <div class="info-value">
+                                        {% if user.created_at %}
+                                            {{ user.created_at.strftime('%B %d, %Y') }}
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Authentication Type</label>
+                                    <div class="info-value">
+                                        {% if user.google_id %}
+                                        <span class="auth-type google">
+                                            <i class="fab fa-google"></i>
+                                            Google OAuth
+                                        </span>
+                                        {% else %}
+                                        <span class="auth-type manual">
+                                            <i class="fas fa-envelope"></i>
+                                            Email and Password
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Uso y plan -->
+                            <div class="info-grid" style="margin-top:1.5rem;">
+                                <div class="info-item">
+                                    <label>Current Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                            </div>
+                            <div>
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a style="margin-top: 20px;" href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
+                                <a style="margin-top: 20px;" href="/billing/portal" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    Manage subscription
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de conexiones -->
+                <div id="connectionsTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                               
+                                Google Search Console Connections
+                            </h3>
+                            <p>Connect multiple Google accounts and manage their properties
+                                <span title="You can connect multiple Google accounts, we aggregate properties across all accounts, and we only request read-only access to Search Console." style="margin-left:6px; cursor:help; color:#6b7280;">
+                                    <i class="fas fa-info-circle"></i>
+                                </span>
+                            </p>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom:1rem;">
+                                <a href="/connections/google/start" class="btn btn-primary">
+                                    <i class="fas fa-link"></i>
+                                    Connect new Google account
+                                </a>
+                            </div>
+                            <div id="connectionsList">Loading connections...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de billing -->
+                <div id="billingTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                              
+                                Billing
+                            </h3>
+                            <p>Manage your plan, invoices and payment methods</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Plan</label>
+                                    <div class="info-value">{{ user.get('plan','free')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Status</label>
+                                    <div class="info-value">{{ user.get('billing_status','inactive')|replace('_',' ')|capitalize }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Quota</label>
+                                    {% set quota_limit = user.get('quota_limit',0) or 0 %}
+                                    {% set quota_used = user.get('quota_used',0) or 0 %}
+                                    {% set quota_pct = (quota_used / quota_limit * 100) if quota_limit > 0 else 0 %}
+                                    <div>
+                                        <div class="progress-bar" style="--quota-pct: {{ quota_pct|int }};">
+                                            <div class="progress-fill"></div>
+                                        </div>
+                                        <div class="progress-label">{{ quota_used }}/{{ quota_limit }} RU ({{ quota_pct|int }}%)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                                {% set user_plan = user.get('plan','free') %}
+                                {% if user_plan == 'free' %}
+                                <a href="https://clicandseo.com/pricing/" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    View plans
+                                </a>
+                                {% else %}
+                                <a href="/billing/portal" class="btn btn-primary">
+                                    <i class="fas fa-credit-card"></i>
+                                    Manage subscription
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de seguridad -->
+                <div id="securityTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                              
+                                Account Security
+                            </h3>
+                            <p>Manage your account security and password</p>
+                        </div>
+                        <div class="card-body">
+                            {% if user.password_hash %}
+                            <div class="security-section">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>
+                                            <i class="fas fa-key"></i>
+                                            Password
+                                        </h4>
+                                        <p>Change your password to keep your account secure</p>
+                                    </div>
+                                    <button class="btn btn-outline" onclick="openChangePassword()">
+                                        <i class="fas fa-edit"></i>
+                                        Change Password
+                                    </button>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="security-notice">
+                                <div class="notice-content">
+                                    <i class="fab fa-google"></i>
+                                    <div>
+                                        <h4>Google-linked Account</h4>
+                                        <p>Your account is authenticated through Google OAuth. You don't have a specific password in our system.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="security-section">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>
+                                            <i class="fas fa-clock"></i>
+                                            Sesión activa
+                                        </h4>
+                                        <p>Información sobre tu sesión actual</p>
+                                    </div>
+                                    <button class="btn btn-outline" onclick="showSessionInfo()">
+                                        <i class="fas fa-info"></i>
+                                        Ver detalles
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña de actividad -->
+                <div id="activityTab" class="tab-content">
+                    <div class="profile-card">
+                        <div class="card-header">
+                            <h3>
+                              
+                                Recent Activity
+                            </h3>
+                            <p>Log of the most recent actions on your account</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-list">
+                                {% for activity in activity_log %}
+                                <div class="activity-item">
+                                    <div class="activity-icon">
+                                        <i class="fas fa-circle"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <div class="activity-title">{{ activity.activity }}</div>
+                                        <div class="activity-details">{{ activity.details }}</div>
+                                        <div class="activity-time">
+                                            {% if activity.timestamp %}
+                                            {{ activity.timestamp.strftime('%d de %B de %Y a las %H:%M') }}
+                                        {% else %}
+                                            Fecha no disponible
+                                        {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de edición de perfil -->
+    <div id="editProfileModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <h3>Editar perfil</h3>
+                <button class="profile-modal-close">&times;</button>
+            </div>
+            <div class="profile-modal-body">
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="editName">Nombre completo</label>
+                        <input type="text" id="editName" name="name" value="{{ user.name }}" required>
+                        <span class="field-error" id="editNameError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        {% if user.google_id %}
+                        <input type="email" id="editEmail" name="email" value="{{ user.email }}" disabled>
+                        <div class="field-help">Cuenta vinculada con Google: no puedes cambiar el email desde la aplicación.</div>
+                        {% else %}
+                        <input type="email" id="editEmail" name="email" value="{{ user.email }}" required>
+                        {% endif %}
+                        <span class="field-error" id="editEmailError"></span>
+                    </div>
+
+                    {% if user.password_hash %}
+                    <div class="form-group">
+                        <label for="editCurrentPassword">Contraseña actual</label>
+                        <div class="password-input">
+                            <input type="password" id="editCurrentPassword" name="current_password" placeholder="••••••••">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editCurrentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editCurrentPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editNewPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editNewPassword" name="new_password" placeholder="Mínimo 8 caracteres">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editNewPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editNewPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="editConfirmPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="editConfirmPassword" name="confirm_password" placeholder="Repite la contraseña">
+                            <button type="button" class="password-toggle" onclick="togglePassword('editConfirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="editConfirmPasswordError"></span>
+                    </div>
+                    {% else %}
+                    <div class="security-notice" style="margin-top: .5rem;">
+                        <div class="notice-content">
+                            <div>
+                                <strong>Inicio de sesión con Google</strong>
+                                <p>Tu cuenta no usa contraseña local. Puedes cambiar nombre y email.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="profile-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editProfileModal')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="updateProfile()">
+                    <span class="btn-text">Guardar cambios</span>
+                    <div class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de cambio de contraseña -->
+    <div id="changePasswordModal" class="profile-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <h3>Cambiar contraseña</h3>
+                <button class="profile-modal-close">&times;</button>
+            </div>
+            <div class="profile-modal-body">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Contraseña actual</label>
+                        <div class="password-input">
+                            <input type="password" id="currentPassword" name="current_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('currentPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="currentPasswordError"></span>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">Nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="newPassword" name="new_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('newPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="newPasswordError"></span>
+                        <div class="field-help">La contraseña debe tener al menos 8 caracteres</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar nueva contraseña</label>
+                        <div class="password-input">
+                            <input type="password" id="confirmPassword" name="confirm_password" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="field-error" id="confirmPasswordError"></span>
+                    </div>
+                </form>
+            </div>
+            <div class="profile-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="changePassword()">
+                    <span class="btn-text">Cambiar contraseña</span>
+                    <div class="btn-spinner" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- Scripts -->
+    <script>
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notifications = document.getElementById('notifications');
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            const icons = {
+                success: 'fas fa-check-circle',
+                error: 'fas fa-exclamation-circle',
+                warning: 'fas fa-exclamation-triangle',
+                info: 'fas fa-info-circle'
+            };
+            
+            notification.innerHTML = `
+                <i class="${icons[type]}"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            notifications.appendChild(notification);
+            
+            // Auto-remove después de 5 segundos
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        // Función para abrir modal
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) { console.warn('Modal not found:', modalId); return; }
+            modal.style.display = 'flex';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+            modal.style.zIndex = '9999';
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+
+        // Función para cerrar modal
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            // Limpiar formularios
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) {
+                form.reset();
+                // Limpiar errores
+                form.querySelectorAll('.field-error').forEach(error => {
+                    error.textContent = '';
+                });
+            }
+        }
+
+        // Función para toggle de contraseña
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const toggle = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggle.classList.remove('fa-eye');
+                toggle.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                toggle.classList.remove('fa-eye-slash');
+                toggle.classList.add('fa-eye');
+            }
+        }
+
+        // Función para manejar pestañas
+        function switchTab(tabId) {
+            // Remover clase active de todos los botones y contenidos
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Agregar clase active al botón y contenido seleccionado
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+        }
+
+        // Función para abrir modal de edición
+        function openEditProfile() {
+            openModal('editProfileModal');
+        }
+
+        // Función para abrir modal de cambio de contraseña
+        function openChangePassword() {
+            openModal('changePasswordModal');
+        }
+
+        // Función para actualizar perfil
+        async function updateProfile() {
+            const btn = document.querySelector('#editProfileModal .btn-primary');
+            const spinner = btn.querySelector('.btn-spinner');
+            const text = btn.querySelector('.btn-text');
+            
+            try {
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Guardando...';
+                
+                const formData = new FormData(document.getElementById('editProfileForm'));
+                const data = {
+                    name: formData.get('name'),
+                    email: formData.get('email')
+                };
+                
+                const response = await fetch('/profile/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    // Si hay campos de contraseña y están rellenos, cambiar contraseña
+                    const hasPassword = document.getElementById('editCurrentPassword');
+                    if (hasPassword) {
+                        const current_password = formData.get('current_password');
+                        const new_password = formData.get('new_password');
+                        const confirm_password = formData.get('confirm_password');
+                        if (new_password || confirm_password) {
+                            const pwdResp = await fetch('/profile/change-password', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ current_password, new_password, confirm_password })
+                            });
+                            const pwdResult = await pwdResp.json();
+                            if (!pwdResult.success) {
+                                showNotification(pwdResult.error || 'No se pudo cambiar la contraseña', 'error');
+                                btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Guardar cambios';
+                                return;
+                            }
+                        }
+                    }
+                    closeModal('editProfileModal');
+                    // Recargar página para mostrar cambios
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error de conexión. Intenta de nuevo.', 'error');
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.textContent = 'Guardar cambios';
+            }
+        }
+
+        // Función para cambiar contraseña
+        async function changePassword() {
+            const btn = document.querySelector('#changePasswordModal .btn-primary');
+            const spinner = btn.querySelector('.btn-spinner');
+            const text = btn.querySelector('.btn-text');
+            
+            try {
+                // Limpiar errores previos
+                document.querySelectorAll('#changePasswordModal .field-error').forEach(error => {
+                    error.textContent = '';
+                });
+                
+                btn.disabled = true;
+                spinner.style.display = 'inline-block';
+                text.textContent = 'Cambiando...';
+                
+                const formData = new FormData(document.getElementById('changePasswordForm'));
+                const data = {
+                    current_password: formData.get('current_password'),
+                    new_password: formData.get('new_password'),
+                    confirm_password: formData.get('confirm_password')
+                };
+                
+                // Validaciones de cliente
+                if (!data.current_password || !data.new_password || !data.confirm_password) {
+                    showNotification('Todos los campos son obligatorios', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password.length < 8) {
+                    showNotification('La nueva contraseña debe tener al menos 8 caracteres', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+                if (data.new_password !== data.confirm_password) {
+                    showNotification('La nueva contraseña y su confirmación no coinciden', 'error');
+                    btn.disabled = false; spinner.style.display = 'none'; text.textContent = 'Cambiar contraseña';
+                    return;
+                }
+
+                const response = await fetch('/profile/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Contraseña actualizada correctamente', 'success');
+                    closeModal('changePasswordModal');
+                } else {
+                    showNotification(result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error de conexión. Intenta de nuevo.', 'error');
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                text.textContent = 'Cambiar contraseña';
+            }
+        }
+
+        // Función para mostrar información de sesión
+        function showSessionInfo() {
+            fetch('/auth/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.authenticated && data.session) {
+                        const minutes = Math.floor(data.session.remaining_seconds / 60);
+                        showNotification(`Tu sesión expira en ${minutes} minutos`, 'info');
+                    } else {
+                        showNotification('Información de sesión no disponible', 'warning');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error obteniendo información de sesión', 'error');
+                });
+        }
+
+        // Función para logout
+        async function logout() {
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    console.error('Error en logout');
+                }
+            } catch (error) {
+                console.error('Error en logout:', error);
+            }
+        }
+
+        async function loadConnections() {
+            const container = document.getElementById('connectionsList');
+            if (!container) return;
+            try {
+                const resp = await fetch('/gsc/properties');
+                const data = await resp.json();
+                const props = Array.isArray(data.properties) ? data.properties : [];
+                if (props.length === 0) {
+                    container.innerHTML = '<div class="security-notice">No connections yet. Connect your first Google account.</div>';
+                    return;
+                }
+                // Agrupar por email
+                const byEmail = {};
+                for (const p of props) {
+                    const email = p.googleEmail || 'Other accounts';
+                    if (!byEmail[email]) byEmail[email] = [];
+                    byEmail[email].push(p);
+                }
+                let html = '';
+                Object.keys(byEmail).sort().forEach(email => {
+                    const items = byEmail[email].sort((a,b)=>a.siteUrl.localeCompare(b.siteUrl));
+                    const sectionId = `conn_${btoa(email).replace(/=/g,'')}`;
+                    html += `<div class=\"security-section\">`;
+                    html += `<button class=\"btn btn-outline\" style=\"justify-content:space-between; width:100%;\" data-toggle=\"${sectionId}\">`+
+                            `<span>${email} (${items.length})</span>`+
+                            `<i class=\"fas fa-chevron-down\"></i></button>`;
+                    html += `<div id=\"${sectionId}\" class=\"conn-items\" style=\"display:none; padding:0.75rem 1rem 0 1rem;\">`;
+                    html += '<div style=\"display:flex; gap:.5rem; margin:.5rem 0; flex-wrap:wrap;\">';
+                    html += `<button class=\"btn btn-primary btn-sm js-refresh-conn\" data-email=\"${email}\"><i class=\"fas fa-sync\"></i> Refresh properties</button>`;
+                    html += `<button class=\"btn btn-primary btn-sm js-disconnect-conn\" data-email=\"${email}\"><i class=\"fas fa-unlink\"></i> Disconnect account</button>`;
+                    html += '</div>';
+                    html += '<ul style=\"margin:0; padding-left:1rem;\">';
+                    items.forEach(it => { html += `<li style=\"margin:.25rem 0; color:#374151;\" data-conn-id=\"${it.connectionId}\">${it.siteUrl}</li>`; });
+                    html += '</ul></div></div>';
+                });
+                container.innerHTML = html;
+                container.querySelectorAll('[data-toggle]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-toggle');
+                        const box = document.getElementById(id);
+                        const open = box.style.display !== 'none';
+                        box.style.display = open ? 'none' : 'block';
+                        btn.querySelector('i').classList.toggle('fa-chevron-down', open);
+                        btn.querySelector('i').classList.toggle('fa-chevron-up', !open);
+                    });
+                });
+                // Mapear email -> connectionId (tomar primero del listado)
+                const emailToConnId = {};
+                props.forEach(p => { if (!emailToConnId[p.googleEmail]) emailToConnId[p.googleEmail] = p.connectionId; });
+                // Handlers
+                container.querySelectorAll('.js-refresh-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        b.disabled = true; b.classList.add('loading');
+                        const r = await fetch(`/connections/${id}/refresh`, { method: 'POST' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false; b.classList.remove('loading');
+                        if (j && j.success) { showNotification('Properties refreshed', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to refresh', 'error'); }
+                    });
+                });
+                container.querySelectorAll('.js-disconnect-conn').forEach(b => {
+                    b.addEventListener('click', async () => {
+                        const email = b.getAttribute('data-email');
+                        const id = emailToConnId[email];
+                        if (!id) return;
+                        if (!confirm(`Disconnect account ${email}?`)) return;
+                        b.disabled = true; b.classList.add('loading');
+                        const r = await fetch(`/connections/${id}`, { method: 'DELETE' });
+                        const j = await r.json().catch(()=>({}));
+                        b.disabled = false; b.classList.remove('loading');
+                        if (j && j.success) { showNotification('Account disconnected', 'success'); loadConnections(); }
+                        else { showNotification(j.error || 'Failed to disconnect', 'error'); }
+                    });
+                });
+            } catch (e) {
+                container.innerHTML = '<div class="security-notice">Error loading connections</div>';
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pestañas
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+            
+            // Dropdown de usuario
+            const userBtn = document.querySelector('.user-btn');
+            const userDropdown = document.querySelector('.user-dropdown-menu');
+            
+            userBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+            
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+            
+            // Logout
+            document.querySelector('.logout-btn').addEventListener('click', logout);
+            // Edit profile open
+            const editBtn = document.getElementById('editProfileBtn');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => openEditProfile());
+            }
+            
+            // Modales
+            document.querySelectorAll('.profile-modal-close').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+            
+            // Clicks fuera del modal
+            document.querySelectorAll('.profile-modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.style.display = 'none';
+                    }
+                });
+            });
+            // Cargar conexiones cuando se abra la pestaña
+            document.querySelector('[data-tab="connections"]').addEventListener('click', loadConnections);
+            // Pre-carga opcional si llegas con ?tab=connections
+            if (window.location.search.includes('tab=connections')) {
+                switchTab('connections');
+                loadConnections();
+            }
+        });
+    </script>
+
+    <!-- Estilos específicos con paleta Manual AI -->
+    <style>
+        /* Variables del Manual AI para consistencia */
+        :root {
+            --profile-primary: #161616;
+            --profile-primary-light: #2d2d2d;
+            --profile-secondary: #D8F9B8;
+            --profile-secondary-light: #e8f5e8;
+            --profile-gray-50: #f9fafb;
+            --profile-gray-100: #f3f4f6;
+            --profile-gray-200: #e5e7eb;
+            --profile-gray-300: #d1d5db;
+            --profile-gray-400: #9ca3af;
+            --profile-gray-500: #6b7280;
+            --profile-gray-600: #4b5563;
+            --profile-gray-700: #374151;
+            --profile-gray-800: #1f2937;
+            --profile-gray-900: #111827;
+            --profile-success: #10b981;
+            --profile-warning: #f59e0b;
+            --profile-error: #ef4444;
+            --profile-border-radius: 8px;
+            --profile-border-radius-lg: 12px;
+            --profile-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --profile-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --profile-transition: all 0.15s ease-in-out;
+        }
+
+        .main-content {
+            padding-top: 70px;
+            min-height: 100vh;
+            background: var(--profile-gray-50);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .profile-header {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-avatar-large {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--profile-gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 3px solid var(--profile-primary);
+        }
+
+        .user-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar-large i {
+            font-size: 2rem;
+            color: var(--profile-gray-500);
+        }
+
+        .user-details h1 {
+            margin: 0 0 0.5rem 0;
+            color: var(--profile-gray-900);
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        .user-email {
+            margin: 0 0 1rem 0;
+            color: var(--profile-gray-600);
+            font-size: 1.125rem;
+        }
+
+        .user-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .badge-role {
+            background: var(--profile-primary);
+            color: var(--profile-secondary);
+            border-radius: var(--profile-border-radius);
+            font-weight: 600;
+        }
+
+        .badge-plan {
+            background: #e8f5e8;
+            color: #14532d;
+            border: 1px solid #bbf7d0;
+            border-radius: var(--profile-border-radius);
+            font-weight: 600;
+        }
+
+        .badge-status.active {
+            background: var(--profile-secondary-light);
+            color: var(--profile-success);
+        }
+
+        .badge-status.inactive {
+            background: #fef2f2;
+            color: var(--profile-error);
+        }
+
+        .custom-btn-analizar {
+            padding: 0.5rem 1rem !important;
+            color: var(--profile-primary) !important;
+            text-decoration: none !important;
+            border-radius: 25px !important;
+            transition: var(--profile-transition) !important;
+            background: var(--profile-secondary) !important;
+            font-size: 14px !important;
+            font-weight: 600;
+        }
+
+        .custom-btn-analizar:hover {
+            background: #c5e6a3 !important;
+            transform: translateY(-1px);
+            box-shadow: var(--profile-shadow);
+        }
+
+        .profile-tabs {
+            background: white;
+            border-radius: var(--profile-border-radius-lg);
+            overflow: hidden;
+            box-shadow: var(--profile-shadow-md);
+            border: 1px solid var(--profile-gray-200);
+        }
+
+        .tab-nav {
+            display: flex;
+            background: var(--profile-gray-50);
+            border-bottom: 1px solid var(--profile-gray-200);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--profile-gray-500);
+            font-weight: 500;
+            transition: var(--profile-transition);
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover,
+        .tab-button.active {
+            color: var(--profile-primary);
+            background: white;
+            border-bottom-color: #d8f9b8;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 2rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .profile-card {
+            background: transparent;
+        }
+
+        .card-header {
+            margin-bottom: 2rem;
+        }
+
+        .card-header h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--profile-gray-900);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-header p {
+            margin: 0;
+            color: var(--profile-gray-600);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-item label {
+            font-weight: 600;
+            color: var(--profile-gray-700);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            color: var(--profile-gray-900);
+            font-size: 1rem;
+        }
+
+        .auth-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .auth-type.google {
+            background: #fef7e0;
+            color: #f57c00;
+        }
+
+        .auth-type.manual {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .security-section {
+            margin-bottom: 2rem;
+            border: 1px solid #161616;
+            border-radius: 6px;
+            padding:6px;
+        }
+
+        .security-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            gap: 1rem;
+        }
+
+        .security-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--profile-gray-900);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .security-info p {
+            margin: 0;
+            color: var(--profile-gray-600);
+            font-size: 0.875rem;
+        }
+
+        .security-notice {
+            padding: 1.5rem;
+            background: var(--profile-gray-50);
+            border-radius: 8px;
+            border-left: 4px solid var(--profile-primary);
+        }
+
+        .notice-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notice-content i {
+            font-size: 2rem;
+            color: var(--profile-primary);
+        }
+
+        .notice-content h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--profile-gray-900);
+        }
+
+        .notice-content p {
+            margin: 0;
+            color: var(--profile-gray-600);
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--profile-gray-50);
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--profile-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .activity-icon i {
+            color: white;
+            font-size: 0.75rem;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: var(--profile-gray-900);
+        }
+
+        .activity-details {
+            color: var(--profile-gray-600);
+            font-size: 0.875rem;
+            margin: 0.25rem 0;
+        }
+
+        .activity-time {
+            color: #adb5bd;
+            font-size: 0.75rem;
+        }
+
+        /* Estilos de modales y formularios */
+        .profile-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease;
+        }
+
+        .profile-modal[aria-hidden="false"] {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .profile-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(-6px);
+            transition: transform 0.2s ease;
+        }
+
+        .profile-modal[aria-hidden="false"] .profile-modal-content {
+            transform: translateY(0);
+        }
+
+        .profile-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .profile-modal-header h3 {
+            margin: 0;
+            color: var(--profile-gray-900);
+        }
+
+        .profile-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--profile-gray-600);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .profile-modal-close:hover {
+            background: var(--profile-gray-50);
+            color: var(--profile-gray-900);
+        }
+
+        .profile-modal-body {
+            padding: 1.5rem;
+        }
+
+        .profile-modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--profile-gray-900);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--profile-primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .password-input {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--profile-gray-600);
+            padding: 4px;
+        }
+
+        .field-error {
+            display: block;
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .field-help {
+            display: block;
+            color: var(--profile-gray-600);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--profile-primary);
+            color: #d8f9b8;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #d8f9b8;
+            color:#161616;
+        }
+
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.8rem; }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #545b62;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--profile-primary);
+            border: 1px solid var(--profile-primary);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: var(--profile-primary);
+            color: white;
+        }
+
+        .btn-spinner {
+            display: none;
+        }
+
+        /* Notificaciones */
+        .notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .notification {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            max-width: 400px;
+            border-left: 4px solid var(--profile-primary);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-success {
+            border-left-color: #28a745;
+        }
+
+        .notification-error {
+            border-left-color: #dc3545;
+        }
+
+        .notification-warning {
+            border-left-color: #ffc107;
+        }
+
+        .notification i {
+            color: var(--profile-primary);
+        }
+
+        .notification-success i {
+            color: #28a745;
+        }
+
+        .notification-error i {
+            color: #dc3545;
+        }
+
+        .notification-warning i {
+            color: #ffc107;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--profile-gray-600);
+            margin-left: auto;
+            padding: 4px;
+        }
+
+        /* Progress bar for quota */
+        .progress-bar { width: 100%; height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; border: 1px solid #e5e7eb; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #d8f9b8, #9fe870); width: calc(var(--quota-pct, 0) * 1%); }
+        .progress-label { font-size: 0.85rem; color: #374151; margin-top: 6px; }
+
+        /* Navbar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--profile-primary);
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .navbar-menu {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .navbar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: var(--profile-gray-600);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-link:hover,
+        .navbar-link.active {
+            color: var(--profile-primary);
+            background: var(--profile-gray-50);
+        }
+
+        .user-dropdown {
+            position: relative;
+        }
+
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .user-btn:hover {
+            background: var(--profile-gray-50);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--profile-gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-avatar i {
+            color: var(--profile-gray-600);
+            font-size: 0.875rem;
+        }
+
+        .user-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 150px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .user-dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            color: var(--profile-gray-700);
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .dropdown-item:hover {
+            background: var(--profile-gray-50);
+            color: var(--profile-primary);
+        }
+
+        .dropdown-item.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--profile-gray-200);
+            margin: 0.5rem 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .navbar-container {
+                padding: 0 1rem;
+            }
+
+            .navbar-links {
+                display: none;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .tab-nav {
+                overflow-x: auto;
+            }
+
+            .tab-button {
+                white-space: nowrap;
+                flex: none;
+                min-width: 140px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .security-item {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <!-- Scripts de sesión -->
+    <script src="{{ url_for('static', filename='js/session-manager.js') }}"></script>
+</body>
+</html> 

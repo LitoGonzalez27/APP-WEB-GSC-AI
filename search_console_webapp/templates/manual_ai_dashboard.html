@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual AI Overview Analysis - ClicAndSEO</title>
+    
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+    <!-- End Google Tag Manager -->
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+    
+    <!-- Reutilizar estilos existentes para consistencia -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='modales-datos.css') }}" rel="stylesheet">
+    
+    <!-- CSS específico para Manual AI -->
+    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+    
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
+    
+    <!-- CSS para navbar principal -->
+    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
+    
+    <!-- CSS para sidebar navigation -->
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Grid.js para tablas -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Styles -->
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+</head>
+<body data-authenticated="{{ 'true' if user else 'false' }}">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
+    <!-- Navbar principal del SaaS -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" alt="Clicandseo Logo" class="logo-image">
+            </div>
+
+            <div class="navbar-desktop-actions">
+                <div class="navbar-user-dropdown" id="userDropdown" style="display: block;">
+                    <button class="user-dropdown-btn" id="userDropdownBtn" aria-expanded="false">
+                        <div class="user-avatar-small" id="userAvatarSmall">
+                            {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                            {% else %}
+                                <i class="fas fa-user-circle"></i>
+                            {% endif %}
+                        </div>
+                        <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                        <i class="fas fa-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <div class="user-avatar-large" id="userAvatarLarge">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="/dashboard" class="dropdown-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="dropdownThemeToggle" style="display: none;">
+                            <i class="fas fa-moon" id="dropdownThemeIcon"></i>
+                            <span id="dropdownThemeText">Modo Oscuro</span>
+                        </button>
+                        <div class="dropdown-divider" style="display: none;"></div>
+                        <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="auth-buttons" id="authButtons" style="display: none;">
+                    <button type="button" class="btn-auth btn-login" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Iniciar Sesión</span>
+                    </button>
+
+                    <button type="button" class="btn-theme-simple" id="toggleModeBtn" aria-pressed="false" aria-label="Cambiar a modo oscuro" style="display: none;">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+
+            <div class="navbar-mobile-menu" id="navbarMenu">
+                <div class="mobile-menu-header">
+                    <div class="mobile-brand">
+                        <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" alt="Clicandseo Logo" class="logo-image">
+                        <span>Clicandseo</span>
+                    </div>
+                    <button class="mobile-menu-close" id="mobileMenuClose">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="mobile-menu-content">
+                    <div class="mobile-user-section">
+                        <div class="mobile-user-info" id="mobileUserInfo" style="display: flex;">
+                            <div class="mobile-user-avatar">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="mobile-user-details">
+                                <span class="mobile-user-name" id="mobileUserName">{{ user.name or user.email }}</span>
+                                <span class="mobile-user-email" id="mobileUserEmail">{{ user.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mobile-auth-section">
+                        <button type="button" class="mobile-btn mobile-btn-login" id="mobileLoginBtn" style="display: none;">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Iniciar Sesión con Google</span>
+                        </button>
+
+                        <button type="button" class="mobile-btn mobile-btn-logout" id="mobileLogoutBtn" style="display: flex;">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+
+                    <div class="mobile-theme-section" style="display: none;">
+                        <div class="mobile-theme-toggle">
+                            <span class="mobile-theme-label">Tema de la aplicación</span>
+                            <button type="button" class="mobile-theme-btn" id="mobileToggleModeBtn">
+                                <i class="fas fa-moon" id="mobileThemeIcon"></i>
+                                <span id="mobileThemeText">Modo Oscuro</span>
+                                <i class="fas fa-chevron-right mobile-chevron"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="navbar-overlay" id="navbarOverlay"></div>
+    </nav>
+
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar-container" id="sidebarContainer">
+            <div class="sidebar-header">
+            </div>
+
+            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+                <div class="nav-section nav-section-analysis">
+                    <div class="nav-section-title">Análisis</div>
+                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
+                        <div class="nav-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="nav-text">Configuration</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
+                        <div class="nav-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="nav-text">Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPerformance"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
+                        <div class="nav-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="nav-text">Keywords</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusKeywords"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
+                        <div class="nav-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="nav-text">Pages</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPages"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">AI Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusAI"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item active" id="navManualAI">
+                        <div class="nav-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <div class="nav-text">Manual AI Analysis</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusManualAI"></div>
+                        </div>
+                    </button>
+                </div>
+
+                <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
+                    <div class="nav-section-title">Herramientas</div>
+                    <button type="button" class="sidebar-download-btn" id="sidebarDownloadBtn" style="display: none;" aria-label="Download Manual AI data as Excel" title="Exporta los datos visibles en Manual AI a Excel">
+                        <i class="fas fa-download"></i>
+                        <span>Download Excel</span>
+                        <div class="download-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </button>
+                    <button type="button" class="sidebar-download-btn" id="sidebarDownloadPdfBtn" style="display: none;" aria-label="Download Manual AI data as PDF" title="Exporta la vista actual de Manual AI a PDF">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>Download PDF</span>
+                        <div class="download-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content-area">
+    <div class="manual-ai-app">
+        <!-- Header independiente -->
+        <header class="manual-ai-header" data-pdf-exclude="true">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>
+                        Manual AI Overview Analysis
+                    </h1>
+                    <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
+                </div>
+                <div class="header-right">
+                    <!-- Go Back button removed as requested -->
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation tabs -->
+        <nav class="manual-ai-nav">
+            <div class="nav-tabs">
+                <button type="button" class="nav-tab active" data-tab="projects">
+                    <i class="fas fa-folder"></i>
+                    Projects
+                </button>
+                <button type="button" class="nav-tab" data-tab="analytics">
+                    <i class="fas fa-chart-line"></i>
+                    Analytics
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main content area -->
+        <main class="manual-ai-main">
+            
+            <!-- Projects Tab -->
+            <section class="tab-content active" id="projectsTab">
+                <div class="projects-header">
+                    <h2>Your AI Analysis Projects</h2>
+                    <button type="button" class="btn-primary" id="createProjectBtn">
+                        <i class="fas fa-plus"></i>
+                        Create New Project
+                    </button>
+                </div>
+
+                <!-- Projects loading state -->
+                <div class="loading-container" id="projectsLoading">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <p>Loading your projects...</p>
+                </div>
+
+                <!-- Projects list container -->
+                <div class="projects-grid" id="projectsContainer" style="display: none;">
+                    <!-- Projects will be rendered here by JavaScript -->
+                </div>
+
+                <!-- Empty state -->
+                <div class="empty-state" id="projectsEmptyState" style="display: none;">
+                    <div class="empty-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <h3>No projects yet</h3>
+                    <p>Create your first manual AI analysis project to get started</p>
+                    <button type="button" class="btn-primary btn-small mt-2" onclick="manualAI.showCreateProject()">
+                        <i class="fas fa-plus"></i>
+                        Create Your First Project
+                    </button>
+                </div>
+            </section>
+
+            <!-- Analytics Tab -->
+            <section class="tab-content" id="analyticsTab">
+                <div class="analytics-header">
+                    <h2>Analytics Dashboard</h2>
+                    <div class="analytics-controls">
+                        <div class="project-selector-highlight">
+                            <label for="analyticsProjectSelect" class="selector-label">
+                                <i class="fas fa-project-diagram"></i>
+                                Choose Project to Analyze
+                            </label>
+                            <select id="analyticsProjectSelect" class="form-select featured-select">
+                                <option value="">🎯 Select a project to view analytics...</option>
+                            </select>
+                        </div>
+                        <div class="time-range-selector">
+                            <label for="analyticsTimeRange" class="selector-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Time Range
+                            </label>
+                            <select id="analyticsTimeRange" class="form-select">
+                                <option value="7">Last 7 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics content -->
+                <div class="analytics-content" id="analyticsContent">
+                    <div class="analytics-empty">
+                        <i class="fas fa-chart-line"></i>
+                        <p>Select a project to view analytics</p>
+                    </div>
+                </div>
+
+                <!-- Charts container -->
+                <div class="charts-container" id="chartsContainer" style="display: none;">
+                    <!-- Overview Section -->
+                    <div class="overview-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-tachometer-alt"></i>
+                                Overview
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Key metrics and performance indicators for your project's AI Overview visibility
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                Information shown in the cards below is based on the latest available analysis
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Summary cards -->
+                    <div class="summary-cards">
+                        <!-- 1. Total Keywords -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="totalKeywords">-</h3>
+                                <p>Total Keywords</p>
+                            </div>
+                        </div>
+                        <!-- 2. AI Overview Results -->
+                        <div class="summary-card ai-overview-metric">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="aiKeywords">-</h3>
+                                <p>AI Overview Results</p>
+                            </div>
+                        </div>
+                        <!-- 3. AI Overview Weight -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="aioWeight">-</h3>
+                                <p>AI Overview Weight</p>
+                            </div>
+                        </div>
+                        <!-- 4. Domain Mentions -->
+                        <div class="summary-card ai-overview-metric">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="domainMentions">-</h3>
+                                <p>Domain Mentions</p>
+                            </div>
+                        </div>
+                        <!-- 5. Visibility -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="visibilityPercentage">-</h3>
+                                <p>Visibility</p>
+                            </div>
+                        </div>
+                        <!-- 6. Average Position -->
+                        <div class="summary-card ai-overview-metric">
+                            <div class="summary-card-icon">
+                                <i class="fas fa-sort-numeric-down"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="averagePosition">-</h3>
+                                <p>Average Position</p>
+                            </div>
+                        </div>
+                        
+
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <h3>Domain Visibility Over Time</h3>
+                            <canvas id="visibilityChart"></canvas>
+                            <div id="visibilityLegend" class="chart-html-legend"></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Position Distribution</h3>
+                            <canvas id="positionsChart"></canvas>
+                            <div id="positionsLegend" class="chart-html-legend"></div>
+                        </div>
+                    </div>
+
+                    <!-- Comparative Charts Section -->
+                    <div class="competitors-charts-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-chart-line"></i>
+                                Competitive Analysis vs Selected Competitors
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Compare your domain performance against selected competitors in AI Overview results
+                                    </div>
+                                </div>
+                            </h3>
+                        </div>
+                        
+                        <div class="competitors-charts-grid">
+                            <div class="chart-container">
+                                <h4>AI Overview Visibility Percentage</h4>
+                                <canvas id="comparativeVisibilityChart"></canvas>
+                                <div id="comparativeVisibilityLegend" class="chart-html-legend"></div>
+                            </div>
+                            
+                            <div class="chart-container">
+                                <h4>Average Position in AI Overview</h4>
+                                <canvas id="comparativePositionChart"></canvas>
+                                <div id="comparativePositionLegend" class="chart-html-legend"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Overview Keywords Details Section -->
+                    <div class="ai-overview-keywords-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-table"></i>
+                                AI Overview Keywords Details
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Detailed table showing keywords that generate AI Overview with your domain and competitors' appearances
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                Data from the latest analysis showing keywords with AI Overview and domain presence
+                            </p>
+                        </div>
+                        
+                        <div class="ai-overview-keywords-container">
+                            <div id="manualAIOverviewGrid" class="manual-ai-overview-grid-wrapper">
+                                <!-- Grid.js table will be rendered here -->
+                            </div>
+                            
+                            <div class="no-ai-keywords-message" id="noAIKeywordsMessage" style="display: none;">
+                                <div class="empty-state">
+                                    <i class="fas fa-robot"></i>
+                                    <p>No AI Overview keywords found</p>
+                                    <small>Run analysis to see keywords with AI Overview results</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Global Domains Ranking Section -->
+                    <div class="top-domains-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-globe"></i>
+                                Global AI Overview Domains Ranking
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Ranking of ALL domains detected in AI Overview for your keywords, with highlighting for your domain and selected competitors
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                Data shown represents the cumulative sum of all appearances during the selected period
+                            </p>
+                        </div>
+                        
+                        <div class="domains-container">
+                            <div class="domains-table-wrapper">
+                                <table class="domains-table" id="globalDomainsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Domain</th>
+                                            <th>Appearances</th>
+                                            <th>Avg Position</th>
+                                            <th>Visibility %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="globalDomainsBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="no-domains-message" id="noGlobalDomainsMessage" style="display: none;">
+                                <div class="empty-state">
+                                    <i class="fas fa-search"></i>
+                                    <p>No global domain data available yet</p>
+                                    <small>Run analysis to see all domains detected in AI Overview</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section class="tab-content" id="settingsTab">
+                <div class="settings-content">
+                    <h2>Global Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-group">
+                            <h3>Analysis Configuration</h3>
+                            <div class="setting-item">
+                                <label>Default Country</label>
+                                <select id="defaultCountry" class="form-select">
+                                    <option value="ES" selected>Spain</option>
+                                    <option value="US">United States</option>
+                                    <option value="GB">United Kingdom</option>
+                                    <option value="FR">France</option>
+                                    <option value="DE">Germany</option>
+                                    <option value="MX">Mexico</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h3>🕒 Daily Cron Analysis</h3>
+                            <div class="cron-info">
+                                <div class="setting-item">
+                                    <label>Automatic Daily Analysis</label>
+                                    <div class="cron-status">
+                                        <span class="status-indicator status-active">●</span>
+                                        <span>Active - Runs daily at 2:00 AM</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>Last Execution</label>
+                                    <div id="lastCronExecution" class="cron-last-run">
+                                        <i class="fas fa-clock"></i>
+                                        <span>Loading...</span>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <h3>Notifications</h3>
+                            <div class="setting-item">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="notifyAnalysisComplete">
+                                    <span class="checkmark"></span>
+                                    Analysis completion notifications
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="notifySignificantChanges">
+                                    <span class="checkmark"></span>
+                                    Significant visibility changes
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create Project Modal -->
+    <div class="modal-overlay" id="createProjectModal">
+        <div class="modal-content create-project-modal">
+            <div class="modal-header create-header">
+                <div class="header-text">
+                    <h3>Create New AI Analysis Project</h3>
+                    <p>Set up a new project to track AI Overview visibility</p>
+                </div>
+                <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="createProjectForm">
+                <div class="modal-body create-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectName" class="enhanced-label">
+        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
+                               
+                            </label>
+                            <input type="text" id="projectName" name="name" required maxlength="255" 
+                                   class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
+                            <small class="form-help">Choose a memorable name for your project</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectDescription" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Description</span>
+                            </label>
+                            <textarea id="projectDescription" name="description" rows="3"
+                                      class="enhanced-textarea" 
+                                      placeholder="Optional description about this project..."></textarea>
+                            <small class="form-help">Add details about what you want to analyze</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row form-row-split">
+                        <div class="form-group">
+                            <label for="projectDomain" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
+                            </label>
+                            <input type="text" id="projectDomain" name="domain" required
+                                   class="enhanced-input" placeholder="example.com">
+                            <small class="form-help">Domain to track in AI Overview results</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="projectCountry" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
+                            </label>
+                            <select id="projectCountry" name="country_code" class="enhanced-select">
+                                <option value="ES" selected>🇪🇸 Spain</option>
+                                <option value="US">🇺🇸 United States</option>
+                                <option value="GB">🇬🇧 United Kingdom</option>
+                                <option value="FR">🇫🇷 France</option>
+                                <option value="DE">🇩🇪 Germany</option>
+                                <option value="IT">🇮🇹 Italy</option>
+                                <option value="PT">🇵🇹 Portugal</option>
+                                <option value="NL">🇳🇱 Netherlands</option>
+                                <option value="BE">🇧🇪 Belgium</option>
+                                <option value="CH">🇨🇭 Switzerland</option>
+                                <option value="AT">🇦🇹 Austria</option>
+                                <option value="SE">🇸🇪 Sweden</option>
+                                <option value="NO">🇳🇴 Norway</option>
+                                <option value="DK">🇩🇰 Denmark</option>
+                                <option value="FI">🇫🇮 Finland</option>
+                                <option value="PL">🇵🇱 Poland</option>
+                                <option value="CZ">🇨🇿 Czech Republic</option>
+                                <option value="HU">🇭🇺 Hungary</option>
+                                <option value="RO">🇷🇴 Romania</option>
+                                <option value="BG">🇧🇬 Bulgaria</option>
+                                <option value="GR">🇬🇷 Greece</option>
+                                <option value="HR">🇭🇷 Croatia</option>
+                                <option value="SI">🇸🇮 Slovenia</option>
+                                <option value="SK">🇸🇰 Slovakia</option>
+                                <option value="CA">🇨🇦 Canada</option>
+                                <option value="MX">🇲🇽 Mexico</option>
+                                <option value="AR">🇦🇷 Argentina</option>
+                                <option value="BR">🇧🇷 Brazil</option>
+                                <option value="CL">🇨🇱 Chile</option>
+                                <option value="CO">🇨🇴 Colombia</option>
+                                <option value="PE">🇵🇪 Peru</option>
+                                <option value="AU">🇦🇺 Australia</option>
+                                <option value="NZ">🇳🇿 New Zealand</option>
+                                <option value="JP">🇯🇵 Japan</option>
+                                <option value="KR">🇰🇷 South Korea</option>
+                                <option value="SG">🇸🇬 Singapore</option>
+                                <option value="MY">🇲🇾 Malaysia</option>
+                                <option value="TH">🇹🇭 Thailand</option>
+                                <option value="PH">🇵🇭 Philippines</option>
+                                <option value="ID">🇮🇩 Indonesia</option>
+                                <option value="VN">🇻🇳 Vietnam</option>
+                                <option value="IN">🇮🇳 India</option>
+                                <option value="PK">🇵🇰 Pakistan</option>
+                                <option value="BD">🇧🇩 Bangladesh</option>
+                                <option value="ZA">🇿🇦 South Africa</option>
+                                <option value="NG">🇳🇬 Nigeria</option>
+                                <option value="EG">🇪🇬 Egypt</option>
+                                <option value="KE">🇰🇪 Kenya</option>
+                                <option value="MA">🇲🇦 Morocco</option>
+                                <option value="TN">🇹🇳 Tunisia</option>
+                                <option value="DZ">🇩🇿 Algeria</option>
+                                <option value="IL">🇮🇱 Israel</option>
+                                <option value="AE">🇦🇪 UAE</option>
+                                <option value="SA">🇸🇦 Saudi Arabia</option>
+                                <option value="TR">🇹🇷 Turkey</option>
+                                <option value="RU">🇷🇺 Russia</option>
+                                <option value="UA">🇺🇦 Ukraine</option>
+                            </select>
+                            <small class="form-help">Search location for analysis</small>
+                        </div>
+                    </div>
+
+                    <!-- Competitors (optional) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors (optional)</span>
+                                <small style="margin-left: 6px; color:#6b7280; font-weight:400;">Up to 4 domains</small>
+                            </label>
+                            <div class="competitors-inline-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <input type="text" id="competitor1" name="competitor1" class="enhanced-input" placeholder="example-competitor.com">
+                                <input type="text" id="competitor2" name="competitor2" class="enhanced-input" placeholder="another-competitor.com">
+                                <input type="text" id="competitor3" name="competitor3" class="enhanced-input" placeholder="optional">
+                                <input type="text" id="competitor4" name="competitor4" class="enhanced-input" placeholder="optional">
+                            </div>
+                            <small class="form-help">Introduce solo dominios (sin https:// ni rutas). Ej.: <strong>example.com</strong></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer create-footer">
+                    <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary btn-enhanced btn-create">
+                        <i class="fas fa-rocket"></i>
+                        Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Project Details Modal -->
+    <div class="modal-overlay" id="projectDetailsModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="projectDetailsTitle">Project Details</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideProjectDetails()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="project-details-tabs">
+                    <button type="button" class="detail-tab active" data-detail-tab="keywords">
+                        <i class="fas fa-key"></i>
+                        Keywords
+                    </button>
+                    <button type="button" class="detail-tab" data-detail-tab="results">
+                        <i class="fas fa-chart-bar"></i>
+                        Results
+                    </button>
+                    <button type="button" class="detail-tab" data-detail-tab="settings">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                </div>
+
+                <!-- Keywords tab -->
+                <div class="detail-content active" id="keywordsDetailTab">
+                    <div class="keywords-header">
+                        <h4>Keywords Management</h4>
+                        <button type="button" class="btn-primary btn-sm" onclick="manualAI.showAddKeywords()">
+                            <i class="fas fa-plus"></i>
+                            Add Keywords
+                        </button>
+                    </div>
+                    <div class="keywords-list" id="keywordsList">
+                        <!-- Keywords will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Results tab -->
+                <div class="detail-content" id="resultsDetailTab">
+                    <div class="results-header">
+                        <h4>Analysis Results</h4>
+                        <button type="button" class="btn-primary btn-sm" onclick="manualAI.runAnalysis()">
+                            <i class="fas fa-play"></i>
+                            Run Analysis
+                        </button>
+                    </div>
+                    <div class="results-content" id="resultsContent">
+                        <!-- Results will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Settings tab -->
+                <div class="detail-content" id="settingsDetailTab">
+                    <div class="project-settings">
+                        <h4>Project Settings</h4>
+                        
+                        <!-- Project Name Settings -->
+                        <div class="setting-group">
+                            <label for="projectNameEdit">Project Name</label>
+                            <div class="input-group">
+                                <input type="text" id="projectNameEdit" class="form-input" placeholder="Enter project name...">
+                                <button type="button" class="btn-primary" onclick="manualAI.updateProjectName()">
+                                    <i class="fas fa-save"></i>
+                                    Save
+                                </button>
+                            </div>
+                            <small class="form-help">Choose a descriptive name for your project</small>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        <div class="setting-group danger-zone">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+                            <p class="danger-text">These actions cannot be undone. Please be certain.</p>
+                            
+                            <div class="danger-actions">
+                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProject()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Project
+                                </button>
+                                <small class="form-help">This will permanently delete the project, all keywords, and historical data.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Keywords Modal -->
+    <div class="modal-overlay" id="addKeywordsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Keywords</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideAddKeywords()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addKeywordsForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="keywordsTextarea">Keywords (one per line) *</label>
+                        <textarea id="keywordsTextarea" name="keywords" rows="10" required
+                                  placeholder="keyword 1
+keyword 2
+keyword 3"></textarea>
+                        <small class="form-help">Enter up to 200 keywords total per project. One keyword per line.</small>
+                    </div>
+                    <div class="keywords-counter">
+                        <span id="keywordsCount">0</span> keywords to add
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="manualAI.hideAddKeywords()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Add Keywords
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div class="modal-overlay" id="progressModal">
+        <div class="modal-content modal-small">
+            <div class="modal-body text-center">
+                <div class="progress-spinner">
+                    <i class="fas fa-spinner fa-spin fa-3x"></i>
+                </div>
+                <h3 id="progressTitle">Processing...</h3>
+                <p id="progressMessage">Please wait while we process your request</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Confirmation Modal -->
+    <div class="modal-overlay" id="deleteProjectModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle text-danger"></i> Delete Project</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideDeleteProjectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center"><strong>Are you absolutely sure?</strong></p>
+                <p class="text-muted text-center">
+                    This action cannot be undone. This will permanently delete the project 
+                    "<span id="deleteProjectName" class="text-primary"></span>", 
+                    all its keywords, analysis results, and historical data.
+                </p>
+                
+                <div class="confirmation-input">
+                    <label for="deleteConfirmInput">
+                        Type the project name <strong><span id="deleteProjectNamePrompt"></span></strong> to confirm:
+                    </label>
+                    <input type="text" id="deleteConfirmInput" class="form-input" 
+                           placeholder="Type the project name here..." autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="manualAI.hideDeleteProjectModal()">
+                    Cancel
+                </button>
+                <button type="button" class="btn-danger" id="confirmDeleteBtn" 
+                        onclick="manualAI.executeDeleteProject()" disabled>
+                    <i class="fas fa-trash"></i>
+                    Delete Project
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Management Modal -->
+    <div class="modal-overlay" id="projectModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideProjectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Modal Navigation Tabs -->
+                <div class="modal-nav-tabs">
+                    <button type="button" class="modal-nav-tab active" data-modal-tab="keywords" onclick="manualAI.switchModalTab('keywords')">
+                        <i class="fas fa-key"></i>
+                        Keywords
+                    </button>
+                    <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="manualAI.switchModalTab('settings')">
+                        <i class="fas fa-cog"></i>
+                        Project Settings
+                    </button>
+                </div>
+
+                <!-- Keywords Tab -->
+                <div class="modal-tab-content active" id="modalKeywordsTab">
+                    <div class="tab-section">
+                        <h4>Add Keywords</h4>
+                        <div class="keywords-input-section">
+                            <div class="input-group">
+                                <textarea id="modalKeywordsInput" class="form-textarea" 
+                                          placeholder="Enter keywords, one per line or separated by commas..."
+                                          rows="4"></textarea>
+                                <button type="button" class="btn-primary" onclick="manualAI.addKeywordsFromModal()">
+                                    <i class="fas fa-plus"></i>
+                                    Add Keywords
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ✅ NUEVO: Add Notes Section -->
+                    <div class="tab-section">
+                        <h4>Add Notes</h4>
+                        <div class="keywords-input-section">
+                            <div class="input-group">
+                                <textarea id="modalNotesInput" class="form-textarea" 
+                                          placeholder="Add notes to mark important days and track optimization efforts. These will appear as blue annotations in your visibility graph."
+                                          rows="3"></textarea>
+                                <button type="button" class="btn-primary" onclick="manualAI.addNoteFromModal()">
+                                    <i class="fas fa-sticky-note"></i>
+                                    Add Note
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-section">
+                        <h4>Current Keywords</h4>
+                        <div class="keywords-list-container">
+                            <div class="manual-ai-keyword-search">
+                                <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input" 
+                                       placeholder="Search current keywords..." autocomplete="off">
+                                <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear" 
+                                        onclick="manualAI.clearModalKeywordsSearch()">Clear</button>
+                            </div>
+                            <div id="modalKeywordsList" class="keywords-list">
+                                <!-- Keywords will be loaded here -->
+                            </div>
+                            <div id="modalNoKeywords" class="empty-state" style="display: none;">
+                                <i class="fas fa-key"></i>
+                                <p>No keywords added yet</p>
+                                <small>Add some keywords above to get started</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="modal-tab-content" id="modalSettingsTab">
+                    <div class="tab-section">
+                        <div class="setting-group">
+                            <label for="modalProjectName" class="manual-ai-underline">Project Name</label>
+                            <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
+                        </div>
+                        
+                        <div class="setting-group">
+                            <label for="modalProjectDescription" class="manual-ai-underline">Project Description</label>
+                            <textarea id="modalProjectDescription" class="form-textarea" 
+                                      placeholder="Enter project description (optional)..." rows="3"></textarea>
+                        </div>
+
+                        <!-- Project Competitors Section -->
+                        <div class="setting-group">
+                            <label class="manual-ai-underline">Project Competitors</label>
+                            <div class="competitors-manager">
+                                <div class="add-competitor-section">
+                                    <div class="competitor-input-group">
+                                        <input type="text" id="newCompetitorInput" class="form-input" 
+                                               placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
+                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
+                                            <i class="fas fa-plus"></i>
+                                            Add Competitor
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="competitors-list" id="competitorsList">
+                                    <!-- Competitors will be loaded here -->
+                                </div>
+                                
+                                <div class="competitor-empty-state" id="competitorEmptyState">
+                                    <i class="fas fa-users"></i>
+                                    <p>No competitors added yet</p>
+                                    <small>Add competitor domains to compare performance in AI Overview</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="save-section">
+                            <button type="button" class="btn-primary" onclick="manualAI.updateProjectFromModal()">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tab-section">
+                        <div class="danger-zone">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+                            <p class="danger-text">These actions cannot be undone. Please be certain.</p>
+                            
+                            <div class="danger-actions">
+                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProjectFromModal()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Project
+                                </button>
+                                <small class="form-help">This will permanently delete the project, all keywords, and historical data.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+
+    <!-- Annotation Modal -->
+    <div class="modal-overlay" id="annotationModal">
+        <div class="modal-content modal-medium">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Add Change Annotation</h3>
+                <button type="button" class="modal-close" onclick="manualAI.hideAnnotationModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="annotation-info">
+                    <div class="info-card">
+                        <div class="info-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="info-content">
+                            <h4 id="annotationChangeTitle">Keywords Changed</h4>
+                            <p id="annotationChangeDescription">You've made changes to the keywords for this project. Add a brief description to help track this change in your analytics.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="annotationDescription" class="form-label">
+                        <i class="fas fa-comment-alt"></i>
+                        Description (optional but recommended)
+                    </label>
+                    <textarea 
+                        id="annotationDescription" 
+                        class="form-textarea" 
+                        placeholder="E.g., Added new product keywords, Removed low-performing terms, Updated brand keywords..."
+                        rows="3"
+                        maxlength="255"
+                    ></textarea>
+                    <div class="textarea-footer">
+                        <span class="char-count">
+                            <span id="annotationCharCount">0</span>/255 characters
+                        </span>
+                        <span class="helper-text">This will appear in your Domain Visibility chart</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="manualAI.hideAnnotationModal()">
+                    Skip Annotation
+                </button>
+                <button type="button" class="btn-primary" onclick="manualAI.saveAnnotation()">
+                    <i class="fas fa-save"></i>
+                    Save Annotation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    
+    <!-- ✅ FASE 4: Quota UI para Manual AI -->
+    <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
+    
+    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+    
+    <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
+    <script>
+        // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos
+        window.DISABLE_SIDEBAR_NAVIGATION = true;
+        
+        // Funciones de navegación entre secciones
+        function navigateToConfiguration() {
+            console.log('🔄 Navegando a Configuration desde Manual AI');
+            // Guardar estado actual de Manual AI
+            const manualAIState = {
+                source: 'manual-ai',
+                timestamp: Date.now(),
+                returnUrl: window.location.href
+            };
+            sessionStorage.setItem('manualAIReturnState', JSON.stringify(manualAIState));
+            
+            // Navegar a la página principal manteniendo estado
+            window.location.href = '/app';
+        }
+
+        function navigateToSection(section) {
+            // Solo permitir navegación si hay datos de análisis cargados
+            const hasAnalysisData = sessionStorage.getItem('analysisData') || localStorage.getItem('lastAnalysisData');
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            
+            console.log('🎯 Intentando navegar a:', section);
+            console.log('📊 Datos de análisis disponibles:', !!hasAnalysisData);
+            console.log('🔄 Estado de navegación:', navigationState);
+            
+            if (hasAnalysisData || navigationState.hasAnalysisData) {
+                // Guardar estado actual de Manual AI
+                const manualAIState = {
+                    currentSection: 'manual-ai',
+                    targetSection: section,
+                    timestamp: Date.now(),
+                    returnUrl: window.location.href
+                };
+                sessionStorage.setItem('manualAIState', JSON.stringify(manualAIState));
+                
+                console.log('✅ Navegando a:', section);
+                // Navegar a la sección con datos
+                window.location.href = `/app#${section}`;
+            } else {
+                console.log('❌ No hay datos de análisis - Navegación bloqueada');
+                // Mostrar mensaje de que no hay datos
+                alert('No hay datos de análisis disponibles. Ejecuta un análisis primero desde Configuration.');
+            }
+        }
+
+        // Verificar estado de análisis al cargar la página
+        function checkAnalysisState() {
+            console.log('🔍 Verificando estado de análisis en Manual AI...');
+            
+            // Verificar estado de navegación guardado
+            const navigationState = JSON.parse(sessionStorage.getItem('navigationState') || '{}');
+            const analysisData = sessionStorage.getItem('analysisData');
+            const lastAnalysisData = localStorage.getItem('lastAnalysisData');
+            const hasAnalysisData = analysisData || lastAnalysisData || navigationState.hasAnalysisData;
+            
+            console.log('📊 Estado de datos:', {
+                sessionAnalysisData: !!analysisData,
+                localAnalysisData: !!lastAnalysisData,
+                navigationHasData: navigationState.hasAnalysisData,
+                navigationSource: navigationState.source,
+                currentURL: window.location.href
+            });
+            
+            if (hasAnalysisData || navigationState.source === 'main-app') {
+                console.log('🟢 Habilitando navegación del sidebar...');
+                
+                // Habilitar navegación en sidebar
+                const statusConfig = document.getElementById('statusConfiguration');
+                const navConfig = document.getElementById('navConfiguration');
+                if (statusConfig && navConfig) {
+                    statusConfig.className = 'status-dot status-ready';
+                    navConfig.classList.remove('disabled');
+                }
+                
+                // Habilitar otras secciones si hay datos de análisis
+                if (hasAnalysisData) {
+                    const sections = ['Performance', 'Keywords', 'Pages', 'AI'];
+                    sections.forEach(section => {
+                        const statusElement = document.getElementById(`status${section}`);
+                        const navElement = document.getElementById(`nav${section}`);
+                        if (statusElement && navElement) {
+                            statusElement.className = 'status-dot status-ready';
+                            navElement.classList.remove('disabled');
+                        }
+                    });
+                    
+                    console.log('✅ Todas las secciones habilitadas - Datos de análisis detectados');
+                } else {
+                    console.log('⚠️ Solo Configuration habilitado - Sin datos de análisis');
+                }
+            } else {
+                console.log('🔴 Navegación deshabilitada - Sin datos ni estado de navegación');
+            }
+            
+            // Información de sincronización
+            if (navigationState.source === 'main-app') {
+                console.log('🔄 Sincronización completada desde aplicación principal');
+                console.log('📝 Datos del formulario:', navigationState.formData);
+            }
+        }
+
+        // Función para manejar sidebar en Manual AI
+        function initManualAISidebar() {
+            console.log('🎯 Inicializando sidebar específico para Manual AI...');
+            
+            // Remover clase active de todos los elementos de navegación
+            const allNavItems = document.querySelectorAll('.nav-item');
+            allNavItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Verificar estado de análisis para habilitar navegación
+            checkAnalysisState();
+            
+            // Solo marcar Manual AI como activo si existe el elemento
+            const navManualAI = document.getElementById('navManualAI');
+            if (navManualAI) {
+                navManualAI.classList.add('active');
+                console.log('✅ Manual AI marcado como activo en sidebar');
+            }
+        }
+    </script>
+
+
+
+    <script>
+        // ✅ NUEVO: Información del usuario para control de plan
+        window.currentUser = {
+            email: '{{ user.email }}',
+            plan: '{{ user.plan }}',
+            role: '{{ user.role }}'
+        };
+        console.log('👤 Usuario Manual AI:', window.currentUser);
+        
+        // Inicializar sistema cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar que estamos en la página correcta
+            if (window.location.pathname.includes('/manual-ai/')) {
+                window.manualAI = new ManualAISystem();
+                
+                // Inicializar sidebar específico para Manual AI
+                initManualAISidebar();
+                
+                // Asegurar que el navbar esté inicializado (para logout)
+                if (typeof Navbar !== 'undefined') {
+                    console.log('🔧 Inicializando navbar para Manual AI');
+                    window.navbar = new Navbar();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

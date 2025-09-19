@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual AI Analysis - Upgrade Required</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    
+    <!-- Reutilizar CSS de Manual AI para consistencia total -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Estructura usando clases de Manual AI -->
+    <div class="main-container">
+        <div class="content-wrapper" style="max-width: 800px; margin: 0 auto; padding: var(--manual-ai-spacing-2xl);">
+            
+            <!-- Header -->
+            <div class="page-header" style="text-align: center; margin-bottom: var(--manual-ai-spacing-2xl);">
+                <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" 
+                     alt="ClicandSEO" style="height: 60px; margin-bottom: var(--manual-ai-spacing-lg);">
+                <h1 style="color: var(--manual-ai-primary); margin-bottom: var(--manual-ai-spacing-sm);">
+                    🤖 Manual AI Analysis
+                </h1>
+                <p style="color: var(--manual-ai-gray-600); font-size: 1.1rem; margin: 0;">
+                    Advanced keyword-by-keyword AI Overview analysis
+                </p>
+            </div>
+            
+            <!-- Paywall Message -->
+            <div class="alert-info" style="background: var(--manual-ai-gray-50); border: var(--manual-ai-border-width) solid var(--manual-ai-info); border-left: 4px solid var(--manual-ai-info); padding: var(--manual-ai-spacing-xl); border-radius: var(--manual-ai-border-radius-lg); margin-bottom: var(--manual-ai-spacing-xl);">
+                <h2 style="color: var(--manual-ai-primary); margin-bottom: var(--manual-ai-spacing-md); font-size: 1.5rem; font-weight: 600;">
+                    🚀 Upgrade Required
+                </h2>
+                <p style="color: var(--manual-ai-gray-700); margin-bottom: var(--manual-ai-spacing-lg); font-size: 1.05rem;">
+                    Manual AI Analysis is a premium feature that allows you to:
+                </p>
+                
+                <!-- Features List usando estilos Manual AI -->
+                <div class="features-list" style="text-align: left; margin: var(--manual-ai-spacing-lg) 0;">
+                    <div class="feature-item" style="margin: var(--manual-ai-spacing-sm) 0; padding: var(--manual-ai-spacing-md); background: white; border-radius: var(--manual-ai-border-radius); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);">
+                        ✅ <strong>Individual keyword analysis</strong> - Deep dive into specific terms
+                    </div>
+                    <div class="feature-item" style="margin: var(--manual-ai-spacing-sm) 0; padding: var(--manual-ai-spacing-md); background: white; border-radius: var(--manual-ai-border-radius); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);">
+                        ✅ <strong>Project-based organization</strong> - Group keywords by campaigns
+                    </div>
+                    <div class="feature-item" style="margin: var(--manual-ai-spacing-sm) 0; padding: var(--manual-ai-spacing-md); background: white; border-radius: var(--manual-ai-border-radius); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);">
+                        ✅ <strong>Historical tracking</strong> - Monitor AI Overview changes over time
+                    </div>
+                    <div class="feature-item" style="margin: var(--manual-ai-spacing-sm) 0; padding: var(--manual-ai-spacing-md); background: white; border-radius: var(--manual-ai-border-radius); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);">
+                        ✅ <strong>Advanced exports</strong> - Excel reports with detailed data
+                    </div>
+                    <div class="feature-item" style="margin: var(--manual-ai-spacing-sm) 0; padding: var(--manual-ai-spacing-md); background: white; border-radius: var(--manual-ai-border-radius); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);">
+                        ✅ <strong>Global domain ranking</strong> - See top performers across projects
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Upgrade Options usando clases consistentes -->
+            <div class="upgrade-options">
+                <a href="/billing/checkout/basic?interval=monthly" class="plan-card">
+                    <h4>Basic Plan</h4>
+                    <div class="plan-price">€29.99/month • €299.90/year</div>
+                    <div class="plan-features">1,225 RU/month</div>
+                    <div style="font-size: 0.9rem; color: var(--manual-ai-gray-600);">
+                        Perfect for small businesses
+                    </div>
+                </a>
+                
+                <a href="/billing/checkout/premium?interval=monthly" class="plan-card">
+                    <div class="plan-badge">MOST POPULAR</div>
+                    <h4>Premium Plan</h4>
+                    <div class="plan-price">€49.99/month • €499.90/year</div>
+                    <div class="plan-features">2,950 RU/month</div>
+                    <div style="font-size: 0.9rem; color: var(--manual-ai-gray-600);">
+                        Perfect for agencies
+                    </div>
+                </a>
+
+                <a href="/billing/checkout/business?interval=monthly" class="plan-card">
+                    <h4>Business Plan</h4>
+                    <div class="plan-price">€139.99/month • €1,399.90/year</div>
+                    <div class="plan-features">8,000 RU/month</div>
+                    <div style="font-size: 0.9rem; color: var(--manual-ai-gray-600);">
+                        For high-volume teams
+                    </div>
+                </a>
+            </div>
+            
+            <!-- Additional Info usando alertas Manual AI -->
+            <div class="alert-warning" style="background: #fff3cd; border: var(--manual-ai-border-width) solid var(--manual-ai-warning); padding: var(--manual-ai-spacing-md); border-radius: var(--manual-ai-border-radius); margin-bottom: var(--manual-ai-spacing-xl);">
+                <p style="margin: 0; color: #856404; font-size: 0.95rem;">
+                    💡 <strong>What are RU?</strong> Request Units = API calls to analyze keywords. 
+                    Cached results use 0 RU, so you save on repeated searches!
+                </p>
+            </div>
+            
+            <!-- Current Status -->
+            <div class="current-status" style="margin-bottom: var(--manual-ai-spacing-xl); text-align: center;">
+                <p style="color: var(--manual-ai-gray-600); font-size: 0.95rem; margin: 0;">
+                    Currently on: <strong style="color: var(--manual-ai-primary);">{{ current_plan|title }}</strong> plan
+                </p>
+            </div>
+            
+            <!-- Action Buttons usando clases Manual AI -->
+            <div class="billing-actions" style="justify-content: center;">
+                <a href="/" class="btn-secondary">
+                    ← Back to Dashboard
+                </a>
+                <a href="/billing" class="btn-secondary">
+                    Manage Billing
+                </a>
+            </div>
+            
+            <!-- Enterprise Option -->
+            <div class="enterprise-section" style="margin-top: var(--manual-ai-spacing-2xl); padding: var(--manual-ai-spacing-xl); background: var(--manual-ai-gray-50); border-radius: var(--manual-ai-border-radius-lg); border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200); text-align: center;">
+                <h3 style="margin-bottom: var(--manual-ai-spacing-md); color: var(--manual-ai-primary); font-size: 1.25rem; font-weight: 600;">
+                    Need More?
+                </h3>
+                <p style="color: var(--manual-ai-gray-600); margin-bottom: var(--manual-ai-spacing-lg);">
+                    For agencies and enterprises with custom needs
+                </p>
+                <a href="mailto:info@clicandseo.com?subject=Enterprise%20Plan%20Inquiry" 
+                   class="btn-primary-inverted">
+                    Contact Sales
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
+</body>
+</html>
