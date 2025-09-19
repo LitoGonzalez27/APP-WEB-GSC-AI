@@ -622,15 +622,10 @@ def api_gsc_performance():
             data_dates = [date.fromisoformat(k) for k in by_date.keys()]
         except Exception:
             data_dates = []
-        max_data_date = max(data_dates) if data_dates else None
         # GSC tiene 48–72h de retraso
         max_gsc_date = date.today() - timedelta(days=3)
-        fill_end = e
-        if max_data_date:
-            fill_end = min(e, max_data_date, max_gsc_date)
-        else:
-            # Si no hay datos, aún recortamos al límite GSC para no inventar días
-            fill_end = min(e, max_gsc_date)
+        # Siempre rellenamos hasta el límite GSC (o end), incluso si ese día no tiene filas (se rellena con 0)
+        fill_end = min(e, max_gsc_date)
 
         out = []
         for d in _daterange(s, fill_end):
