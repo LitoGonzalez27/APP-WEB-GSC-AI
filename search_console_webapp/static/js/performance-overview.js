@@ -398,6 +398,22 @@ async function mountChartJSOverview(rootId, fetchUrl){
       </style>
     </div>
     <div style="width:100%;height:320px"><canvas id="po-canvas" aria-label="Performance Overview Chart" role="img"></canvas></div>
+    <div id="po-toplists" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+      <div class="po-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="fas fa-search" style="color:#2563eb"></i>
+          <h4 style="margin:0;font-weight:600;color:#111827">Top 10 Keywords</h4>
+        </div>
+        <div class="po-table" id="po-topkeywords"></div>
+      </div>
+      <div class="po-card" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="fas fa-link" style="color:#10b981"></i>
+          <h4 style="margin:0;font-weight:600;color:#111827">Top 10 URLs</h4>
+        </div>
+        <div class="po-table" id="po-topurls"></div>
+      </div>
+    </div>
   `;
 
   const savedToggles = JSON.parse(localStorage.getItem('po_toggles')||'{}');
@@ -662,6 +678,44 @@ async function mountChartJSOverview(rootId, fetchUrl){
         elements: { point: { radius: 0, hoverRadius: 4, hitRadius: 6 } }
       }
     });
+
+    // Render Top 10 lists (Keywords & URLs) usando window.currentData
+    try{
+      const cd = window.currentData || {};
+      const hasComp = !!(cd.periods && cd.periods.has_comparison);
+      const kwords = Array.isArray(cd.keywords) ? cd.keywords.slice() : [];
+      const pages = Array.isArray(cd.pages) ? cd.pages.slice() : [];
+      const sortByClicks = (a,b)=> (b.clicks_m1||0) - (a.clicks_m1||0);
+      const topK = kwords.sort(sortByClicks).slice(0,10);
+      const topU = pages.sort(sortByClicks).slice(0,10);
+      const fmtNum = (n)=>{ try{ return (n??0).toLocaleString(); }catch(_){ return String(n??0);} };
+      const fmtCtr = (n)=> `${(n??0).toFixed(2)}%`;
+      const fmtPos = (n)=> (n==null? '' : (n).toFixed(2));
+      const deltaChip = (cur, prev, positiveIsGood=true)=>{
+        if(!hasComp) return '';
+        if(prev==null || prev===0) return `<span style="font-size:12px;color:#6b7280">New</span>`;
+        const val = ((cur - prev)/prev)*100;
+        const good = positiveIsGood ? (val>=0) : (val<0);
+        const col = good ? '#16a34a' : '#dc2626';
+        const sign = val>0? '+':'';
+        return `<span style="font-size:12px;color:${col}">${sign}${val.toFixed(0)}%</span>`;
+      };
+      const buildTable = (rows, isKeyword=true)=>{
+        const cols = hasComp?'1fr 100px 70px 70px 70px 60px':'1fr 120px 80px 80px 80px';
+        const head = `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:12px"><div>${isKeyword?'Query':'URL'}</div><div>Clicks</div><div>Impr.</div><div>CTR</div><div>Pos.</div>${hasComp?'<div>Δ</div>':''}</div>`;
+        const body = rows.map(r=>{
+          const name = isKeyword ? (r.keyword||r.query||'') : (r.url||r.page||'');
+          const c1 = r.clicks_m1||0; const c2 = r.clicks_m2||0;
+          const i1 = r.impressions_m1||0; const ctr1 = r.ctr_m1||0; const p1 = r.position_m1;
+          return `<div style="display:grid;grid-template-columns:${cols};gap:8px;padding:8px 8px;border-bottom:1px solid #f9fafb;align-items:center"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827">${name}</div><div style="font-weight:600;color:#111827">${fmtNum(c1)}</div><div>${fmtNum(i1)}</div><div>${fmtCtr(ctr1)}</div><div>${fmtPos(p1)}</div>${hasComp?`<div>${deltaChip(c1,c2,true)}</div>`:''}</div>`;
+        }).join('');
+        return head + body;
+      };
+      const kwEl = container.querySelector('#po-topkeywords');
+      const urlEl = container.querySelector('#po-topurls');
+      if(kwEl) kwEl.innerHTML = buildTable(topK, true);
+      if(urlEl) urlEl.innerHTML = buildTable(topU, false);
+    }catch(e){ console.warn('Top lists render error', e); }
 
     // Mapear índices de datasets de tendencia en función de si hay comparativa
     const trendStartIndex = 4 + (rowsComp.length ? 4 : 0);
