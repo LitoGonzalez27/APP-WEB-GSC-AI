@@ -35,12 +35,14 @@ export function displayAIOverviewResults(data) {
   // 🆕 3️⃣ Mostrar análisis de Topic Clusters si hay datos
   if (data.clusters_analysis && window.TopicClustersVisualization) {
     console.log('🔗 Mostrando Topic Clusters:', data.clusters_analysis);
+    console.log('🔍 Estructura completa de clusters_analysis:', JSON.stringify(data.clusters_analysis, null, 2));
     window.TopicClustersVisualization.displayTopicClustersResults(data.clusters_analysis, resultsContainer);
   } else {
     console.log('🔍 Debug clusters:', {
       hasClustersData: !!data.clusters_analysis,
       hasVisualization: !!window.TopicClustersVisualization,
-      clustersData: data.clusters_analysis
+      clustersData: data.clusters_analysis,
+      fullData: data
     });
   }
   

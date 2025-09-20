@@ -9,8 +9,17 @@
  * @param {HTMLElement} container - Contenedor donde mostrar los resultados
  */
 function displayTopicClustersResults(clustersAnalysis, container) {
+    console.log('🔍 RECIBIENDO datos de clusters:', clustersAnalysis);
+    console.log('🔍 Estructura clustersAnalysis:', JSON.stringify(clustersAnalysis, null, 2));
+    
     if (!clustersAnalysis || !clustersAnalysis.clusters || clustersAnalysis.clusters.length === 0) {
-        console.log('No hay datos de clusters para mostrar');
+        console.warn('⚠️ No hay datos de clusters para mostrar');
+        console.warn('🔍 Detalle del problema:', {
+            hasData: !!clustersAnalysis,
+            hasClusters: !!clustersAnalysis?.clusters,
+            clustersLength: clustersAnalysis?.clusters?.length,
+            fullData: clustersAnalysis
+        });
         return;
     }
 
