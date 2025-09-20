@@ -391,7 +391,8 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
         }
       },
       summary: analysisData.summary || {},
-      keywordResults: analysisData.results || []
+      keywordResults: analysisData.results || [],
+      clusters_analysis: analysisData.clusters_analysis || null  // 🆕 NUEVO: Añadir clusters analysis
     };
 
     setAIOverviewResults(displayData);

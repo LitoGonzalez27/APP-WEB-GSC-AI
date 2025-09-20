@@ -34,7 +34,14 @@ export function displayAIOverviewResults(data) {
   
   // 🆕 3️⃣ Mostrar análisis de Topic Clusters si hay datos
   if (data.clusters_analysis && window.TopicClustersVisualization) {
+    console.log('🔗 Mostrando Topic Clusters:', data.clusters_analysis);
     window.TopicClustersVisualization.displayTopicClustersResults(data.clusters_analysis, resultsContainer);
+  } else {
+    console.log('🔍 Debug clusters:', {
+      hasClustersData: !!data.clusters_analysis,
+      hasVisualization: !!window.TopicClustersVisualization,
+      clustersData: data.clusters_analysis
+    });
   }
   
   // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview (debajo de competidores y clusters)

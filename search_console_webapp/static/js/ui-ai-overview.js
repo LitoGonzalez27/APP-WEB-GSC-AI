@@ -343,7 +343,8 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
         }
       },
       summary: analysisData.summary || {},
-      keywordResults: analysisData.results || []
+      keywordResults: analysisData.results || [],
+      clusters_analysis: analysisData.clusters_analysis || null  // 🆕 NUEVO: Añadir clusters analysis
     };
 
     // Guardar en variable global para descarga Excel
