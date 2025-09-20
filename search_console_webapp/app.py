@@ -3198,17 +3198,34 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
         aio_count = sum(1 for kw in keywords if kw.get('ai_overview_generated'))
         mention_count = sum(1 for kw in keywords if kw.get('mentioned_in_ai_overview'))
         
-        # Sumar métricas de Search Console
-        total_clicks = sum(kw.get('search_console_data', {}).get('clicks_m1', 0) for kw in keywords)
-        total_impressions = sum(kw.get('search_console_data', {}).get('impressions_m1', 0) for kw in keywords)
+        # Sumar métricas de Search Console (buscar en múltiples ubicaciones posibles)
+        total_clicks = 0
+        total_impressions = 0
+        
+        for kw in keywords:
+            # Buscar clicks en diferentes ubicaciones posibles
+            clicks = (kw.get('search_console_data', {}).get('clicks_m1', 0) or 
+                     kw.get('clicks_m1', 0) or 
+                     kw.get('clicks', 0))
+            total_clicks += clicks
+            
+            # Buscar impressions en diferentes ubicaciones posibles  
+            impressions = (kw.get('search_console_data', {}).get('impressions_m1', 0) or 
+                          kw.get('impressions_m1', 0) or 
+                          kw.get('impressions', 0))
+            total_impressions += impressions
         
         # Calcular posición promedio ponderada por impresiones
         weighted_positions = []
         total_weight = 0
         for kw in keywords:
-            sc_data = kw.get('search_console_data', {})
-            impressions = sc_data.get('impressions_m1', 0)
-            position = sc_data.get('position_m1', 0)
+            # Buscar impressions y position en diferentes ubicaciones
+            impressions = (kw.get('search_console_data', {}).get('impressions_m1', 0) or 
+                          kw.get('impressions_m1', 0) or 
+                          kw.get('impressions', 0))
+            position = (kw.get('search_console_data', {}).get('position_m1', 0) or 
+                       kw.get('position_m1', 0) or 
+                       kw.get('position', 0))
             if impressions > 0 and position > 0:
                 weighted_positions.append(position * impressions)
                 total_weight += impressions
@@ -3229,8 +3246,20 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
     if unclassified_keywords:
         aio_count = sum(1 for kw in unclassified_keywords if kw.get('ai_overview_generated'))
         mention_count = sum(1 for kw in unclassified_keywords if kw.get('mentioned_in_ai_overview'))
-        total_clicks = sum(kw.get('search_console_data', {}).get('clicks_m1', 0) for kw in unclassified_keywords)
-        total_impressions = sum(kw.get('search_console_data', {}).get('impressions_m1', 0) for kw in unclassified_keywords)
+        
+        # Sumar métricas buscando en múltiples ubicaciones posibles
+        total_clicks = 0
+        total_impressions = 0
+        for kw in unclassified_keywords:
+            clicks = (kw.get('search_console_data', {}).get('clicks_m1', 0) or 
+                     kw.get('clicks_m1', 0) or 
+                     kw.get('clicks', 0))
+            total_clicks += clicks
+            
+            impressions = (kw.get('search_console_data', {}).get('impressions_m1', 0) or 
+                          kw.get('impressions_m1', 0) or 
+                          kw.get('impressions', 0))
+            total_impressions += impressions
         
         clusters_data['Unclassified'] = {
             'name': 'Unclassified',
