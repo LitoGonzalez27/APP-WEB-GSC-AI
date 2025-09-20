@@ -9,7 +9,8 @@
 const collapsibleState = {
     competitor: false,
     exclusion: false,
-    keywordFilter: false
+    keywordFilter: false,
+    topicClusters: false
 };
 
 /**
@@ -158,6 +159,13 @@ function updateCollapsibleSummary(sectionType) {
         } else {
             summaryText = 'Filter keywords by terms (optional)';
         }
+    } else if (sectionType === 'topicClusters') {
+        const clusters = getTopicClustersSummary();
+        if (clusters.count > 0) {
+            summaryText = `${clusters.count} cluster${clusters.count > 1 ? 's' : ''} (${clusters.method}): ${clusters.preview}`;
+        } else {
+            summaryText = 'Click to group keywords into clusters for AI Overview analysis';
+        }
     }
     
     summary.textContent = summaryText;
@@ -207,7 +215,7 @@ function initCollapsibleSections() {
     console.log('🔧 Inicializando sistema de secciones colapsables');
     
     // Asegurar que todas las secciones empiecen colapsadas
-    ['competitor', 'exclusion', 'keywordFilter'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'keywordFilter', 'topicClusters'].forEach(sectionType => {
         const content = document.getElementById(`${sectionType}Content`);
         const arrow = document.getElementById(`${sectionType}Arrow`);
         
@@ -253,10 +261,24 @@ function setupSummaryUpdateListeners() {
 }
 
 /**
+ * Obtener resumen de topic clusters
+ * @returns {Object} Información sobre los clusters
+ */
+function getTopicClustersSummary() {
+    // Usar la función del sistema de clusters si está disponible
+    if (window.getTopicClustersSummaryInfo) {
+        return window.getTopicClustersSummaryInfo();
+    }
+    
+    // Fallback por si acaso
+    return { count: 0, method: '', preview: '' };
+}
+
+/**
  * Función para expandir todas las secciones (útil para debugging)
  */
 function expandAllSections() {
-    ['competitor', 'exclusion'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'topicClusters'].forEach(sectionType => {
         if (!collapsibleState[sectionType]) {
             toggleCollapsible(sectionType);
         }
@@ -267,7 +289,7 @@ function expandAllSections() {
  * Función para colapsar todas las secciones
  */
 function collapseAllSections() {
-    ['competitor', 'exclusion'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'topicClusters'].forEach(sectionType => {
         if (collapsibleState[sectionType]) {
             toggleCollapsible(sectionType);
         }

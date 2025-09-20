@@ -32,13 +32,18 @@ export function displayAIOverviewResults(data) {
     displayCompetitorResults(data.summary.competitor_analysis, resultsContainer);
   }
   
-  // 3️⃣ Mostrar tabla Grid.js de keywords con AI Overview (debajo de competidores)
+  // 🆕 3️⃣ Mostrar análisis de Topic Clusters si hay datos
+  if (data.clusters_analysis && window.TopicClustersVisualization) {
+    window.TopicClustersVisualization.displayTopicClustersResults(data.clusters_analysis, resultsContainer);
+  }
+  
+  // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview (debajo de competidores y clusters)
   displayAIOverviewGridTable(data, resultsContainer);
   
-  // 4️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ABAJO)
+  // 5️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ABAJO)
   displayTypologyChart(resultsContainer, data);
   
-  // 5️⃣ Mostrar tabla detallada de keywords usando Grid.js
+  // 6️⃣ Mostrar tabla detallada de keywords usando Grid.js
   createDetailedResultsGridTable(data.keywordResults, resultsContainer);
   
   showToast('AI Overview analysis complete', 'success');

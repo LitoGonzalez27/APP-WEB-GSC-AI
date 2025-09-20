@@ -127,6 +127,20 @@ async function analyzeAIOverview(keywords, siteUrl, keywordCount = null) {
         }
     }
     
+    // 🆕 NUEVO: Añadir configuración de topic clusters
+    if (window.getTopicClustersConfig) {
+        const clustersConfig = window.getTopicClustersConfig();
+        if (clustersConfig.enabled) {
+            payload.topic_clusters = clustersConfig;
+            console.log(`🔗 Incluyendo topic clusters: ${clustersConfig.clusters.length} clusters con método "${clustersConfig.method}"`);
+            
+            // Mostrar mensaje al usuario sobre los clusters
+            if (window.showToast) {
+                window.showToast(`Analyzing ${clustersConfig.clusters.length} topic cluster${clustersConfig.clusters.length > 1 ? 's' : ''} (${clustersConfig.method})`, 'info', 3000);
+            }
+        }
+    }
+    
     // Añadir país (principal del negocio, seleccionado manualmente, o fallback)
     if (countryToUse) {
         payload.country = countryToUse;

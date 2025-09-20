@@ -734,6 +734,93 @@
               </div>
             </div>
           </div>
+
+          <!-- Topic Clusters Collapsible -->
+          <div class="collapsible-section" id="topicClustersSection">
+            <div class="collapsible-header" onclick="toggleCollapsible('topicClusters')">
+              <div class="collapsible-title">
+                <i class="fas fa-project-diagram"></i>
+                <span>Topic Clusters</span>
+                <span class="optional-badge">Optional</span>
+              </div>
+              <div class="collapsible-summary" id="topicClustersSummary">
+                Click to group keywords into clusters for AI Overview analysis
+              </div>
+              <i class="fas fa-chevron-down collapsible-arrow" id="topicClustersArrow"></i>
+            </div>
+            
+            <div class="collapsible-content" id="topicClustersContent">
+              <div class="exclusion-container">
+                <div class="exclusion-grid">
+                  <!-- Column 1: Method Selection -->
+                  <div class="exclusion-column exclusion-method-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-cogs"></i>
+                      Cluster Method
+                    </h4>
+                    <div class="exclusion-method-wrapper">
+                      <select id="clusterMethod" class="exclusion-method-select">
+                        <option value="contains">Contains</option>
+                        <option value="equals">Exact Match</option>
+                        <option value="notContains">Doesn't Contain</option>
+                        <option value="notEquals">Doesn't Equal</option>
+                      </select>
+                      <div class="exclusion-method-description">
+                        <span id="clusterMethodDescription">Keywords containing cluster terms</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 2: Cluster Name and Terms Input -->
+                  <div class="exclusion-column exclusion-input-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-edit"></i>
+                      Add Cluster
+                    </h4>
+                    <div class="exclusion-input-wrapper">
+                      <input 
+                        type="text" 
+                        id="clusterName" 
+                        placeholder="Cluster name (e.g., 'Running Shoes')"
+                        class="exclusion-input"
+                        style="margin-bottom: 8px;"
+                      />
+                      <input 
+                        type="text" 
+                        id="clusterTerms" 
+                        placeholder="Type terms, press comma or enter..."
+                        class="exclusion-input"
+                      />
+                      <div class="exclusion-input-hint">
+                        <i class="fas fa-keyboard"></i>
+                        <span>Name cluster, then add terms with comma (,) or Enter</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Column 3: Active Clusters -->
+                  <div class="exclusion-column exclusion-tags-column">
+                    <h4 class="exclusion-column-title">
+                      <i class="fas fa-layer-group"></i>
+                      Active Clusters
+                      <span class="exclusion-count" id="clustersCount">0</span>
+                    </h4>
+                    <div class="exclusion-tags-wrapper">
+                      <div class="clusters-container" id="clustersContainer">
+                        <!-- Clusters will be dynamically added here -->
+                      </div>
+                      <div class="exclusion-clear-all" id="clearAllClusters" style="display: none;">
+                        <button type="button" class="clear-all-btn">
+                          <i class="fas fa-trash-alt"></i>
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <section id="aiOverviewSection" class="glass-effect">
@@ -1056,6 +1143,8 @@
 <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 <script src="{{ url_for('static', filename='js/competitor-analysis.js') }}"></script>
 <script src="{{ url_for('static', filename='js/keyword-exclusion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/topic-clusters.js') }}"></script>
+<script src="{{ url_for('static', filename='js/topic-clusters-visualization.js') }}"></script>
 <script src="{{ url_for('static', filename='js/collapsible-sections.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-ai-overview-gridjs.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-detailed-results-gridjs.js') }}"></script>

@@ -1964,6 +1964,10 @@ def analyze_ai_overview_route():
         keyword_exclusions = request_payload.get('keyword_exclusions', {})
         exclusions_enabled = keyword_exclusions.get('enabled', False)
         
+        # 🆕 NUEVO: Obtener configuración de topic clusters
+        topic_clusters = request_payload.get('topic_clusters', {})
+        clusters_enabled = topic_clusters.get('enabled', False)
+        
         # 🆕 NUEVO: Obtener cantidad solicitada por usuario
         requested_count = request_payload.get('keyword_count', 50)  # Default 50
         
@@ -1985,6 +1989,18 @@ def analyze_ai_overview_route():
             logger.info(f"[AI ANALYSIS] 🔍 Términos a excluir: {exclusion_terms[:5]}{'...' if len(exclusion_terms) > 5 else ''}")
         else:
             logger.info(f"[AI ANALYSIS] ⚪ Sin exclusiones de keywords")
+            
+        # 🆕 NUEVO: Logging de topic clusters
+        if clusters_enabled:
+            clusters_list = topic_clusters.get('clusters', [])
+            clusters_method = topic_clusters.get('method', 'contains')
+            total_terms = sum(len(cluster.get('terms', [])) for cluster in clusters_list)
+            logger.info(f"[AI ANALYSIS] 🔗 Topic clusters habilitados: {len(clusters_list)} clusters, {total_terms} términos totales, método '{clusters_method}'")
+            for i, cluster in enumerate(clusters_list[:3]):  # Log primeros 3 clusters
+                terms_preview = cluster.get('terms', [])[:3]
+                logger.info(f"[AI ANALYSIS] 🔗 Cluster {i+1}: '{cluster.get('name', 'Sin nombre')}' - términos: {terms_preview}{'...' if len(cluster.get('terms', [])) > 3 else ''}")
+        else:
+            logger.info(f"[AI ANALYSIS] ⚪ Sin topic clusters configurados")
 
         # 🔍 DEBUGGING: ¿Qué país se está usando?
         logger.info(f"=== AI OVERVIEW COUNTRY DEBUG ===")
@@ -2178,12 +2194,27 @@ def analyze_ai_overview_route():
         except Exception as e:
             logger.warning(f"⚠️ Error guardando lote en caché: {e}")
 
+        # 🆕 NUEVO: Procesar topic clusters si están habilitados
+        clusters_analysis = None
+        if clusters_enabled and results_list_overview:
+            try:
+                clusters_analysis = group_keywords_by_clusters(results_list_overview, topic_clusters)
+                logger.info(f"[AI ANALYSIS] 🔗 Clusters analysis completed: {clusters_analysis['total_clusters'] if clusters_analysis else 0} clusters")
+            except Exception as e:
+                logger.error(f"[AI ANALYSIS] ❌ Error processing topic clusters: {e}")
+                clusters_analysis = None
+
         response_data_overview = {
             'results': results_list_overview,
             'summary': summary_overview_stats,
             'timestamp': time.time(),
             'debug_mode': True
         }
+        
+        # Añadir clusters analysis si está disponible
+        if clusters_analysis:
+            response_data_overview['clusters_analysis'] = clusters_analysis
+            
         if errors_list_overview:
             response_data_overview['warnings'] = errors_list_overview
         return jsonify(response_data_overview)
@@ -3066,6 +3097,170 @@ def apply_keyword_exclusions(keywords_list, exclusion_terms, exclusion_method='c
     logger.info(f"[EXCLUSION] Filtrado completado: {len(keywords_list)} → {len(filtered_keywords)} (excluidas: {excluded_count})")
     
     return filtered_keywords
+
+def classify_keyword_into_clusters(keyword_text, clusters_config):
+    """
+    Clasifica una keyword en clusters basado en la configuración de clusters.
+    
+    Args:
+        keyword_text (str): Texto de la keyword
+        clusters_config (dict): Configuración de clusters con método y lista de clusters
+    
+    Returns:
+        list: Lista de nombres de clusters que coinciden
+    """
+    if not keyword_text or not clusters_config or not clusters_config.get('enabled'):
+        return []
+    
+    clusters_list = clusters_config.get('clusters', [])
+    cluster_method = clusters_config.get('method', 'contains')
+    keyword_lower = keyword_text.lower()
+    matching_clusters = []
+    
+    for cluster in clusters_list:
+        cluster_name = cluster.get('name', '')
+        cluster_terms = cluster.get('terms', [])
+        
+        # Verificar si la keyword coincide con algún término del cluster
+        for term in cluster_terms:
+            term_lower = term.lower()
+            matches = False
+            
+            if cluster_method == 'contains':
+                matches = term_lower in keyword_lower
+            elif cluster_method == 'equals':
+                matches = keyword_lower == term_lower
+            elif cluster_method == 'notContains':
+                matches = term_lower not in keyword_lower
+            elif cluster_method == 'notEquals':
+                matches = keyword_lower != term_lower
+            
+            if matches:
+                if cluster_name not in matching_clusters:
+                    matching_clusters.append(cluster_name)
+                break  # Una coincidencia por cluster es suficiente
+    
+    return matching_clusters
+
+def group_keywords_by_clusters(keywords_results, clusters_config):
+    """
+    Agrupa los resultados de keywords por clusters y calcula métricas agregadas.
+    
+    Args:
+        keywords_results (list): Lista de resultados de análisis de keywords
+        clusters_config (dict): Configuración de clusters
+    
+    Returns:
+        dict: Datos de clusters con métricas agregadas
+    """
+    if not keywords_results or not clusters_config or not clusters_config.get('enabled'):
+        return None
+    
+    clusters_list = clusters_config.get('clusters', [])
+    clusters_data = {}
+    unclassified_keywords = []
+    
+    # Inicializar estructura de datos para cada cluster
+    for cluster in clusters_list:
+        cluster_name = cluster.get('name', '')
+        if cluster_name:
+            clusters_data[cluster_name] = {
+                'name': cluster_name,
+                'keywords': [],
+                'total_aio_keywords': 0,
+                'total_mentions': 0,
+                'total_clicks': 0,
+                'total_impressions': 0,
+                'avg_position': 0,
+                'terms': cluster.get('terms', [])
+            }
+    
+    # Clasificar cada keyword en clusters
+    for keyword_result in keywords_results:
+        keyword_text = keyword_result.get('keyword', '')
+        matching_clusters = classify_keyword_into_clusters(keyword_text, clusters_config)
+        
+        if matching_clusters:
+            # Añadir a todos los clusters que coinciden
+            for cluster_name in matching_clusters:
+                if cluster_name in clusters_data:
+                    clusters_data[cluster_name]['keywords'].append(keyword_result)
+        else:
+            unclassified_keywords.append(keyword_result)
+    
+    # Calcular métricas agregadas para cada cluster
+    for cluster_name, cluster_data in clusters_data.items():
+        keywords = cluster_data['keywords']
+        if not keywords:
+            continue
+            
+        # Contar keywords con AI Overview y menciones
+        aio_count = sum(1 for kw in keywords if kw.get('ai_overview_generated'))
+        mention_count = sum(1 for kw in keywords if kw.get('mentioned_in_ai_overview'))
+        
+        # Sumar métricas de Search Console
+        total_clicks = sum(kw.get('search_console_data', {}).get('clicks_m1', 0) for kw in keywords)
+        total_impressions = sum(kw.get('search_console_data', {}).get('impressions_m1', 0) for kw in keywords)
+        
+        # Calcular posición promedio ponderada por impresiones
+        weighted_positions = []
+        total_weight = 0
+        for kw in keywords:
+            sc_data = kw.get('search_console_data', {})
+            impressions = sc_data.get('impressions_m1', 0)
+            position = sc_data.get('position_m1', 0)
+            if impressions > 0 and position > 0:
+                weighted_positions.append(position * impressions)
+                total_weight += impressions
+        
+        avg_position = sum(weighted_positions) / total_weight if total_weight > 0 else 0
+        
+        # Actualizar métricas del cluster
+        cluster_data.update({
+            'total_aio_keywords': aio_count,
+            'total_mentions': mention_count,
+            'total_clicks': total_clicks,
+            'total_impressions': total_impressions,
+            'avg_position': round(avg_position, 1) if avg_position > 0 else None,
+            'keyword_count': len(keywords)
+        })
+    
+    # Crear cluster especial para keywords no clasificadas
+    if unclassified_keywords:
+        aio_count = sum(1 for kw in unclassified_keywords if kw.get('ai_overview_generated'))
+        mention_count = sum(1 for kw in unclassified_keywords if kw.get('mentioned_in_ai_overview'))
+        total_clicks = sum(kw.get('search_console_data', {}).get('clicks_m1', 0) for kw in unclassified_keywords)
+        total_impressions = sum(kw.get('search_console_data', {}).get('impressions_m1', 0) for kw in unclassified_keywords)
+        
+        clusters_data['Unclassified'] = {
+            'name': 'Unclassified',
+            'keywords': unclassified_keywords,
+            'total_aio_keywords': aio_count,
+            'total_mentions': mention_count,
+            'total_clicks': total_clicks,
+            'total_impressions': total_impressions,
+            'avg_position': None,
+            'keyword_count': len(unclassified_keywords),
+            'terms': []
+        }
+    
+    # Filtrar clusters vacíos para la respuesta
+    filtered_clusters = {name: data for name, data in clusters_data.items() if data['keyword_count'] > 0}
+    
+    logger.info(f"[CLUSTERS] Agrupación completada: {len(filtered_clusters)} clusters con keywords")
+    for cluster_name, cluster_data in filtered_clusters.items():
+        logger.info(f"[CLUSTERS] {cluster_name}: {cluster_data['keyword_count']} keywords, {cluster_data['total_aio_keywords']} con AIO, {cluster_data['total_mentions']} menciones")
+    
+    return {
+        'clusters': list(filtered_clusters.values()),
+        'total_clusters': len(filtered_clusters),
+        'classification_stats': {
+            'total_keywords': len(keywords_results),
+            'classified_keywords': len(keywords_results) - len(unclassified_keywords),
+            'unclassified_keywords': len(unclassified_keywords),
+            'classification_rate': round((len(keywords_results) - len(unclassified_keywords)) / len(keywords_results) * 100, 1) if keywords_results else 0
+        }
+    }
 
 # ================================
 # MANUAL AI ANALYSIS SYSTEM - SAFE REGISTRATION

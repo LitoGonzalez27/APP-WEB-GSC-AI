@@ -220,6 +220,11 @@ class AIResetManager {
   resetAllContent() {
     // Limpiar contenedor de resultados
     if (this.aiResultsContainer) {
+      // 🆕 NUEVO: Limpiar resultados de clusters antes de limpiar todo el contenedor
+      if (window.TopicClustersVisualization) {
+        window.TopicClustersVisualization.clearTopicClustersResults(this.aiResultsContainer);
+      }
+      
       this.aiResultsContainer.innerHTML = '';
       this.aiResultsContainer.style.display = 'none';
     }
