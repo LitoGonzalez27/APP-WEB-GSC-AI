@@ -2196,13 +2196,23 @@ def analyze_ai_overview_route():
 
         # 🆕 NUEVO: Procesar topic clusters si están habilitados
         clusters_analysis = None
+        logger.info(f"[CLUSTERS DEBUG] 🔍 Verificando condiciones: clusters_enabled={clusters_enabled}, results_count={len(results_list_overview) if results_list_overview else 0}")
+        
         if clusters_enabled and results_list_overview:
+            logger.info(f"[CLUSTERS DEBUG] 🚀 Iniciando group_keywords_by_clusters con {len(results_list_overview)} keywords")
             try:
                 clusters_analysis = group_keywords_by_clusters(results_list_overview, topic_clusters)
                 logger.info(f"[AI ANALYSIS] 🔗 Clusters analysis completed: {clusters_analysis['total_clusters'] if clusters_analysis else 0} clusters")
             except Exception as e:
                 logger.error(f"[AI ANALYSIS] ❌ Error processing topic clusters: {e}")
+                import traceback
+                logger.error(f"[AI ANALYSIS] ❌ Traceback: {traceback.format_exc()}")
                 clusters_analysis = None
+        else:
+            if not clusters_enabled:
+                logger.info(f"[CLUSTERS DEBUG] ⚪ Clusters disabled")
+            if not results_list_overview:
+                logger.info(f"[CLUSTERS DEBUG] ⚪ No results_list_overview")
 
         response_data_overview = {
             'results': results_list_overview,
@@ -3195,8 +3205,8 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
             continue
             
         # Contar keywords con AI Overview y menciones
-        aio_count = sum(1 for kw in keywords if kw.get('ai_overview_generated'))
-        mention_count = sum(1 for kw in keywords if kw.get('mentioned_in_ai_overview'))
+        aio_count = sum(1 for kw in keywords if kw.get('ai_analysis', {}).get('has_ai_overview', False))
+        mention_count = sum(1 for kw in keywords if kw.get('ai_analysis', {}).get('domain_is_ai_source', False))
         
         # Sumar métricas de Search Console (buscar en múltiples ubicaciones posibles)
         total_clicks = 0
@@ -3248,8 +3258,8 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
     
     # Crear cluster especial para keywords no clasificadas
     if unclassified_keywords:
-        aio_count = sum(1 for kw in unclassified_keywords if kw.get('ai_overview_generated'))
-        mention_count = sum(1 for kw in unclassified_keywords if kw.get('mentioned_in_ai_overview'))
+        aio_count = sum(1 for kw in unclassified_keywords if kw.get('ai_analysis', {}).get('has_ai_overview', False))
+        mention_count = sum(1 for kw in unclassified_keywords if kw.get('ai_analysis', {}).get('domain_is_ai_source', False))
         
         # Sumar métricas buscando en múltiples ubicaciones posibles
         total_clicks = 0
