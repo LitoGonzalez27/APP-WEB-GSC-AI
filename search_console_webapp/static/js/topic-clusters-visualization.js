@@ -31,17 +31,17 @@ function displayTopicClustersResults(clustersAnalysis, container) {
         container.appendChild(clustersContainer);
     }
 
-    // Usar misma estructura y clases que competitor analysis
+    // Layout de una sola columna para mayor tamaño
     const titleHTML = `<h3 class="competitor-analysis-title">Topic Clusters Analysis</h3>`;
     
     const layoutHTML = `
-        <div class="competitor-analysis-layout">
-            <div class="competitor-chart-column">
-                <div class="competitor-chart-container">
+        <div class="clusters-single-column-layout">
+            <div class="clusters-chart-section">
+                <div class="clusters-chart-container">
                     <canvas id="clustersChart"></canvas>
                 </div>
             </div>
-            <div class="competitor-table-column">
+            <div class="clusters-table-section">
                 ${createClustersTable(clustersAnalysis.clusters)}
             </div>
         </div>
