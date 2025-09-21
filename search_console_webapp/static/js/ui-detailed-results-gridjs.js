@@ -198,11 +198,33 @@ function processDetailedDataForGrid(keywordResults) {
             sort: true,
             formatter: (cell) => {
                 const isUnclassified = cell === 'Unclassified';
-                return gridjs.html(`
-                    <span class="cluster-tag ${isUnclassified ? 'cluster-unclassified' : 'cluster-assigned'}">
-                        ${cell}
-                    </span>
-                `);
+                
+                if (isUnclassified) {
+                    return gridjs.html(`
+                        <span class="cluster-tag cluster-unclassified">
+                            ${cell}
+                        </span>
+                    `);
+                }
+                
+                // 🆕 NUEVO: Usar colores dinámicos del gráfico
+                const clusterColorMapping = window.clusterColorMapping || {};
+                const clusterColors = clusterColorMapping[cell];
+                
+                if (clusterColors) {
+                    return gridjs.html(`
+                        <span class="cluster-tag cluster-assigned" style="background: ${clusterColors.solid}; border-color: ${clusterColors.solid};">
+                            ${cell}
+                        </span>
+                    `);
+                } else {
+                    // Fallback si no hay color disponible
+                    return gridjs.html(`
+                        <span class="cluster-tag cluster-assigned">
+                            ${cell}
+                        </span>
+                    `);
+                }
             }
         }
     ];

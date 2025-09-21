@@ -402,9 +402,9 @@ function createCompetitorBarChart(competitorResults) {
                                 label: function(context) {
                                     const item = chartData[context.dataIndex];
                                     return [
-                                        `🌐 Domain: ${item.label}`,
-                                        `🎯 Mentions: ${item.value}`,
-                                        `👁️ Visibility: ${context.parsed.y}%`
+                                        `Domain: ${item.label}`,
+                                        `Mentions: ${item.value}`,
+                                        `Visibility: ${context.parsed.y}%`
                                     ];
                                 },
                                 labelColor: function(context) {

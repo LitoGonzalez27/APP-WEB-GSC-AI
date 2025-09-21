@@ -165,7 +165,7 @@ function createClustersBubbleChart(clusters) {
         };
     });
 
-    // Definir colores para las burbujas
+    // Definir colores para las burbujas y crear mapping global
     const colors = [
         'rgba(79, 70, 229, 0.6)',  // Purple
         'rgba(16, 185, 129, 0.6)', // Green
@@ -176,6 +176,17 @@ function createClustersBubbleChart(clusters) {
         'rgba(249, 115, 22, 0.6)', // Orange
         'rgba(236, 72, 153, 0.6)'  // Pink
     ];
+
+    // 🆕 NUEVO: Crear mapping global de cluster name to color
+    window.clusterColorMapping = {};
+    chartData.forEach((cluster, index) => {
+        const colorIndex = index % colors.length;
+        window.clusterColorMapping[cluster.label] = {
+            background: colors[colorIndex],
+            border: colors[colorIndex].replace('0.6', '1'),
+            solid: colors[colorIndex].replace('0.6', '1').replace('rgba', 'rgb').replace(', 1)', ')')
+        };
+    });
 
     const backgroundColors = chartData.map((_, index) => colors[index % colors.length]);
     const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
@@ -256,12 +267,12 @@ function createClustersBubbleChart(clusters) {
                         label: function(context) {
                             const data = context.raw;
                             return [
-                                `🎯 Mentions: ${data.x}`,
-                                `👁️ Impressions: ${formatNumber(data.y)}`,
-                                `👆 Clicks: ${formatNumber(data.clicks)}`,
-                                `🔍 Keywords: ${data.keywordCount}`,
-                                `🤖 AIO Generated: ${data.aioKeywords}`,
-                                `📍 Avg Position: ${data.avgPosition || 'N/A'}`
+                                `Mentions: ${data.x}`,
+                                `Impressions: ${formatNumber(data.y)}`,
+                                `Clicks: ${formatNumber(data.clicks)}`,
+                                `Keywords: ${data.keywordCount}`,
+                                `AIO Generated: ${data.aioKeywords}`,
+                                `Avg Position: ${data.avgPosition || 'N/A'}`
                             ];
                         },
                         labelColor: function(context) {

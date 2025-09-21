@@ -617,25 +617,28 @@ class SidebarNavigation {
                            [],
                   summary: window.currentAIOverviewData.analysis.summary || 
                            window.currentAIOverviewData.summary || 
-                           {}
+                           {},
+                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
               };
-              console.log('✅ Estructura detectada: analysis.results/summary');
+              console.log('✅ Estructura detectada: analysis.results/summary + clusters');
           }
           // Caso 2: La estructura ya tiene 'results' y 'summary' directamente
           else if (window.currentAIOverviewData.results && window.currentAIOverviewData.summary) {
               aiOverviewDataToDownload = {
                   results: window.currentAIOverviewData.results,
-                  summary: window.currentAIOverviewData.summary
+                  summary: window.currentAIOverviewData.summary,
+                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
               };
-              console.log('✅ Estructura detectada: results/summary directa');
+              console.log('✅ Estructura detectada: results/summary directa + clusters');
           }
           // Caso 3: Intento de rescate con keywordResults
           else if (window.currentAIOverviewData.keywordResults) {
               aiOverviewDataToDownload = {
                   results: window.currentAIOverviewData.keywordResults,
-                  summary: window.currentAIOverviewData.summary || {}
+                  summary: window.currentAIOverviewData.summary || {},
+                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
               };
-              console.log('✅ Estructura detectada: keywordResults');
+              console.log('✅ Estructura detectada: keywordResults + clusters');
           }
           // Caso 4: Estructura no reconocida, intentar usar tal cual
           else {
