@@ -73,19 +73,19 @@ function createClustersTable(clusters) {
         
         return `
             <tr>
-                <td class="domain-cell cluster-name">${escapeHtml(cluster.name)}</td>
-                <td class="mentions-cell">${cluster.total_aio_keywords}</td>
-                <td class="visibility-cell ${visibilityClass}">${cluster.total_mentions}</td>
-                <td class="mentions-cell">${formatNumber(cluster.total_clicks)}</td>
-                <td class="mentions-cell">${formatNumber(cluster.total_impressions)}</td>
-                <td class="position-cell ${positionClass}">${cluster.avg_position || 'N/A'}</td>
+                <td class="cluster-name-cell">${escapeHtml(cluster.name)}</td>
+                <td class="cluster-metric-cell">${cluster.total_aio_keywords}</td>
+                <td class="cluster-metric-cell ${visibilityClass}">${cluster.total_mentions}</td>
+                <td class="cluster-metric-cell">${formatNumber(cluster.total_clicks)}</td>
+                <td class="cluster-metric-cell">${formatNumber(cluster.total_impressions)}</td>
+                <td class="cluster-metric-cell ${positionClass}">${cluster.avg_position || 'N/A'}</td>
             </tr>
         `;
     }).join('');
 
     return `
-        <div class="competitor-results-table">
-            <table class="competitor-table">
+        <div class="clusters-results-table">
+            <table class="clusters-table">
                 <thead>
                     <tr>
                         <th>Cluster Name</th>
@@ -285,6 +285,16 @@ function createClustersBubbleChart(clusters) {
                     },
                     grid: {
                         color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            if (value >= 1000000) {
+                                return (value / 1000000).toFixed(1) + 'M';
+                            } else if (value >= 1000) {
+                                return (value / 1000).toFixed(0) + 'K';
+                            }
+                            return value;
+                        }
                     }
                 }
             },
