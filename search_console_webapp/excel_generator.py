@@ -31,13 +31,36 @@ def format_ai_overview_data(ai_overview_results):
     
     results = ai_overview_results.get('results', [])
     
+    # 🔍 DEBUG EXCEL CLUSTERS: Verificar datos que llegan al Excel generator
+    print(f"🔍 [EXCEL CLUSTERS DEBUG] Total resultados recibidos: {len(results)}")
+    if results and len(results) > 0:
+        first_result = results[0]
+        print(f"🔍 [EXCEL CLUSTERS DEBUG] Primera keyword: {first_result.get('keyword', 'N/A')}")
+        print(f"🔍 [EXCEL CLUSTERS DEBUG] Cluster de primera keyword: {first_result.get('cluster_name', 'NO ENCONTRADO')}")
+        
+        # Contar keywords con clusters
+        with_clusters = [r for r in results if r.get('cluster_name') and r.get('cluster_name') != 'Unclassified']
+        unclassified = [r for r in results if not r.get('cluster_name') or r.get('cluster_name') == 'Unclassified']
+        print(f"🔍 [EXCEL CLUSTERS DEBUG] Con cluster: {len(with_clusters)}, sin cluster: {len(unclassified)}")
+        
+        if with_clusters:
+            print(f"🔍 [EXCEL CLUSTERS DEBUG] Ejemplo keyword con cluster: {with_clusters[0].get('keyword')} → {with_clusters[0].get('cluster_name')}")
+    else:
+        print("🔍 [EXCEL CLUSTERS DEBUG] ❌ No se recibieron resultados")
+    
     for result in results:
         ai_analysis = result.get('ai_analysis', {})
         ai_detected = ai_analysis.get('ai_overview_detected', [])
         
+        # 🔍 DEBUG EXCEL CLUSTERS: Log específico para cada keyword procesada
+        keyword_text = result.get('keyword', '')
+        cluster_name = result.get('cluster_name', 'Unclassified')
+        if cluster_name != 'Unclassified':
+            print(f"🔍 [EXCEL CLUSTERS DEBUG] Procesando keyword '{keyword_text}' → cluster '{cluster_name}'")
+        
         base_data = {
-            'Keyword': result.get('keyword', ''),
-            'Cluster': result.get('cluster_name', 'Unclassified'),  # 🆕 Nueva columna Cluster
+            'Keyword': keyword_text,
+            'Cluster': cluster_name,  # 🆕 Nueva columna Cluster
             'Clics_M1': result.get('clicks_m1', 0),
             'Clics_M2': result.get('clicks_m2', 0),
             'Delta_Clics_%': format_percent_or_infinity(result.get('delta_clicks_percent', 0)),
@@ -84,6 +107,19 @@ def format_ai_overview_data(ai_overview_results):
                 'Elemento_Numero': ''
             })
             formatted_data.append(base_data)
+    
+    # 🔍 DEBUG EXCEL CLUSTERS: Verificar datos finales que van al Excel
+    print(f"🔍 [EXCEL CLUSTERS DEBUG] Total filas generadas para Excel: {len(formatted_data)}")
+    if formatted_data and len(formatted_data) > 0:
+        first_row = formatted_data[0]
+        print(f"🔍 [EXCEL CLUSTERS DEBUG] Primera fila Excel - Keyword: {first_row.get('Keyword')}, Cluster: {first_row.get('Cluster')}")
+        print(f"🔍 [EXCEL CLUSTERS DEBUG] Columnas en Excel: {list(first_row.keys())}")
+        
+        # Verificar que la columna Cluster existe
+        if 'Cluster' in first_row:
+            print("🔍 [EXCEL CLUSTERS DEBUG] ✅ Columna 'Cluster' confirmada en datos del Excel")
+        else:
+            print("🔍 [EXCEL CLUSTERS DEBUG] ❌ Columna 'Cluster' NO encontrada en datos del Excel")
     
     return formatted_data
 

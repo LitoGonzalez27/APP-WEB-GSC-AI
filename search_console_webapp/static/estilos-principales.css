@@ -1877,24 +1877,25 @@ body.dark-mode .analysis-info-icon::before {
   border-collapse: collapse;
 }
 
+.clusters-table thead{
+  background: #f7f7f7;
+}
+
 .clusters-table th {
   background: var(--primary-gradient);
   color: #161616;
   padding: 12px 10px;
   text-align: center;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
   border: none;
 }
-.clusters-table tr {
-  background: #f7f7f7;
 
-}
 
 .clusters-table td {
   padding: 10px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 13px;
+  font-size: 15px;
   vertical-align: middle;
 }
 
@@ -1951,7 +1952,7 @@ body.dark-mode .analysis-info-icon::before {
   .clusters-table th,
   .clusters-table td {
     padding: 8px 6px;
-    font-size: 12px;
+    font-size: 15px;
   }
 }
 
