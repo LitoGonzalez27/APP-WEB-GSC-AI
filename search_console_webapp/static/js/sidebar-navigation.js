@@ -646,12 +646,30 @@ class SidebarNavigation {
               aiOverviewDataToDownload = window.currentAIOverviewData;
           }
           
+          // 🔍 EXCEL DEBUG CRÍTICO: Verificar cluster_name en results para Excel
+          console.log('🔍 [EXCEL DEBUG] Verificando datos para envío a Excel:');
+          if (aiOverviewDataToDownload?.results?.length > 0) {
+              console.log('🔍 [EXCEL DEBUG] Primera keyword para Excel:', aiOverviewDataToDownload.results[0]);
+              console.log('🔍 [EXCEL DEBUG] Tiene cluster_name?:', aiOverviewDataToDownload.results[0].cluster_name);
+              
+              // Contar keywords con clusters que van al Excel
+              const withClusters = aiOverviewDataToDownload.results.filter(r => r.cluster_name && r.cluster_name !== 'Unclassified');
+              const unclassified = aiOverviewDataToDownload.results.filter(r => !r.cluster_name || r.cluster_name === 'Unclassified');
+              console.log(`🔍 [EXCEL DEBUG] Para Excel - Con cluster: ${withClusters.length}, sin cluster: ${unclassified.length}`);
+              
+              // Mostrar algunos ejemplos
+              if (withClusters.length > 0) {
+                  console.log('🔍 [EXCEL DEBUG] Ejemplo keyword con cluster:', withClusters[0]);
+              }
+          }
+          
           // Log de verificación
           console.log('📊 Datos AI Overview preparados para descarga:', {
               tieneResults: !!aiOverviewDataToDownload?.results,
               resultsCount: aiOverviewDataToDownload?.results?.length || 0,
               tieneSummary: !!aiOverviewDataToDownload?.summary,
-              summaryKeys: aiOverviewDataToDownload?.summary ? Object.keys(aiOverviewDataToDownload.summary) : []
+              summaryKeys: aiOverviewDataToDownload?.summary ? Object.keys(aiOverviewDataToDownload.summary) : [],
+              tieneClusters: !!aiOverviewDataToDownload?.clusters_analysis
           });
           
           // 🔍 DEBUG COMPETIDORES: Log detallado de estructura de datos

@@ -347,6 +347,20 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
       clusters_analysis: analysisData.clusters_analysis || null  // 🆕 NUEVO: Añadir clusters analysis
     };
 
+    // 🔍 DEBUG CRÍTICO: Verificar si las keywords tienen cluster_name
+    console.log('🔍 [EXCEL DEBUG] Verificando datos del backend para Excel:');
+    console.log('🔍 [EXCEL DEBUG] analysisData completo:', analysisData);
+    console.log('🔍 [EXCEL DEBUG] analysisData.results:', analysisData.results);
+    if (analysisData.results && analysisData.results.length > 0) {
+        console.log('🔍 [EXCEL DEBUG] Primera keyword:', analysisData.results[0]);
+        console.log('🔍 [EXCEL DEBUG] Tiene cluster_name?:', analysisData.results[0].cluster_name);
+        
+        // Contar keywords con clusters
+        const withClusters = analysisData.results.filter(r => r.cluster_name && r.cluster_name !== 'Unclassified');
+        const unclassified = analysisData.results.filter(r => !r.cluster_name || r.cluster_name === 'Unclassified');
+        console.log(`🔍 [EXCEL DEBUG] Keywords con cluster: ${withClusters.length}, sin cluster: ${unclassified.length}`);
+    }
+
     // Guardar en variable global para descarga Excel
     if (window) {
       window.currentAIOverviewData = displayData;
