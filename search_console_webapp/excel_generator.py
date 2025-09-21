@@ -600,8 +600,8 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         
         # 4) TABLA COMPLETA DE KEYWORDS CON DATOS EXPANDIDOS
         keywords_section = [
-            ['DETALLE COMPLETO POR KEYWORD', '', '', '', '', '', '', ''],
-            ['Keyword', 'With AIO', 'Your Domain in AIO', 'AIO Position', 'Organic Position', 'Clicks (P1)', 'Impressions (P1)', 'CTR (P1)'],
+            ['DETALLE COMPLETO POR KEYWORD', '', '', '', '', '', '', '', ''],
+            ['Keyword', 'With AIO', 'Your Domain in AIO', 'AIO Position', 'Organic Position', 'Clicks (P1)', 'Impressions (P1)', 'CTR (P1)', 'Cluster'],
         ]
         
         for result in keyword_results:
@@ -624,35 +624,36 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
             # ❌ ELIMINADO: Datos de competidores en AIO (no requeridos en página de análisis)
             
             keywords_section.append([
-                keyword, 
-                has_ai_overview, 
-                domain_in_aio, 
-                aio_position, 
+                keyword,
+                has_ai_overview,
+                domain_in_aio,
+                aio_position,
                 organic_position,
                 clicks_p1,
                 impressions_p1,
-                ctr_formatted
+                ctr_formatted,
+                result.get('cluster_name', 'Unclassified')
             ])
         
         # ===== COMBINAR TODAS LAS SECCIONES =====
-        # Normalizar todas las secciones a 8 columnas para que coincidan con la tabla final sin competidores
+        # Normalizar todas las secciones a 9 columnas para que coincidan con la tabla final (incluye Cluster)
         
-        def normalize_to_8_columns(section):
+        def normalize_to_n_columns(section, target_columns=9):
             normalized = []
             for row in section:
-                if len(row) < 8:
-                    # Rellenar con strings vacíos hasta 8 columnas
-                    row_normalized = row + [''] * (8 - len(row))
+                if len(row) < target_columns:
+                    # Rellenar con strings vacíos hasta el total de columnas
+                    row_normalized = row + [''] * (target_columns - len(row))
                 else:
-                    row_normalized = row[:8]  # Truncar si tiene más de 8
+                    row_normalized = row[:target_columns]  # Truncar si tiene más
                 normalized.append(row_normalized)
             return normalized
         
         # Normalizar cada sección
-        executive_normalized = normalize_to_8_columns(executive_section)
-        tipologia_normalized = normalize_to_8_columns(tipologia_section)
-        posiciones_normalized = normalize_to_8_columns(posiciones_section)
-        keywords_normalized = normalize_to_8_columns(keywords_section)
+        executive_normalized = normalize_to_n_columns(executive_section)
+        tipologia_normalized = normalize_to_n_columns(tipologia_section)
+        posiciones_normalized = normalize_to_n_columns(posiciones_section)
+        keywords_normalized = normalize_to_n_columns(keywords_section)
         
         # Combinar todas las secciones
         all_data = executive_normalized + tipologia_normalized + posiciones_normalized + keywords_normalized
@@ -671,6 +672,7 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         worksheet.set_column('F:F', 12)  # Clicks P1
         worksheet.set_column('G:G', 15)  # Impressions P1
         worksheet.set_column('H:H', 12)  # CTR P1
+        worksheet.set_column('I:I', 22)  # Cluster
         
         # Aplicar formatos especiales
         workbook = writer.book
@@ -685,8 +687,8 @@ def create_aio_consolidated_sheet(writer, ai_overview_data, header_format, selec
         for row_num in section_rows:
             worksheet.set_row(row_num, None, section_format)
         
-        # Aplicar header format para las 8 columnas
-        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        # Aplicar header format para las 9 columnas
+        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
         for col_num, col_name in enumerate(column_letters):
             if col_num < len(df_aio.columns):
                 worksheet.write(f'{col_name}1', df_aio.columns[col_num], header_format)
