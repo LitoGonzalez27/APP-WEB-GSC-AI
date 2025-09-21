@@ -37,6 +37,7 @@ def format_ai_overview_data(ai_overview_results):
         
         base_data = {
             'Keyword': result.get('keyword', ''),
+            'Cluster': result.get('cluster_name', 'Unclassified'),  # 🆕 Nueva columna Cluster
             'Clics_M1': result.get('clicks_m1', 0),
             'Clics_M2': result.get('clicks_m2', 0),
             'Delta_Clics_%': format_percent_or_infinity(result.get('delta_clicks_percent', 0)),

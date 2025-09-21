@@ -364,32 +364,54 @@ function createCompetitorBarChart(competitorResults) {
                             display: false // Usamos nuestra leyenda personalizada
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#ffffff',
+                            backgroundColor: '#ffffff',
+                            titleColor: '#1f2937',
+                            bodyColor: '#374151',
+                            borderColor: '#e5e7eb',
                             borderWidth: 1,
+                            cornerRadius: 8,
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                             titleFont: {
-                                size: 14,
-                                weight: 'bold'
+                                size: 15,
+                                weight: '600',
+                                family: 'Inter, system-ui, sans-serif'
                             },
                             bodyFont: {
-                                size: 12
+                                size: 13,
+                                weight: '400',
+                                family: 'Inter, system-ui, sans-serif'
                             },
-                            padding: 12,
+                            padding: {
+                                top: 12,
+                                bottom: 12,
+                                left: 16,
+                                right: 16
+                            },
+                            displayColors: false,
+                            titleSpacing: 8,
+                            bodySpacing: 6,
                             callbacks: {
                                 title: function(context) {
                                     const item = chartData[context[0].dataIndex];
                                     const domainType = getDomainType(item.label, context[0].dataIndex);
                                     return domainType;
                                 },
+                                beforeBody: function() {
+                                    return '';
+                                },
                                 label: function(context) {
                                     const item = chartData[context.dataIndex];
                                     return [
-                                        `Domain: ${item.label}`,
-                                        `Mentions: ${item.value}`,
-                                        `Visibility: ${context.parsed.y}%`
+                                        `🌐 Domain: ${item.label}`,
+                                        `🎯 Mentions: ${item.value}`,
+                                        `👁️ Visibility: ${context.parsed.y}%`
                                     ];
+                                },
+                                labelColor: function(context) {
+                                    return {
+                                        borderColor: 'transparent',
+                                        backgroundColor: 'transparent'
+                                    };
                                 }
                             }
                         }

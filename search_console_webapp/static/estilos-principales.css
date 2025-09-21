@@ -1801,6 +1801,7 @@ body.dark-mode .analysis-info-icon::before {
   border: 1px solid var(--border-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   min-height: 400px;
+  padding-bottom: 0px;
 }
 
 .clusters-chart-container {
@@ -1817,6 +1818,58 @@ body.dark-mode .analysis-info-icon::before {
   border: 1px solid var(--border-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+}
+
+/* Estilos para tooltips elegantes */
+.chartjs-tooltip {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  color: #374151 !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  padding: 12px 16px !important;
+}
+
+.chartjs-tooltip .tooltip-title {
+  color: #1f2937 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.chartjs-tooltip .tooltip-body {
+  line-height: 1.6 !important;
+}
+
+.chartjs-tooltip .tooltip-body div {
+  margin-bottom: 4px !important;
+}
+
+/* Estilos para etiquetas de cluster en tabla detallada */
+.cluster-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cluster-assigned {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: 1px solid #10b981;
+}
+
+.cluster-unclassified {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+  border: 1px solid #6b7280;
 }
 
 .clusters-table {
@@ -1902,4 +1955,14 @@ body.dark-mode .analysis-info-icon::before {
   }
 }
 
+.cluster-name-cell{
+  font-size: 15px;
+}
 
+.clusters-table tbody{
+  background: white;
+}
+
+.cluster-metric-cell{
+  font-size:15px;
+}

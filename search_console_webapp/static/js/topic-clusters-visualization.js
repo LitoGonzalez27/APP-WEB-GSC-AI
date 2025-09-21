@@ -220,33 +220,55 @@ function createClustersBubbleChart(clusters) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: '#ffffff',
+                    backgroundColor: '#ffffff',
+                    titleColor: '#1f2937',
+                    bodyColor: '#374151',
+                    borderColor: '#e5e7eb',
                     borderWidth: 1,
+                    cornerRadius: 8,
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                     titleFont: {
-                        size: 14,
-                        weight: 'bold'
+                        size: 15,
+                        weight: '600',
+                        family: 'Inter, system-ui, sans-serif'
                     },
                     bodyFont: {
-                        size: 12
+                        size: 13,
+                        weight: '400',
+                        family: 'Inter, system-ui, sans-serif'
                     },
-                    padding: 12,
+                    padding: {
+                        top: 12,
+                        bottom: 12,
+                        left: 16,
+                        right: 16
+                    },
+                    displayColors: false,
+                    titleSpacing: 8,
+                    bodySpacing: 6,
                     callbacks: {
                         title: function(context) {
                             return context[0].raw.label;
                         },
+                        beforeBody: function() {
+                            return '';
+                        },
                         label: function(context) {
                             const data = context.raw;
                             return [
-                                `Mentions: ${data.x}`,
-                                `Impressions: ${formatNumber(data.y)}`,
-                                `Clicks: ${formatNumber(data.clicks)}`,
-                                `Keywords: ${data.keywordCount}`,
-                                `AIO Generated: ${data.aioKeywords}`,
-                                `Avg Position: ${data.avgPosition || 'N/A'}`
+                                `🎯 Mentions: ${data.x}`,
+                                `👁️ Impressions: ${formatNumber(data.y)}`,
+                                `👆 Clicks: ${formatNumber(data.clicks)}`,
+                                `🔍 Keywords: ${data.keywordCount}`,
+                                `🤖 AIO Generated: ${data.aioKeywords}`,
+                                `📍 Avg Position: ${data.avgPosition || 'N/A'}`
                             ];
+                        },
+                        labelColor: function(context) {
+                            return {
+                                borderColor: 'transparent',
+                                backgroundColor: 'transparent'
+                            };
                         }
                     }
                 }

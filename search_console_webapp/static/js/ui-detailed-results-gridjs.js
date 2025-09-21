@@ -191,6 +191,19 @@ function processDetailedDataForGrid(keywordResults) {
                     return numA - numB;
                 }
             }
+        },
+        {
+            name: 'Cluster',
+            width: '120px',
+            sort: true,
+            formatter: (cell) => {
+                const isUnclassified = cell === 'Unclassified';
+                return gridjs.html(`
+                    <span class="cluster-tag ${isUnclassified ? 'cluster-unclassified' : 'cluster-assigned'}">
+                        ${cell}
+                    </span>
+                `);
+            }
         }
     ];
 
@@ -208,7 +221,10 @@ function processDetailedDataForGrid(keywordResults) {
             ? aiAnalysis.domain_ai_source_position
             : 'No';
 
-return [
+        // Determinar cluster
+        const clusterName = result.cluster_name || 'Unclassified';
+
+        return [
             '', // View SERP (manejado por formatter)
             result.keyword || 'N/A',
             hasAIOverview ? 'Yes' : 'No', // With AIO
@@ -216,7 +232,8 @@ return [
             aiPosition, // AIO Position
             organicPosition, // Organic Position
             formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // Clics (P1)
-            formatInteger(result.impressions_p1 || result.impressions_m1 || 0) // Impresiones (P1)
+            formatInteger(result.impressions_p1 || result.impressions_m1 || 0), // Impresiones (P1)
+            clusterName // Cluster
         ];
     });
 

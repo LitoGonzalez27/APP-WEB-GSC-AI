@@ -2198,6 +2198,7 @@ def analyze_ai_overview_route():
         clusters_analysis = None
         logger.info(f"[CLUSTERS DEBUG] 🔍 Verificando condiciones: clusters_enabled={clusters_enabled}, results_count={len(results_list_overview) if results_list_overview else 0}")
         
+        # Procesar clusters si están habilitados
         if clusters_enabled and results_list_overview:
             logger.info(f"[CLUSTERS DEBUG] 🚀 Iniciando group_keywords_by_clusters con {len(results_list_overview)} keywords")
             try:
@@ -2209,6 +2210,12 @@ def analyze_ai_overview_route():
                 logger.error(f"[AI ANALYSIS] ❌ Traceback: {traceback.format_exc()}")
                 clusters_analysis = None
         else:
+            # Si no hay clusters habilitados, marcar todas las keywords como 'Unclassified'
+            if results_list_overview:
+                for keyword_result in results_list_overview:
+                    keyword_result['cluster_name'] = 'Unclassified'
+                logger.info(f"[CLUSTERS DEBUG] ⚪ Clusters disabled - marked {len(results_list_overview)} keywords as 'Unclassified'")
+            
             if not clusters_enabled:
                 logger.info(f"[CLUSTERS DEBUG] ⚪ Clusters disabled")
             if not results_list_overview:
@@ -3191,11 +3198,16 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
         matching_clusters = classify_keyword_into_clusters(keyword_text, clusters_config)
         
         if matching_clusters:
+            # Añadir nombre del cluster a la keyword (usar el primero si hay múltiples)
+            keyword_result['cluster_name'] = matching_clusters[0]
+            
             # Añadir a todos los clusters que coinciden
             for cluster_name in matching_clusters:
                 if cluster_name in clusters_data:
                     clusters_data[cluster_name]['keywords'].append(keyword_result)
         else:
+            # Marcar como unclassified
+            keyword_result['cluster_name'] = 'Unclassified'
             unclassified_keywords.append(keyword_result)
     
     # Calcular métricas agregadas para cada cluster
