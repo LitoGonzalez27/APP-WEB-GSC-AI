@@ -3233,14 +3233,18 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
         avg_position = sum(weighted_positions) / total_weight if total_weight > 0 else 0
         
         # Actualizar métricas del cluster
-        cluster_data.update({
+        cluster_metrics = {
             'total_aio_keywords': aio_count,
             'total_mentions': mention_count,
             'total_clicks': total_clicks,
             'total_impressions': total_impressions,
             'avg_position': round(avg_position, 1) if avg_position > 0 else None,
             'keyword_count': len(keywords)
-        })
+        }
+        
+        logger.info(f"[CLUSTERS] 📊 Cluster '{cluster_name}': {len(keywords)} keywords → métricas: AIO={aio_count}, mentions={mention_count}, clicks={total_clicks}, impressions={total_impressions}")
+        
+        cluster_data.update(cluster_metrics)
     
     # Crear cluster especial para keywords no clasificadas
     if unclassified_keywords:
@@ -3280,8 +3284,17 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
     for cluster_name, cluster_data in filtered_clusters.items():
         logger.info(f"[CLUSTERS] {cluster_name}: {cluster_data['keyword_count']} keywords, {cluster_data['total_aio_keywords']} con AIO, {cluster_data['total_mentions']} menciones")
     
+    # Preparar clusters para respuesta incluyendo nombres
+    clusters_for_response = []
+    for cluster_name, cluster_data in filtered_clusters.items():
+        cluster_with_name = cluster_data.copy()
+        cluster_with_name['name'] = cluster_name
+        clusters_for_response.append(cluster_with_name)
+    
+    logger.info(f"[CLUSTERS] 📤 Enviando al frontend: {len(clusters_for_response)} clusters con nombres")
+    
     return {
-        'clusters': list(filtered_clusters.values()),
+        'clusters': clusters_for_response,
         'total_clusters': len(filtered_clusters),
         'classification_stats': {
             'total_keywords': len(keywords_results),
