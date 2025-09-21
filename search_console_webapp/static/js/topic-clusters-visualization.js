@@ -23,7 +23,7 @@ function displayTopicClustersResults(clustersAnalysis, container) {
         return;
     }
 
-    // Buscar contenedor existente o crear uno nuevo
+    // Buscar contenedor existente o crear uno nuevo (usar mismas clases que competitor analysis)
     let clustersContainer = container.querySelector('.topic-clusters-results');
     if (!clustersContainer) {
         clustersContainer = document.createElement('div');
@@ -31,21 +31,18 @@ function displayTopicClustersResults(clustersAnalysis, container) {
         container.appendChild(clustersContainer);
     }
 
-    // Crear el layout principal con título, tabla y gráfico
-    const titleHTML = `<h3 class="topic-clusters-title">
-        <i class="fas fa-project-diagram"></i>
-        Topic Clusters Analysis
-    </h3>`;
+    // Usar misma estructura y clases que competitor analysis
+    const titleHTML = `<h3 class="competitor-analysis-title">Topic Clusters Analysis</h3>`;
     
     const layoutHTML = `
-        <div class="clusters-analysis-layout">
-            <div class="clusters-table-column">
-                ${createClustersTable(clustersAnalysis.clusters)}
-            </div>
-            <div class="clusters-chart-column">
-                <div class="clusters-chart-container">
+        <div class="competitor-analysis-layout">
+            <div class="competitor-chart-column">
+                <div class="competitor-chart-container">
                     <canvas id="clustersChart"></canvas>
                 </div>
+            </div>
+            <div class="competitor-table-column">
+                ${createClustersTable(clustersAnalysis.clusters)}
             </div>
         </div>
     `;
@@ -76,19 +73,19 @@ function createClustersTable(clusters) {
         
         return `
             <tr>
-                <td class="cluster-name-cell">${escapeHtml(cluster.name)}</td>
-                <td class="cluster-metric-cell">${cluster.total_aio_keywords}</td>
-                <td class="cluster-metric-cell ${visibilityClass}">${cluster.total_mentions}</td>
-                <td class="cluster-metric-cell">${formatNumber(cluster.total_clicks)}</td>
-                <td class="cluster-metric-cell">${formatNumber(cluster.total_impressions)}</td>
-                <td class="cluster-metric-cell ${positionClass}">${cluster.avg_position || 'N/A'}</td>
+                <td class="domain-cell cluster-name">${escapeHtml(cluster.name)}</td>
+                <td class="mentions-cell">${cluster.total_aio_keywords}</td>
+                <td class="visibility-cell ${visibilityClass}">${cluster.total_mentions}</td>
+                <td class="mentions-cell">${formatNumber(cluster.total_clicks)}</td>
+                <td class="mentions-cell">${formatNumber(cluster.total_impressions)}</td>
+                <td class="position-cell ${positionClass}">${cluster.avg_position || 'N/A'}</td>
             </tr>
         `;
     }).join('');
 
     return `
-        <div class="clusters-results-table">
-            <table class="clusters-table">
+        <div class="competitor-results-table">
+            <table class="competitor-table">
                 <thead>
                     <tr>
                         <th>Cluster Name</th>
@@ -125,24 +122,48 @@ function createClustersBubbleChart(clusters) {
 
     const ctx = canvas.getContext('2d');
     
+    // Filtrar clusters válidos y preparar datos
+    const validClusters = clusters.filter(cluster => 
+        cluster.total_mentions > 0 || cluster.total_impressions > 0
+    );
+    
+    // Calcular rango de clicks para escalar burbujas proporcionalmente  
+    const clicksValues = validClusters.map(cluster => cluster.total_clicks || 0);
+    const minClicks = Math.min(...clicksValues);
+    const maxClicks = Math.max(...clicksValues);
+    
+    console.log(`🎯 [BUBBLES DEBUG] Clicks range: min=${minClicks}, max=${maxClicks}`);
+    console.log(`🎯 [BUBBLES DEBUG] All clicks values:`, clicksValues);
+    
     // Preparar datos para el gráfico de burbujas
-    const chartData = clusters.map((cluster, index) => {
-        // Filtrar clusters con datos válidos
-        if (cluster.total_mentions === 0 && cluster.total_impressions === 0) {
-            return null;
+    const chartData = validClusters.map((cluster, index) => {
+        // Calcular radio proporcional mejorado
+        let radius = 10; // Radio mínimo
+        
+        if (maxClicks > 0 && cluster.total_clicks > 0) {
+            if (maxClicks === minClicks) {
+                // Si todos tienen los mismos clicks, usar tamaño medio
+                radius = 20;
+            } else {
+                // Escalado logarítmico para mejor diferenciación
+                const clicksNormalized = (cluster.total_clicks - minClicks) / (maxClicks - minClicks);
+                radius = 10 + (clicksNormalized * 25); // Entre 10 y 35 pixels
+            }
         }
+        
+        console.log(`🎯 [BUBBLES] ${cluster.name}: clicks=${cluster.total_clicks}, radius=${Math.round(radius)}`);
         
         return {
             label: cluster.name,
-            x: cluster.total_mentions, // Eje X: Menciones en AI Overview
-            y: cluster.total_impressions, // Eje Y: Impresiones
-            r: Math.max(5, Math.min(25, cluster.total_clicks / 10)), // Radio: Clics (escalado)
-            clicks: cluster.total_clicks,
-            aioKeywords: cluster.total_aio_keywords,
-            keywordCount: cluster.keyword_count,
+            x: cluster.total_mentions || 0, // Eje X: Menciones en AI Overview
+            y: cluster.total_impressions || 0, // Eje Y: Impresiones
+            r: Math.round(radius), // Radio: Clics escalados proporcionalmente
+            clicks: cluster.total_clicks || 0,
+            aioKeywords: cluster.total_aio_keywords || 0,
+            keywordCount: cluster.keyword_count || 0,
             avgPosition: cluster.avg_position
         };
-    }).filter(data => data !== null);
+    });
 
     // Definir colores para las burbujas
     const colors = [
@@ -173,6 +194,63 @@ function createClustersBubbleChart(clusters) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        generateLabels: function(chart) {
+                            const data = chart.data.datasets[0].data;
+                            const backgroundColors = chart.data.datasets[0].backgroundColor;
+                            
+                            return data.map((point, index) => ({
+                                text: point.label,
+                                fillStyle: backgroundColors[index],
+                                strokeStyle: chart.data.datasets[0].borderColor[index],
+                                lineWidth: 2,
+                                pointStyle: 'circle'
+                            }));
+                        },
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#ffffff',
+                    borderWidth: 1,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    padding: 12,
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].raw.label;
+                        },
+                        label: function(context) {
+                            const data = context.raw;
+                            return [
+                                `Mentions: ${data.x}`,
+                                `Impressions: ${formatNumber(data.y)}`,
+                                `Clicks: ${formatNumber(data.clicks)}`,
+                                `Keywords: ${data.keywordCount}`,
+                                `AIO Generated: ${data.aioKeywords}`,
+                                `Avg Position: ${data.avgPosition || 'N/A'}`
+                            ];
+                        }
+                    }
+                }
+            },
             scales: {
                 x: {
                     beginAtZero: true,
@@ -210,42 +288,6 @@ function createClustersBubbleChart(clusters) {
                     }
                 }
             },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: '#ffffff',
-                    borderWidth: 1,
-                    titleFont: {
-                        size: 14,
-                        weight: 'bold'
-                    },
-                    bodyFont: {
-                        size: 12
-                    },
-                    padding: 12,
-                    callbacks: {
-                        title: function(context) {
-                            return context[0].raw.label;
-                        },
-                        label: function(context) {
-                            const data = context.raw;
-                            return [
-                                `Mentions: ${data.x}`,
-                                `Impressions: ${formatNumber(data.y)}`,
-                                `Clicks: ${formatNumber(data.clicks)}`,
-                                `Keywords: ${data.keywordCount}`,
-                                `AIO Generated: ${data.aioKeywords}`,
-                                `Avg Position: ${data.avgPosition || 'N/A'}`
-                            ];
-                        }
-                    }
-                }
-            },
             interaction: {
                 intersect: false,
                 mode: 'point'
@@ -254,6 +296,7 @@ function createClustersBubbleChart(clusters) {
     });
 
     console.log(`📊 Gráfico de burbujas de clusters creado con ${chartData.length} clusters`);
+    console.log(`🎯 Tamaños de burbujas escalados proporcionalmente: min=${minClicks} clicks, max=${maxClicks} clicks`);
 }
 
 /**
