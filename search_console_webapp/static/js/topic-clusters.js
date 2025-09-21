@@ -1,517 +1,363 @@
 /* ==============================================
-   TOPIC CLUSTERS SYSTEM
-   Lógica para agrupar keywords en clusters temáticos para análisis de AI Overview
+   TOPIC CLUSTERS VISUALIZATION
+   Visualización de resultados de análisis de Topic Clusters con tabla y gráfico de burbujas
    ============================================== */
 
 /**
- * Clase para manejar el sistema de Topic Clusters
+ * Muestra los resultados de análisis de Topic Clusters
+ * @param {Object} clustersAnalysis - Datos de análisis de clusters del backend
+ * @param {HTMLElement} container - Contenedor donde mostrar los resultados
  */
-class TopicClusters {
-    constructor() {
-        this.clusters = [];
-        this.clusterMethod = 'contains';
-        this.init();
+function displayTopicClustersResults(clustersAnalysis, container) {
+    console.log('🔍 RECIBIENDO datos de clusters:', clustersAnalysis);
+    console.log('🔍 Estructura clustersAnalysis:', JSON.stringify(clustersAnalysis, null, 2));
+    
+    if (!clustersAnalysis || !clustersAnalysis.clusters || clustersAnalysis.clusters.length === 0) {
+        console.warn('⚠️ No hay datos de clusters para mostrar');
+        console.warn('🔍 Detalle del problema:', {
+            hasData: !!clustersAnalysis,
+            hasClusters: !!clustersAnalysis?.clusters,
+            clustersLength: clustersAnalysis?.clusters?.length,
+            fullData: clustersAnalysis
+        });
+        return;
     }
 
-    /**
-     * Inicializar event listeners
-     */
-    init() {
-        const clusterNameInput = document.getElementById('clusterName');
-        const clusterTermsInput = document.getElementById('clusterTerms');
-        const clusterMethodSelect = document.getElementById('clusterMethod');
-
-        if (clusterNameInput) {
-            clusterNameInput.addEventListener('keydown', (e) => this.handleNameKeyDown(e));
-        }
-
-        if (clusterTermsInput) {
-            clusterTermsInput.addEventListener('keydown', (e) => this.handleTermsKeyDown(e));
-            clusterTermsInput.addEventListener('input', (e) => this.handleTermsInput(e));
-        }
-
-        if (clusterMethodSelect) {
-            clusterMethodSelect.addEventListener('change', (e) => {
-                this.clusterMethod = e.target.value;
-                this.updateMethodDescription();
-                this.updateCollapsibleSummary();
-            });
-        }
-
-        // Inicializar descripción del método
-        this.updateMethodDescription();
-
-        // Configurar botón "Clear All"
-        this.setupClearAllButton();
-
-        // Renderizar clusters vacíos inicialmente
-        this.renderClusters();
-        console.log('✅ Sistema de Topic Clusters inicializado');
+    // Buscar contenedor existente o crear uno nuevo (usar mismas clases que competitor analysis)
+    let clustersContainer = container.querySelector('.topic-clusters-results');
+    if (!clustersContainer) {
+        clustersContainer = document.createElement('div');
+        clustersContainer.className = 'topic-clusters-results';
+        container.appendChild(clustersContainer);
     }
 
-    /**
-     * Manejar eventos de teclado en el input de nombre del cluster
-     * @param {KeyboardEvent} e - Evento de teclado
-     */
-    handleNameKeyDown(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            // Enfocar el input de términos
-            const termsInput = document.getElementById('clusterTerms');
-            if (termsInput) {
-                termsInput.focus();
-            }
-        }
-    }
-
-    /**
-     * Manejar eventos de teclado en el input de términos
-     * @param {KeyboardEvent} e - Evento de teclado
-     */
-    handleTermsKeyDown(e) {
-        const termsInput = e.target;
-        const nameInput = document.getElementById('clusterName');
-        const value = termsInput.value.trim();
-        const clusterName = nameInput ? nameInput.value.trim() : '';
-
-        // Crear cluster al presionar coma o Enter (si hay nombre y términos)
-        if ((e.key === ',' || e.key === 'Enter') && value && clusterName) {
-            e.preventDefault();
-            this.addTermToCurrentCluster(value);
-            termsInput.value = '';
-        }
-
-        // Finalizar cluster con Enter si hay nombre pero no términos (crear cluster con términos previos)
-        if (e.key === 'Enter' && !value && clusterName) {
-            e.preventDefault();
-            this.finalizeCurrentCluster();
-        }
-    }
-
-    /**
-     * Manejar eventos de input para detectar comas pegadas
-     * @param {InputEvent} e - Evento de input
-     */
-    handleTermsInput(e) {
-        const input = e.target;
-        const value = input.value;
-
-        // Si el usuario pegó texto con comas, procesarlo
-        if (value.includes(',')) {
-            const parts = value.split(',');
-            const lastPart = parts.pop(); // La última parte permanece en el input
-            
-            // Añadir todas las partes excepto la última como términos
-            parts.forEach(part => {
-                const trimmed = part.trim();
-                if (trimmed) {
-                    this.addTermToCurrentCluster(trimmed);
-                }
-            });
-            
-            // Mantener la última parte en el input
-            input.value = lastPart.trim();
-        }
-    }
-
-    /**
-     * Añadir un término al cluster actual (temporal)
-     * @param {string} term - Término a añadir
-     */
-    addTermToCurrentCluster(term) {
-        const nameInput = document.getElementById('clusterName');
-        const clusterName = nameInput ? nameInput.value.trim() : '';
-        
-        if (!clusterName) {
-            if (window.showToast) {
-                window.showToast('Please enter a cluster name first', 'warning');
-            }
-            return;
-        }
-
-        const cleanTerm = term.trim().toLowerCase();
-        if (!cleanTerm) return;
-
-        // Buscar si ya existe un cluster con este nombre
-        let existingCluster = this.clusters.find(cluster => cluster.name === clusterName);
-        
-        if (!existingCluster) {
-            // Crear nuevo cluster
-            existingCluster = {
-                name: clusterName,
-                terms: [],
-                method: this.clusterMethod
-            };
-            this.clusters.push(existingCluster);
-        }
-
-        // Añadir término si no existe ya
-        if (!existingCluster.terms.includes(cleanTerm)) {
-            existingCluster.terms.push(cleanTerm);
-            this.renderClusters();
-            this.updateCollapsibleSummary();
-            
-            console.log(`🏷️ Término añadido al cluster "${clusterName}": "${cleanTerm}"`);
-        }
-    }
-
-    /**
-     * Finalizar el cluster actual y limpiar inputs
-     */
-    finalizeCurrentCluster() {
-        const nameInput = document.getElementById('clusterName');
-        const termsInput = document.getElementById('clusterTerms');
-        
-        if (nameInput) nameInput.value = '';
-        if (termsInput) termsInput.value = '';
-        
-        if (window.showToast) {
-            window.showToast('Cluster created! Add another one if needed', 'success');
-        }
-    }
-
-    /**
-     * Eliminar un cluster completo
-     * @param {number} index - Índice del cluster a eliminar
-     */
-    removeCluster(index) {
-        if (index >= 0 && index < this.clusters.length) {
-            const removedCluster = this.clusters.splice(index, 1)[0];
-            this.renderClusters();
-            this.updateCollapsibleSummary();
-            
-            console.log(`🗑️ Cluster eliminado: "${removedCluster.name}"`);
-        }
-    }
-
-    /**
-     * Eliminar un término específico de un cluster
-     * @param {number} clusterIndex - Índice del cluster
-     * @param {number} termIndex - Índice del término
-     */
-    removeTerm(clusterIndex, termIndex) {
-        if (clusterIndex >= 0 && clusterIndex < this.clusters.length) {
-            const cluster = this.clusters[clusterIndex];
-            if (termIndex >= 0 && termIndex < cluster.terms.length) {
-                const removedTerm = cluster.terms.splice(termIndex, 1)[0];
-                
-                // Si no quedan términos, eliminar el cluster completo
-                if (cluster.terms.length === 0) {
-                    this.removeCluster(clusterIndex);
-                } else {
-                    this.renderClusters();
-                    this.updateCollapsibleSummary();
-                }
-                
-                console.log(`🗑️ Término eliminado: "${removedTerm}" del cluster "${cluster.name}"`);
-            }
-        }
-    }
-
-    /**
-     * Renderizar todos los clusters en el contenedor
-     */
-    renderClusters() {
-        const container = document.getElementById('clustersContainer');
-        const countElement = document.getElementById('clustersCount');
-        const clearAllElement = document.getElementById('clearAllClusters');
-        
-        if (!container) return;
-
-        // Actualizar contador
-        if (countElement) {
-            countElement.textContent = this.clusters.length;
-        }
-
-        // Mostrar/ocultar botón "Clear All"
-        if (clearAllElement) {
-            clearAllElement.style.display = this.clusters.length > 0 ? 'block' : 'none';
-        }
-
-        if (this.clusters.length === 0) {
-            container.innerHTML = '';
-            return;
-        }
-
-        const clustersHTML = this.clusters.map((cluster, clusterIndex) => `
-            <div class="cluster-group">
-                <div class="cluster-header">
-                    <span class="cluster-name">${this.escapeHtml(cluster.name)}</span>
-                    <span class="cluster-remove" onclick="window.topicClusters.removeCluster(${clusterIndex})">
-                        <i class="fas fa-times"></i>
-                    </span>
-                </div>
-                <div class="cluster-terms">
-                    ${cluster.terms.map((term, termIndex) => `
-                        <div class="exclusion-tag cluster-term">
-                            <span class="exclusion-tag-text">${this.escapeHtml(term)}</span>
-                            <span class="exclusion-tag-remove" onclick="window.topicClusters.removeTerm(${clusterIndex}, ${termIndex})">
-                                <i class="fas fa-times"></i>
-                            </span>
-                        </div>
-                    `).join('')}
+    // Usar misma estructura y clases que competitor analysis
+    const titleHTML = `<h3 class="competitor-analysis-title">Topic Clusters Analysis</h3>`;
+    
+    const layoutHTML = `
+        <div class="competitor-analysis-layout">
+            <div class="competitor-chart-column">
+                <div class="competitor-chart-container">
+                    <canvas id="clustersChart"></canvas>
                 </div>
             </div>
-        `).join('');
+            <div class="competitor-table-column">
+                ${createClustersTable(clustersAnalysis.clusters)}
+            </div>
+        </div>
+    `;
+    
+    clustersContainer.innerHTML = titleHTML + layoutHTML;
+    
+    // Crear el gráfico de burbujas después de que el elemento esté en el DOM
+    setTimeout(() => {
+        createClustersBubbleChart(clustersAnalysis.clusters);
+    }, 100);
+    
+    console.log(`✅ Mostrados resultados de ${clustersAnalysis.clusters.length} clusters`);
+}
 
-        container.innerHTML = clustersHTML;
+/**
+ * Crea la tabla de resultados de clusters
+ * @param {Array} clusters - Array de datos de clusters
+ * @returns {string} HTML de la tabla
+ */
+function createClustersTable(clusters) {
+    if (!clusters || clusters.length === 0) {
+        return '<div class="clusters-no-data">No cluster data available</div>';
     }
 
-    /**
-     * Actualizar descripción del método seleccionado
-     */
-    updateMethodDescription() {
-        const descriptionElement = document.getElementById('clusterMethodDescription');
-        if (!descriptionElement) return;
+    const tableRows = clusters.map(cluster => {
+        const visibilityClass = getClusterVisibilityClass(cluster.total_mentions, cluster.total_aio_keywords);
+        const positionClass = getClusterPositionClass(cluster.avg_position);
+        
+        return `
+            <tr>
+                <td class="domain-cell cluster-name">${escapeHtml(cluster.name)}</td>
+                <td class="mentions-cell">${cluster.total_aio_keywords}</td>
+                <td class="visibility-cell ${visibilityClass}">${cluster.total_mentions}</td>
+                <td class="mentions-cell">${formatNumber(cluster.total_clicks)}</td>
+                <td class="mentions-cell">${formatNumber(cluster.total_impressions)}</td>
+                <td class="position-cell ${positionClass}">${cluster.avg_position || 'N/A'}</td>
+            </tr>
+        `;
+    }).join('');
 
-        const descriptions = {
-            'contains': 'Keywords containing cluster terms',
-            'equals': 'Keywords exactly matching cluster terms',
-            'notContains': 'Keywords not containing cluster terms',
-            'notEquals': 'Keywords not equal to cluster terms'
+    return `
+        <div class="competitor-results-table">
+            <table class="competitor-table">
+                <thead>
+                    <tr>
+                        <th>Cluster Name</th>
+                        <th>AIO Generated</th>
+                        <th>Your Mentions</th>
+                        <th>Total Clicks</th>
+                        <th>Total Impressions</th>
+                        <th>Avg Position</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+/**
+ * Crea el gráfico de burbujas de clusters usando Chart.js
+ * @param {Array} clusters - Array de datos de clusters
+ */
+function createClustersBubbleChart(clusters) {
+    const canvas = document.getElementById('clustersChart');
+    if (!canvas || !window.Chart) {
+        console.warn('Canvas clustersChart no encontrado o Chart.js no disponible');
+        return;
+    }
+
+    // Destruir gráfico existente si existe
+    if (window.clustersChartInstance) {
+        window.clustersChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    
+    // Calcular rango de clicks para escalar las burbujas proporcionalmente
+    const validClusters = clusters.filter(cluster => 
+        cluster.total_mentions > 0 || cluster.total_impressions > 0
+    );
+    
+    const clicksValues = validClusters.map(cluster => cluster.total_clicks);
+    const minClicks = Math.min(...clicksValues);
+    const maxClicks = Math.max(...clicksValues);
+    
+    // Preparar datos para el gráfico de burbujas
+    const chartData = clusters.map((cluster, index) => {
+        // Filtrar clusters con datos válidos
+        if (cluster.total_mentions === 0 && cluster.total_impressions === 0) {
+            return null;
+        }
+        
+        // Calcular radio proporcional (entre 8 y 35 pixels)
+        let radius = 15; // Radio por defecto
+        if (maxClicks > minClicks) {
+            const clicksNormalized = (cluster.total_clicks - minClicks) / (maxClicks - minClicks);
+            radius = 8 + (clicksNormalized * 27); // Entre 8 y 35 pixels
+        }
+        
+        return {
+            label: cluster.name,
+            x: cluster.total_mentions, // Eje X: Menciones en AI Overview
+            y: cluster.total_impressions, // Eje Y: Impresiones
+            r: Math.round(radius), // Radio: Clics escalados proporcionalmente
+            clicks: cluster.total_clicks,
+            aioKeywords: cluster.total_aio_keywords,
+            keywordCount: cluster.keyword_count,
+            avgPosition: cluster.avg_position
         };
+    }).filter(data => data !== null);
 
-        descriptionElement.textContent = descriptions[this.clusterMethod] || 'Unknown method';
-    }
+    // Definir colores para las burbujas
+    const colors = [
+        'rgba(79, 70, 229, 0.6)',  // Purple
+        'rgba(16, 185, 129, 0.6)', // Green
+        'rgba(245, 158, 11, 0.6)', // Yellow
+        'rgba(239, 68, 68, 0.6)',  // Red
+        'rgba(139, 92, 246, 0.6)', // Violet
+        'rgba(34, 197, 94, 0.6)',  // Emerald
+        'rgba(249, 115, 22, 0.6)', // Orange
+        'rgba(236, 72, 153, 0.6)'  // Pink
+    ];
 
-    /**
-     * Configurar botón "Clear All"
-     */
-    setupClearAllButton() {
-        const clearAllBtn = document.querySelector('#clearAllClusters .clear-all-btn');
-        if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', () => {
-                this.clearAllClusters();
-            });
-        }
-    }
+    const backgroundColors = chartData.map((_, index) => colors[index % colors.length]);
+    const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
 
-    /**
-     * Limpiar todos los clusters
-     */
-    clearAllClusters() {
-        if (this.clusters.length === 0) return;
-        
-        this.clusters = [];
-        this.renderClusters();
-        this.updateCollapsibleSummary();
-        
-        // Limpiar también los inputs
-        const nameInput = document.getElementById('clusterName');
-        const termsInput = document.getElementById('clusterTerms');
-        
-        if (nameInput) nameInput.value = '';
-        if (termsInput) termsInput.value = '';
-        
-        console.log('🗑️ Todos los clusters eliminados');
-    }
-
-    /**
-     * Actualizar el resumen del sistema colapsable
-     */
-    updateCollapsibleSummary() {
-        // Esta función se llama desde collapsible-sections.js
-        if (window.updateCollapsibleSummary) {
-            window.updateCollapsibleSummary('topicClusters');
-        }
-    }
-
-    /**
-     * Clasificar una keyword en clusters basado en los términos definidos
-     * @param {string} keyword - Keyword a clasificar
-     * @returns {Array} Array de nombres de clusters que coinciden
-     */
-    classifyKeyword(keyword) {
-        if (!keyword || this.clusters.length === 0) {
-            return [];
-        }
-
-        const keywordLower = keyword.toLowerCase();
-        const matchingClusters = [];
-
-        this.clusters.forEach(cluster => {
-            const matches = cluster.terms.some(term => {
-                switch (cluster.method || this.clusterMethod) {
-                    case 'contains':
-                        return keywordLower.includes(term);
-                    case 'equals':
-                        return keywordLower === term;
-                    case 'notContains':
-                        return !keywordLower.includes(term);
-                    case 'notEquals':
-                        return keywordLower !== term;
-                    default:
-                        return false;
+    window.clustersChartInstance = new Chart(ctx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: 'Topic Clusters',
+                data: chartData,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Mentions in AI Overview',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0,
+                        callback: function(value) {
+                            return Number.isInteger(value) ? value : '';
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Total Impressions',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
                 }
-            });
-
-            if (matches) {
-                matchingClusters.push(cluster.name);
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#ffffff',
+                    borderWidth: 1,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    padding: 12,
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].raw.label;
+                        },
+                        label: function(context) {
+                            const data = context.raw;
+                            return [
+                                `Mentions: ${data.x}`,
+                                `Impressions: ${formatNumber(data.y)}`,
+                                `Clicks: ${formatNumber(data.clicks)}`,
+                                `Keywords: ${data.keywordCount}`,
+                                `AIO Generated: ${data.aioKeywords}`,
+                                `Avg Position: ${data.avgPosition || 'N/A'}`
+                            ];
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'point'
             }
-        });
-
-        return matchingClusters;
-    }
-
-    /**
-     * Agrupar keywords por clusters
-     * @param {Array} keywords - Array de keywords con datos de Search Console
-     * @returns {Object} Objeto con clusters como keys y arrays de keywords como values
-     */
-    groupKeywordsByClusters(keywords) {
-        if (!Array.isArray(keywords) || this.clusters.length === 0) {
-            return {};
         }
+    });
 
-        const clusteredKeywords = {};
-        const unclassifiedKeywords = [];
+    console.log(`📊 Gráfico de burbujas de clusters creado con ${chartData.length} clusters`);
+    console.log(`🎯 Tamaños de burbujas escalados proporcionalmente: min=${minClicks} clicks, max=${maxClicks} clicks`);
+}
 
-        // Inicializar clusters
-        this.clusters.forEach(cluster => {
-            clusteredKeywords[cluster.name] = [];
-        });
+/**
+ * Obtiene la clase CSS para el color de visibilidad del cluster
+ * @param {number} mentions - Número de menciones
+ * @param {number} aioKeywords - Número de keywords con AIO
+ * @returns {string} Clase CSS
+ */
+function getClusterVisibilityClass(mentions, aioKeywords) {
+    if (mentions === 0) return 'cluster-metric-low';
+    if (mentions >= 5 || (mentions > 0 && aioKeywords >= 10)) return 'cluster-metric-high';
+    return 'cluster-metric-medium';
+}
 
-        // Clasificar cada keyword
-        keywords.forEach(keywordData => {
-            const keywordText = typeof keywordData === 'string' ? keywordData : keywordData.keyword;
-            const matchingClusters = this.classifyKeyword(keywordText);
+/**
+ * Obtiene la clase CSS para el color de posición del cluster
+ * @param {number|null} position - Posición promedio
+ * @returns {string} Clase CSS
+ */
+function getClusterPositionClass(position) {
+    if (!position) return '';
+    if (position <= 3) return 'cluster-metric-high';
+    if (position <= 7) return 'cluster-metric-medium';
+    return 'cluster-metric-low';
+}
 
-            if (matchingClusters.length > 0) {
-                // Añadir a todos los clusters que coinciden
-                matchingClusters.forEach(clusterName => {
-                    clusteredKeywords[clusterName].push(keywordData);
-                });
-            } else {
-                unclassifiedKeywords.push(keywordData);
-            }
-        });
-
-        // Añadir cluster especial para keywords no clasificadas
-        if (unclassifiedKeywords.length > 0) {
-            clusteredKeywords['Unclassified'] = unclassifiedKeywords;
-        }
-
-        console.log(`🔍 Keywords agrupadas en ${Object.keys(clusteredKeywords).length} clusters`);
-        
-        return clusteredKeywords;
+/**
+ * Formatea un número para mostrar en la UI
+ * @param {number} num - Número a formatear
+ * @returns {string} Número formateado
+ */
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
     }
+    return num.toString();
+}
 
-    /**
-     * Obtener configuración de clusters para enviar al backend
-     * @returns {Object} Configuración de clusters
-     */
-    getClustersConfig() {
-        return {
-            method: this.clusterMethod,
-            clusters: this.clusters,
-            enabled: this.clusters.length > 0
-        };
-    }
+/**
+ * Escapa HTML para prevenir XSS
+ * @param {string} text - Texto a escapar
+ * @returns {string} Texto escapado
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-    /**
-     * Obtener resumen para el sistema colapsable
-     * @returns {Object} Información del resumen
-     */
-    getSummaryInfo() {
-        if (this.clusters.length === 0) {
-            return { 
-                count: 0, 
-                method: '', 
-                preview: '' 
-            };
-        }
-
-        // Crear preview (máximo 3 clusters)
-        let preview = this.clusters.slice(0, 3).map(cluster => cluster.name).join(', ');
-        if (this.clusters.length > 3) {
-            preview += '...';
-        }
-
-        const totalTerms = this.clusters.reduce((sum, cluster) => sum + cluster.terms.length, 0);
-
-        return {
-            count: this.clusters.length,
-            method: this.clusterMethod,
-            preview: preview,
-            totalTerms: totalTerms
-        };
-    }
-
-    /**
-     * Escapar HTML para prevenir XSS
-     * @param {string} text - Texto a escapar
-     * @returns {string} Texto escapado
-     */
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    /**
-     * Resetear clusters
-     */
-    reset() {
-        const clusterNameInput = document.getElementById('clusterName');
-        const clusterTermsInput = document.getElementById('clusterTerms');
-        const clusterMethodSelect = document.getElementById('clusterMethod');
-        
-        if (clusterNameInput) {
-            clusterNameInput.value = '';
+/**
+ * Limpia los resultados de clusters del contenedor
+ * @param {HTMLElement} container - Contenedor de resultados
+ */
+function clearTopicClustersResults(container) {
+    const clustersContainer = container.querySelector('.topic-clusters-results');
+    if (clustersContainer) {
+        // Destruir gráfico existente
+        if (window.clustersChartInstance) {
+            window.clustersChartInstance.destroy();
+            window.clustersChartInstance = null;
         }
         
-        if (clusterTermsInput) {
-            clusterTermsInput.value = '';
-        }
-        
-        if (clusterMethodSelect) {
-            clusterMethodSelect.value = 'contains';
-        }
-        
-        this.clusters = [];
-        this.clusterMethod = 'contains';
-        this.renderClusters();
-        this.updateMethodDescription();
-        this.updateCollapsibleSummary();
-    }
-
-    /**
-     * Obtener estadísticas de clustering
-     * @param {Array} originalKeywords - Keywords originales
-     * @returns {Object} Estadísticas
-     */
-    getClusteringStats(originalKeywords) {
-        const clusteredKeywords = this.groupKeywordsByClusters(originalKeywords);
-        const clusteredCount = Object.values(clusteredKeywords)
-            .reduce((sum, keywords) => sum + keywords.length, 0);
-        const unclassifiedCount = clusteredKeywords['Unclassified'] ? clusteredKeywords['Unclassified'].length : 0;
-        const classifiedCount = clusteredCount - unclassifiedCount;
-        const classificationRate = originalKeywords.length > 0 ? (classifiedCount / originalKeywords.length * 100).toFixed(1) : 0;
-
-        return {
-            totalKeywords: originalKeywords.length,
-            totalClusters: this.clusters.length,
-            classifiedKeywords: classifiedCount,
-            unclassifiedKeywords: unclassifiedCount,
-            classificationRate: classificationRate
-        };
+        clustersContainer.remove();
+        console.log('🗑️ Resultados de clusters limpiados');
     }
 }
 
-// Instancia global
-window.topicClusters = new TopicClusters();
+/**
+ * Actualiza los resultados de clusters después de un nuevo análisis
+ * @param {Object} analysisData - Datos completos del análisis AI Overview
+ * @param {HTMLElement} container - Contenedor de resultados
+ */
+function updateTopicClustersResults(analysisData, container) {
+    // Limpiar resultados anteriores
+    clearTopicClustersResults(container);
+    
+    // Mostrar nuevos resultados si hay datos de clusters
+    if (analysisData && analysisData.clusters_analysis) {
+        displayTopicClustersResults(analysisData.clusters_analysis, container);
+    }
+}
 
-// Función para integrar con el análisis existente
-window.getTopicClustersConfig = function() {
-    return window.topicClusters.getClustersConfig();
+// Exportar funciones para uso global
+window.TopicClustersVisualization = {
+    displayTopicClustersResults,
+    clearTopicClustersResults,
+    updateTopicClustersResults,
+    createClustersBubbleChart
 };
 
-// Función para agrupar keywords por clusters
-window.groupKeywordsByClusters = function(keywords) {
-    return window.topicClusters.groupKeywordsByClusters(keywords);
-};
-
-// Función para obtener resumen (para el sistema colapsable)
-window.getTopicClustersSummaryInfo = function() {
-    return window.topicClusters.getSummaryInfo();
-};
+console.log('🎨 Topic Clusters Visualization module loaded');
