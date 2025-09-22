@@ -198,8 +198,7 @@ def setup_billing_routes(app):
                     'source': source_param,
                     'trial_eligible': 'true' if eligible_for_trial else 'false'
                 },
-                # Permitir introducción de códigos promocionales en Checkout
-                'allow_promotion_codes': True
+                # allow_promotion_codes/discounts: se decide más abajo para evitar conflicto
             }
 
             if eligible_for_trial:
@@ -230,8 +229,11 @@ def setup_billing_routes(app):
                     discounts.append({'coupon': coupon_param})
                 else:
                     logger.warning(f"Coupon no parece un ID válido: {coupon_param} - ignoro para evitar errores")
+            # Importante: Stripe no permite enviar 'allow_promotion_codes' y 'discounts' simultáneamente
             if discounts:
                 create_params['discounts'] = discounts
+            else:
+                create_params['allow_promotion_codes'] = True
 
             # Crear Checkout Session
             try:

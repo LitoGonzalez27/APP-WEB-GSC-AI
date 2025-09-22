@@ -222,8 +222,90 @@ class StripeWebhookHandler:
                       period_start, period_end, customer_id))
             
             if cur.rowcount == 0:
-                logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}")
-                return {'success': False, 'error': 'Customer not found'}
+                logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}. Trying fallbacks...")
+                # Fallback 1: intentar por subscription_id
+                try:
+                    if action == 'deleted':
+                        cur.execute('''
+                            UPDATE users 
+                            SET 
+                                plan = 'free',
+                                current_plan = 'free',
+                                billing_status = 'canceled',
+                                quota_limit = 0,
+                                subscription_id = NULL,
+                                current_period_start = NULL,
+                                current_period_end = NULL,
+                                updated_at = NOW()
+                            WHERE subscription_id = %s
+                        ''', (subscription_id,))
+                    else:
+                        cur.execute('''
+                            UPDATE users 
+                            SET 
+                                plan = %s,
+                                current_plan = %s,
+                                billing_status = %s,
+                                quota_limit = %s,
+                                subscription_id = %s,
+                                current_period_start = %s,
+                                current_period_end = %s,
+                                updated_at = NOW()
+                            WHERE subscription_id = %s
+                        ''', (plan, plan, billing_status, quota_limit, subscription_id, 
+                              period_start, period_end, subscription_id))
+                except Exception as _e_fb1:
+                    logger.warning(f"Fallback by subscription_id failed: {_e_fb1}")
+
+                # Fallback 2: intentar por email del Customer en Stripe
+                if cur.rowcount == 0:
+                    cust_email = None
+                    try:
+                        cust = stripe.Customer.retrieve(customer_id)
+                        cust_email = getattr(cust, 'email', None) or (cust.get('email') if isinstance(cust, dict) else None)
+                    except Exception as _e_fb2:
+                        logger.warning(f"Could not retrieve customer {customer_id} from Stripe: {_e_fb2}")
+                    if cust_email:
+                        try:
+                            if action == 'deleted':
+                                cur.execute('''
+                                    UPDATE users 
+                                    SET 
+                                        plan = 'free',
+                                        current_plan = 'free',
+                                        billing_status = 'canceled',
+                                        quota_limit = 0,
+                                        subscription_id = NULL,
+                                        current_period_start = NULL,
+                                        current_period_end = NULL,
+                                        stripe_customer_id = %s,
+                                        updated_at = NOW()
+                                    WHERE lower(email) = lower(%s)
+                                ''', (customer_id, cust_email))
+                            else:
+                                cur.execute('''
+                                    UPDATE users 
+                                    SET 
+                                        plan = %s,
+                                        current_plan = %s,
+                                        billing_status = %s,
+                                        quota_limit = %s,
+                                        subscription_id = %s,
+                                        current_period_start = %s,
+                                        current_period_end = %s,
+                                        stripe_customer_id = %s,
+                                        updated_at = NOW()
+                                    WHERE lower(email) = lower(%s)
+                                ''', (plan, plan, billing_status, quota_limit, subscription_id, 
+                                      period_start, period_end, customer_id, cust_email))
+                        except Exception as _e_fb3:
+                            logger.warning(f"Fallback by customer email failed: {_e_fb3}")
+
+                if cur.rowcount == 0:
+                    logger.warning(f"⚠️ No user matched for customer {customer_id} or subscription {subscription_id}. Ignoring.")
+                    conn.commit()
+                    conn.close()
+                    return {'success': True, 'message': 'Customer not found; ignored'}
             
             conn.commit()
             conn.close()
