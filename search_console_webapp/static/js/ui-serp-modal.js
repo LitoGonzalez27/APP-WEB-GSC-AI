@@ -53,17 +53,17 @@ function getSelectedCountry() {
     // ✅ NUEVA LÓGICA: Retornar exactamente lo que el usuario seleccionó
     // Si seleccionó "All countries" (value=""), retornamos vacío para activar detección dinámica
     if (countrySelect && countrySelect.value === '') {
-        console.log('🌍 Usuario seleccionó "All countries" - SERP usará país con más clics dinámicamente');
+        console.log('🌍 User selected "All countries" - SERP will dynamically use the country with more clicks');
         return '';
     }
     
     if (countrySelect && countrySelect.value) {
-        console.log(`🎯 Usuario seleccionó país específico para SERP: ${countrySelect.value}`);
+        console.log(`🎯 User selected specific country for SERP: ${countrySelect.value}`);
         return countrySelect.value;
     }
     
     // Fallback si no hay country select disponible
-    console.log('🔄 Sin selector de país disponible - SERP usará detección dinámica');
+    console.log('🔄 No country selector available - SERP will use dynamic detection');
     return '';
 }
 
@@ -82,7 +82,7 @@ async function fetchSerpPosition(keyword, siteUrl) {
         params.set('country', selectedCountry);
     }
     
-    console.log(`🔍 SERP Position API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
+    console.log(`🔍 SERP Position API: keyword="${keyword}", country="${selectedCountry || 'DYNAMIC'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp/position?${params}`);
     return response.json();
 }
@@ -102,7 +102,7 @@ async function fetchSerpData(keyword) {
         params.set('country', selectedCountry);
     }
     
-    console.log(`🔍 SERP Data API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
+    console.log(`🔍 SERP Data API: keyword="${keyword}", country="${selectedCountry || 'DYNAMIC'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp?${params}`);
     return response.json();
 }
@@ -122,7 +122,7 @@ async function fetchSerpScreenshot(keyword, siteUrl) {
         params.set('country', selectedCountry);
     }
     
-    console.log(`📸 SERP Screenshot API: keyword="${keyword}", country="${selectedCountry || 'DINÁMICO'}", site="${currentSiteUrl}"`);
+    console.log(`📸 SERP Screenshot API: keyword="${keyword}", country="${selectedCountry || 'DYNAMIC'}", site="${currentSiteUrl}"`);
     const response = await fetch(`/api/serp/screenshot?${params}`);
     return response;
 }
@@ -132,15 +132,15 @@ async function fetchSerpScreenshot(keyword, siteUrl) {
 export function openSerpModal(keyword, userSpecificUrl) {
   const modal = document.getElementById('serpModal');
   if (!modal) {
-    console.error('Falta el elemento #serpModal en el DOM.');
-    alert('Error: El component modal de SERP no está disponible.');
+    console.error('Missing #serpModal element in the DOM.');
+    alert('Error: The SERP modal component is not available.');
     return;
   }
 
   const siteUrlElement = document.querySelector('select[name="site_url"]');
   const siteUrlScProperty = siteUrlElement ? siteUrlElement.value : '';
   if (!siteUrlScProperty) {
-    alert('Por favor, selecciona una propiedad de Search Console primero.');
+    alert('Please select a Search Console property first.');
     return;
   }
 
@@ -158,7 +158,7 @@ export function openSerpModal(keyword, userSpecificUrl) {
     <div class="serp-content">
       <div id="quick-view" class="tab-content active" role="tabpanel">
         <div class="serp-spinner"></div>
-        <p>Cargando vista rápida...</p>
+        <p>Loading quick view...</p>
       </div>
       <div id="screenshot-view" class="tab-content" role="tabpanel" style="display:none;">
         <div class="screenshot-info">
@@ -200,7 +200,7 @@ export function openSerpModal(keyword, userSpecificUrl) {
     });
   }
   
-  // Mejorar detección de clics para cerrar
+  // Improve click detection to close
   const closeHandler = (e) => {
     const modal = document.getElementById('serpModal');
     if (
@@ -230,14 +230,14 @@ export function openSerpModal(keyword, userSpecificUrl) {
 }
 
 function closeSerpModal() {
-  console.log('🚪 Cerrando modal SERP con sistema robusto');
+  console.log('🚪 Closing SERP modal with robust system');
   
   if (serpModalManager) {
     // Usar el sistema robusto de cierre
     serpModalManager.close();
   } else {
-    // Fallback para cierre simple si no hay gestor
-    console.log('⚠️ Gestor robusto no disponible, usando cierre simple');
+    // Fallback to simple close if no manager
+    console.log('⚠️ Robust manager not available, using simple close');
     const modal = document.getElementById('serpModal');
     if (modal) {
       modal.classList.remove('show');
@@ -267,7 +267,7 @@ function closeSerpModal() {
 
 async function loadQuickView(keyword, userSpecificUrl, siteUrlScProperty) {
   const quickView = document.getElementById('quick-view');
-  quickView.innerHTML = '<div class="serp-spinner"></div><p>Obteniendo datos de posición...</p>';
+  quickView.innerHTML = '<div class="serp-spinner"></div><p>Fetching position data...</p>';
 
   try {
     // MODIFICADO: Llamadas a las nuevas funciones

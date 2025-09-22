@@ -46,10 +46,10 @@ function createDebugSection(debugInfo) {
   return `
     <div class="debug-section" style="margin-top: 1.5em; padding: 1em; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8;">
       <h5 style="color: #17a2b8; margin-bottom: 0.8em; font-size: 1em;">
-        <i class="fas fa-bug"></i> Información de Debugging
+        <i class="fas fa-bug"></i> Debugging Information
       </h5>
       <details>
-        <summary style="cursor: pointer; font-weight: bold; color: #495057;">Ver detalles técnicos</summary>
+        <summary style="cursor: pointer; font-weight: bold; color: #495057;">View technical details</summary>
         <pre style="background: #fff; padding: 0.8em; border-radius: 4px; overflow-x: auto; font-size: 0.8em; margin-top: 0.5em; white-space: pre-wrap;">${JSON.stringify(debugInfo, null, 2)}</pre>
       </details>
     </div>
@@ -67,17 +67,17 @@ function createDomainAsSourceSection(aiAnalysis) {
     <div class="ai-source-domain-info" style="margin-top: 1.5em; padding: 1em; border-radius: 8px; ${domainIsAISource ? 'background: rgba(40, 167, 69, 0.1); border-left: 4px solid #28a745;' : 'background: rgba(220, 53, 69, 0.1); border-left: 4px solid #dc3545;'}">
       <h5 style="margin-bottom: 0.8em; color: ${domainIsAISource ? '#28a745' : '#dc3545'}; font-size: 1em;">
         <i class="fas fa-${domainIsAISource ? 'check-circle' : 'times-circle'}"></i> 
-        Tu Dominio en AI Overview
+        Your Domain in AI Overview
       </h5>
       ${domainIsAISource
         ? `<p style="color: #28a745; margin-bottom: 0.5em; font-weight: bold;">
-             <strong>SÍ encontrado</strong> en posición <strong>#${escapeHtml(String(domainAISourcePos))}</strong>
+             <strong>FOUND</strong> at position <strong>#${escapeHtml(String(domainAISourcePos))}</strong>
            </p>
            ${domainAISourceLink 
-             ? `<p style="font-size: 0.9em;"><a href="${escapeHtml(domainAISourceLink)}" target="_blank" rel="noopener noreferrer" style="color: #007bff;">🔗 Ver enlace de la fuente</a></p>`
+             ? `<p style=\"font-size: 0.9em;\"><a href=\"${escapeHtml(domainAISourceLink)}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color: #007bff;\">🔗 View source link</a></p>`
              : ''
            }`
-        : '<p style="color: #dc3545; font-weight: bold;"><strong>NO encontrado</strong> como fuente directa en el AI Overview principal.</p>'
+        : '<p style="color: #dc3545; font-weight: bold;"><strong>NOT found</strong> as a direct source in the main AI Overview.</p>'
       }
     </div>
   `;
@@ -140,14 +140,14 @@ function createElementsListHTML(aiElements) {
     return `
       <div style="text-align: center; padding: 2em; color: #28a745;">
         <i class="fas fa-check-circle" style="font-size: 2.5em; margin-bottom: 0.8em;"></i>
-        <h4 style="font-size: 1.1em;">No se detectaron rich snippets</h4>
-                  <p style="font-size: 0.9em;">This keyword shows no signs of AI Overview interference.</p>
+        <h4 style="font-size: 1.1em;">No rich snippets detected</h4>
+        <p style="font-size: 0.9em;">This keyword shows no signs of AI Overview interference.</p>
       </div>
     `;
   }
 
   return `
-    <h4 style="margin: 1.5em 0 1em 0; color: #333; font-size: 1.1em;">Rich Snippets Detectados:</h4>
+    <h4 style="margin: 1.5em 0 1em 0; color: #333; font-size: 1.1em;">Detected Rich Snippets:</h4>
     <div class="ai-elements-list" style="max-height: 250px; overflow-y: auto; padding-right: 10px;">
       ${aiElements.map((element, index) => createElementCard(element, index)).join('')}
     </div>
@@ -173,16 +173,16 @@ function createElementCard(element, index) {
       border-radius: 8px;
     ">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
-        <strong style="color: #333; font-size: 1em;">${escapeHtml(element.type || 'Tipo Desconocido')}</strong>
+        <strong style="color: #333; font-size: 1em;">${escapeHtml(element.type || 'Unknown Type')}</strong>
         <span style="background: #007bff; color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.75em;">
-          Posición: ${element.position != null ? element.position : index + 1}
+          Position: ${element.position != null ? element.position : index + 1}
         </span>
       </div>
-      ${element.content_length ? `<div style="color: #555; font-size: 0.85em;">📝 Longitud: ${element.content_length} caracteres</div>` : ''}
-      ${element.sources_count ? `<div style="color: #555; font-size: 0.85em;">🔗 Fuentes: ${element.sources_count}</div>` : ''}
-      ${element.source ? `<div style="color: #555; font-size: 0.85em;">📍 Fuente: ${escapeHtml(element.source)}</div>` : ''}
-      ${element.count ? `<div style="color: #555; font-size: 0.85em;">🔢 Elementos: ${element.count}</div>` : ''}
-      ${element.title ? `<div style="color: #555; font-size: 0.85em;">📋 Título: ${escapeHtml(element.title)}</div>` : ''}
+      ${element.content_length ? `<div style=\"color: #555; font-size: 0.85em;\">📝 Length: ${element.content_length} characters</div>` : ''}
+      ${element.sources_count ? `<div style=\"color: #555; font-size: 0.85em;\">🔗 Sources: ${element.sources_count}</div>` : ''}
+      ${element.source ? `<div style=\"color: #555; font-size: 0.85em;\">📍 Source: ${escapeHtml(element.source)}</div>` : ''}
+      ${element.count ? `<div style=\"color: #555; font-size: 0.85em;\">🔢 Elements: ${element.count}</div>` : ''}
+      ${element.title ? `<div style=\"color: #555; font-size: 0.85em;\">📋 Title: ${escapeHtml(element.title)}</div>` : ''}
       ${specificElementDomainInfo}
     </div>
   `;
@@ -214,7 +214,7 @@ function createModalHTML(result, debugSection, impactSummaryHTML, elementsListHT
         <h3 style="margin: 0; display: flex; align-items: center; font-size: 1.2em;">
           <i class="fas fa-robot" style="margin-right: 10px;"></i>
           AI Analysis: "${escapeHtml(result.keyword)}"
-          ${result.analysis_successful === false ? '<span style="background: rgba(255,193,7,0.8); color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7em; margin-left: 10px;">⚠️ VERIFICAR</span>' : ''}
+          ${result.analysis_successful === false ? '<span style="background: rgba(255,193,7,0.8); color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7em; margin-left: 10px;">⚠️ CHECK</span>' : ''}
         </h3>
         <span class="close-ai-modal" style="
           font-size: 2em;
@@ -239,12 +239,12 @@ function createModalHTML(result, debugSection, impactSummaryHTML, elementsListHT
         <button class="btn-view-serp" data-keyword="${escapeHtml(result.keyword)}" data-url="${escapeHtml(result.url || (result.site_result ? result.site_result.link : ''))}" style="
           background: #17a2b8; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; margin-right: 10px; font-size: 0.9em;
         ">
-          <i class="fas fa-search"></i> Ver SERP
+        <i class="fas fa-search"></i> View SERP
         </button>
         <button class="btn-close-ai-modal" style="
           background: #6c757d; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9em;
         ">
-          Cerrar
+          Close
         </button>
       </div>
     </div>

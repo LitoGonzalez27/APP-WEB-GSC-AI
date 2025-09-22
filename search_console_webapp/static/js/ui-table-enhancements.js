@@ -62,7 +62,7 @@ function enhanceSerpIcons(tableId) {
       const url = icon.dataset.url;
       
       if (keyword) {
-        icon.title = `Ver SERP para "${keyword}"${url ? ` en ${url}` : ''}`;
+        icon.title = `View SERP for "${keyword}"${url ? ` on ${url}` : ''}`;
       }
       
       // Añadir efectos de hover mejorados

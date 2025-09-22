@@ -1476,18 +1476,18 @@ function updateModalTableHeadersForRange(range, analysisType) {
 
 // ✅ NUEVO: Función para abrir el modal de keywords (versión optimizada con pre-procesamiento)
 function openKeywordModal(positionRange, label) {
-  console.log('🔍 Abriendo modal para rango:', positionRange, 'label:', label);
+  console.log('🔍 Opening modal for range:', positionRange, 'label:', label);
   
   // Verificar que los datos estén pre-procesados
   if (!preProcessedModalData[positionRange]) {
-    console.error('❌ No se encontraron datos pre-procesados para el rango:', positionRange);
+    console.error('❌ No pre-processed data found for range:', positionRange);
     return;
   }
   
   const data = preProcessedModalData[positionRange];
   
   if (data.keywords.length === 0) {
-    console.log('⚠️  No hay keywords en este rango de posición');
+    console.log('⚠️  No keywords in this position range');
     return;
   }
   
@@ -1505,10 +1505,10 @@ function openKeywordModal(positionRange, label) {
   
   // Verificar que la Grid.js tabla está lista
   if (!data.gridTable && data.keywords.length > 0) {
-    console.log('🔄 Grid.js tabla no está lista, creando...');
+    console.log('🔄 Grid.js table not ready, creating...');
     // No usar await aquí para mantener la apertura instantánea del modal
     createGridTableForRange(positionRange, data.keywords, data.analysisType).catch(error => {
-      console.error(`❌ Error al crear Grid.js tabla para ${positionRange}:`, error);
+      console.error(`❌ Error creating Grid.js table for ${positionRange}:`, error);
     });
   }
   
@@ -1516,21 +1516,21 @@ function openKeywordModal(positionRange, label) {
   modal.classList.add('modal-open');
   document.body.style.overflow = 'hidden';
   
-  console.log(`✅ Modal abierto instantáneamente para: ${label} (${data.keywords.length} keywords)`);
+  console.log(`✅ Modal opened instantly for: ${label} (${data.keywords.length} keywords)`);
 }
 
 // ✅ NUEVO: Función para crear todos los contenedores de modales
 function createAllModalContainers() {
   if (modalContainersCreated) return;
   
-  console.log('🔍 Creando contenedores de modales pre-cargados...');
+  console.log('🔍 Creating preloaded modal containers...');
   
   const ranges = ['top3', 'top10', 'top20', 'top20plus'];
   const labels = {
     top3: 'Top 1-3',
-    top10: 'Posiciones 4-10', 
-    top20: 'Posiciones 11-20',
-    top20plus: 'Posiciones 20+'
+    top10: 'Positions 4-10', 
+    top20: 'Positions 11-20',
+    top20plus: 'Positions 20+'
   };
 
   ranges.forEach(range => {
@@ -1538,13 +1538,13 @@ function createAllModalContainers() {
       <div id="keywordModal-${range}" class="modal">
         <div class="modal-content">
           <div class="modal-header">
-            <h3 id="keywordModalTitle-${range}"><i class="fas fa-search"></i> Keywords en ${labels[range]}</h3>
+            <h3 id="keywordModalTitle-${range}"><i class="fas fa-search"></i> Keywords in ${labels[range]}</h3>
             <span class="close-btn" onclick="closeKeywordModal('${range}')">&times;</span>
           </div>
           <div class="modal-body">
             <div class="keyword-modal-info">
               <i class="fas fa-info-circle"></i>
-              <span>Información: Estas son las keywords que se posicionan en el rango seleccionado. Haz clic en el icono de búsqueda para ver el SERP.</span>
+              <span>Info: These are the keywords positioned in the selected range. Click the search icon to view the SERP.</span>
             </div>
             <div id="keywordModalTableContainer-${range}" class="table-responsive-container">
               <!-- Grid.js table will be inserted here -->
@@ -1568,7 +1568,7 @@ function createAllModalContainers() {
   });
   
   modalContainersCreated = true;
-  console.log('✅ Contenedores de modales creados para todos los rangos');
+  console.log('✅ Modal containers created for all ranges');
 }
 
 // ✅ MIGRADO A GRID.JS: Función para crear Grid.js table para un rango específico
@@ -1588,11 +1588,11 @@ async function createGridTableForRange(range, keywords, analysisType) {
   const container = document.getElementById(containerId);
   
   if (!container) {
-    console.error(`❌ No se encontró el contenedor para ${range}`);
+    console.error(`❌ Container not found for ${range}`);
     return;
   }
 
-  console.log(`🔄 Creando Grid.js tabla para ${range} con ${keywords.length} keywords...`);
+  console.log(`🔄 Creating Grid.js table for ${range} with ${keywords.length} keywords...`);
   const startTime = performance.now();
   
   if (keywords.length === 0) {
@@ -1600,7 +1600,7 @@ async function createGridTableForRange(range, keywords, analysisType) {
       <div class="no-aio-message">
         <i class="fas fa-search"></i>
         <h3>No Keywords Found</h3>
-        <p>No se encontraron keywords en este rango de posiciones.</p>
+        <p>No keywords found in this position range.</p>
       </div>
     `;
     return;
@@ -1623,14 +1623,14 @@ async function createGridTableForRange(range, keywords, analysisType) {
       
       if (preProcessedModalData[range].gridTable) {
         const endTime = performance.now();
-        console.log(`✅ Grid.js tabla para ${range} creada en ${(endTime - startTime).toFixed(2)}ms`);
+        console.log(`✅ Grid.js table for ${range} created in ${(endTime - startTime).toFixed(2)}ms`);
       } else {
-        console.warn(`⚠️ No se pudo crear Grid.js tabla para ${range}`);
+        console.warn(`⚠️ Could not create Grid.js table for ${range}`);
       }
     }, delay);
     
   } catch (error) {
-    console.error(`❌ Error al crear Grid.js tabla para ${range}:`, error);
+    console.error(`❌ Error creating Grid.js table for ${range}:`, error);
     
     // Fallback - mostrar mensaje de error
     container.innerHTML = `
@@ -2039,7 +2039,7 @@ function createUrlKeywordRow(keyword, hasComparison) {
         <i class="fas fa-search serp-icon"
            data-keyword="${escapeHtmlUtil(keyword.keyword)}"
            data-url="${escapeHtmlUtil(keyword.url)}"
-           title="Ver SERP para ${escapeHtmlUtil(keyword.keyword)}"
+           title="View SERP for ${escapeHtmlUtil(keyword.keyword)}"
            style="cursor:pointer;"></i>
       </td>
       <td class="dt-body-left">${escapeHtmlUtil(keyword.keyword)}</td>
