@@ -4489,11 +4489,41 @@ class ManualAISystem {
             let position = 0;
             let heightLeft = imgHeight;
             pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+
+            // Añadir logotipo como marca de agua en cada página (esquina inferior derecha)
+            const addCornerLogo = async () => {
+                try {
+                    const logoEl = document.querySelector('.navbar .logo-image');
+                    const logoSrc = logoEl?.src || '/static/images/logos/logo%20clicandseo.png';
+                    const logoImg = new Image();
+                    logoImg.crossOrigin = 'anonymous';
+                    await new Promise((resolve) => { logoImg.onload = resolve; logoImg.onerror = resolve; logoImg.src = logoSrc; });
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = logoImg.naturalWidth || 0;
+                    tempCanvas.height = logoImg.naturalHeight || 0;
+                    if (tempCanvas.width && tempCanvas.height) {
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx.drawImage(logoImg, 0, 0);
+                        const dataUrl = tempCanvas.toDataURL('image/png');
+                        const margin = 16; // pt
+                        const maxLogoWidth = Math.min(80, pageWidth * 0.18);
+                        const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
+                        const logoW = maxLogoWidth;
+                        const logoH = logoW * ratio;
+                        const x = pageWidth - logoW - margin;
+                        const y = pageHeight - logoH - margin;
+                        try { pdf.addImage(dataUrl, 'PNG', x, y, logoW, logoH); } catch (_) {}
+                    }
+                } catch (_) { /* silencioso */ }
+            };
+
+            await addCornerLogo();
             heightLeft -= pageHeight;
             while (heightLeft > 0) {
                 position = heightLeft - imgHeight;
                 pdf.addPage();
                 pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                await addCornerLogo();
                 heightLeft -= pageHeight;
             }
             const fileName = `manual_ai_overview_${Date.now()}.pdf`;
