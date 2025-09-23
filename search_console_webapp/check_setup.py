@@ -3,6 +3,7 @@
 
 import os
 import json
+import logging
 
 def check_files():
     """Verifica que todos los archivos necesarios existan"""
@@ -119,6 +120,21 @@ def main():
         
         if not deps_ok:
             print("📦 Instala dependencias faltantes")
+
+    # Información adicional de Brevo (opcional)
+    print("\n📧 Brevo (opcional para emails/marketing):")
+    brevo_vars = [
+        'BREVO_API_KEY',
+        'FROM_EMAIL',
+        'FROM_NAME',
+        'BREVO_CONTACT_LIST_ID',
+        'BREVO_TARGET_LIST_NAME',
+        'BREVO_FOLDER_ID',
+    ]
+    for var in brevo_vars:
+        val = os.getenv(var)
+        mark = '✅' if val else '⚠️ '
+        print(f"  {mark} {var}={'***' if val else '(no definido)'}")
 
 if __name__ == "__main__":
     main()

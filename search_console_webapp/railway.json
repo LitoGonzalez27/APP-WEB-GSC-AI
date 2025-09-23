@@ -3,6 +3,10 @@
     {
       "command": "python3 daily_analysis_cron.py",
       "schedule": "0 2 * * *"
+    },
+    {
+      "command": "BREVO_CONTACT_LIST_ID=8 python3 sync_users_to_brevo.py",
+      "schedule": "15 3 * * *"
     }
   ]
 }

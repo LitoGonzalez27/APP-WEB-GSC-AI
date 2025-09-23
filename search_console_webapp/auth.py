@@ -17,7 +17,11 @@ from dotenv import load_dotenv
 from email_service import send_password_reset_email, send_welcome_email
 # Importar API de Brevo como alternativa
 try:
-    from brevo_api_service import send_password_reset_via_api
+    from brevo_api_service import (
+        send_password_reset_via_api,
+        upsert_brevo_contact,
+        get_or_create_list_id,
+    )
     BREVO_API_AVAILABLE = True
 except ImportError:
     BREVO_API_AVAILABLE = False
@@ -782,6 +786,26 @@ def setup_auth_routes(app):
             except Exception as _e_send_welcome:
                 logger.warning(f"No se pudo enviar welcome email: {_e_send_welcome}")
 
+            # Sincronizar contacto a Brevo en lista 'Usuarios Registrados' (no bloquear)
+            try:
+                if BREVO_API_AVAILABLE:
+                    list_id = get_or_create_list_id('Usuarios Registrados')
+                    # Determinar plan actual del signup (si existe)
+                    current_plan = session.get('signup_plan') or 'free'
+                    upsert_brevo_contact(
+                        email=new_user['email'],
+                        name=new_user.get('name'),
+                        list_id=list_id,
+                        attributes={
+                            "SOURCE": "app_signup",
+                            "PLAN": current_plan,
+                            "CURRENT_PLAN": current_plan,
+                        },
+                        update_enabled=True,
+                    )
+            except Exception as _e_brevo_signup:
+                logger.warning(f"No se pudo sincronizar contacto a Brevo: {_e_brevo_signup}")
+
             # ✅ Si el signup viene con plan de pago, iniciar sesión y redirigir a checkout
             signup_plan = session.get('signup_plan')
             signup_source = session.get('signup_source') or 'registration'
@@ -1038,6 +1062,24 @@ def setup_auth_routes(app):
                         logger.info(f"✉️ Welcome email enqueued/enviado a {new_user['email']}")
                     except Exception as _e_send_welcome:
                         logger.warning(f"No se pudo enviar welcome email: {_e_send_welcome}")
+                    # Sincronizar contacto a Brevo en lista 'Usuarios Registrados' (no bloquear)
+                    try:
+                        if BREVO_API_AVAILABLE:
+                            list_id = get_or_create_list_id('Usuarios Registrados')
+                            current_plan = session.get('signup_plan') or 'free'
+                            upsert_brevo_contact(
+                                email=new_user['email'],
+                                name=new_user.get('name'),
+                                list_id=list_id,
+                                attributes={
+                                    "SOURCE": "google_signup",
+                                    "PLAN": current_plan,
+                                    "CURRENT_PLAN": current_plan,
+                                },
+                                update_enabled=True,
+                            )
+                    except Exception as _e_brevo_google_signup:
+                        logger.warning(f"No se pudo sincronizar contacto a Brevo (Google signup): {_e_brevo_google_signup}")
                     
                     # ✅ MEJORADO UX: Flujo directo sin login intermedio
                     signup_plan = session.get('signup_plan')
