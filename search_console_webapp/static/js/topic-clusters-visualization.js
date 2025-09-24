@@ -12,16 +12,9 @@ function displayTopicClustersResults(clustersAnalysis, container) {
     console.log('🔍 RECIBIENDO datos de clusters:', clustersAnalysis);
     console.log('🔍 Estructura clustersAnalysis:', JSON.stringify(clustersAnalysis, null, 2));
     
-    if (!clustersAnalysis || !clustersAnalysis.clusters || clustersAnalysis.clusters.length === 0) {
-        console.warn('⚠️ No hay datos de clusters para mostrar');
-        console.warn('🔍 Detalle del problema:', {
-            hasData: !!clustersAnalysis,
-            hasClusters: !!clustersAnalysis?.clusters,
-            clustersLength: clustersAnalysis?.clusters?.length,
-            fullData: clustersAnalysis
-        });
-        return;
-    }
+    // Siempre renderizamos la sección, incluso si no hay coincidencias
+    const hasClustersArray = Array.isArray(clustersAnalysis?.clusters);
+    const noData = !hasClustersArray || clustersAnalysis.clusters.length === 0;
 
     // Buscar contenedor existente o crear uno nuevo (usar mismas clases que competitor analysis)
     let clustersContainer = container.querySelector('.topic-clusters-results');
@@ -34,11 +27,20 @@ function displayTopicClustersResults(clustersAnalysis, container) {
     // Layout de una sola columna para mayor tamaño
     const titleHTML = `<h3 class="competitor-analysis-title">Topic Clusters Analysis</h3>`;
     
+    const emptyStateHTML = `
+        <div id="clustersEmptyState" style="display:flex;align-items:center;justify-content:center;padding:24px;color:#666;border:1px dashed rgba(0,0,0,0.15);border-radius:8px;background:rgba(0,0,0,0.02);margin-top:8px;text-align:center;">
+            <div>
+                <i class="fas fa-info-circle" style="font-size:20px;opacity:0.7;"></i>
+                <p style="margin:8px 0 0 0;">No matches for the current clusters. Adjust the terms or the method.</p>
+            </div>
+        </div>`;
+
     const layoutHTML = `
         <div class="clusters-single-column-layout">
             <div class="clusters-chart-section">
-                <div class="clusters-chart-container">
-                    <canvas id="clustersChart"></canvas>
+                <div class="clusters-chart-container" id="clustersChartContainer">
+                    <canvas id="clustersChart" ${noData ? 'style="display:none;"' : ''}></canvas>
+                    ${noData ? emptyStateHTML : ''}
                 </div>
             </div>
             <div class="clusters-table-section">
@@ -50,9 +52,11 @@ function displayTopicClustersResults(clustersAnalysis, container) {
     clustersContainer.innerHTML = titleHTML + layoutHTML;
     
     // Crear el gráfico de burbujas después de que el elemento esté en el DOM
-    setTimeout(() => {
-        createClustersBubbleChart(clustersAnalysis.clusters);
-    }, 100);
+    if (!noData) {
+        setTimeout(() => {
+            createClustersBubbleChart(clustersAnalysis.clusters);
+        }, 100);
+    }
     
     console.log(`✅ Mostrados resultados de ${clustersAnalysis.clusters.length} clusters`);
 }
@@ -123,9 +127,44 @@ function createClustersBubbleChart(clusters) {
     const ctx = canvas.getContext('2d');
     
     // Filtrar clusters válidos y preparar datos
-    const validClusters = clusters.filter(cluster => 
-        cluster.total_mentions > 0 || cluster.total_impressions > 0
+    const validClusters = (Array.isArray(clusters) ? clusters : []).filter(cluster => 
+        (cluster.total_mentions || 0) > 0 || (cluster.total_impressions || 0) > 0
     );
+
+    // Estado vacío si no hay puntos válidos
+    const containerDiv = canvas.parentElement;
+    const emptyStateId = 'clustersEmptyState';
+    const existingEmpty = containerDiv ? containerDiv.querySelector(`#${emptyStateId}`) : null;
+    if (validClusters.length === 0) {
+        // Ocultar canvas y mostrar estado vacío
+        canvas.style.display = 'none';
+        if (!existingEmpty && containerDiv) {
+            const wrapper = document.createElement('div');
+            wrapper.id = emptyStateId;
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.justifyContent = 'center';
+            wrapper.style.padding = '24px';
+            wrapper.style.color = '#666';
+            wrapper.style.border = '1px dashed rgba(0,0,0,0.15)';
+            wrapper.style.borderRadius = '8px';
+            wrapper.style.background = 'rgba(0,0,0,0.02)';
+            wrapper.style.marginTop = '8px';
+            wrapper.style.textAlign = 'center';
+            wrapper.innerHTML = `
+                <div>
+                    <i class="fas fa-info-circle" style="font-size:20px;opacity:0.7;"></i>
+                    <p style="margin:8px 0 0 0;">Not enough data for the chart. No impressions or mentions in the current clusters.</p>
+                </div>
+            `;
+            containerDiv.appendChild(wrapper);
+        }
+        return;
+    } else {
+        // Asegurar que el canvas esté visible y retirar cualquier estado vacío
+        canvas.style.display = '';
+        if (existingEmpty) existingEmpty.remove();
+    }
     
     // Calcular rango de clicks para escalar burbujas proporcionalmente  
     const clicksValues = validClusters.map(cluster => cluster.total_clicks || 0);
