@@ -572,6 +572,16 @@ class ManualAISystem {
                         Last analysis: ${project.last_analysis_date ? 
                             new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
                     </small>
+                    ${(!project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
+                        <div class="first-run-cta" style="margin-top: 10px;">
+                            <button type="button" class="btn-primary btn-small" 
+                                    onclick="event.stopPropagation(); manualAI.analyzeProject(${project.id})"
+                                    title="Run the first analysis for this project">
+                                <i class="fas fa-play"></i>
+                                Run first analysis now
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
