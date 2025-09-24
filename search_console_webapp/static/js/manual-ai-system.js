@@ -1123,7 +1123,8 @@ class ManualAISystem {
                 if (updatedProject && updatedProject.total_results > project.total_results) {
                     console.log('📡 Backup polling detected analysis completion');
                     clearInterval(backupPolling);
-                    this.hideProgress();
+                    this.completeProgressBar();
+                    setTimeout(() => this.hideProgress(), 400);
                     this.showSuccess('Analysis completed! Results detected via backup monitoring.');
                     
                     // Refresh analytics if needed
@@ -1141,6 +1142,7 @@ class ManualAISystem {
             }
         }, 30000); // Check every 30 seconds
 
+        let analysisCompleted = false;
         try {
             // Create AbortController for timeout management
             const controller = new AbortController();
@@ -1221,6 +1223,8 @@ class ManualAISystem {
 
             if (data.success) {
                 clearInterval(backupPolling); // Stop backup polling
+                analysisCompleted = true;
+                this.completeProgressBar();
                 this.showSuccess(`Analysis completed! Processed ${data.results_count} keywords`);
                 await this.loadProjects(); // Refresh project stats
                 
@@ -1266,7 +1270,12 @@ class ManualAISystem {
             this.showError(errorMessage);
         } finally {
             clearInterval(backupPolling); // Stop backup polling in all cases
-            this.hideProgress();
+            if (analysisCompleted) {
+                this.completeProgressBar();
+                setTimeout(() => this.hideProgress(), 400);
+            } else {
+                this.hideProgress();
+            }
         }
     }
 
@@ -2099,10 +2108,15 @@ class ManualAISystem {
     showProgress(title, message) {
         document.getElementById('progressTitle').textContent = title;
         document.getElementById('progressMessage').textContent = message;
+        // Reset and start soft progress animation for better UX
+        this.resetProgressBar();
+        this.startProgressBar(90);
         this.showElement(this.elements.progressModal);
     }
 
     hideProgress() {
+        // Stop progress animation when hiding
+        this.stopProgressBar();
         this.hideElement(this.elements.progressModal);
     }
 
@@ -2114,6 +2128,56 @@ class ManualAISystem {
     showError(message) {
         // Simple error notification (can be improved with toast)
         alert('❌ ' + message);
+    }
+
+    // ================================
+    // PROGRESS BAR CONTROL (UX)
+    // ================================
+
+    resetProgressBar() {
+        this._progressValue = 0;
+        this._progressMax = 100;
+        const fill = document.getElementById('progressFill');
+        const percent = document.getElementById('progressPercent');
+        if (fill) fill.style.width = '0%';
+        if (percent) percent.textContent = '0%';
+    }
+
+    startProgressBar(maxPercent = 90, stepMs = 800) {
+        // Smoothly increase progress up to maxPercent while the task runs
+        this.stopProgressBar();
+        this._progressTarget = Math.max(0, Math.min(100, maxPercent));
+        this._progressInterval = setInterval(() => {
+            // Random small steps to feel alive
+            const step = Math.max(1, Math.min(3, Math.round(Math.random() * 3)));
+            this._progressValue = Math.min(this._progressTarget, (this._progressValue || 0) + step);
+            this.updateProgressUI(this._progressValue);
+            if (this._progressValue >= this._progressTarget) {
+                clearInterval(this._progressInterval);
+                this._progressInterval = null;
+            }
+        }, stepMs);
+    }
+
+    stopProgressBar() {
+        if (this._progressInterval) {
+            clearInterval(this._progressInterval);
+            this._progressInterval = null;
+        }
+    }
+
+    completeProgressBar() {
+        this.stopProgressBar();
+        this._progressValue = 100;
+        this.updateProgressUI(100);
+    }
+
+    updateProgressUI(value) {
+        const val = Math.max(0, Math.min(100, Math.floor(value)));
+        const fill = document.getElementById('progressFill');
+        const percent = document.getElementById('progressPercent');
+        if (fill) fill.style.width = `${val}%`;
+        if (percent) percent.textContent = `${val}%`;
     }
 
     escapeHtml(text) {
