@@ -365,7 +365,7 @@ class ManualAISystem {
                 // Custom checkbox visual checkmark
                 if (this.elements.autoDetectCompetitors) {
                     if (this.elements.autoDetectCompetitors.checked) {
-                        this.elements.autoDetectCompetitors.style.background = 'var(--manual-ai-primary, #667eea)';
+                        this.elements.autoDetectCompetitors.style.background = '#D8F9B8';
                         this.elements.autoDetectCompetitors.style.boxShadow = 'inset 0 0 0 2px #fff';
                     } else {
                         this.elements.autoDetectCompetitors.style.background = '#fff';

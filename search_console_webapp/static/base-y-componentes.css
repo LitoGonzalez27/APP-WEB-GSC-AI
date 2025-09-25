@@ -1425,7 +1425,7 @@ body.dark-mode .country-info-tooltip .tooltip-arrow {
 /* Configuraciones de grid para diferentes filas */
 .form-row:nth-child(2) {
   /* Primera fila después del header: Select Domain + Country */
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
 }
 
 .form-row:nth-child(3) {

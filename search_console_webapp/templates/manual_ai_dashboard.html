@@ -827,9 +827,9 @@
                                     <span style="margin-left:auto; font-size:12px; color:#6b7280;">Optional</span>
                                 </label>
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                                    <label for="autoDetectCompetitors" style="display:flex; align-items:center; gap:10px; margin:0; width:100%;">
-                                        <input type="checkbox" id="autoDetectCompetitors" style="appearance: none; width: 18px; height: 18px; border: 2px solid var(--manual-ai-primary, #667eea); border-radius: 6px; display:inline-block; position: relative; margin:0; outline: none; cursor: pointer; background: #fff;" />
-                                        <span style="color:#374151;">If you want us to automatically detect your competitors, check this box</span>
+                                    <label for="autoDetectCompetitors" style="display:flex; align-items:center; gap:10px; margin-top:20px; width:100%;">
+                                        <input type="checkbox" id="autoDetectCompetitors" class="custom-competitors-checkbox" style="appearance: none; width: 22px; height: 22px; padding: 0; box-sizing: content-box; border: 2px solid var(--manual-ai-primary, #667eea); border-radius: 6px; display:inline-block; position: relative; margin:0; outline: none; cursor: pointer; background: #fff;" />
+                                        <span style="color:#374151;">If you want us to automatically detect your competitors, check this box. If not, you can add them manually.</span>
                                     </label>
                                 </div>
                                 <div id="manualCompetitorsArea" style="display:none;">
@@ -845,13 +845,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer create-footer" style="display:flex; align-items:center; justify-content:space-between;">
-                    <div class="validation-summary" style="font-size:12px; color:#6b7280;">
-                        <span>Checklist:</span>
-                        <span style="margin-left:6px;">Domain ✓</span>
-                        <span style="margin-left:6px;">Country ✓</span>
-                    </div>
-                    <div style="display:flex; gap:8px;">
+                <div class="modal-footer create-footer" style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
                         <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
                             <i class="fas fa-times"></i>
                             Cancel
@@ -860,7 +854,6 @@
                             <i class="fas fa-rocket"></i>
                             Create Project
                         </button>
-                    </div>
                 </div>
             </form>
         </div>
