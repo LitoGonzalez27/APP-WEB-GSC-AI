@@ -9,6 +9,8 @@
 
 (function() {
   const STORAGE_KEY = 'onboarding_popup_counts_v1';
+  const DEFAULT_DELAY_MS = 2300; // 2.3s
+  const FADE_DURATION_MS = 300; // transición suave
 
   // Recuperar identificador de usuario, si está disponible
   function getCurrentUserId() {
@@ -77,9 +79,10 @@
         backdrop-filter: blur(2px);
         z-index: 11000;
         opacity: 0;
-        transition: opacity 200ms ease;
+        transition: opacity ${FADE_DURATION_MS}ms ease;
+        pointer-events: none; /* no bloquear antes del fade-in */
       }
-      .onboarding-modal.show { opacity: 1; }
+      .onboarding-modal.show { opacity: 1; pointer-events: auto; }
       .onboarding-dialog {
         width: min(92vw, 840px);
         max-height: 86vh;
@@ -89,12 +92,12 @@
         box-shadow: 0 20px 60px rgba(0,0,0,0.25);
         overflow: hidden;
         transform: translateY(10px);
-        transition: transform 220ms ease;
+        transition: transform ${FADE_DURATION_MS}ms ease;
       }
       .onboarding-modal.show .onboarding-dialog { transform: translateY(0); }
       .onboarding-header {
         padding: 14px 18px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #161616;
         color: #fff;
         display: flex;
         align-items: center;
@@ -106,7 +109,7 @@
       }
       .onboarding-body { padding: 0; background: #000; }
       .onboarding-iframe { width: 100%; aspect-ratio: 16/9; border: 0; display: block; }
-      .onboarding-footer { padding: 12px 16px; background: #f8f9fa; display: flex; align-items: center; justify-content: space-between; }
+      .onboarding-footer { display: none; }
       .onboarding-actions { display: flex; gap: 8px; }
       .onboarding-btn { border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; font-weight: 500; }
       .onboarding-btn-primary { background: #17a2b8; color: #fff; }
@@ -151,7 +154,7 @@
 
     const close = () => {
       modal.classList.remove('show');
-      setTimeout(() => modal.remove(), 200);
+      setTimeout(() => modal.remove(), FADE_DURATION_MS);
     };
 
     // Cerrar al hacer click fuera
@@ -172,17 +175,21 @@
     return count < maxViews;
   }
 
-  function showForSection(sectionKey) {
+  function showForSection(sectionKey, delayMs = DEFAULT_DELAY_MS) {
     const cfg = registry[sectionKey];
     if (!cfg) return;
     const userId = getCurrentUserId();
     if (!shouldShow(sectionKey)) return;
 
     const { modal, show } = buildModal(sectionKey, cfg);
-    document.body.appendChild(modal);
-    modal.id = '__onboarding_modal__';
-    show();
-    incrementCount(sectionKey, userId);
+    const appendAndShow = () => {
+      document.body.appendChild(modal);
+      modal.id = '__onboarding_modal__';
+      show();
+      incrementCount(sectionKey, userId);
+    };
+
+    setTimeout(appendAndShow, Math.max(0, delayMs || 0));
   }
 
   // API pública
