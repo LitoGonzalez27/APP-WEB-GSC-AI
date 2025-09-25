@@ -662,9 +662,6 @@
         <div class="modal-content create-project-modal" role="dialog" aria-modal="true" aria-labelledby="createProjectTitle" aria-describedby="createProjectDesc" tabindex="-1" style="border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
             <div class="modal-header create-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
                 <div class="header-text" style="display:flex; align-items:center; gap:10px;">
-                    <div class="header-icon" aria-hidden="true" style="width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(135deg, var(--manual-ai-primary, #667eea) 0%, #764ba2 100%); color: var(--manual-ai-secondary, #fff);">
-                        <i class="fas fa-cogs"></i>
-                    </div>
                     <div>
                         <h3 id="createProjectTitle" style="margin:0;">Create New AI Analysis Project</h3>
                         <p id="createProjectDesc" style="margin:4px 0 0 0; color: #6b7280;">Set up a new project to track AI Overview visibility</p>
@@ -689,7 +686,7 @@
                             </div>
                         </div>
                         <div class="form-row" style="margin-top:6px;">
-                            <div class="form-group">
+                            <div class="form-group" style="width:100%">
                                 <label for="projectDescription" class="enhanced-label">
                                     <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Description</span>
                                 </label>
@@ -830,8 +827,10 @@
                                     <span style="margin-left:auto; font-size:12px; color:#6b7280;">Optional</span>
                                 </label>
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                                    <input type="checkbox" id="autoDetectCompetitors" checked>
-                                    <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
+                                    <label for="autoDetectCompetitors" style="display:flex; align-items:center; gap:10px; margin:0; width:100%;">
+                                        <input type="checkbox" id="autoDetectCompetitors" style="appearance: none; width: 18px; height: 18px; border: 2px solid var(--manual-ai-primary, #667eea); border-radius: 6px; display:inline-block; position: relative; margin:0; outline: none; cursor: pointer; background: #fff;" />
+                                        <span style="color:#374151;">If you want us to automatically detect your competitors, check this box</span>
+                                    </label>
                                 </div>
                                 <div id="manualCompetitorsArea" style="display:none;">
                                     <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">

@@ -361,8 +361,21 @@ class ManualAISystem {
             const syncVisibility = () => {
                 const showManual = !this.elements.autoDetectCompetitors.checked;
                 this.elements.manualCompetitorsArea.style.display = showManual ? 'block' : 'none';
+
+                // Custom checkbox visual checkmark
+                if (this.elements.autoDetectCompetitors) {
+                    if (this.elements.autoDetectCompetitors.checked) {
+                        this.elements.autoDetectCompetitors.style.background = 'var(--manual-ai-primary, #667eea)';
+                        this.elements.autoDetectCompetitors.style.boxShadow = 'inset 0 0 0 2px #fff';
+                    } else {
+                        this.elements.autoDetectCompetitors.style.background = '#fff';
+                        this.elements.autoDetectCompetitors.style.boxShadow = 'none';
+                    }
+                }
             };
             this.elements.autoDetectCompetitors.addEventListener('change', syncVisibility);
+            // Default: unchecked as requested
+            this.elements.autoDetectCompetitors.checked = false;
             syncVisibility();
         }
 
