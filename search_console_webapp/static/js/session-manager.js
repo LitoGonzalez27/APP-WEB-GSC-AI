@@ -34,7 +34,7 @@ class SessionManager {
     }
 
     init() {
-        this.log('SessionManager inicializado');
+        this.log('SessionManager initialized');
         this.setupActivityDetection();
         this.startSessionChecking();
         this.startKeepAlive();
@@ -62,7 +62,7 @@ class SessionManager {
             document.addEventListener(event, this.throttle(handleActivity, 1000), true);
         });
 
-        this.log('Detección de actividad configurada');
+        this.log('Activity detection configured');
     }
 
     /**
@@ -97,7 +97,7 @@ class SessionManager {
      */
     pause() {
         this.isPaused = true;
-        this.log('El verificador de sesión está en pausa.');
+        this.log('Session checker is paused.');
     }
 
     /**
@@ -105,7 +105,7 @@ class SessionManager {
      */
     resume() {
         this.isPaused = false;
-        this.log('El verificador de sesión se ha reanudado.');
+        this.log('Session checker resumed.');
         // Forzar una verificación inmediata para sincronizar el estado
         this.checkSessionStatus();
     }
@@ -116,13 +116,13 @@ class SessionManager {
     async checkSessionStatus() {
         // ✅ NUEVO: No hacer nada si el gestor está en pausa
         if (this.isPaused) {
-            this.log('Verificación omitida porque el gestor está en pausa.');
+            this.log('Skipped check because manager is paused.');
             return;
         }
 
         // ✅ NUEVO: Evitar verificaciones simultáneas
         if (this.isChecking) {
-            this.log('Verificación ya en progreso, omitiendo...');
+            this.log('Check already in progress, skipping...');
             return;
         }
 
@@ -149,7 +149,7 @@ class SessionManager {
             this.sessionData = data.session || {};
             const remainingSeconds = this.sessionData.remaining_seconds || 0;
 
-            this.log(`Sesión activa. Tiempo restante: ${remainingSeconds}s`);
+            this.log(`Active session. Remaining: ${remainingSeconds}s`);
 
             // Verificar si necesitamos mostrar advertencia
             if (remainingSeconds <= this.config.warningTime && remainingSeconds > 0) {
@@ -159,7 +159,7 @@ class SessionManager {
             }
 
         } catch (error) {
-            this.log('Error verificando estado de sesión:', error);
+            this.log('Error checking session status:', error);
             // En caso de error de red, no hacer nada drástico
         } finally {
             this.isChecking = false; // ✅ NUEVO: Liberar el bloqueo
@@ -198,14 +198,14 @@ class SessionManager {
             if (response.ok) {
                 const data = await response.json();
                 this.log(
-                    `Keep-alive enviado. Usuario activo: ${data.user_active}. Tiempo restante: ${data.remaining_seconds}s`
+                    `Keep-alive sent. User active: ${data.user_active}. Remaining: ${data.remaining_seconds}s`
                 );
             } else {
-                this.log('Error en keep-alive:', response.status);
+                this.log('Keep-alive error:', response.status);
             }
 
         } catch (error) {
-            this.log('Error enviando keep-alive:', error);
+            this.log('Error sending keep-alive:', error);
         }
     }
 
@@ -225,20 +225,20 @@ class SessionManager {
                 <div class="session-warning-content">
                     <div class="session-warning-header">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <h3>Sesión a punto de expirar</h3>
+                        <h3>Session about to expire</h3>
                     </div>
                     <div class="session-warning-body">
-                        <p>Tu sesión expirará en <span id="sessionCountdown" class="countdown">0</span> segundos por inactividad.</p>
-                        <p>¿Deseas mantener tu sesión activa?</p>
+                        <p>Your session will expire in <span id="sessionCountdown" class="countdown">0</span> seconds due to inactivity.</p>
+                        <p>Do you want to keep your session active?</p>
                     </div>
                     <div class="session-warning-actions">
                         <button id="extendSessionBtn" class="btn btn-primary">
                             <i class="fas fa-refresh"></i>
-                            Mantener sesión activa
+                            Keep session active
                         </button>
                         <button id="logoutNowBtn" class="btn btn-secondary">
                             <i class="fas fa-sign-out-alt"></i>
-                            Cerrar sesión
+                            Log out
                         </button>
                     </div>
                 </div>
@@ -408,7 +408,7 @@ class SessionManager {
         // Iniciar countdown
         this.startCountdown(remainingSeconds);
 
-        this.log('Advertencia de expiración mostrada');
+        this.log('Expiration warning shown');
     }
 
     /**
@@ -426,7 +426,7 @@ class SessionManager {
             this.countdownTimer = null;
         }
 
-        this.log('Advertencia de expiración ocultada');
+        this.log('Expiration warning hidden');
     }
 
     /**
@@ -475,19 +475,19 @@ class SessionManager {
 
             if (response.ok) {
                 const data = await response.json();
-                this.log('Sesión extendida manualmente. Tiempo restante:', data.remaining_seconds);
+                this.log('Session manually extended. Remaining:', data.remaining_seconds);
                 this.hideWarning();
                 
                 // Mostrar mensaje de confirmación
                 if (window.navbar && typeof window.navbar.showToast === 'function') {
-                    window.navbar.showToast('Sesión extendida correctamente', 'success');
+                    window.navbar.showToast('Session extended successfully', 'success');
                 }
             } else {
-                this.log('Error extendiendo sesión:', response.status);
+                this.log('Error extending session:', response.status);
             }
             
         } catch (error) {
-            this.log('Error extendiendo sesión:', error);
+            this.log('Error extending session:', error);
         }
     }
 
@@ -508,14 +508,14 @@ class SessionManager {
      * Manejar expiración de sesión
      */
     handleSessionExpired(data) {
-        this.log('Sesión expirada:', data);
+        this.log('Session expired:', data);
         
         // Limpiar timers
         this.cleanup();
 
         // Mostrar mensaje
         if (window.navbar && typeof window.navbar.showToast === 'function') {
-            window.navbar.showToast('Tu sesión ha expirado por inactividad. Redirigiendo...', 'warning');
+            window.navbar.showToast('Your session has expired due to inactivity. Redirecting...', 'warning');
         }
 
         // Redirigir al login

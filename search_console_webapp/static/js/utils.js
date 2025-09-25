@@ -108,7 +108,7 @@ export function updateThemeIcon(isDark = null) {
   const mobileThemeText = document.getElementById('mobileThemeText');
   
   const iconClass = isDark ? 'fa-sun' : 'fa-moon';
-  const themeText = isDark ? 'Modo Claro' : 'Modo Oscuro';
+  const themeText = isDark ? 'Light Mode' : 'Dark Mode';
   
   // Actualizar icono desktop con animación
   if (themeIcon) {
@@ -131,7 +131,7 @@ export function updateThemeIcon(isDark = null) {
   
   // Actualizar aria-label
   if (toggleBtn) {
-    toggleBtn.setAttribute('aria-label', `Cambiar a ${themeText.toLowerCase()}`);
+    toggleBtn.setAttribute('aria-label', `Switch to ${themeText.toLowerCase()}`);
     toggleBtn.setAttribute('aria-pressed', isDark.toString());
   }
 }
@@ -428,8 +428,8 @@ export function showMobileOptimizationNotice() {
       <i class="fas fa-mobile-alt" style="color: white; font-size: 16px;"></i>
     </div>
     <div style="flex: 1;">
-      <div style="font-weight: 600; margin-bottom: 4px;">📱 Dispositivo móvil detectado</div>
-      <div style="font-size: 13px; opacity: 0.8;">Aplicando optimizaciones: timeouts extendidos, cierre robusto de modales y reintentos automáticos.</div>
+      <div style="font-weight: 600; margin-bottom: 4px;">📱 Mobile device detected</div>
+      <div style="font-size: 13px; opacity: 0.8;">Applying optimizations: extended timeouts, robust modal closures, and automatic retries.</div>
     </div>
     <button onclick="this.parentElement.remove()" style="
       background: none;

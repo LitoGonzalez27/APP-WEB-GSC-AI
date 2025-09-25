@@ -4497,7 +4497,7 @@ class ManualAISystem {
             // Show success state
             if (btnText) {
                 const originalText = btnText.textContent;
-                btnText.textContent = '¡Descargado!';
+                btnText.textContent = 'Downloaded!';
                 downloadBtn.classList.add('success');
 
                 setTimeout(() => {
@@ -4694,12 +4694,12 @@ function initializeUserDropdown() {
         if (isDark) {
             document.body.classList.remove('dark-theme');
             if (themeIcon) themeIcon.className = 'fas fa-moon';
-            if (themeText) themeText.textContent = 'Modo Oscuro';
+            if (themeText) themeText.textContent = 'Dark Mode';
             localStorage.setItem('theme', 'light');
         } else {
             document.body.classList.add('dark-theme');
             if (themeIcon) themeIcon.className = 'fas fa-sun';
-            if (themeText) themeText.textContent = 'Modo Claro';
+            if (themeText) themeText.textContent = 'Light Mode';
             localStorage.setItem('theme', 'dark');
         }
     }
@@ -4725,6 +4725,6 @@ function initializeUserDropdown() {
         const themeIcon = document.getElementById('dropdownThemeIcon');
         const themeText = document.getElementById('dropdownThemeText');
         if (themeIcon) themeIcon.className = 'fas fa-sun';
-        if (themeText) themeText.textContent = 'Modo Claro';
+        if (themeText) themeText.textContent = 'Light Mode';
     }
 }

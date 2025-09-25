@@ -194,7 +194,7 @@ class Navbar {
     // Actualizar iconos y texto del tema
     updateThemeIcons(isDark) {
         const iconClass = isDark ? 'fa-sun' : 'fa-moon';
-        const themeText = isDark ? 'Modo Claro' : 'Modo Oscuro';
+        const themeText = isDark ? 'Light Mode' : 'Dark Mode';
 
         // Actualizar iconos
         if (this.themeIcon) {
@@ -262,7 +262,7 @@ class Navbar {
             detail: { isDark } 
         }));
         
-        console.log('🎨 Tema cambiado a:', isDark ? 'oscuro' : 'claro', 'localStorage:', localStorage.getItem('darkMode'));
+        console.log('🎨 Theme changed to:', isDark ? 'dark' : 'light', 'localStorage:', localStorage.getItem('darkMode'));
     }
 
 
@@ -409,7 +409,7 @@ class Navbar {
         const urlParams = new URLSearchParams(window.location.search);
         
         if (urlParams.get('auth_success') === 'true') {
-            this.showToast('¡Inicio de sesión exitoso!', 'success');
+            this.showToast('Sign-in successful!', 'success');
             this.checkAuthStatus();
             
             // Limpiar URL
@@ -419,17 +419,17 @@ class Navbar {
         
         const authError = urlParams.get('auth_error');
         if (authError) {
-            let errorMessage = 'Error de autenticación';
+            let errorMessage = 'Authentication error';
             
             switch (authError) {
                 case 'invalid_state':
-                    errorMessage = 'Error de seguridad. Intenta de nuevo.';
+                    errorMessage = 'Security error. Please try again.';
                     break;
                 case 'oauth_config':
-                    errorMessage = 'Error de configuración OAuth.';
+                    errorMessage = 'OAuth configuration error.';
                     break;
                 case 'callback_failed':
-                    errorMessage = 'Error en callback. Intenta de nuevo.';
+                    errorMessage = 'Callback error. Please try again.';
                     break;
             }
             
@@ -447,7 +447,7 @@ class Navbar {
         this.setLoadingState(true);
         
         // Mostrar toast informativo
-        this.showToast('Redirigiendo a Google...', 'info');
+        this.showToast('Redirecting to Google...', 'info');
         
         // Redirigir al endpoint de auth
         setTimeout(() => {
@@ -462,7 +462,7 @@ class Navbar {
             this.setLoadingState(true);
             
             // Mostrar toast informativo
-            this.showToast('Cerrando sesión...', 'info');
+            this.showToast('Signing out...', 'info');
             
             const response = await fetch('/auth/logout', {
                 method: 'POST',
@@ -474,7 +474,7 @@ class Navbar {
             if (response.ok) {
                 const data = await response.json();
                 this.setLoginStatus(false, null);
-                this.showToast('Sesión cerrada correctamente', 'success');
+                this.showToast('Signed out successfully', 'success');
                 
                 // Cerrar menú móvil si está abierto
                 if (this.isMobileMenuOpen) {
@@ -491,7 +491,7 @@ class Navbar {
             }
         } catch (error) {
             console.error('Error durante logout:', error);
-            this.showToast('Error al cerrar sesión. Redirigiendo...', 'error');
+            this.showToast('Error signing out. Redirecting...', 'error');
             
             // En caso de error, redirigir de todos modos
             setTimeout(() => {
@@ -548,16 +548,16 @@ class Navbar {
 
     // Actualizar información del usuario
     updateUserInfo() {
-        if (this.isLoggedIn && this.currentUser) {
+            if (this.isLoggedIn && this.currentUser) {
             // Nuevo dropdown de usuario
             if (this.userNameDropdown) {
-                this.userNameDropdown.textContent = this.currentUser.name || 'Usuario';
+                this.userNameDropdown.textContent = this.currentUser.name || 'User';
             }
             if (this.userNameLarge) {
-                this.userNameLarge.textContent = this.currentUser.name || 'Usuario';
+                this.userNameLarge.textContent = this.currentUser.name || 'User';
             }
             if (this.userEmailDropdown) {
-                this.userEmailDropdown.textContent = this.currentUser.email || 'usuario@email.com';
+                this.userEmailDropdown.textContent = this.currentUser.email || 'user@email.com';
             }
 
             // Actualizar avatares con foto de perfil de Google
@@ -567,7 +567,7 @@ class Navbar {
             // Desktop user info (legacy - mantener por compatibilidad)
             if (this.userInfo && this.userName) {
                 this.userInfo.style.display = 'flex';
-                this.userName.textContent = this.currentUser.name || 'Usuario';
+                this.userName.textContent = this.currentUser.name || 'User';
             }
             
             // Show global navigation section in sidebar
@@ -578,8 +578,8 @@ class Navbar {
             // Mobile user info
             if (this.mobileUserInfo && this.mobileUserName && this.mobileUserEmail) {
                 this.mobileUserInfo.style.display = 'flex';
-                this.mobileUserName.textContent = this.currentUser.name || 'Usuario';
-                this.mobileUserEmail.textContent = this.currentUser.email || 'usuario@email.com';
+                this.mobileUserName.textContent = this.currentUser.name || 'User';
+                this.mobileUserEmail.textContent = this.currentUser.email || 'user@email.com';
             }
         } else {
             // Ocultar info de usuario

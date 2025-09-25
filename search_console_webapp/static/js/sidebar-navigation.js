@@ -396,7 +396,7 @@ class SidebarNavigation {
       'ai-overview': 'AI Overview'
     };
     
-    const message = `La sección "${sectionNames[section]}" requiere que ejecutes primero un análisis de datos.`;
+    const message = `The section "${sectionNames[section]}" requires you to run a data analysis first.`;
     
     // Crear notificación temporal
     this.showTemporaryNotification(message, 'warning');
@@ -593,7 +593,7 @@ class SidebarNavigation {
     console.log('📥 Iniciando descarga Excel desde sidebar...');
     
     if (!window.currentData || !window.currentData.pages) {
-        alert('No hay datos para descargar. Por favor, ejecuta primero una consulta.');
+      alert('No data to download. Please run a query first.');
         return;
     }
     

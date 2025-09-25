@@ -58,7 +58,7 @@
   // Registro de vídeos por sección
   const registry = {};
 
-  function registerVideo(sectionKey, { youtubeUrl, title = 'Introducción', description = '' }) {
+  function registerVideo(sectionKey, { youtubeUrl, title = 'Introduction', description = '' }) {
     if (!youtubeUrl) return;
     registry[sectionKey] = { youtubeUrl, title, description };
   }
@@ -92,9 +92,10 @@
         box-shadow: 0 20px 60px rgba(0,0,0,0.25);
         overflow: hidden;
         transform: translateY(10px);
-        transition: transform ${FADE_DURATION_MS}ms ease;
+        opacity: 0;
+        transition: transform ${FADE_DURATION_MS}ms ease, opacity ${FADE_DURATION_MS}ms ease;
       }
-      .onboarding-modal.show .onboarding-dialog { transform: translateY(0); }
+      .onboarding-modal.show .onboarding-dialog { transform: translateY(0); opacity: 1; }
       .onboarding-header {
         padding: 14px 18px;
         background: #161616;
@@ -128,7 +129,7 @@
     modal.className = 'onboarding-modal';
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', 'Vídeo de introducción');
+    modal.setAttribute('aria-label', 'Intro video');
 
     const iframeSrc = config.youtubeUrl.includes('youtube.com/embed')
       ? config.youtubeUrl
@@ -138,15 +139,15 @@
       <div class="onboarding-dialog">
         <div class="onboarding-header">
           <div class="onboarding-title"><i class="fas fa-video"></i>${config.title}</div>
-          <button class="onboarding-close" aria-label="Cerrar">&times;</button>
+          <button class="onboarding-close" aria-label="Close">&times;</button>
         </div>
         <div class="onboarding-body">
           <iframe class="onboarding-iframe" src="${iframeSrc}" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         </div>
         <div class="onboarding-footer">
-          <div style="font-size: 12px; opacity: .8;">Puedes cerrar este vídeo cuando quieras</div>
+          <div style="font-size: 12px; opacity: .8;">You can close this video anytime</div>
           <div class="onboarding-actions">
-            <button class="onboarding-btn onboarding-btn-secondary" data-action="dismiss">Cerrar</button>
+            <button class="onboarding-btn onboarding-btn-secondary" data-action="dismiss">Close</button>
           </div>
         </div>
       </div>
@@ -202,8 +203,8 @@
   // Registro inicial: AI Overview (AIO) usando la URL proporcionada
   registerVideo('ai-overview', {
     youtubeUrl: 'https://www.youtube.com/embed/UMtMvk_2vp8?si=P38CP7p1_NeO5CWw',
-    title: 'AI Overview: Introducción rápida',
-    description: 'Aprende a interpretar el módulo AI Overview y sus datos clave.'
+    title: 'AI Overview: Quick Intro',
+    description: 'Learn how to read AI Overview and its key metrics.'
   });
 
   // Escuchar navegación del sidebar y disparar el popup en AI Overview
