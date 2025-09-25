@@ -659,59 +659,66 @@
 
     <!-- Create Project Modal -->
     <div class="modal-overlay" id="createProjectModal">
-        <div class="modal-content create-project-modal" role="dialog" aria-modal="true" aria-labelledby="createProjectTitle" aria-describedby="createProjectDesc" tabindex="-1">
-            <div class="modal-header create-header">
-                <div class="header-text">
-                    <h3 id="createProjectTitle">Create New AI Analysis Project</h3>
-                    <p id="createProjectDesc">Set up a new project to track AI Overview visibility</p>
+        <div class="modal-content create-project-modal" role="dialog" aria-modal="true" aria-labelledby="createProjectTitle" aria-describedby="createProjectDesc" tabindex="-1" style="border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header create-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+                <div class="header-text" style="display:flex; align-items:center; gap:10px;">
+                    <div class="header-icon" aria-hidden="true" style="width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(135deg, var(--manual-ai-primary, #667eea) 0%, #764ba2 100%); color: var(--manual-ai-secondary, #fff);">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <div>
+                        <h3 id="createProjectTitle" style="margin:0;">Create New AI Analysis Project</h3>
+                        <p id="createProjectDesc" style="margin:4px 0 0 0; color: #6b7280;">Set up a new project to track AI Overview visibility</p>
+                    </div>
                 </div>
-                <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()">
+                <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()" aria-label="Close dialog">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <form id="createProjectForm">
                 <div class="modal-body create-body">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="projectName" class="enhanced-label">
-        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
-                               
-                            </label>
-                            <input type="text" id="projectName" name="name" required maxlength="255" 
-                                   class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
-                            <small class="form-help">Choose a memorable name for your project</small>
+                    <!-- Basics Card -->
+                    <div class="section-card" style="background:linear-gradient(180deg, #ffffff 0%, #fafbff 100%); border:1px solid #e5e7eb; border-radius:12px; padding:18px; margin-bottom:14px;">
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <label for="projectName" class="enhanced-label">
+        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Project Name</span>*
+                                </label>
+                                <input type="text" id="projectName" name="name" required maxlength="255" 
+                                       class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
+                                <small class="form-help">Choose a memorable name for your project</small>
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top:6px;">
+                            <div class="form-group">
+                                <label for="projectDescription" class="enhanced-label">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Description</span>
+                                </label>
+                                <textarea id="projectDescription" name="description" rows="3"
+                                          class="enhanced-textarea" 
+                                          placeholder="Optional description about this project..."></textarea>
+                                <small class="form-help">Add details about what you want to analyze</small>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="projectDescription" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Description</span>
-                            </label>
-                            <textarea id="projectDescription" name="description" rows="3"
-                                      class="enhanced-textarea" 
-                                      placeholder="Optional description about this project..."></textarea>
-                            <small class="form-help">Add details about what you want to analyze</small>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row form-row-split">
-                        <div class="form-group">
-                            <label for="projectDomain" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
-                            </label>
-                            <input type="text" id="projectDomain" name="domain" required
-                                   class="enhanced-input" placeholder="example.com" aria-describedby="projectDomainHint">
-                            <small class="form-help">Domain to track in AI Overview results</small>
-                            <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="projectCountry" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
-                            </label>
-                            <input type="text" id="projectCountryFilter" class="enhanced-input" placeholder="Type to filter countries..." aria-label="Filter countries" style="margin-bottom:8px;">
-                            <select id="projectCountry" name="country_code" class="enhanced-select">
+
+                    <!-- Target Settings Card -->
+                    <div class="section-card" style="background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; margin-bottom:14px;">
+                        <div class="form-row form-row-split">
+                            <div class="form-group">
+                                <label for="projectDomain" class="enhanced-label">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Target Domain</span>*
+                                </label>
+                                <input type="text" id="projectDomain" name="domain" required
+                                       class="enhanced-input" placeholder="example.com" aria-describedby="projectDomainHint">
+                                <small class="form-help">Domain to track in AI Overview results</small>
+                                <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="projectCountry" class="enhanced-label">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Target Country</span>*
+                                </label>
+                                <select id="projectCountry" name="country_code" class="enhanced-select">
                                 <option value="ES" selected>🇪🇸 Spain</option>
                                 <option value="US">🇺🇸 United States</option>
                                 <option value="GB">🇬🇧 United Kingdom</option>
@@ -814,36 +821,47 @@
                     </div>
 
                     <!-- Competitors (optional) -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
-                            </label>
-                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                                <input type="checkbox" id="autoDetectCompetitors" checked>
-                                <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
-                            </div>
-                            <div id="manualCompetitorsArea" style="display:none;">
-                                <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Type domain and press Enter (max 4)">
-                                    <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
+                    <div class="section-card" style="background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:18px; margin-bottom:8px;">
+                        <div class="form-row">
+                            <div class="form-group" style="width:100%">
+                                <label class="enhanced-label" style="display:flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-users" style="color: var(--manual-ai-primary);"></i>
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 600; padding: 2px 4px;">Competitors</span>
+                                    <span style="margin-left:auto; font-size:12px; color:#6b7280;">Optional</span>
+                                </label>
+                                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                    <input type="checkbox" id="autoDetectCompetitors" checked>
+                                    <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
                                 </div>
-                                <div id="competitorChips" class="competitor-chips" aria-live="polite" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-                                <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
-                                <small class="form-help">Domains only. We remove https://, www and paths automatically.</small>
+                                <div id="manualCompetitorsArea" style="display:none;">
+                                    <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                                        <input type="text" id="competitorInput" class="enhanced-input" placeholder="Type domain and press Enter (max 4)">
+                                        <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
+                                    </div>
+                                    <div id="competitorChips" class="competitor-chips" aria-live="polite" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                    <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
+                                    <small class="form-help">Domains only. We remove https://, www and paths automatically.</small>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer create-footer">
-                    <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
-                        <i class="fas fa-times"></i>
-                        Cancel
-                    </button>
-                    <button type="submit" id="createProjectSubmit" class="btn-primary btn-enhanced btn-create">
-                        <i class="fas fa-rocket"></i>
-                        Create Project
-                    </button>
+                <div class="modal-footer create-footer" style="display:flex; align-items:center; justify-content:space-between;">
+                    <div class="validation-summary" style="font-size:12px; color:#6b7280;">
+                        <span>Checklist:</span>
+                        <span style="margin-left:6px;">Domain ✓</span>
+                        <span style="margin-left:6px;">Country ✓</span>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" id="createProjectSubmit" class="btn-primary btn-enhanced btn-create">
+                            <i class="fas fa-rocket"></i>
+                            Create Project
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

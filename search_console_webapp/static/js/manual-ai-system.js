@@ -322,7 +322,6 @@ class ManualAISystem {
         this.elements.projectDomain = document.getElementById('projectDomain');
         this.elements.projectDomainHint = document.getElementById('projectDomainHint');
         this.elements.projectCountry = document.getElementById('projectCountry');
-        this.elements.projectCountryFilter = document.getElementById('projectCountryFilter');
         this.elements.autoDetectCompetitors = document.getElementById('autoDetectCompetitors');
         this.elements.manualCompetitorsArea = document.getElementById('manualCompetitorsArea');
         this.elements.competitorInput = document.getElementById('competitorInput');
@@ -355,9 +354,7 @@ class ManualAISystem {
         }
 
         // Country live filter
-        if (this.elements.projectCountry && this.elements.projectCountryFilter) {
-            this.elements.projectCountryFilter.addEventListener('input', () => this.filterCountryOptions());
-        }
+        // (Country text filter removed per UX decision)
 
         // Auto-detect competitors toggle
         if (this.elements.autoDetectCompetitors && this.elements.manualCompetitorsArea) {
@@ -786,7 +783,7 @@ class ManualAISystem {
         this.showElement(this.elements.createProjectModal);
         // Reset validation UI
         this.validateProjectDomain();
-        if (this.elements.projectCountryFilter) this.elements.projectCountryFilter.value = '';
+        // no country text filter to reset
         // Focus first field for accessibility
         setTimeout(() => {
             this.elements.projectDomain?.focus();
@@ -906,17 +903,7 @@ class ManualAISystem {
         return isValid;
     }
 
-    filterCountryOptions() {
-        const filter = (this.elements.projectCountryFilter?.value || '').toLowerCase();
-        const select = this.elements.projectCountry;
-        if (!select) return;
-        const options = Array.from(select.options);
-        options.forEach(opt => {
-            const text = (opt.textContent || '').toLowerCase();
-            const show = !filter || text.includes(filter);
-            opt.hidden = !show;
-        });
-    }
+    // (Country filter removed)
 
     // ================================
     // Competitor chips
