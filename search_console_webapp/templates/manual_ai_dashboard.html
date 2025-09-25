@@ -659,11 +659,11 @@
 
     <!-- Create Project Modal -->
     <div class="modal-overlay" id="createProjectModal">
-        <div class="modal-content create-project-modal">
+        <div class="modal-content create-project-modal" role="dialog" aria-modal="true" aria-labelledby="createProjectTitle" aria-describedby="createProjectDesc" tabindex="-1">
             <div class="modal-header create-header">
                 <div class="header-text">
-                    <h3>Create New AI Analysis Project</h3>
-                    <p>Set up a new project to track AI Overview visibility</p>
+                    <h3 id="createProjectTitle">Create New AI Analysis Project</h3>
+                    <p id="createProjectDesc">Set up a new project to track AI Overview visibility</p>
                 </div>
                 <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()">
                     <i class="fas fa-times"></i>
@@ -701,14 +701,16 @@
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
                             </label>
                             <input type="text" id="projectDomain" name="domain" required
-                                   class="enhanced-input" placeholder="example.com">
+                                   class="enhanced-input" placeholder="example.com" aria-describedby="projectDomainHint">
                             <small class="form-help">Domain to track in AI Overview results</small>
+                            <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
                         </div>
                         
                         <div class="form-group">
                             <label for="projectCountry" class="enhanced-label">
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
                             </label>
+                            <input type="text" id="projectCountryFilter" class="enhanced-input" placeholder="Type to filter countries..." aria-label="Filter countries" style="margin-bottom:8px;">
                             <select id="projectCountry" name="country_code" class="enhanced-select">
                                 <option value="ES" selected>🇪🇸 Spain</option>
                                 <option value="US">🇺🇸 United States</option>
@@ -734,13 +736,52 @@
                                 <option value="HR">🇭🇷 Croatia</option>
                                 <option value="SI">🇸🇮 Slovenia</option>
                                 <option value="SK">🇸🇰 Slovakia</option>
+                                <option value="IE">🇮🇪 Ireland</option>
+                                <option value="CY">🇨🇾 Cyprus</option>
+                                <option value="AL">🇦🇱 Albania</option>
+                                <option value="AD">🇦🇩 Andorra</option>
+                                <option value="AM">🇦🇲 Armenia</option>
+                                <option value="AZ">🇦🇿 Azerbaijan</option>
+                                <option value="BY">🇧🇾 Belarus</option>
+                                <option value="BA">🇧🇦 Bosnia & Herzegovina</option>
+                                <option value="EE">🇪🇪 Estonia</option>
+                                <option value="GE">🇬🇪 Georgia</option>
+                                <option value="IS">🇮🇸 Iceland</option>
+                                <option value="KZ">🇰🇿 Kazakhstan</option>
+                                <option value="XK">🇽🇰 Kosovo</option>
+                                <option value="LI">🇱🇮 Liechtenstein</option>
+                                <option value="LT">🇱🇹 Lithuania</option>
+                                <option value="LU">🇱🇺 Luxembourg</option>
+                                <option value="MK">🇲🇰 North Macedonia</option>
+                                <option value="MT">🇲🇹 Malta</option>
+                                <option value="MD">🇲🇩 Moldova</option>
+                                <option value="MC">🇲🇨 Monaco</option>
+                                <option value="ME">🇲🇪 Montenegro</option>
+                                <option value="SM">🇸🇲 San Marino</option>
+                                <option value="RS">🇷🇸 Serbia</option>
+                                <option value="UA">🇺🇦 Ukraine</option>
+                                <option value="VA">🇻🇦 Vatican City</option>
                                 <option value="CA">🇨🇦 Canada</option>
                                 <option value="MX">🇲🇽 Mexico</option>
                                 <option value="AR">🇦🇷 Argentina</option>
+                                <option value="BZ">🇧🇿 Belize</option>
                                 <option value="BR">🇧🇷 Brazil</option>
                                 <option value="CL">🇨🇱 Chile</option>
                                 <option value="CO">🇨🇴 Colombia</option>
+                                <option value="CR">🇨🇷 Costa Rica</option>
+                                <option value="CU">🇨🇺 Cuba</option>
+                                <option value="DO">🇩🇴 Dominican Republic</option>
                                 <option value="PE">🇵🇪 Peru</option>
+                                <option value="EC">🇪🇨 Ecuador</option>
+                                <option value="GT">🇬🇹 Guatemala</option>
+                                <option value="HN">🇭🇳 Honduras</option>
+                                <option value="NI">🇳🇮 Nicaragua</option>
+                                <option value="PA">🇵🇦 Panama</option>
+                                <option value="PY">🇵🇾 Paraguay</option>
+                                <option value="PR">🇵🇷 Puerto Rico</option>
+                                <option value="SR">🇸🇷 Suriname</option>
+                                <option value="UY">🇺🇾 Uruguay</option>
+                                <option value="VE">🇻🇪 Venezuela</option>
                                 <option value="AU">🇦🇺 Australia</option>
                                 <option value="NZ">🇳🇿 New Zealand</option>
                                 <option value="JP">🇯🇵 Japan</option>
@@ -776,16 +817,21 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors (optional)</span>
-                                <small style="margin-left: 6px; color:#6b7280; font-weight:400;">Up to 4 domains</small>
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
                             </label>
-                            <div class="competitors-inline-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <input type="text" id="competitor1" name="competitor1" class="enhanced-input" placeholder="example-competitor.com">
-                                <input type="text" id="competitor2" name="competitor2" class="enhanced-input" placeholder="another-competitor.com">
-                                <input type="text" id="competitor3" name="competitor3" class="enhanced-input" placeholder="optional">
-                                <input type="text" id="competitor4" name="competitor4" class="enhanced-input" placeholder="optional">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                                <input type="checkbox" id="autoDetectCompetitors" checked>
+                                <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
                             </div>
-                            <small class="form-help">Introduce solo dominios (sin https:// ni rutas). Ej.: <strong>example.com</strong></small>
+                            <div id="manualCompetitorsArea" style="display:none;">
+                                <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Type domain and press Enter (max 4)">
+                                    <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
+                                </div>
+                                <div id="competitorChips" class="competitor-chips" aria-live="polite" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
+                                <small class="form-help">Domains only. We remove https://, www and paths automatically.</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -794,7 +840,7 @@
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
-                    <button type="submit" class="btn-primary btn-enhanced btn-create">
+                    <button type="submit" id="createProjectSubmit" class="btn-primary btn-enhanced btn-create">
                         <i class="fas fa-rocket"></i>
                         Create Project
                     </button>

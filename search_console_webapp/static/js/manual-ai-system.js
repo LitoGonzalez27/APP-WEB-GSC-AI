@@ -318,6 +318,17 @@ class ManualAISystem {
         
         // Forms
         this.elements.createProjectForm = document.getElementById('createProjectForm');
+        this.elements.createProjectSubmit = document.getElementById('createProjectSubmit');
+        this.elements.projectDomain = document.getElementById('projectDomain');
+        this.elements.projectDomainHint = document.getElementById('projectDomainHint');
+        this.elements.projectCountry = document.getElementById('projectCountry');
+        this.elements.projectCountryFilter = document.getElementById('projectCountryFilter');
+        this.elements.autoDetectCompetitors = document.getElementById('autoDetectCompetitors');
+        this.elements.manualCompetitorsArea = document.getElementById('manualCompetitorsArea');
+        this.elements.competitorInput = document.getElementById('competitorInput');
+        this.elements.addCompetitorBtn = document.getElementById('addCompetitorBtn');
+        this.elements.competitorChips = document.getElementById('competitorChips');
+        this.elements.competitorError = document.getElementById('competitorError');
         this.elements.addKeywordsForm = document.getElementById('addKeywordsForm');
         
         // Analytics
@@ -336,6 +347,42 @@ class ManualAISystem {
         // Create project
         this.elements.createProjectBtn?.addEventListener('click', () => this.showCreateProject());
         this.elements.createProjectForm?.addEventListener('submit', (e) => this.handleCreateProject(e));
+
+        // Live domain normalization & validation
+        if (this.elements.projectDomain) {
+            this.elements.projectDomain.addEventListener('input', () => this.validateProjectDomain());
+            this.elements.projectDomain.addEventListener('blur', () => this.normalizeProjectDomain());
+        }
+
+        // Country live filter
+        if (this.elements.projectCountry && this.elements.projectCountryFilter) {
+            this.elements.projectCountryFilter.addEventListener('input', () => this.filterCountryOptions());
+        }
+
+        // Auto-detect competitors toggle
+        if (this.elements.autoDetectCompetitors && this.elements.manualCompetitorsArea) {
+            const syncVisibility = () => {
+                const showManual = !this.elements.autoDetectCompetitors.checked;
+                this.elements.manualCompetitorsArea.style.display = showManual ? 'block' : 'none';
+            };
+            this.elements.autoDetectCompetitors.addEventListener('change', syncVisibility);
+            syncVisibility();
+        }
+
+        // Chips add/remove with keyboard support
+        if (this.elements.competitorInput && this.elements.addCompetitorBtn) {
+            this.elements.addCompetitorBtn.addEventListener('click', () => this.addCompetitorChip());
+            this.elements.competitorInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addCompetitorChip();
+                }
+                if (e.key === 'Escape') {
+                    // Close modal with Esc
+                    if (this.elements.createProjectModal) this.hideCreateProject();
+                }
+            });
+        }
 
         // Add keywords form
         this.elements.addKeywordsForm?.addEventListener('submit', (e) => this.handleAddKeywords(e));
@@ -737,6 +784,13 @@ class ManualAISystem {
         console.log('💳 Usuario con plan - mostrando formulario de creación');
         this.elements.createProjectForm.reset();
         this.showElement(this.elements.createProjectModal);
+        // Reset validation UI
+        this.validateProjectDomain();
+        if (this.elements.projectCountryFilter) this.elements.projectCountryFilter.value = '';
+        // Focus first field for accessibility
+        setTimeout(() => {
+            this.elements.projectDomain?.focus();
+        }, 0);
     }
 
     hideCreateProject() {
@@ -749,15 +803,13 @@ class ManualAISystem {
         const formData = new FormData(e.target);
         const projectData = Object.fromEntries(formData.entries());
 
-        // Collect up to 4 competitors from inline inputs
-        const competitors = [];
-        ['competitor1','competitor2','competitor3','competitor4'].forEach((id) => {
-            const v = (formData.get(id) || '').toString().trim().toLowerCase();
-            if (v) competitors.push(v);
-        });
-        if (competitors.length) {
-            projectData.competitors = competitors;
+        // Competitors: either auto-detect or manual chips
+        const useAuto = this.elements.autoDetectCompetitors?.checked !== false;
+        if (!useAuto) {
+            const chips = this.getCompetitorChipValues();
+            if (chips.length) projectData.competitors = chips;
         }
+        projectData.auto_detect_competitors = useAuto;
 
         this.showProgress('Creating project...', 'Setting up your new AI analysis project');
 
@@ -803,6 +855,133 @@ class ManualAISystem {
         } finally {
             this.hideProgress();
         }
+    }
+
+    // ================================
+    // UX HELPERS: Domain + Country filter
+    // ================================
+    normalizeProjectDomain() {
+        const input = this.elements.projectDomain;
+        if (!input) return;
+        let v = (input.value || '').trim().toLowerCase();
+        if (!v) return;
+        try {
+            // Strip scheme and path
+            v = v.replace(/^https?:\/\//, '').replace(/^www\./, '');
+            // Keep only host part
+            v = v.split('/')[0].split('?')[0];
+            input.value = v;
+        } catch (_) {}
+    }
+
+    validateProjectDomain() {
+        const input = this.elements.projectDomain;
+        const hint = this.elements.projectDomainHint;
+        const submitBtn = this.elements.createProjectSubmit;
+        if (!input || !hint) return;
+
+        const v = (input.value || '').trim().toLowerCase();
+        if (!v) {
+            hint.textContent = '';
+            if (submitBtn) submitBtn.disabled = true;
+            return false;
+        }
+
+        // Simple domain regex (hostname without scheme)
+        const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+        const looksLikeUrl = /^https?:\/\//i.test(v);
+
+        if (looksLikeUrl) {
+            hint.textContent = 'We removed https:// and path automatically.';
+        } else {
+            hint.textContent = '';
+        }
+
+        const normalized = v.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        const isValid = domainRegex.test(normalized);
+
+        input.classList.toggle('input-error', !isValid);
+        input.classList.toggle('input-ok', isValid);
+        if (submitBtn) submitBtn.disabled = !isValid || !this.elements.projectCountry?.value;
+        return isValid;
+    }
+
+    filterCountryOptions() {
+        const filter = (this.elements.projectCountryFilter?.value || '').toLowerCase();
+        const select = this.elements.projectCountry;
+        if (!select) return;
+        const options = Array.from(select.options);
+        options.forEach(opt => {
+            const text = (opt.textContent || '').toLowerCase();
+            const show = !filter || text.includes(filter);
+            opt.hidden = !show;
+        });
+    }
+
+    // ================================
+    // Competitor chips
+    // ================================
+    addCompetitorChip() {
+        if (!this.elements.competitorInput || !this.elements.competitorChips) return;
+        const raw = (this.elements.competitorInput.value || '').trim().toLowerCase();
+        if (!raw) return;
+        const normalized = this.normalizeDomainString(raw);
+        if (!this.isValidDomain(normalized)) {
+            this.setCompetitorError('Invalid domain format. Example: competitor.com');
+            return;
+        }
+        const existing = this.getCompetitorChipValues();
+        if (existing.includes(normalized)) {
+            this.setCompetitorError('This domain is already added');
+            return;
+        }
+        if (existing.length >= 4) {
+            this.setCompetitorError('Maximum 4 competitors');
+            return;
+        }
+        this.setCompetitorError('');
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = normalized;
+        chip.setAttribute('role', 'button');
+        chip.setAttribute('tabindex', '0');
+        chip.style.padding = '6px 10px';
+        chip.style.border = '1px solid #e5e7eb';
+        chip.style.borderRadius = '9999px';
+        chip.style.background = '#f9fafb';
+        chip.style.cursor = 'pointer';
+        chip.style.userSelect = 'none';
+
+        const remove = () => chip.remove();
+        chip.addEventListener('click', remove);
+        chip.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Enter') {
+                e.preventDefault();
+                remove();
+            }
+        });
+        this.elements.competitorChips.appendChild(chip);
+        this.elements.competitorInput.value = '';
+    }
+
+    getCompetitorChipValues() {
+        if (!this.elements.competitorChips) return [];
+        return Array.from(this.elements.competitorChips.querySelectorAll('.chip')).map(el => el.textContent || '').filter(Boolean);
+    }
+
+    setCompetitorError(msg) {
+        if (this.elements.competitorError) this.elements.competitorError.textContent = msg || '';
+    }
+
+    normalizeDomainString(value) {
+        let v = (value || '').trim().toLowerCase();
+        v = v.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        return v;
+    }
+
+    isValidDomain(v) {
+        const re = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+        return re.test(v);
     }
 
     // ================================

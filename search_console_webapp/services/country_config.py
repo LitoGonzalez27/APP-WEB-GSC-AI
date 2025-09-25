@@ -427,6 +427,166 @@ COUNTRY_MAPPING = {
     }
 }
 
+# ===== Europa - países adicionales =====
+COUNTRY_MAPPING.update({
+    'prt': {
+        'name': 'Portugal', 'flag': '🇵🇹', 'gsc_code': 'prt',
+        'serp_location': 'Lisbon, Portugal', 'serp_gl': 'pt', 'serp_hl': 'pt', 'google_domain': 'google.pt'
+    },
+    'irl': {
+        'name': 'Irlanda', 'flag': '🇮🇪', 'gsc_code': 'irl',
+        'serp_location': 'Dublin, Ireland', 'serp_gl': 'ie', 'serp_hl': 'en', 'google_domain': 'google.ie'
+    },
+    'nor': {
+        'name': 'Noruega', 'flag': '🇳🇴', 'gsc_code': 'nor',
+        'serp_location': 'Oslo, Norway', 'serp_gl': 'no', 'serp_hl': 'no', 'google_domain': 'google.no'
+    },
+    'dnk': {
+        'name': 'Dinamarca', 'flag': '🇩🇰', 'gsc_code': 'dnk',
+        'serp_location': 'Copenhagen, Denmark', 'serp_gl': 'dk', 'serp_hl': 'da', 'google_domain': 'google.dk'
+    },
+    'fin': {
+        'name': 'Finlandia', 'flag': '🇫🇮', 'gsc_code': 'fin',
+        'serp_location': 'Helsinki, Finland', 'serp_gl': 'fi', 'serp_hl': 'fi', 'google_domain': 'google.fi'
+    },
+    'cyp': {
+        'name': 'Chipre', 'flag': '🇨🇾', 'gsc_code': 'cyp',
+        'serp_location': 'Nicosia, Cyprus', 'serp_gl': 'cy', 'serp_hl': 'el', 'google_domain': 'google.com.cy'
+    },
+    'alb': {
+        'name': 'Albania', 'flag': '🇦🇱', 'gsc_code': 'alb',
+        'serp_location': 'Tirana, Albania', 'serp_gl': 'al', 'serp_hl': 'sq', 'google_domain': 'google.al'
+    },
+    'and': {
+        'name': 'Andorra', 'flag': '🇦🇩', 'gsc_code': 'and',
+        'serp_location': 'Andorra la Vella, Andorra', 'serp_gl': 'ad', 'serp_hl': 'ca', 'google_domain': 'google.ad'
+    },
+    'arm': {
+        'name': 'Armenia', 'flag': '🇦🇲', 'gsc_code': 'arm',
+        'serp_location': 'Yerevan, Armenia', 'serp_gl': 'am', 'serp_hl': 'hy', 'google_domain': 'google.am'
+    },
+    'aze': {
+        'name': 'Azerbaiyán', 'flag': '🇦🇿', 'gsc_code': 'aze',
+        'serp_location': 'Baku, Azerbaijan', 'serp_gl': 'az', 'serp_hl': 'az', 'google_domain': 'google.az'
+    },
+    'blr': {
+        'name': 'Bielorrusia', 'flag': '🇧🇾', 'gsc_code': 'blr',
+        'serp_location': 'Minsk, Belarus', 'serp_gl': 'by', 'serp_hl': 'be', 'google_domain': 'google.by'
+    },
+    'bih': {
+        'name': 'Bosnia y Herzegovina', 'flag': '🇧🇦', 'gsc_code': 'bih',
+        'serp_location': 'Sarajevo, Bosnia and Herzegovina', 'serp_gl': 'ba', 'serp_hl': 'bs', 'google_domain': 'google.ba'
+    },
+    'hrv': {
+        'name': 'Croacia', 'flag': '🇭🇷', 'gsc_code': 'hrv',
+        'serp_location': 'Zagreb, Croatia', 'serp_gl': 'hr', 'serp_hl': 'hr', 'google_domain': 'google.hr'
+    },
+    'est': {
+        'name': 'Estonia', 'flag': '🇪🇪', 'gsc_code': 'est',
+        'serp_location': 'Tallinn, Estonia', 'serp_gl': 'ee', 'serp_hl': 'et', 'google_domain': 'google.ee'
+    },
+    'geo': {
+        'name': 'Georgia', 'flag': '🇬🇪', 'gsc_code': 'geo',
+        'serp_location': 'Tbilisi, Georgia', 'serp_gl': 'ge', 'serp_hl': 'ka', 'google_domain': 'google.ge'
+    },
+    'isl': {
+        'name': 'Islandia', 'flag': '🇮🇸', 'gsc_code': 'isl',
+        'serp_location': 'Reykjavik, Iceland', 'serp_gl': 'is', 'serp_hl': 'is', 'google_domain': 'google.is'
+    },
+    'kaz': {
+        'name': 'Kazajistán', 'flag': '🇰🇿', 'gsc_code': 'kaz',
+        'serp_location': 'Astana, Kazakhstan', 'serp_gl': 'kz', 'serp_hl': 'kk', 'google_domain': 'google.kz'
+    },
+    'xkx': {
+        'name': 'Kosovo', 'flag': '🇽🇰', 'gsc_code': 'xkx',
+        'serp_location': 'Pristina, Kosovo', 'serp_gl': 'xk', 'serp_hl': 'sq', 'google_domain': 'google.com'
+    },
+    'lva': {
+        'name': 'Letonia', 'flag': '🇱🇻', 'gsc_code': 'lva',
+        'serp_location': 'Riga, Latvia', 'serp_gl': 'lv', 'serp_hl': 'lv', 'google_domain': 'google.lv'
+    },
+    'lie': {
+        'name': 'Liechtenstein', 'flag': '🇱🇮', 'gsc_code': 'lie',
+        'serp_location': 'Vaduz, Liechtenstein', 'serp_gl': 'li', 'serp_hl': 'de', 'google_domain': 'google.li'
+    },
+    'ltu': {
+        'name': 'Lituania', 'flag': '🇱🇹', 'gsc_code': 'ltu',
+        'serp_location': 'Vilnius, Lithuania', 'serp_gl': 'lt', 'serp_hl': 'lt', 'google_domain': 'google.lt'
+    },
+    'lux': {
+        'name': 'Luxemburgo', 'flag': '🇱🇺', 'gsc_code': 'lux',
+        'serp_location': 'Luxembourg, Luxembourg', 'serp_gl': 'lu', 'serp_hl': 'fr', 'google_domain': 'google.lu'
+    },
+    'mkd': {
+        'name': 'Macedonia del Norte', 'flag': '🇲🇰', 'gsc_code': 'mkd',
+        'serp_location': 'Skopje, North Macedonia', 'serp_gl': 'mk', 'serp_hl': 'mk', 'google_domain': 'google.mk'
+    },
+    'mlt': {
+        'name': 'Malta', 'flag': '🇲🇹', 'gsc_code': 'mlt',
+        'serp_location': 'Valletta, Malta', 'serp_gl': 'mt', 'serp_hl': 'mt', 'google_domain': 'google.com.mt'
+    },
+    'mda': {
+        'name': 'Moldavia', 'flag': '🇲🇩', 'gsc_code': 'mda',
+        'serp_location': 'Chisinau, Moldova', 'serp_gl': 'md', 'serp_hl': 'ro', 'google_domain': 'google.md'
+    },
+    'mco': {
+        'name': 'Mónaco', 'flag': '🇲🇨', 'gsc_code': 'mco',
+        'serp_location': 'Monaco, Monaco', 'serp_gl': 'mc', 'serp_hl': 'fr', 'google_domain': 'google.mc'
+    },
+    'mne': {
+        'name': 'Montenegro', 'flag': '🇲🇪', 'gsc_code': 'mne',
+        'serp_location': 'Podgorica, Montenegro', 'serp_gl': 'me', 'serp_hl': 'sr', 'google_domain': 'google.me'
+    },
+    'rou': {
+        'name': 'Rumanía', 'flag': '🇷🇴', 'gsc_code': 'rou',
+        'serp_location': 'Bucharest, Romania', 'serp_gl': 'ro', 'serp_hl': 'ro', 'google_domain': 'google.ro'
+    },
+    'smr': {
+        'name': 'San Marino', 'flag': '🇸🇲', 'gsc_code': 'smr',
+        'serp_location': 'San Marino, San Marino', 'serp_gl': 'sm', 'serp_hl': 'it', 'google_domain': 'google.sm'
+    },
+    'srb': {
+        'name': 'Serbia', 'flag': '🇷🇸', 'gsc_code': 'srb',
+        'serp_location': 'Belgrade, Serbia', 'serp_gl': 'rs', 'serp_hl': 'sr', 'google_domain': 'google.rs'
+    },
+    'svk': {
+        'name': 'Eslovaquia', 'flag': '🇸🇰', 'gsc_code': 'svk',
+        'serp_location': 'Bratislava, Slovakia', 'serp_gl': 'sk', 'serp_hl': 'sk', 'google_domain': 'google.sk'
+    },
+    'svn': {
+        'name': 'Eslovenia', 'flag': '🇸🇮', 'gsc_code': 'svn',
+        'serp_location': 'Ljubljana, Slovenia', 'serp_gl': 'si', 'serp_hl': 'sl', 'google_domain': 'google.si'
+    },
+    'ukr': {
+        'name': 'Ucrania', 'flag': '🇺🇦', 'gsc_code': 'ukr',
+        'serp_location': 'Kyiv, Ukraine', 'serp_gl': 'ua', 'serp_hl': 'uk', 'google_domain': 'google.com.ua'
+    },
+    'vat': {
+        'name': 'Ciudad del Vaticano', 'flag': '🇻🇦', 'gsc_code': 'vat',
+        'serp_location': 'Vatican City, Vatican', 'serp_gl': 'va', 'serp_hl': 'it', 'google_domain': 'google.it'
+    }
+})
+
+# ===== Latinoamérica - países adicionales =====
+COUNTRY_MAPPING.update({
+    'blz': {
+        'name': 'Belice', 'flag': '🇧🇿', 'gsc_code': 'blz',
+        'serp_location': 'Belmopan, Belize', 'serp_gl': 'bz', 'serp_hl': 'en', 'google_domain': 'google.com.bz'
+    },
+    'guy': {
+        'name': 'Guyana', 'flag': '🇬🇾', 'gsc_code': 'guy',
+        'serp_location': 'Georgetown, Guyana', 'serp_gl': 'gy', 'serp_hl': 'en', 'google_domain': 'google.gy'
+    },
+    'sur': {
+        'name': 'Surinam', 'flag': '🇸🇷', 'gsc_code': 'sur',
+        'serp_location': 'Paramaribo, Suriname', 'serp_gl': 'sr', 'serp_hl': 'nl', 'google_domain': 'google.sr'
+    },
+    'hti': {
+        'name': 'Haití', 'flag': '🇭🇹', 'gsc_code': 'hti',
+        'serp_location': 'Port-au-Prince, Haiti', 'serp_gl': 'ht', 'serp_hl': 'fr', 'google_domain': 'google.ht'
+    }
+})
+
 def get_country_config(gsc_country_code):
     """Obtiene configuración de país para SERP API basado en código GSC"""
     return COUNTRY_MAPPING.get(gsc_country_code.lower())
