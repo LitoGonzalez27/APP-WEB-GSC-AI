@@ -1611,7 +1611,15 @@ def setup_auth_routes(app):
             if not user:
                 return jsonify({'error': 'Usuario no encontrado'}), 404
             
-            new_status = not user['is_active']
+            # Permitir establecer estado explícito vía body { is_active: true/false }
+            try:
+                data = request.get_json(silent=True) or {}
+            except Exception:
+                data = {}
+            if 'is_active' in (data or {}):
+                new_status = bool(data.get('is_active'))
+            else:
+                new_status = not user['is_active']
             success = update_user_activity(user_id, new_status)
             
             if success:

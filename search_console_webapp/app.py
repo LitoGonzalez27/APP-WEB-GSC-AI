@@ -2157,32 +2157,35 @@ def analyze_ai_overview_route():
             logger.error(f"❌ Error guardando análisis en BD: {e}")
 
         # ✅ NUEVO: Registrar consumo de RU por cada keyword exitosamente analizada
+        # Evitar doble conteo si ENFORCE_QUOTAS=true (el middleware ya registra 1 RU por SERP)
         if user_id and successful_analyses_overview > 0:
             try:
-                from database import track_quota_consumption
-                
-                # Registrar consumo: 1 RU por keyword exitosamente analizada
-                keywords_processed = successful_analyses_overview
-                tracking_success = track_quota_consumption(
-                    user_id=user_id,
-                    ru_consumed=keywords_processed,
-                    source='ai_overview',
-                    keyword=f"{keywords_processed} keywords analyzed",
-                    country_code=country_req,
-                    metadata={
-                        'site_url': site_url_req,
-                        'total_keywords': total_analyzed_overview,
-                        'successful_keywords': successful_analyses_overview,
-                        'keywords_with_ai': summary_overview_stats.get('keywords_with_ai_overview', 0),
-                        'analysis_timestamp': summary_overview_stats.get('analysis_timestamp')
-                    }
-                )
-                
-                if tracking_success:
-                    logger.info(f"✅ Quota tracking exitoso - Usuario {user_id}: +{keywords_processed} RU (AI Overview)")
+                import os as _os
+                enforce_quotas_flag = (_os.getenv('ENFORCE_QUOTAS', 'false') or 'false').lower() == 'true'
+                if not enforce_quotas_flag:
+                    from database import track_quota_consumption
+                    # Registrar consumo: 1 RU por keyword exitosamente analizada
+                    keywords_processed = successful_analyses_overview
+                    tracking_success = track_quota_consumption(
+                        user_id=user_id,
+                        ru_consumed=keywords_processed,
+                        source='ai_overview',
+                        keyword=f"{keywords_processed} keywords analyzed",
+                        country_code=country_req,
+                        metadata={
+                            'site_url': site_url_req,
+                            'total_keywords': total_analyzed_overview,
+                            'successful_keywords': successful_analyses_overview,
+                            'keywords_with_ai': summary_overview_stats.get('keywords_with_ai_overview', 0),
+                            'analysis_timestamp': summary_overview_stats.get('analysis_timestamp')
+                        }
+                    )
+                    if tracking_success:
+                        logger.info(f"✅ Quota tracking exitoso - Usuario {user_id}: +{keywords_processed} RU (AI Overview)")
+                    else:
+                        logger.warning(f"⚠️ No se pudo registrar consumo de quota para usuario {user_id}")
                 else:
-                    logger.warning(f"⚠️ No se pudo registrar consumo de quota para usuario {user_id}")
-                    
+                    logger.info("ENFORCE_QUOTAS=true → omitido track_quota_consumption para evitar doble conteo; contado por quota_middleware")
             except Exception as e:
                 logger.error(f"❌ Error registrando consumo de quota: {e}")
                 # No fallar el análisis por problemas de tracking

@@ -723,6 +723,28 @@
         <div class="header">
             <h1>Gestión de Usuarios</h1>
             <p>Administra los usuarios del sistema de forma sencilla</p>
+            <!-- Filtros rápidos -->
+            <div style="margin-top: 1rem; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 0.75rem; align-items: center;">
+                <input id="filterSearch" type="text" placeholder="Buscar por nombre o email" 
+                       style="padding: 0.5rem 0.75rem; border: 1px solid #dee2e6; border-radius: 6px;" />
+                <select id="filterRole" style="padding: 0.5rem 0.75rem; border: 1px solid #dee2e6; border-radius: 6px;">
+                    <option value="">Rol: Todos</option>
+                    <option value="admin">Administrador</option>
+                    <option value="user">Usuario</option>
+                </select>
+                <select id="filterPlan" style="padding: 0.5rem 0.75rem; border: 1px solid #dee2e6; border-radius: 6px;">
+                    <option value="">Plan: Todos</option>
+                    <option value="free">Free</option>
+                    <option value="basic">Basic</option>
+                    <option value="premium">Premium</option>
+                    <option value="enterprise">Enterprise</option>
+                </select>
+                <select id="filterStatus" style="padding: 0.5rem 0.75rem; border: 1px solid #dee2e6; border-radius: 6px;">
+                    <option value="">Estado: Todos</option>
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                </select>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -1618,7 +1640,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ is_active: newStatus })
                 });
                 
                 const result = await response.json();
@@ -1712,13 +1735,16 @@
 
                 total++;
 
-                // Estado: td index 3 (0-based)
-                const statusBadge = row.querySelectorAll('td')[3].querySelector('.badge');
-                if (statusBadge.classList.contains('active')) active++;
-                else inactive++;
+                // Estado: td index 4 (0-based) => columnas: 0 Usuario, 1 Email, 2 Rol, 3 Plan & Quota, 4 Estado
+                const statusCell = row.querySelectorAll('td')[4];
+                const statusBadge = statusCell ? statusCell.querySelector('.badge') : null;
+                if (statusBadge) {
+                    if (statusBadge.classList.contains('active')) active++;
+                    else inactive++;
+                }
 
-                // Fecha: td index 4, primera línea
-                const dateTd = row.querySelectorAll('td')[4];
+                // Registro: td index 5 (0-based) => primera línea es fecha dd/mm/yyyy
+                const dateTd = row.querySelectorAll('td')[5];
                 const dateText = dateTd.textContent.trim().split('\n')[0].trim();
 
                 if (dateText === todayDate) today++;
@@ -1732,6 +1758,70 @@
                 statNumbers[2].textContent = inactive;
                 statNumbers[3].textContent = today;
             }
+
+            // === Sistema de filtrado simple (cliente) ===
+            const searchInput = document.getElementById('filterSearch');
+            const roleSelect = document.getElementById('filterRole');
+            const planSelect = document.getElementById('filterPlan');
+            const statusSelect = document.getElementById('filterStatus');
+
+            function normalize(text) {
+                return (text || '').toString().toLowerCase();
+            }
+
+            function applyFilters() {
+                const q = normalize(searchInput.value);
+                const role = roleSelect.value;
+                const plan = planSelect.value;
+                const status = statusSelect.value; // 'active' | 'inactive' | ''
+
+                document.querySelectorAll('.table tbody tr').forEach(row => {
+                    if (row.querySelector('td[colspan]')) return; // saltar fila vacía
+
+                    const tds = row.querySelectorAll('td');
+                    const nameEmail = `${tds[0].innerText} ${tds[1].innerText}`.toLowerCase();
+                    const roleBadge = tds[2].querySelector('.badge');
+                    const roleVal = roleBadge ? (roleBadge.classList.contains('admin') ? 'admin' : 'user') : '';
+
+                    // Plan: buscar badge de plan en col 3
+                    let planVal = '';
+                    const planBadge = tds[3].querySelector('.badge');
+                    if (planBadge) {
+                        if (planBadge.classList.contains('enterprise')) planVal = 'enterprise';
+                        else if (planBadge.classList.contains('premium')) planVal = 'premium';
+                        else if (planBadge.classList.contains('basic')) planVal = 'basic';
+                        else if (planBadge.classList.contains('free')) planVal = 'free';
+                    }
+
+                    // Estado: col 4
+                    const statusBadge = tds[4].querySelector('.badge');
+                    const statusVal = statusBadge && statusBadge.classList.contains('active') ? 'active' : 'inactive';
+
+                    let match = true;
+                    if (q && !nameEmail.includes(q)) match = false;
+                    if (role && roleVal !== role) match = false;
+                    if (plan && planVal !== plan) match = false;
+                    if (status && statusVal !== status) match = false;
+
+                    row.style.display = match ? '' : 'none';
+                });
+            }
+
+            [searchInput, roleSelect, planSelect, statusSelect].forEach(el => {
+                if (!el) return;
+                el.addEventListener('input', applyFilters);
+                el.addEventListener('change', applyFilters);
+            });
+
+            // Aplicar filtros si vienen query params (?q=&role=&plan=&status=)
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('q')) searchInput.value = params.get('q');
+                if (params.has('role')) roleSelect.value = params.get('role');
+                if (params.has('plan')) planSelect.value = params.get('plan');
+                if (params.has('status')) statusSelect.value = params.get('status');
+                if ([...params.keys()].length) applyFilters();
+            } catch (e) { /* noop */ }
         });
 
         document.getElementById('clearCacheBtn').addEventListener('click', function() {
