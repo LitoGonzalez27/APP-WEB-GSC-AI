@@ -695,142 +695,62 @@
                         </div>
                     </div>
                     
-                    <div class="form-row form-row-split">
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="projectDomain" class="enhanced-label">
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
                             </label>
                             <input type="text" id="projectDomain" name="domain" required
-                                   class="enhanced-input" placeholder="example.com" aria-describedby="projectDomainHint">
-                            <small class="form-help">Domain to track in AI Overview results</small>
+                                   class="enhanced-input" placeholder="Enter domain without protocol (e.g., example.com)" aria-describedby="projectDomainHint">
+                            <small class="form-help">We'll automatically remove protocols, www prefix and paths for you</small>
                             <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="projectCountry" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
-                            </label>
-                            <input type="text" id="projectCountryFilter" class="enhanced-input" placeholder="Type to filter countries..." aria-label="Filter countries" style="margin-bottom:8px;">
-                            <select id="projectCountry" name="country_code" class="enhanced-select">
-                                <option value="ES" selected>🇪🇸 Spain</option>
-                                <option value="US">🇺🇸 United States</option>
-                                <option value="GB">🇬🇧 United Kingdom</option>
-                                <option value="FR">🇫🇷 France</option>
-                                <option value="DE">🇩🇪 Germany</option>
-                                <option value="IT">🇮🇹 Italy</option>
-                                <option value="PT">🇵🇹 Portugal</option>
-                                <option value="NL">🇳🇱 Netherlands</option>
-                                <option value="BE">🇧🇪 Belgium</option>
-                                <option value="CH">🇨🇭 Switzerland</option>
-                                <option value="AT">🇦🇹 Austria</option>
-                                <option value="SE">🇸🇪 Sweden</option>
-                                <option value="NO">🇳🇴 Norway</option>
-                                <option value="DK">🇩🇰 Denmark</option>
-                                <option value="FI">🇫🇮 Finland</option>
-                                <option value="PL">🇵🇱 Poland</option>
-                                <option value="CZ">🇨🇿 Czech Republic</option>
-                                <option value="HU">🇭🇺 Hungary</option>
-                                <option value="RO">🇷🇴 Romania</option>
-                                <option value="BG">🇧🇬 Bulgaria</option>
-                                <option value="GR">🇬🇷 Greece</option>
-                                <option value="HR">🇭🇷 Croatia</option>
-                                <option value="SI">🇸🇮 Slovenia</option>
-                                <option value="SK">🇸🇰 Slovakia</option>
-                                <option value="IE">🇮🇪 Ireland</option>
-                                <option value="CY">🇨🇾 Cyprus</option>
-                                <option value="AL">🇦🇱 Albania</option>
-                                <option value="AD">🇦🇩 Andorra</option>
-                                <option value="AM">🇦🇲 Armenia</option>
-                                <option value="AZ">🇦🇿 Azerbaijan</option>
-                                <option value="BY">🇧🇾 Belarus</option>
-                                <option value="BA">🇧🇦 Bosnia & Herzegovina</option>
-                                <option value="EE">🇪🇪 Estonia</option>
-                                <option value="GE">🇬🇪 Georgia</option>
-                                <option value="IS">🇮🇸 Iceland</option>
-                                <option value="KZ">🇰🇿 Kazakhstan</option>
-                                <option value="XK">🇽🇰 Kosovo</option>
-                                <option value="LI">🇱🇮 Liechtenstein</option>
-                                <option value="LT">🇱🇹 Lithuania</option>
-                                <option value="LU">🇱🇺 Luxembourg</option>
-                                <option value="MK">🇲🇰 North Macedonia</option>
-                                <option value="MT">🇲🇹 Malta</option>
-                                <option value="MD">🇲🇩 Moldova</option>
-                                <option value="MC">🇲🇨 Monaco</option>
-                                <option value="ME">🇲🇪 Montenegro</option>
-                                <option value="SM">🇸🇲 San Marino</option>
-                                <option value="RS">🇷🇸 Serbia</option>
-                                <option value="UA">🇺🇦 Ukraine</option>
-                                <option value="VA">🇻🇦 Vatican City</option>
-                                <option value="CA">🇨🇦 Canada</option>
-                                <option value="MX">🇲🇽 Mexico</option>
-                                <option value="AR">🇦🇷 Argentina</option>
-                                <option value="BZ">🇧🇿 Belize</option>
-                                <option value="BR">🇧🇷 Brazil</option>
-                                <option value="CL">🇨🇱 Chile</option>
-                                <option value="CO">🇨🇴 Colombia</option>
-                                <option value="CR">🇨🇷 Costa Rica</option>
-                                <option value="CU">🇨🇺 Cuba</option>
-                                <option value="DO">🇩🇴 Dominican Republic</option>
-                                <option value="PE">🇵🇪 Peru</option>
-                                <option value="EC">🇪🇨 Ecuador</option>
-                                <option value="GT">🇬🇹 Guatemala</option>
-                                <option value="HN">🇭🇳 Honduras</option>
-                                <option value="NI">🇳🇮 Nicaragua</option>
-                                <option value="PA">🇵🇦 Panama</option>
-                                <option value="PY">🇵🇾 Paraguay</option>
-                                <option value="PR">🇵🇷 Puerto Rico</option>
-                                <option value="SR">🇸🇷 Suriname</option>
-                                <option value="UY">🇺🇾 Uruguay</option>
-                                <option value="VE">🇻🇪 Venezuela</option>
-                                <option value="AU">🇦🇺 Australia</option>
-                                <option value="NZ">🇳🇿 New Zealand</option>
-                                <option value="JP">🇯🇵 Japan</option>
-                                <option value="KR">🇰🇷 South Korea</option>
-                                <option value="SG">🇸🇬 Singapore</option>
-                                <option value="MY">🇲🇾 Malaysia</option>
-                                <option value="TH">🇹🇭 Thailand</option>
-                                <option value="PH">🇵🇭 Philippines</option>
-                                <option value="ID">🇮🇩 Indonesia</option>
-                                <option value="VN">🇻🇳 Vietnam</option>
-                                <option value="IN">🇮🇳 India</option>
-                                <option value="PK">🇵🇰 Pakistan</option>
-                                <option value="BD">🇧🇩 Bangladesh</option>
-                                <option value="ZA">🇿🇦 South Africa</option>
-                                <option value="NG">🇳🇬 Nigeria</option>
-                                <option value="EG">🇪🇬 Egypt</option>
-                                <option value="KE">🇰🇪 Kenya</option>
-                                <option value="MA">🇲🇦 Morocco</option>
-                                <option value="TN">🇹🇳 Tunisia</option>
-                                <option value="DZ">🇩🇿 Algeria</option>
-                                <option value="IL">🇮🇱 Israel</option>
-                                <option value="AE">🇦🇪 UAE</option>
-                                <option value="SA">🇸🇦 Saudi Arabia</option>
-                                <option value="TR">🇹🇷 Turkey</option>
-                                <option value="RU">🇷🇺 Russia</option>
-                                <option value="UA">🇺🇦 Ukraine</option>
-                            </select>
-                            <small class="form-help">Search location for analysis</small>
                         </div>
                     </div>
 
-                    <!-- Competitors (optional) -->
+                    <!-- Competitors Configuration -->
                     <div class="form-row">
                         <div class="form-group">
                             <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitor Analysis</span>
                             </label>
-                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                                <input type="checkbox" id="autoDetectCompetitors" checked>
-                                <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
-                            </div>
-                            <div id="manualCompetitorsArea" style="display:none;">
-                                <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Type domain and press Enter (max 4)">
-                                    <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
+                            <div class="competitors-config-container">
+                                <div class="auto-detect-option">
+                                    <div class="checkbox-wrapper">
+                                        <input type="checkbox" id="autoDetectCompetitors" class="enhanced-checkbox">
+                                        <label for="autoDetectCompetitors" class="checkbox-label">
+                                            <i class="fas fa-magic"></i>
+                                            Auto-detect competitors (recommended)
+                                        </label>
+                                    </div>
+                                    <small class="form-help">Let AI automatically find your main competitors from search results</small>
                                 </div>
-                                <div id="competitorChips" class="competitor-chips" aria-live="polite" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-                                <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
-                                <small class="form-help">Domains only. We remove https://, www and paths automatically.</small>
+                                
+                                <div id="manualCompetitorsArea" class="manual-competitors-section">
+                                    <div class="manual-competitors-header">
+                                        <h4>
+                                            <i class="fas fa-users"></i>
+                                            Manual Competitor Selection
+                                        </h4>
+                                        <small>Add specific domains you want to track against</small>
+                                    </div>
+                                    
+                                    <div class="competitor-input-section">
+                                        <div class="competitor-chips-input">
+                                            <input type="text" id="competitorInput" class="enhanced-input" 
+                                                   placeholder="Enter competitor domain (e.g., competitor.com) and press Enter">
+                                            <button type="button" id="addCompetitorBtn" class="btn-primary btn-enhanced" aria-label="Add competitor domain">
+                                                <i class="fas fa-plus"></i>
+                                                Add
+                                            </button>
+                                        </div>
+                                        <div id="competitorChips" class="competitor-chips" aria-live="polite"></div>
+                                        <small id="competitorError" class="form-help error-text" aria-live="polite"></small>
+                                        <div class="competitors-help">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span>Enter clean domain names only. We'll automatically remove protocols (https://), www prefix, and paths for you. Maximum 4 competitors.</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -321,8 +321,7 @@ class ManualAISystem {
         this.elements.createProjectSubmit = document.getElementById('createProjectSubmit');
         this.elements.projectDomain = document.getElementById('projectDomain');
         this.elements.projectDomainHint = document.getElementById('projectDomainHint');
-        this.elements.projectCountry = document.getElementById('projectCountry');
-        this.elements.projectCountryFilter = document.getElementById('projectCountryFilter');
+        // Country elements removed as per requirement
         this.elements.autoDetectCompetitors = document.getElementById('autoDetectCompetitors');
         this.elements.manualCompetitorsArea = document.getElementById('manualCompetitorsArea');
         this.elements.competitorInput = document.getElementById('competitorInput');
@@ -354,10 +353,7 @@ class ManualAISystem {
             this.elements.projectDomain.addEventListener('blur', () => this.normalizeProjectDomain());
         }
 
-        // Country live filter
-        if (this.elements.projectCountry && this.elements.projectCountryFilter) {
-            this.elements.projectCountryFilter.addEventListener('input', () => this.filterCountryOptions());
-        }
+        // Country filter removed as per requirement
 
         // Auto-detect competitors toggle
         if (this.elements.autoDetectCompetitors && this.elements.manualCompetitorsArea) {
@@ -366,6 +362,7 @@ class ManualAISystem {
                 this.elements.manualCompetitorsArea.style.display = showManual ? 'block' : 'none';
             };
             this.elements.autoDetectCompetitors.addEventListener('change', syncVisibility);
+            // Since autoDetectCompetitors is now unchecked by default, show manual area
             syncVisibility();
         }
 
@@ -786,7 +783,6 @@ class ManualAISystem {
         this.showElement(this.elements.createProjectModal);
         // Reset validation UI
         this.validateProjectDomain();
-        if (this.elements.projectCountryFilter) this.elements.projectCountryFilter.value = '';
         // Focus first field for accessibility
         setTimeout(() => {
             this.elements.projectDomain?.focus();
@@ -902,21 +898,11 @@ class ManualAISystem {
 
         input.classList.toggle('input-error', !isValid);
         input.classList.toggle('input-ok', isValid);
-        if (submitBtn) submitBtn.disabled = !isValid || !this.elements.projectCountry?.value;
+        if (submitBtn) submitBtn.disabled = !isValid;
         return isValid;
     }
 
-    filterCountryOptions() {
-        const filter = (this.elements.projectCountryFilter?.value || '').toLowerCase();
-        const select = this.elements.projectCountry;
-        if (!select) return;
-        const options = Array.from(select.options);
-        options.forEach(opt => {
-            const text = (opt.textContent || '').toLowerCase();
-            const show = !filter || text.includes(filter);
-            opt.hidden = !show;
-        });
-    }
+    // filterCountryOptions removed as country filter was eliminated
 
     // ================================
     // Competitor chips
