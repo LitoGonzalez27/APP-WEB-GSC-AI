@@ -16,11 +16,16 @@ import pytz
 from database import get_db_connection
 from auth import auth_required, cron_or_auth_required, get_current_user
 from services.serp_service import get_serp_json
-from services.ai_analysis import detect_ai_overview_elements
+from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
 from services.utils import extract_domain, normalize_search_console_url
 from services.ai_cache import ai_cache
 import os
+from quota_manager import consume_user_quota, get_user_quota_status
 
+# Coste en RUs para un análisis de palabra clave en Manual AI
+MANUAL_AI_KEYWORD_ANALYSIS_COST = 1
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Blueprint independiente - no interfiere con rutas existentes
@@ -921,7 +926,7 @@ def get_global_domains_ranking(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ================================
-# NUEVO: Endpoints “latest” (ignoran Time Range)
+# NUEVO: Endpoints "latest" (ignoran Time Range)
 # ================================
 
 @manual_ai_bp.route('/api/projects/<int:project_id>/stats-latest', methods=['GET'])
@@ -1616,15 +1621,29 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
         force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
                         Si False, omite keywords ya analizadas hoy (para análisis automático)
     """
+    # Obtener usuario actual para validación de cuota
+    current_user = get_current_user()
+    if not current_user:
+        logger.error(f"Intento de análisis sin usuario autenticado para proyecto {project_id}")
+        return {'success': False, 'error': 'User not authenticated'}
+
     # Obtener proyecto y keywords
     project = get_project_with_details(project_id)
     keywords = [k for k in get_keywords_for_project(project_id) if k['is_active']]
     
     if not project or not keywords:
         return []
-    
+
+    # Validar cuota antes de empezar
+    quota_info = get_user_quota_status(current_user['id'])
+    if not quota_info.get('can_consume'):
+        logger.warning(f"User {current_user['id']} sin cuota para iniciar análisis del proyecto {project_id}. "
+                       f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
+        return {'success': False, 'error': 'Quota limit exceeded', 'quota_info': quota_info}
+
     results = []
     failed_keywords = 0
+    consumed_ru = 0
     today = date.today()
     
     conn = get_db_connection()
@@ -1634,6 +1653,13 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
     logger.info(f"🚀 Starting {analysis_mode} analysis for project {project_id} with {len(keywords)} user-defined keywords")
     
     for keyword_data in keywords:
+        # Re-validar cuota en cada iteración
+        current_quota = get_user_quota_status(current_user['id'])
+        if not current_quota.get('can_consume') or current_quota.get('remaining', 0) < MANUAL_AI_KEYWORD_ANALYSIS_COST:
+            logger.warning(f"Análisis del proyecto {project_id} detenido por falta de cuota. "
+                           f"Keywords procesadas: {len(results)}. Keywords pendientes: {len(keywords) - len(results)}")
+            break
+
         keyword = keyword_data['keyword']
         keyword_id = keyword_data['id']
         
