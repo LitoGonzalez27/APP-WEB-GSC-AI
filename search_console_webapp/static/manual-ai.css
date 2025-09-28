@@ -2575,7 +2575,7 @@
 }
 
 .field-caption {
-  margin: 0 0 var(--manual-ai-spacing-sm) 0;
+  
   color: var(--manual-ai-gray-600);
   font-size: 0.9rem;
 }
@@ -2605,8 +2605,8 @@
 
 .toggle-hint {
   display: block;
-  margin-top: var(--manual-ai-spacing-xs);
-  margin-bottom: var(--manual-ai-spacing-sm);
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .manual-competitors-area {
@@ -2621,14 +2621,13 @@
 
 .competitor-chips-input {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--manual-ai-spacing-sm);
   position: relative;
 }
 
 .competitor-chips-input .enhanced-input {
   flex: 1;
-  padding-left: 42px;
 }
 
 .competitor-chips {
@@ -4212,4 +4211,8 @@ label.manual-ai-underline {
         width: 14px;
         height: 14px;
     }
+}
+
+#projectName{
+  
 }
