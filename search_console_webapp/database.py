@@ -722,7 +722,13 @@ def get_user_by_email(email):
         cur.execute('SELECT * FROM users WHERE email = %s', (email,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        # Normalizar is_active cuando sea NULL → True (backward-compat)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por email: {e}")
@@ -742,7 +748,12 @@ def get_user_by_google_id(google_id):
         cur.execute('SELECT * FROM users WHERE google_id = %s', (google_id,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por Google ID: {e}")
@@ -762,7 +773,12 @@ def get_user_by_id(user_id):
         cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por ID: {e}")
@@ -805,7 +821,9 @@ def get_all_users():
         cur = conn.cursor()
         cur.execute('''
             SELECT 
-                id, email, name, picture, role, is_active, created_at, updated_at, last_login_at,
+                id, email, name, picture, role,
+                COALESCE(is_active, TRUE) as is_active,
+                created_at, updated_at, last_login_at,
                 -- Billing fields
                 COALESCE(plan, 'free') as plan,
                 COALESCE(current_plan, plan, 'free') as current_plan,

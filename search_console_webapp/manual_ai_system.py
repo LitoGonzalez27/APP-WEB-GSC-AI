@@ -1807,6 +1807,27 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                 'position': ai_result.get('domain_ai_source_position'),
                 'impact_score': ai_result.get('impact_score', 0)
             })
+            # ✅ Registrar consumo de RU por cada keyword procesada con éxito
+            try:
+                from database import track_quota_consumption
+                tracking_ok = track_quota_consumption(
+                    user_id=current_user['id'],
+                    ru_consumed=MANUAL_AI_KEYWORD_ANALYSIS_COST,
+                    source='manual_ai',
+                    keyword=keyword,
+                    country_code=project['country_code'],
+                    metadata={
+                        'project_id': project_id,
+                        'force_overwrite': bool(force_overwrite),
+                        'domain': project['domain']
+                    }
+                )
+                if tracking_ok:
+                    consumed_ru += MANUAL_AI_KEYWORD_ANALYSIS_COST
+                else:
+                    logger.warning(f"No se pudo registrar consumo de quota (manual_ai) para user {current_user['id']} keyword '{keyword}'")
+            except Exception as _e_track:
+                logger.warning(f"Error registrando consumo de RU (manual_ai) para '{keyword}': {_e_track}")
             
             logger.debug(f"Analyzed keyword '{keyword}': AI={ai_result.get('has_ai_overview')}, Mentioned={ai_result.get('domain_is_ai_source')}")
             
@@ -1868,7 +1889,7 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
     conn.close()
     
     overwrite_info = " (with overwrite)" if force_overwrite else " (skipping existing)"
-    logger.info(f"✅ Completed {analysis_mode} analysis for project {project_id}: {len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed{overwrite_info}")
+    logger.info(f"✅ Completed {analysis_mode} analysis for project {project_id}: {len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed{overwrite_info}, RU consumed: {consumed_ru}")
     if failed_keywords > 0:
         logger.warning(f"⚠️ {failed_keywords} keywords failed analysis (check SERPAPI_KEY configuration)")
     return results

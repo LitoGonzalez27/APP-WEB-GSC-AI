@@ -116,7 +116,8 @@ def get_users_with_billing():
         # Query que incluye todos los campos de billing + custom quotas
         cur.execute('''
             SELECT 
-                id, email, name, picture, role, is_active, 
+                id, email, name, picture, role,
+                COALESCE(is_active, TRUE) as is_active,
                 created_at, updated_at, last_login_at, google_id,
                 -- Campos de billing (con fallbacks seguros)
                 COALESCE(plan, 'free') as plan,
