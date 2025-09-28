@@ -671,14 +671,22 @@
             </div>
             <form id="createProjectForm">
                 <div class="modal-body create-body">
+                    <div class="create-intro">
+                        <div class="create-intro-icon" aria-hidden="true">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <div class="create-intro-copy">
+                            <p class="create-intro-title">Launch a fresh Manual AI project in a few guided steps.</p>
+                            <p class="create-intro-text">Keep inputs simple: we normalize your domains, streamline competitor setup, and help you focus on the market that matters.</p>
+                        </div>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="projectName" class="enhanced-label">
-        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
-                               
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
                             </label>
-                            <input type="text" id="projectName" name="name" required maxlength="255" 
-                                   class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
+                            <input type="text" id="projectName" name="name" required maxlength="255"
+                                   class="enhanced-input" placeholder="Project label · e.g. Autumn visibility plan">
                             <small class="form-help">Choose a memorable name for your project</small>
                         </div>
                     </div>
@@ -689,68 +697,160 @@
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Description</span>
                             </label>
                             <textarea id="projectDescription" name="description" rows="3"
-                                      class="enhanced-textarea" 
-                                      placeholder="Optional description about this project..."></textarea>
+                                      class="enhanced-textarea"
+                                      placeholder="Add context for teammates (optional)"></textarea>
                             <small class="form-help">Add details about what you want to analyze</small>
                         </div>
                     </div>
                     
-                    <div class="form-row">
+                    <div class="form-row form-row-split">
                         <div class="form-group">
                             <label for="projectDomain" class="enhanced-label">
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
                             </label>
                             <input type="text" id="projectDomain" name="domain" required
-                                   class="enhanced-input" placeholder="Enter domain without protocol (e.g., example.com)" aria-describedby="projectDomainHint">
-                            <small class="form-help">We'll automatically remove protocols, www prefix and paths for you</small>
+                                   class="enhanced-input" placeholder="Only root domain · example.com" aria-describedby="projectDomainHint">
+                            <small class="form-help">Enter the primary domain without https://, www or paths.</small>
                             <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="projectCountry" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
+                            </label>
+                            <div class="country-select-group">
+                                <div class="country-filter" role="search">
+                                    <span class="input-icon" aria-hidden="true"><i class="fas fa-search"></i></span>
+                                    <input type="text" id="projectCountryFilter" class="enhanced-input" aria-label="Filter countries">
+                                </div>
+                                <small class="form-help">Start typing to quickly narrow the list below.</small>
+                                <select id="projectCountry" name="country_code" class="enhanced-select">
+                                    <option value="ES" selected>🇪🇸 Spain</option>
+                                    <option value="US">🇺🇸 United States</option>
+                                    <option value="GB">🇬🇧 United Kingdom</option>
+                                    <option value="FR">🇫🇷 France</option>
+                                    <option value="DE">🇩🇪 Germany</option>
+                                    <option value="IT">🇮🇹 Italy</option>
+                                    <option value="PT">🇵🇹 Portugal</option>
+                                    <option value="NL">🇳🇱 Netherlands</option>
+                                    <option value="BE">🇧🇪 Belgium</option>
+                                    <option value="CH">🇨🇭 Switzerland</option>
+                                    <option value="AT">🇦🇹 Austria</option>
+                                    <option value="SE">🇸🇪 Sweden</option>
+                                    <option value="NO">🇳🇴 Norway</option>
+                                    <option value="DK">🇩🇰 Denmark</option>
+                                    <option value="FI">🇫🇮 Finland</option>
+                                    <option value="PL">🇵🇱 Poland</option>
+                                    <option value="CZ">🇨🇿 Czech Republic</option>
+                                    <option value="HU">🇭🇺 Hungary</option>
+                                    <option value="RO">🇷🇴 Romania</option>
+                                    <option value="BG">🇧🇬 Bulgaria</option>
+                                    <option value="GR">🇬🇷 Greece</option>
+                                    <option value="HR">🇭🇷 Croatia</option>
+                                    <option value="SI">🇸🇮 Slovenia</option>
+                                    <option value="SK">🇸🇰 Slovakia</option>
+                                    <option value="IE">🇮🇪 Ireland</option>
+                                    <option value="CY">🇨🇾 Cyprus</option>
+                                    <option value="AL">🇦🇱 Albania</option>
+                                    <option value="AD">🇦🇩 Andorra</option>
+                                    <option value="AM">🇦🇲 Armenia</option>
+                                    <option value="AZ">🇦🇿 Azerbaijan</option>
+                                    <option value="BY">🇧🇾 Belarus</option>
+                                    <option value="BA">🇧🇦 Bosnia & Herzegovina</option>
+                                    <option value="EE">🇪🇪 Estonia</option>
+                                    <option value="GE">🇬🇪 Georgia</option>
+                                    <option value="IS">🇮🇸 Iceland</option>
+                                    <option value="KZ">🇰🇿 Kazakhstan</option>
+                                    <option value="XK">🇽🇰 Kosovo</option>
+                                    <option value="LI">🇱🇮 Liechtenstein</option>
+                                    <option value="LT">🇱🇹 Lithuania</option>
+                                    <option value="LU">🇱🇺 Luxembourg</option>
+                                    <option value="MK">🇲🇰 North Macedonia</option>
+                                    <option value="MT">🇲🇹 Malta</option>
+                                    <option value="MD">🇲🇩 Moldova</option>
+                                    <option value="MC">🇲🇨 Monaco</option>
+                                    <option value="ME">🇲🇪 Montenegro</option>
+                                    <option value="SM">🇸🇲 San Marino</option>
+                                    <option value="RS">🇷🇸 Serbia</option>
+                                    <option value="UA">🇺🇦 Ukraine</option>
+                                    <option value="VA">🇻🇦 Vatican City</option>
+                                    <option value="CA">🇨🇦 Canada</option>
+                                    <option value="MX">🇲🇽 Mexico</option>
+                                    <option value="AR">🇦🇷 Argentina</option>
+                                    <option value="BZ">🇧🇿 Belize</option>
+                                    <option value="BR">🇧🇷 Brazil</option>
+                                    <option value="CL">🇨🇱 Chile</option>
+                                    <option value="CO">🇨🇴 Colombia</option>
+                                    <option value="CR">🇨🇷 Costa Rica</option>
+                                    <option value="CU">🇨🇺 Cuba</option>
+                                    <option value="DO">🇩🇴 Dominican Republic</option>
+                                    <option value="PE">🇵🇪 Peru</option>
+                                    <option value="EC">🇪🇨 Ecuador</option>
+                                    <option value="GT">🇬🇹 Guatemala</option>
+                                    <option value="HN">🇭🇳 Honduras</option>
+                                    <option value="NI">🇳🇮 Nicaragua</option>
+                                    <option value="PA">🇵🇦 Panama</option>
+                                    <option value="PY">🇵🇾 Paraguay</option>
+                                    <option value="PR">🇵🇷 Puerto Rico</option>
+                                    <option value="SR">🇸🇷 Suriname</option>
+                                    <option value="UY">🇺🇾 Uruguay</option>
+                                    <option value="VE">🇻🇪 Venezuela</option>
+                                    <option value="AU">🇦🇺 Australia</option>
+                                    <option value="NZ">🇳🇿 New Zealand</option>
+                                    <option value="JP">🇯🇵 Japan</option>
+                                    <option value="KR">🇰🇷 South Korea</option>
+                                    <option value="SG">🇸🇬 Singapore</option>
+                                    <option value="MY">🇲🇾 Malaysia</option>
+                                    <option value="TH">🇹🇭 Thailand</option>
+                                    <option value="PH">🇵🇭 Philippines</option>
+                                    <option value="ID">🇮🇩 Indonesia</option>
+                                    <option value="VN">🇻🇳 Vietnam</option>
+                                    <option value="IN">🇮🇳 India</option>
+                                    <option value="PK">🇵🇰 Pakistan</option>
+                                    <option value="BD">🇧🇩 Bangladesh</option>
+                                    <option value="ZA">🇿🇦 South Africa</option>
+                                    <option value="NG">🇳🇬 Nigeria</option>
+                                    <option value="EG">🇪🇬 Egypt</option>
+                                    <option value="KE">🇰🇪 Kenya</option>
+                                    <option value="MA">🇲🇦 Morocco</option>
+                                    <option value="TN">🇹🇳 Tunisia</option>
+                                    <option value="DZ">🇩🇿 Algeria</option>
+                                    <option value="IL">🇮🇱 Israel</option>
+                                    <option value="AE">🇦🇪 UAE</option>
+                                    <option value="SA">🇸🇦 Saudi Arabia</option>
+                                    <option value="TR">🇹🇷 Turkey</option>
+                                    <option value="RU">🇷🇺 Russia</option>
+                                    <option value="UA">🇺🇦 Ukraine</option>
+                                </select>
+                            </div>
+                            <small class="form-help">Choose where you want the AI Overview visibility measured.</small>
                         </div>
                     </div>
 
-                    <!-- Competitors Configuration -->
+                    <!-- Competitors (optional) -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitor Analysis</span>
-                            </label>
-                            <div class="competitors-config-container">
-                                <div class="auto-detect-option">
-                                    <div class="checkbox-wrapper">
-                                        <input type="checkbox" id="autoDetectCompetitors" class="enhanced-checkbox">
-                                        <label for="autoDetectCompetitors" class="checkbox-label">
-                                            <i class="fas fa-magic"></i>
-                                            Auto-detect competitors (recommended)
-                                        </label>
-                                    </div>
-                                    <small class="form-help">Let AI automatically find your main competitors from search results</small>
+                            <div class="form-label-row">
+                                <label class="enhanced-label" for="autoDetectCompetitors">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
+                                </label>
+                                <span class="label-optional" aria-hidden="true">Optional</span>
+                            </div>
+                            <p class="field-caption">Benchmark against the domains that appear alongside you in AI Overview.</p>
+                            <div class="toggle-row">
+                                <input type="checkbox" id="autoDetectCompetitors" aria-controls="manualCompetitorsArea">
+                                <label for="autoDetectCompetitors">Let Manual AI auto-detect competitors for me</label>
+                            </div>
+                            <small class="form-help toggle-hint">We can prefill up to 4 competitors based on fresh SERP insights. You can always edit them.</small>
+                            <div id="manualCompetitorsArea" class="manual-competitors-area" style="display:none;" aria-hidden="true">
+                                <div class="competitor-chips-input">
+                                    <span class="input-icon" aria-hidden="true"><i class="fas fa-globe"></i></span>
+                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Only root domain · competitor.com">
+                                    <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
                                 </div>
-                                
-                                <div id="manualCompetitorsArea" class="manual-competitors-section">
-                                    <div class="manual-competitors-header">
-                                        <h4>
-                                            <i class="fas fa-users"></i>
-                                            Manual Competitor Selection
-                                        </h4>
-                                        <small>Add specific domains you want to track against</small>
-                                    </div>
-                                    
-                                    <div class="competitor-input-section">
-                                        <div class="competitor-chips-input">
-                                            <input type="text" id="competitorInput" class="enhanced-input" 
-                                                   placeholder="Enter competitor domain (e.g., competitor.com) and press Enter">
-                                            <button type="button" id="addCompetitorBtn" class="btn-primary btn-enhanced" aria-label="Add competitor domain">
-                                                <i class="fas fa-plus"></i>
-                                                Add
-                                            </button>
-                                        </div>
-                                        <div id="competitorChips" class="competitor-chips" aria-live="polite"></div>
-                                        <small id="competitorError" class="form-help error-text" aria-live="polite"></small>
-                                        <div class="competitors-help">
-                                            <i class="fas fa-info-circle"></i>
-                                            <span>Enter clean domain names only. We'll automatically remove protocols (https://), www prefix, and paths for you. Maximum 4 competitors.</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div id="competitorChips" class="competitor-chips" aria-live="polite"></div>
+                                <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
+                                <small class="form-help">Remember: enter domains only. We normalize the format automatically.</small>
                             </div>
                         </div>
                     </div>
