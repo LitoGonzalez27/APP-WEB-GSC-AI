@@ -120,6 +120,24 @@ def _block_mobile_globally_except_login_signup():
         logger.warning(f"Mobile gate error: {_e_mobile_gate}")
         return None
 
+# --- Ruta de diagnóstico para inspeccionar rutas registradas ---
+@app.route('/__routes')
+def __list_routes():
+    try:
+        routes = []
+        for rule in app.url_map.iter_rules():
+            methods = sorted([m for m in rule.methods if m not in ['HEAD', 'OPTIONS']])
+            routes.append({
+                'rule': str(rule),
+                'endpoint': rule.endpoint,
+                'methods': methods
+            })
+        routes_sorted = sorted(routes, key=lambda r: r['rule'])
+        return jsonify({'count': len(routes_sorted), 'routes': routes_sorted})
+    except Exception as e:
+        logger.error(f"Error listando rutas: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
     """
