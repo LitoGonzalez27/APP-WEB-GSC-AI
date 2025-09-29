@@ -3333,15 +3333,18 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
 def register_manual_ai_system():
     """Register Manual AI Analysis Blueprint safely"""
     try:
+        logger.info("🔎 Intentando importar manual_ai_system.manual_ai_bp...")
         from manual_ai_system import manual_ai_bp
+        logger.info("📦 Importación exitosa de manual_ai_system.manual_ai_bp. Registrando blueprint...")
         app.register_blueprint(manual_ai_bp)
         logger.info("✅ Manual AI Analysis system registered successfully")
         return True
     except ImportError as e:
         logger.warning(f"⚠️ Manual AI Analysis system not available: {e}")
+        logger.warning("Sugerencia: verifica dependencias (pandas, pytz, redis, serpapi, playwright) y errores en import.")
         return False
     except Exception as e:
-        logger.error(f"❌ Error registering Manual AI Analysis system: {e}")
+        logger.error(f"❌ Error registering Manual AI Analysis system: {e}", exc_info=True)
         return False
 
 def initialize_database_on_startup():
