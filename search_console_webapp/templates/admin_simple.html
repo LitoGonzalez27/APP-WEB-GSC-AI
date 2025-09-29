@@ -1795,6 +1795,16 @@
                 applyTableFilters();
             }
             
+            // Listeners de filtros / ordenación / búsqueda
+            const searchEl = document.getElementById('filterSearch');
+            const planEl = document.getElementById('filterPlan');
+            const statusEl = document.getElementById('filterStatus');
+            const sortEl = document.getElementById('sortBy');
+            if (searchEl) searchEl.addEventListener('input', applyTableFilters);
+            if (planEl) planEl.addEventListener('change', applyTableFilters);
+            if (statusEl) statusEl.addEventListener('change', applyTableFilters);
+            if (sortEl) sortEl.addEventListener('change', applyTableFilters);
+
             // Recalcular contadores con la clase de estado real
             const userRows = document.querySelectorAll('#usersTbody tr');
 
