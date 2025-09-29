@@ -1699,6 +1699,75 @@
             });
         }
 
+        // 🚀 NUEVO: Filtros / Ordenación / Búsqueda en cliente
+        function normalizeText(t){ return (t || '').toString().toLowerCase().trim(); }
+
+        function parseDateKey(ddmmyyyy) {
+            // Acepta dd/mm/yyyy o dd/mm/yy
+            const parts = (ddmmyyyy || '').split('/').map(p => p.trim());
+            if (parts.length < 3) return 0;
+            const d = parseInt(parts[0], 10) || 0;
+            const m = parseInt(parts[1], 10) || 0;
+            let y = parseInt(parts[2], 10) || 0;
+            if (y < 100) y += 2000; // normalizar yy → yyyy
+            return (y * 10000) + (m * 100) + d;
+        }
+
+        function applyTableFilters() {
+            const q = normalizeText(document.getElementById('filterSearch')?.value);
+            const planFilter = document.getElementById('filterPlan')?.value || '';
+            const statusFilter = document.getElementById('filterStatus')?.value || '';
+            const sortBy = document.getElementById('sortBy')?.value || 'created_desc';
+
+            const rows = Array.from(document.querySelectorAll('#usersTbody tr'));
+            const parsed = rows.map(row => {
+                const name = normalizeText(row.querySelector('.user-details h4')?.textContent);
+                const email = normalizeText(row.children[1]?.textContent);
+                const planBadge = row.querySelector('.plan-info .badge');
+                let planVal = '';
+                if (planBadge) {
+                    if (planBadge.classList.contains('enterprise')) planVal = 'enterprise';
+                    else planVal = normalizeText(planBadge.textContent);
+                }
+                const statusBadge = row.querySelector('.status-container .badge');
+                const statusVal = statusBadge?.classList.contains('active') ? 'active' : 'inactive';
+                const quotaText = row.querySelector('.quota-progress-text span')?.textContent || '0/0 RU';
+                const match = quotaText.match(/(\d+)\/(\d+)/);
+                const used = match ? parseInt(match[1], 10) : 0;
+                const limit = match ? parseInt(match[2], 10) : 0;
+                const createdCell = row.children[5]; // Columna "Registro"
+                const createdStr = (createdCell?.textContent || '').trim().split('\n')[0].trim();
+                const createdKey = parseDateKey(createdStr);
+                return { row, name, email, planVal, statusVal, used, limit, createdKey };
+            });
+
+            // Filtrar
+            const filtered = parsed.filter(p => {
+                const qOk = !q || p.name.includes(q) || p.email.includes(q);
+                const planOk = !planFilter || p.planVal === planFilter;
+                const statusOk = !statusFilter || p.statusVal === statusFilter;
+                return qOk && planOk && statusOk;
+            });
+
+            // Ocultar todas, mostrar solo filtradas y reordenar
+            parsed.forEach(p => { p.row.style.display = 'none'; });
+
+            filtered.sort((a,b) => {
+                switch (sortBy) {
+                    case 'created_asc': return a.createdKey - b.createdKey;
+                    case 'quota_desc': return (b.used - a.used);
+                    case 'quota_asc': return (a.used - b.used);
+                    case 'name_asc': return a.name.localeCompare(b.name);
+                    case 'name_desc': return b.name.localeCompare(a.name);
+                    case 'created_desc':
+                    default: return b.createdKey - a.createdKey;
+                }
+            });
+
+            const tbody = document.getElementById('usersTbody');
+            filtered.forEach(p => { p.row.style.display = ''; tbody.appendChild(p.row); });
+        }
+
         // Debug simple
         console.log('🚀 Admin Panel Simple cargado correctamente');
         
@@ -1726,8 +1795,8 @@
                 applyTableFilters();
             }
             
-            // Obtener todas las rows de users
-            const userRows = document.querySelectorAll('.table tbody tr');
+            // Recalcular contadores con la clase de estado real
+            const userRows = document.querySelectorAll('#usersTbody tr');
 
             let total = 0;
             let active = 0;
@@ -1742,13 +1811,13 @@
 
                 total++;
 
-                // Estado: td index 3 (0-based)
-                const statusBadge = row.querySelectorAll('td')[3].querySelector('.badge');
+                // Estado: usar selector robusto
+                const statusBadge = row.querySelector('.status-container .badge');
                 if (statusBadge.classList.contains('active')) active++;
                 else inactive++;
 
-                // Fecha: td index 4, primera línea
-                const dateTd = row.querySelectorAll('td')[4];
+                // Fecha: columna de Registro (índice 5 visual), tomar primera línea
+                const dateTd = row.querySelectorAll('td')[5];
                 const dateText = dateTd.textContent.trim().split('\n')[0].trim();
 
                 if (dateText === todayDate) today++;
