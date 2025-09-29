@@ -86,6 +86,11 @@ is_development = not railway_env or railway_env == 'development'
 logger.info(f"🌍 Entorno detectado: {railway_env or 'development'}")
 logger.info(f"📊 Configuración: Production={is_production}, Staging={is_staging}, Development={is_development}")
 
+# Reducir verbosidad de logging en producción/staging
+if is_production or is_staging:
+    logging.getLogger().setLevel(logging.WARNING)
+    logger.setLevel(logging.WARNING)
+
 # Configurar cookies de sesión según el entorno
 app.config['SESSION_COOKIE_SECURE'] = is_production or is_staging  # HTTPS en producción y staging
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -101,6 +106,44 @@ setup_auth_routes(app)
 
 # --- NUEVO: Configurar webhook de Stripe ---
 create_webhook_route(app)
+
+# --- Inyección automática de silenciador de consola en HTML (prod/staging) ---
+@app.after_request
+def _inject_console_silencer(response):
+    try:
+        if not (is_production or is_staging):
+            return response
+        # Evitar inyección en assets o respuestas no-HTML
+        if request.path.startswith('/static/'):
+            return response
+        content_type = (response.headers.get('Content-Type') or '').lower()
+        if 'text/html' not in content_type:
+            return response
+
+        # Construir tag del silenciador
+        silencer_src = url_for('static', filename='js/console-silencer.js')
+        script_tag = f"\n    <script src=\"{silencer_src}\"></script>\n"
+
+        # Obtener cuerpo como texto y evitar duplicados
+        body = response.get_data(as_text=True)
+        if 'js/console-silencer.js' in body:
+            return response
+
+        # Insertar antes de </head> si existe, si no, al inicio del documento
+        lower_body = body.lower()
+        insertion_index = lower_body.rfind('</head>')
+        if insertion_index != -1:
+            body = body[:insertion_index] + script_tag + body[insertion_index:]
+        else:
+            body = script_tag + body
+        response.set_data(body)
+        return response
+    except Exception as _e_inject:
+        try:
+            logger.warning(f"Fallo al inyectar console-silencer: {_e_inject}")
+        except Exception:
+            pass
+        return response
 
 # --- Bloqueo global de acceso desde móviles excepto login/signup ---
 @app.before_request
@@ -119,6 +162,24 @@ def _block_mobile_globally_except_login_signup():
     except Exception as _e_mobile_gate:
         logger.warning(f"Mobile gate error: {_e_mobile_gate}")
         return None
+
+# --- Ruta de diagnóstico para inspeccionar rutas registradas ---
+@app.route('/__routes')
+def __list_routes():
+    try:
+        routes = []
+        for rule in app.url_map.iter_rules():
+            methods = sorted([m for m in rule.methods if m not in ['HEAD', 'OPTIONS']])
+            routes.append({
+                'rule': str(rule),
+                'endpoint': rule.endpoint,
+                'methods': methods
+            })
+        routes_sorted = sorted(routes, key=lambda r: r['rule'])
+        return jsonify({'count': len(routes_sorted), 'routes': routes_sorted})
+    except Exception as e:
+        logger.error(f"Error listando rutas: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # --- Funciones auxiliares con geolocalización (sin cambios) ---
 def get_top_country_for_site(site_url):
@@ -3333,15 +3394,18 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
 def register_manual_ai_system():
     """Register Manual AI Analysis Blueprint safely"""
     try:
+        logger.info("🔎 Intentando importar manual_ai_system.manual_ai_bp...")
         from manual_ai_system import manual_ai_bp
+        logger.info("📦 Importación exitosa de manual_ai_system.manual_ai_bp. Registrando blueprint...")
         app.register_blueprint(manual_ai_bp)
         logger.info("✅ Manual AI Analysis system registered successfully")
         return True
     except ImportError as e:
         logger.warning(f"⚠️ Manual AI Analysis system not available: {e}")
+        logger.warning("Sugerencia: verifica dependencias (pandas, pytz, redis, serpapi, playwright) y errores en import.")
         return False
     except Exception as e:
-        logger.error(f"❌ Error registering Manual AI Analysis system: {e}")
+        logger.error(f"❌ Error registering Manual AI Analysis system: {e}", exc_info=True)
         return False
 
 def initialize_database_on_startup():

@@ -15,10 +15,29 @@ import pytz
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
 from auth import auth_required, cron_or_auth_required, get_current_user
-from services.serp_service import get_serp_json
-from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
+try:
+    from services.serp_service import get_serp_json
+except Exception as _e_serp_import:
+    get_serp_json = None  # type: ignore
+    logging.getLogger(__name__).warning(
+        f"[Manual AI] SERP service import failed: {_e_serp_import}. SERP features will be disabled until fixed."
+    )
+try:
+    from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
+except Exception as _e_ai_import:
+    detect_ai_overview_elements = None  # type: ignore
+    run_ai_analysis_on_serp = None  # type: ignore
+    logging.getLogger(__name__).warning(
+        f"[Manual AI] AI analysis import failed: {_e_ai_import}. Analysis features will be disabled until fixed."
+    )
 from services.utils import extract_domain, normalize_search_console_url
-from services.ai_cache import ai_cache
+try:
+    from services.ai_cache import ai_cache
+except Exception as _e_cache_import:
+    ai_cache = None  # type: ignore
+    logging.getLogger(__name__).warning(
+        f"[Manual AI] AI cache import failed: {_e_cache_import}. Cache will be disabled."
+    )
 import os
 from quota_manager import consume_user_quota, get_user_quota_status
 
