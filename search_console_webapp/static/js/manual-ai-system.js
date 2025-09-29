@@ -363,7 +363,10 @@ class ManualAISystem {
         if (this.elements.autoDetectCompetitors && this.elements.manualCompetitorsArea) {
             const syncVisibility = () => {
                 const showManual = !this.elements.autoDetectCompetitors.checked;
-                this.elements.manualCompetitorsArea.style.display = showManual ? 'block' : 'none';
+                const area = this.elements.manualCompetitorsArea;
+                if (!area) return;
+                area.style.display = showManual ? 'flex' : 'none';
+                area.setAttribute('aria-hidden', showManual ? 'false' : 'true');
             };
             this.elements.autoDetectCompetitors.addEventListener('change', syncVisibility);
             syncVisibility();

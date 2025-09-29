@@ -722,7 +722,13 @@ def get_user_by_email(email):
         cur.execute('SELECT * FROM users WHERE email = %s', (email,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        # Normalizar is_active cuando sea NULL → True (backward-compat)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por email: {e}")
@@ -742,7 +748,12 @@ def get_user_by_google_id(google_id):
         cur.execute('SELECT * FROM users WHERE google_id = %s', (google_id,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por Google ID: {e}")
@@ -762,7 +773,12 @@ def get_user_by_id(user_id):
         cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
         user = cur.fetchone()
         
-        return dict(user) if user else None
+        if not user:
+            return None
+        user_dict = dict(user)
+        if user_dict.get('is_active') is None:
+            user_dict['is_active'] = True
+        return user_dict
         
     except Exception as e:
         logger.error(f"Error obteniendo usuario por ID: {e}")
@@ -805,7 +821,9 @@ def get_all_users():
         cur = conn.cursor()
         cur.execute('''
             SELECT 
-                id, email, name, picture, role, is_active, created_at, updated_at, last_login_at,
+                id, email, name, picture, role,
+                COALESCE(is_active, TRUE) as is_active,
+                created_at, updated_at, last_login_at,
                 -- Billing fields
                 COALESCE(plan, 'free') as plan,
                 COALESCE(current_plan, plan, 'free') as current_plan,
@@ -971,11 +989,11 @@ def get_user_stats():
         total_users = cur.fetchone()[0]
         logger.info(f"✅ Total usuarios: {total_users}")
         
-        # Usuarios activos e inactivos
-        cur.execute('SELECT COUNT(*) FROM users WHERE is_active = true')
+        # Usuarios activos e inactivos (tratar NULL como TRUE para compatibilidad)
+        cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = TRUE')
         active_users = cur.fetchone()[0]
         
-        cur.execute('SELECT COUNT(*) FROM users WHERE is_active = false')
+        cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = FALSE')
         inactive_users = cur.fetchone()[0]
         
         logger.info(f"✅ Usuarios activos: {active_users}, inactivos: {inactive_users}")
@@ -1706,6 +1724,17 @@ def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_
             return False
             
         cur = conn.cursor()
+        # Asegurar existencia de tabla quota_usage_events antes de insertar
+        try:
+            cur.execute("SELECT to_regclass('public.quota_usage_events') AS reg")
+            row = cur.fetchone()
+            if not (row['reg'] if isinstance(row, dict) else row[0]):
+                ensure_quota_table_exists()
+        except Exception:
+            try:
+                ensure_quota_table_exists()
+            except Exception:
+                pass
         
         # 1. Registrar evento en quota_usage_events
         cur.execute('''
