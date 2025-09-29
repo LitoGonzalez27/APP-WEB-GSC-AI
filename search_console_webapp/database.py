@@ -989,11 +989,11 @@ def get_user_stats():
         total_users = cur.fetchone()[0]
         logger.info(f"✅ Total usuarios: {total_users}")
         
-        # Usuarios activos e inactivos
-        cur.execute('SELECT COUNT(*) FROM users WHERE is_active = true')
+        # Usuarios activos e inactivos (tratar NULL como TRUE para compatibilidad)
+        cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = TRUE')
         active_users = cur.fetchone()[0]
         
-        cur.execute('SELECT COUNT(*) FROM users WHERE is_active = false')
+        cur.execute('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, TRUE) = FALSE')
         inactive_users = cur.fetchone()[0]
         
         logger.info(f"✅ Usuarios activos: {active_users}, inactivos: {inactive_users}")
@@ -1724,6 +1724,17 @@ def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_
             return False
             
         cur = conn.cursor()
+        # Asegurar existencia de tabla quota_usage_events antes de insertar
+        try:
+            cur.execute("SELECT to_regclass('public.quota_usage_events') AS reg")
+            row = cur.fetchone()
+            if not (row['reg'] if isinstance(row, dict) else row[0]):
+                ensure_quota_table_exists()
+        except Exception:
+            try:
+                ensure_quota_table_exists()
+            except Exception:
+                pass
         
         # 1. Registrar evento en quota_usage_events
         cur.execute('''

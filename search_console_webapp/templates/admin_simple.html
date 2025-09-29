@@ -745,6 +745,31 @@
             </div>
         </div>
 
+        <!-- Controles de UX: búsqueda, filtros y ordenación -->
+        <div class="table-controls" style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+            <input id="filterSearch" type="text" placeholder="Buscar por nombre o email" style="flex:1; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+            <select id="filterPlan" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="">Plan: Todos</option>
+                <option value="free">Free</option>
+                <option value="basic">Basic</option>
+                <option value="premium">Premium</option>
+                <option value="enterprise">Enterprise</option>
+            </select>
+            <select id="filterStatus" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="">Estado: Todos</option>
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+            </select>
+            <select id="sortBy" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="created_desc">Orden: Registro ↓</option>
+                <option value="created_asc">Registro ↑</option>
+                <option value="quota_desc">Consumo RU ↓</option>
+                <option value="quota_asc">Consumo RU ↑</option>
+                <option value="name_asc">Nombre A-Z</option>
+                <option value="name_desc">Nombre Z-A</option>
+            </select>
+        </div>
+
         <!-- Users Table -->
         <div class="table-container">
             <table class="table">
@@ -760,7 +785,7 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="usersTbody">
                     {% if users %}
                         {% for user in users %}
                         <tr>
@@ -1695,6 +1720,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             // 🚀 NUEVO: Inicializar barras progresivas al cargar la página
             initializeQuotaProgressBars();
+            
+            // Aplicar filtros/ordenación iniciales
+            if (typeof applyTableFilters === 'function') {
+                applyTableFilters();
+            }
             
             // Obtener todas las rows de users
             const userRows = document.querySelectorAll('.table tbody tr');
