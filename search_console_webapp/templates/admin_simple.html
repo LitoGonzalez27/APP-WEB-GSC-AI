@@ -763,6 +763,8 @@
             <select id="sortBy" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
                 <option value="created_desc">Orden: Registro ↓</option>
                 <option value="created_asc">Registro ↑</option>
+                <option value="last_login_desc">Último acceso ↓</option>
+                <option value="last_login_asc">Último acceso ↑</option>
                 <option value="quota_desc">Consumo RU ↓</option>
                 <option value="quota_asc">Consumo RU ↑</option>
                 <option value="name_asc">Nombre A-Z</option>
@@ -1738,7 +1740,10 @@
                 const createdCell = row.children[5]; // Columna "Registro"
                 const createdStr = (createdCell?.textContent || '').trim().split('\n')[0].trim();
                 const createdKey = parseDateKey(createdStr);
-                return { row, name, email, planVal, statusVal, used, limit, createdKey };
+                const lastCell = row.children[6]; // Columna "Último Acceso"
+                const lastStr = (lastCell?.textContent || '').trim().split('\n')[0].trim();
+                const lastLoginKey = parseDateKey(lastStr);
+                return { row, name, email, planVal, statusVal, used, limit, createdKey, lastLoginKey };
             });
 
             // Filtrar
@@ -1755,6 +1760,18 @@
             filtered.sort((a,b) => {
                 switch (sortBy) {
                     case 'created_asc': return a.createdKey - b.createdKey;
+                    case 'last_login_desc': {
+                        const ak = a.lastLoginKey, bk = b.lastLoginKey;
+                        if (ak === 0 && bk !== 0) return 1; // "—" al final
+                        if (bk === 0 && ak !== 0) return -1;
+                        return bk - ak; // más reciente primero
+                    }
+                    case 'last_login_asc': {
+                        const ak = a.lastLoginKey, bk = b.lastLoginKey;
+                        if (ak === 0 && bk !== 0) return 1; // "—" al final
+                        if (bk === 0 && ak !== 0) return -1;
+                        return ak - bk; // más antiguo primero
+                    }
                     case 'quota_desc': return (b.used - a.used);
                     case 'quota_asc': return (a.used - b.used);
                     case 'name_asc': return a.name.localeCompare(b.name);
