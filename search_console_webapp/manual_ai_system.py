@@ -1631,39 +1631,6 @@ def add_keywords_to_project_db(project_id: int, keywords_list: List[str]) -> int
     
     return added_count
 
-def _resolve_project_owner(project_id: int) -> Optional[Dict]:
-    """Obtiene información del dueño del proyecto sin depender de la sesión."""
-    conn = get_db_connection()
-    if not conn:
-        return None
-
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            SELECT user_id
-            FROM manual_ai_projects
-            WHERE id = %s
-            """,
-            (project_id,)
-        )
-        row = cur.fetchone()
-    finally:
-        cur.close()
-        conn.close()
-
-    if not row:
-        return None
-
-    owner_id = row['user_id'] if isinstance(row, dict) else row[0]
-    owner = get_user_by_id(owner_id)
-    return {
-        'user_id': owner_id,
-        'email': owner.get('email') if owner else None,
-        'plan': owner.get('plan') if owner else None
-    }
-
-
 def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List[Dict]:
     """
     Ejecutar análisis completo de todas las keywords activas de un proyecto
@@ -1673,28 +1640,28 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
         force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
                         Si False, omite keywords ya analizadas hoy (para análisis automático)
     """
-    # Obtener usuario actual para validación de cuota
+    # Obtener usuario según contexto (request o cron)
     current_user = get_current_user() if has_request_context() else None
+    owner_user = _resolve_project_owner(project_id)
 
-    # Recuperar info del dueño del proyecto (si no hay sesión, usar owner_id directo)
-    owner_info = _resolve_project_owner(project_id)
-    if not owner_info:
+    if not owner_user or owner_user.get('id') is None:
         logger.error(f"Proyecto {project_id} no encontrado o sin usuario asignado")
         return {'success': False, 'error': 'Project not found'}
 
-    effective_user_id = owner_info['user_id']
-
-    if has_request_context():
-        # Validar que la sesión corresponde al dueño del proyecto
-        if not current_user:
-            logger.error(f"Intento de análisis sin usuario autenticado para proyecto {project_id}")
-            return {'success': False, 'error': 'User not authenticated'}
-
-        if current_user['id'] != effective_user_id:
+    if current_user:
+        if current_user.get('id') != owner_user.get('id'):
             logger.warning(
-                f"Usuario {current_user['id']} intentando analizar proyecto {project_id} que pertenece a {effective_user_id}"
+                f"Usuario {current_user.get('id')} intentando analizar proyecto {project_id} que pertenece a {owner_user.get('id')}"
             )
             return {'success': False, 'error': 'Unauthorized'}
+    else:
+        current_user = owner_user
+
+    if not current_user or current_user.get('id') is None:
+        logger.error(f"Intento de análisis sin usuario válido para proyecto {project_id}")
+        return {'success': False, 'error': 'User not authenticated'}
+
+    effective_user_id = current_user['id']
 
     # Obtener proyecto y keywords
     project = get_project_with_details(project_id)

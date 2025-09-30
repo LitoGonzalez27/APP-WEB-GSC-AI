@@ -650,18 +650,19 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
                 'reason': 'Manual admin reset',
                 'operation_type': 'admin_quota_reset'
             }
-            cur.execute('''
-                INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, source, keyword, country_code, metadata, timestamp) 
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            ''', (
-                user_id,
-                1,
-                'manual_ai',
-                None,
-                None,
-                json.dumps(metadata_payload)
-            ))
+            if previous_quota_used > 0:
+                cur.execute('''
+                    INSERT INTO quota_usage_events 
+                    (user_id, ru_consumed, source, keyword, country_code, metadata, timestamp) 
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ''', (
+                    user_id,
+                    previous_quota_used,
+                    'manual_ai',
+                    None,
+                    None,
+                    json.dumps(metadata_payload)
+                ))
         except Exception as event_error:
             # Si falla el registro de evento, continuar (no crítico)
             logger.warning(f"Could not log quota reset event: {event_error}")

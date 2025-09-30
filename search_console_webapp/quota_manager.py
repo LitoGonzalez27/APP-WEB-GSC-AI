@@ -447,13 +447,6 @@ def record_quota_usage(user_id, ru_consumed, operation_type="unknown", metadata=
         
         cur = conn.cursor()
         
-        # Evitar registros inválidos (la tabla requiere ru_consumed > 0)
-        if ru_consumed is None or ru_consumed <= 0:
-            logger.info(
-                f"Omitiendo registro quota_usage_events para user {user_id}: ru_consumed={ru_consumed} no válido"
-            )
-            ru_consumed = 0
-
         # Actualizar quota_used en tabla users
         cur.execute('''
             UPDATE users 
@@ -464,7 +457,7 @@ def record_quota_usage(user_id, ru_consumed, operation_type="unknown", metadata=
         
         # Registrar evento en quota_usage_events si la tabla existe
         try:
-            if ru_consumed > 0:
+            if ru_consumed and ru_consumed > 0:
                 source = _derive_source_from_operation(operation_type or "")
                 metadata_payload = metadata.copy() if isinstance(metadata, dict) else {}
                 if operation_type:
@@ -539,24 +532,25 @@ def reset_user_quota(user_id, admin_id=None):
         
         # Registrar evento de reset
         try:
-            metadata_payload = {
-                'previous_usage': previous_usage,
-                'reset_by_admin': admin_id,
-                'reason': 'Manual quota reset',
-                'operation_type': 'quota_reset'
-            }
-            cur.execute('''
-                INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, source, keyword, country_code, metadata, timestamp) 
-                VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            ''', (
-                user_id,
-                1,
-                'manual_ai',
-                None,
-                None,
-                json.dumps(metadata_payload)
-            ))
+            if previous_usage > 0:
+                metadata_payload = {
+                    'previous_usage': previous_usage,
+                    'reset_by_admin': admin_id,
+                    'reason': 'Manual quota reset',
+                    'operation_type': 'quota_reset'
+                }
+                cur.execute('''
+                    INSERT INTO quota_usage_events 
+                    (user_id, ru_consumed, source, keyword, country_code, metadata, timestamp) 
+                    VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ''', (
+                    user_id,
+                    previous_usage,
+                    'manual_ai',
+                    None,
+                    None,
+                    json.dumps(metadata_payload)
+                ))
         except Exception as e:
             logger.warning(f"Could not log quota reset event: {e}")
         
