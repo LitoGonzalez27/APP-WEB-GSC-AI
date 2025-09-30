@@ -643,20 +643,24 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
         
         # Registrar evento de reset en quota_usage_events (si la tabla existe)
         try:
+            metadata_payload = {
+                'reset_by_admin_id': admin_id,
+                'reset_by_admin_email': admin_info['email'],
+                'previous_quota_used': previous_quota_used,
+                'reason': 'Manual admin reset',
+                'operation_type': 'admin_quota_reset'
+            }
             cur.execute('''
                 INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, operation_type, metadata, created_at) 
-                VALUES (%s, %s, %s, %s, NOW())
+                (user_id, ru_consumed, source, keyword, country_code, metadata, timestamp) 
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
             ''', (
-                user_id, 
-                0,  # No consume RU, es un reset
-                'admin_quota_reset',
-                json.dumps({
-                    'reset_by_admin_id': admin_id,
-                    'reset_by_admin_email': admin_info['email'],
-                    'previous_quota_used': previous_quota_used,
-                    'reason': 'Manual admin reset'
-                })
+                user_id,
+                1,
+                'manual_ai',
+                None,
+                None,
+                json.dumps(metadata_payload)
             ))
         except Exception as event_error:
             # Si falla el registro de evento, continuar (no crítico)
