@@ -122,6 +122,17 @@ class SidebarNavigation {
       console.log('✅ Event listener agregado para botón de descarga Excel');
     }
 
+    // ✅ NUEVO: Event listener para botón de descarga PDF
+    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+    if (sidebarDownloadPdfBtn) {
+      sidebarDownloadPdfBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('🖱️ Click en botón de descarga PDF del sidebar');
+        this.handleDownloadPdfClick();
+      });
+      console.log('✅ Event listener agregado para botón de descarga PDF');
+    }
+
     // Event listeners para móvil
     if (this.toggleBtn) {
       this.toggleBtn.addEventListener('click', () => this.toggleMobileSidebar());
@@ -573,12 +584,19 @@ class SidebarNavigation {
     }
   }
 
-  // ✅ NUEVO: Mostrar/ocultar botón de descarga Excel
+  // ✅ NUEVO: Mostrar/ocultar botones de descarga (Excel y PDF)
   showDownloadButton(show = true) {
     const sidebarDownloadBtn = document.getElementById('sidebarDownloadBtn');
+    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+    
     if (sidebarDownloadBtn) {
       sidebarDownloadBtn.style.display = show ? 'flex' : 'none';
       console.log(`📥 Botón de descarga Excel ${show ? 'mostrado' : 'ocultado'}`);
+    }
+    
+    if (sidebarDownloadPdfBtn) {
+      sidebarDownloadPdfBtn.style.display = show ? 'flex' : 'none';
+      console.log(`📄 Botón de descarga PDF ${show ? 'mostrado' : 'ocultado'}`);
     }
   }
 
@@ -821,6 +839,36 @@ class SidebarNavigation {
       if (spinner) spinner.style.display = 'none';
       if (btnText) btnText.style.display = 'inline';
       downloadBtn.disabled = false;
+    }
+  }
+
+  // ✅ NUEVO: Manejador para descarga de PDF
+  async handleDownloadPdfClick() {
+    console.log('📄 Iniciando descarga PDF desde sidebar...');
+    
+    // Verificar que estamos en la sección AI Overview
+    if (this.currentSection !== 'ai-overview') {
+      alert('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.');
+      return;
+    }
+
+    // Verificar que hay datos de AI Overview disponibles
+    const aiResults = document.getElementById('aiOverviewResultsContainer');
+    if (!aiResults || aiResults.style.display === 'none') {
+      alert('No AI Overview data to export. Please run an AI analysis first.');
+      return;
+    }
+
+    try {
+      // Importar dinámicamente el módulo de generación de PDF
+      const { generateAIOverviewPDF } = await import('./ui-ai-overview-pdf.js');
+      
+      // Llamar a la función de generación de PDF
+      await generateAIOverviewPDF();
+      
+    } catch (error) {
+      console.error('❌ Error al cargar o ejecutar el módulo de PDF:', error);
+      alert(`Error generating PDF: ${error.message}`);
     }
   }
 

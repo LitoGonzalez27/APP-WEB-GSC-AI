@@ -15,28 +15,9 @@ import pytz
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
 from auth import auth_required, cron_or_auth_required, get_current_user, get_user_by_id
-try:
-    from services.serp_service import get_serp_json
-except Exception as _e_serp_import:
-    get_serp_json = None  # type: ignore
-    import traceback
-    logging.getLogger(__name__).error(
-        f"[Manual AI] ❌ SERP service import FAILED: {_e_serp_import}"
-    )
-    logging.getLogger(__name__).error(
-        f"[Manual AI] ❌ Traceback: {traceback.format_exc()}"
-    )
-    logging.getLogger(__name__).warning(
-        "[Manual AI] ⚠️ SERP features will be DISABLED until this is fixed."
-    )
-try:
-    from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
-except Exception as _e_ai_import:
-    detect_ai_overview_elements = None  # type: ignore
-    run_ai_analysis_on_serp = None  # type: ignore
-    logging.getLogger(__name__).warning(
-        f"[Manual AI] AI analysis import failed: {_e_ai_import}. Analysis features will be disabled until fixed."
-    )
+
+# LAZY IMPORT: No importar get_serp_json ni detect_ai_overview_elements aquí
+# Se importarán cuando se necesiten dentro de las funciones para evitar problemas de orden de importación
 from services.utils import extract_domain, normalize_search_console_url
 try:
     from services.ai_cache import ai_cache
@@ -1734,11 +1715,12 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id
                 else:
                     # 2. Obtener SERP con reintentos y backoff (tolerancia a 429/timeout)
                     
-                    # Verificar que get_serp_json esté disponible
-                    if get_serp_json is None:
+                    # Importar get_serp_json de manera lazy
+                    try:
+                        from services.serp_service import get_serp_json
+                    except Exception as e:
                         logger.error(f"❌ SERP service not available (import failed) for keyword '{keyword}' in project {project_id}")
-                        logger.error("❌ CAUSA: El módulo services.serp_service no pudo importarse durante el inicio.")
-                        logger.error("❌ SOLUCIÓN: Revisar logs de startup para ver el error de importación y reiniciar el servidor.")
+                        logger.error(f"❌ Error: {e}")
                         failed_keywords += 1
                         continue
                     
@@ -1794,6 +1776,15 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id
                     serp_data = fetch_serp()
 
                     # 3. Analizar AI Overview usando servicio existente
+                    # Importar detect_ai_overview_elements de manera lazy
+                    try:
+                        from services.ai_analysis import detect_ai_overview_elements
+                    except Exception as e:
+                        logger.error(f"❌ AI analysis service not available for keyword '{keyword}' in project {project_id}")
+                        logger.error(f"❌ Error: {e}")
+                        failed_keywords += 1
+                        continue
+                    
                     ai_result = detect_ai_overview_elements(serp_data, project['domain'])
                     
                     # 5. Guardar en caché (igual que sistema automático)
