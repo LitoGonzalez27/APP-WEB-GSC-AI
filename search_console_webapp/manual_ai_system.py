@@ -1,7 +1,7 @@
 # manual_ai_system.py - Sistema Manual AI Analysis independiente
 # SEGURO: No toca ningún archivo existente, usa servicios establecidos
 
-from flask import Blueprint, render_template, request, jsonify, send_file, has_request_context
+from flask import Blueprint, render_template, request, jsonify, send_file
 from datetime import datetime, date, timedelta
 import logging
 import json
@@ -13,8 +13,8 @@ import pandas as pd
 import pytz
 
 # Reutilizar servicios existentes (sin modificarlos)
-from database import get_db_connection, get_user_by_id
-from auth import auth_required, cron_or_auth_required, get_current_user
+from database import get_db_connection
+from auth import auth_required, cron_or_auth_required, get_current_user, get_user_by_id
 try:
     from services.serp_service import get_serp_json
 except Exception as _e_serp_import:
@@ -1631,7 +1631,7 @@ def add_keywords_to_project_db(project_id: int, keywords_list: List[str]) -> int
     
     return added_count
 
-def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List[Dict]:
+def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id: int = None) -> List[Dict]:
     """
     Ejecutar análisis completo de todas las keywords activas de un proyecto
     
@@ -1639,29 +1639,19 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
         project_id: ID del proyecto a analizar
         force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
                         Si False, omite keywords ya analizadas hoy (para análisis automático)
+        user_id: ID del usuario (opcional). Si no se proporciona, se obtiene de la sesión actual.
     """
-    # Obtener usuario según contexto (request o cron)
-    current_user = get_current_user() if has_request_context() else None
-    owner_user = _resolve_project_owner(project_id)
-
-    if not owner_user or owner_user.get('id') is None:
-        logger.error(f"Proyecto {project_id} no encontrado o sin usuario asignado")
-        return {'success': False, 'error': 'Project not found'}
-
-    if current_user:
-        if current_user.get('id') != owner_user.get('id'):
-            logger.warning(
-                f"Usuario {current_user.get('id')} intentando analizar proyecto {project_id} que pertenece a {owner_user.get('id')}"
-            )
-            return {'success': False, 'error': 'Unauthorized'}
+    # Obtener usuario actual para validación de cuota
+    if user_id:
+        # Si se proporciona user_id directamente (caso de cron), obtenerlo de la BD
+        current_user = get_user_by_id(user_id)
     else:
-        current_user = owner_user
-
-    if not current_user or current_user.get('id') is None:
-        logger.error(f"Intento de análisis sin usuario válido para proyecto {project_id}")
+        # Si no se proporciona, obtenerlo de la sesión (caso de petición HTTP normal)
+        current_user = get_current_user()
+    
+    if not current_user:
+        logger.error(f"Intento de análisis sin usuario autenticado para proyecto {project_id}")
         return {'success': False, 'error': 'User not authenticated'}
-
-    effective_user_id = current_user['id']
 
     # Obtener proyecto y keywords
     project = get_project_with_details(project_id)
@@ -1671,9 +1661,9 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
         return []
 
     # Validar cuota antes de empezar
-    quota_info = get_user_quota_status(effective_user_id)
+    quota_info = get_user_quota_status(current_user['id'])
     if not quota_info.get('can_consume'):
-        logger.warning(f"User {effective_user_id} sin cuota para iniciar análisis del proyecto {project_id}. "
+        logger.warning(f"User {current_user['id']} sin cuota para iniciar análisis del proyecto {project_id}. "
                        f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
         return {'success': False, 'error': 'Quota limit exceeded', 'quota_info': quota_info}
 
@@ -1690,7 +1680,7 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
     
     for keyword_data in keywords:
         # Re-validar cuota en cada iteración
-        current_quota = get_user_quota_status(effective_user_id)
+        current_quota = get_user_quota_status(current_user['id'])
         if not current_quota.get('can_consume') or current_quota.get('remaining', 0) < MANUAL_AI_KEYWORD_ANALYSIS_COST:
             logger.warning(f"Análisis del proyecto {project_id} detenido por falta de cuota. "
                            f"Keywords procesadas: {len(results)}. Keywords pendientes: {len(keywords) - len(results)}")
@@ -1847,7 +1837,7 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
             try:
                 from database import track_quota_consumption
                 tracking_ok = track_quota_consumption(
-                    user_id=effective_user_id,
+                    user_id=current_user['id'],
                     ru_consumed=MANUAL_AI_KEYWORD_ANALYSIS_COST,
                     source='manual_ai',
                     keyword=keyword,
@@ -1861,9 +1851,7 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                 if tracking_ok:
                     consumed_ru += MANUAL_AI_KEYWORD_ANALYSIS_COST
                 else:
-                    logger.warning(
-                        f"No se pudo registrar consumo de quota (manual_ai) para user {effective_user_id} keyword '{keyword}'"
-                    )
+                    logger.warning(f"No se pudo registrar consumo de quota (manual_ai) para user {current_user['id']} keyword '{keyword}'")
             except Exception as _e_track:
                 logger.warning(f"Error registrando consumo de RU (manual_ai) para '{keyword}': {_e_track}")
             
@@ -1874,8 +1862,8 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
             if hasattr(e, 'is_quota_error') and e.is_quota_error:
                 logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {e}")
                 
-            # Guardar un resultado específico para quota exceeded
-            cur.execute('''
+                # Guardar un resultado específico para quota exceeded
+                cur.execute('''
                     INSERT INTO manual_ai_results 
                     (project_id, keyword_id, keyword, analysis_date, has_ai_overview, 
                      domain_mentioned, error_details, country_code)
@@ -2084,8 +2072,8 @@ def run_daily_analysis_for_all_projects():
                 
                 logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} ({project_dict['name']}) - {project_dict['keyword_count']} keywords")
                 
-                # Ejecutar análisis automático (sin sobreescritura)
-                results = run_project_analysis(project_dict['id'], force_overwrite=False)
+                # Ejecutar análisis automático (sin sobreescritura), pasando el user_id para evitar acceso a session
+                results = run_project_analysis(project_dict['id'], force_overwrite=False, user_id=project_dict['user_id'])
                 total_keywords_processed += len(results)
                 
                 # Crear snapshot diario
