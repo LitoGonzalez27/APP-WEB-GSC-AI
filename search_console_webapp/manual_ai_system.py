@@ -15,20 +15,9 @@ import pytz
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
 from auth import auth_required, cron_or_auth_required, get_current_user, get_user_by_id
-try:
-    from services.serp_service import get_serp_json
-except Exception as _e_serp_import:
-    get_serp_json = None  # type: ignore
-    import traceback
-    logging.getLogger(__name__).error(
-        f"[Manual AI] ❌ SERP service import FAILED: {_e_serp_import}"
-    )
-    logging.getLogger(__name__).error(
-        f"[Manual AI] ❌ Traceback: {traceback.format_exc()}"
-    )
-    logging.getLogger(__name__).warning(
-        "[Manual AI] ⚠️ SERP features will be DISABLED until this is fixed."
-    )
+
+# LAZY IMPORT: No importar get_serp_json aquí para evitar problemas de orden de importación
+# Se importará cuando se necesite dentro de las funciones
 try:
     from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
 except Exception as _e_ai_import:
@@ -1734,11 +1723,12 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id
                 else:
                     # 2. Obtener SERP con reintentos y backoff (tolerancia a 429/timeout)
                     
-                    # Verificar que get_serp_json esté disponible
-                    if get_serp_json is None:
+                    # Importar get_serp_json de manera lazy
+                    try:
+                        from services.serp_service import get_serp_json
+                    except Exception as e:
                         logger.error(f"❌ SERP service not available (import failed) for keyword '{keyword}' in project {project_id}")
-                        logger.error("❌ CAUSA: El módulo services.serp_service no pudo importarse durante el inicio.")
-                        logger.error("❌ SOLUCIÓN: Revisar logs de startup para ver el error de importación y reiniciar el servidor.")
+                        logger.error(f"❌ Error: {e}")
                         failed_keywords += 1
                         continue
                     
