@@ -3427,6 +3427,14 @@ def initialize_database_on_startup():
 # Registrar Manual AI System siempre (no solo en __main__)
 register_manual_ai_system()
 
+# Registrar endpoint de diagnóstico
+try:
+    from diagnostic_endpoint import diagnostic_bp
+    app.register_blueprint(diagnostic_bp)
+    logger.info("✅ Diagnostic endpoint registered at /diagnostic/imports")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register diagnostic endpoint: {e}")
+
 # ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
 def register_billing_routes():
     """Register Billing Routes for SaaS self-service flow"""
