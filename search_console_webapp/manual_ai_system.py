@@ -16,16 +16,8 @@ import pytz
 from database import get_db_connection
 from auth import auth_required, cron_or_auth_required, get_current_user, get_user_by_id
 
-# LAZY IMPORT: No importar get_serp_json aquí para evitar problemas de orden de importación
-# Se importará cuando se necesite dentro de las funciones
-try:
-    from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
-except Exception as _e_ai_import:
-    detect_ai_overview_elements = None  # type: ignore
-    run_ai_analysis_on_serp = None  # type: ignore
-    logging.getLogger(__name__).warning(
-        f"[Manual AI] AI analysis import failed: {_e_ai_import}. Analysis features will be disabled until fixed."
-    )
+# LAZY IMPORT: No importar get_serp_json ni detect_ai_overview_elements aquí
+# Se importarán cuando se necesiten dentro de las funciones para evitar problemas de orden de importación
 from services.utils import extract_domain, normalize_search_console_url
 try:
     from services.ai_cache import ai_cache
@@ -1784,6 +1776,15 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id
                     serp_data = fetch_serp()
 
                     # 3. Analizar AI Overview usando servicio existente
+                    # Importar detect_ai_overview_elements de manera lazy
+                    try:
+                        from services.ai_analysis import detect_ai_overview_elements
+                    except Exception as e:
+                        logger.error(f"❌ AI analysis service not available for keyword '{keyword}' in project {project_id}")
+                        logger.error(f"❌ Error: {e}")
+                        failed_keywords += 1
+                        continue
+                    
                     ai_result = detect_ai_overview_elements(serp_data, project['domain'])
                     
                     # 5. Guardar en caché (igual que sistema automático)
