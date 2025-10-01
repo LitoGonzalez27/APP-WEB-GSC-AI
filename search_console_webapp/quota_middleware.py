@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 CALL_CACHE = {}
 CACHE_DURATION = 3600  # 1 hora
 
+# Thread-local storage para contexto de usuario en cron jobs
+import threading
+_thread_local = threading.local()
+
 def _get_cache_key(params: dict) -> str:
     """Genera una clave de caché única para los parámetros SERP"""
     # Excluir api_key del cache key por seguridad
@@ -62,14 +66,27 @@ def _mark_call_cached(params: dict):
     cache_key = _get_cache_key(params)
     CALL_CACHE[cache_key] = time.time()
 
+def set_thread_user_id(user_id: int):
+    """Establece el user_id en el contexto del thread actual (para cron jobs)"""
+    _thread_local.user_id = user_id
+
+def clear_thread_user_id():
+    """Limpia el user_id del contexto del thread actual"""
+    if hasattr(_thread_local, 'user_id'):
+        delattr(_thread_local, 'user_id')
+
 def get_current_user_id() -> Optional[int]:
-    """Obtiene el ID del usuario actual desde la sesión Flask"""
+    """Obtiene el ID del usuario actual desde la sesión Flask o thread local"""
     try:
-        # Intentar obtener desde Flask g (si está disponible)
+        # PRIORIDAD 1: Thread local (para cron jobs)
+        if hasattr(_thread_local, 'user_id'):
+            return _thread_local.user_id
+        
+        # PRIORIDAD 2: Flask g (si está disponible)
         if hasattr(g, 'user_id'):
             return g.user_id
         
-        # Intentar obtener desde la sesión
+        # PRIORIDAD 3: Intentar obtener desde la sesión
         if 'user_id' in session:
             return session['user_id']
         
