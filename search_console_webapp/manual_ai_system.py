@@ -14,13 +14,20 @@ import pytz
 
 # Reutilizar servicios existentes (sin modificarlos)
 from database import get_db_connection
-from auth import auth_required, cron_or_auth_required, get_current_user
+from auth import auth_required, cron_or_auth_required, get_current_user, get_user_by_id
 try:
     from services.serp_service import get_serp_json
 except Exception as _e_serp_import:
     get_serp_json = None  # type: ignore
+    import traceback
+    logging.getLogger(__name__).error(
+        f"[Manual AI] ❌ SERP service import FAILED: {_e_serp_import}"
+    )
+    logging.getLogger(__name__).error(
+        f"[Manual AI] ❌ Traceback: {traceback.format_exc()}"
+    )
     logging.getLogger(__name__).warning(
-        f"[Manual AI] SERP service import failed: {_e_serp_import}. SERP features will be disabled until fixed."
+        "[Manual AI] ⚠️ SERP features will be DISABLED until this is fixed."
     )
 try:
     from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
@@ -1631,7 +1638,7 @@ def add_keywords_to_project_db(project_id: int, keywords_list: List[str]) -> int
     
     return added_count
 
-def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List[Dict]:
+def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id: int = None) -> List[Dict]:
     """
     Ejecutar análisis completo de todas las keywords activas de un proyecto
     
@@ -1639,9 +1646,16 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
         project_id: ID del proyecto a analizar
         force_overwrite: Si True, sobreescribe resultados existentes del día (para análisis manual)
                         Si False, omite keywords ya analizadas hoy (para análisis automático)
+        user_id: ID del usuario (opcional). Si no se proporciona, se obtiene de la sesión actual.
     """
     # Obtener usuario actual para validación de cuota
-    current_user = get_current_user()
+    if user_id:
+        # Si se proporciona user_id directamente (caso de cron), obtenerlo de la BD
+        current_user = get_user_by_id(user_id)
+    else:
+        # Si no se proporciona, obtenerlo de la sesión (caso de petición HTTP normal)
+        current_user = get_current_user()
+    
     if not current_user:
         logger.error(f"Intento de análisis sin usuario autenticado para proyecto {project_id}")
         return {'success': False, 'error': 'User not authenticated'}
@@ -1719,6 +1733,15 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False) -> List
                     ai_result = cached_result['analysis'].get('ai_analysis', {})
                 else:
                     # 2. Obtener SERP con reintentos y backoff (tolerancia a 429/timeout)
+                    
+                    # Verificar que get_serp_json esté disponible
+                    if get_serp_json is None:
+                        logger.error(f"❌ SERP service not available (import failed) for keyword '{keyword}' in project {project_id}")
+                        logger.error("❌ CAUSA: El módulo services.serp_service no pudo importarse durante el inicio.")
+                        logger.error("❌ SOLUCIÓN: Revisar logs de startup para ver el error de importación y reiniciar el servidor.")
+                        failed_keywords += 1
+                        continue
+                    
                     api_key = os.getenv('SERPAPI_KEY')
                     if not api_key:
                         logger.error(f"❌ SERPAPI_KEY not configured for keyword '{keyword}' in project {project_id}")
@@ -2065,8 +2088,8 @@ def run_daily_analysis_for_all_projects():
                 
                 logger.info(f"🚀 Starting daily analysis for project {project_dict['id']} ({project_dict['name']}) - {project_dict['keyword_count']} keywords")
                 
-                # Ejecutar análisis automático (sin sobreescritura)
-                results = run_project_analysis(project_dict['id'], force_overwrite=False)
+                # Ejecutar análisis automático (sin sobreescritura), pasando el user_id para evitar acceso a session
+                results = run_project_analysis(project_dict['id'], force_overwrite=False, user_id=project_dict['user_id'])
                 total_keywords_processed += len(results)
                 
                 # Crear snapshot diario
