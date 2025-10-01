@@ -19,8 +19,15 @@ try:
     from services.serp_service import get_serp_json
 except Exception as _e_serp_import:
     get_serp_json = None  # type: ignore
+    import traceback
+    logging.getLogger(__name__).error(
+        f"[Manual AI] ❌ SERP service import FAILED: {_e_serp_import}"
+    )
+    logging.getLogger(__name__).error(
+        f"[Manual AI] ❌ Traceback: {traceback.format_exc()}"
+    )
     logging.getLogger(__name__).warning(
-        f"[Manual AI] SERP service import failed: {_e_serp_import}. SERP features will be disabled until fixed."
+        "[Manual AI] ⚠️ SERP features will be DISABLED until this is fixed."
     )
 try:
     from services.ai_analysis import detect_ai_overview_elements, run_ai_analysis_on_serp
@@ -1726,6 +1733,15 @@ def run_project_analysis(project_id: int, force_overwrite: bool = False, user_id
                     ai_result = cached_result['analysis'].get('ai_analysis', {})
                 else:
                     # 2. Obtener SERP con reintentos y backoff (tolerancia a 429/timeout)
+                    
+                    # Verificar que get_serp_json esté disponible
+                    if get_serp_json is None:
+                        logger.error(f"❌ SERP service not available (import failed) for keyword '{keyword}' in project {project_id}")
+                        logger.error("❌ CAUSA: El módulo services.serp_service no pudo importarse durante el inicio.")
+                        logger.error("❌ SOLUCIÓN: Revisar logs de startup para ver el error de importación y reiniciar el servidor.")
+                        failed_keywords += 1
+                        continue
+                    
                     api_key = os.getenv('SERPAPI_KEY')
                     if not api_key:
                         logger.error(f"❌ SERPAPI_KEY not configured for keyword '{keyword}' in project {project_id}")
