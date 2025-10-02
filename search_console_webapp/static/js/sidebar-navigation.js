@@ -373,12 +373,17 @@ class SidebarNavigation {
                        window.currentAIOverviewData.analysis?.results?.length > 0);
     
     // Verificar que el contenedor de resultados está visible
+    // Más robusto: aceptar display vacío ('') o 'block', y verificar offsetParent
     const aiResults = document.getElementById('aiOverviewResultsContainer');
-    const resultsVisible = aiResults && 
-                          aiResults.style.display !== 'none' && 
-                          aiResults.children.length > 0;
+    const displayValue = aiResults?.style.display;
+    const isDisplayed = !displayValue || displayValue === '' || displayValue === 'block';
+    const hasContent = (aiResults?.children.length || 0) > 0;
+    const isInDOM = aiResults?.offsetParent !== null || aiResults?.style.display !== 'none';
     
-    const shouldShowPdf = isAISection && hasAIData && resultsVisible;
+    const resultsVisible = aiResults && isDisplayed && hasContent && isInDOM;
+    
+    // Criterio simplificado: si tenemos datos y estamos en AI section, mostrar
+    const shouldShowPdf = isAISection && hasAIData;
     
     console.log(`📄 [PDF BUTTON] Actualizando visibilidad:`, {
       currentSection: this.currentSection,
@@ -388,8 +393,12 @@ class SidebarNavigation {
       analysisResultsLength: window.currentAIOverviewData?.analysis?.results?.length || 0,
       hasAIData,
       aiResultsElement: !!aiResults,
-      resultsDisplay: aiResults?.style.display || 'N/A',
+      displayValue: displayValue || '(empty string)',
+      isDisplayed,
       resultsChildrenCount: aiResults?.children.length || 0,
+      hasContent,
+      offsetParent: !!aiResults?.offsetParent,
+      isInDOM,
       resultsVisible,
       shouldShow: shouldShowPdf
     });
