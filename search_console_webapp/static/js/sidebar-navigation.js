@@ -122,6 +122,17 @@ class SidebarNavigation {
       console.log('✅ Event listener agregado para botón de descarga Excel');
     }
 
+    // ✅ NUEVO: Event listener para botón de descarga PDF
+    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+    if (sidebarDownloadPdfBtn) {
+      sidebarDownloadPdfBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('🖱️ Click en botón de descarga PDF del sidebar');
+        this.handleDownloadPdfClick();
+      });
+      console.log('✅ Event listener agregado para botón de descarga PDF');
+    }
+
     // Event listeners para móvil
     if (this.toggleBtn) {
       this.toggleBtn.addEventListener('click', () => this.toggleMobileSidebar());
@@ -202,6 +213,9 @@ class SidebarNavigation {
     
     // ✅ NUEVO: Mostrar elementos internos de la sección
     this.showSectionInternalElements(section);
+    
+    // ✅ NUEVO: Actualizar visibilidad del botón PDF (solo visible en AI Overview con datos)
+    this.updatePdfButtonVisibility();
     
     // Cerrar sidebar móvil si está abierto
     this.closeMobileSidebar();
@@ -340,6 +354,56 @@ class SidebarNavigation {
         }
       }
     });
+
+    // ✅ NUEVO: Controlar visibilidad del botón PDF según disponibilidad de datos
+    this.updatePdfButtonVisibility();
+  }
+
+  // ✅ NUEVO: Actualizar visibilidad del botón PDF según contexto
+  updatePdfButtonVisibility() {
+    // El botón PDF solo se muestra si:
+    // 1. Estamos en la sección AI Overview
+    // 2. Y hay datos de AI Overview disponibles
+    
+    const isAISection = this.currentSection === 'ai-overview';
+    
+    // Verificar datos en window.currentAIOverviewData
+    const hasAIData = window.currentAIOverviewData && 
+                      (window.currentAIOverviewData.keywordResults?.length > 0 ||
+                       window.currentAIOverviewData.analysis?.results?.length > 0);
+    
+    // Verificar que el contenedor de resultados está visible
+    // Más robusto: aceptar display vacío ('') o 'block', y verificar offsetParent
+    const aiResults = document.getElementById('aiOverviewResultsContainer');
+    const displayValue = aiResults?.style.display;
+    const isDisplayed = !displayValue || displayValue === '' || displayValue === 'block';
+    const hasContent = (aiResults?.children.length || 0) > 0;
+    const isInDOM = aiResults?.offsetParent !== null || aiResults?.style.display !== 'none';
+    
+    const resultsVisible = aiResults && isDisplayed && hasContent && isInDOM;
+    
+    // Criterio simplificado: si tenemos datos y estamos en AI section, mostrar
+    const shouldShowPdf = isAISection && hasAIData;
+    
+    console.log(`📄 [PDF BUTTON] Actualizando visibilidad:`, {
+      currentSection: this.currentSection,
+      isAISection,
+      hasWindowData: !!window.currentAIOverviewData,
+      keywordResultsLength: window.currentAIOverviewData?.keywordResults?.length || 0,
+      analysisResultsLength: window.currentAIOverviewData?.analysis?.results?.length || 0,
+      hasAIData,
+      aiResultsElement: !!aiResults,
+      displayValue: displayValue || '(empty string)',
+      isDisplayed,
+      resultsChildrenCount: aiResults?.children.length || 0,
+      hasContent,
+      offsetParent: !!aiResults?.offsetParent,
+      isInDOM,
+      resultsVisible,
+      shouldShow: shouldShowPdf
+    });
+    
+    this.showPdfDownloadButton(shouldShowPdf);
   }
 
   // Estados de sección: 'disabled', 'ready', 'loading'
@@ -571,14 +635,31 @@ class SidebarNavigation {
     if (this.currentSection === 'ai-overview') {
       this.showSectionInternalElements('ai-overview');
     }
+    
+    // ✅ NUEVO: Actualizar visibilidad del botón PDF cuando hay datos listos
+    this.updatePdfButtonVisibility();
   }
 
   // ✅ NUEVO: Mostrar/ocultar botón de descarga Excel
   showDownloadButton(show = true) {
     const sidebarDownloadBtn = document.getElementById('sidebarDownloadBtn');
+    
     if (sidebarDownloadBtn) {
       sidebarDownloadBtn.style.display = show ? 'flex' : 'none';
       console.log(`📥 Botón de descarga Excel ${show ? 'mostrado' : 'ocultado'}`);
+    }
+  }
+
+  // ✅ NUEVO: Mostrar/ocultar botón de descarga PDF (solo para AI Overview)
+  showPdfDownloadButton(show = true) {
+    const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+    
+    if (sidebarDownloadPdfBtn) {
+      const currentDisplay = sidebarDownloadPdfBtn.style.display;
+      sidebarDownloadPdfBtn.style.display = show ? 'flex' : 'none';
+      console.log(`📄 [PDF BUTTON] ${show ? 'MOSTRANDO' : 'OCULTANDO'} botón PDF (display: ${currentDisplay} → ${show ? 'flex' : 'none'})`);
+    } else {
+      console.warn('⚠️ [PDF BUTTON] Elemento sidebarDownloadPdfBtn NO encontrado en el DOM');
     }
   }
 
@@ -824,6 +905,36 @@ class SidebarNavigation {
     }
   }
 
+  // ✅ NUEVO: Manejador para descarga de PDF
+  async handleDownloadPdfClick() {
+    console.log('📄 Iniciando descarga PDF desde sidebar...');
+    
+    // Verificar que estamos en la sección AI Overview
+    if (this.currentSection !== 'ai-overview') {
+      alert('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.');
+      return;
+    }
+
+    // Verificar que hay datos de AI Overview disponibles
+    const aiResults = document.getElementById('aiOverviewResultsContainer');
+    if (!aiResults || aiResults.style.display === 'none') {
+      alert('No AI Overview data to export. Please run an AI analysis first.');
+      return;
+    }
+
+    try {
+      // Importar dinámicamente el módulo de generación de PDF
+      const { generateAIOverviewPDF } = await import('./ui-ai-overview-pdf.js');
+      
+      // Llamar a la función de generación de PDF
+      await generateAIOverviewPDF();
+      
+    } catch (error) {
+      console.error('❌ Error al cargar o ejecutar el módulo de PDF:', error);
+      alert(`Error generating PDF: ${error.message}`);
+    }
+  }
+
   // Event dispatch para integración
   dispatchNavigationEvent(newSection, previousSection) {
     const event = new CustomEvent('sidebarNavigation', {
@@ -931,6 +1042,33 @@ function showSection(sectionName) {
   }
 }
 
+// ✅ NUEVO: Función para actualizar visibilidad del botón PDF
+function updatePdfButtonVisibility() {
+  if (sidebarNavigation) {
+    sidebarNavigation.updatePdfButtonVisibility();
+  }
+}
+
+// ✅ DEBUG: Función para forzar mostrar botón PDF (debug)
+function debugShowPdfButton() {
+  console.log('🔧 [DEBUG] Forzando mostrar botón PDF...');
+  const pdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+  if (pdfBtn) {
+    pdfBtn.style.display = 'flex';
+    console.log('✅ [DEBUG] Botón PDF forzado a mostrar');
+  } else {
+    console.error('❌ [DEBUG] Botón PDF NO encontrado en DOM');
+  }
+  
+  // Mostrar estado actual
+  console.log('📊 [DEBUG] Estado actual:', {
+    sidebarNav: !!sidebarNavigation,
+    currentSection: sidebarNavigation?.currentSection,
+    hasAIData: !!window.currentAIOverviewData,
+    aiDataKeys: window.currentAIOverviewData ? Object.keys(window.currentAIOverviewData) : []
+  });
+}
+
 // Hacer funciones disponibles globalmente para compatibilidad
 window.getSidebarNavigation = getSidebarNavigation;
 window.onAnalysisStart = onAnalysisStart;
@@ -940,6 +1078,8 @@ window.resetSidebar = resetSidebar;
 window.navigateToSection = navigateToSection;
 window.showSection = showSection;
 window.onContentReady = onContentReady;
+window.updatePdfButtonVisibility = updatePdfButtonVisibility;
+window.debugShowPdfButton = debugShowPdfButton;
 
 // ✅ Nueva función para habilitar secciones cuando el contenido esté listo
 function onContentReady(sectionName) {
