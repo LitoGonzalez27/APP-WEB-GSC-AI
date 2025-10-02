@@ -374,6 +374,15 @@ export async function runAIOverviewAnalysis(keywordData, siteUrl, buttonElement 
 
     displayAIOverviewResults(displayData);
     
+    // ✅ NUEVO: Actualizar visibilidad del botón PDF DESPUÉS de mostrar resultados
+    // Usar setTimeout para asegurar que el DOM se haya actualizado
+    if (typeof window.updatePdfButtonVisibility === 'function') {
+      setTimeout(() => {
+        window.updatePdfButtonVisibility();
+        console.log('[AI DEBUG] 📄 Botón PDF actualizado tras mostrar resultados en DOM');
+      }, 100);
+    }
+    
     if (statusElement) statusElement.textContent = 'Analysis complete';
     
     return displayData;

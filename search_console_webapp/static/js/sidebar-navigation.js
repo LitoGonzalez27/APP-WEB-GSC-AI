@@ -366,18 +366,30 @@ class SidebarNavigation {
     // 2. Y hay datos de AI Overview disponibles
     
     const isAISection = this.currentSection === 'ai-overview';
+    
+    // Verificar datos en window.currentAIOverviewData
     const hasAIData = window.currentAIOverviewData && 
                       (window.currentAIOverviewData.keywordResults?.length > 0 ||
                        window.currentAIOverviewData.analysis?.results?.length > 0);
     
+    // Verificar que el contenedor de resultados está visible
     const aiResults = document.getElementById('aiOverviewResultsContainer');
-    const resultsVisible = aiResults && aiResults.style.display !== 'none';
+    const resultsVisible = aiResults && 
+                          aiResults.style.display !== 'none' && 
+                          aiResults.children.length > 0;
     
     const shouldShowPdf = isAISection && hasAIData && resultsVisible;
     
-    console.log(`📄 Actualizando visibilidad botón PDF:`, {
+    console.log(`📄 [PDF BUTTON] Actualizando visibilidad:`, {
+      currentSection: this.currentSection,
       isAISection,
+      hasWindowData: !!window.currentAIOverviewData,
+      keywordResultsLength: window.currentAIOverviewData?.keywordResults?.length || 0,
+      analysisResultsLength: window.currentAIOverviewData?.analysis?.results?.length || 0,
       hasAIData,
+      aiResultsElement: !!aiResults,
+      resultsDisplay: aiResults?.style.display || 'N/A',
+      resultsChildrenCount: aiResults?.children.length || 0,
       resultsVisible,
       shouldShow: shouldShowPdf
     });
@@ -634,8 +646,11 @@ class SidebarNavigation {
     const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
     
     if (sidebarDownloadPdfBtn) {
+      const currentDisplay = sidebarDownloadPdfBtn.style.display;
       sidebarDownloadPdfBtn.style.display = show ? 'flex' : 'none';
-      console.log(`📄 Botón de descarga PDF ${show ? 'mostrado' : 'ocultado'}`);
+      console.log(`📄 [PDF BUTTON] ${show ? 'MOSTRANDO' : 'OCULTANDO'} botón PDF (display: ${currentDisplay} → ${show ? 'flex' : 'none'})`);
+    } else {
+      console.warn('⚠️ [PDF BUTTON] Elemento sidebarDownloadPdfBtn NO encontrado en el DOM');
     }
   }
 
@@ -1025,6 +1040,26 @@ function updatePdfButtonVisibility() {
   }
 }
 
+// ✅ DEBUG: Función para forzar mostrar botón PDF (debug)
+function debugShowPdfButton() {
+  console.log('🔧 [DEBUG] Forzando mostrar botón PDF...');
+  const pdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+  if (pdfBtn) {
+    pdfBtn.style.display = 'flex';
+    console.log('✅ [DEBUG] Botón PDF forzado a mostrar');
+  } else {
+    console.error('❌ [DEBUG] Botón PDF NO encontrado en DOM');
+  }
+  
+  // Mostrar estado actual
+  console.log('📊 [DEBUG] Estado actual:', {
+    sidebarNav: !!sidebarNavigation,
+    currentSection: sidebarNavigation?.currentSection,
+    hasAIData: !!window.currentAIOverviewData,
+    aiDataKeys: window.currentAIOverviewData ? Object.keys(window.currentAIOverviewData) : []
+  });
+}
+
 // Hacer funciones disponibles globalmente para compatibilidad
 window.getSidebarNavigation = getSidebarNavigation;
 window.onAnalysisStart = onAnalysisStart;
@@ -1035,6 +1070,7 @@ window.navigateToSection = navigateToSection;
 window.showSection = showSection;
 window.onContentReady = onContentReady;
 window.updatePdfButtonVisibility = updatePdfButtonVisibility;
+window.debugShowPdfButton = debugShowPdfButton;
 
 // ✅ Nueva función para habilitar secciones cuando el contenido esté listo
 function onContentReady(sectionName) {
