@@ -50,7 +50,8 @@ export function createUrlKeywordsGridTable(keywordsData, hasComparison = false, 
         columns: columns,
         data: data,
         pagination: {
-            limit: 10
+            limit: 50,  // ✅ OPTIMIZADO: Mostrar 50 keywords por página (antes 10)
+            summary: true  // ✅ NUEVO: Mostrar "Showing X to Y of Z results"
         },
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
         search: true,
@@ -58,6 +59,19 @@ export function createUrlKeywordsGridTable(keywordsData, hasComparison = false, 
         style: {
             table: {
                 'white-space': 'normal'
+            }
+        },
+        language: {
+            'search': {
+                'placeholder': '🔍 Search keywords...'
+            },
+            'pagination': {
+                'previous': '⬅️',
+                'next': '➡️',
+                'showing': '🔍 Showing',
+                'of': 'of',
+                'to': 'to',
+                'results': 'keywords'
             }
         }
     });

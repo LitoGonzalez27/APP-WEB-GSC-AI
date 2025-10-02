@@ -264,6 +264,12 @@ class AIResetManager {
       window.currentAIOverviewData = null;
     }
 
+    // ✅ NUEVO: Ocultar botón PDF al resetear análisis
+    if (typeof window.updatePdfButtonVisibility === 'function') {
+      window.updatePdfButtonVisibility();
+      console.log('🧹 Botón PDF ocultado tras reset');
+    }
+
     console.log('🧹 AI content reset completed');
   }
 

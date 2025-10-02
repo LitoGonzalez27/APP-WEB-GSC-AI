@@ -207,6 +207,13 @@
     description: 'Learn how to read AI Overview and its key metrics.'
   });
 
+  // Registro de Manual AI con video tutorial
+  registerVideo('manual-ai', {
+    youtubeUrl: 'https://www.youtube.com/embed/CmPV-P3Hs-0',
+    title: 'Manual AI: Tutorial Completo',
+    description: 'Aprende a usar el análisis Manual AI Overview paso a paso.'
+  });
+
   // Escuchar navegación del sidebar y disparar el popup en AI Overview
   document.addEventListener('sidebarNavigation', (e) => {
     const section = e && e.detail && e.detail.newSection;
@@ -222,6 +229,22 @@
       }
     }
   });
+
+  // Disparar popup de Manual AI cuando se carga la página de Manual AI
+  if (window.location.pathname.includes('/manual-ai/')) {
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        // Esperar un poco más para que todo cargue
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(() => showForSection('manual-ai', 3000));
+        } else {
+          setTimeout(() => showForSection('manual-ai', 3000), 0);
+        }
+      } catch (err) {
+        showForSection('manual-ai', 3000);
+      }
+    });
+  }
 })();
 
 
