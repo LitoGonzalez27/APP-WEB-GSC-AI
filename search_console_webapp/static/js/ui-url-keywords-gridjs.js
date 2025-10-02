@@ -50,8 +50,8 @@ export function createUrlKeywordsGridTable(keywordsData, hasComparison = false, 
         columns: columns,
         data: data,
         pagination: {
-            limit: 50,  // ✅ OPTIMIZADO: Mostrar 50 keywords por página (antes 10)
-            summary: true  // ✅ NUEVO: Mostrar "Showing X to Y of Z results"
+            limit: 10,  // ✅ OPTIMIZADO: 10 por página para carga rápida inicial
+            summary: true  // ✅ Mostrar "Showing X to Y of Z results"
         },
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
         search: true,

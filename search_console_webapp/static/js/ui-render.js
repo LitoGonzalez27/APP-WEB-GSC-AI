@@ -2098,7 +2098,7 @@ function renderErrorState(modalBody, error) {
   modalBody.innerHTML = errorHTML;
 }
 
-// ✅ MIGRADO A GRID.JS: Función para renderizar los datos en el modal
+// ✅ MIGRADO A GRID.JS: Función para renderizar los datos en el modal con carga progresiva
 function renderUrlKeywordsData(data) {
   const modalBody = document.getElementById('keywordModalBody-url');
   if (!modalBody) return;
@@ -2120,7 +2120,7 @@ function renderUrlKeywordsData(data) {
   const infoHTML = `
     <div class="url-keywords-info" style="margin-bottom: 1em; padding: 1em; background: #f8f9fa; border-radius: 5px;">
       <p><strong>Analyzed URL:</strong> ${escapeHtml(data.url)}</p>
-      <p><strong>Keywords found:</strong> ${keywords.length}</p>
+      <p><strong>Keywords found:</strong> ${keywords.length} ${keywords.length > 10 ? '<span style="color: #17a2b8; font-size: 0.9em;">(loading progressively...)</span>' : ''}</p>
       <p><strong>Period:</strong> ${data.periods.current.label}</p>
       ${hasComparison ? `<p><strong>Comparing with:</strong> ${data.periods.comparison.label}</p>` : ''}
     </div>
@@ -2133,9 +2133,72 @@ function renderUrlKeywordsData(data) {
   modalBody.innerHTML = '';
   modalBody.appendChild(gridContainer);
   
-  // Crear tabla Grid.js para keywords del modal
+  // ✅ OPTIMIZACIÓN: Carga progresiva para mejor rendimiento
   try {
-    createUrlKeywordsGridTable(keywords, hasComparison, modalBody);
+    if (keywords.length <= 10) {
+      // Si hay 10 o menos, cargar todo de una vez
+      console.log('⚡ [PROGRESSIVE LOAD] Pocas keywords, cargando todas:', keywords.length);
+      createUrlKeywordsGridTable(keywords, hasComparison, modalBody);
+    } else {
+      // Si hay más de 10, cargar progresivamente
+      console.log('⚡ [PROGRESSIVE LOAD] Muchas keywords, carga progresiva:', keywords.length);
+      
+      // Cargar primeras 10 inmediatamente para respuesta rápida
+      const initialBatch = keywords.slice(0, 10);
+      const gridInstance = createUrlKeywordsGridTable(initialBatch, hasComparison, modalBody);
+      
+      console.log('✅ [PROGRESSIVE LOAD] Primeras 10 keywords cargadas inmediatamente');
+      
+      // Cargar el resto en lotes de 20 en segundo plano
+      const batchSize = 20;
+      let currentIndex = 10;
+      
+      const loadNextBatch = () => {
+        if (currentIndex >= keywords.length) {
+          console.log('✅ [PROGRESSIVE LOAD] Todas las keywords cargadas');
+          
+          // Actualizar info sin el mensaje de carga
+          const infoBox = document.querySelector('.url-keywords-info');
+          if (infoBox) {
+            infoBox.innerHTML = `
+              <p><strong>Analyzed URL:</strong> ${escapeHtml(data.url)}</p>
+              <p><strong>Keywords found:</strong> ${keywords.length}</p>
+              <p><strong>Period:</strong> ${data.periods.current.label}</p>
+              ${hasComparison ? `<p><strong>Comparing with:</strong> ${data.periods.comparison.label}</p>` : ''}
+            `;
+          }
+          return;
+        }
+        
+        const endIndex = Math.min(currentIndex + batchSize, keywords.length);
+        const batchKeywords = keywords.slice(0, endIndex);
+        
+        console.log(`⚡ [PROGRESSIVE LOAD] Cargando lote: ${currentIndex} a ${endIndex} (${endIndex} / ${keywords.length})`);
+        
+        // Actualizar Grid.js con más datos
+        if (gridInstance && gridInstance.updateConfig) {
+          try {
+            // Actualizar los datos manteniendo la configuración
+            gridInstance.updateConfig({
+              data: processKeywordsForGridUpdate(batchKeywords, hasComparison)
+            }).forceRender();
+          } catch (updateError) {
+            console.warn('⚠️ Error actualizando Grid.js, recreando:', updateError);
+            // Si falla la actualización, recrear con todos los datos hasta ahora
+            createUrlKeywordsGridTable(batchKeywords, hasComparison, modalBody);
+          }
+        }
+        
+        currentIndex = endIndex;
+        
+        // Siguiente lote después de un pequeño delay (para no bloquear UI)
+        setTimeout(loadNextBatch, 50); // 50ms entre lotes
+      };
+      
+      // Iniciar carga del resto después de que se muestre lo inicial
+      setTimeout(loadNextBatch, 100);
+    }
+    
     console.log('✅ Grid.js para modal de keywords creado exitosamente');
   } catch (error) {
     console.error('❌ Error al crear Grid.js para modal de keywords:', error);
@@ -2149,6 +2212,84 @@ function renderUrlKeywordsData(data) {
       </div>
     `;
   }
+}
+
+// ✅ HELPER: Procesar keywords para actualización de Grid.js (simplificado)
+function processKeywordsForGridUpdate(keywords, hasComparison) {
+  // Procesar datos de manera similar a ui-url-keywords-gridjs.js
+  // pero sin las columnas, solo los datos ya procesados
+  
+  const data = keywords.map(keyword => {
+    const rowData = [
+      '', // Columna SERP (será reemplazada por el formatter)
+      keyword.keyword || keyword.query || ''
+    ];
+
+    // Función helper para formatear
+    const formatInt = (val) => {
+      if (val == null || val === undefined) return '0';
+      return Math.round(val).toLocaleString('en-US');
+    };
+    
+    const formatPct = (val) => {
+      if (val == null || val === undefined) return '0.00';
+      return Number(val).toFixed(2);
+    };
+    
+    const formatPos = (val) => {
+      if (val == null || val === undefined || val === 0) return 0;
+      return Number(val).toFixed(1);
+    };
+    
+    const calcDelta = (current, previous, type) => {
+      if (previous === 0 || previous == null) {
+        return current > 0 ? 'New' : '0';
+      }
+      if (type === 'position') {
+        const delta = current - previous;
+        return delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta.toFixed(1);
+      }
+      const change = ((current - previous) / previous) * 100;
+      return change === 0 ? '0' : (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+    };
+
+    // Añadir datos según si hay comparación
+    rowData.push(formatInt(keyword.clicks_m1 ?? keyword.clicks_p1 ?? 0));
+    
+    if (hasComparison) {
+      rowData.push(formatInt(keyword.clicks_m2 ?? keyword.clicks_p2 ?? 0));
+      rowData.push(calcDelta(keyword.clicks_m1 ?? keyword.clicks_p1 ?? 0, keyword.clicks_m2 ?? keyword.clicks_p2 ?? 0, 'clicks'));
+    }
+    
+    rowData.push(formatInt(keyword.impressions_m1 ?? keyword.impressions_p1 ?? 0));
+    
+    if (hasComparison) {
+      rowData.push(formatInt(keyword.impressions_m2 ?? keyword.impressions_p2 ?? 0));
+      rowData.push(calcDelta(keyword.impressions_m1 ?? keyword.impressions_p1 ?? 0, keyword.impressions_m2 ?? keyword.impressions_p2 ?? 0, 'impressions'));
+    }
+    
+    rowData.push(formatPct(keyword.ctr_m1 ?? keyword.ctr_p1));
+    
+    if (hasComparison) {
+      rowData.push(formatPct(keyword.ctr_m2 ?? keyword.ctr_p2));
+      rowData.push(calcDelta(keyword.ctr_m1 ?? keyword.ctr_p1 ?? 0, keyword.ctr_m2 ?? keyword.ctr_p2 ?? 0, 'ctr'));
+    }
+    
+    const pos1 = keyword.position_m1 ?? keyword.position_p1;
+    const pos1Numeric = (pos1 == null || isNaN(pos1)) ? 0 : Number(pos1);
+    rowData.push(pos1Numeric);
+    
+    if (hasComparison) {
+      const pos2 = keyword.position_m2 ?? keyword.position_p2;
+      const pos2Numeric = (pos2 == null || isNaN(pos2)) ? 0 : Number(pos2);
+      rowData.push(pos2Numeric);
+      rowData.push(calcDelta(pos1Numeric, pos2Numeric, 'position'));
+    }
+
+    return rowData;
+  });
+
+  return data;
 }
 
 // ✅ NUEVO: Función para crear filas de keywords
