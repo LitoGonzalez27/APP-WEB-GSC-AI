@@ -2496,9 +2496,14 @@ def get_url_keywords():
         if not current_start_date or not current_end_date:
             return jsonify({'error': 'Dates are required'}), 400
         
-        logger.info(f"[URL KEYWORDS] Buscando keywords para URL: {target_url}")
-        logger.info(f"[URL KEYWORDS] Site URL: {site_url_sc}")
-        logger.info(f"[URL KEYWORDS] Usuario: {get_current_user()['id']}")
+        logger.info(f"[URL KEYWORDS] 🔍 Buscando keywords para URL: {target_url}")
+        logger.info(f"[URL KEYWORDS] 🌐 Site URL: {site_url_sc}")
+        logger.info(f"[URL KEYWORDS] 👤 Usuario: {get_current_user()['id']}")
+        logger.info(f"[URL KEYWORDS] 📅 Período actual: {current_start_date} → {current_end_date}")
+        if has_comparison:
+            logger.info(f"[URL KEYWORDS] 📅 Período comparación: {comparison_start_date} → {comparison_end_date}")
+        else:
+            logger.info(f"[URL KEYWORDS] ⚠️ Sin comparación de períodos")
         
         # ✅ ARREGLO: Usar la misma lógica de autenticación que el endpoint principal
         gsc_service = None

@@ -311,6 +311,9 @@ export async function handleFormSubmit(e) {
     }
 
     window.currentData = data;
+    
+    // ✅ NUEVO: Notificar que se inició un nuevo análisis (para limpiar cachés)
+    document.dispatchEvent(new CustomEvent('newAnalysisStarted', { detail: { timestamp: Date.now() } }));
 
     // ✅ NUEVO: Procesar información del modo de análisis
     if (data.analysis_info) {

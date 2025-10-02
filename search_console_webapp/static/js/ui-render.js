@@ -1772,6 +1772,110 @@ function escapeHtml(text) {
 window.openKeywordModal = openKeywordModal;
 window.closeKeywordModal = closeKeywordModal;
 
+// ✅ SISTEMA DE CACHÉ para keywords por URL
+const urlKeywordsCache = {
+  data: new Map(),
+  maxAge: 10 * 60 * 1000, // 10 minutos
+  
+  getCacheKey(url, periods) {
+    return `${url}|${periods.current?.start_date}|${periods.current?.end_date}|${periods.has_comparison}|${periods.comparison?.start_date}`;
+  },
+  
+  get(url, periods) {
+    const key = this.getCacheKey(url, periods);
+    const cached = this.data.get(key);
+    
+    if (!cached) return null;
+    
+    // Verificar si el caché expiró
+    if (Date.now() - cached.timestamp > this.maxAge) {
+      this.data.delete(key);
+      return null;
+    }
+    
+    console.log('⚡ [URL KEYWORDS CACHE] Datos encontrados en caché para:', url);
+    return cached.data;
+  },
+  
+  set(url, periods, data) {
+    const key = this.getCacheKey(url, periods);
+    this.data.set(key, {
+      data: data,
+      timestamp: Date.now()
+    });
+    console.log('💾 [URL KEYWORDS CACHE] Datos guardados en caché para:', url);
+  },
+  
+  clear() {
+    this.data.clear();
+    console.log('🧹 [URL KEYWORDS CACHE] Caché limpiado');
+  }
+};
+
+// Limpiar caché cuando se hace un nuevo análisis
+document.addEventListener('newAnalysisStarted', () => {
+  urlKeywordsCache.clear();
+});
+
+// ✅ NUEVO: Skeleton Loader para mejorar percepción de velocidad
+function createSkeletonLoader() {
+  return `
+    <div class="skeleton-loader-container" style="padding: 1em;">
+      <!-- Info skeleton -->
+      <div class="skeleton-box" style="height: 120px; margin-bottom: 1em; border-radius: 5px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+      
+      <!-- Search bar skeleton -->
+      <div class="skeleton-box" style="height: 40px; margin-bottom: 1em; border-radius: 5px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+      
+      <!-- Table skeleton -->
+      <div class="skeleton-table">
+        <!-- Header -->
+        <div class="skeleton-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+          <div class="skeleton-box" style="flex: 0 0 80px; height: 35px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+          <div class="skeleton-box" style="flex: 1; height: 35px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+          <div class="skeleton-box" style="flex: 0 0 100px; height: 35px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+          <div class="skeleton-box" style="flex: 0 0 100px; height: 35px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+          <div class="skeleton-box" style="flex: 0 0 100px; height: 35px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+        </div>
+        
+        <!-- Rows -->
+        ${Array.from({length: 8}, () => `
+          <div class="skeleton-row" style="display: flex; gap: 10px; margin-bottom: 8px;">
+            <div class="skeleton-box" style="flex: 0 0 80px; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+            <div class="skeleton-box" style="flex: 1; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+            <div class="skeleton-box" style="flex: 0 0 100px; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+            <div class="skeleton-box" style="flex: 0 0 100px; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+            <div class="skeleton-box" style="flex: 0 0 100px; height: 30px; border-radius: 3px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+          </div>
+        `).join('')}
+      </div>
+      
+      <!-- Pagination skeleton -->
+      <div class="skeleton-box" style="height: 40px; margin-top: 1em; border-radius: 5px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;"></div>
+    </div>
+    
+    <style>
+      @keyframes skeleton-loading {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+      
+      .skeleton-loader-container {
+        animation: fadeIn 0.3s ease-in;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    </style>
+  `;
+}
+
 // ✅ NUEVO: Función para abrir el modal de keywords por URL
 export function openUrlKeywordsModal(url) {
   console.log('🔍 Abriendo modal de keywords para URL:', url);
@@ -1789,15 +1893,10 @@ export function openUrlKeywordsModal(url) {
     modalTitle.innerHTML = `<i class="fas fa-search"></i> Keywords for: ${escapeHtml(url)}`;
   }
   
-  // Mostrar modal con loading
+  // ✅ OPTIMIZADO: Mostrar skeleton loader mientras carga
   const modalBody = document.getElementById('keywordModalBody-url');
   if (modalBody) {
-    modalBody.innerHTML = `
-      <div class="loading-container" style="text-align: center; padding: 2em;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #007bff;"></i>
-        <p style="margin-top: 1em; color: #666;">Getting keywords for this URL...</p>
-      </div>
-    `;
+    modalBody.innerHTML = createSkeletonLoader();
   }
   
   modal.classList.add('modal-open');
@@ -1807,8 +1906,27 @@ export function openUrlKeywordsModal(url) {
   const currentData = window.currentData || {};
   const periods = currentData.periods || {};
   
-  // Hacer petición al nuevo endpoint
+  // ✅ DEBUG: Verificar períodos antes de enviar
+  console.log('📅 [URL KEYWORDS] Períodos obtenidos de window.currentData:', {
+    hasPeriods: !!periods,
+    hasComparison: periods.has_comparison,
+    current: periods.current,
+    comparison: periods.comparison,
+    fullCurrentData: currentData
+  });
+  
+  // ✅ OPTIMIZACIÓN: Verificar si hay datos en caché
+  const cachedData = urlKeywordsCache.get(url, periods);
+  if (cachedData) {
+    console.log('⚡ [URL KEYWORDS] Usando datos desde caché - apertura instantánea');
+    renderUrlKeywordsData(cachedData);
+    return;
+  }
+  
+  // Si no hay caché, hacer petición al backend
   fetchUrlKeywords(url, periods).then(data => {
+    // Guardar en caché antes de renderizar
+    urlKeywordsCache.set(url, periods, data);
     renderUrlKeywordsData(data);
   }).catch(error => {
     console.error('Error obteniendo keywords:', error);
@@ -1852,6 +1970,14 @@ async function fetchUrlKeywords(url, periods) {
     comparison_end_date: periods.comparison?.end_date,
     has_comparison: periods.has_comparison || false
   };
+  
+  // ✅ DEBUG: Log del payload completo que se envía al backend
+  console.log('📤 [URL KEYWORDS] Enviando payload al backend:', payload);
+  console.log('📅 [URL KEYWORDS] Fechas enviadas:', {
+    current: `${payload.current_start_date} → ${payload.current_end_date}`,
+    comparison: payload.has_comparison ? `${payload.comparison_start_date} → ${payload.comparison_end_date}` : 'N/A',
+    hasComparison: payload.has_comparison
+  });
   
   const response = await fetch('/api/url-keywords', {
     method: 'POST',
@@ -1972,7 +2098,7 @@ function renderErrorState(modalBody, error) {
   modalBody.innerHTML = errorHTML;
 }
 
-// ✅ MIGRADO A GRID.JS: Función para renderizar los datos en el modal
+// ✅ MIGRADO A GRID.JS: Función para renderizar los datos en el modal con carga progresiva
 function renderUrlKeywordsData(data) {
   const modalBody = document.getElementById('keywordModalBody-url');
   if (!modalBody) return;
@@ -1994,7 +2120,7 @@ function renderUrlKeywordsData(data) {
   const infoHTML = `
     <div class="url-keywords-info" style="margin-bottom: 1em; padding: 1em; background: #f8f9fa; border-radius: 5px;">
       <p><strong>Analyzed URL:</strong> ${escapeHtml(data.url)}</p>
-      <p><strong>Keywords found:</strong> ${keywords.length}</p>
+      <p><strong>Keywords found:</strong> ${keywords.length} ${keywords.length > 10 ? '<span style="color: #17a2b8; font-size: 0.9em;">(loading progressively...)</span>' : ''}</p>
       <p><strong>Period:</strong> ${data.periods.current.label}</p>
       ${hasComparison ? `<p><strong>Comparing with:</strong> ${data.periods.comparison.label}</p>` : ''}
     </div>
@@ -2007,9 +2133,72 @@ function renderUrlKeywordsData(data) {
   modalBody.innerHTML = '';
   modalBody.appendChild(gridContainer);
   
-  // Crear tabla Grid.js para keywords del modal
+  // ✅ OPTIMIZACIÓN: Carga progresiva para mejor rendimiento
   try {
-    createUrlKeywordsGridTable(keywords, hasComparison, modalBody);
+    if (keywords.length <= 10) {
+      // Si hay 10 o menos, cargar todo de una vez
+      console.log('⚡ [PROGRESSIVE LOAD] Pocas keywords, cargando todas:', keywords.length);
+      createUrlKeywordsGridTable(keywords, hasComparison, modalBody);
+    } else {
+      // Si hay más de 10, cargar progresivamente
+      console.log('⚡ [PROGRESSIVE LOAD] Muchas keywords, carga progresiva:', keywords.length);
+      
+      // Cargar primeras 10 inmediatamente para respuesta rápida
+      const initialBatch = keywords.slice(0, 10);
+      const gridInstance = createUrlKeywordsGridTable(initialBatch, hasComparison, modalBody);
+      
+      console.log('✅ [PROGRESSIVE LOAD] Primeras 10 keywords cargadas inmediatamente');
+      
+      // Cargar el resto en lotes de 20 en segundo plano
+      const batchSize = 20;
+      let currentIndex = 10;
+      
+      const loadNextBatch = () => {
+        if (currentIndex >= keywords.length) {
+          console.log('✅ [PROGRESSIVE LOAD] Todas las keywords cargadas');
+          
+          // Actualizar info sin el mensaje de carga
+          const infoBox = document.querySelector('.url-keywords-info');
+          if (infoBox) {
+            infoBox.innerHTML = `
+              <p><strong>Analyzed URL:</strong> ${escapeHtml(data.url)}</p>
+              <p><strong>Keywords found:</strong> ${keywords.length}</p>
+              <p><strong>Period:</strong> ${data.periods.current.label}</p>
+              ${hasComparison ? `<p><strong>Comparing with:</strong> ${data.periods.comparison.label}</p>` : ''}
+            `;
+          }
+          return;
+        }
+        
+        const endIndex = Math.min(currentIndex + batchSize, keywords.length);
+        const batchKeywords = keywords.slice(0, endIndex);
+        
+        console.log(`⚡ [PROGRESSIVE LOAD] Cargando lote: ${currentIndex} a ${endIndex} (${endIndex} / ${keywords.length})`);
+        
+        // Actualizar Grid.js con más datos
+        if (gridInstance && gridInstance.updateConfig) {
+          try {
+            // Actualizar los datos manteniendo la configuración
+            gridInstance.updateConfig({
+              data: processKeywordsForGridUpdate(batchKeywords, hasComparison)
+            }).forceRender();
+          } catch (updateError) {
+            console.warn('⚠️ Error actualizando Grid.js, recreando:', updateError);
+            // Si falla la actualización, recrear con todos los datos hasta ahora
+            createUrlKeywordsGridTable(batchKeywords, hasComparison, modalBody);
+          }
+        }
+        
+        currentIndex = endIndex;
+        
+        // Siguiente lote después de un pequeño delay (para no bloquear UI)
+        setTimeout(loadNextBatch, 50); // 50ms entre lotes
+      };
+      
+      // Iniciar carga del resto después de que se muestre lo inicial
+      setTimeout(loadNextBatch, 100);
+    }
+    
     console.log('✅ Grid.js para modal de keywords creado exitosamente');
   } catch (error) {
     console.error('❌ Error al crear Grid.js para modal de keywords:', error);
@@ -2023,6 +2212,84 @@ function renderUrlKeywordsData(data) {
       </div>
     `;
   }
+}
+
+// ✅ HELPER: Procesar keywords para actualización de Grid.js (simplificado)
+function processKeywordsForGridUpdate(keywords, hasComparison) {
+  // Procesar datos de manera similar a ui-url-keywords-gridjs.js
+  // pero sin las columnas, solo los datos ya procesados
+  
+  const data = keywords.map(keyword => {
+    const rowData = [
+      '', // Columna SERP (será reemplazada por el formatter)
+      keyword.keyword || keyword.query || ''
+    ];
+
+    // Función helper para formatear
+    const formatInt = (val) => {
+      if (val == null || val === undefined) return '0';
+      return Math.round(val).toLocaleString('en-US');
+    };
+    
+    const formatPct = (val) => {
+      if (val == null || val === undefined) return '0.00';
+      return Number(val).toFixed(2);
+    };
+    
+    const formatPos = (val) => {
+      if (val == null || val === undefined || val === 0) return 0;
+      return Number(val).toFixed(1);
+    };
+    
+    const calcDelta = (current, previous, type) => {
+      if (previous === 0 || previous == null) {
+        return current > 0 ? 'New' : '0';
+      }
+      if (type === 'position') {
+        const delta = current - previous;
+        return delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta.toFixed(1);
+      }
+      const change = ((current - previous) / previous) * 100;
+      return change === 0 ? '0' : (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+    };
+
+    // Añadir datos según si hay comparación
+    rowData.push(formatInt(keyword.clicks_m1 ?? keyword.clicks_p1 ?? 0));
+    
+    if (hasComparison) {
+      rowData.push(formatInt(keyword.clicks_m2 ?? keyword.clicks_p2 ?? 0));
+      rowData.push(calcDelta(keyword.clicks_m1 ?? keyword.clicks_p1 ?? 0, keyword.clicks_m2 ?? keyword.clicks_p2 ?? 0, 'clicks'));
+    }
+    
+    rowData.push(formatInt(keyword.impressions_m1 ?? keyword.impressions_p1 ?? 0));
+    
+    if (hasComparison) {
+      rowData.push(formatInt(keyword.impressions_m2 ?? keyword.impressions_p2 ?? 0));
+      rowData.push(calcDelta(keyword.impressions_m1 ?? keyword.impressions_p1 ?? 0, keyword.impressions_m2 ?? keyword.impressions_p2 ?? 0, 'impressions'));
+    }
+    
+    rowData.push(formatPct(keyword.ctr_m1 ?? keyword.ctr_p1));
+    
+    if (hasComparison) {
+      rowData.push(formatPct(keyword.ctr_m2 ?? keyword.ctr_p2));
+      rowData.push(calcDelta(keyword.ctr_m1 ?? keyword.ctr_p1 ?? 0, keyword.ctr_m2 ?? keyword.ctr_p2 ?? 0, 'ctr'));
+    }
+    
+    const pos1 = keyword.position_m1 ?? keyword.position_p1;
+    const pos1Numeric = (pos1 == null || isNaN(pos1)) ? 0 : Number(pos1);
+    rowData.push(pos1Numeric);
+    
+    if (hasComparison) {
+      const pos2 = keyword.position_m2 ?? keyword.position_p2;
+      const pos2Numeric = (pos2 == null || isNaN(pos2)) ? 0 : Number(pos2);
+      rowData.push(pos2Numeric);
+      rowData.push(calcDelta(pos1Numeric, pos2Numeric, 'position'));
+    }
+
+    return rowData;
+  });
+
+  return data;
 }
 
 // ✅ NUEVO: Función para crear filas de keywords
