@@ -73,33 +73,50 @@ export function createUrlsGridTable(urlsData, analysisType = 'comparison', conta
         grid.render(document.getElementById('urls-grid-table'));
         console.log('✅ URLs Grid.js table rendered successfully');
         
-        // ✅ MEJORADO: Aplicar ordenamiento con verificaciones para evitar conflictos
+        // ✅ OPTIMIZADO: Aplicar ordenamiento por Clicks P1 (descendente) por defecto
+        // Estrategia múltiple para garantizar que siempre funcione
         setTimeout(() => {
             try {
-                // Verificar que la grid aún existe y está renderizada
+                console.log('🔄 [URLs] Intentando aplicar ordenamiento por Clicks P1...');
+                
+                // Método 1: Usar updateConfig (más limpio)
                 if (grid && grid.config && grid.config.data) {
                     grid.updateConfig({
                         sort: {
                             multiColumn: false,
-                            sortColumn: 2, // Clicks P1 siempre (índice 2)
+                            sortColumn: 2, // Clicks P1 (índice 2: columna 0=Keywords btn, 1=URL, 2=Clicks P1)
                             sortDirection: 'desc' // De mayor a menor
                         }
                     }).forceRender();
-                    console.log('🔄 URLs: Ordenamiento por Clics P1 (desc) aplicado programáticamente');
+                    console.log('✅ [URLs] Ordenamiento por Clicks P1 (desc) aplicado con updateConfig');
                 }
             } catch (sortError) {
-                console.warn('⚠️ URLs: No se pudo aplicar ordenamiento automático:', sortError);
-                // Fallback: usar clicks en header específico de URLs
-                const gridContainer = document.getElementById('urls-grid-table');
-                if (gridContainer) {
-                    const clicksHeader = gridContainer.querySelector('th:nth-child(3)');
-                    if (clicksHeader) {
-                        clicksHeader.click();
-                        setTimeout(() => clicksHeader.click(), 50);
+                console.warn('⚠️ [URLs] updateConfig falló, usando fallback:', sortError);
+                
+                // Método 2 (Fallback): Click manual en el header
+                try {
+                    const gridContainer = document.getElementById('urls-grid-table');
+                    if (gridContainer) {
+                        // Buscar el header de Clicks P1 (tercera columna: 0=Keywords, 1=URL, 2=Clicks P1)
+                        const clicksHeader = gridContainer.querySelector('th:nth-child(3)');
+                        if (clicksHeader) {
+                            console.log('🔄 [URLs] Usando método de click en header...');
+                            // Primer click: ordena ascendente
+                            clicksHeader.click();
+                            // Segundo click: ordena descendente (lo que queremos)
+                            setTimeout(() => {
+                                clicksHeader.click();
+                                console.log('✅ [URLs] Ordenamiento aplicado con click manual');
+                            }, 100);
+                        } else {
+                            console.warn('⚠️ [URLs] No se encontró header de Clicks P1');
+                        }
                     }
+                } catch (clickError) {
+                    console.error('❌ [URLs] Método de click también falló:', clickError);
                 }
             }
-        }, 600); // Delay diferente para evitar conflictos con Keywords
+        }, 300); // 300ms es suficiente para que Grid.js renderice
         
         return grid;
     } catch (error) {
