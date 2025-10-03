@@ -3399,9 +3399,15 @@ def group_keywords_by_clusters(keywords_results, clusters_config):
 def register_manual_ai_system():
     """Register Manual AI Analysis Blueprint safely"""
     try:
-        logger.info("🔎 Intentando importar manual_ai_system.manual_ai_bp...")
-        from manual_ai_system import manual_ai_bp
-        logger.info("📦 Importación exitosa de manual_ai_system.manual_ai_bp. Registrando blueprint...")
+        logger.info("🔎 Intentando importar Manual AI a través del bridge...")
+        from manual_ai_system_bridge import manual_ai_bp, USING_NEW_SYSTEM
+        
+        if USING_NEW_SYSTEM:
+            logger.info("📦 Usando el NUEVO sistema modular de Manual AI")
+        else:
+            logger.info("📦 Usando el sistema ORIGINAL de Manual AI (fallback)")
+        
+        logger.info("Registrando blueprint...")
         app.register_blueprint(manual_ai_bp)
         logger.info("✅ Manual AI Analysis system registered successfully")
         return True

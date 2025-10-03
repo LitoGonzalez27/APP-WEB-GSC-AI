@@ -21,9 +21,6 @@ def download_manual_ai_excel(project_id):
     """
     Generar y descargar Excel con datos de Manual AI
     
-    NOTA: Esta ruta aún usa el sistema original para generación de Excel
-    Se puede refactorizar más adelante si es necesario
-    
     Args:
         project_id: ID del proyecto
     
@@ -44,8 +41,9 @@ def download_manual_ai_excel(project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:
-        # Importar del sistema original (por ahora)
-        from manual_ai_system import generate_manual_ai_excel, get_project_info
+        from manual_ai.services.export_service import ExportService
+        from manual_ai.models.project_repository import ProjectRepository
+        from manual_ai.models.result_repository import ResultRepository
         from flask import send_file
         import pytz
         from datetime import datetime
@@ -55,7 +53,8 @@ def download_manual_ai_excel(project_id):
         days = int(data.get('days', 30))
         
         # Obtener información del proyecto
-        project_info = get_project_info(project_id)
+        project_repo = ProjectRepository()
+        project_info = project_repo.get_project_info(project_id)
         if not project_info:
             logger.error(f"Project {project_id} not found for user {user['id']}")
             return jsonify({'success': False, 'error': 'Project not found'}), 404
@@ -63,7 +62,6 @@ def download_manual_ai_excel(project_id):
         logger.info(f"Project info retrieved: {project_info['name']} ({project_info['domain']})")
         
         # Verificar que hay datos para exportar
-        from manual_ai.models.result_repository import ResultRepository
         result_repo = ResultRepository()
         results = result_repo.get_project_results(project_id, days)
         
@@ -72,7 +70,8 @@ def download_manual_ai_excel(project_id):
         
         # Generar Excel
         logger.info(f"Generating Manual AI Excel for project {project_id}, user {user['id']}, days {days}")
-        xlsx_file = generate_manual_ai_excel(
+        export_service = ExportService()
+        xlsx_file = export_service.generate_manual_ai_excel(
             project_id=project_id,
             project_info=project_info,
             days=days,
