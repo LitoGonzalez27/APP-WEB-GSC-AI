@@ -1494,22 +1494,18 @@ keyword 3"></textarea>
         };
         console.log('👤 Usuario Manual AI:', window.currentUser);
         
-        // Inicializar sistema cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verificar que estamos en la página correcta
-            if (window.location.pathname.includes('/manual-ai/')) {
-                window.manualAI = new ManualAISystem();
-                
-                // Inicializar sidebar específico para Manual AI
-                initManualAISidebar();
-                
-                // Asegurar que el navbar esté inicializado (para logout)
-                if (typeof Navbar !== 'undefined') {
-                    console.log('🔧 Inicializando navbar para Manual AI');
-                    window.navbar = new Navbar();
-                }
+        // La inicialización de ManualAISystem la maneja el módulo manual-ai-system-modular.js
+        // Esta función se llamará después de que el sistema se inicialice
+        window.initManualAIComponents = function() {
+            // Inicializar sidebar específico para Manual AI
+            initManualAISidebar();
+            
+            // Asegurar que el navbar esté inicializado (para logout)
+            if (typeof Navbar !== 'undefined') {
+                console.log('🔧 Inicializando navbar para Manual AI');
+                window.navbar = new Navbar();
             }
-        });
+        };
     </script>
 </body>
 </html>
