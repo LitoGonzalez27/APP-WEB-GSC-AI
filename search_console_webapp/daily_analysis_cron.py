@@ -27,8 +27,13 @@ def main():
     try:
         logger.info("🕒 === MANUAL AI CRON JOB STARTED ===")
         
-        # Importar la función de análisis diario
-        from manual_ai_system import run_daily_analysis_for_all_projects
+        # Importar la función de análisis diario a través del bridge
+        from manual_ai_system_bridge import run_daily_analysis_for_all_projects, USING_NEW_SYSTEM
+        
+        if USING_NEW_SYSTEM:
+            logger.info("📦 Usando el NUEVO sistema modular de Manual AI")
+        else:
+            logger.info("📦 Usando el sistema ORIGINAL de Manual AI (fallback)")
         
         # Ejecutar análisis diario
         result = run_daily_analysis_for_all_projects()
