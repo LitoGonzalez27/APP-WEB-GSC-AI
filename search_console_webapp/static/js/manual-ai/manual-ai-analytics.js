@@ -3,7 +3,7 @@
  * Gestión completa de analytics (stats, rankings, tablas)
  */
 
-import { escapeHtml, getDomainLogoUrl } from './manual-ai-utils.js';
+import { escapeHtml, getDomainLogoUrl, htmlLegendPlugin } from './manual-ai-utils.js';
 
 // ================================
 // ANALYTICS LOADING & RENDERING
@@ -500,5 +500,356 @@ export function showNoAIKeywordsMessage() {
     if (noKeywordsMessage) {
         noKeywordsMessage.style.display = 'block';
     }
+}
+
+// ================================
+// COMPARATIVE CHARTS
+// ================================
+
+export async function loadComparativeCharts(projectId) {
+    if (!projectId) {
+        this.showNoComparativeChartsMessage();
+        return;
+    }
+
+    const days = this.elements.analyticsTimeRange?.value || 30;
+
+    try {
+        const response = await fetch(`/manual-ai/api/projects/${projectId}/comparative-charts?days=${days}`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                this.showNoComparativeChartsMessage();
+                return;
+            }
+            throw new Error('Failed to load comparative charts data');
+        }
+
+        const result = await response.json();
+        const data = result.data || {};
+        
+        // Render both comparative charts
+        this.renderComparativeVisibilityChart(data.visibility_chart || {});
+        this.renderComparativePositionChart(data.position_chart || {});
+
+    } catch (error) {
+        console.error('Error loading comparative charts:', error);
+        this.showNoComparativeChartsMessage();
+    }
+}
+
+export function renderComparativeVisibilityChart(chartData) {
+    const ctx = document.getElementById('comparativeVisibilityChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (this.charts.comparativeVisibility) {
+        this.charts.comparativeVisibility.destroy();
+    }
+
+    if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+        this.showNoComparativeChartsMessage();
+        return;
+    }
+
+    // Modern Chart.js configuration with HTML Legend
+    const config = this.getModernChartConfig(true, 'comparativeVisibilityLegend');
+    
+    this.charts.comparativeVisibility = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+            })),
+            datasets: chartData.datasets.map((dataset, index) => ({
+                ...dataset,
+                pointBackgroundColor: dataset.borderColor,
+                pointBorderColor: '#FFFFFF',
+                pointHoverBackgroundColor: dataset.borderColor,
+                pointHoverBorderColor: '#FFFFFF',
+                pointStyle: 'rectRounded',
+                backgroundColor: dataset.borderColor ? dataset.borderColor.replace('rgb', 'rgba').replace(')', ', 0.3)') : 'rgba(99, 102, 241, 0.3)',
+                fill: false,
+                tension: 0.4
+            }))
+        },
+        plugins: [htmlLegendPlugin],
+        options: {
+            ...config,
+            scales: {
+                ...config.scales,
+                y: {
+                    ...config.scales.y,
+                    beginAtZero: true,
+                    max: 100,
+                    stacked: false,
+                    title: {
+                        display: true,
+                        text: 'Visibility (%)',
+                        color: '#374151',
+                        font: { size: 12, weight: '500' }
+                    },
+                    ticks: {
+                        ...config.scales.y.ticks,
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    ...config.scales.x,
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        color: '#374151',
+                        font: { size: 12, weight: '500' }
+                    }
+                }
+            },
+            plugins: {
+                ...config.plugins,
+                tooltip: {
+                    ...config.plugins.tooltip,
+                    callbacks: {
+                        title: function(context) {
+                            return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            });
+                        },
+                        label: function(context) {
+                            return `${context.dataset.label}: ${Math.round(context.raw)}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+export function renderComparativePositionChart(chartData) {
+    const ctx = document.getElementById('comparativePositionChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (this.charts.comparativePosition) {
+        this.charts.comparativePosition.destroy();
+    }
+
+    if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+        this.showNoComparativeChartsMessage();
+        return;
+    }
+
+    // Modern Chart.js configuration
+    const config = this.getModernChartConfig(true, 'comparativePositionLegend');
+    
+    this.charts.comparativePosition = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: (chartData.dates || []).map(d => new Date(d).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+            })),
+            datasets: chartData.datasets.map((dataset, index) => ({
+                ...dataset,
+                pointBackgroundColor: dataset.borderColor,
+                pointBorderColor: '#FFFFFF',
+                pointHoverBackgroundColor: dataset.borderColor,
+                pointHoverBorderColor: '#FFFFFF',
+                pointStyle: 'rectRounded',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.4
+            }))
+        },
+        plugins: [htmlLegendPlugin],
+        options: {
+            ...config,
+            scales: {
+                ...config.scales,
+                y: {
+                    ...config.scales.y,
+                    reverse: true,
+                    beginAtZero: false,
+                    min: 1,
+                    max: 20,
+                    ticks: {
+                        ...config.scales.y.ticks,
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Position in AI Overview',
+                        color: '#374151',
+                        font: { size: 12, weight: '500' }
+                    }
+                },
+                x: {
+                    ...config.scales.x,
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        color: '#374151',
+                        font: { size: 12, weight: '500' }
+                    }
+                }
+            },
+            plugins: {
+                ...config.plugins,
+                tooltip: {
+                    ...config.plugins.tooltip,
+                    callbacks: {
+                        title: function(context) {
+                            return new Date(chartData.dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            });
+                        },
+                        label: function(context) {
+                            return `${context.dataset.label}: Position ${Math.round(context.raw)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+export function showNoComparativeChartsMessage() {
+    console.log('No comparative charts data available');
+}
+
+// ================================
+// GRID.JS PROCESSING
+// ================================
+
+export function processAIOverviewDataForGrid(keywordResults, competitorDomains) {
+    // Define base columns
+    const columns = [
+        {
+            id: 'keyword',
+            name: 'Keyword',
+            width: '200px',
+            sort: true
+        },
+        {
+            id: 'your_domain_in_aio',
+            name: gridjs.html('Your Domain<br>in AIO'),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    const va = (a === 'Yes') ? 1 : 0;
+                    const vb = (b === 'Yes') ? 1 : 0;
+                    return vb - va;
+                }
+            },
+            formatter: (cell) => {
+                const isPresent = cell === 'Yes';
+                return gridjs.html(`
+                    <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                        ${cell}
+                    </span>
+                `);
+            }
+        },
+        {
+            id: 'your_position_in_aio',
+            name: gridjs.html('Your Position<br>in AIO'),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
+            formatter: (cell) => {
+                if (cell === 'N/A') {
+                    return gridjs.html('<span class="aio-na">N/A</span>');
+                }
+                return gridjs.html(`<span class="aio-position">${cell}</span>`);
+            }
+        }
+    ];
+
+    // Add competitor columns
+    competitorDomains.forEach((domain, index) => {
+        const truncatedDomain = this.truncateDomain(domain, 15);
+        const domainId = (domain || '')
+            .toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .replace(/[^a-z0-9]+/g, '_');
+        
+        columns.push({
+            id: `comp_${domainId}_present`,
+            name: gridjs.html(`${truncatedDomain}<br>in AIO`),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    const va = (a === 'Yes') ? 1 : 0;
+                    const vb = (b === 'Yes') ? 1 : 0;
+                    return vb - va;
+                }
+            },
+            formatter: (cell) => {
+                const isPresent = cell === 'Yes';
+                return gridjs.html(`
+                    <span class="aio-status ${isPresent ? 'aio-yes' : 'aio-no'}">
+                        ${cell}
+                    </span>
+                `);
+            }
+        });
+
+        columns.push({
+            id: `comp_${domainId}_position`,
+            name: gridjs.html(`Position of<br>${truncatedDomain}`),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = typeof a === 'number' ? a : (a === 'N/A' ? Infinity : parseInt(a) || Infinity);
+                    const numB = typeof b === 'number' ? b : (b === 'N/A' ? Infinity : parseInt(b) || Infinity);
+                    return numA - numB;
+                }
+            },
+            formatter: (cell) => {
+                if (cell === 'N/A') {
+                    return gridjs.html('<span class="aio-na">N/A</span>');
+                }
+                return gridjs.html(`<span class="aio-position">${cell}</span>`);
+            }
+        });
+    });
+
+    // Process data
+    const gridData = keywordResults.map(kw => {
+        const row = [
+            kw.keyword,
+            kw.user_domain_in_aio ? 'Yes' : 'No',
+            kw.user_domain_position || 'N/A'
+        ];
+
+        competitorDomains.forEach(comp => {
+            const compData = kw.competitors?.find(c => c.domain.toLowerCase() === comp.toLowerCase());
+            row.push(compData ? 'Yes' : 'No');
+            row.push(compData?.position || 'N/A');
+        });
+
+        return row;
+    });
+
+    return { columns, gridData };
+}
+
+export function truncateDomain(domain, maxLength = 20) {
+    if (!domain || domain.length <= maxLength) return domain;
+    return domain.substring(0, maxLength - 3) + '...';
 }
 
