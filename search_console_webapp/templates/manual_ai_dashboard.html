@@ -1355,7 +1355,8 @@ keyword 3"></textarea>
     <!-- ✅ Video Tutorial Onboarding para Manual AI -->
     <script src="{{ url_for('static', filename='js/onboarding-popups.js') }}"></script>
     
-    <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
+    <!-- ✅ SISTEMA MODULAR Manual AI (Refactorizado) -->
+    <script type="module" src="{{ url_for('static', filename='js/manual-ai-system-modular.js') }}"></script>
     <script>
         // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos
         window.DISABLE_SIDEBAR_NAVIGATION = true;
