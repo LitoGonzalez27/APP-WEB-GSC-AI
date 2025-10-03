@@ -99,8 +99,20 @@ import {
     showNoGlobalDomainsMessage,
     loadAIOverviewKeywordsTable,
     renderAIOverviewKeywordsTable,
-    showNoAIKeywordsMessage
+    showNoAIKeywordsMessage,
+    loadComparativeCharts,
+    renderComparativeVisibilityChart,
+    renderComparativePositionChart,
+    showNoComparativeChartsMessage,
+    processAIOverviewDataForGrid,
+    truncateDomain
 } from './manual-ai/manual-ai-analytics.js';
+
+// Exports
+import {
+    handleDownloadExcel,
+    handleDownloadPDF
+} from './manual-ai/manual-ai-exports.js';
 
 // Modals
 import {
@@ -198,6 +210,16 @@ Object.assign(ManualAISystem.prototype, {
     loadAIOverviewKeywordsTable,
     renderAIOverviewKeywordsTable,
     showNoAIKeywordsMessage,
+    loadComparativeCharts,
+    renderComparativeVisibilityChart,
+    renderComparativePositionChart,
+    showNoComparativeChartsMessage,
+    processAIOverviewDataForGrid,
+    truncateDomain,
+    
+    // Exports
+    handleDownloadExcel,
+    handleDownloadPDF,
     
     // Modals
     loadProjectResults,
