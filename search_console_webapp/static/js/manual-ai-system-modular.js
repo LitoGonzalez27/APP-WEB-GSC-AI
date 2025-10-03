@@ -247,17 +247,25 @@ window.ManualAISystem = ManualAISystem;
 // ================================
 
 console.log('✅ Sistema Modular Manual AI cargado correctamente');
-console.log('📦 Módulos integrados: Utils, Core, Projects, Keywords, Analysis, Charts, Competitors, Analytics, Modals');
+console.log('📦 Módulos integrados: Utils, Core, Projects, Keywords, Analysis, Charts, Competitors, Analytics, Modals, Exports');
+
+// Función de inicialización completa
+function initializeManualAI() {
+    window.manualAI = new ManualAISystem();
+    console.log('🚀 Manual AI System inicializado (sistema modular)');
+    
+    // Llamar a la función de inicialización de componentes adicionales si existe
+    if (typeof window.initManualAIComponents === 'function') {
+        window.initManualAIComponents();
+        console.log('✅ Componentes adicionales inicializados');
+    }
+}
 
 // Inicializar el sistema cuando el DOM esté listo
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        window.manualAI = new ManualAISystem();
-        console.log('🚀 Manual AI System inicializado (sistema modular)');
-    });
+    document.addEventListener('DOMContentLoaded', initializeManualAI);
 } else {
-    window.manualAI = new ManualAISystem();
-    console.log('🚀 Manual AI System inicializado (sistema modular)');
+    initializeManualAI();
 }
 
 // Exportar para uso si es necesario
