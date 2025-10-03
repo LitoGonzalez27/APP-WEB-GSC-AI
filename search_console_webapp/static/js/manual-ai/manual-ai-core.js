@@ -470,6 +470,27 @@ export class ManualAISystem {
         // Can be enhanced with a proper toast UI
     }
 
+    showDownloadButton(show = true) {
+        const downloadBtn = document.getElementById('sidebarDownloadBtn');
+        const downloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
+        const globalSection = document.getElementById('navSectionGlobal');
+        
+        if (downloadBtn) {
+            downloadBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download Excel button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        if (downloadPdfBtn) {
+            downloadPdfBtn.style.display = show ? 'flex' : 'none';
+            console.log(`📥 Download PDF button ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+        
+        // Show/hide the entire global section based on button visibility
+        if (globalSection) {
+            globalSection.style.display = show ? 'block' : 'none';
+            console.log(`📂 Global tools section ${show ? 'shown' : 'hidden'} for Manual AI`);
+        }
+    }
+
     // Placeholder methods that will be implemented in other modules
     renderProjects() { console.warn('renderProjects not implemented'); }
     loadProjects() { console.warn('loadProjects not implemented'); }
