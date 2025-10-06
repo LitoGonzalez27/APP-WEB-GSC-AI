@@ -210,8 +210,10 @@ class ClusterService:
             
             # Obtener configuración de clusters
             clusters_config = ClusterService.get_project_clusters(project_id)
+            logger.info(f"📋 Clusters config for project {project_id}: enabled={clusters_config.get('enabled')}, clusters_count={len(clusters_config.get('clusters', []))}")
             
             if not clusters_config.get('enabled', False):
+                logger.info(f"⚠️ Clusters not enabled for project {project_id}")
                 return {
                     'enabled': False,
                     'clusters': [],
@@ -243,6 +245,7 @@ class ClusterService:
             """, (start_date, end_date, project_id))
             
             keywords_data = cur.fetchall()
+            logger.info(f"📊 Found {len(keywords_data)} keywords with results for project {project_id} in date range {start_date} to {end_date}")
             
             # Clasificar cada keyword en clusters
             clusters_stats = {}
@@ -339,7 +342,7 @@ class ClusterService:
                     'mentions_percentage': round(mentions_pct, 1)
                 })
             
-            return {
+            result = {
                 'enabled': True,
                 'clusters': list(clusters_stats.keys()),
                 'chart_data': chart_data,
@@ -350,6 +353,9 @@ class ClusterService:
                     'end': str(end_date)
                 }
             }
+            
+            logger.info(f"✅ Returning cluster statistics: {len(table_data)} clusters with data, total_clusters={result['total_clusters']}")
+            return result
             
         except Exception as e:
             logger.error(f"Error getting cluster statistics for project {project_id}: {e}")
