@@ -218,11 +218,24 @@ class StatisticsService:
             project_id: ID del proyecto
             
         Returns:
-            Dict con datos de keywords del último análisis
+            Dict con datos de keywords del último análisis y competidores
         """
         conn = get_db_connection()
         cur = conn.cursor()
         
+        # Obtener competidores del proyecto
+        cur.execute("""
+            SELECT selected_competitors
+            FROM manual_ai_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project_row = cur.fetchone()
+        competitor_domains = []
+        if project_row and project_row['selected_competitors']:
+            competitor_domains = project_row['selected_competitors']
+        
+        # Obtener últimos resultados de keywords con AI Overview
         cur.execute("""
             WITH latest_results AS (
                 SELECT DISTINCT ON (k.id)
@@ -254,12 +267,46 @@ class StatisticsService:
         
         keywords = [dict(row) for row in cur.fetchall()]
         
+        # Para cada keyword, obtener información de competidores
+        result_keywords = []
+        for kw in keywords:
+            keyword_data = {
+                'keyword': kw['keyword'],
+                'user_domain_in_aio': kw['domain_mentioned'] or False,
+                'user_domain_position': kw['domain_position'] if kw['domain_position'] else None,
+                'last_analysis': kw['last_analysis'],
+                'competitors': []
+            }
+            
+            # Obtener datos de competidores de global_domains para esta keyword en su última fecha
+            if competitor_domains and kw['last_analysis']:
+                cur.execute("""
+                    SELECT 
+                        detected_domain,
+                        domain_position
+                    FROM manual_ai_global_domains
+                    WHERE project_id = %s
+                        AND keyword_id = %s
+                        AND analysis_date = %s
+                        AND detected_domain = ANY(%s)
+                """, (project_id, kw['id'], kw['last_analysis'], competitor_domains))
+                
+                comp_data = cur.fetchall()
+                for comp in comp_data:
+                    keyword_data['competitors'].append({
+                        'domain': comp['detected_domain'],
+                        'position': comp['domain_position']
+                    })
+            
+            result_keywords.append(keyword_data)
+        
         cur.close()
         conn.close()
         
         return {
-            'keywords': keywords,
-            'total_keywords': len(keywords)
+            'keywordResults': result_keywords,
+            'competitorDomains': competitor_domains,
+            'total_keywords': len(result_keywords)
         }
     
     @staticmethod
@@ -308,7 +355,7 @@ class StatisticsService:
             days: Número de días hacia atrás
             
         Returns:
-            Lista de dominios con ranking completo
+            Lista de dominios con ranking completo y formateado para el frontend
         """
         conn = get_db_connection()
         cur = conn.cursor()
@@ -341,10 +388,34 @@ class StatisticsService:
             ORDER BY keywords_mentioned DESC, avg_position ASC
         """, (project_id, start_date, end_date, project_id, start_date, end_date))
         
-        domains = [dict(row) for row in cur.fetchall()]
+        raw_domains = [dict(row) for row in cur.fetchall()]
         
         cur.close()
         conn.close()
+        
+        # Transformar datos para el formato esperado por el frontend
+        domains = []
+        for index, domain in enumerate(raw_domains, start=1):
+            # Determinar tipo de dominio
+            if domain['is_project_domain']:
+                domain_type = 'project'
+            elif domain['is_selected_competitor']:
+                domain_type = 'competitor'
+            else:
+                domain_type = 'other'
+            
+            domains.append({
+                'rank': index,
+                'detected_domain': domain['detected_domain'],
+                'domain_type': domain_type,
+                'appearances': domain['keywords_mentioned'],
+                'days_appeared': domain['days_appeared'],
+                'avg_position': float(domain['avg_position']) if domain['avg_position'] else None,
+                'best_position': domain['best_position'],
+                'worst_position': domain['worst_position'],
+                'total_mentions': domain['total_mentions'],
+                'visibility_percentage': float(domain['coverage_pct']) if domain['coverage_pct'] else 0.0
+            })
         
         return domains
     
