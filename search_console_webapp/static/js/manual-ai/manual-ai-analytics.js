@@ -163,11 +163,12 @@ export async function loadAnalyticsComponents(projectId) {
             this.loadGlobalDomainsRanking(projectId),
             this.loadComparativeCharts(projectId),
             this.loadCompetitorsPreview(projectId),
-            this.loadAIOverviewKeywordsTable(projectId)
+            this.loadAIOverviewKeywordsTable(projectId),
+            this.loadClustersStatistics(projectId)  // ✨ NEW: Clusters statistics
         ];
 
         await Promise.allSettled(promises);
-        console.log('✅ All analytics components loaded');
+        console.log('✅ All analytics components loaded (including clusters)');
 
     } catch (error) {
         console.error('Error loading analytics components:', error);

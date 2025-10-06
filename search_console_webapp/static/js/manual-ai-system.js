@@ -4807,6 +4807,13 @@ class ManualAISystem {
     // ================================
 
     async loadClustersStatistics(projectId) {
+        // Verificar que los elementos de clusters existen en el DOM
+        const clustersChart = document.getElementById('clustersChart');
+        if (!clustersChart) {
+            console.log('⚠️ Clusters chart not found in DOM - clusters feature not available in this view');
+            return;
+        }
+        
         if (!projectId) {
             this.showNoClustersMessage();
             return;
@@ -5073,7 +5080,10 @@ class ManualAISystem {
 
     initializeClustersConfiguration() {
         const clustersCheckbox = document.getElementById('projectClustersEnabled');
-        if (!clustersCheckbox) return;
+        if (!clustersCheckbox) {
+            console.log('⚠️ Clusters checkbox not found in DOM - skipping initialization');
+            return;
+        }
 
         // Event listeners para habilitar/deshabilitar clusters
         clustersCheckbox.addEventListener('change', () => {
@@ -5092,7 +5102,10 @@ class ManualAISystem {
 
     toggleClustersConfiguration(enabled) {
         const clustersContainer = document.getElementById('projectClustersContainer');
-        if (!clustersContainer) return;
+        if (!clustersContainer) {
+            console.log('⚠️ Clusters container not found in DOM - skipping toggle');
+            return;
+        }
 
         if (enabled) {
             clustersContainer.style.display = 'block';
@@ -5108,7 +5121,10 @@ class ManualAISystem {
 
     addClusterRow(clusterData = null) {
         const clustersContainer = document.getElementById('clustersList');
-        if (!clustersContainer) return;
+        if (!clustersContainer) {
+            console.log('⚠️ Clusters list container not found in DOM - skipping add row');
+            return;
+        }
 
         const clusterIndex = clustersContainer.children.length;
         const clusterName = clusterData?.name || '';
@@ -5214,26 +5230,36 @@ class ManualAISystem {
         // Habilitar/deshabilitar clusters
         const enabled = clustersConfig.enabled || false;
         const clustersCheckbox = document.getElementById('projectClustersEnabled');
-        if (clustersCheckbox) {
-            clustersCheckbox.checked = enabled;
-            this.toggleClustersConfiguration(enabled);
+        if (!clustersCheckbox) {
+            console.log('⚠️ Clusters configuration elements not found in DOM - skipping load');
+            return;
         }
+        
+        clustersCheckbox.checked = enabled;
+        this.toggleClustersConfiguration(enabled);
 
         // Limpiar clusters existentes
         const clustersContainer = document.getElementById('clustersList');
         if (clustersContainer) {
             clustersContainer.innerHTML = '';
+            
+            // Cargar clusters
+            const clusters = clustersConfig.clusters || [];
+            clusters.forEach(cluster => {
+                this.addClusterRow(cluster);
+            });
         }
-
-        // Cargar clusters
-        const clusters = clustersConfig.clusters || [];
-        clusters.forEach(cluster => {
-            this.addClusterRow(cluster);
-        });
     }
 
     async loadProjectClustersForSettings(projectId) {
         if (!projectId) return;
+        
+        // Verificar que los elementos existen en el DOM
+        const clustersCheckbox = document.getElementById('projectClustersEnabled');
+        if (!clustersCheckbox) {
+            console.log('⚠️ Clusters elements not found in DOM - clusters feature not available in this view');
+            return;
+        }
 
         try {
             const response = await fetch(`/manual-ai/api/projects/${projectId}/clusters`);
