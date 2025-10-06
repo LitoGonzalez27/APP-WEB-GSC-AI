@@ -248,15 +248,26 @@ export async function loadClustersStatistics(projectId) {
             return;
         }
         
-        const clusters = result.clusters || [];
+        // Get data from the nested structure
+        const data = result.data || {};
+        const tableData = data.table_data || [];
+        const chartData = data.chart_data || {};
         
-        if (clusters.length === 0) {
-            console.log('ℹ️ No clusters data available');
-            this.showNoClustersMessage();
+        console.log('📊 Statistics data:', { tableData, chartData, enabled: data.enabled });
+        
+        if (!data.enabled) {
+            console.log('ℹ️ Clusters not enabled');
+            this.showNoClustersMessage('not_enabled');
             return;
         }
         
-        console.log(`✅ Found ${clusters.length} clusters with data`);
+        if (tableData.length === 0) {
+            console.log('ℹ️ No clusters data - probably no analysis results yet');
+            this.showNoClustersMessage('no_data');
+            return;
+        }
+        
+        console.log(`✅ Found ${tableData.length} clusters with data`);
         
         // Show visualization section
         const visualizationSection = document.getElementById('clustersVisualization');
@@ -270,8 +281,8 @@ export async function loadClustersStatistics(projectId) {
         }
         
         // Render chart and table
-        this.renderClustersChart(clusters);
-        this.renderClustersTable(clusters);
+        this.renderClustersChart(chartData);
+        this.renderClustersTable(tableData);
         
     } catch (error) {
         console.error('❌ Error loading clusters statistics:', error);
@@ -279,16 +290,16 @@ export async function loadClustersStatistics(projectId) {
     }
 }
 
-export function renderClustersChart(clustersData) {
+export function renderClustersChart(chartData) {
     const canvas = document.getElementById('clustersChart');
     if (!canvas) {
         console.error('❌ clustersChart canvas not found');
         return;
     }
     
-    console.log('📊 Rendering clusters chart with data:', clustersData);
+    console.log('📊 Rendering clusters chart with data:', chartData);
     
-    if (!clustersData || clustersData.length === 0) {
+    if (!chartData || !chartData.labels || chartData.labels.length === 0) {
         console.warn('⚠️ No data for clusters chart');
         this.showNoClustersMessage();
         return;
@@ -302,10 +313,10 @@ export function renderClustersChart(clustersData) {
         this.charts.clustersChart.destroy();
     }
     
-    // Prepare data
-    const labels = clustersData.map(c => c.cluster_name);
-    const aiOverviewData = clustersData.map(c => c.keywords_with_ai_overview || 0);
-    const mentionsData = clustersData.map(c => c.keywords_with_mentions || 0);
+    // Use data directly from backend
+    const labels = chartData.labels || [];
+    const aiOverviewData = chartData.ai_overview || [];
+    const mentionsData = chartData.mentions || [];
     
     console.log('📊 Chart prepared:', { labels, aiOverviewData, mentionsData });
     
@@ -437,15 +448,28 @@ export function renderClustersTable(clustersData) {
     console.log('✅ Clusters table rendered successfully');
 }
 
-export function showNoClustersMessage() {
+export function showNoClustersMessage(reason = 'not_enabled') {
     const visualizationSection = document.getElementById('clustersVisualization');
     const noDataMessage = document.getElementById('noClustersMessage');
     
     if (visualizationSection) {
         visualizationSection.style.display = 'block';
     }
+    
     if (noDataMessage) {
         noDataMessage.style.display = 'block';
+        
+        // Update message based on reason
+        const messageTitle = noDataMessage.querySelector('h4');
+        const messageParagraph = noDataMessage.querySelector('p');
+        
+        if (reason === 'no_data') {
+            if (messageTitle) messageTitle.textContent = 'No Analysis Data Yet';
+            if (messageParagraph) messageParagraph.textContent = 'Run an analysis to see cluster statistics. Your clusters are configured and ready!';
+        } else {
+            if (messageTitle) messageTitle.textContent = 'No Cluster Data Available';
+            if (messageParagraph) messageParagraph.textContent = 'Enable and configure thematic clusters in project settings to see analysis by topic';
+        }
     }
     
     // Hide chart and table
@@ -459,7 +483,7 @@ export function showNoClustersMessage() {
         tableSection.style.display = 'none';
     }
     
-    console.log('ℹ️ Showing no clusters message');
+    console.log(`ℹ️ Showing no clusters message (reason: ${reason})`);
 }
 
 // ================================
