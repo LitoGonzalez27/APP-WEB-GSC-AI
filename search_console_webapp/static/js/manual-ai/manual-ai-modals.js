@@ -274,9 +274,31 @@ export function renderModalKeywords(keywords) {
 
 export function loadModalSettings(project) {
     // Load project settings into modal
-    document.getElementById('projectNameEdit').value = project.name || '';
-    document.getElementById('projectDescriptionEdit').value = project.description || '';
-    document.getElementById('projectDomainEdit').value = project.domain || '';
-    document.getElementById('projectCountryEdit').value = project.country_code || '';
+    const projectNameEdit = document.getElementById('projectNameEdit');
+    const projectDescriptionEdit = document.getElementById('projectDescriptionEdit');
+    const projectDomainEdit = document.getElementById('projectDomainEdit');
+    const projectCountryEdit = document.getElementById('projectCountryEdit');
+    
+    // Only set values for elements that exist
+    if (projectNameEdit) {
+        projectNameEdit.value = project.name || '';
+    }
+    
+    if (projectDescriptionEdit) {
+        projectDescriptionEdit.value = project.description || '';
+    }
+    
+    if (projectDomainEdit) {
+        projectDomainEdit.value = project.domain || '';
+    }
+    
+    if (projectCountryEdit) {
+        projectCountryEdit.value = project.country_code || '';
+    }
+    
+    // Load clusters configuration if function exists
+    if (typeof this.loadProjectClustersForSettings === 'function') {
+        this.loadProjectClustersForSettings(project.id);
+    }
 }
 
