@@ -324,44 +324,39 @@
 
 .project-clusters-horizontal {
     padding: 0.75rem;
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    background: transparent;
     border-radius: 8px;
-    border: 1px solid #bae6fd;
 }
 
 .clusters-section-title {
     font-size: 12px;
     font-weight: 600;
-    color: #0c4a6e;
-    margin: 0 0 0.5rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.clusters-section-title i {
-    font-size: 11px;
-    opacity: 0.8;
+    color: #64748b;
+    margin: 0 0 0.75rem 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .clusters-horizontal-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.5rem;
     align-items: center;
+    justify-content: center;
 }
 
 .cluster-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.3rem 0.6rem;
-    background: white;
-    border: 1px solid #7dd3fc;
+    padding: 0.4rem 0.75rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-size: 11px;
     font-weight: 500;
-    color: #075985;
+    color: #475569;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -375,14 +370,14 @@
 }
 
 .cluster-badge:hover {
-    background: #f0f9ff;
-    border-color: #0ea5e9;
+    background: #e2e8f0;
+    border-color: #cbd5e1;
     transform: translateY(-1px);
 }
 
 .clusters-more {
     font-size: 11px;
-    color: #0369a1;
+    color: #64748b;
     font-weight: 500;
 }
 

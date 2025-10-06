@@ -652,10 +652,7 @@ export function renderProjectClustersHorizontal(project) {
     
     return `
         <div class="project-clusters-horizontal">
-            <h5 class="clusters-section-title">
-                <i class="fas fa-sitemap"></i>
-                Thematic Clusters
-            </h5>
+            <h5 class="clusters-section-title">Thematic Clusters</h5>
             <div class="clusters-horizontal-list">
                 ${clustersBadges}
                 ${moreText}
