@@ -1,335 +1,300 @@
-/**
- * Estilos para el Sistema de Clusters Temáticos
- * Manual AI System
- */
+/* ========================================
+   Keywords List Fix - Modal Keywords Display
+   ======================================== */
 
-/* ================================
-   SECCIÓN DE CLUSTERS EN ANALYTICS
-   ================================ */
+.modal-keyword-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+}
 
-.clusters-section {
-    margin-top: 2rem;
-    padding: 1.5rem;
+.modal-keyword-item:hover {
+    background: #e9ecef;
+    transform: translateX(2px);
+}
+
+.keyword-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+    flex: 1;
+}
+
+.keyword-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.keyword-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+.keyword-stat i {
+    color: #007bff;
+}
+
+.keywords-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.keywords-list-container {
+    margin-top: 15px;
+}
+
+/* ========================================
+   Thematic Clusters Configuration
+   ======================================== */
+
+.clusters-container {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.clusters-config-area {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.clusters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.cluster-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.cluster-row-field {
+    flex: 1;
+}
+
+.cluster-row-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.cluster-row-field input,
+.cluster-row-field select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.cluster-row-field input:focus,
+.cluster-row-field select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.cluster-row-actions {
+    display: flex;
+    align-items: flex-end;
+    padding-bottom: 5px;
+}
+
+.btn-remove-cluster {
+    padding: 8px 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.btn-remove-cluster:hover {
+    background: #c82333;
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.toggle-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.toggle-row label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+}
+
+.section-description {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+.field-caption {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+/* ========================================
+   Clusters Visualization (Dashboard)
+   ======================================== */
+
+.clusters-visualization {
     background: white;
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 24px;
+}
+
+.clusters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.clusters-header h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .clusters-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-top: 1.5rem;
+    gap: 24px;
 }
 
-#clustersChartContainer {
-    min-height: 400px;
-    background: #f9fafb;
-    padding: 1rem;
+.clusters-chart-section {
+    background: #f8f9fa;
+    padding: 20px;
     border-radius: 8px;
+}
+
+.clusters-table-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.chart-title,
+.table-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
 }
 
 #clustersChart {
     max-height: 400px;
 }
 
-/* ================================
-   TABLA DE CLUSTERS
-   ================================ */
-
 .clusters-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
 }
 
 .clusters-table thead {
-    background: #f3f4f6;
+    background: #e9ecef;
 }
 
 .clusters-table th {
-    padding: 0.75rem 1rem;
+    padding: 12px;
     text-align: left;
+    font-size: 13px;
     font-weight: 600;
-    color: #374151;
-    border-bottom: 2px solid #e5e7eb;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .clusters-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 12px;
+    font-size: 14px;
+    color: #212529;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .clusters-table tbody tr:hover {
-    background: #f9fafb;
+    background: #f1f3f5;
 }
 
-.cluster-name-cell strong {
-    color: #1f2937;
-    font-size: 0.9375rem;
-}
-
-.unclassified-row {
-    background: #fef3c7 !important;
-}
-
-.unclassified-row:hover {
-    background: #fde68a !important;
-}
-
-.badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 9999px;
-}
-
-.badge-info {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.badge-success {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-#noClustersData {
+.no-clusters-message {
     text-align: center;
-    padding: 3rem 1rem;
-    color: #6b7280;
+    padding: 40px 20px;
+    color: #6c757d;
 }
 
-#noClustersData i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.3;
-    display: block;
+.no-clusters-message i {
+    font-size: 48px;
+    color: #dee2e6;
+    margin-bottom: 15px;
 }
 
-#noClustersData p {
-    font-size: 1rem;
-    margin: 0.5rem 0 0 0;
+.no-clusters-message h4 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 10px;
 }
 
-/* ================================
-   CONFIGURACIÓN DE CLUSTERS
-   ================================ */
-
-.clusters-configuration {
-    margin-top: 1.5rem;
+.no-clusters-message p {
+    font-size: 14px;
+    color: #6c757d;
 }
 
-#projectClustersContainer {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: #f9fafb;
-    border-radius: 8px;
-}
+/* ========================================
+   Responsive Design
+   ======================================== */
 
-#clustersList {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.cluster-row {
-    background: white;
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-}
-
-.cluster-inputs {
-    display: grid;
-    grid-template-columns: 2fr 3fr 1.5fr auto;
-    gap: 1rem;
-    align-items: end;
-}
-
-.cluster-inputs .form-group {
-    margin-bottom: 0;
-}
-
-.form-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 0.25rem;
-}
-
-.form-control {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    transition: border-color 0.15s;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.form-text {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-.remove-cluster-btn {
-    padding: 0.5rem 1rem;
-    background: #ef4444;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: background 0.15s;
-    white-space: nowrap;
-}
-
-.remove-cluster-btn:hover {
-    background: #dc2626;
-}
-
-#addClusterBtn {
-    padding: 0.625rem 1.25rem;
-    background: #6366f1;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-#addClusterBtn:hover {
-    background: #4f46e5;
-}
-
-/* ================================
-   RESPONSIVE
-   ================================ */
-
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
     .clusters-content {
         grid-template-columns: 1fr;
     }
     
-    .cluster-inputs {
-        grid-template-columns: 1fr;
+    .cluster-row {
+        flex-direction: column;
     }
     
-    .remove-cluster-btn {
+    .cluster-row-actions {
         width: 100%;
+        justify-content: flex-end;
     }
 }
-
-@media (max-width: 768px) {
-    .clusters-section {
-        padding: 1rem;
-    }
-    
-    .clusters-table {
-        font-size: 0.75rem;
-    }
-    
-    .clusters-table th,
-    .clusters-table td {
-        padding: 0.5rem;
-    }
-}
-
-/* ================================
-   ANIMACIONES
-   ================================ */
-
-.cluster-row {
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* ================================
-   ACCESIBILIDAD
-   ================================ */
-
-.form-control:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-}
-
-button:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-}
-
-/* ================================
-   ESTADOS
-   ================================ */
-
-.form-control:disabled {
-    background: #f3f4f6;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ================================
-   TOOLTIPS (OPCIONAL)
-   ================================ */
-
-[title] {
-    position: relative;
-}
-
-/* ================================
-   LOADING STATES
-   ================================ */
-
-.clusters-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 400px;
-    color: #6b7280;
-}
-
-.clusters-loading i {
-    margin-right: 0.5rem;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-

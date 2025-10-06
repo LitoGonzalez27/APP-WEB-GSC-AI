@@ -43,9 +43,22 @@ export function toggleClustersConfiguration(enabled) {
     }
 }
 
-export function addClusterRow(clusterData = null) {
-    const clustersContainer = document.getElementById('clustersList');
-    if (!clustersContainer) return;
+export function addClusterRow(containerIdOrData = null) {
+    // Allow calling with just container ID or with cluster data
+    let containerId = 'clustersList'; // default
+    let clusterData = null;
+    
+    if (typeof containerIdOrData === 'string') {
+        containerId = containerIdOrData;
+    } else if (containerIdOrData && typeof containerIdOrData === 'object') {
+        clusterData = containerIdOrData;
+    }
+    
+    const clustersContainer = document.getElementById(containerId);
+    if (!clustersContainer) {
+        console.warn(`⚠️ Container ${containerId} not found for cluster row`);
+        return;
+    }
     
     const clusterIndex = clustersContainer.children.length;
     const clusterName = clusterData?.name || '';

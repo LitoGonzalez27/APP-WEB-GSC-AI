@@ -31,6 +31,9 @@
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
+    <!-- ✨ NUEVO: Clusters Styles -->
+    <link href="{{ url_for('static', filename='clusters-styles.css') }}" rel="stylesheet">
+    
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
@@ -946,6 +949,33 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ✨ NUEVO: Thematic Clusters (optional) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="form-label-row">
+                                <label class="enhanced-label">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Thematic Clusters</span>
+                                </label>
+                                <span class="label-optional" aria-hidden="true">Optional</span>
+                            </div>
+                            <p class="field-caption">Group your keywords by topics to analyze AI Overview visibility per theme.</p>
+                            <div class="toggle-row">
+                                <input type="checkbox" id="enableClustersCreate" aria-controls="clustersConfigArea">
+                                <label for="enableClustersCreate">Enable thematic clusters for this project</label>
+                            </div>
+                            <div id="clustersConfigArea" class="clusters-config-area" style="display:none;" aria-hidden="true">
+                                <div id="clustersListCreate" class="clusters-list">
+                                    <!-- Cluster rows will be added here -->
+                                </div>
+                                <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersListCreate')">
+                                    <i class="fas fa-plus"></i>
+                                    Add Cluster
+                                </button>
+                                <small class="form-help">Define clusters to automatically group keywords by themes (e.g., "Product X", "Brand mentions")</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer create-footer">
                     <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
@@ -1180,6 +1210,32 @@ keyword 3"></textarea>
                                     Add Keywords
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- ✨ NUEVO: Thematic Clusters Configuration -->
+                    <div class="tab-section">
+                        <h4>Thematic Clusters</h4>
+                        <p class="section-description">Group keywords by topics to analyze AI Overview visibility per theme</p>
+                        <div class="toggle-row" style="margin-bottom: 15px;">
+                            <input type="checkbox" id="projectClustersEnabled">
+                            <label for="projectClustersEnabled">Enable thematic clusters for this project</label>
+                        </div>
+                        <div id="projectClustersContainer" class="clusters-container" style="display:none;">
+                            <div id="clustersList" class="clusters-list">
+                                <!-- Cluster rows will be loaded here -->
+                            </div>
+                            <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersList')">
+                                <i class="fas fa-plus"></i>
+                                Add Cluster
+                            </button>
+                            <div style="margin-top: 15px;">
+                                <button type="button" class="btn-primary" onclick="manualAI.saveClustersConfiguration()">
+                                    <i class="fas fa-save"></i>
+                                    Save Clusters Configuration
+                                </button>
+                            </div>
+                            <small class="form-help">Define rules to automatically group keywords (e.g., contains "product", starts with "how to")</small>
                         </div>
                     </div>
 
