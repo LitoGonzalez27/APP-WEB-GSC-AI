@@ -141,7 +141,8 @@ import {
     renderClustersTable,
     showNoClustersMessage,
     loadProjectClustersForSettings,
-    saveClustersConfiguration
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal
 } from './manual-ai/manual-ai-clusters.js';
 
 // ================================
@@ -260,7 +261,8 @@ Object.assign(ManualAISystem.prototype, {
     renderClustersTable,
     showNoClustersMessage,
     loadProjectClustersForSettings,
-    saveClustersConfiguration
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal
 });
 
 // ================================

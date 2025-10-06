@@ -1,5 +1,4 @@
-/*
-(function setupConsoleSilencer() {
+/*(function setupConsoleSilencer() {
   try {
     var host = (typeof window !== 'undefined' && window.location && window.location.hostname) || '';
     var isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');

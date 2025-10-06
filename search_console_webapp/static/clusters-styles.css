@@ -298,3 +298,153 @@
         justify-content: flex-end;
     }
 }
+
+/* ========================================
+   Project Card - Meta Sections Layout
+   ======================================== */
+
+.project-meta-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+    .project-meta-sections {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   Project Card - Clusters Horizontal Display
+   ======================================== */
+
+.project-clusters-horizontal {
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-radius: 8px;
+    border: 1px solid #bae6fd;
+}
+
+.clusters-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0c4a6e;
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.clusters-section-title i {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.clusters-horizontal-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.cluster-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: white;
+    border: 1px solid #7dd3fc;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #075985;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    transition: all 0.2s ease;
+}
+
+.cluster-badge i {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.cluster-badge:hover {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
+    transform: translateY(-1px);
+}
+
+.clusters-more {
+    font-size: 11px;
+    color: #0369a1;
+    font-weight: 500;
+}
+
+/* ========================================
+   Analytics Dashboard - Clusters Table Fix
+   ======================================== */
+
+.clusters-table-section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.clusters-table {
+    min-width: 100%;
+    width: max-content;
+    font-size: 13px;
+}
+
+.clusters-table th,
+.clusters-table td {
+    padding: 10px 12px;
+    white-space: nowrap;
+}
+
+.clusters-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+}
+
+.clusters-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.clusters-table tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+.clusters-table .text-center {
+    text-align: center;
+}
+
+/* Mobile responsive table */
+@media (max-width: 1024px) {
+    .clusters-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .clusters-chart-section,
+    .clusters-table-section {
+        grid-column: 1;
+    }
+    
+    .clusters-table {
+        font-size: 12px;
+    }
+    
+    .clusters-table th,
+    .clusters-table td {
+        padding: 8px 10px;
+    }
+}

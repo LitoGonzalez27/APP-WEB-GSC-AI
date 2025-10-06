@@ -619,3 +619,47 @@ export async function saveClustersConfiguration(projectId = null) {
         this.showError('Error saving clusters configuration');
     }
 }
+
+// ================================
+// PROJECT CARD - CLUSTERS PREVIEW
+// ================================
+
+export function renderProjectClustersHorizontal(project) {
+    const clustersConfig = project.topic_clusters || {};
+    const clustersEnabled = clustersConfig.enabled || false;
+    const clustersList = clustersConfig.clusters || [];
+    const clustersCount = clustersList.length;
+    
+    if (!clustersEnabled || clustersCount === 0) {
+        return ''; // No mostrar nada si no hay clusters
+    }
+    
+    // Mostrar hasta 3 clusters
+    const displayClusters = clustersList.slice(0, 3);
+    const moreCount = clustersCount > 3 ? clustersCount - 3 : 0;
+    
+    const clustersBadges = displayClusters.map(cluster => {
+        const escapedName = cluster.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `
+            <span class="cluster-badge" title="${escapedName}">
+                <i class="fas fa-layer-group"></i>
+                ${escapedName}
+            </span>
+        `;
+    }).join('');
+    
+    const moreText = moreCount > 0 ? `<span class="clusters-more">+${moreCount} more</span>` : '';
+    
+    return `
+        <div class="project-clusters-horizontal">
+            <h5 class="clusters-section-title">
+                <i class="fas fa-sitemap"></i>
+                Thematic Clusters
+            </h5>
+            <div class="clusters-horizontal-list">
+                ${clustersBadges}
+                ${moreText}
+            </div>
+        </div>
+    `;
+}
