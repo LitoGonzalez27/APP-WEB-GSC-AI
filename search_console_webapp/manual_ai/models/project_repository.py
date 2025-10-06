@@ -44,6 +44,7 @@ class ProjectRepository:
                     p.created_at,
                     p.updated_at,
                     p.selected_competitors,
+                    p.topic_clusters,
                     COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
                     COALESCE(project_stats.total_keywords, 0) as total_keywords,
                     COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
