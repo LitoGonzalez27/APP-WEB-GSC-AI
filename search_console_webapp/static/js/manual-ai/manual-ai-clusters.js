@@ -461,3 +461,120 @@ export function showNoClustersMessage() {
     
     console.log('ℹ️ Showing no clusters message');
 }
+
+// ================================
+// SETTINGS - CLUSTERS CONFIGURATION
+// ================================
+
+export async function loadProjectClustersForSettings(projectId) {
+    if (!projectId) {
+        console.warn('⚠️ No projectId provided');
+        return;
+    }
+    
+    try {
+        console.log(`🔄 Loading clusters for project ${projectId}`);
+        const response = await fetch(`/manual-ai/api/projects/${projectId}/clusters`);
+        if (!response.ok) throw new Error('Failed to load clusters');
+        
+        const data = await response.json();
+        console.log('📦 Clusters data:', data);
+        
+        if (data.success && data.clusters_config) {
+            const config = data.clusters_config;
+            
+            // Update checkbox
+            const enabledCheckbox = document.getElementById('projectClustersEnabled');
+            if (enabledCheckbox) {
+                enabledCheckbox.checked = config.enabled || false;
+                console.log(`✅ Checkbox set to: ${config.enabled}`);
+                
+                // Trigger change event to show/hide container
+                if (config.enabled) {
+                    const event = new Event('change');
+                    enabledCheckbox.dispatchEvent(event);
+                }
+            }
+            
+            // Load clusters if enabled
+            if (config.enabled && config.clusters && config.clusters.length > 0) {
+                const clustersList = document.getElementById('clustersList');
+                if (clustersList) {
+                    clustersList.innerHTML = '';
+                    
+                    // Add each cluster
+                    config.clusters.forEach((cluster, index) => {
+                        console.log(`➕ Adding cluster ${index + 1}:`, cluster);
+                        
+                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
+                            window.manualAI.addClusterRow('clustersList');
+                            
+                            // Populate the last added row
+                            const rows = clustersList.querySelectorAll('.cluster-row');
+                            const lastRow = rows[rows.length - 1];
+                            if (lastRow) {
+                                const nameInput = lastRow.querySelector('.cluster-name-input');
+                                const termsInput = lastRow.querySelector('.cluster-terms-input');
+                                const methodSelect = lastRow.querySelector('.cluster-match-method');
+                                
+                                if (nameInput) nameInput.value = cluster.name || '';
+                                if (termsInput) termsInput.value = Array.isArray(cluster.terms) ? cluster.terms.join(', ') : cluster.terms || '';
+                                if (methodSelect) methodSelect.value = cluster.match_method || 'contains';
+                            }
+                        }
+                    });
+                    console.log(`✅ Loaded ${config.clusters.length} clusters`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading clusters for settings:', error);
+    }
+}
+
+export async function saveClustersConfiguration(projectId = null) {
+    // If no projectId provided, try to get from current modal project
+    if (!projectId) {
+        projectId = this.currentModalProject?.id;
+    }
+    
+    if (!projectId) {
+        this.showError('No project selected');
+        return;
+    }
+    
+    try {
+        const clustersConfig = this.getClustersConfiguration();
+        
+        console.log('💾 Saving clusters configuration:', clustersConfig);
+        
+        const response = await fetch(`/manual-ai/api/projects/${projectId}/clusters`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                clusters_config: clustersConfig
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            this.showSuccess('Clusters configuration saved successfully');
+            console.log('✅ Clusters configuration saved');
+            
+            // Reload clusters statistics if in analytics view
+            if (this.currentView === 'analytics') {
+                this.loadClustersStatistics(projectId);
+            }
+        } else {
+            const errorMsg = result.errors ? result.errors.join(', ') : result.error;
+            this.showError(`Error saving clusters: ${errorMsg}`);
+        }
+        
+    } catch (error) {
+        console.error('Error saving clusters configuration:', error);
+        this.showError('Error saving clusters configuration');
+    }
+}
