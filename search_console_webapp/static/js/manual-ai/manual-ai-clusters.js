@@ -112,27 +112,27 @@ export function addClusterRow(containerIdOrData = null) {
     
     clusterRow.innerHTML = `
         <div class="cluster-row-field">
-            <label>Nombre del Cluster</label>
+            <label>Cluster Name</label>
             <input type="text" 
                    class="cluster-name-input" 
-                   placeholder="ej: Verifactu" 
+                   placeholder="e.g. Verifactu" 
                    value="${escapeHtml(clusterName)}">
         </div>
         
         <div class="cluster-row-field">
-            <label>Términos (separados por comas)</label>
+            <label>Terms (comma separated)</label>
             <input type="text" 
                    class="cluster-terms-input" 
-                   placeholder="ej: verifactu, veri-factu" 
+                   placeholder="e.g. verifactu, veri-factu" 
                    value="${escapeHtml(clusterTerms)}">
         </div>
         
         <div class="cluster-row-field" style="flex: 0.5;">
-            <label>Método</label>
+            <label>Method</label>
             <select class="cluster-match-method">
-                <option value="contains" ${matchMethod === 'contains' ? 'selected' : ''}>Contiene</option>
-                <option value="exact" ${matchMethod === 'exact' ? 'selected' : ''}>Exacto</option>
-                <option value="starts_with" ${matchMethod === 'starts_with' ? 'selected' : ''}>Empieza con</option>
+                <option value="contains" ${matchMethod === 'contains' ? 'selected' : ''}>Contains</option>
+                <option value="exact" ${matchMethod === 'exact' ? 'selected' : ''}>Exact</option>
+                <option value="starts_with" ${matchMethod === 'starts_with' ? 'selected' : ''}>Starts with</option>
                 <option value="regex" ${matchMethod === 'regex' ? 'selected' : ''}>Regex</option>
             </select>
         </div>
@@ -498,9 +498,14 @@ export async function loadProjectClustersForSettings(projectId) {
     }
 }
 
-export async function saveClustersConfiguration(projectId) {
+export async function saveClustersConfiguration(projectId = null) {
+    // If no projectId provided, try to get from current modal project
     if (!projectId) {
-        this.showNotification('Error: No project selected', 'error');
+        projectId = this.currentModalProject?.id;
+    }
+    
+    if (!projectId) {
+        this.showError('No project selected');
         return;
     }
     
@@ -522,27 +527,21 @@ export async function saveClustersConfiguration(projectId) {
         const result = await response.json();
         
         if (result.success) {
-            this.showNotification('Clusters configuration saved successfully', 'success');
+            this.showSuccess('Clusters configuration saved successfully');
+            console.log('✅ Clusters configuration saved');
             
-            // Si hay warnings, mostrarlos
-            if (result.warnings && result.warnings.length > 0) {
-                result.warnings.forEach(warning => {
-                    this.showNotification(warning, 'warning');
-                });
-            }
-            
-            // Recargar estadísticas si estamos en la vista de analytics
+            // Reload clusters statistics if in analytics view
             if (this.currentView === 'analytics') {
                 this.loadClustersStatistics(projectId);
             }
         } else {
             const errorMsg = result.errors ? result.errors.join(', ') : result.error;
-            this.showNotification(`Error saving clusters: ${errorMsg}`, 'error');
+            this.showError(`Error saving clusters: ${errorMsg}`);
         }
         
     } catch (error) {
         console.error('Error saving clusters configuration:', error);
-        this.showNotification('Error saving clusters configuration', 'error');
+        this.showError('Error saving clusters configuration');
     }
 }
 
