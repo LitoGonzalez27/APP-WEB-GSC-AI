@@ -187,3 +187,41 @@ def get_competitors_charts_data(project_id):
         logger.error(f"Error getting competitors charts data for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/comparative-charts', methods=['GET'])
+@auth_required
+def get_comparative_charts_data(project_id):
+    """
+    Obtener datos para gráficas comparativas: proyecto vs competidores seleccionados
+    
+    Args:
+        project_id: ID del proyecto
+    
+    Query params:
+        days: Número de días hacia atrás (default: 30)
+    
+    Returns:
+        JSON con datos para gráficas comparativas
+    """
+    user = get_current_user()
+    
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', 30))
+        logger.info(f"📊 Getting comparative charts data for project {project_id} with {days} days")
+        charts_data = competitor_service.get_project_comparative_charts_data(project_id, days)
+        
+        logger.info(f"📈 Comparative charts data retrieved: visibility_datasets={len(charts_data.get('visibility_chart', {}).get('datasets', []))}, position_datasets={len(charts_data.get('position_chart', {}).get('datasets', []))}")
+
+        return jsonify({
+            'success': True,
+            'data': charts_data
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting comparative charts data for project {project_id}: {e}")
+        import traceback
+        logger.error(f"🔍 Traceback: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
