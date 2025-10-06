@@ -42,6 +42,11 @@ export class ManualAISystem {
         // Initialize competitors manager
         this.initCompetitorsManager();
         
+        // Initialize clusters configuration
+        if (typeof this.initializeClustersConfiguration === 'function') {
+            this.initializeClustersConfiguration();
+        }
+        
         console.log('✅ Manual AI System initialized');
     }
     
