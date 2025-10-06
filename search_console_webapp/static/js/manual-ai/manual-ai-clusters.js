@@ -149,9 +149,15 @@ export function addClusterRow(containerIdOrData = null) {
 }
 
 export function getClustersConfiguration() {
-    const enabled = this.elements.projectClustersEnabledCheckbox?.checked || false;
+    // Get the checkbox from DOM directly (it might be in either location)
+    const enabledCheckbox = document.getElementById('projectClustersEnabled') || 
+                           document.getElementById('enableClustersCreate');
+    const enabled = enabledCheckbox?.checked || false;
+    
+    console.log('🔍 getClustersConfiguration - enabled:', enabled);
     
     if (!enabled) {
+        console.log('⚠️ Clusters not enabled, returning empty config');
         return {
             enabled: false,
             clusters: []
@@ -161,10 +167,12 @@ export function getClustersConfiguration() {
     const clusters = [];
     const clusterRows = document.querySelectorAll('.cluster-row');
     
+    console.log(`🔍 Found ${clusterRows.length} cluster rows`);
+    
     clusterRows.forEach(row => {
         const nameInput = row.querySelector('.cluster-name-input');
         const termsInput = row.querySelector('.cluster-terms-input');
-        const methodSelect = row.querySelector('.cluster-method-select');
+        const methodSelect = row.querySelector('.cluster-match-method');  // ✅ FIXED: correct class name
         
         const name = nameInput?.value.trim();
         const termsText = termsInput?.value.trim();
@@ -175,19 +183,28 @@ export function getClustersConfiguration() {
             const terms = termsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
             
             if (terms.length > 0) {
-                clusters.push({
+                const cluster = {
                     name: name,
                     terms: terms,
                     match_method: method
-                });
+                };
+                clusters.push(cluster);
+                console.log('✅ Cluster added:', cluster);
+            } else {
+                console.log('⚠️ No terms found for cluster:', name);
             }
+        } else {
+            console.log('⚠️ Skipping row - name or terms missing');
         }
     });
     
-    return {
+    const config = {
         enabled: enabled && clusters.length > 0,
         clusters: clusters
     };
+    
+    console.log('📦 Final clusters configuration:', config);
+    return config;
 }
 
 export function loadClustersConfiguration(clustersConfig) {

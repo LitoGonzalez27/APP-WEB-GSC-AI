@@ -1,3 +1,4 @@
+/*
 (function setupConsoleSilencer() {
   try {
     var host = (typeof window !== 'undefined' && window.location && window.location.hostname) || '';
@@ -61,3 +62,4 @@
 })();
 
 
+*/
