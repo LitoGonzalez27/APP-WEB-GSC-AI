@@ -10,21 +10,62 @@ import { escapeHtml } from './manual-ai-utils.js';
 // ================================
 
 export function initializeClustersConfiguration() {
-    if (!this.elements.projectClustersEnabledCheckbox) return;
+    console.log('🎯 Initializing Clusters Configuration...');
     
-    // Event listeners para habilitar/deshabilitar clusters
-    this.elements.projectClustersEnabledCheckbox.addEventListener('change', () => {
-        const enabled = this.elements.projectClustersEnabledCheckbox.checked;
-        this.toggleClustersConfiguration(enabled);
-    });
-    
-    // Event listener para añadir cluster
-    const addClusterBtn = document.getElementById('addClusterBtn');
-    if (addClusterBtn) {
-        addClusterBtn.addEventListener('click', () => {
-            this.addClusterRow();
+    // Event listener para toggle en modal de creación
+    const enableClustersCreate = document.getElementById('enableClustersCreate');
+    if (enableClustersCreate) {
+        console.log('✅ Found enableClustersCreate checkbox');
+        enableClustersCreate.addEventListener('change', function() {
+            const clustersConfigArea = document.getElementById('clustersConfigArea');
+            if (clustersConfigArea) {
+                console.log(`🔄 Toggle clusters create: ${this.checked}`);
+                clustersConfigArea.style.display = this.checked ? 'block' : 'none';
+                clustersConfigArea.setAttribute('aria-hidden', !this.checked);
+                
+                // Si se activa y no hay clusters, añadir uno por defecto
+                if (this.checked) {
+                    const clustersListCreate = document.getElementById('clustersListCreate');
+                    if (clustersListCreate && clustersListCreate.children.length === 0) {
+                        // Usar window.manualAI para llamar al método
+                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
+                            window.manualAI.addClusterRow('clustersListCreate');
+                        }
+                    }
+                }
+            }
         });
+    } else {
+        console.warn('⚠️ enableClustersCreate not found');
     }
+    
+    // Event listener para toggle en modal de settings
+    const projectClustersEnabled = document.getElementById('projectClustersEnabled');
+    if (projectClustersEnabled) {
+        console.log('✅ Found projectClustersEnabled checkbox');
+        projectClustersEnabled.addEventListener('change', function() {
+            const projectClustersContainer = document.getElementById('projectClustersContainer');
+            if (projectClustersContainer) {
+                console.log(`🔄 Toggle clusters settings: ${this.checked}`);
+                projectClustersContainer.style.display = this.checked ? 'block' : 'none';
+                
+                // Si se activa y no hay clusters, añadir uno por defecto
+                if (this.checked) {
+                    const clustersList = document.getElementById('clustersList');
+                    if (clustersList && clustersList.children.length === 0) {
+                        // Usar window.manualAI para llamar al método
+                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
+                            window.manualAI.addClusterRow('clustersList');
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        console.warn('⚠️ projectClustersEnabled not found');
+    }
+    
+    console.log('✅ Clusters Configuration initialized');
 }
 
 export function toggleClustersConfiguration(enabled) {
@@ -70,49 +111,41 @@ export function addClusterRow(containerIdOrData = null) {
     clusterRow.dataset.clusterIndex = clusterIndex;
     
     clusterRow.innerHTML = `
-        <div class="cluster-inputs">
-            <div class="form-group">
-                <label class="form-label">Nombre del Cluster</label>
-                <input type="text" 
-                       class="form-control cluster-name-input" 
-                       placeholder="ej: Verifactu" 
-                       value="${escapeHtml(clusterName)}"
-                       required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Términos de Coincidencia</label>
-                <input type="text" 
-                       class="form-control cluster-terms-input" 
-                       placeholder="ej: verifactu, verificación de facturas, veri-factu" 
-                       value="${escapeHtml(clusterTerms)}"
-                       required>
-                <small class="form-text">Separa los términos con comas</small>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Método de Coincidencia</label>
-                <select class="form-control cluster-method-select">
-                    <option value="contains" ${matchMethod === 'contains' ? 'selected' : ''}>Contiene</option>
-                    <option value="exact" ${matchMethod === 'exact' ? 'selected' : ''}>Exacto</option>
-                    <option value="starts_with" ${matchMethod === 'starts_with' ? 'selected' : ''}>Empieza con</option>
-                    <option value="regex" ${matchMethod === 'regex' ? 'selected' : ''}>Expresión Regular</option>
-                </select>
-            </div>
-            
-            <button type="button" class="btn btn-danger btn-sm remove-cluster-btn" title="Eliminar cluster">
-                <i class="fas fa-trash"></i> Eliminar
+        <div class="cluster-row-field">
+            <label>Nombre del Cluster</label>
+            <input type="text" 
+                   class="cluster-name-input" 
+                   placeholder="ej: Verifactu" 
+                   value="${escapeHtml(clusterName)}">
+        </div>
+        
+        <div class="cluster-row-field">
+            <label>Términos (separados por comas)</label>
+            <input type="text" 
+                   class="cluster-terms-input" 
+                   placeholder="ej: verifactu, veri-factu" 
+                   value="${escapeHtml(clusterTerms)}">
+        </div>
+        
+        <div class="cluster-row-field" style="flex: 0.5;">
+            <label>Método</label>
+            <select class="cluster-match-method">
+                <option value="contains" ${matchMethod === 'contains' ? 'selected' : ''}>Contiene</option>
+                <option value="exact" ${matchMethod === 'exact' ? 'selected' : ''}>Exacto</option>
+                <option value="starts_with" ${matchMethod === 'starts_with' ? 'selected' : ''}>Empieza con</option>
+                <option value="regex" ${matchMethod === 'regex' ? 'selected' : ''}>Regex</option>
+            </select>
+        </div>
+        
+        <div class="cluster-row-actions">
+            <button type="button" class="btn-remove-cluster" onclick="this.parentElement.parentElement.remove()">
+                <i class="fas fa-trash"></i>
             </button>
         </div>
     `;
     
-    // Event listener para eliminar cluster
-    const removeBtn = clusterRow.querySelector('.remove-cluster-btn');
-    removeBtn.addEventListener('click', () => {
-        clusterRow.remove();
-    });
-    
     clustersContainer.appendChild(clusterRow);
+    console.log(`✅ Cluster row added to ${containerId}`);
 }
 
 export function getClustersConfiguration() {
