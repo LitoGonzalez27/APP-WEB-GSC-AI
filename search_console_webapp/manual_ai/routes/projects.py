@@ -40,13 +40,19 @@ def get_projects():
         JSON con lista de proyectos
     """
     user = get_current_user()
+    logger.info(f"🔍 [PROYECTOS] Usuario solicitando proyectos: ID={user.get('id')}, Email={user.get('email')}, Plan={user.get('plan')}")
     
     # Control por plan
     has_access, error_response = check_manual_ai_access(user)
     if not has_access:
+        logger.warning(f"⚠️ [PROYECTOS] Usuario {user.get('id')} sin acceso: {error_response}")
         return jsonify(error_response), 402
     
     projects = project_service.get_user_projects(user['id'])
+    logger.info(f"✅ [PROYECTOS] Proyectos encontrados para usuario {user.get('id')}: {len(projects)}")
+    
+    if len(projects) == 0:
+        logger.warning(f"⚠️ [PROYECTOS] ¡NO SE ENCONTRARON PROYECTOS para usuario {user.get('id')}!")
     
     return jsonify({
         'success': True,
