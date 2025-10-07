@@ -163,11 +163,12 @@ export async function loadAnalyticsComponents(projectId) {
             this.loadGlobalDomainsRanking(projectId),
             this.loadComparativeCharts(projectId),
             this.loadCompetitorsPreview(projectId),
-            this.loadAIOverviewKeywordsTable(projectId)
+            this.loadAIOverviewKeywordsTable(projectId),
+            this.loadClustersStatistics(projectId)  // ✨ NEW: Clusters statistics
         ];
 
         await Promise.allSettled(promises);
-        console.log('✅ All analytics components loaded');
+        console.log('✅ All analytics components loaded (including clusters)');
 
     } catch (error) {
         console.error('Error loading analytics components:', error);
@@ -519,6 +520,7 @@ export async function loadComparativeCharts(projectId) {
         
         if (!response.ok) {
             if (response.status === 404) {
+                console.warn('⚠️ Comparative charts endpoint returned 404');
                 this.showNoComparativeChartsMessage();
                 return;
             }
@@ -526,30 +528,49 @@ export async function loadComparativeCharts(projectId) {
         }
 
         const result = await response.json();
+        console.log('📊 Comparative charts data received:', result);
         const data = result.data || {};
+        
+        console.log('📈 Visibility chart:', data.visibility_chart);
+        console.log('📉 Position chart:', data.position_chart);
         
         // Render both comparative charts
         this.renderComparativeVisibilityChart(data.visibility_chart || {});
         this.renderComparativePositionChart(data.position_chart || {});
 
     } catch (error) {
-        console.error('Error loading comparative charts:', error);
+        console.error('❌ Error loading comparative charts:', error);
         this.showNoComparativeChartsMessage();
     }
 }
 
 export function renderComparativeVisibilityChart(chartData) {
     const ctx = document.getElementById('comparativeVisibilityChart');
-    if (!ctx) return;
+    if (!ctx) {
+        console.error('❌ comparativeVisibilityChart canvas not found');
+        return;
+    }
 
     // Destroy existing chart
     if (this.charts.comparativeVisibility) {
         this.charts.comparativeVisibility.destroy();
     }
 
+    console.log('🔍 Rendering comparative visibility chart with data:', chartData);
+    
     if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+        console.warn('⚠️ No datasets for comparative visibility chart');
         this.showNoComparativeChartsMessage();
         return;
+    }
+    
+    console.log(`✅ Rendering comparative visibility chart with ${chartData.datasets.length} datasets`);
+    
+    // Show canvas and hide any "no data" messages
+    ctx.style.display = 'block';
+    const noDataMsg = ctx.parentElement?.querySelector('.no-data-message');
+    if (noDataMsg) {
+        noDataMsg.style.display = 'none';
     }
 
     // Modern Chart.js configuration with HTML Legend
@@ -632,16 +653,31 @@ export function renderComparativeVisibilityChart(chartData) {
 
 export function renderComparativePositionChart(chartData) {
     const ctx = document.getElementById('comparativePositionChart');
-    if (!ctx) return;
+    if (!ctx) {
+        console.error('❌ comparativePositionChart canvas not found');
+        return;
+    }
 
     // Destroy existing chart
     if (this.charts.comparativePosition) {
         this.charts.comparativePosition.destroy();
     }
 
+    console.log('🔍 Rendering comparative position chart with data:', chartData);
+    
     if (!chartData || !chartData.datasets || chartData.datasets.length === 0) {
+        console.warn('⚠️ No datasets for comparative position chart');
         this.showNoComparativeChartsMessage();
         return;
+    }
+    
+    console.log(`✅ Rendering comparative position chart with ${chartData.datasets.length} datasets`);
+    
+    // Show canvas and hide any "no data" messages
+    ctx.style.display = 'block';
+    const noDataMsg = ctx.parentElement?.querySelector('.no-data-message');
+    if (noDataMsg) {
+        noDataMsg.style.display = 'none';
     }
 
     // Modern Chart.js configuration
@@ -722,7 +758,43 @@ export function renderComparativePositionChart(chartData) {
 }
 
 export function showNoComparativeChartsMessage() {
-    console.log('No comparative charts data available');
+    console.log('⚠️ No comparative charts data available');
+    
+    // Hide both charts and show empty state
+    const visChart = document.getElementById('comparativeVisibilityChart');
+    const posChart = document.getElementById('comparativePositionChart');
+    
+    if (visChart && visChart.parentElement) {
+        const parent = visChart.parentElement;
+        visChart.style.display = 'none';
+        
+        // Check if message already exists
+        let message = parent.querySelector('.no-data-message');
+        if (!message) {
+            message = document.createElement('div');
+            message.className = 'no-data-message';
+            message.style.cssText = 'text-align: center; padding: 40px; color: #6b7280;';
+            message.innerHTML = '<i class="fas fa-chart-line" style="font-size: 48px; margin-bottom: 16px; display: block; opacity: 0.3;"></i><p>No data available for visibility comparison</p><p style="font-size: 0.875rem; margin-top: 8px;">Add competitors to your project to see comparative analysis</p>';
+            parent.appendChild(message);
+        }
+        message.style.display = 'block';
+    }
+    
+    if (posChart && posChart.parentElement) {
+        const parent = posChart.parentElement;
+        posChart.style.display = 'none';
+        
+        // Check if message already exists
+        let message = parent.querySelector('.no-data-message');
+        if (!message) {
+            message = document.createElement('div');
+            message.className = 'no-data-message';
+            message.style.cssText = 'text-align: center; padding: 40px; color: #6b7280;';
+            message.innerHTML = '<i class="fas fa-chart-line" style="font-size: 48px; margin-bottom: 16px; display: block; opacity: 0.3;"></i><p>No data available for position comparison</p><p style="font-size: 0.875rem; margin-top: 8px;">Add competitors to your project to see comparative analysis</p>';
+            parent.appendChild(message);
+        }
+        message.style.display = 'block';
+    }
 }
 
 // ================================

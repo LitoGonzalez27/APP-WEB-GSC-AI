@@ -210,13 +210,18 @@ def get_comparative_charts_data(project_id):
     
     try:
         days = int(request.args.get('days', 30))
+        logger.info(f"📊 Getting comparative charts data for project {project_id} with {days} days")
         charts_data = competitor_service.get_project_comparative_charts_data(project_id, days)
+        
+        logger.info(f"📈 Comparative charts data retrieved: visibility_datasets={len(charts_data.get('visibility_chart', {}).get('datasets', []))}, position_datasets={len(charts_data.get('position_chart', {}).get('datasets', []))}")
 
         return jsonify({
             'success': True,
             'data': charts_data
         })
     except Exception as e:
-        logger.error(f"Error getting comparative charts data for project {project_id}: {e}")
+        logger.error(f"❌ Error getting comparative charts data for project {project_id}: {e}")
+        import traceback
+        logger.error(f"🔍 Traceback: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
