@@ -438,31 +438,58 @@ export function renderClustersChart(chartData) {
 }
 
 export function renderClustersTable(clustersData) {
-    const tableBody = document.getElementById('clustersTableBody');
-    if (!tableBody) {
-        console.error('❌ clustersTableBody not found');
+    const table = document.getElementById('clustersTable');
+    if (!table) {
+        console.error('❌ clustersTable not found');
         return;
     }
     
-    console.log('📋 Rendering clusters table with data:', clustersData);
+    console.log('📋 Rendering clusters table (transposed) with data:', clustersData);
     
     if (!clustersData || clustersData.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No data available</td></tr>';
+        table.innerHTML = '<tbody><tr><td style="text-align: center;">No data available</td></tr></tbody>';
         return;
     }
     
-    tableBody.innerHTML = clustersData.map(cluster => `
-        <tr>
-            <td><strong>${escapeHtml(cluster.cluster_name)}</strong></td>
-            <td class="text-center">${cluster.total_keywords || 0}</td>
-            <td class="text-center">${cluster.ai_overview_count || 0}</td>
-            <td class="text-center">${cluster.mentions_count || 0}</td>
-            <td class="text-center">${(cluster.ai_overview_percentage || 0).toFixed(1)}%</td>
-            <td class="text-center">${(cluster.mentions_percentage || 0).toFixed(1)}%</td>
-        </tr>
-    `).join('');
+    // Transponer la tabla: las columnas son los clusters, las filas son las métricas
+    const metrics = [
+        { label: 'Total Keywords', key: 'total_keywords', format: (v) => v || 0 },
+        { label: 'AI Overview', key: 'ai_overview_count', format: (v) => v || 0 },
+        { label: 'Brand Mentions', key: 'mentions_count', format: (v) => v || 0 },
+        { label: '% AI Overview', key: 'ai_overview_percentage', format: (v) => `${(v || 0).toFixed(1)}%` },
+        { label: '% Mentions', key: 'mentions_percentage', format: (v) => `${(v || 0).toFixed(1)}%` }
+    ];
     
-    console.log('✅ Clusters table rendered successfully');
+    // Crear header con nombres de clusters
+    const headerCells = clustersData.map(cluster => 
+        `<th class="text-center">${escapeHtml(cluster.cluster_name)}</th>`
+    ).join('');
+    
+    // Crear filas de métricas
+    const rows = metrics.map(metric => {
+        const cells = clustersData.map(cluster => 
+            `<td class="text-center">${metric.format(cluster[metric.key])}</td>`
+        ).join('');
+        
+        return `<tr>
+            <th class="metric-label">${metric.label}</th>
+            ${cells}
+        </tr>`;
+    }).join('');
+    
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th class="metric-header">Metric</th>
+                ${headerCells}
+            </tr>
+        </thead>
+        <tbody>
+            ${rows}
+        </tbody>
+    `;
+    
+    console.log('✅ Clusters table (transposed) rendered successfully');
 }
 
 export function showNoClustersMessage(reason = 'not_enabled') {

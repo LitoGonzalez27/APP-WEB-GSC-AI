@@ -382,7 +382,7 @@
 }
 
 /* ========================================
-   Analytics Dashboard - Clusters Table Fix
+   Analytics Dashboard - Clusters Table (Transposed)
    ======================================== */
 
 .clusters-table-section {
@@ -394,28 +394,54 @@
     min-width: 100%;
     width: max-content;
     font-size: 13px;
+    border-collapse: collapse;
 }
 
 .clusters-table th,
 .clusters-table td {
-    padding: 10px 12px;
+    padding: 10px 14px;
     white-space: nowrap;
+    border: 1px solid #e2e8f0;
 }
 
-.clusters-table th {
+/* Header row - cluster names */
+.clusters-table thead th {
     background: #f8fafc;
     font-weight: 600;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #64748b;
+    text-align: center;
 }
 
-.clusters-table tbody tr {
-    transition: background-color 0.2s ease;
+/* First column header - "Metric" */
+.clusters-table thead th.metric-header {
+    background: #f1f5f9;
+    text-align: left;
+    font-weight: 700;
+    color: #475569;
 }
 
-.clusters-table tbody tr:hover {
+/* First column - metric labels */
+.clusters-table tbody th.metric-label {
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 12px;
+    text-align: left;
+    color: #475569;
+    min-width: 140px;
+}
+
+/* Data cells */
+.clusters-table tbody td {
+    background: white;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+/* Hover effect on rows */
+.clusters-table tbody tr:hover td {
     background-color: #f1f5f9;
 }
 
