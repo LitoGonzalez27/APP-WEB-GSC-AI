@@ -86,6 +86,34 @@
         .stat-card.usage .stat-number { color: #ffc107; }
         .stat-card.users .stat-number { color: #6f42c1; }
         
+        /* ========== TABLE CONTROLS ========== */
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .search-box input {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 250px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .filters select {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
         /* ========== USERS TABLE ========== */
         .table-container {
             background: white;
@@ -353,7 +381,7 @@
                     Home
                 </a>
                 <a href="/auth/logout" class="btn btn-danger">
-                    <i class="fas fa-sign-out-alt"></i>
+                    <i class="fas fa-right-from-bracket"></i>
                     Logout
                 </a>
             </div>
@@ -371,41 +399,70 @@
         <!-- Billing Stats -->
         <div class="billing-stats">
             <div class="stat-card plans">
-                <div class="stat-number">{{ billing_stats.users_by_plan.basic|default(0) + billing_stats.users_by_plan.premium|default(0) }}</div>
+                <div class="stat-number">{{ (billing_stats.users_by_plan.get('basic', 0) + billing_stats.users_by_plan.get('premium', 0)) if billing_stats and billing_stats.users_by_plan else 0 }}</div>
                 <div class="stat-label">Paying Users</div>
             </div>
             <div class="stat-card users">
-                <div class="stat-number">{{ billing_stats.users_by_plan.free|default(0) }}</div>
+                <div class="stat-number">{{ (billing_stats.users_by_plan.get('free', 0)) if billing_stats and billing_stats.users_by_plan else 0 }}</div>
                 <div class="stat-label">Free Users</div>
             </div>
             <div class="stat-card revenue">
-                <div class="stat-number">€{{ "%.0f"|format(billing_stats.revenue_estimate_month) }}</div>
+                <div class="stat-number">€{{ "%.0f"|format((billing_stats.revenue_estimate_month or 0) if billing_stats else 0) }}</div>
                 <div class="stat-label">Est. Monthly Revenue</div>
             </div>
             <div class="stat-card usage">
-                <div class="stat-number">{{ "{:,}".format(billing_stats.total_ru_consumed_month) }}</div>
+                <div class="stat-number">{{ "{:,}".format((billing_stats.total_ru_consumed_month or 0) if billing_stats else 0) }}</div>
                 <div class="stat-label">RU Used This Month</div>
+            </div>
+        </div>
+
+        <!-- Table Controls -->
+        <div class="table-controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search by name or email...">
+            </div>
+            <div class="filters">
+                <select id="planFilter">
+                    <option value="">All Plans</option>
+                    <option value="free">Free</option>
+                    <option value="basic">Basic</option>
+                    <option value="premium">Premium</option>
+                    <option value="enterprise">Enterprise</option>
+                </select>
+                <select id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="past_due">Past Due</option>
+                    <option value="canceled">Canceled</option>
+                    <option value="beta">Beta</option>
+                </select>
+                <select id="userStatusFilter">
+                    <option value="">All User Statuses</option>
+                    <option value="active">Active User</option>
+                    <option value="inactive">Inactive User</option>
+                </select>
             </div>
         </div>
 
         <!-- Users Table -->
         <div class="table-container">
-            <table class="table">
+            <table class="table" id="usersTable">
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Plan</th>
-                        <th>Billing Status</th>
-                        <th>Quota Usage</th>
-                        <th>Reset Date</th>
-                        <th>Role</th>
+                        <th data-sort="user">User</th>
+                        <th data-sort="plan">Plan</th>
+                        <th data-sort="billing_status">Billing Status</th>
+                        <th data-sort="quota_usage">Quota Usage</th>
+                        <th data-sort="reset_date">Reset Date</th>
+                        <th data-sort="role">Role</th>
+                        <th data-sort="status">Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="usersTableBody">
                     {% if users %}
                         {% for user in users %}
-                        <tr>
+                        <tr data-plan="{{ user.plan or 'free' }}" data-billing-status="{{ user.billing_status or 'active' }}" data-user-status="{{ 'active' if user.is_active else 'inactive' }}">
                             <td>
                                 <div class="user-info">
                                     <div class="user-avatar">
@@ -425,7 +482,7 @@
                                 {% set plan_info = get_plan_display_info(user.plan or 'free') %}
                                 <span class="badge {{ plan_info.badge_class }}">
                                     {{ plan_info.name }} 
-                                    {% if user.plan != 'free' %}
+                                    {% if user.plan != 'free' and plan_info.ru_limit is number %}
                                         ({{ "{:,}".format(plan_info.ru_limit) }} RU)
                                     {% endif %}
                                 </span>
@@ -447,14 +504,9 @@
                                     </div>
                                     {% if user.quota_limit and user.quota_limit > 0 %}
                                         {% set percentage = ((user.quota_used or 0) / user.quota_limit * 100)|round(1) %}
+                                        {% set quota_class = 'low' if percentage <= 50 else ('medium' if percentage <= 80 else ('high' if percentage <= 95 else 'critical')) %}
                                         <div class="quota-progress">
-                                            <div class="quota-fill 
-                                                {% if percentage <= 50 %}low
-                                                {% elif percentage <= 80 %}medium  
-                                                {% elif percentage <= 95 %}high
-                                                {% else %}critical{% endif %}"
-                                                style="width: {{ [percentage, 100]|min }}%">
-                                            </div>
+                                            <div class="quota-fill {{ quota_class }}" data-percentage="{{ percentage }}"></div>
                                         </div>
                                         <small>{{ percentage }}%</small>
                                     {% else %}
@@ -465,7 +517,7 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td>
+                            <td {% if user.quota_reset_date %}data-reset-date="{{ user.quota_reset_date.isoformat() }}"{% endif %}>
                                 {% if user.quota_reset_date %}
                                     {{ user.quota_reset_date.strftime('%d/%m/%Y') }}<br>
                                     <small>{{ user.quota_reset_date.strftime('%H:%M') }}</small>
@@ -477,6 +529,19 @@
                                 <span class="badge badge-{{ user.role }}">
                                     {{ user.role|title }}
                                 </span>
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="badge badge-active">
+                                        <i class="fas fa-circle-check"></i>
+                                        Active
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-canceled">
+                                        <i class="fas fa-circle-xmark"></i>
+                                        Inactive
+                                    </span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="actions">
@@ -496,7 +561,7 @@
                                     <button class="btn btn-success btn-reset-quota"
                                             data-user-id="{{ user.id }}"
                                             data-user-name="{{ user.name or user.email }}">
-                                        <i class="fas fa-refresh"></i>
+                                        <i class="fas fa-rotate-right"></i>
                                         Reset
                                     </button>
                                 </div>
@@ -505,7 +570,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
+                            <td colspan="8" style="text-align: center; padding: 2rem; color: #666;">
                                 <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
                                 No users found
                             </td>
@@ -546,6 +611,7 @@
                         <option value="free">Free (0 RU)</option>
                         <option value="basic">Basic (1,225 RU/month)</option>
                         <option value="premium">Premium (2,950 RU/month)</option>
+                        <option value="enterprise">Enterprise (Custom)</option>
                     </select>
                 </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
@@ -556,7 +622,7 @@
             <div class="modal-footer">
                 <button class="btn btn-info" onclick="closeModal('planModal')">Cancel</button>
                 <button class="btn btn-warning" id="confirmPlanBtn">
-                    <i class="fas fa-save"></i>
+                    <i class="fas fa-floppy-disk"></i>
                     Change Plan
                 </button>
             </div>
@@ -569,6 +635,28 @@
         
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Search and filters
+            document.getElementById('searchInput').addEventListener('keyup', filterAndSortTable);
+            document.getElementById('planFilter').addEventListener('change', filterAndSortTable);
+            document.getElementById('statusFilter').addEventListener('change', filterAndSortTable);
+            document.getElementById('userStatusFilter').addEventListener('change', filterAndSortTable);
+
+            // Sorting headers
+            document.querySelectorAll('#usersTable th[data-sort]').forEach(header => {
+                header.addEventListener('click', function() {
+                    const sortKey = this.dataset.sort;
+                    const currentSort = this.dataset.sortDir || 'asc';
+                    const newSortDir = currentSort === 'asc' ? 'desc' : 'asc';
+                    
+                    document.querySelectorAll('#usersTable th[data-sort]').forEach(th => {
+                        th.removeAttribute('data-sort-dir');
+                    });
+
+                    this.dataset.sortDir = newSortDir;
+                    filterAndSortTable();
+                });
+            });
+
             // View billing details buttons
             document.querySelectorAll('.btn-view-billing').forEach(button => {
                 button.addEventListener('click', function() {
@@ -744,6 +832,84 @@
         });
         
         console.log('🚀 Billing Panel loaded successfully');
+
+        function filterAndSortTable() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const planFilter = document.getElementById('planFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const userStatusFilter = document.getElementById('userStatusFilter').value;
+            const tableBody = document.getElementById('usersTableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+            // 1. Filter
+            const filteredRows = rows.filter(row => {
+                const nameEl = row.querySelector('.user-details h4');
+                const emailEl = row.querySelector('.user-details small');
+                if (!nameEl || !emailEl) {
+                    return true; // deja pasar filas no estándar (p.ej., mensaje "No users found")
+                }
+                const userName = nameEl.textContent.toLowerCase();
+                const userEmail = emailEl.textContent.toLowerCase();
+                const userPlan = row.dataset.plan;
+                const userBillingStatus = row.dataset.billingStatus;
+                const userStatus = row.dataset.userStatus;
+
+                const searchMatch = userName.includes(searchInput) || userEmail.includes(searchInput);
+                const planMatch = !planFilter || userPlan === planFilter;
+                const statusMatch = !statusFilter || userBillingStatus === statusFilter;
+                const userStatusMatch = !userStatusFilter || userStatus === userStatusFilter;
+
+                return searchMatch && planMatch && statusMatch && userStatusMatch;
+            });
+
+            // 2. Sort
+            const sortHeader = document.querySelector('#usersTable th[data-sort-dir]');
+            if (sortHeader) {
+                const sortKey = sortHeader.dataset.sort;
+                const sortDir = sortHeader.dataset.sortDir;
+                const sortColumnIndex = Array.from(sortHeader.parentElement.children).indexOf(sortHeader);
+
+                filteredRows.sort((a, b) => {
+                    let valA, valB;
+
+                    const cellA = a.cells[sortColumnIndex];
+                    const cellB = b.cells[sortColumnIndex];
+
+                    switch (sortKey) {
+                        case 'user':
+                            valA = cellA.querySelector('.user-details h4').textContent.toLowerCase();
+                            valB = cellB.querySelector('.user-details h4').textContent.toLowerCase();
+                            break;
+                        case 'quota_usage':
+                            valA = parseFloat(cellA.querySelector('.quota-text').textContent.split('/')[0].replace(/,/g, '')) || 0;
+                            valB = parseFloat(cellB.querySelector('.quota-text').textContent.split('/')[0].replace(/,/g, '')) || 0;
+                            break;
+                        case 'reset_date':
+                            valA = new Date(cellA.dataset.resetDate || 0).getTime() || 0;
+                            valB = new Date(cellB.dataset.resetDate || 0).getTime() || 0;
+                            break;
+                        default: // Handles plan, billing_status, role, status
+                            valA = cellA.textContent.trim().toLowerCase();
+                            valB = cellB.textContent.trim().toLowerCase();
+                            break;
+                    }
+
+                    if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            // 3. Re-render table
+            tableBody.innerHTML = '';
+            filteredRows.forEach(row => tableBody.appendChild(row));
+        }
+
+        // Ajustar ancho de las barras de cuota usando data-percentage
+        document.querySelectorAll('.quota-fill[data-percentage]').forEach(el => {
+            const pct = Math.min(parseFloat(el.dataset.percentage || '0'), 100);
+            el.style.width = pct + '%';
+        });
     </script>
 </body>
 </html>

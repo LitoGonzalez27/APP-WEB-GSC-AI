@@ -745,6 +745,33 @@
             </div>
         </div>
 
+        <!-- Controles de UX: búsqueda, filtros y ordenación -->
+        <div class="table-controls" style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+            <input id="filterSearch" type="text" placeholder="Buscar por nombre o email" style="flex:1; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+            <select id="filterPlan" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="">Plan: Todos</option>
+                <option value="free">Free</option>
+                <option value="basic">Basic</option>
+                <option value="premium">Premium</option>
+                <option value="enterprise">Enterprise</option>
+            </select>
+            <select id="filterStatus" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="">Estado: Todos</option>
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+            </select>
+            <select id="sortBy" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
+                <option value="created_desc">Orden: Registro ↓</option>
+                <option value="created_asc">Registro ↑</option>
+                <option value="last_login_desc">Último acceso ↓</option>
+                <option value="last_login_asc">Último acceso ↑</option>
+                <option value="quota_desc">Consumo RU ↓</option>
+                <option value="quota_asc">Consumo RU ↑</option>
+                <option value="name_asc">Nombre A-Z</option>
+                <option value="name_desc">Nombre Z-A</option>
+            </select>
+        </div>
+
         <!-- Users Table -->
         <div class="table-container">
             <table class="table">
@@ -760,7 +787,7 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="usersTbody">
                     {% if users %}
                         {% for user in users %}
                         <tr>
@@ -1674,6 +1701,90 @@
             });
         }
 
+        // 🚀 NUEVO: Filtros / Ordenación / Búsqueda en cliente
+        function normalizeText(t){ return (t || '').toString().toLowerCase().trim(); }
+
+        function parseDateKey(ddmmyyyy) {
+            // Acepta dd/mm/yyyy o dd/mm/yy
+            const parts = (ddmmyyyy || '').split('/').map(p => p.trim());
+            if (parts.length < 3) return 0;
+            const d = parseInt(parts[0], 10) || 0;
+            const m = parseInt(parts[1], 10) || 0;
+            let y = parseInt(parts[2], 10) || 0;
+            if (y < 100) y += 2000; // normalizar yy → yyyy
+            return (y * 10000) + (m * 100) + d;
+        }
+
+        function applyTableFilters() {
+            const q = normalizeText(document.getElementById('filterSearch')?.value);
+            const planFilter = document.getElementById('filterPlan')?.value || '';
+            const statusFilter = document.getElementById('filterStatus')?.value || '';
+            const sortBy = document.getElementById('sortBy')?.value || 'created_desc';
+
+            const rows = Array.from(document.querySelectorAll('#usersTbody tr'));
+            const parsed = rows.map(row => {
+                const name = normalizeText(row.querySelector('.user-details h4')?.textContent);
+                const email = normalizeText(row.children[1]?.textContent);
+                const planBadge = row.querySelector('.plan-info .badge');
+                let planVal = '';
+                if (planBadge) {
+                    if (planBadge.classList.contains('enterprise')) planVal = 'enterprise';
+                    else planVal = normalizeText(planBadge.textContent);
+                }
+                const statusBadge = row.querySelector('.status-container .badge');
+                const statusVal = statusBadge?.classList.contains('active') ? 'active' : 'inactive';
+                const quotaText = row.querySelector('.quota-progress-text span')?.textContent || '0/0 RU';
+                const match = quotaText.match(/(\d+)\/(\d+)/);
+                const used = match ? parseInt(match[1], 10) : 0;
+                const limit = match ? parseInt(match[2], 10) : 0;
+                const createdCell = row.children[5]; // Columna "Registro"
+                const createdStr = (createdCell?.textContent || '').trim().split('\n')[0].trim();
+                const createdKey = parseDateKey(createdStr);
+                const lastCell = row.children[6]; // Columna "Último Acceso"
+                const lastStr = (lastCell?.textContent || '').trim().split('\n')[0].trim();
+                const lastLoginKey = parseDateKey(lastStr);
+                return { row, name, email, planVal, statusVal, used, limit, createdKey, lastLoginKey };
+            });
+
+            // Filtrar
+            const filtered = parsed.filter(p => {
+                const qOk = !q || p.name.includes(q) || p.email.includes(q);
+                const planOk = !planFilter || p.planVal === planFilter;
+                const statusOk = !statusFilter || p.statusVal === statusFilter;
+                return qOk && planOk && statusOk;
+            });
+
+            // Ocultar todas, mostrar solo filtradas y reordenar
+            parsed.forEach(p => { p.row.style.display = 'none'; });
+
+            filtered.sort((a,b) => {
+                switch (sortBy) {
+                    case 'created_asc': return a.createdKey - b.createdKey;
+                    case 'last_login_desc': {
+                        const ak = a.lastLoginKey, bk = b.lastLoginKey;
+                        if (ak === 0 && bk !== 0) return 1; // "—" al final
+                        if (bk === 0 && ak !== 0) return -1;
+                        return bk - ak; // más reciente primero
+                    }
+                    case 'last_login_asc': {
+                        const ak = a.lastLoginKey, bk = b.lastLoginKey;
+                        if (ak === 0 && bk !== 0) return 1; // "—" al final
+                        if (bk === 0 && ak !== 0) return -1;
+                        return ak - bk; // más antiguo primero
+                    }
+                    case 'quota_desc': return (b.used - a.used);
+                    case 'quota_asc': return (a.used - b.used);
+                    case 'name_asc': return a.name.localeCompare(b.name);
+                    case 'name_desc': return b.name.localeCompare(a.name);
+                    case 'created_desc':
+                    default: return b.createdKey - a.createdKey;
+                }
+            });
+
+            const tbody = document.getElementById('usersTbody');
+            filtered.forEach(p => { p.row.style.display = ''; tbody.appendChild(p.row); });
+        }
+
         // Debug simple
         console.log('🚀 Admin Panel Simple cargado correctamente');
         
@@ -1696,8 +1807,23 @@
             // 🚀 NUEVO: Inicializar barras progresivas al cargar la página
             initializeQuotaProgressBars();
             
-            // Obtener todas las rows de users
-            const userRows = document.querySelectorAll('.table tbody tr');
+            // Aplicar filtros/ordenación iniciales
+            if (typeof applyTableFilters === 'function') {
+                applyTableFilters();
+            }
+            
+            // Listeners de filtros / ordenación / búsqueda
+            const searchEl = document.getElementById('filterSearch');
+            const planEl = document.getElementById('filterPlan');
+            const statusEl = document.getElementById('filterStatus');
+            const sortEl = document.getElementById('sortBy');
+            if (searchEl) searchEl.addEventListener('input', applyTableFilters);
+            if (planEl) planEl.addEventListener('change', applyTableFilters);
+            if (statusEl) statusEl.addEventListener('change', applyTableFilters);
+            if (sortEl) sortEl.addEventListener('change', applyTableFilters);
+
+            // Recalcular contadores con la clase de estado real
+            const userRows = document.querySelectorAll('#usersTbody tr');
 
             let total = 0;
             let active = 0;
@@ -1712,13 +1838,13 @@
 
                 total++;
 
-                // Estado: td index 3 (0-based)
-                const statusBadge = row.querySelectorAll('td')[3].querySelector('.badge');
+                // Estado: usar selector robusto
+                const statusBadge = row.querySelector('.status-container .badge');
                 if (statusBadge.classList.contains('active')) active++;
                 else inactive++;
 
-                // Fecha: td index 4, primera línea
-                const dateTd = row.querySelectorAll('td')[4];
+                // Fecha: columna de Registro (índice 5 visual), tomar primera línea
+                const dateTd = row.querySelectorAll('td')[5];
                 const dateText = dateTd.textContent.trim().split('\n')[0].trim();
 
                 if (dateText === todayDate) today++;

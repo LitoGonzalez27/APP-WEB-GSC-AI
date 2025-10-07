@@ -31,6 +31,9 @@
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
+    <!-- ✨ NUEVO: Clusters Styles -->
+    <link href="{{ url_for('static', filename='clusters-styles.css') }}" rel="stylesheet">
+    
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
@@ -482,6 +485,40 @@
                         </div>
                     </div>
 
+                    <!-- ✨ NUEVO: Thematic Clusters Analysis Section -->
+                    <div class="clusters-visualization" id="clustersVisualization" style="display: none;">
+                        <div class="clusters-header">
+                            <h3>
+                                <i class="fas fa-layer-group"></i>
+                                Thematic Clusters Analysis
+                            </h3>
+                        </div>
+                        
+                        <div class="clusters-content">
+                            <!-- Combined Chart (bars + line) -->
+                            <div class="clusters-chart-section">
+                                <h4 class="chart-title">AI Overview & Brand Mentions by Cluster</h4>
+                                <canvas id="clustersChart"></canvas>
+                            </div>
+                            
+                            <!-- Detailed Table -->
+                            <div class="clusters-table-section">
+                                <h4 class="table-title">Cluster Performance Details</h4>
+                                <div id="clustersTableContainer">
+                                    <table class="clusters-table" id="clustersTable">
+                                        <!-- Dynamic content will be loaded here (transposed table) -->
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="no-clusters-message" id="noClustersMessage" style="display: none;">
+                            <i class="fas fa-layer-group"></i>
+                            <h4>No Cluster Data Available</h4>
+                            <p>Enable and configure thematic clusters in project settings to see analysis by topic</p>
+                        </div>
+                    </div>
+
                     <!-- Comparative Charts Section -->
                     <div class="competitors-charts-section">
                         <div class="section-header">
@@ -603,12 +640,12 @@
                             <div class="setting-item">
                                 <label>Default Country</label>
                                 <select id="defaultCountry" class="form-select">
-                                    <option value="ES" selected>Spain</option>
-                                    <option value="US">United States</option>
-                                    <option value="GB">United Kingdom</option>
-                                    <option value="FR">France</option>
-                                    <option value="DE">Germany</option>
-                                    <option value="MX">Mexico</option>
+                                    <option value="ES" selected>🇪🇸 Spain</option>
+                                    <option value="US">🇺🇸 United States</option>
+                                    <option value="GB">🇬🇧 United Kingdom</option>
+                                    <option value="FR">🇫🇷 France</option>
+                                    <option value="DE">🇩🇪 Germany</option>
+                                    <option value="MX">🇲🇽 Mexico</option>
                                 </select>
                             </div>
                         </div>
@@ -671,14 +708,22 @@
             </div>
             <form id="createProjectForm">
                 <div class="modal-body create-body">
+                    <div class="create-intro">
+                        <div class="create-intro-icon" aria-hidden="true">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <div class="create-intro-copy">
+                            <p class="create-intro-title">Launch a fresh Manual AI project in a few guided steps.</p>
+                            <p class="create-intro-text">Keep inputs simple: we normalize your domains, streamline competitor setup, and help you focus on the market that matters.</p>
+                        </div>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="projectName" class="enhanced-label">
-        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
-                               
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
                             </label>
-                            <input type="text" id="projectName" name="name" required maxlength="255" 
-                                   class="enhanced-input" placeholder="e.g., My Website SEO Analysis">
+                            <input type="text" id="projectName" name="name" required maxlength="255"
+                                   class="enhanced-input" placeholder="Project label · e.g. Autumn visibility plan">
                             <small class="form-help">Choose a memorable name for your project</small>
                         </div>
                     </div>
@@ -689,8 +734,8 @@
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Description</span>
                             </label>
                             <textarea id="projectDescription" name="description" rows="3"
-                                      class="enhanced-textarea" 
-                                      placeholder="Optional description about this project..."></textarea>
+                                      class="enhanced-textarea"
+                                      placeholder="Add context for teammates (optional)"></textarea>
                             <small class="form-help">Add details about what you want to analyze</small>
                         </div>
                     </div>
@@ -701,8 +746,8 @@
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Domain</span>*
                             </label>
                             <input type="text" id="projectDomain" name="domain" required
-                                   class="enhanced-input" placeholder="example.com" aria-describedby="projectDomainHint">
-                            <small class="form-help">Domain to track in AI Overview results</small>
+                                   class="enhanced-input" placeholder="Only root domain · example.com" aria-describedby="projectDomainHint">
+                            <small class="form-help">Enter the primary domain without https://, www or paths.</small>
                             <small id="projectDomainHint" class="form-help" style="color:#6b7280;" aria-live="polite"></small>
                         </div>
                         
@@ -710,127 +755,258 @@
                             <label for="projectCountry" class="enhanced-label">
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Target Country</span>*
                             </label>
-                            <input type="text" id="projectCountryFilter" class="enhanced-input" placeholder="Type to filter countries..." aria-label="Filter countries" style="margin-bottom:8px;">
-                            <select id="projectCountry" name="country_code" class="enhanced-select">
-                                <option value="ES" selected>🇪🇸 Spain</option>
-                                <option value="US">🇺🇸 United States</option>
-                                <option value="GB">🇬🇧 United Kingdom</option>
-                                <option value="FR">🇫🇷 France</option>
-                                <option value="DE">🇩🇪 Germany</option>
-                                <option value="IT">🇮🇹 Italy</option>
-                                <option value="PT">🇵🇹 Portugal</option>
-                                <option value="NL">🇳🇱 Netherlands</option>
-                                <option value="BE">🇧🇪 Belgium</option>
-                                <option value="CH">🇨🇭 Switzerland</option>
-                                <option value="AT">🇦🇹 Austria</option>
-                                <option value="SE">🇸🇪 Sweden</option>
-                                <option value="NO">🇳🇴 Norway</option>
-                                <option value="DK">🇩🇰 Denmark</option>
-                                <option value="FI">🇫🇮 Finland</option>
-                                <option value="PL">🇵🇱 Poland</option>
-                                <option value="CZ">🇨🇿 Czech Republic</option>
-                                <option value="HU">🇭🇺 Hungary</option>
-                                <option value="RO">🇷🇴 Romania</option>
-                                <option value="BG">🇧🇬 Bulgaria</option>
-                                <option value="GR">🇬🇷 Greece</option>
-                                <option value="HR">🇭🇷 Croatia</option>
-                                <option value="SI">🇸🇮 Slovenia</option>
-                                <option value="SK">🇸🇰 Slovakia</option>
-                                <option value="IE">🇮🇪 Ireland</option>
-                                <option value="CY">🇨🇾 Cyprus</option>
-                                <option value="AL">🇦🇱 Albania</option>
-                                <option value="AD">🇦🇩 Andorra</option>
-                                <option value="AM">🇦🇲 Armenia</option>
-                                <option value="AZ">🇦🇿 Azerbaijan</option>
-                                <option value="BY">🇧🇾 Belarus</option>
-                                <option value="BA">🇧🇦 Bosnia & Herzegovina</option>
-                                <option value="EE">🇪🇪 Estonia</option>
-                                <option value="GE">🇬🇪 Georgia</option>
-                                <option value="IS">🇮🇸 Iceland</option>
-                                <option value="KZ">🇰🇿 Kazakhstan</option>
-                                <option value="XK">🇽🇰 Kosovo</option>
-                                <option value="LI">🇱🇮 Liechtenstein</option>
-                                <option value="LT">🇱🇹 Lithuania</option>
-                                <option value="LU">🇱🇺 Luxembourg</option>
-                                <option value="MK">🇲🇰 North Macedonia</option>
-                                <option value="MT">🇲🇹 Malta</option>
-                                <option value="MD">🇲🇩 Moldova</option>
-                                <option value="MC">🇲🇨 Monaco</option>
-                                <option value="ME">🇲🇪 Montenegro</option>
-                                <option value="SM">🇸🇲 San Marino</option>
-                                <option value="RS">🇷🇸 Serbia</option>
-                                <option value="UA">🇺🇦 Ukraine</option>
-                                <option value="VA">🇻🇦 Vatican City</option>
-                                <option value="CA">🇨🇦 Canada</option>
-                                <option value="MX">🇲🇽 Mexico</option>
-                                <option value="AR">🇦🇷 Argentina</option>
-                                <option value="BZ">🇧🇿 Belize</option>
-                                <option value="BR">🇧🇷 Brazil</option>
-                                <option value="CL">🇨🇱 Chile</option>
-                                <option value="CO">🇨🇴 Colombia</option>
-                                <option value="CR">🇨🇷 Costa Rica</option>
-                                <option value="CU">🇨🇺 Cuba</option>
-                                <option value="DO">🇩🇴 Dominican Republic</option>
-                                <option value="PE">🇵🇪 Peru</option>
-                                <option value="EC">🇪🇨 Ecuador</option>
-                                <option value="GT">🇬🇹 Guatemala</option>
-                                <option value="HN">🇭🇳 Honduras</option>
-                                <option value="NI">🇳🇮 Nicaragua</option>
-                                <option value="PA">🇵🇦 Panama</option>
-                                <option value="PY">🇵🇾 Paraguay</option>
-                                <option value="PR">🇵🇷 Puerto Rico</option>
-                                <option value="SR">🇸🇷 Suriname</option>
-                                <option value="UY">🇺🇾 Uruguay</option>
-                                <option value="VE">🇻🇪 Venezuela</option>
-                                <option value="AU">🇦🇺 Australia</option>
-                                <option value="NZ">🇳🇿 New Zealand</option>
-                                <option value="JP">🇯🇵 Japan</option>
-                                <option value="KR">🇰🇷 South Korea</option>
-                                <option value="SG">🇸🇬 Singapore</option>
-                                <option value="MY">🇲🇾 Malaysia</option>
-                                <option value="TH">🇹🇭 Thailand</option>
-                                <option value="PH">🇵🇭 Philippines</option>
-                                <option value="ID">🇮🇩 Indonesia</option>
-                                <option value="VN">🇻🇳 Vietnam</option>
-                                <option value="IN">🇮🇳 India</option>
-                                <option value="PK">🇵🇰 Pakistan</option>
-                                <option value="BD">🇧🇩 Bangladesh</option>
-                                <option value="ZA">🇿🇦 South Africa</option>
-                                <option value="NG">🇳🇬 Nigeria</option>
-                                <option value="EG">🇪🇬 Egypt</option>
-                                <option value="KE">🇰🇪 Kenya</option>
-                                <option value="MA">🇲🇦 Morocco</option>
-                                <option value="TN">🇹🇳 Tunisia</option>
-                                <option value="DZ">🇩🇿 Algeria</option>
-                                <option value="IL">🇮🇱 Israel</option>
-                                <option value="AE">🇦🇪 UAE</option>
-                                <option value="SA">🇸🇦 Saudi Arabia</option>
-                                <option value="TR">🇹🇷 Turkey</option>
-                                <option value="RU">🇷🇺 Russia</option>
-                                <option value="UA">🇺🇦 Ukraine</option>
-                            </select>
-                            <small class="form-help">Search location for analysis</small>
+                            <div class="country-select-group">
+                                
+                                <select id="projectCountry" name="country_code" class="enhanced-select">
+                                    <option value="AF">🇦🇫 Afghanistan</option>
+                                    <option value="AL">🇦🇱 Albania</option>
+                                    <option value="DZ">🇩🇿 Algeria</option>
+                                    <option value="AD">🇦🇩 Andorra</option>
+                                    <option value="AO">🇦🇴 Angola</option>
+                                    <option value="AG">🇦🇬 Antigua and Barbuda</option>
+                                    <option value="AR">🇦🇷 Argentina</option>
+                                    <option value="AM">🇦🇲 Armenia</option>
+                                    <option value="AU">🇦🇺 Australia</option>
+                                    <option value="AT">🇦🇹 Austria</option>
+                                    <option value="AZ">🇦🇿 Azerbaijan</option>
+                                    <option value="BS">🇧🇸 Bahamas</option>
+                                    <option value="BH">🇧🇭 Bahrain</option>
+                                    <option value="BD">🇧🇩 Bangladesh</option>
+                                    <option value="BB">🇧🇧 Barbados</option>
+                                    <option value="BY">🇧🇾 Belarus</option>
+                                    <option value="BE">🇧🇪 Belgium</option>
+                                    <option value="BZ">🇧🇿 Belize</option>
+                                    <option value="BJ">🇧🇯 Benin</option>
+                                    <option value="BT">🇧🇹 Bhutan</option>
+                                    <option value="BO">🇧🇴 Bolivia</option>
+                                    <option value="BA">🇧🇦 Bosnia and Herzegovina</option>
+                                    <option value="BW">🇧🇼 Botswana</option>
+                                    <option value="BR">🇧🇷 Brazil</option>
+                                    <option value="BN">🇧🇳 Brunei</option>
+                                    <option value="BG">🇧🇬 Bulgaria</option>
+                                    <option value="BF">🇧🇫 Burkina Faso</option>
+                                    <option value="BI">🇧🇮 Burundi</option>
+                                    <option value="CV">🇨🇻 Cabo Verde</option>
+                                    <option value="KH">🇰🇭 Cambodia</option>
+                                    <option value="CM">🇨🇲 Cameroon</option>
+                                    <option value="CA">🇨🇦 Canada</option>
+                                    <option value="CF">🇨🇫 Central African Republic</option>
+                                    <option value="TD">🇹🇩 Chad</option>
+                                    <option value="CL">🇨🇱 Chile</option>
+                                    <option value="CN">🇨🇳 China</option>
+                                    <option value="CO">🇨🇴 Colombia</option>
+                                    <option value="KM">🇰🇲 Comoros</option>
+                                    <option value="CG">🇨🇬 Congo</option>
+                                    <option value="CD">🇨🇩 Congo (Democratic Republic)</option>
+                                    <option value="CR">🇨🇷 Costa Rica</option>
+                                    <option value="CI">🇨🇮 Côte d'Ivoire</option>
+                                    <option value="HR">🇭🇷 Croatia</option>
+                                    <option value="CU">🇨🇺 Cuba</option>
+                                    <option value="CY">🇨🇾 Cyprus</option>
+                                    <option value="CZ">🇨🇿 Czech Republic</option>
+                                    <option value="DK">🇩🇰 Denmark</option>
+                                    <option value="DJ">🇩🇯 Djibouti</option>
+                                    <option value="DM">🇩🇲 Dominica</option>
+                                    <option value="DO">🇩🇴 Dominican Republic</option>
+                                    <option value="EC">🇪🇨 Ecuador</option>
+                                    <option value="EG">🇪🇬 Egypt</option>
+                                    <option value="SV">🇸🇻 El Salvador</option>
+                                    <option value="GQ">🇬🇶 Equatorial Guinea</option>
+                                    <option value="ER">🇪🇷 Eritrea</option>
+                                    <option value="EE">🇪🇪 Estonia</option>
+                                    <option value="SZ">🇸🇿 Eswatini</option>
+                                    <option value="ET">🇪🇹 Ethiopia</option>
+                                    <option value="FJ">🇫🇯 Fiji</option>
+                                    <option value="FI">🇫🇮 Finland</option>
+                                    <option value="FR">🇫🇷 France</option>
+                                    <option value="GA">🇬🇦 Gabon</option>
+                                    <option value="GM">🇬🇲 Gambia</option>
+                                    <option value="GE">🇬🇪 Georgia</option>
+                                    <option value="DE">🇩🇪 Germany</option>
+                                    <option value="GH">🇬🇭 Ghana</option>
+                                    <option value="GR">🇬🇷 Greece</option>
+                                    <option value="GD">🇬🇩 Grenada</option>
+                                    <option value="GT">🇬🇹 Guatemala</option>
+                                    <option value="GN">🇬🇳 Guinea</option>
+                                    <option value="GW">🇬🇼 Guinea-Bissau</option>
+                                    <option value="GY">🇬🇾 Guyana</option>
+                                    <option value="HT">🇭🇹 Haiti</option>
+                                    <option value="HN">🇭🇳 Honduras</option>
+                                    <option value="HU">🇭🇺 Hungary</option>
+                                    <option value="IS">🇮🇸 Iceland</option>
+                                    <option value="IN">🇮🇳 India</option>
+                                    <option value="ID">🇮🇩 Indonesia</option>
+                                    <option value="IR">🇮🇷 Iran</option>
+                                    <option value="IQ">🇮🇶 Iraq</option>
+                                    <option value="IE">🇮🇪 Ireland</option>
+                                    <option value="IL">🇮🇱 Israel</option>
+                                    <option value="IT">🇮🇹 Italy</option>
+                                    <option value="JM">🇯🇲 Jamaica</option>
+                                    <option value="JP">🇯🇵 Japan</option>
+                                    <option value="JO">🇯🇴 Jordan</option>
+                                    <option value="KZ">🇰🇿 Kazakhstan</option>
+                                    <option value="KE">🇰🇪 Kenya</option>
+                                    <option value="KI">🇰🇮 Kiribati</option>
+                                    <option value="KW">🇰🇼 Kuwait</option>
+                                    <option value="KG">🇰🇬 Kyrgyzstan</option>
+                                    <option value="LA">🇱🇦 Laos</option>
+                                    <option value="LV">🇱🇻 Latvia</option>
+                                    <option value="LB">🇱🇧 Lebanon</option>
+                                    <option value="LS">🇱🇸 Lesotho</option>
+                                    <option value="LR">🇱🇷 Liberia</option>
+                                    <option value="LY">🇱🇾 Libya</option>
+                                    <option value="LI">🇱🇮 Liechtenstein</option>
+                                    <option value="LT">🇱🇹 Lithuania</option>
+                                    <option value="LU">🇱🇺 Luxembourg</option>
+                                    <option value="MG">🇲🇬 Madagascar</option>
+                                    <option value="MW">🇲🇼 Malawi</option>
+                                    <option value="MY">🇲🇾 Malaysia</option>
+                                    <option value="MV">🇲🇻 Maldives</option>
+                                    <option value="ML">🇲🇱 Mali</option>
+                                    <option value="MT">🇲🇹 Malta</option>
+                                    <option value="MH">🇲🇭 Marshall Islands</option>
+                                    <option value="MR">🇲🇷 Mauritania</option>
+                                    <option value="MU">🇲🇺 Mauritius</option>
+                                    <option value="MX">🇲🇽 Mexico</option>
+                                    <option value="FM">🇫🇲 Micronesia</option>
+                                    <option value="MD">🇲🇩 Moldova</option>
+                                    <option value="MC">🇲🇨 Monaco</option>
+                                    <option value="MN">🇲🇳 Mongolia</option>
+                                    <option value="ME">🇲🇪 Montenegro</option>
+                                    <option value="MA">🇲🇦 Morocco</option>
+                                    <option value="MZ">🇲🇿 Mozambique</option>
+                                    <option value="MM">🇲🇲 Myanmar</option>
+                                    <option value="NA">🇳🇦 Namibia</option>
+                                    <option value="NR">🇳🇷 Nauru</option>
+                                    <option value="NP">🇳🇵 Nepal</option>
+                                    <option value="NL">🇳🇱 Netherlands</option>
+                                    <option value="NZ">🇳🇿 New Zealand</option>
+                                    <option value="NI">🇳🇮 Nicaragua</option>
+                                    <option value="NE">🇳🇪 Niger</option>
+                                    <option value="NG">🇳🇬 Nigeria</option>
+                                    <option value="MK">🇲🇰 North Macedonia</option>
+                                    <option value="NO">🇳🇴 Norway</option>
+                                    <option value="OM">🇴🇲 Oman</option>
+                                    <option value="PK">🇵🇰 Pakistan</option>
+                                    <option value="PW">🇵🇼 Palau</option>
+                                    <option value="PA">🇵🇦 Panama</option>
+                                    <option value="PG">🇵🇬 Papua New Guinea</option>
+                                    <option value="PY">🇵🇾 Paraguay</option>
+                                    <option value="PE">🇵🇪 Peru</option>
+                                    <option value="PH">🇵🇭 Philippines</option>
+                                    <option value="PL">🇵🇱 Poland</option>
+                                    <option value="PT">🇵🇹 Portugal</option>
+                                    <option value="QA">🇶🇦 Qatar</option>
+                                    <option value="RO">🇷🇴 Romania</option>
+                                    <option value="RU">🇷🇺 Russia</option>
+                                    <option value="RW">🇷🇼 Rwanda</option>
+                                    <option value="KN">🇰🇳 Saint Kitts and Nevis</option>
+                                    <option value="LC">🇱🇨 Saint Lucia</option>
+                                    <option value="VC">🇻🇨 Saint Vincent and the Grenadines</option>
+                                    <option value="WS">🇼🇸 Samoa</option>
+                                    <option value="SM">🇸🇲 San Marino</option>
+                                    <option value="ST">🇸🇹 São Tomé and Príncipe</option>
+                                    <option value="SA">🇸🇦 Saudi Arabia</option>
+                                    <option value="SN">🇸🇳 Senegal</option>
+                                    <option value="RS">🇷🇸 Serbia</option>
+                                    <option value="SC">🇸🇨 Seychelles</option>
+                                    <option value="SL">🇸🇱 Sierra Leone</option>
+                                    <option value="SG">🇸🇬 Singapore</option>
+                                    <option value="SK">🇸🇰 Slovakia</option>
+                                    <option value="SI">🇸🇮 Slovenia</option>
+                                    <option value="SB">🇸🇧 Solomon Islands</option>
+                                    <option value="SO">🇸🇴 Somalia</option>
+                                    <option value="ZA">🇿🇦 South Africa</option>
+                                    <option value="KR">🇰🇷 South Korea</option>
+                                    <option value="SS">🇸🇸 South Sudan</option>
+                                    <option value="ES" selected>🇪🇸 Spain</option>
+                                    <option value="LK">🇱🇰 Sri Lanka</option>
+                                    <option value="SD">🇸🇩 Sudan</option>
+                                    <option value="SR">🇸🇷 Suriname</option>
+                                    <option value="SE">🇸🇪 Sweden</option>
+                                    <option value="CH">🇨🇭 Switzerland</option>
+                                    <option value="SY">🇸🇾 Syria</option>
+                                    <option value="TW">🇹🇼 Taiwan</option>
+                                    <option value="TJ">🇹🇯 Tajikistan</option>
+                                    <option value="TZ">🇹🇿 Tanzania</option>
+                                    <option value="TH">🇹🇭 Thailand</option>
+                                    <option value="TL">🇹🇱 Timor-Leste</option>
+                                    <option value="TG">🇹🇬 Togo</option>
+                                    <option value="TO">🇹🇴 Tonga</option>
+                                    <option value="TT">🇹🇹 Trinidad and Tobago</option>
+                                    <option value="TN">🇹🇳 Tunisia</option>
+                                    <option value="TR">🇹🇷 Turkey</option>
+                                    <option value="TM">🇹🇲 Turkmenistan</option>
+                                    <option value="TV">🇹🇻 Tuvalu</option>
+                                    <option value="UG">🇺🇬 Uganda</option>
+                                    <option value="UA">🇺🇦 Ukraine</option>
+                                    <option value="AE">🇦🇪 United Arab Emirates</option>
+                                    <option value="GB">🇬🇧 United Kingdom</option>
+                                    <option value="US">🇺🇸 United States</option>
+                                    <option value="UY">🇺🇾 Uruguay</option>
+                                    <option value="UZ">🇺🇿 Uzbekistan</option>
+                                    <option value="VU">🇻🇺 Vanuatu</option>
+                                    <option value="VE">🇻🇪 Venezuela</option>
+                                    <option value="VN">🇻🇳 Vietnam</option>
+                                    <option value="YE">🇾🇪 Yemen</option>
+                                    <option value="ZM">🇿🇲 Zambia</option>
+                                    <option value="ZW">🇿🇼 Zimbabwe</option>
+                                </select>
+                            </div>
+                            <small class="form-help">Choose where you want the AI Overview visibility measured.</small>
                         </div>
                     </div>
 
                     <!-- Competitors (optional) -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
-                            </label>
-                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                                <input type="checkbox" id="autoDetectCompetitors" checked>
-                                <label for="autoDetectCompetitors" style="margin:0;">Auto-detect competitors (recommended)</label>
+                            <div class="form-label-row">
+                                <label class="enhanced-label" for="autoDetectCompetitors">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
+                                </label>
+                                <span class="label-optional" aria-hidden="true">Optional</span>
                             </div>
-                            <div id="manualCompetitorsArea" style="display:none;">
-                                <div class="competitor-chips-input" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Type domain and press Enter (max 4)">
+                            <p class="field-caption">Benchmark against the domains that appear alongside you in AI Overview.</p>
+                            <div class="toggle-row">
+                                <input type="checkbox" id="autoDetectCompetitors" aria-controls="manualCompetitorsArea">
+                                <label for="autoDetectCompetitors">Let Manual AI auto-detect competitors for me</label>
+                            </div>
+                            <small class="form-help toggle-hint">We can prefill up to 4 competitors based on fresh SERP insights. You can always edit them.</small>
+                            <div id="manualCompetitorsArea" class="manual-competitors-area" style="display:none;" aria-hidden="true">
+                                <div class="competitor-chips-input">
+                                    <input type="text" id="competitorInput" class="enhanced-input" placeholder="Only root domain · competitor.com">
                                     <button type="button" id="addCompetitorBtn" class="btn-secondary btn-enhanced" aria-label="Add competitor domain"><i class="fas fa-plus"></i></button>
                                 </div>
-                                <div id="competitorChips" class="competitor-chips" aria-live="polite" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                <div id="competitorChips" class="competitor-chips" aria-live="polite"></div>
                                 <small id="competitorError" class="form-help" style="color:#dc3545;" aria-live="polite"></small>
-                                <small class="form-help">Domains only. We remove https://, www and paths automatically.</small>
+                                <small class="form-help">Remember: enter domains only. We normalize the format automatically.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ✨ NUEVO: Thematic Clusters (optional) -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="form-label-row">
+                                <label class="enhanced-label">
+                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Thematic Clusters</span>
+                                </label>
+                                <span class="label-optional" aria-hidden="true">Optional</span>
+                            </div>
+                            <p class="field-caption">Group your keywords by topics to analyze AI Overview visibility per theme.</p>
+                            <div class="toggle-row">
+                                <input type="checkbox" id="enableClustersCreate" aria-controls="clustersConfigArea">
+                                <label for="enableClustersCreate">Enable thematic clusters for this project</label>
+                            </div>
+                            <div id="clustersConfigArea" class="clusters-config-area" style="display:none;" aria-hidden="true">
+                                <div id="clustersListCreate" class="clusters-list">
+                                    <!-- Cluster rows will be added here -->
+                                </div>
+                                <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersListCreate')">
+                                    <i class="fas fa-plus"></i>
+                                    Add Cluster
+                                </button>
+                                <small class="form-help">Define clusters to automatically group keywords by themes (e.g., "Product X", "Brand mentions")</small>
                             </div>
                         </div>
                     </div>
@@ -1071,6 +1247,32 @@ keyword 3"></textarea>
                         </div>
                     </div>
 
+                    <!-- ✨ NUEVO: Thematic Clusters Configuration -->
+                    <div class="tab-section">
+                        <h4>Thematic Clusters</h4>
+                        <p class="section-description">Group keywords by topics to analyze AI Overview visibility per theme</p>
+                        <div class="toggle-row" style="margin-bottom: 15px;">
+                            <input type="checkbox" id="projectClustersEnabled">
+                            <label for="projectClustersEnabled">Enable thematic clusters for this project</label>
+                        </div>
+                        <div id="projectClustersContainer" class="clusters-container" style="display:none;">
+                            <div id="clustersList" class="clusters-list">
+                                <!-- Cluster rows will be loaded here -->
+                            </div>
+                            <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersList')">
+                                <i class="fas fa-plus"></i>
+                                Add Cluster
+                            </button>
+                            <div style="margin-top: 15px;">
+                                <button type="button" class="btn-primary" onclick="manualAI.saveClustersConfiguration()">
+                                    <i class="fas fa-save"></i>
+                                    Save Clusters Configuration
+                                </button>
+                            </div>
+                            <small class="form-help">Define rules to automatically group keywords (e.g., contains "product", starts with "how to")</small>
+                        </div>
+                    </div>
+
                     <!-- ✅ NUEVO: Add Notes Section -->
                     <div class="tab-section">
                         <h4>Add Notes</h4>
@@ -1240,7 +1442,11 @@ keyword 3"></textarea>
     <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
     <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
     
-    <script src="{{ url_for('static', filename='js/manual-ai-system.js') }}"></script>
+    <!-- ✅ Video Tutorial Onboarding para Manual AI -->
+    <script src="{{ url_for('static', filename='js/onboarding-popups.js') }}"></script>
+    
+    <!-- ✅ SISTEMA MODULAR Manual AI (Refactorizado) -->
+    <script type="module" src="{{ url_for('static', filename='js/manual-ai-system-modular.js') }}"></script>
     <script>
         // Deshabilitar SidebarNavigation en Manual AI para evitar conflictos
         window.DISABLE_SIDEBAR_NAVIGATION = true;
@@ -1378,22 +1584,18 @@ keyword 3"></textarea>
         };
         console.log('👤 Usuario Manual AI:', window.currentUser);
         
-        // Inicializar sistema cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verificar que estamos en la página correcta
-            if (window.location.pathname.includes('/manual-ai/')) {
-                window.manualAI = new ManualAISystem();
-                
-                // Inicializar sidebar específico para Manual AI
-                initManualAISidebar();
-                
-                // Asegurar que el navbar esté inicializado (para logout)
-                if (typeof Navbar !== 'undefined') {
-                    console.log('🔧 Inicializando navbar para Manual AI');
-                    window.navbar = new Navbar();
-                }
+        // La inicialización de ManualAISystem la maneja el módulo manual-ai-system-modular.js
+        // Esta función se llamará después de que el sistema se inicialice
+        window.initManualAIComponents = function() {
+            // Inicializar sidebar específico para Manual AI
+            initManualAISidebar();
+            
+            // Asegurar que el navbar esté inicializado (para logout)
+            if (typeof Navbar !== 'undefined') {
+                console.log('🔧 Inicializando navbar para Manual AI');
+                window.navbar = new Navbar();
             }
-        });
+        };
     </script>
 </body>
 </html>
