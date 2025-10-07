@@ -454,11 +454,11 @@ export function renderClustersTable(clustersData) {
     tableBody.innerHTML = clustersData.map(cluster => `
         <tr>
             <td><strong>${escapeHtml(cluster.cluster_name)}</strong></td>
-            <td>${cluster.total_keywords || 0}</td>
-            <td>${cluster.keywords_with_ai_overview || 0}</td>
-            <td>${cluster.keywords_with_mentions || 0}</td>
-            <td>${(cluster.percentage_ai_overview || 0).toFixed(1)}%</td>
-            <td>${(cluster.percentage_mentions || 0).toFixed(1)}%</td>
+            <td class="text-center">${cluster.total_keywords || 0}</td>
+            <td class="text-center">${cluster.ai_overview_count || 0}</td>
+            <td class="text-center">${cluster.mentions_count || 0}</td>
+            <td class="text-center">${(cluster.ai_overview_percentage || 0).toFixed(1)}%</td>
+            <td class="text-center">${(cluster.mentions_percentage || 0).toFixed(1)}%</td>
         </tr>
     `).join('');
     
