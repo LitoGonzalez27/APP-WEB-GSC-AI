@@ -51,8 +51,8 @@ class ExportService:
             logger.info(f"Found {len(global_domains) if global_domains else 0} global domains")
             
             # 3. Obtener datos de AI Overview Keywords (igual que la UI)
-            ai_overview_data = stats_service.get_project_ai_overview_keywords(project_id, days)
-            logger.info(f"AI Overview keywords data fetched successfully")
+            ai_overview_data = stats_service.get_project_ai_overview_keywords_latest(project_id)
+            logger.info(f"AI Overview keywords data fetched successfully: {len(ai_overview_data.get('keywordResults', []))} keywords")
             
             # 4. Obtener datos de Clusters Temáticos (igual que la UI)
             clusters_data = cluster_service.get_cluster_statistics(project_id, days)
@@ -368,38 +368,7 @@ class ExportService:
         keyword_results = ai_overview_data.get('keywordResults', [])
         competitor_domains = ai_overview_data.get('competitorDomains', [])
         
-        # Función para normalizar dominio como en la UI JavaScript
-        def normalize_domain_id(domain):
-            return (domain or '').lower().replace('https://', '').replace('http://', '').replace('www.', '').replace('.', '_').replace('-', '_')
-        
-        # Función para encontrar datos de competidor en referencias (como en la UI)
-        def find_competitor_data_in_result(result, domain):
-            ai_analysis = result.get('ai_analysis', {})
-            debug_info = ai_analysis.get('debug_info', {})
-            references = debug_info.get('references_found', [])
-            
-            if not references:
-                return {'isPresent': False, 'position': None}
-            
-            normalized_domain = domain.lower().replace('www.', '')
-            
-            for ref in references:
-                ref_link = (ref.get('link', '') or '').lower()
-                ref_source = (ref.get('source', '') or '').lower()
-                ref_title = (ref.get('title', '') or '').lower()
-                
-                if (normalized_domain in ref_link or 
-                    normalized_domain in ref_source or 
-                    normalized_domain in ref_title):
-                    # CORREGIDO: Usar el campo 'index' y convertir a posición (index + 1)
-                    index = ref.get('index')
-                    position = index + 1 if index is not None else None
-                    return {
-                        'isPresent': True,
-                        'position': position
-                    }
-            
-            return {'isPresent': False, 'position': None}
+        logger.info(f"📊 Creating keywords details sheet: {len(keyword_results)} keywords, {len(competitor_domains)} competitors")
         
         # Definir columnas base exactamente como en la UI
         columns = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
@@ -413,20 +382,29 @@ class ExportService:
         rows = []
         for result in keyword_results:
             keyword = result.get('keyword', '')
-            ai_analysis = result.get('ai_analysis', {})
+            user_domain_in_aio = result.get('user_domain_in_aio', False)
+            user_domain_position = result.get('user_domain_position')
+            competitors_data = result.get('competitors', [])
             
             # Datos base (igual que la UI)
             row_data = {
                 'Keyword': keyword,
-                'Your Domain in AIO': 'Yes' if ai_analysis.get('domain_is_ai_source') else 'No',
-                'Your Position in AIO': ai_analysis.get('domain_ai_source_position', '') or 'N/A'
+                'Your Domain in AIO': 'Yes' if user_domain_in_aio else 'No',
+                'Your Position in AIO': user_domain_position if user_domain_position else 'N/A'
             }
             
             # Agregar datos de cada competidor (igual que la UI)
+            # Crear un diccionario de competidores para búsqueda rápida
+            competitors_dict = {comp['domain']: comp for comp in competitors_data}
+            
             for domain in competitor_domains:
-                competitor_data = find_competitor_data_in_result(result, domain)
-                row_data[f'{domain} in AIO'] = 'Yes' if competitor_data['isPresent'] else 'No'
-                row_data[f'Position of {domain}'] = competitor_data['position'] or 'N/A'
+                comp_info = competitors_dict.get(domain)
+                if comp_info:
+                    row_data[f'{domain} in AIO'] = 'Yes'
+                    row_data[f'Position of {domain}'] = comp_info.get('position') or 'N/A'
+                else:
+                    row_data[f'{domain} in AIO'] = 'No'
+                    row_data[f'Position of {domain}'] = 'N/A'
             
             rows.append(row_data)
         
@@ -453,19 +431,19 @@ class ExportService:
         """Crear Hoja 5: Global AI Overview Domains - usando datos exactos de la UI"""
         
         # Calcular AIO_Events_total según especificaciones
-        aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains) if global_domains else 0
+        aio_events_total = sum(domain.get('appearances', 0) for domain in global_domains) if global_domains else 0
         
         # Preparar datos con ranking
         rows = []
         if global_domains:
             for idx, domain in enumerate(global_domains, 1):
-                appearances = domain.get('total_appearances', 0)
+                appearances = domain.get('appearances', 0)
                 avg_position = domain.get('avg_position')
                 visibility_pct = (appearances / aio_events_total * 100) if aio_events_total > 0 else 0
                 
                 rows.append({
                     'Rank': idx,
-                    'Domain': domain.get('domain', ''),
+                    'Domain': domain.get('detected_domain', ''),
                     'Appearances': appearances,
                     'Avg Position': f"{avg_position:.1f}" if avg_position and avg_position > 0 else "",
                     'Visibility %': f"{visibility_pct:.2f}%"
