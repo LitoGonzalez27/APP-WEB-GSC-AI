@@ -25,9 +25,10 @@ class ProjectRepository:
         Returns:
             Lista de proyectos con sus estadísticas
         """
+        logger.info(f"🔍 [REPOSITORY] Buscando proyectos para user_id: {user_id}")
         conn = get_db_connection()
         if not conn:
-            logger.error("Failed to get database connection for user projects")
+            logger.error("❌ [REPOSITORY] Failed to get database connection for user projects")
             return []
             
         cur = conn.cursor()
@@ -85,10 +86,23 @@ class ProjectRepository:
             """, (user_id,))
             
             projects = cur.fetchall()
+            logger.info(f"✅ [REPOSITORY] Query ejecutado. Proyectos encontrados: {len(projects)}")
+            
+            if len(projects) == 0:
+                logger.warning(f"⚠️ [REPOSITORY] ¡NO se encontraron proyectos para user_id {user_id}!")
+                # Hacer una consulta simple para debug
+                cur.execute("SELECT id, name, user_id, is_active FROM manual_ai_projects WHERE user_id = %s", (user_id,))
+                debug_projects = cur.fetchall()
+                logger.warning(f"🔍 [DEBUG] Consulta simple encontró: {len(debug_projects)} proyectos")
+                for p in debug_projects:
+                    logger.warning(f"  - ID: {p[0]}, Name: {p[1]}, UserID: {p[2]}, Active: {p[3]}")
+            
             return [dict(project) for project in projects]
             
         except Exception as e:
-            logger.error(f"Error fetching user projects for user {user_id}: {e}")
+            logger.error(f"❌ [REPOSITORY] Error fetching user projects for user {user_id}: {e}")
+            import traceback
+            logger.error(f"🔍 [REPOSITORY] Traceback: {traceback.format_exc()}")
             return []
         finally:
             cur.close()
