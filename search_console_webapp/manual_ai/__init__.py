@@ -20,7 +20,8 @@ try:
         analysis,
         results,
         competitors,
-        exports
+        exports,
+        clusters
     )
     logger.info("✅ Manual AI routes loaded successfully")
 except ImportError as e:

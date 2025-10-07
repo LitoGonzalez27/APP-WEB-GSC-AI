@@ -106,7 +106,10 @@ export function renderProjects() {
                     <span class="stat-label">Average Position</span>
                 </div>
             </div>
-            ${this.renderProjectCompetitorsHorizontal(project)}
+            <div class="project-meta-sections">
+                ${this.renderProjectCompetitorsHorizontal(project)}
+                ${this.renderProjectClustersHorizontal(project)}
+            </div>
             <div class="project-footer">
                 <small class="last-analysis">
                     Last analysis: ${project.last_analysis_date ? 

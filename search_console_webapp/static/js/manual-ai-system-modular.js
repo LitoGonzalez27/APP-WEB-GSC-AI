@@ -129,6 +129,22 @@ import {
     loadModalSettings
 } from './manual-ai/manual-ai-modals.js';
 
+// Clusters
+import {
+    initializeClustersConfiguration,
+    toggleClustersConfiguration,
+    addClusterRow,
+    getClustersConfiguration,
+    loadClustersConfiguration,
+    loadClustersStatistics,
+    renderClustersChart,
+    renderClustersTable,
+    showNoClustersMessage,
+    loadProjectClustersForSettings,
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal
+} from './manual-ai/manual-ai-clusters.js';
+
 // ================================
 // INTEGRACIÓN DE MÓDULOS
 // ================================
@@ -232,7 +248,21 @@ Object.assign(ManualAISystem.prototype, {
     loadProjectIntoModal,
     loadModalKeywords,
     renderModalKeywords,
-    loadModalSettings
+    loadModalSettings,
+    
+    // Clusters
+    initializeClustersConfiguration,
+    toggleClustersConfiguration,
+    addClusterRow,
+    getClustersConfiguration,
+    loadClustersConfiguration,
+    loadClustersStatistics,
+    renderClustersChart,
+    renderClustersTable,
+    showNoClustersMessage,
+    loadProjectClustersForSettings,
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal
 });
 
 // ================================
@@ -247,7 +277,7 @@ window.ManualAISystem = ManualAISystem;
 // ================================
 
 console.log('✅ Sistema Modular Manual AI cargado correctamente');
-console.log('📦 Módulos integrados: Utils, Core, Projects, Keywords, Analysis, Charts, Competitors, Analytics, Modals, Exports');
+console.log('📦 Módulos integrados: Utils, Core, Projects, Keywords, Analysis, Charts, Competitors, Analytics, Modals, Exports, Clusters');
 
 // Función de inicialización completa
 function initializeManualAI() {

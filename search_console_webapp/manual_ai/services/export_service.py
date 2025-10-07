@@ -22,17 +22,21 @@ class ExportService:
     @staticmethod
     def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, user_id: int) -> BytesIO:
         """
-        Generar Excel con las 5 hojas especificadas para Manual AI:
+        Generar Excel con todas las hojas para Manual AI:
         1. Resumen
         2. Domain Visibility Over Time  
         3. Competitive Analysis
         4. AI Overview Keywords Details
         5. Global AI Overview Domains
+        6. Thematic Clusters Summary
+        7. Clusters Keywords Detail
         """
         from manual_ai.services.statistics_service import StatisticsService
+        from manual_ai.services.cluster_service import ClusterService
         
         output = BytesIO()
         stats_service = StatisticsService()
+        cluster_service = ClusterService()
         
         try:
             # Obtener datos usando los mismos endpoints que la UI
@@ -47,8 +51,12 @@ class ExportService:
             logger.info(f"Found {len(global_domains) if global_domains else 0} global domains")
             
             # 3. Obtener datos de AI Overview Keywords (igual que la UI)
-            ai_overview_data = stats_service.get_project_ai_overview_keywords(project_id, days)
-            logger.info(f"AI Overview keywords data fetched successfully")
+            ai_overview_data = stats_service.get_project_ai_overview_keywords_latest(project_id)
+            logger.info(f"AI Overview keywords data fetched successfully: {len(ai_overview_data.get('keywordResults', []))} keywords")
+            
+            # 4. Obtener datos de Clusters Temáticos (igual que la UI)
+            clusters_data = cluster_service.get_cluster_statistics(project_id, days)
+            logger.info(f"Clusters data fetched successfully: enabled={clusters_data.get('enabled', False)}, clusters={len(clusters_data.get('table_data', []))}")
             
             # Configuración de zona horaria
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -72,7 +80,7 @@ class ExportService:
                 
                 # HOJA 1: Resumen
                 logger.info("Creating summary sheet")
-                ExportService._create_summary_sheet(writer, workbook, header_format, project_info, stats_response, days, madrid_tz)
+                ExportService._create_summary_sheet(writer, workbook, header_format, project_info, stats_response, days, madrid_tz, clusters_data)
                 logger.info("Summary sheet created successfully")
                 
                 # HOJA 2: Domain Visibility Over Time
@@ -98,6 +106,18 @@ class ExportService:
                 ExportService._create_global_domains_sheet(writer, workbook, header_format, percent_format,
                                           number_format, global_domains, project_info)
                 logger.info("Global domains sheet created successfully")
+                
+                # HOJA 6: Thematic Clusters Summary
+                logger.info("Creating clusters summary sheet")
+                ExportService._create_clusters_summary_sheet(writer, workbook, header_format, percent_format,
+                                                            clusters_data, project_info, days)
+                logger.info("Clusters summary sheet created successfully")
+                
+                # HOJA 7: Clusters Keywords Detail
+                logger.info("Creating clusters keywords detail sheet")
+                ExportService._create_clusters_keywords_detail_sheet(writer, workbook, header_format,
+                                                                     project_id, clusters_data, days)
+                logger.info("Clusters keywords detail sheet created successfully")
             
             output.seek(0)
             return output
@@ -107,7 +127,7 @@ class ExportService:
             raise
 
     @staticmethod
-    def _create_summary_sheet(writer, workbook, header_format, project_info, stats, days, madrid_tz):
+    def _create_summary_sheet(writer, workbook, header_format, project_info, stats, days, madrid_tz, clusters_data=None):
         """Crear Hoja 1: Resumen - usando datos exactos de la UI"""
         # Usar métricas exactas de la UI (mismo endpoint que usa la interfaz)
         main_stats = stats.get('main_stats', {})
@@ -118,6 +138,10 @@ class ExportService:
         domain_mentions = main_stats.get('total_mentions', 0)
         visibility_pct = main_stats.get('visibility_percentage', 0)
         avg_position = main_stats.get('avg_position')
+        
+        # Información de clusters
+        clusters_enabled = clusters_data.get('enabled', False) if clusters_data else False
+        clusters_count = len(clusters_data.get('table_data', [])) if clusters_data and clusters_enabled else 0
         
         summary_data = [
             ['Métrica', 'Valor'],
@@ -133,6 +157,8 @@ class ExportService:
             [f'Dominio: {project_info["domain"]}', ''],
             [f'Rango de fechas: Últimos {days} días', ''],
             [f'Competidores: {len(project_info.get("selected_competitors", []))}', ''],
+            [f'Thematic Clusters: {"Enabled" if clusters_enabled else "Disabled"}', ''],
+            [f'Active Clusters: {clusters_count}' if clusters_enabled else 'Active Clusters: 0', ''],
             [f'Generado: {datetime.now(madrid_tz).strftime("%Y-%m-%d %H:%M")} Europe/Madrid', '']
         ]
         
@@ -342,38 +368,7 @@ class ExportService:
         keyword_results = ai_overview_data.get('keywordResults', [])
         competitor_domains = ai_overview_data.get('competitorDomains', [])
         
-        # Función para normalizar dominio como en la UI JavaScript
-        def normalize_domain_id(domain):
-            return (domain or '').lower().replace('https://', '').replace('http://', '').replace('www.', '').replace('.', '_').replace('-', '_')
-        
-        # Función para encontrar datos de competidor en referencias (como en la UI)
-        def find_competitor_data_in_result(result, domain):
-            ai_analysis = result.get('ai_analysis', {})
-            debug_info = ai_analysis.get('debug_info', {})
-            references = debug_info.get('references_found', [])
-            
-            if not references:
-                return {'isPresent': False, 'position': None}
-            
-            normalized_domain = domain.lower().replace('www.', '')
-            
-            for ref in references:
-                ref_link = (ref.get('link', '') or '').lower()
-                ref_source = (ref.get('source', '') or '').lower()
-                ref_title = (ref.get('title', '') or '').lower()
-                
-                if (normalized_domain in ref_link or 
-                    normalized_domain in ref_source or 
-                    normalized_domain in ref_title):
-                    # CORREGIDO: Usar el campo 'index' y convertir a posición (index + 1)
-                    index = ref.get('index')
-                    position = index + 1 if index is not None else None
-                    return {
-                        'isPresent': True,
-                        'position': position
-                    }
-            
-            return {'isPresent': False, 'position': None}
+        logger.info(f"📊 Creating keywords details sheet: {len(keyword_results)} keywords, {len(competitor_domains)} competitors")
         
         # Definir columnas base exactamente como en la UI
         columns = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
@@ -387,20 +382,29 @@ class ExportService:
         rows = []
         for result in keyword_results:
             keyword = result.get('keyword', '')
-            ai_analysis = result.get('ai_analysis', {})
+            user_domain_in_aio = result.get('user_domain_in_aio', False)
+            user_domain_position = result.get('user_domain_position')
+            competitors_data = result.get('competitors', [])
             
             # Datos base (igual que la UI)
             row_data = {
                 'Keyword': keyword,
-                'Your Domain in AIO': 'Yes' if ai_analysis.get('domain_is_ai_source') else 'No',
-                'Your Position in AIO': ai_analysis.get('domain_ai_source_position', '') or 'N/A'
+                'Your Domain in AIO': 'Yes' if user_domain_in_aio else 'No',
+                'Your Position in AIO': user_domain_position if user_domain_position else 'N/A'
             }
             
             # Agregar datos de cada competidor (igual que la UI)
+            # Crear un diccionario de competidores para búsqueda rápida
+            competitors_dict = {comp['domain']: comp for comp in competitors_data}
+            
             for domain in competitor_domains:
-                competitor_data = find_competitor_data_in_result(result, domain)
-                row_data[f'{domain} in AIO'] = 'Yes' if competitor_data['isPresent'] else 'No'
-                row_data[f'Position of {domain}'] = competitor_data['position'] or 'N/A'
+                comp_info = competitors_dict.get(domain)
+                if comp_info:
+                    row_data[f'{domain} in AIO'] = 'Yes'
+                    row_data[f'Position of {domain}'] = comp_info.get('position') or 'N/A'
+                else:
+                    row_data[f'{domain} in AIO'] = 'No'
+                    row_data[f'Position of {domain}'] = 'N/A'
             
             rows.append(row_data)
         
@@ -427,19 +431,19 @@ class ExportService:
         """Crear Hoja 5: Global AI Overview Domains - usando datos exactos de la UI"""
         
         # Calcular AIO_Events_total según especificaciones
-        aio_events_total = sum(domain.get('total_appearances', 0) for domain in global_domains) if global_domains else 0
+        aio_events_total = sum(domain.get('appearances', 0) for domain in global_domains) if global_domains else 0
         
         # Preparar datos con ranking
         rows = []
         if global_domains:
             for idx, domain in enumerate(global_domains, 1):
-                appearances = domain.get('total_appearances', 0)
+                appearances = domain.get('appearances', 0)
                 avg_position = domain.get('avg_position')
                 visibility_pct = (appearances / aio_events_total * 100) if aio_events_total > 0 else 0
                 
                 rows.append({
                     'Rank': idx,
-                    'Domain': domain.get('domain', ''),
+                    'Domain': domain.get('detected_domain', ''),
                     'Appearances': appearances,
                     'Avg Position': f"{avg_position:.1f}" if avg_position and avg_position > 0 else "",
                     'Visibility %': f"{visibility_pct:.2f}%"
@@ -469,4 +473,191 @@ class ExportService:
         # Si no hay datos, agregar nota
         if not rows:
             worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
+
+    @staticmethod
+    def _create_clusters_summary_sheet(writer, workbook, header_format, percent_format, clusters_data, project_info, days):
+        """Crear Hoja 6: Thematic Clusters Summary - Tabla transpuesta igual que la UI"""
+        
+        if not clusters_data.get('enabled', False):
+            # Crear hoja vacía con mensaje
+            df_empty = pd.DataFrame([
+                ['Thematic Clusters are not enabled for this project'],
+                ['Enable clusters in project settings to see analysis by topic']
+            ])
+            df_empty.to_excel(writer, sheet_name='Thematic Clusters Summary', index=False, header=False)
+            worksheet = writer.sheets['Thematic Clusters Summary']
+            worksheet.set_column('A:A', 60)
+            return
+        
+        table_data = clusters_data.get('table_data', [])
+        
+        if not table_data:
+            # Crear hoja vacía con mensaje
+            df_empty = pd.DataFrame([
+                ['No cluster data available'],
+                ['Clusters are enabled but no keywords have been classified yet']
+            ])
+            df_empty.to_excel(writer, sheet_name='Thematic Clusters Summary', index=False, header=False)
+            worksheet = writer.sheets['Thematic Clusters Summary']
+            worksheet.set_column('A:A', 60)
+            return
+        
+        # Preparar datos transpuestos (métricas como filas, clusters como columnas)
+        metrics = [
+            {'label': 'Total Keywords', 'key': 'total_keywords'},
+            {'label': 'AI Overview', 'key': 'ai_overview_count'},
+            {'label': 'Brand Mentions', 'key': 'mentions_count'},
+            {'label': '% AI Overview', 'key': 'ai_overview_percentage', 'is_percent': True},
+            {'label': '% Mentions', 'key': 'mentions_percentage', 'is_percent': True}
+        ]
+        
+        # Crear estructura transpuesta
+        rows = []
+        
+        # Header row: Métrica | Cluster1 | Cluster2 | ...
+        header_row = ['Metric'] + [cluster['cluster_name'] for cluster in table_data]
+        rows.append(header_row)
+        
+        # Filas de métricas
+        for metric in metrics:
+            row = [metric['label']]
+            for cluster in table_data:
+                value = cluster.get(metric['key'], 0)
+                if metric.get('is_percent', False):
+                    row.append(f"{value:.1f}%")
+                else:
+                    row.append(value)
+            rows.append(row)
+        
+        # Crear DataFrame y escribir
+        df_clusters = pd.DataFrame(rows[1:], columns=rows[0])
+        df_clusters.to_excel(writer, sheet_name='Thematic Clusters Summary', index=False)
+        
+        worksheet = writer.sheets['Thematic Clusters Summary']
+        
+        # Aplicar formato al header
+        for col_num, value in enumerate(rows[0]):
+            worksheet.write(0, col_num, value, header_format)
+        
+        # Ajustar columnas
+        worksheet.set_column('A:A', 20)  # Métrica
+        for i in range(1, len(header_row)):
+            worksheet.set_column(i, i, 18)  # Clusters
+        
+        # Agregar nota al final
+        note_row = len(rows) + 2
+        worksheet.write(note_row, 0, f"Project: {project_info['name']}")
+        worksheet.write(note_row + 1, 0, f"Date range: Last {days} days")
+        worksheet.write(note_row + 2, 0, f"Total clusters: {len(table_data)}")
+
+    @staticmethod
+    def _create_clusters_keywords_detail_sheet(writer, workbook, header_format, project_id, clusters_data, days):
+        """Crear Hoja 7: Clusters Keywords Detail - Listado detallado de keywords por cluster"""
+        from datetime import date, timedelta
+        
+        if not clusters_data.get('enabled', False):
+            # Crear hoja vacía con mensaje
+            df_empty = pd.DataFrame([
+                ['Thematic Clusters are not enabled for this project'],
+                ['Enable clusters in project settings to see keywords by cluster']
+            ])
+            df_empty.to_excel(writer, sheet_name='Clusters Keywords Detail', index=False, header=False)
+            worksheet = writer.sheets['Clusters Keywords Detail']
+            worksheet.set_column('A:A', 60)
+            return
+        
+        # Obtener configuración de clusters y clasificar keywords
+        from manual_ai.services.cluster_service import ClusterService
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+            
+            clusters_config = ClusterService.get_project_clusters(project_id)
+            
+            # Obtener todas las keywords con sus últimos resultados
+            cur.execute("""
+                WITH latest_results AS (
+                    SELECT DISTINCT ON (k.id)
+                        k.id as keyword_id,
+                        k.keyword,
+                        r.has_ai_overview,
+                        r.domain_mentioned,
+                        r.analysis_date
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                        AND r.analysis_date >= %s AND r.analysis_date <= %s
+                    WHERE k.project_id = %s AND k.is_active = true
+                    ORDER BY k.id, r.analysis_date DESC
+                )
+                SELECT 
+                    keyword_id,
+                    keyword,
+                    has_ai_overview,
+                    domain_mentioned,
+                    analysis_date
+                FROM latest_results
+                ORDER BY keyword
+            """, (start_date, end_date, project_id))
+            
+            keywords_data = cur.fetchall()
+            
+            # Clasificar keywords en clusters
+            rows = []
+            for kw_data in keywords_data:
+                keyword = kw_data['keyword']
+                has_ai_overview = 'Yes' if kw_data.get('has_ai_overview') else 'No'
+                domain_mentioned = 'Yes' if kw_data.get('domain_mentioned') else 'No'
+                last_analysis = kw_data.get('analysis_date')
+                last_analysis_str = str(last_analysis) if last_analysis else 'Never'
+                
+                # Clasificar keyword
+                matching_clusters = ClusterService.classify_keyword(keyword, clusters_config)
+                
+                if matching_clusters:
+                    # Añadir una fila por cada cluster al que pertenece
+                    for cluster_name in matching_clusters:
+                        rows.append({
+                            'Cluster': cluster_name,
+                            'Keyword': keyword,
+                            'Has AI Overview': has_ai_overview,
+                            'Domain Mentioned': domain_mentioned,
+                            'Last Analysis': last_analysis_str
+                        })
+                else:
+                    # Keyword no clasificada
+                    rows.append({
+                        'Cluster': 'Unclassified',
+                        'Keyword': keyword,
+                        'Has AI Overview': has_ai_overview,
+                        'Domain Mentioned': domain_mentioned,
+                        'Last Analysis': last_analysis_str
+                    })
+            
+            # Ordenar por cluster y luego por keyword
+            if rows:
+                df_keywords = pd.DataFrame(rows)
+                df_keywords = df_keywords.sort_values(['Cluster', 'Keyword'])
+            else:
+                # DataFrame vacío
+                df_keywords = pd.DataFrame(columns=['Cluster', 'Keyword', 'Has AI Overview', 'Domain Mentioned', 'Last Analysis'])
+            
+            df_keywords.to_excel(writer, sheet_name='Clusters Keywords Detail', index=False)
+            
+            worksheet = writer.sheets['Clusters Keywords Detail']
+            worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
+            worksheet.set_column('A:A', 20)  # Cluster
+            worksheet.set_column('B:B', 40)  # Keyword
+            worksheet.set_column('C:D', 18)  # Has AI Overview, Domain Mentioned
+            worksheet.set_column('E:E', 15)  # Last Analysis
+            
+            # Si no hay datos, agregar nota
+            if not rows:
+                worksheet.write(1, 0, 'No keywords found for this project')
+        
+        finally:
+            cur.close()
+            conn.close()
 
