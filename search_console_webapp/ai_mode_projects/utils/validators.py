@@ -17,14 +17,12 @@ def check_ai_mode_access(user):
     Returns:
         Tuple (has_access: bool, error_response: dict or None)
     """
-    # AI Mode requiere plan Premium o superior
-    allowed_plans = ['premium', 'business', 'enterprise']
-    
-    if user.get('plan') not in allowed_plans:
+    # AI Mode disponible para todos los planes excepto free
+    if user.get('plan') == 'free':
         return False, {
-            'error': 'AI Mode Monitoring requires Premium plan or higher',
+            'error': 'AI Mode Monitoring requires a paid plan',
             'upgrade_required': True,
-            'required_plan': 'premium',
+            'required_plan': 'basic',
             'current_plan': user.get('plan', 'unknown')
         }
     
