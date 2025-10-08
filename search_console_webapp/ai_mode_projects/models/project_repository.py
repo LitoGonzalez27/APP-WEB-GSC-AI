@@ -1,5 +1,5 @@
 """
-Repositorio para operaciones de base de datos relacionadas con proyectos
+Repositorio para operaciones de base de datos relacionadas con proyectos AI Mode
 """
 
 import logging
@@ -17,7 +17,7 @@ class ProjectRepository:
     @staticmethod
     def get_user_projects(user_id: int) -> List[Dict]:
         """
-        Obtener todos los proyectos de un usuario con estadísticas basadas en último análisis
+        Obtener todos los proyectos AI Mode de un usuario con estadísticas basadas en último análisis
         
         Args:
             user_id: ID del usuario
@@ -25,60 +25,51 @@ class ProjectRepository:
         Returns:
             Lista de proyectos con sus estadísticas
         """
-        logger.info(f"🔍 [REPOSITORY] Buscando proyectos para user_id: {user_id}")
+        logger.info(f"🔍 [AI MODE REPOSITORY] Buscando proyectos para user_id: {user_id}")
         conn = get_db_connection()
         if not conn:
-            logger.error("❌ [REPOSITORY] Failed to get database connection for user projects")
+            logger.error("❌ [AI MODE REPOSITORY] Failed to get database connection for user projects")
             return []
             
         cur = conn.cursor()
         
         try:
-            # Usar la misma lógica que get_project_statistics (último análisis por keyword)
+            # Query adaptada para AI Mode: brand_name en lugar de domain
             cur.execute("""
                 SELECT 
                     p.id,
                     p.name,
                     p.description,
-                    p.domain,
+                    p.brand_name,
                     p.country_code,
                     p.created_at,
                     p.updated_at,
-                    p.selected_competitors,
-                    p.topic_clusters,
-                    COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
                     COALESCE(project_stats.total_keywords, 0) as total_keywords,
-                    COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
                     COALESCE(project_stats.total_mentions, 0) as total_mentions,
                     COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
                     project_stats.avg_position,
-                    COALESCE(project_stats.aio_weight_percentage, 0) as aio_weight_percentage,
                     project_stats.last_analysis_date
-                FROM manual_ai_projects p
+                FROM ai_mode_projects p
                 LEFT JOIN LATERAL (
                     WITH latest_results AS (
                         SELECT DISTINCT ON (k.id) 
                             k.id as keyword_id,
                             k.is_active,
-                            r.has_ai_overview,
-                            r.domain_mentioned,
-                            r.domain_position,
+                            r.brand_mentioned,
+                            r.mention_position,
                             r.analysis_date
-                        FROM manual_ai_keywords k
-                        LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                        FROM ai_mode_keywords k
+                        LEFT JOIN ai_mode_results r ON k.id = r.keyword_id 
                         WHERE k.project_id = p.id
                         ORDER BY k.id, r.analysis_date DESC
                     )
                     SELECT 
                         COUNT(*) as total_keywords,
                         COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
-                        COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
-                        COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                        AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
-                        (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
-                         NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
-                        (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
-                         NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
+                        COUNT(CASE WHEN brand_mentioned = true THEN 1 END) as total_mentions,
+                        AVG(CASE WHEN mention_position IS NOT NULL THEN mention_position END) as avg_position,
+                        (COUNT(CASE WHEN brand_mentioned = true THEN 1 END)::float / 
+                         NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as visibility_percentage,
                         MAX(analysis_date) as last_analysis_date
                     FROM latest_results
                 ) project_stats ON true
@@ -87,12 +78,12 @@ class ProjectRepository:
             """, (user_id,))
             
             projects = cur.fetchall()
-            logger.info(f"✅ [REPOSITORY] Query ejecutado. Proyectos encontrados: {len(projects)}")
+            logger.info(f"✅ [AI MODE REPOSITORY] Query ejecutado. Proyectos encontrados: {len(projects)}")
             
             if len(projects) == 0:
-                logger.warning(f"⚠️ [REPOSITORY] ¡NO se encontraron proyectos para user_id {user_id}!")
+                logger.warning(f"⚠️ [AI MODE REPOSITORY] ¡NO se encontraron proyectos para user_id {user_id}!")
                 # Hacer una consulta simple para debug
-                cur.execute("SELECT id, name, user_id, is_active FROM manual_ai_projects WHERE user_id = %s", (user_id,))
+                cur.execute("SELECT id, name, user_id, is_active FROM ai_mode_projects WHERE user_id = %s", (user_id,))
                 debug_projects = cur.fetchall()
                 logger.warning(f"🔍 [DEBUG] Consulta simple encontró: {len(debug_projects)} proyectos")
                 for p in debug_projects:
@@ -101,27 +92,26 @@ class ProjectRepository:
             return [dict(project) for project in projects]
             
         except Exception as e:
-            logger.error(f"❌ [REPOSITORY] Error fetching user projects for user {user_id}: {e}")
+            logger.error(f"❌ [AI MODE REPOSITORY] Error fetching user projects for user {user_id}: {e}")
             import traceback
-            logger.error(f"🔍 [REPOSITORY] Traceback: {traceback.format_exc()}")
+            logger.error(f"🔍 [AI MODE REPOSITORY] Traceback: {traceback.format_exc()}")
             return []
         finally:
             cur.close()
             conn.close()
     
     @staticmethod
-    def create_project(user_id: int, name: str, description: str, domain: str, 
-                      country_code: str, competitors: List[str] = None) -> int:
+    def create_project(user_id: int, name: str, description: str, brand_name: str, 
+                      country_code: str) -> int:
         """
-        Crear un nuevo proyecto
+        Crear un nuevo proyecto AI Mode
         
         Args:
             user_id: ID del usuario propietario
             name: Nombre del proyecto
             description: Descripción del proyecto
-            domain: Dominio del proyecto
+            brand_name: Nombre de la marca a monitorizar
             country_code: Código de país
-            competitors: Lista de competidores
             
         Returns:
             ID del proyecto creado
@@ -129,37 +119,27 @@ class ProjectRepository:
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # Normalizar dominio del proyecto
-        normalized_domain = normalize_search_console_url(domain) or domain
-        
-        # Procesar y validar competidores
-        validated_competitors = []
-        if competitors:
-            for competitor in competitors[:4]:  # Máximo 4
-                if competitor and isinstance(competitor, str):
-                    normalized_comp = normalize_search_console_url(competitor.strip())
-                    if normalized_comp and normalized_comp != normalized_domain:
-                        if normalized_comp not in validated_competitors:
-                            validated_competitors.append(normalized_comp)
+        # Limpiar y validar brand_name
+        brand_name = brand_name.strip()
         
         cur.execute("""
-            INSERT INTO manual_ai_projects (user_id, name, description, domain, country_code, selected_competitors)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO ai_mode_projects (user_id, name, description, brand_name, country_code)
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING id
-        """, (user_id, name, description, normalized_domain, country_code, json.dumps(validated_competitors)))
+        """, (user_id, name, description, brand_name, country_code))
         
         project_id = cur.fetchone()['id']
         conn.commit()
         cur.close()
         conn.close()
         
-        logger.info(f"Created new project {project_id} for user {user_id} with {len(validated_competitors)} competitors")
+        logger.info(f"Created new AI Mode project {project_id} for user {user_id} with brand: {brand_name}")
         return project_id
     
     @staticmethod
     def user_owns_project(user_id: int, project_id: int) -> bool:
         """
-        Verificar si un usuario es propietario de un proyecto
+        Verificar si un usuario es propietario de un proyecto AI Mode
         
         Args:
             user_id: ID del usuario
@@ -172,7 +152,7 @@ class ProjectRepository:
         cur = conn.cursor()
         
         cur.execute("""
-            SELECT 1 FROM manual_ai_projects 
+            SELECT 1 FROM ai_mode_projects 
             WHERE id = %s AND user_id = %s AND is_active = true
         """, (project_id, user_id))
         
@@ -185,7 +165,7 @@ class ProjectRepository:
     @staticmethod
     def get_project_with_details(project_id: int) -> Optional[Dict]:
         """
-        Obtener proyecto con todos sus detalles
+        Obtener proyecto AI Mode con todos sus detalles
         
         Args:
             project_id: ID del proyecto
@@ -201,8 +181,8 @@ class ProjectRepository:
                 p.*,
                 COUNT(DISTINCT k.id) as keyword_count,
                 COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keyword_count
-            FROM manual_ai_projects p
-            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id
+            FROM ai_mode_projects p
+            LEFT JOIN ai_mode_keywords k ON p.id = k.project_id
             WHERE p.id = %s
             GROUP BY p.id
         """, (project_id,))
@@ -216,7 +196,7 @@ class ProjectRepository:
     @staticmethod
     def get_project_info(project_id: int) -> Optional[Dict]:
         """
-        Obtener información básica de un proyecto
+        Obtener información básica de un proyecto AI Mode
         
         Args:
             project_id: ID del proyecto
@@ -233,8 +213,8 @@ class ProjectRepository:
         
         try:
             cur.execute("""
-                SELECT id, name, description, domain, country_code, created_at, updated_at, selected_competitors
-                FROM manual_ai_projects
+                SELECT id, name, description, brand_name, country_code, created_at, updated_at
+                FROM ai_mode_projects
                 WHERE id = %s AND is_active = true
             """, (project_id,))
             
@@ -251,7 +231,7 @@ class ProjectRepository:
     @staticmethod
     def update_project(project_id: int, user_id: int, name: str, description: str) -> bool:
         """
-        Actualizar nombre y descripción de un proyecto
+        Actualizar nombre y descripción de un proyecto AI Mode
         
         Args:
             project_id: ID del proyecto
@@ -268,17 +248,17 @@ class ProjectRepository:
         try:
             # Verificar que el nombre no esté siendo usado por otro proyecto del usuario
             cur.execute("""
-                SELECT id FROM manual_ai_projects 
+                SELECT id FROM ai_mode_projects 
                 WHERE user_id = %s AND name = %s AND id != %s
             """, (user_id, name, project_id))
             
             if cur.fetchone():
-                logger.warning(f"Project name '{name}' already exists for user {user_id}")
+                logger.warning(f"AI Mode project name '{name}' already exists for user {user_id}")
                 return False
             
             # Actualizar proyecto
             cur.execute("""
-                UPDATE manual_ai_projects 
+                UPDATE ai_mode_projects 
                 SET name = %s, description = %s, updated_at = NOW()
                 WHERE id = %s AND user_id = %s
             """, (name, description, project_id, user_id))
@@ -287,12 +267,12 @@ class ProjectRepository:
             conn.commit()
             
             if success:
-                logger.info(f"Project {project_id} updated successfully")
+                logger.info(f"AI Mode project {project_id} updated successfully")
             
             return success
             
         except Exception as e:
-            logger.error(f"Error updating project {project_id}: {e}")
+            logger.error(f"Error updating AI Mode project {project_id}: {e}")
             return False
         finally:
             cur.close()
@@ -301,7 +281,7 @@ class ProjectRepository:
     @staticmethod
     def delete_project(project_id: int, user_id: int) -> Dict:
         """
-        Eliminar completamente un proyecto y todos sus datos
+        Eliminar completamente un proyecto AI Mode y todos sus datos
         
         Args:
             project_id: ID del proyecto
@@ -315,7 +295,7 @@ class ProjectRepository:
         
         try:
             # Obtener nombre del proyecto antes de eliminarlo
-            cur.execute("SELECT name FROM manual_ai_projects WHERE id = %s", (project_id,))
+            cur.execute("SELECT name FROM ai_mode_projects WHERE id = %s", (project_id,))
             project_data = cur.fetchone()
             
             if not project_data:
@@ -326,30 +306,30 @@ class ProjectRepository:
             # Eliminar en orden inverso de dependencias
             # 1. Eventos
             try:
-                cur.execute("DELETE FROM manual_ai_events WHERE project_id = %s", (project_id,))
+                cur.execute("DELETE FROM ai_mode_events WHERE project_id = %s", (project_id,))
                 events_deleted = cur.rowcount
             except Exception as e:
-                logger.warning(f"No events deleted for project {project_id}: {e}")
+                logger.warning(f"No events deleted for AI Mode project {project_id}: {e}")
                 events_deleted = 0
             
             # 2. Snapshots
             try:
-                cur.execute("DELETE FROM manual_ai_snapshots WHERE project_id = %s", (project_id,))
+                cur.execute("DELETE FROM ai_mode_snapshots WHERE project_id = %s", (project_id,))
                 snapshots_deleted = cur.rowcount
             except Exception as e:
-                logger.warning(f"No snapshots deleted for project {project_id}: {e}")
+                logger.warning(f"No snapshots deleted for AI Mode project {project_id}: {e}")
                 snapshots_deleted = 0
             
             # 3. Resultados
-            cur.execute("DELETE FROM manual_ai_results WHERE project_id = %s", (project_id,))
+            cur.execute("DELETE FROM ai_mode_results WHERE project_id = %s", (project_id,))
             results_deleted = cur.rowcount
             
             # 4. Keywords
-            cur.execute("DELETE FROM manual_ai_keywords WHERE project_id = %s", (project_id,))
+            cur.execute("DELETE FROM ai_mode_keywords WHERE project_id = %s", (project_id,))
             keywords_deleted = cur.rowcount
             
             # 5. Proyecto
-            cur.execute("DELETE FROM manual_ai_projects WHERE id = %s AND user_id = %s", 
+            cur.execute("DELETE FROM ai_mode_projects WHERE id = %s AND user_id = %s", 
                        (project_id, user_id))
             
             if cur.rowcount == 0:
@@ -379,84 +359,6 @@ class ProjectRepository:
             cur.close()
             conn.close()
     
-    @staticmethod
-    def get_project_competitors(project_id: int) -> List[str]:
-        """
-        Obtener competidores seleccionados de un proyecto
-        
-        Args:
-            project_id: ID del proyecto
-            
-        Returns:
-            Lista de competidores
-        """
-        conn = get_db_connection()
-        if not conn:
-            logger.error(f"Failed to get database connection for project {project_id} competitors")
-            return []
-            
-        cur = conn.cursor()
-        
-        try:
-            cur.execute("""
-                SELECT selected_competitors
-                FROM manual_ai_projects 
-                WHERE id = %s AND is_active = true
-            """, (project_id,))
-            
-            result = cur.fetchone()
-            
-            if not result:
-                logger.warning(f"Project {project_id} not found or inactive")
-                return []
-            
-            competitors = result['selected_competitors'] if result['selected_competitors'] else []
-            
-            # Validar que competitors sea una lista
-            if not isinstance(competitors, list):
-                logger.warning(f"Invalid competitors data type for project {project_id}: {type(competitors)}")
-                return []
-            
-            return competitors
-            
-        except Exception as e:
-            logger.error(f"Error getting competitors for project {project_id}: {e}")
-            return []
-        finally:
-            cur.close()
-            conn.close()
-    
-    @staticmethod
-    def update_project_competitors(project_id: int, competitors: List[str]) -> bool:
-        """
-        Actualizar competidores de un proyecto
-        
-        Args:
-            project_id: ID del proyecto
-            competitors: Lista de competidores (ya validados y normalizados)
-            
-        Returns:
-            True si se actualizó correctamente
-        """
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        try:
-            cur.execute("""
-                UPDATE manual_ai_projects 
-                SET selected_competitors = %s, updated_at = NOW()
-                WHERE id = %s
-            """, (json.dumps(competitors), project_id))
-            
-            success = cur.rowcount > 0
-            conn.commit()
-            
-            return success
-            
-        except Exception as e:
-            logger.error(f"Error updating competitors for project {project_id}: {e}")
-            return False
-        finally:
-            cur.close()
-            conn.close()
+    # NOTA: AI Mode no usa competitors, por lo que estos métodos no son necesarios
+    # Los dejamos comentados para referencia pero no se utilizan
 

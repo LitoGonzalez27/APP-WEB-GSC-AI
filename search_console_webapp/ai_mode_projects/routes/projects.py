@@ -1,13 +1,13 @@
 """
-Rutas para gestión de proyectos
+Rutas para gestión de proyectos AI Mode
 """
 
 import logging
 from flask import render_template, request, jsonify
 from auth import auth_required, get_current_user
-from manual_ai import manual_ai_bp
-from manual_ai.services.project_service import ProjectService
-from manual_ai.utils.validators import check_manual_ai_access
+from ai_mode_projects import ai_mode_bp
+from ai_mode_projects.services.project_service import ProjectService
+from ai_mode_projects.utils.validators import check_ai_mode_access
 
 logger = logging.getLogger(__name__)
 
@@ -15,44 +15,44 @@ logger = logging.getLogger(__name__)
 project_service = ProjectService()
 
 
-@manual_ai_bp.route('/')
+@ai_mode_bp.route('/')
 @auth_required
-def manual_ai_dashboard():
+def ai_mode_dashboard():
     """
-    Dashboard principal del sistema Manual AI Analysis
+    Dashboard principal del sistema AI Mode Monitoring
     Acceso libre con paywalls en acciones específicas
     
     Returns:
-        Renderizado del template manual_ai_dashboard.html
+        Renderizado del template ai_mode_dashboard.html
     """
     user = get_current_user()
-    logger.info(f"Usuario accediendo Manual AI dashboard: {user.get('email')} (plan: {user.get('plan')})")
-    return render_template('manual_ai_dashboard.html', user=user)
+    logger.info(f"Usuario accediendo AI Mode dashboard: {user.get('email')} (plan: {user.get('plan')})")
+    return render_template('ai_mode_dashboard.html', user=user)
 
 
-@manual_ai_bp.route('/api/projects', methods=['GET'])
+@ai_mode_bp.route('/api/projects', methods=['GET'])
 @auth_required
 def get_projects():
     """
-    Obtener todos los proyectos del usuario actual
+    Obtener todos los proyectos AI Mode del usuario actual
     
     Returns:
         JSON con lista de proyectos
     """
     user = get_current_user()
-    logger.info(f"🔍 [PROYECTOS] Usuario solicitando proyectos: ID={user.get('id')}, Email={user.get('email')}, Plan={user.get('plan')}")
+    logger.info(f"🔍 [AI MODE] Usuario solicitando proyectos: ID={user.get('id')}, Email={user.get('email')}, Plan={user.get('plan')}")
     
     # Control por plan
-    has_access, error_response = check_manual_ai_access(user)
+    has_access, error_response = check_ai_mode_access(user)
     if not has_access:
-        logger.warning(f"⚠️ [PROYECTOS] Usuario {user.get('id')} sin acceso: {error_response}")
+        logger.warning(f"⚠️ [AI MODE] Usuario {user.get('id')} sin acceso: {error_response}")
         return jsonify(error_response), 402
     
     projects = project_service.get_user_projects(user['id'])
-    logger.info(f"✅ [PROYECTOS] Proyectos encontrados para usuario {user.get('id')}: {len(projects)}")
+    logger.info(f"✅ [AI MODE] Proyectos encontrados para usuario {user.get('id')}: {len(projects)}")
     
     if len(projects) == 0:
-        logger.warning(f"⚠️ [PROYECTOS] ¡NO SE ENCONTRARON PROYECTOS para usuario {user.get('id')}!")
+        logger.warning(f"⚠️ [AI MODE] ¡NO SE ENCONTRARON PROYECTOS para usuario {user.get('id')}!")
     
     return jsonify({
         'success': True,
@@ -60,18 +60,17 @@ def get_projects():
     })
 
 
-@manual_ai_bp.route('/api/projects', methods=['POST'])
+@ai_mode_bp.route('/api/projects', methods=['POST'])
 @auth_required
 def create_project():
     """
-    Crear un nuevo proyecto
+    Crear un nuevo proyecto AI Mode
     
     Request JSON:
         - name: Nombre del proyecto
-        - domain: Dominio del proyecto
+        - brand_name: Nombre de la marca a monitorizar
         - description: Descripción (opcional)
         - country_code: Código de país (opcional, default: US)
-        - competitors: Lista de competidores (opcional)
     
     Returns:
         JSON con resultado de la creación
@@ -79,23 +78,22 @@ def create_project():
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_manual_ai_access(user)
+    has_access, error_response = check_ai_mode_access(user)
     if not has_access:
         return jsonify(error_response), 402
     
     data = request.get_json()
     
     # Validaciones básicas
-    if not data.get('name') or not data.get('domain'):
-        return jsonify({'success': False, 'error': 'Name and domain are required'}), 400
+    if not data.get('name') or not data.get('brand_name'):
+        return jsonify({'success': False, 'error': 'Name and brand name are required'}), 400
     
     result = project_service.create_project(
         user_id=user['id'],
         name=data['name'],
         description=data.get('description', ''),
-        domain=data['domain'],
-        country_code=data.get('country_code', 'US'),
-        competitors=data.get('competitors', [])
+        brand_name=data['brand_name'],
+        country_code=data.get('country_code', 'US')
     )
     
     if result['success']:
@@ -104,11 +102,11 @@ def create_project():
         return jsonify(result), 500
 
 
-@manual_ai_bp.route('/api/projects/<int:project_id>', methods=['GET'])
+@ai_mode_bp.route('/api/projects/<int:project_id>', methods=['GET'])
 @auth_required
 def get_project_details(project_id):
     """
-    Obtener detalles completos de un proyecto
+    Obtener detalles completos de un proyecto AI Mode
     
     Args:
         project_id: ID del proyecto
@@ -119,7 +117,7 @@ def get_project_details(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_manual_ai_access(user)
+    has_access, error_response = check_ai_mode_access(user)
     if not has_access:
         return jsonify(error_response), 402
     
@@ -134,11 +132,11 @@ def get_project_details(project_id):
     })
 
 
-@manual_ai_bp.route('/api/projects/<int:project_id>', methods=['PUT'])
+@ai_mode_bp.route('/api/projects/<int:project_id>', methods=['PUT'])
 @auth_required
 def update_project(project_id):
     """
-    Actualizar un proyecto (nombre, descripción)
+    Actualizar un proyecto AI Mode (nombre, descripción)
     
     Args:
         project_id: ID del proyecto
@@ -171,11 +169,11 @@ def update_project(project_id):
         return jsonify(result), status_code
 
 
-@manual_ai_bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
+@ai_mode_bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
 @auth_required
 def delete_project(project_id):
     """
-    Eliminar completamente un proyecto y todos sus datos
+    Eliminar completamente un proyecto AI Mode y todos sus datos
     
     Args:
         project_id: ID del proyecto
@@ -190,7 +188,7 @@ def delete_project(project_id):
     if result['success']:
         return jsonify({
             'success': True,
-            'message': f'Project "{result.get("project_name", "")}" deleted successfully',
+            'message': f'AI Mode project "{result.get("project_name", "")}" deleted successfully',
             'stats': result.get('stats', {})
         })
     else:
