@@ -3,7 +3,7 @@
  * Gestión de modales (proyectos, keywords, settings, results)
  */
 
-import { escapeHtml } from './manual-ai-utils.js';
+import { escapeHtml } from './ai-mode-utils.js';
 
 // ================================
 // PROJECT RESULTS MODAL

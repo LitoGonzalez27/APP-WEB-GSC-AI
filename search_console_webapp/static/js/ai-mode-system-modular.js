@@ -17,10 +17,10 @@ import {
     normalizeDomainString,
     showElement,
     hideElement
-} from './ai-mode-projects/ai-mode-utils.js';
+} from '/static/js/ai-mode-projects/ai-mode-utils.js';
 
 // Core - Importar la clase AIModeSystem
-import { AIModeSystem } from './ai-mode-projects/ai-mode-core.js';
+import { AIModeSystem } from '/static/js/ai-mode-projects/ai-mode-core.js';
 
 // Projects
 import {
@@ -31,7 +31,7 @@ import {
     hideCreateProject,
     handleCreateProject,
     filterCountryOptions
-} from './ai-mode-projects/ai-mode-projects.js';
+} from '/static/js/ai-mode-projects/ai-mode-projects.js';
 
 // Keywords
 import {
@@ -42,13 +42,13 @@ import {
     updateKeywordsCounter,
     handleAddKeywords,
     toggleKeyword
-} from './ai-mode-projects/ai-mode-keywords.js';
+} from '/static/js/ai-mode-projects/ai-mode-keywords.js';
 
 // Analysis
 import {
     analyzeProject,
     runAnalysis
-} from './ai-mode-projects/ai-mode-analysis.js';
+} from '/static/js/ai-mode-projects/ai-mode-analysis.js';
 
 // Charts
 import {
@@ -60,7 +60,7 @@ import {
     getEventIcon,
     clearEventAnnotations,
     showEventAnnotations
-} from './ai-mode-projects/ai-mode-charts.js';
+} from '/static/js/ai-mode-projects/ai-mode-charts.js';
 
 // Analytics
 import {
@@ -69,13 +69,13 @@ import {
     renderAnalytics,
     updateSummaryCard,
     loadAnalyticsComponents
-} from './ai-mode-projects/ai-mode-analytics.js';
+} from '/static/js/ai-mode-projects/ai-mode-analytics.js';
 
 // Exports
 import {
     handleDownloadExcel,
     handleDownloadPDF
-} from './ai-mode-projects/ai-mode-exports.js';
+} from '/static/js/ai-mode-projects/ai-mode-exports.js';
 
 // Modals
 import {
@@ -90,7 +90,7 @@ import {
     loadModalKeywords,
     renderModalKeywords,
     loadModalSettings
-} from './ai-mode-projects/ai-mode-modals.js';
+} from '/static/js/ai-mode-projects/ai-mode-modals.js';
 
 // ================================
 // INTEGRACIÓN DE MÓDULOS

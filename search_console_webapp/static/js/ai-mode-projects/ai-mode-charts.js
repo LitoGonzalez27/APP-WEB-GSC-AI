@@ -3,7 +3,7 @@
  * Gestión de gráficos Chart.js (visibility, positions, annotations)
  */
 
-import { htmlLegendPlugin } from './manual-ai-utils.js';
+import { htmlLegendPlugin } from './ai-mode-utils.js';
 
 // ================================
 // VISIBILITY CHART

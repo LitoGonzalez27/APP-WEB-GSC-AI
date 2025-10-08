@@ -3,7 +3,7 @@
  * Gestión completa de competidores (CRUD, preview, charts)
  */
 
-import { getDomainLogoUrl, isValidDomain } from './manual-ai-utils.js';
+import { getDomainLogoUrl, isValidDomain } from './ai-mode-utils.js';
 
 // ================================
 // COMPETITORS LOADING & RENDERING

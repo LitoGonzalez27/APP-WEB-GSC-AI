@@ -3,7 +3,7 @@
  * Gestión completa de analytics (stats, rankings, tablas)
  */
 
-import { escapeHtml, getDomainLogoUrl, htmlLegendPlugin } from './manual-ai-utils.js';
+import { escapeHtml, getDomainLogoUrl, htmlLegendPlugin } from './ai-mode-utils.js';
 
 // ================================
 // ANALYTICS LOADING & RENDERING

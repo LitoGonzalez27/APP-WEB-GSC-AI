@@ -3,7 +3,7 @@
  * Gestión completa de keywords (CRUD, renderizado, validación)
  */
 
-import { escapeHtml } from './manual-ai-utils.js';
+import { escapeHtml } from './ai-mode-utils.js';
 
 // ================================
 // KEYWORDS LOADING & RENDERING

@@ -3,7 +3,7 @@
  * Gestión completa de Topic Clusters
  */
 
-import { escapeHtml } from './manual-ai-utils.js';
+import { escapeHtml } from './ai-mode-utils.js';
 
 // ================================
 // CLUSTERS CONFIGURATION

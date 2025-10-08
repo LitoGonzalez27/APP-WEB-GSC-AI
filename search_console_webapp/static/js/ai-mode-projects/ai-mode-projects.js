@@ -3,7 +3,7 @@
  * Gestión completa de proyectos (CRUD, renderizado, validación)
  */
 
-import { escapeHtml, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './manual-ai-utils.js';
+import { escapeHtml, getDomainLogoUrl, normalizeDomainString, isValidDomain } from './ai-mode-utils.js';
 
 // ================================
 // PROJECTS MANAGEMENT
