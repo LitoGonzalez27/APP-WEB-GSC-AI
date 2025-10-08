@@ -267,6 +267,28 @@
             </div>
           </div>
           {% endif %}
+
+          {% if user %}
+          <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
+            <div class="nav-icon">
+              <i class="fas fa-brain"></i>
+            </div>
+            <div class="nav-text">AI Mode Monitoring</div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusAIMode"></div>
+            </div>
+          </button>
+          {% else %}
+          <div class="nav-item disabled" id="navAIMode" title="Authentication required">
+            <div class="nav-icon">
+              <i class="fas fa-brain"></i>
+            </div>
+            <div class="nav-text">AI Mode Monitoring</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusAIMode"></div>
+            </div>
+          </div>
+          {% endif %}
         </div>
 
         <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
@@ -1231,6 +1253,26 @@
       
       // Navigate to Manual AI Analysis in same tab
       window.location.href = '/manual-ai/';
+    }
+
+    function openAIMode() {
+      console.log('🚀 Abriendo AI Mode Monitoring desde aplicación principal...');
+      
+      // Guardar estado de navegación
+      const navigationState = {
+        source: 'main-app',
+        currentSection: window.sidebarNav?.currentSection || 'configuration',
+        timestamp: Date.now(),
+        originalUrl: window.location.href
+      };
+      
+      // Guardar en sessionStorage
+      sessionStorage.setItem('navigationState', JSON.stringify(navigationState));
+      
+      console.log('🔄 Navegando a AI Mode Monitoring');
+      
+      // Navigate to AI Mode Monitoring in same tab
+      window.location.href = '/ai-mode-projects/';
     }
   </script>
 
