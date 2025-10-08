@@ -1456,15 +1456,7 @@ keyword 3"></textarea>
     <script src="{{ url_for('static', filename='js/onboarding-popups.js') }}"></script>
     
     <!-- ✅ SISTEMA MODULAR AI Mode Monitoring -->
-    <script type="module">
-        // Importar sistema AI Mode
-        import { AIModeSystem } from '/static/js/ai-mode-projects/ai-mode-core.js';
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🤖 Initializing AI Mode System...');
-            window.aiModeSystem = new AIModeSystem();
-        });
-    </script>
+    <script type="module" src="{{ url_for('static', filename='js/ai-mode-system-modular.js') }}"></script>
     
     <script>
         // Deshabilitar SidebarNavigation en AI Mode para evitar conflictos
