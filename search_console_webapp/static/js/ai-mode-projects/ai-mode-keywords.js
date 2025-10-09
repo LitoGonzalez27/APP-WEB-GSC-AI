@@ -114,7 +114,10 @@ export function updateKeywordsCounter() {
 export async function handleAddKeywords(e) {
     e.preventDefault();
 
-    if (!this.currentProject) {
+    // Usar currentModalProject cuando estamos en el modal
+    const project = this.currentModalProject || this.currentProject;
+    
+    if (!project) {
         this.showError('No project selected');
         return;
     }
@@ -132,7 +135,7 @@ export async function handleAddKeywords(e) {
     this.showProgress('Adding keywords...', `Adding ${keywords.length} keywords to project`);
 
     try {
-        const response = await fetch(`/ai-mode-projects/api/projects/${this.currentProject.id}/keywords`, {
+        const response = await fetch(`/ai-mode-projects/api/projects/${project.id}/keywords`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -145,7 +148,7 @@ export async function handleAddKeywords(e) {
         if (data.success) {
             this.hideAddKeywords();
             this.showSuccess(`${data.added_count} keywords added successfully!`);
-            await this.loadProjectKeywords(this.currentProject.id);
+            await this.loadProjectKeywords(project.id);
             await this.loadProjects(); // Refresh project stats
         } else {
             throw new Error(data.error || 'Failed to add keywords');

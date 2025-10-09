@@ -186,8 +186,10 @@ export async function analyzeProject(projectId) {
 }
 
 export function runAnalysis() {
-    if (this.currentProject) {
-        this.analyzeProject(this.currentProject.id);
+    // Usar currentModalProject cuando estamos en el modal
+    const project = this.currentModalProject || this.currentProject;
+    if (project) {
+        this.analyzeProject(project.id);
     }
 }
 

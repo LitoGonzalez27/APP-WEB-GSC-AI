@@ -68,7 +68,8 @@ export function renderAnalytics(stats) {
     console.log('📊 Rendering analytics data:', stats);
     
     // Update summary cards — ahora desde endpoint "latest" (ignora rango)
-    const projectIdForLatest = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
+    const project = this.currentModalProject || this.currentProject;
+    const projectIdForLatest = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || project?.id;
     if (projectIdForLatest) {
         const latestToken = Date.now();
         this._latestOverviewToken = latestToken;
@@ -110,7 +111,7 @@ export function renderAnalytics(stats) {
     this.showElement(this.elements.chartsContainer);
 
     // Get project ID from stats or current selection
-    const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || this.currentProject?.id;
+    const projectId = stats.project_id || parseInt(this.elements.analyticsProjectSelect?.value) || project?.id;
     if (!projectId) {
         console.warn('No project ID available for analytics rendering');
         return;

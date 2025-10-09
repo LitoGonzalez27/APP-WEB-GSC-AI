@@ -413,13 +413,14 @@ export class AIModeSystem {
             content.classList.toggle('active', content.id === `${tabName}DetailTab`);
         });
 
-        // Load specific detail data
-        if (tabName === 'keywords' && this.currentProject) {
-            this.loadProjectKeywords(this.currentProject.id);
-        } else if (tabName === 'results' && this.currentProject) {
-            this.loadProjectResults(this.currentProject.id);
-        } else if (tabName === 'settings' && this.currentProject) {
-            this.loadProjectSettings(this.currentProject);
+        // Load specific detail data - usar currentModalProject en el modal
+        const project = this.currentModalProject || this.currentProject;
+        if (tabName === 'keywords' && project) {
+            this.loadProjectKeywords(project.id);
+        } else if (tabName === 'results' && project) {
+            this.loadProjectResults(project.id);
+        } else if (tabName === 'settings' && project) {
+            this.loadProjectSettings(project);
         }
     }
 
