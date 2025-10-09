@@ -488,6 +488,56 @@ export class AIModeSystem {
         }
     }
 
+    // ================================
+    // PROGRESS BAR CONTROL (UX)
+    // ================================
+
+    resetProgressBar() {
+        this._progressValue = 0;
+        this._progressMax = 100;
+        const fill = document.getElementById('progressFill');
+        const percent = document.getElementById('progressPercent');
+        if (fill) fill.style.width = '0%';
+        if (percent) percent.textContent = '0%';
+    }
+
+    startProgressBar(maxPercent = 90, stepMs = 800) {
+        // Smoothly increase progress up to maxPercent while the task runs
+        this.stopProgressBar();
+        this._progressTarget = Math.max(0, Math.min(100, maxPercent));
+        this._progressInterval = setInterval(() => {
+            // Random small steps to feel alive
+            const step = Math.max(1, Math.min(3, Math.round(Math.random() * 3)));
+            this._progressValue = Math.min(this._progressTarget, (this._progressValue || 0) + step);
+            this.updateProgressUI(this._progressValue);
+            if (this._progressValue >= this._progressTarget) {
+                clearInterval(this._progressInterval);
+                this._progressInterval = null;
+            }
+        }, stepMs);
+    }
+
+    stopProgressBar() {
+        if (this._progressInterval) {
+            clearInterval(this._progressInterval);
+            this._progressInterval = null;
+        }
+    }
+
+    completeProgressBar() {
+        this.stopProgressBar();
+        this._progressValue = 100;
+        this.updateProgressUI(100);
+    }
+
+    updateProgressUI(value) {
+        const val = Math.max(0, Math.min(100, Math.floor(value)));
+        const fill = document.getElementById('progressFill');
+        const percent = document.getElementById('progressPercent');
+        if (fill) fill.style.width = `${val}%`;
+        if (percent) percent.textContent = `${val}%`;
+    }
+
     // Placeholder methods that will be implemented in other modules
     renderProjects() { console.warn('renderProjects not implemented'); }
     loadProjects() { console.warn('loadProjects not implemented'); }

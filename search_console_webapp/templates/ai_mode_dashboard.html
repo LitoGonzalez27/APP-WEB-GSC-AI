@@ -351,7 +351,7 @@
                     </div>
                     <h3>No projects yet</h3>
                     <p>Create your first manual AI analysis project to get started</p>
-                    <button type="button" class="btn-primary btn-small mt-2" onclick="manualAI.showCreateProject()">
+                    <button type="button" class="btn-primary btn-small mt-2" onclick="aiModeSystem.showCreateProject()">
                         <i class="fas fa-plus"></i>
                         Create Your First Project
                     </button>
@@ -712,7 +712,7 @@
                     <h3 id="createProjectTitle">Create New AI Analysis Project</h3>
                     <p id="createProjectDesc">Set up a new project to track AI Overview visibility</p>
                 </div>
-                <button type="button" class="modal-close" onclick="manualAI.hideCreateProject()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideCreateProject()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1012,7 +1012,7 @@
                                 <div id="clustersListCreate" class="clusters-list">
                                     <!-- Cluster rows will be added here -->
                                 </div>
-                                <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersListCreate')">
+                                <button type="button" class="btn-secondary btn-compact" onclick="aiModeSystem.addClusterRow('clustersListCreate')">
                                     <i class="fas fa-plus"></i>
                                     Add Cluster
                                 </button>
@@ -1022,7 +1022,7 @@
                     </div>
                 </div>
                 <div class="modal-footer create-footer">
-                    <button type="button" class="btn-secondary btn-enhanced" onclick="manualAI.hideCreateProject()">
+                    <button type="button" class="btn-secondary btn-enhanced" onclick="aiModeSystem.hideCreateProject()">
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
@@ -1040,7 +1040,7 @@
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3 id="projectDetailsTitle">Project Details</h3>
-                <button type="button" class="modal-close" onclick="manualAI.hideProjectDetails()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideProjectModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1064,7 +1064,7 @@
                 <div class="detail-content active" id="keywordsDetailTab">
                     <div class="keywords-header">
                         <h4>Keywords Management</h4>
-                        <button type="button" class="btn-primary btn-sm" onclick="manualAI.showAddKeywords()">
+                        <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.showAddKeywords()">
                             <i class="fas fa-plus"></i>
                             Add Keywords
                         </button>
@@ -1078,7 +1078,7 @@
                 <div class="detail-content" id="resultsDetailTab">
                     <div class="results-header">
                         <h4>Analysis Results</h4>
-                        <button type="button" class="btn-primary btn-sm" onclick="manualAI.runAnalysis()">
+                        <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.runAnalysis()">
                             <i class="fas fa-play"></i>
                             Run Analysis
                         </button>
@@ -1098,7 +1098,7 @@
                             <label for="projectNameEdit">Project Name</label>
                             <div class="input-group">
                                 <input type="text" id="projectNameEdit" class="form-input" placeholder="Enter project name...">
-                                <button type="button" class="btn-primary" onclick="manualAI.updateProjectName()">
+                                <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectName()">
                                     <i class="fas fa-save"></i>
                                     Save
                                 </button>
@@ -1112,7 +1112,7 @@
                             <p class="danger-text">These actions cannot be undone. Please be certain.</p>
                             
                             <div class="danger-actions">
-                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProject()">
+                                <button type="button" class="btn-danger" onclick="aiModeSystem.confirmDeleteProject()">
                                     <i class="fas fa-trash"></i>
                                     Delete Project
                                 </button>
@@ -1130,7 +1130,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Add Keywords</h3>
-                <button type="button" class="modal-close" onclick="manualAI.hideAddKeywords()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideAddKeywords()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1149,7 +1149,7 @@ keyword 3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="manualAI.hideAddKeywords()">
+                    <button type="button" class="btn-secondary" onclick="aiModeSystem.hideAddKeywords()">
                         Cancel
                     </button>
                     <button type="submit" class="btn-primary">
@@ -1185,7 +1185,7 @@ keyword 3"></textarea>
         <div class="modal-content modal-small">
             <div class="modal-header">
                 <h3><i class="fas fa-exclamation-triangle text-danger"></i> Delete Project</h3>
-                <button type="button" class="modal-close" onclick="manualAI.hideDeleteProjectModal()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideDeleteProjectModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1206,11 +1206,11 @@ keyword 3"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="manualAI.hideDeleteProjectModal()">
+                <button type="button" class="btn-secondary" onclick="aiModeSystem.hideDeleteProjectModal()">
                     Cancel
                 </button>
                 <button type="button" class="btn-danger" id="confirmDeleteBtn" 
-                        onclick="manualAI.executeDeleteProject()" disabled>
+                        onclick="aiModeSystem.executeDeleteProject()" disabled>
                     <i class="fas fa-trash"></i>
                     Delete Project
                 </button>
@@ -1223,18 +1223,18 @@ keyword 3"></textarea>
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
-                <button type="button" class="modal-close" onclick="manualAI.hideProjectModal()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideProjectModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <!-- Modal Navigation Tabs -->
                 <div class="modal-nav-tabs">
-                    <button type="button" class="modal-nav-tab active" data-modal-tab="keywords" onclick="manualAI.switchModalTab('keywords')">
+                    <button type="button" class="modal-nav-tab active" data-modal-tab="keywords" onclick="aiModeSystem.switchModalTab('keywords')">
                         <i class="fas fa-key"></i>
                         Keywords
                     </button>
-                    <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="manualAI.switchModalTab('settings')">
+                    <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="aiModeSystem.switchModalTab('settings')">
                         <i class="fas fa-cog"></i>
                         Project Settings
                     </button>
@@ -1249,7 +1249,7 @@ keyword 3"></textarea>
                                 <textarea id="modalKeywordsInput" class="form-textarea" 
                                           placeholder="Enter keywords, one per line or separated by commas..."
                                           rows="4"></textarea>
-                                <button type="button" class="btn-primary" onclick="manualAI.addKeywordsFromModal()">
+                                <button type="button" class="btn-primary" onclick="aiModeSystem.addKeywordsFromModal()">
                                     <i class="fas fa-plus"></i>
                                     Add Keywords
                                 </button>
@@ -1269,12 +1269,12 @@ keyword 3"></textarea>
                             <div id="clustersList" class="clusters-list">
                                 <!-- Cluster rows will be loaded here -->
                             </div>
-                            <button type="button" class="btn-secondary btn-compact" onclick="manualAI.addClusterRow('clustersList')">
+                            <button type="button" class="btn-secondary btn-compact" onclick="aiModeSystem.addClusterRow('clustersList')">
                                 <i class="fas fa-plus"></i>
                                 Add Cluster
                             </button>
                             <div style="margin-top: 15px;">
-                                <button type="button" class="btn-primary" onclick="manualAI.saveClustersConfiguration()">
+                                <button type="button" class="btn-primary" onclick="aiModeSystem.saveClustersConfiguration()">
                                     <i class="fas fa-save"></i>
                                     Save Clusters Configuration
                                 </button>
@@ -1291,7 +1291,7 @@ keyword 3"></textarea>
                                 <textarea id="modalNotesInput" class="form-textarea" 
                                           placeholder="Add notes to mark important days and track optimization efforts. These will appear as blue annotations in your visibility graph."
                                           rows="3"></textarea>
-                                <button type="button" class="btn-primary" onclick="manualAI.addNoteFromModal()">
+                                <button type="button" class="btn-primary" onclick="aiModeSystem.addNoteFromModal()">
                                     <i class="fas fa-sticky-note"></i>
                                     Add Note
                                 </button>
@@ -1306,7 +1306,7 @@ keyword 3"></textarea>
                                 <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input" 
                                        placeholder="Search current keywords..." autocomplete="off">
                                 <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear" 
-                                        onclick="manualAI.clearModalKeywordsSearch()">Clear</button>
+                                        onclick="aiModeSystem.clearModalKeywordsSearch()">Clear</button>
                             </div>
                             <div id="modalKeywordsList" class="keywords-list">
                                 <!-- Keywords will be loaded here -->
@@ -1342,7 +1342,7 @@ keyword 3"></textarea>
                                     <div class="competitor-input-group">
                                         <input type="text" id="newCompetitorInput" class="form-input" 
                                                placeholder="Enter competitor domain (e.g., example.com)" maxlength="100">
-                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="manualAI.addCompetitor()">
+                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="aiModeSystem.addCompetitor()">
                                             <i class="fas fa-plus"></i>
                                             Add Competitor
                                         </button>
@@ -1362,7 +1362,7 @@ keyword 3"></textarea>
                         </div>
 
                         <div class="save-section">
-                            <button type="button" class="btn-primary" onclick="manualAI.updateProjectFromModal()">
+                            <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
                                 <i class="fas fa-save"></i>
                                 Save Changes
                             </button>
@@ -1375,7 +1375,7 @@ keyword 3"></textarea>
                             <p class="danger-text">These actions cannot be undone. Please be certain.</p>
                             
                             <div class="danger-actions">
-                                <button type="button" class="btn-danger" onclick="manualAI.confirmDeleteProjectFromModal()">
+                                <button type="button" class="btn-danger" onclick="aiModeSystem.confirmDeleteProjectFromModal()">
                                     <i class="fas fa-trash"></i>
                                     Delete Project
                                 </button>
@@ -1394,7 +1394,7 @@ keyword 3"></textarea>
         <div class="modal-content modal-medium">
             <div class="modal-header">
                 <h3><i class="fas fa-edit"></i> Add Change Annotation</h3>
-                <button type="button" class="modal-close" onclick="manualAI.hideAnnotationModal()">
+                <button type="button" class="modal-close" onclick="aiModeSystem.hideAnnotationModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1432,10 +1432,10 @@ keyword 3"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="manualAI.hideAnnotationModal()">
+                <button type="button" class="btn-secondary" onclick="aiModeSystem.hideAnnotationModal()">
                     Skip Annotation
                 </button>
-                <button type="button" class="btn-primary" onclick="manualAI.saveAnnotation()">
+                <button type="button" class="btn-primary" onclick="aiModeSystem.saveAnnotation()">
                     <i class="fas fa-save"></i>
                     Save Annotation
                 </button>

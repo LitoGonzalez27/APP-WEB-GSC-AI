@@ -30,7 +30,12 @@ import {
     showCreateProject,
     hideCreateProject,
     handleCreateProject,
-    filterCountryOptions
+    validateProjectDomain,
+    normalizeProjectDomain,
+    filterCountryOptions,
+    addCompetitorChip,
+    getCompetitorChipValues,
+    setCompetitorError
 } from '/static/js/ai-mode-projects/ai-mode-projects.js';
 
 // Keywords
@@ -114,7 +119,12 @@ Object.assign(AIModeSystem.prototype, {
     showCreateProject,
     hideCreateProject,
     handleCreateProject,
+    validateProjectDomain,
+    normalizeProjectDomain,
     filterCountryOptions,
+    addCompetitorChip,
+    getCompetitorChipValues,
+    setCompetitorError,
     
     // Keywords
     loadProjectKeywords,
