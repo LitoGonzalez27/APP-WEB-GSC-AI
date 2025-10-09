@@ -26,6 +26,7 @@ import { AIModeSystem } from '/static/js/ai-mode-projects/ai-mode-core.js';
 import {
     loadProjects,
     renderProjects,
+    renderProjectCompetitorsHorizontal,
     goToProjectAnalytics,
     showCreateProject,
     hideCreateProject,
@@ -76,6 +77,18 @@ import {
     loadAnalyticsComponents
 } from '/static/js/ai-mode-projects/ai-mode-analytics.js';
 
+// Competitors
+import {
+    loadCompetitors,
+    renderCompetitors,
+    addCompetitor,
+    removeCompetitor,
+    updateCompetitors,
+    loadCompetitorsPreview,
+    renderCompetitorsPreview,
+    initCompetitorsManager
+} from '/static/js/ai-mode-projects/ai-mode-competitors.js';
+
 // Exports
 import {
     handleDownloadExcel,
@@ -115,6 +128,7 @@ Object.assign(AIModeSystem.prototype, {
     // Projects
     loadProjects,
     renderProjects,
+    renderProjectCompetitorsHorizontal,
     goToProjectAnalytics,
     showCreateProject,
     hideCreateProject,
@@ -155,6 +169,16 @@ Object.assign(AIModeSystem.prototype, {
     renderAnalytics,
     updateSummaryCard,
     loadAnalyticsComponents,
+    
+    // Competitors
+    loadCompetitors,
+    renderCompetitors,
+    addCompetitor,
+    removeCompetitor,
+    updateCompetitors,
+    loadCompetitorsPreview,
+    renderCompetitorsPreview,
+    initCompetitorsManager,
     
     // Exports
     handleDownloadExcel,

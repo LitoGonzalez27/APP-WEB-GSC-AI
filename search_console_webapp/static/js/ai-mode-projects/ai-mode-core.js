@@ -538,26 +538,30 @@ export class AIModeSystem {
         if (percent) percent.textContent = `${val}%`;
     }
 
-    // Placeholder methods that will be implemented in other modules
-    renderProjects() { console.warn('renderProjects not implemented'); }
-    loadProjects() { console.warn('loadProjects not implemented'); }
-    showCreateProject() { console.warn('showCreateProject not implemented'); }
-    handleCreateProject() { console.warn('handleCreateProject not implemented'); }
-    validateProjectDomain() { console.warn('validateProjectDomain not implemented'); }
-    normalizeProjectDomain() { console.warn('normalizeProjectDomain not implemented'); }
-    filterCountryOptions() { console.warn('filterCountryOptions not implemented'); }
-    addCompetitorChip() { console.warn('addCompetitorChip not implemented'); }
-    handleAddKeywords() { console.warn('handleAddKeywords not implemented'); }
-    updateKeywordsCounter() { console.warn('updateKeywordsCounter not implemented'); }
-    loadAnalytics() { console.warn('loadAnalytics not implemented'); }
-    handleDownloadExcel() { console.warn('handleDownloadExcel not implemented'); }
-    handleDownloadPDF() { console.warn('handleDownloadPDF not implemented'); }
-    loadProjectKeywords() { console.warn('loadProjectKeywords not implemented'); }
-    loadProjectResults() { console.warn('loadProjectResults not implemented'); }
-    loadProjectSettings() { console.warn('loadProjectSettings not implemented'); }
-    loadCompetitors() { console.warn('loadCompetitors not implemented'); }
-    initCompetitorsManager() { console.warn('initCompetitorsManager not implemented'); }
-    populateAnalyticsProjectSelect() { console.warn('populateAnalyticsProjectSelect not implemented'); }
-    hideCreateProject() { console.warn('hideCreateProject not implemented'); }
+    // Placeholder methods (will be overridden by modular system)
+    // These are here to prevent errors if modules fail to load
+    renderProjects() {}
+    loadProjects() {}
+    showCreateProject() {}
+    handleCreateProject() {}
+    validateProjectDomain() {}
+    normalizeProjectDomain() {}
+    filterCountryOptions() {}
+    addCompetitorChip() {}
+    handleAddKeywords() {}
+    updateKeywordsCounter() {}
+    loadAnalytics() {}
+    handleDownloadExcel() {}
+    handleDownloadPDF() {}
+    loadProjectKeywords() {}
+    loadProjectResults() {}
+    loadProjectSettings() {}
+    loadCompetitors() {}
+    loadCompetitorsPreview() {}
+    renderCompetitorsPreview() {}
+    renderProjectCompetitorsHorizontal() { return ''; }
+    initCompetitorsManager() {}
+    populateAnalyticsProjectSelect() {}
+    hideCreateProject() {}
 }
 
