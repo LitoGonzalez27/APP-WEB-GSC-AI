@@ -16,7 +16,8 @@ import {
     isValidDomain,
     normalizeDomainString,
     showElement,
-    hideElement
+    hideElement,
+    showToast
 } from '/static/js/ai-mode-projects/ai-mode-utils.js';
 
 // Core - Importar la clase AIModeSystem
@@ -89,6 +90,22 @@ import {
     initCompetitorsManager
 } from '/static/js/ai-mode-projects/ai-mode-competitors.js';
 
+// Clusters
+import {
+    initializeClustersConfiguration,
+    toggleClustersConfiguration,
+    addClusterRow,
+    getClustersConfiguration,
+    loadClustersConfiguration,
+    loadClustersStatistics,
+    renderClustersChart,
+    renderClustersTable,
+    showNoClustersMessage,
+    loadProjectClustersForSettings,
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal
+} from '/static/js/ai-mode-projects/ai-mode-clusters.js';
+
 // Exports
 import {
     handleDownloadExcel,
@@ -124,6 +141,7 @@ Object.assign(AIModeSystem.prototype, {
     normalizeDomainString,
     showElement,
     hideElement,
+    showToast,
     
     // Projects
     loadProjects,
@@ -179,6 +197,20 @@ Object.assign(AIModeSystem.prototype, {
     loadCompetitorsPreview,
     renderCompetitorsPreview,
     initCompetitorsManager,
+    
+    // Clusters
+    initializeClustersConfiguration,
+    toggleClustersConfiguration,
+    addClusterRow,
+    getClustersConfiguration,
+    loadClustersConfiguration,
+    loadClustersStatistics,
+    renderClustersChart,
+    renderClustersTable,
+    showNoClustersMessage,
+    loadProjectClustersForSettings,
+    saveClustersConfiguration,
+    renderProjectClustersHorizontal,
     
     // Exports
     handleDownloadExcel,

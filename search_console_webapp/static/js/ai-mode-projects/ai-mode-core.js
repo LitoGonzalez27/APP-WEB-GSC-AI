@@ -489,6 +489,27 @@ export class AIModeSystem {
     }
 
     // ================================
+    // TAB NAVIGATION
+    // ================================
+
+    switchTab(tabName) {
+        // Update nav tabs
+        this.elements.navTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+
+        // Update tab contents
+        this.elements.tabContents.forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}Tab`);
+        });
+
+        // Load specific tab data
+        if (tabName === 'analytics') {
+            this.loadAnalytics();
+        }
+    }
+
+    // ================================
     // PROGRESS BAR CONTROL (UX)
     // ================================
 
