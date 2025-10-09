@@ -47,6 +47,7 @@ import {
     showAddKeywords,
     hideAddKeywords,
     updateKeywordsCounter,
+    updateModalKeywordsCounter,
     handleAddKeywords,
     toggleKeyword,
     addKeywordsFromModal
@@ -165,6 +166,7 @@ Object.assign(AIModeSystem.prototype, {
     showAddKeywords,
     hideAddKeywords,
     updateKeywordsCounter,
+    updateModalKeywordsCounter,
     handleAddKeywords,
     toggleKeyword,
     addKeywordsFromModal,

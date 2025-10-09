@@ -7,7 +7,7 @@ AI_MODE_KEYWORD_ANALYSIS_COST = 2
 
 # Límites del sistema
 MAX_KEYWORDS_PER_PROJECT = 100
-MAX_COMPETITORS_PER_PROJECT = 0  # AI Mode no usa competitors
+MAX_COMPETITORS_PER_PROJECT = 10  # AI Mode: Fuentes/medios citados (TechCrunch, Forbes, etc.)
 MAX_NOTE_LENGTH = 500
 
 # Configuración de análisis

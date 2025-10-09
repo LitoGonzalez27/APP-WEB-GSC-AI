@@ -111,6 +111,17 @@ export function updateKeywordsCounter() {
     }
 }
 
+// Contador para el textarea del modal del proyecto
+export function updateModalKeywordsCounter() {
+    const textarea = document.getElementById('modalKeywordsInput');
+    const counter = document.getElementById('modalKeywordsCount');
+    
+    if (textarea && counter) {
+        const keywords = textarea.value.split(/[\n,]/).filter(k => k.trim().length > 0);
+        counter.textContent = keywords.length;
+    }
+}
+
 export async function handleAddKeywords(e) {
     e.preventDefault();
 
@@ -123,9 +134,21 @@ export async function handleAddKeywords(e) {
     }
 
     const textarea = document.getElementById('keywordsTextarea');
+    console.log('🔍 Textarea encontrado:', textarea);
+    console.log('🔍 Valor del textarea:', textarea?.value);
+    console.log('🔍 Longitud del valor:', textarea?.value?.length);
+    
+    if (!textarea) {
+        this.showError('Textarea not found');
+        return;
+    }
+    
     const keywords = textarea.value.split('\n')
         .map(k => k.trim())
         .filter(k => k.length > 0);
+
+    console.log('🔍 Keywords después de procesar:', keywords);
+    console.log('🔍 Número de keywords:', keywords.length);
 
     if (keywords.length === 0) {
         this.showError('Please enter at least one keyword');
@@ -166,10 +189,68 @@ export function toggleKeyword(keywordId) {
     console.log('Toggle keyword:', keywordId);
 }
 
-// Alias para usar en onclick del HTML
-export function addKeywordsFromModal() {
-    // Crear un evento mock para handleAddKeywords
-    const mockEvent = { preventDefault: () => {} };
-    return this.handleAddKeywords(mockEvent);
+// Alias para usar en onclick del HTML (desde el modal del proyecto)
+export async function addKeywordsFromModal() {
+    // Este método se llama desde el modal de configuración del proyecto
+    // Usa un textarea diferente: modalKeywordsInput
+    
+    const project = this.currentModalProject || this.currentProject;
+    
+    if (!project) {
+        this.showError('No project selected');
+        return;
+    }
+
+    const textarea = document.getElementById('modalKeywordsInput');
+    console.log('🔍 Textarea modalKeywordsInput encontrado:', textarea);
+    console.log('🔍 Valor:', textarea?.value);
+    
+    if (!textarea) {
+        this.showError('Textarea not found');
+        return;
+    }
+    
+    // Dividir por líneas nuevas O por comas
+    const keywords = textarea.value
+        .split(/[\n,]/)
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+
+    console.log('🔍 Keywords procesadas:', keywords);
+    console.log('🔍 Cantidad:', keywords.length);
+
+    if (keywords.length === 0) {
+        this.showError('Please enter at least one keyword');
+        return;
+    }
+
+    this.showProgress('Adding keywords...', `Adding ${keywords.length} keywords to project`);
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${project.id}/keywords`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ keywords })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Limpiar el textarea
+            textarea.value = '';
+            this.showSuccess(`${data.added_count} keywords added successfully!`);
+            await this.loadProjectKeywords(project.id);
+            await this.loadProjects(); // Refresh project stats
+        } else {
+            throw new Error(data.error || 'Failed to add keywords');
+        }
+    } catch (error) {
+        console.error('Error adding keywords:', error);
+        this.showError(error.message || 'Failed to add keywords');
+    } finally {
+        this.hideProgress();
+    }
 }
 
