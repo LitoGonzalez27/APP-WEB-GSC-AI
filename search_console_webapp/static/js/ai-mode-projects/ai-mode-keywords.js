@@ -36,7 +36,7 @@ export function renderKeywords(keywords) {
             <div class="empty-keywords">
                 <i class="fas fa-key"></i>
                 <p>No keywords added yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="manualAI.showAddKeywords()">
+                <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.showAddKeywords()">
                     <i class="fas fa-plus"></i>
                     Add First Keywords
                 </button>
@@ -75,7 +75,7 @@ export function renderKeywords(keywords) {
                         </div>
                         <div class="col-actions">
                             <button type="button" class="btn-icon btn-sm" 
-                                    onclick="manualAI.toggleKeyword(${keyword.id})"
+                                    onclick="aiModeSystem.toggleKeyword(${keyword.id})"
                                     title="${keyword.is_active ? 'Disable' : 'Enable'} keyword">
                                 <i class="fas fa-${keyword.is_active ? 'pause' : 'play'}"></i>
                             </button>

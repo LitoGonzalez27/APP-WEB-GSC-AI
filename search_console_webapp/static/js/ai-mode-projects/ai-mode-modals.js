@@ -36,7 +36,7 @@ export function renderResults(results) {
             <div class="empty-keywords">
                 <i class="fas fa-chart-bar"></i>
                 <p>No analysis results yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="manualAI.runAnalysis()">
+                <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.runAnalysis()">
                     <i class="fas fa-play"></i>
                     Run First Analysis
                 </button>

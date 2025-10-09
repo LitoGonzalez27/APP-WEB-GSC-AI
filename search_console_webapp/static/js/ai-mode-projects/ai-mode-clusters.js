@@ -27,9 +27,9 @@ export function initializeClustersConfiguration() {
                 if (this.checked) {
                     const clustersListCreate = document.getElementById('clustersListCreate');
                     if (clustersListCreate && clustersListCreate.children.length === 0) {
-                        // Usar window.manualAI para llamar al método
-                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
-                            window.manualAI.addClusterRow('clustersListCreate');
+                        // Usar window.aiModeSystem para llamar al método
+                        if (window.aiModeSystem && typeof window.aiModeSystem.addClusterRow === 'function') {
+                            window.aiModeSystem.addClusterRow('clustersListCreate');
                         }
                     }
                 }
@@ -53,9 +53,9 @@ export function initializeClustersConfiguration() {
                 if (this.checked) {
                     const clustersList = document.getElementById('clustersList');
                     if (clustersList && clustersList.children.length === 0) {
-                        // Usar window.manualAI para llamar al método
-                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
-                            window.manualAI.addClusterRow('clustersList');
+                        // Usar window.aiModeSystem para llamar al método
+                        if (window.aiModeSystem && typeof window.aiModeSystem.addClusterRow === 'function') {
+                            window.aiModeSystem.addClusterRow('clustersList');
                         }
                     }
                 }
@@ -574,8 +574,8 @@ export async function loadProjectClustersForSettings(projectId) {
                     config.clusters.forEach((cluster, index) => {
                         console.log(`➕ Adding cluster ${index + 1}:`, cluster);
                         
-                        if (window.manualAI && typeof window.manualAI.addClusterRow === 'function') {
-                            window.manualAI.addClusterRow('clustersList');
+                        if (window.aiModeSystem && typeof window.aiModeSystem.addClusterRow === 'function') {
+                            window.aiModeSystem.addClusterRow('clustersList');
                             
                             // Populate the last added row
                             const rows = clustersList.querySelectorAll('.cluster-row');

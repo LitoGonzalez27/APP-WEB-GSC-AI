@@ -57,11 +57,11 @@ export function renderProjects() {
     this.showElement(this.elements.projectsContainer);
 
     this.elements.projectsContainer.innerHTML = this.projects.map(project => `
-        <div class="project-card" data-project-id="${project.id}" onclick="manualAI.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
+        <div class="project-card" data-project-id="${project.id}" onclick="aiModeSystem.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
                 <div class="project-actions">
-                    <button type="button" class="btn-icon" onclick="event.stopPropagation(); manualAI.showProjectModal(${project.id})"
+                    <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
                             title="Project settings" aria-label="Open project settings">
                         <i class="fas fa-cog" aria-hidden="true"></i>
                     </button>
@@ -118,7 +118,7 @@ export function renderProjects() {
                 ${(!project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
                     <div class="first-run-cta" style="margin-top: 10px;">
                         <button type="button" class="btn-primary btn-small" 
-                                onclick="event.stopPropagation(); manualAI.analyzeProject(${project.id})"
+                                onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
                                 title="Run the first analysis for this project">
                             <i class="fas fa-play"></i>
                             Run first analysis now
