@@ -543,6 +543,13 @@ export async function loadProjectClustersForSettings(projectId) {
     try {
         console.log(`🔄 Loading clusters for project ${projectId}`);
         const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/clusters`);
+        
+        // Si es 404, clusters no están configurados aún - es normal, no es error
+        if (response.status === 404) {
+            console.log('ℹ️ No clusters configured yet for this project');
+            return;
+        }
+        
         if (!response.ok) throw new Error('Failed to load clusters');
         
         const data = await response.json();

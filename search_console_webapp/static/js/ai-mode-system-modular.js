@@ -48,7 +48,8 @@ import {
     hideAddKeywords,
     updateKeywordsCounter,
     handleAddKeywords,
-    toggleKeyword
+    toggleKeyword,
+    addKeywordsFromModal
 } from '/static/js/ai-mode-projects/ai-mode-keywords.js';
 
 // Analysis
@@ -166,6 +167,7 @@ Object.assign(AIModeSystem.prototype, {
     updateKeywordsCounter,
     handleAddKeywords,
     toggleKeyword,
+    addKeywordsFromModal,
     
     // Analysis
     analyzeProject,

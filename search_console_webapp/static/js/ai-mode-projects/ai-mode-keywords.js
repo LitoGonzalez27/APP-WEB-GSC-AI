@@ -163,3 +163,10 @@ export function toggleKeyword(keywordId) {
     console.log('Toggle keyword:', keywordId);
 }
 
+// Alias para usar en onclick del HTML
+export function addKeywordsFromModal() {
+    // Crear un evento mock para handleAddKeywords
+    const mockEvent = { preventDefault: () => {} };
+    return this.handleAddKeywords(mockEvent);
+}
+
