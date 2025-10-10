@@ -359,6 +359,79 @@ class ProjectRepository:
             cur.close()
             conn.close()
     
-    # NOTA: AI Mode no usa competitors, por lo que estos métodos no son necesarios
-    # Los dejamos comentados para referencia pero no se utilizan
+    @staticmethod
+    def get_project_competitors(project_id: int) -> List[str]:
+        """
+        Obtener lista de competidores (media sources) de un proyecto AI Mode
+        
+        Args:
+            project_id: ID del proyecto
+            
+        Returns:
+            Lista de dominios competidores
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        try:
+            cur.execute("""
+                SELECT selected_competitors
+                FROM ai_mode_projects
+                WHERE id = %s
+            """, (project_id,))
+            
+            result = cur.fetchone()
+            
+            if result and result['selected_competitors']:
+                return result['selected_competitors']
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error getting competitors for AI Mode project {project_id}: {e}")
+            return []
+        finally:
+            cur.close()
+            conn.close()
+    
+    @staticmethod
+    def update_project_competitors(project_id: int, competitors: List[str]) -> bool:
+        """
+        Actualizar competidores (media sources) de un proyecto AI Mode
+        
+        Args:
+            project_id: ID del proyecto
+            competitors: Lista de dominios competidores
+            
+        Returns:
+            True si se actualizó correctamente, False en caso contrario
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        try:
+            # Convertir a JSON para PostgreSQL
+            competitors_json = json.dumps(competitors) if competitors else '[]'
+            
+            cur.execute("""
+                UPDATE ai_mode_projects
+                SET selected_competitors = %s::jsonb, updated_at = NOW()
+                WHERE id = %s
+            """, (competitors_json, project_id))
+            
+            success = cur.rowcount > 0
+            conn.commit()
+            
+            if success:
+                logger.info(f"AI Mode project {project_id} competitors updated: {len(competitors)} sources")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error updating competitors for AI Mode project {project_id}: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
 
