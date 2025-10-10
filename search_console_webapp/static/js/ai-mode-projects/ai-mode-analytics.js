@@ -603,7 +603,7 @@ export function renderComparativeVisibilityChart(chartData) {
                     stacked: false,
                     title: {
                         display: true,
-                        text: 'Visibility (%)',
+                        text: 'Share of Voice (%)',
                         color: '#374151',
                         font: { size: 12, weight: '500' }
                     },
@@ -638,7 +638,7 @@ export function renderComparativeVisibilityChart(chartData) {
                             });
                         },
                         label: function(context) {
-                            return `${context.dataset.label}: ${Math.round(context.raw)}%`;
+                            return `${context.dataset.label}: ${Math.round(context.raw)}% Share of Voice`;
                         }
                     }
                 }
@@ -715,7 +715,7 @@ export function renderComparativePositionChart(chartData) {
                     },
                     title: {
                         display: true,
-                        text: 'Position in AI Overview',
+                        text: 'Position in AI Mode',
                         color: '#374151',
                         font: { size: 12, weight: '500' }
                     }

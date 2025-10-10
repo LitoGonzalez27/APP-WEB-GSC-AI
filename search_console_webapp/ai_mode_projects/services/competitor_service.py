@@ -485,14 +485,15 @@ class CompetitorService:
             
             # Para cada dominio, obtener sus métricas por fecha
             for domain in domains_to_compare:
-                # Datos de visibilidad
+                # Datos de Share of Voice
                 if domain == project_domain:
                     # Para dominio del proyecto, usar manual_ai_results
+                    # Share of Voice = (Menciones del dominio / Total Keywords analizadas) × 100
                     cur.execute("""
                         SELECT 
                             r.analysis_date,
                             (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 
-                             NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END), 0)::float * 100) as visibility_percentage
+                             NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) as visibility_percentage
                         FROM manual_ai_results r
                         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
                         GROUP BY r.analysis_date
@@ -500,6 +501,7 @@ class CompetitorService:
                     """, (project_id, start_date, end_date))
                 else:
                     # Para competidores, usar manual_ai_global_domains
+                    # Share of Voice = (Menciones del competidor / Total Keywords analizadas) × 100
                     cur.execute("""
                         WITH daily_metrics AS (
                             SELECT 
@@ -510,8 +512,7 @@ class CompetitorService:
                                     FROM manual_ai_results r
                                     WHERE r.project_id = %s 
                                     AND r.analysis_date = gd.analysis_date
-                                    AND r.has_ai_overview = true
-                                ) as total_ai_keywords
+                                ) as total_keywords
                             FROM manual_ai_global_domains gd
                             JOIN manual_ai_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
                             JOIN manual_ai_keywords k ON r.keyword_id = k.id
@@ -520,14 +521,13 @@ class CompetitorService:
                             AND gd.analysis_date >= %s 
                             AND gd.analysis_date <= %s
                             AND k.is_active = true
-                            AND r.has_ai_overview = true
                             GROUP BY gd.analysis_date
                         )
                         SELECT 
                             analysis_date,
                             CASE 
-                                WHEN total_ai_keywords > 0 
-                                THEN (domain_appearances::float / total_ai_keywords::float * 100) 
+                                WHEN total_keywords > 0 
+                                THEN (domain_appearances::float / total_keywords::float * 100) 
                                 ELSE 0 
                             END as visibility_percentage
                         FROM daily_metrics
