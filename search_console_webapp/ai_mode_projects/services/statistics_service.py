@@ -66,6 +66,7 @@ class StatisticsService:
         cur.execute("""
             SELECT 
                 r.analysis_date,
+                COUNT(DISTINCT r.keyword_id) as total_keywords,
                 COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as ai_keywords,
                 COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as mentions,
                 (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 

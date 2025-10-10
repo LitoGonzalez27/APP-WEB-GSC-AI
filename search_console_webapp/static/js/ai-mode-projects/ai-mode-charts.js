@@ -21,6 +21,13 @@ export function renderVisibilityChart(data, events = []) {
         this.charts.visibility.destroy();
     }
 
+    // Calcular visibilidad diaria: (Brand Mentions / Total Keywords) × 100
+    const visibilityData = data.map(d => {
+        const totalKeywords = d.total_keywords || 0;
+        const mentions = d.mentions || 0;
+        return totalKeywords > 0 ? (mentions / totalKeywords) * 100 : 0;
+    });
+
     // Modern Chart.js configuration with HTML Legend
     const config = this.getModernChartConfig(true, 'visibilityLegend');
     
@@ -32,29 +39,20 @@ export function renderVisibilityChart(data, events = []) {
                 day: 'numeric' 
             })),
             datasets: [{
-                label: 'Keywords with AI Overview',
-                data: data.map(d => d.ai_keywords || 0),
-                borderColor: '#5BF0AF',
-                backgroundColor: 'rgba(91, 240, 175, 0.12)',
-                pointBackgroundColor: '#5BF0AF',
+                label: 'Brand Visibility (%)',
+                data: visibilityData,
+                borderColor: '#6366F1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                pointBackgroundColor: '#6366F1',
                 pointBorderColor: '#FFFFFF',
-                pointHoverBackgroundColor: '#45D190',
+                pointHoverBackgroundColor: '#4F46E5',
                 pointHoverBorderColor: '#FFFFFF',
-                pointStyle: 'rectRounded',
-                fill: 'start',
-                tension: 0.4
-            }, {
-                label: 'Domain Mentions',
-                data: data.map(d => d.mentions || 0),
-                borderColor: '#F0715B',
-                backgroundColor: 'rgba(240, 113, 91, 0.12)',
-                pointBackgroundColor: '#F0715B',
-                pointBorderColor: '#FFFFFF',
-                pointHoverBackgroundColor: '#E55A42',
-                pointHoverBorderColor: '#FFFFFF',
-                pointStyle: 'rectRounded',
-                fill: 'start',
-                tension: 0.4
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointStyle: 'circle',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2
             }]
         },
         plugins: [htmlLegendPlugin],
@@ -65,16 +63,17 @@ export function renderVisibilityChart(data, events = []) {
                 y: {
                     ...config.scales.y,
                     beginAtZero: true,
+                    max: 100,
                     title: {
                         display: true,
-                        text: 'Count',
+                        text: 'Visibility (%)',
                         color: '#374151',
                         font: { size: 12, weight: '500' }
                     },
                     ticks: {
                         ...config.scales.y.ticks,
                         callback: function(value) {
-                            return Math.round(value);
+                            return value + '%';
                         }
                     }
                 },
@@ -102,15 +101,15 @@ export function renderVisibilityChart(data, events = []) {
                             });
                         },
                         label: function(context) {
-                            const datasetLabel = context.dataset.label;
-                            const value = Math.round(context.raw);
-                            
-                            if (datasetLabel === 'Keywords with AI Overview') {
-                                return `Keywords with AI Overview: ${value}`;
-                            } else if (datasetLabel === 'Domain Mentions') {
-                                return `Domain Mentions: ${value}`;
-                            }
-                            return `${datasetLabel}: ${value}`;
+                            const value = context.raw.toFixed(1);
+                            const dataPoint = data[context.dataIndex];
+                            const mentions = dataPoint.mentions || 0;
+                            const totalKeywords = dataPoint.total_keywords || 0;
+                            return [
+                                `Brand Visibility: ${value}%`,
+                                `Brand Mentions: ${mentions}`,
+                                `Total Keywords: ${totalKeywords}`
+                            ];
                         }
                     }
                 }

@@ -79,22 +79,17 @@ export function renderAnalytics(stats) {
                 if (this._latestOverviewToken !== latestToken) return; // evitar pisado por race
                 const ms = latest?.main_stats || {};
                 const totalKeywords = Number(ms.total_keywords) || 0;
-                const totalAi = Number(ms.total_ai_keywords) || 0;
                 const totalMentions = Number(ms.total_mentions) || 0;
                 const avgPos = (ms.avg_position !== null && ms.avg_position !== undefined) ? Number(ms.avg_position) : null;
-                const aioWeightPct = (ms.aio_weight_percentage !== null && ms.aio_weight_percentage !== undefined) ? Number(ms.aio_weight_percentage) : null;
-                const visPctRaw = (ms.visibility_percentage !== null && ms.visibility_percentage !== undefined) ? Number(ms.visibility_percentage) : null;
+                
+                // Calcular visibilidad: (Brand Mentions / Total Keywords) × 100
+                const visibilityPct = totalKeywords > 0 ? (totalMentions / totalKeywords) * 100 : 0;
                 
                 this.updateSummaryCard('totalKeywords', totalKeywords);
-                this.updateSummaryCard('aiKeywords', totalAi);
-                this.updateSummaryCard('domainMentions', totalMentions);
-                // Mostrar visibilidad con base en último análisis si viene calculada
-                const visPct = (typeof ms.visibility_percentage === 'number') ? ms.visibility_percentage : ms.aio_weight_percentage;
-                this.updateSummaryCard('visibilityPercentage', typeof visPct === 'number' ? Math.round(visPct) + '%' : '0%');
+                this.updateSummaryCard('brandMentions', totalMentions);
+                this.updateSummaryCard('visibilityPercentage', Math.round(visibilityPct) + '%');
                 this.updateSummaryCard('averagePosition',
                     typeof ms.avg_position === 'number' ? Math.round(ms.avg_position * 10) / 10 : '-');
-                this.updateSummaryCard('aioWeight',
-                    typeof ms.aio_weight_percentage === 'number' ? Math.round(ms.aio_weight_percentage) + '%' : '0%');
 
                 // Badge "Latest analysis"
                 const header = document.querySelector('.overview-section .section-header p.section-description');
