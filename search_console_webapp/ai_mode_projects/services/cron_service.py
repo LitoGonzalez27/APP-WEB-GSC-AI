@@ -163,15 +163,15 @@ class CronService:
         cur = conn.cursor()
         
         cur.execute("""
-            SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
+            SELECT p.id, p.name, p.brand_name as domain, p.country_code, p.user_id,
                    COUNT(k.id) as keyword_count
-            FROM manual_ai_projects p
+            FROM ai_mode_projects p
             JOIN users u ON u.id = p.user_id
-            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
+            LEFT JOIN ai_mode_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
               AND COALESCE(u.plan, 'free') <> 'free'
               AND COALESCE(u.billing_status, '') NOT IN ('canceled')
-            GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
+            GROUP BY p.id, p.name, p.brand_name, p.country_code, p.user_id
             HAVING COUNT(k.id) > 0
             ORDER BY p.id
         """)

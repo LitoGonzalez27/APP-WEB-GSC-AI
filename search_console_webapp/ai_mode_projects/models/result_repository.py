@@ -176,7 +176,7 @@ class ResultRepository:
         
         try:
             cur.execute("""
-                INSERT INTO manual_ai_snapshots (
+                INSERT INTO ai_mode_snapshots (
                     project_id, snapshot_date,
                     total_keywords, active_keywords, keywords_with_ai,
                     domain_mentions, avg_position, visibility_percentage
