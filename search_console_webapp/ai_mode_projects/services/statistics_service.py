@@ -37,12 +37,11 @@ class StatisticsService:
                 SELECT DISTINCT ON (k.id) 
                     k.id as keyword_id,
                     k.is_active,
-                    r.has_ai_overview,
-                    r.domain_mentioned,
-                    r.domain_position,
+                    r.brand_mentioned,
+                    r.mention_position,
                     r.analysis_date
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                FROM ai_mode_keywords k
+                LEFT JOIN ai_mode_results r ON k.id = r.keyword_id 
                     AND r.analysis_date >= %s AND r.analysis_date <= %s
                 WHERE k.project_id = %s
                 ORDER BY k.id, r.analysis_date DESC
@@ -50,13 +49,10 @@ class StatisticsService:
             SELECT 
                 COUNT(*) as total_keywords,
                 COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
-                COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
-                COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
-                (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
-                 NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
-                (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
-                 NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage
+                COUNT(CASE WHEN brand_mentioned = true THEN 1 END) as total_mentions,
+                AVG(CASE WHEN mention_position IS NOT NULL THEN mention_position END) as avg_position,
+                (COUNT(CASE WHEN brand_mentioned = true THEN 1 END)::float / 
+                 NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as visibility_percentage
             FROM latest_results
         """, (start_date, end_date, project_id))
         
@@ -67,11 +63,10 @@ class StatisticsService:
             SELECT 
                 r.analysis_date,
                 COUNT(DISTINCT r.keyword_id) as total_keywords,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as ai_keywords,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as mentions,
-                (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 
-                 NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END), 0)::float * 100) as visibility_pct
-            FROM manual_ai_results r
+                COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END) as mentions,
+                (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)::float / 
+                 NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) as visibility_pct
+            FROM ai_mode_results r
             WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
             GROUP BY r.analysis_date
             ORDER BY r.analysis_date
@@ -83,13 +78,13 @@ class StatisticsService:
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 1 AND 3 THEN r.keyword_id END) as pos_1_3,
-                COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 4 AND 10 THEN r.keyword_id END) as pos_4_10,
-                COUNT(DISTINCT CASE WHEN r.domain_position BETWEEN 11 AND 20 THEN r.keyword_id END) as pos_11_20,
-                COUNT(DISTINCT CASE WHEN r.domain_position > 20 THEN r.keyword_id END) as pos_21_plus
-            FROM manual_ai_results r
+                COUNT(DISTINCT CASE WHEN r.mention_position BETWEEN 1 AND 3 THEN r.keyword_id END) as pos_1_3,
+                COUNT(DISTINCT CASE WHEN r.mention_position BETWEEN 4 AND 10 THEN r.keyword_id END) as pos_4_10,
+                COUNT(DISTINCT CASE WHEN r.mention_position BETWEEN 11 AND 20 THEN r.keyword_id END) as pos_11_20,
+                COUNT(DISTINCT CASE WHEN r.mention_position > 20 THEN r.keyword_id END) as pos_21_plus
+            FROM ai_mode_results r
             WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
-                AND r.domain_mentioned = true
+                AND r.brand_mentioned = true
             GROUP BY r.analysis_date
             ORDER BY r.analysis_date
         """, (project_id, start_date, end_date))
@@ -113,7 +108,7 @@ class StatisticsService:
                                  THEN 1 ELSE 2 END,
                             id DESC
                     ) as rn
-                FROM manual_ai_events
+                FROM ai_mode_events
                 WHERE project_id = %s AND event_date >= %s AND event_date <= %s
             )
             SELECT event_date, event_type, event_title, event_description, keywords_affected
