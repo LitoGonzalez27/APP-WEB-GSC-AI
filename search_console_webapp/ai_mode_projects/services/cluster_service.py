@@ -230,7 +230,7 @@ class ClusterService:
                         r.has_ai_overview,
                         r.domain_mentioned,
                         r.analysis_date
-                    FROM manual_ai_keywords k
+                    FROM ai_mode_keywords k
                     LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
                         AND r.analysis_date >= %s AND r.analysis_date <= %s
                     WHERE k.project_id = %s AND k.is_active = true

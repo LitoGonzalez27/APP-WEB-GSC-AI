@@ -181,8 +181,8 @@ def _calculate_snapshot_metrics(project_id: int) -> dict:
                 AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END) as avg_position,
                 (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float /
                  NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END), 0)::float * 100) as visibility_percentage
-            FROM manual_ai_keywords k
-            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id AND r.analysis_date = %s
+            FROM ai_mode_keywords k
+            LEFT JOIN ai_mode_results r ON k.id = r.keyword_id AND r.analysis_date = %s
             WHERE k.project_id = %s
         """, (today, project_id))
         

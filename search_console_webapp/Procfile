@@ -1,9 +1,7 @@
 # 1) Instala dependencias nativas de Chromium  
 # 2) Descarga el binario de Chromium
-# 3) Inicializa tablas Manual AI y AI Mode
-release: python3 -m playwright install-deps && python3 -m playwright install chromium && python3 create_manual_ai_tables.py && python3 create_ai_mode_tables.py
+# 3) Inicializa tablas Manual AI
+release: python3 -m playwright install-deps && python3 -m playwright install chromium && python3 create_manual_ai_tables.py
 web:     python3 app.py
 # Cron job para análisis diario Manual AI (configurar horario en Railway dashboard)
 cron:    python3 daily_analysis_cron.py
-# Cron job para análisis diario AI Mode
-ai_mode_cron: python3 daily_ai_mode_cron.py

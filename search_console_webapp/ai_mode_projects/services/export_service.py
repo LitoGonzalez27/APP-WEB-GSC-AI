@@ -133,9 +133,7 @@ class ExportService:
         main_stats = stats.get('main_stats', {})
         
         total_keywords = main_stats.get('total_keywords', 0)
-        ai_overview_results = main_stats.get('total_ai_keywords', 0)  
-        ai_overview_weight = main_stats.get('aio_weight_percentage', 0)
-        domain_mentions = main_stats.get('total_mentions', 0)
+        brand_mentions = main_stats.get('total_mentions', 0)
         visibility_pct = main_stats.get('visibility_percentage', 0)
         avg_position = main_stats.get('avg_position')
         
@@ -146,15 +144,13 @@ class ExportService:
         summary_data = [
             ['Métrica', 'Valor'],
             ['Total Keywords', total_keywords],
-            ['AI Overview Results', ai_overview_results],
-            ['AI Overview Weight (%)', f"{ai_overview_weight:.2f}%"],
-            ['Domain Mentions', domain_mentions],
+            ['Brand Mentions', brand_mentions],
             ['Visibility (%)', f"{visibility_pct:.2f}%"],
             ['Average Position', f"{avg_position:.1f}" if avg_position else "N/A"],
             ['', ''],
             ['NOTAS', ''],
             [f'Proyecto: {project_info["name"]}', ''],
-            [f'Dominio: {project_info["domain"]}', ''],
+            [f'Brand: {project_info.get("brand_name", project_info.get("domain", "N/A"))}', ''],
             [f'Rango de fechas: Últimos {days} días', ''],
             [f'Competidores: {len(project_info.get("selected_competitors", []))}', ''],
             [f'Thematic Clusters: {"Enabled" if clusters_enabled else "Disabled"}', ''],
@@ -184,10 +180,10 @@ class ExportService:
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as project_mentions
-            FROM manual_ai_results r
-            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+                COUNT(DISTINCT r.keyword_id) as total_keywords,
+                COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END) as project_mentions
+            FROM ai_mode_results r
+            JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
             AND r.analysis_date >= %s 
             AND r.analysis_date <= %s
@@ -203,18 +199,18 @@ class ExportService:
         # Preparar datos para Excel usando la misma lógica que la UI
         rows = []
         for row in daily_data:
-            aio_keywords = row['aio_keywords']
+            total_keywords = row['total_keywords']
             project_mentions = row['project_mentions']
-            # Lógica correcta: menciones del proyecto/total keywords con AIO * 100
-            visibility_pct = (project_mentions / aio_keywords * 100) if aio_keywords > 0 else 0
+            # Lógica correcta: menciones del proyecto/total keywords * 100
+            visibility_pct = (project_mentions / total_keywords * 100) if total_keywords > 0 else 0
             # Nunca puede ser mayor al 100%
             visibility_pct = min(visibility_pct, 100.0)
             
             rows.append({
                 'date': row['analysis_date'],
-                'aio_keywords': aio_keywords,
-                'project_mentions': project_mentions,
-                'project_visibility_pct': visibility_pct
+                'total_keywords': total_keywords,
+                'brand_mentions': project_mentions,
+                'visibility_pct': visibility_pct
             })
         
         # Crear DataFrame con datos o vacío con columnas definidas
@@ -222,12 +218,12 @@ class ExportService:
             df_visibility = pd.DataFrame(rows)
         else:
             # Crear DataFrame vacío con las columnas requeridas
-            df_visibility = pd.DataFrame(columns=['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'])
+            df_visibility = pd.DataFrame(columns=['date', 'total_keywords', 'brand_mentions', 'visibility_pct'])
         
-        df_visibility.to_excel(writer, sheet_name='Domain Visibility Over Time', index=False)
+        df_visibility.to_excel(writer, sheet_name='Brand Visibility Over Time', index=False)
         
-        worksheet = writer.sheets['Domain Visibility Over Time']
-        worksheet.write_row(0, 0, ['date', 'aio_keywords', 'project_mentions', 'project_visibility_pct'], header_format)
+        worksheet = writer.sheets['Brand Visibility Over Time']
+        worksheet.write_row(0, 0, ['date', 'total_keywords', 'brand_mentions', 'visibility_pct'], header_format)
         worksheet.set_column('A:A', 15)
         worksheet.set_column('B:D', 20)
         
@@ -249,8 +245,8 @@ class ExportService:
             SELECT 
                 r.analysis_date,
                 COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords
-            FROM manual_ai_results r
-            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            FROM ai_mode_results r
+            JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
             AND r.analysis_date >= %s 
             AND r.analysis_date <= %s
@@ -266,8 +262,8 @@ class ExportService:
             SELECT 
                 r.analysis_date,
                 COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as project_mentions
-            FROM manual_ai_results r
-            JOIN manual_ai_keywords k ON r.keyword_id = k.id
+            FROM ai_mode_results r
+            JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
             AND r.analysis_date >= %s 
             AND r.analysis_date <= %s
@@ -287,9 +283,9 @@ class ExportService:
                 SELECT 
                     gd.analysis_date,
                     COUNT(DISTINCT gd.keyword_id) as competitor_mentions
-                FROM manual_ai_global_domains gd
-                JOIN manual_ai_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
-                JOIN manual_ai_keywords k ON r.keyword_id = k.id
+                FROM ai_mode_global_domains gd
+                JOIN ai_mode_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
+                JOIN ai_mode_keywords k ON r.keyword_id = k.id
                 WHERE gd.project_id = %s 
                 AND gd.detected_domain = %s
                 AND gd.analysis_date >= %s 
@@ -586,8 +582,8 @@ class ExportService:
                         r.has_ai_overview,
                         r.domain_mentioned,
                         r.analysis_date
-                    FROM manual_ai_keywords k
-                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    FROM ai_mode_keywords k
+                    LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                         AND r.analysis_date >= %s AND r.analysis_date <= %s
                     WHERE k.project_id = %s AND k.is_active = true
                     ORDER BY k.id, r.analysis_date DESC

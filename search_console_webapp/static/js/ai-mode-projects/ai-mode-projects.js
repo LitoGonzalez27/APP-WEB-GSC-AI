@@ -86,20 +86,12 @@ export function renderProjects() {
                     <span class="stat-label">Total Keywords</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-number">${project.total_ai_keywords || 0}</span>
-                    <span class="stat-label">AI Overview Results</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-number">${project.aio_weight_percentage ? Math.round(project.aio_weight_percentage) + '%' : '0%'}</span>
-                    <span class="stat-label">AI Overview Weight</span>
-                </div>
-                <div class="stat">
                     <span class="stat-number">${project.total_mentions || 0}</span>
-                    <span class="stat-label">Domain Mentions</span>
+                    <span class="stat-label">Brand Mentions</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">${project.visibility_percentage ? Math.round(project.visibility_percentage) + '%' : '0%'}</span>
-                    <span class="stat-label">Visibility</span>
+                    <span class="stat-label">Visibility (%)</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">${project.avg_position ? Math.round(project.avg_position * 10) / 10 : '-'}</span>
