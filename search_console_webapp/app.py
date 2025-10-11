@@ -3419,6 +3419,24 @@ def register_manual_ai_system():
         logger.error(f"❌ Error registering Manual AI Analysis system: {e}", exc_info=True)
         return False
 
+def register_ai_mode_system():
+    """Register AI Mode Monitoring Blueprint safely"""
+    try:
+        logger.info("🧠 Intentando importar AI Mode Monitoring system...")
+        from ai_mode_system_bridge import ai_mode_bp
+        
+        logger.info("📦 Registrando AI Mode blueprint...")
+        app.register_blueprint(ai_mode_bp)
+        logger.info("✅ AI Mode Monitoring system registered successfully")
+        return True
+    except ImportError as e:
+        logger.warning(f"⚠️ AI Mode Monitoring system not available: {e}")
+        logger.warning("Sugerencia: verifica dependencias y errores en import.")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error registering AI Mode Monitoring system: {e}", exc_info=True)
+        return False
+
 def initialize_database_on_startup():
     """Initialize database on application startup"""
     try:
@@ -3437,6 +3455,9 @@ def initialize_database_on_startup():
 
 # Registrar Manual AI System siempre (no solo en __main__)
 register_manual_ai_system()
+
+# Registrar AI Mode Monitoring System
+register_ai_mode_system()
 
 # Registrar endpoint de diagnóstico
 try:

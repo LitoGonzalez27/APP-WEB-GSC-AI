@@ -8,6 +8,8 @@ Funciones:
 - Exporta el blueprint ai_mode_bp para registro en app.py
 - Exporta funciones de cron para análisis automático
 - Maneja importaciones de forma segura con fallback
+
+Version: 1.0.1
 """
 
 import logging

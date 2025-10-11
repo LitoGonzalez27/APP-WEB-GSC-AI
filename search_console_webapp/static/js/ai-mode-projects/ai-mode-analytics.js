@@ -808,7 +808,7 @@ export function processAIOverviewDataForGrid(keywordResults, competitorDomains) 
         },
         {
             id: 'your_domain_in_aio',
-            name: gridjs.html('Your Domain<br>in AIO'),
+            name: gridjs.html('Your Brand<br>in AI Mode'),
             width: '120px',
             sort: {
                 compare: (a, b) => {
@@ -828,7 +828,7 @@ export function processAIOverviewDataForGrid(keywordResults, competitorDomains) 
         },
         {
             id: 'your_position_in_aio',
-            name: gridjs.html('Your Position<br>in AIO'),
+            name: gridjs.html('Your Position<br>in AI Mode'),
             width: '120px',
             sort: {
                 compare: (a, b) => {

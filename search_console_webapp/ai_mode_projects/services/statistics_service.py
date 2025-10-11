@@ -316,7 +316,8 @@ class StatisticsService:
     @staticmethod
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
         """
-        Obtener ranking global de TODOS los dominios detectados en AI Overview
+        Obtener ranking global de TODOS los dominios detectados en AI Mode
+        Extrae dominios desde raw_ai_mode_data
         
         Args:
             project_id: ID del proyecto
@@ -325,35 +326,133 @@ class StatisticsService:
         Returns:
             Lista de dominios con ranking completo y formateado para el frontend
         """
-        # TODO: Para AI Mode, necesitaríamos extraer dominios de raw_ai_mode_data
-        # Por ahora, no hay tabla ai_mode_global_domains, retornar lista vacía
-        raw_domains = []
+        import json
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        from datetime import timedelta
         
-        # Transformar datos para el formato esperado por el frontend
-        domains = []
-        for index, domain in enumerate(raw_domains, start=1):
-            # Determinar tipo de dominio
-            if domain['is_project_domain']:
-                domain_type = 'project'
-            elif domain['is_selected_competitor']:
-                domain_type = 'competitor'
-            else:
-                domain_type = 'other'
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener proyecto para brand_name y competidores
+        cur.execute("""
+            SELECT brand_name, selected_competitors
+            FROM ai_mode_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project_row = cur.fetchone()
+        if not project_row:
+            cur.close()
+            conn.close()
+            return []
+        
+        brand_name = project_row['brand_name']
+        competitor_domains = project_row['selected_competitors'] or []
+        
+        # Obtener todos los resultados con raw_ai_mode_data
+        cur.execute("""
+            SELECT 
+                raw_ai_mode_data,
+                analysis_date,
+                keyword_id
+            FROM ai_mode_results
+            WHERE project_id = %s 
+                AND analysis_date >= %s 
+                AND analysis_date <= %s
+                AND raw_ai_mode_data IS NOT NULL
+        """, (project_id, start_date, end_date))
+        
+        results = cur.fetchall()
+        
+        # Contador de dominios: {domain: {mentions: int, positions: [], dates: set}}
+        domain_stats = defaultdict(lambda: {
+            'mentions': 0,
+            'positions': [],
+            'dates': set()
+        })
+        
+        total_keywords_analyzed = 0
+        keywords_seen = set()
+        
+        # Procesar cada resultado
+        for row in results:
+            try:
+                serp_data = json.loads(row['raw_ai_mode_data'])
+                keyword_id = row['keyword_id']
+                analysis_date = str(row['analysis_date'])
+                
+                # Marcar este keyword como analizado
+                if keyword_id not in keywords_seen:
+                    keywords_seen.add(keyword_id)
+                    total_keywords_analyzed += 1
+                
+                # Extraer dominios de organic_results
+                organic_results = serp_data.get('organic_results', [])
+                
+                for idx, result in enumerate(organic_results, 1):
+                    link = result.get('link', '')
+                    if link:
+                        try:
+                            # Extraer dominio limpio
+                            parsed = urlparse(link)
+                            domain = parsed.netloc.lower()
+                            if domain.startswith('www.'):
+                                domain = domain[4:]
+                            
+                            if domain:
+                                domain_stats[domain]['mentions'] += 1
+                                domain_stats[domain]['positions'].append(idx)
+                                domain_stats[domain]['dates'].add(analysis_date)
+                        except:
+                            continue
+                            
+            except Exception as e:
+                logger.warning(f"Error parsing raw_ai_mode_data: {e}")
+                continue
+        
+        cur.close()
+        conn.close()
+        
+        if not domain_stats:
+            return []
+        
+        # Transformar a lista y calcular métricas
+        domains_list = []
+        for domain, stats in domain_stats.items():
+            avg_position = sum(stats['positions']) / len(stats['positions']) if stats['positions'] else None
+            visibility_pct = (stats['mentions'] / total_keywords_analyzed * 100) if total_keywords_analyzed > 0 else 0
             
-            domains.append({
-                'rank': index,
-                'detected_domain': domain['detected_domain'],
+            # Determinar tipo de dominio
+            domain_type = 'other'
+            if brand_name and brand_name.lower() in domain:
+                domain_type = 'project'
+            elif any(comp and comp.lower() in domain for comp in competitor_domains):
+                domain_type = 'competitor'
+            
+            domains_list.append({
+                'detected_domain': domain,
                 'domain_type': domain_type,
-                'appearances': domain['keywords_mentioned'],
-                'days_appeared': domain['days_appeared'],
-                'avg_position': float(domain['avg_position']) if domain['avg_position'] else None,
-                'best_position': domain['best_position'],
-                'worst_position': domain['worst_position'],
-                'total_mentions': domain['total_mentions'],
-                'visibility_percentage': float(domain['coverage_pct']) if domain['coverage_pct'] else 0.0
+                'appearances': stats['mentions'],
+                'days_appeared': len(stats['dates']),
+                'avg_position': avg_position,
+                'visibility_percentage': visibility_pct,
+                'is_project_domain': domain_type == 'project',
+                'is_selected_competitor': domain_type == 'competitor',
+                'rank': 0  # Se asignará después de ordenar
             })
         
-        return domains
+        # Ordenar por número de menciones (descendente)
+        domains_list.sort(key=lambda x: x['appearances'], reverse=True)
+        
+        # Agregar rank
+        for idx, domain in enumerate(domains_list, 1):
+            domain['rank'] = idx
+        
+        return domains_list
     
     @staticmethod
     def get_latest_overview_stats(project_id: int) -> Dict:
