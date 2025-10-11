@@ -151,19 +151,18 @@ class StatisticsService:
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
         
-        # Obtener keywords con AI Overview y sus estadísticas
+        # Obtener keywords con brand mentions y sus estadísticas
         cur.execute("""
             WITH keyword_stats AS (
                 SELECT 
                     k.id,
                     k.keyword,
                     COUNT(DISTINCT r.analysis_date) as analysis_count,
-                    COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.analysis_date END) as ai_overview_count,
-                    COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.analysis_date END) as mentions_count,
-                    AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END) as avg_position,
+                    COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.analysis_date END) as mentions_count,
+                    AVG(CASE WHEN r.brand_mentioned = true THEN r.mention_position END) as avg_position,
                     MAX(r.analysis_date) as last_analysis
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                FROM ai_mode_keywords k
+                LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                     AND r.analysis_date >= %s AND r.analysis_date <= %s
                 WHERE k.project_id = %s AND k.is_active = true
                 GROUP BY k.id, k.keyword
@@ -172,23 +171,17 @@ class StatisticsService:
                 id,
                 keyword,
                 analysis_count,
-                ai_overview_count,
                 mentions_count,
                 avg_position,
                 CASE 
                     WHEN analysis_count > 0 
-                    THEN ROUND((ai_overview_count::float / analysis_count::float * 100)::numeric, 1)
-                    ELSE 0 
-                END as ai_frequency,
-                CASE 
-                    WHEN ai_overview_count > 0 
-                    THEN ROUND((mentions_count::float / ai_overview_count::float * 100)::numeric, 1)
+                    THEN ROUND((mentions_count::float / analysis_count::float * 100)::numeric, 1)
                     ELSE 0 
                 END as visibility,
                 last_analysis
             FROM keyword_stats
-            WHERE ai_overview_count > 0
-            ORDER BY ai_overview_count DESC, mentions_count DESC
+            WHERE mentions_count > 0
+            ORDER BY mentions_count DESC
         """, (start_date, end_date, project_id))
         
         keywords = [dict(row) for row in cur.fetchall()]
@@ -222,7 +215,7 @@ class StatisticsService:
         # Obtener competidores del proyecto
         cur.execute("""
             SELECT selected_competitors
-            FROM manual_ai_projects
+            FROM ai_mode_projects
             WHERE id = %s
         """, (project_id,))
         
@@ -231,33 +224,31 @@ class StatisticsService:
         if project_row and project_row['selected_competitors']:
             competitor_domains = project_row['selected_competitors']
         
-        # Obtener últimos resultados de keywords con AI Overview
+        # Obtener últimos resultados de keywords con brand mentions
         cur.execute("""
             WITH latest_results AS (
                 SELECT DISTINCT ON (k.id)
                     k.id,
                     k.keyword,
-                    r.has_ai_overview,
-                    r.domain_mentioned,
-                    r.domain_position,
+                    r.brand_mentioned,
+                    r.mention_position,
                     r.analysis_date
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                FROM ai_mode_keywords k
+                LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                 WHERE k.project_id = %s AND k.is_active = true
                 ORDER BY k.id, r.analysis_date DESC
             )
             SELECT 
                 id,
                 keyword,
-                has_ai_overview,
-                domain_mentioned,
-                domain_position,
+                brand_mentioned,
+                mention_position,
                 analysis_date as last_analysis
             FROM latest_results
-            WHERE has_ai_overview = true
+            WHERE analysis_date IS NOT NULL
             ORDER BY 
-                CASE WHEN domain_mentioned = true THEN 0 ELSE 1 END,
-                domain_position NULLS LAST,
+                CASE WHEN brand_mentioned = true THEN 0 ELSE 1 END,
+                mention_position NULLS LAST,
                 keyword
         """, (project_id,))
         
@@ -268,19 +259,20 @@ class StatisticsService:
         for kw in keywords:
             keyword_data = {
                 'keyword': kw['keyword'],
-                'user_domain_in_aio': kw['domain_mentioned'] or False,
-                'user_domain_position': kw['domain_position'] if kw['domain_position'] else None,
+                'user_domain_in_aio': kw['brand_mentioned'] or False,
+                'user_domain_position': kw['mention_position'] if kw['mention_position'] else None,
                 'last_analysis': kw['last_analysis'],
                 'competitors': []
             }
             
-            # Obtener datos de competidores de global_domains para esta keyword en su última fecha
-            if competitor_domains and kw['last_analysis']:
+            # TODO: Para AI Mode, necesitaríamos extraer competidores de raw_ai_mode_data
+            # Por ahora, no hay tabla ai_mode_global_domains
+            if False and competitor_domains and kw['last_analysis']:
                 cur.execute("""
                     SELECT 
                         detected_domain,
                         domain_position
-                    FROM manual_ai_global_domains
+                    FROM ai_mode_global_domains
                     WHERE project_id = %s
                         AND keyword_id = %s
                         AND analysis_date = %s
@@ -317,29 +309,9 @@ class StatisticsService:
         Returns:
             Lista de dominios con sus métricas
         """
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                detected_domain,
-                COUNT(DISTINCT keyword_id) as keyword_count,
-                AVG(domain_position) as avg_position,
-                MIN(domain_position) as best_position,
-                COUNT(*) as total_mentions
-            FROM manual_ai_global_domains
-            WHERE project_id = %s
-            GROUP BY detected_domain
-            ORDER BY keyword_count DESC, avg_position ASC
-            LIMIT %s
-        """, (project_id, limit))
-        
-        domains = [dict(row) for row in cur.fetchall()]
-        
-        cur.close()
-        conn.close()
-        
-        return domains
+        # TODO: Para AI Mode, necesitaríamos extraer dominios de raw_ai_mode_data
+        # Por ahora, no hay tabla ai_mode_global_domains, retornar lista vacía
+        return []
     
     @staticmethod
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
@@ -353,41 +325,9 @@ class StatisticsService:
         Returns:
             Lista de dominios con ranking completo y formateado para el frontend
         """
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
-        
-        cur.execute("""
-            SELECT 
-                gd.detected_domain,
-                gd.is_project_domain,
-                gd.is_selected_competitor,
-                COUNT(DISTINCT gd.keyword_id) as keywords_mentioned,
-                COUNT(DISTINCT gd.analysis_date) as days_appeared,
-                AVG(gd.domain_position) as avg_position,
-                MIN(gd.domain_position) as best_position,
-                MAX(gd.domain_position) as worst_position,
-                COUNT(*) as total_mentions,
-                ROUND((COUNT(DISTINCT gd.keyword_id)::float / 
-                       NULLIF((SELECT COUNT(DISTINCT keyword_id) 
-                              FROM manual_ai_global_domains 
-                              WHERE project_id = %s 
-                              AND analysis_date >= %s 
-                              AND analysis_date <= %s), 0)::float * 100)::numeric, 2) as coverage_pct
-            FROM manual_ai_global_domains gd
-            WHERE gd.project_id = %s 
-                AND gd.analysis_date >= %s 
-                AND gd.analysis_date <= %s
-            GROUP BY gd.detected_domain, gd.is_project_domain, gd.is_selected_competitor
-            ORDER BY keywords_mentioned DESC, avg_position ASC
-        """, (project_id, start_date, end_date, project_id, start_date, end_date))
-        
-        raw_domains = [dict(row) for row in cur.fetchall()]
-        
-        cur.close()
-        conn.close()
+        # TODO: Para AI Mode, necesitaríamos extraer dominios de raw_ai_mode_data
+        # Por ahora, no hay tabla ai_mode_global_domains, retornar lista vacía
+        raw_domains = []
         
         # Transformar datos para el formato esperado por el frontend
         domains = []
@@ -433,26 +373,22 @@ class StatisticsService:
             WITH latest_results AS (
                 SELECT DISTINCT ON (k.id)
                     k.id AS keyword_id,
-                    r.has_ai_overview,
-                    r.domain_mentioned,
-                    r.domain_position,
+                    r.brand_mentioned,
+                    r.mention_position,
                     r.analysis_date
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                FROM ai_mode_keywords k
+                LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                 WHERE k.project_id = %s
                 AND k.is_active = true
                 ORDER BY k.id, r.analysis_date DESC
             )
             SELECT 
                 COUNT(*) as total_keywords,
-                COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
-                COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                AVG(CASE WHEN domain_mentioned = true AND domain_position IS NOT NULL 
-                    THEN domain_position END)::float as avg_position,
-                (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
-                 NULLIF(COUNT(*), 0)::float * 100)::float as aio_weight_percentage,
-                (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
-                 NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100)::float as visibility_percentage,
+                COUNT(CASE WHEN brand_mentioned = true THEN 1 END) as total_mentions,
+                AVG(CASE WHEN brand_mentioned = true AND mention_position IS NOT NULL 
+                    THEN mention_position END)::float as avg_position,
+                (COUNT(CASE WHEN brand_mentioned = true THEN 1 END)::float / 
+                 NULLIF(COUNT(*), 0)::float * 100)::float as visibility_percentage,
                 MAX(analysis_date) as last_analysis_date
             FROM latest_results
         """, (project_id,))
