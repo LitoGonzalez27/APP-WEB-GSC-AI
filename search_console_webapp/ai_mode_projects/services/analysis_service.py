@@ -249,15 +249,18 @@ class AnalysisService:
         brand_name = project.get('brand_name', '')
         country_code = project.get('country_code', 'US')
         
-        # Convertir código de país
+        # Convertir código de país para country_param (interno de 3 letras)
         country_param = convert_iso_to_internal_country(country_code)
+        
+        # Para Google domain, usar el código ISO-2 directamente (2 letras)
+        google_domain_code = country_code.lower() if country_code else 'us'
         
         try:
             # Parámetros para Google Search
             params = {
                 "q": keyword,
                 "engine": "google",
-                "google_domain": f"google.{country_param.lower()}",
+                "google_domain": f"google.{google_domain_code}",
                 "gl": country_code,
                 "hl": "en",
                 "api_key": api_key,

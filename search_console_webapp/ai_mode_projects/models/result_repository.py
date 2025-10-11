@@ -178,23 +178,21 @@ class ResultRepository:
             cur.execute("""
                 INSERT INTO ai_mode_snapshots (
                     project_id, snapshot_date,
-                    total_keywords, active_keywords, keywords_with_ai,
-                    domain_mentions, avg_position, visibility_percentage
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    total_keywords, active_keywords,
+                    total_mentions, avg_position, visibility_percentage
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (project_id, snapshot_date) 
                 DO UPDATE SET
                     total_keywords = EXCLUDED.total_keywords,
                     active_keywords = EXCLUDED.active_keywords,
-                    keywords_with_ai = EXCLUDED.keywords_with_ai,
-                    domain_mentions = EXCLUDED.domain_mentions,
+                    total_mentions = EXCLUDED.total_mentions,
                     avg_position = EXCLUDED.avg_position,
                     visibility_percentage = EXCLUDED.visibility_percentage
             """, (
                 project_id, snapshot_date,
                 metrics.get('total_keywords', 0),
                 metrics.get('active_keywords', 0),
-                metrics.get('keywords_with_ai', 0),
-                metrics.get('domain_mentions', 0),
+                metrics.get('total_mentions', 0),
                 metrics.get('avg_position'),
                 metrics.get('visibility_percentage')
             ))
