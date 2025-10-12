@@ -254,7 +254,7 @@ class StatisticsService:
         
         keywords = [dict(row) for row in cur.fetchall()]
         
-        # Para cada keyword, obtener información de competidores
+        # Para cada keyword, obtener información de competidores desde raw_ai_mode_data
         result_keywords = []
         for kw in keywords:
             keyword_data = {
@@ -265,26 +265,47 @@ class StatisticsService:
                 'competitors': []
             }
             
-            # TODO: Para AI Mode, necesitaríamos extraer competidores de raw_ai_mode_data
-            # Por ahora, no hay tabla ai_mode_global_domains
-            if False and competitor_domains and kw['last_analysis']:
+            # Extraer competidores de raw_ai_mode_data si hay análisis
+            if competitor_domains and kw['last_analysis']:
                 cur.execute("""
-                    SELECT 
-                        detected_domain,
-                        domain_position
-                    FROM ai_mode_global_domains
+                    SELECT raw_ai_mode_data
+                    FROM ai_mode_results
                     WHERE project_id = %s
                         AND keyword_id = %s
                         AND analysis_date = %s
-                        AND detected_domain = ANY(%s)
-                """, (project_id, kw['id'], kw['last_analysis'], competitor_domains))
+                        AND raw_ai_mode_data IS NOT NULL
+                """, (project_id, kw['id'], kw['last_analysis']))
                 
-                comp_data = cur.fetchall()
-                for comp in comp_data:
-                    keyword_data['competitors'].append({
-                        'domain': comp['detected_domain'],
-                        'position': comp['domain_position']
-                    })
+                result_row = cur.fetchone()
+                if result_row and result_row['raw_ai_mode_data']:
+                    try:
+                        from urllib.parse import urlparse
+                        serp_data = result_row['raw_ai_mode_data']
+                        references = serp_data.get('references', [])
+                        
+                        # Buscar cada competidor en las references
+                        for comp_domain in competitor_domains:
+                            comp_lower = comp_domain.lower()
+                            for ref in references:
+                                link = ref.get('link', '')
+                                if link:
+                                    try:
+                                        parsed = urlparse(link)
+                                        domain = parsed.netloc.lower()
+                                        if domain.startswith('www.'):
+                                            domain = domain[4:]
+                                        
+                                        # Si el dominio coincide con el competidor
+                                        if comp_lower in domain or domain in comp_lower:
+                                            keyword_data['competitors'].append({
+                                                'domain': comp_domain,
+                                                'position': ref.get('position', 0)
+                                            })
+                                            break  # Solo la primera aparición de este competidor
+                                    except:
+                                        continue
+                    except Exception as e:
+                        logger.warning(f"Error extracting competitors from raw_ai_mode_data: {e}")
             
             result_keywords.append(keyword_data)
         
@@ -317,7 +338,7 @@ class StatisticsService:
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
         """
         Obtener ranking global de TODOS los dominios detectados en AI Mode
-        Extrae dominios desde raw_ai_mode_data
+        Extrae dominios desde raw_ai_mode_data (Google AI Mode sources)
         
         Args:
             project_id: ID del proyecto
@@ -326,7 +347,6 @@ class StatisticsService:
         Returns:
             Lista de dominios con ranking completo y formateado para el frontend
         """
-        import json
         from urllib.parse import urlparse
         from collections import defaultdict
         from datetime import timedelta
@@ -381,7 +401,8 @@ class StatisticsService:
         # Procesar cada resultado
         for row in results:
             try:
-                serp_data = json.loads(row['raw_ai_mode_data'])
+                # raw_ai_mode_data ya está parseado por psycopg2 (JSONB)
+                serp_data = row['raw_ai_mode_data']
                 keyword_id = row['keyword_id']
                 analysis_date = str(row['analysis_date'])
                 
@@ -390,11 +411,13 @@ class StatisticsService:
                     keywords_seen.add(keyword_id)
                     total_keywords_analyzed += 1
                 
-                # Extraer dominios de organic_results
-                organic_results = serp_data.get('organic_results', [])
+                # Google AI Mode estructura real: {text_blocks, references, inline_images}
+                # Extraer dominios de references (fuentes citadas)
+                references = serp_data.get('references', [])
                 
-                for idx, result in enumerate(organic_results, 1):
-                    link = result.get('link', '')
+                for ref in references:
+                    link = ref.get('link', '')
+                    position = ref.get('position', 0)
                     if link:
                         try:
                             # Extraer dominio limpio
@@ -405,7 +428,7 @@ class StatisticsService:
                             
                             if domain:
                                 domain_stats[domain]['mentions'] += 1
-                                domain_stats[domain]['positions'].append(idx)
+                                domain_stats[domain]['positions'].append(position if position else 1)
                                 domain_stats[domain]['dates'].add(analysis_date)
                         except:
                             continue

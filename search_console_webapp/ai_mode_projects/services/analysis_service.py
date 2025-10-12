@@ -256,18 +256,15 @@ class AnalysisService:
         google_domain_code = country_code.lower() if country_code else 'us'
         
         try:
-            # Parámetros para Google Search
+            # Parámetros para Google AI Mode (google.com/ai)
             params = {
                 "q": keyword,
-                "engine": "google",
-                "google_domain": f"google.{google_domain_code}",
-                "gl": country_code,
-                "hl": "en",
-                "api_key": api_key,
-                "num": 10
+                "engine": "google_ai_mode",
+                "location": country_param,  # Usar location en vez de gl para AI Mode
+                "api_key": api_key
             }
             
-            logger.info(f"🔍 Calling SerpApi for AI Mode keyword: {keyword}")
+            logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: {keyword}")
             
             # Hacer la llamada a SerpApi
             search = GoogleSearch(params)
@@ -296,10 +293,16 @@ class AnalysisService:
     
     def _parse_ai_mode_response(self, serp_data: dict, brand_name: str) -> dict:
         """
-        Parsear respuesta de SerpApi para detectar menciones de marca
+        Parsear respuesta de Google AI Mode (google.com/ai) para detectar menciones de marca
+        
+        Estructura de SerpApi Google AI Mode:
+        - text_blocks: Array de bloques de texto generados por IA
+        - references: Array de fuentes citadas (con link, title, source)
+        - inline_images: Imágenes inline (opcional)
+        - related_questions: Preguntas relacionadas (opcional)
         
         Args:
-            serp_data: Datos raw de SerpApi
+            serp_data: Datos raw de SerpApi Google AI Mode
             brand_name: Nombre de la marca a buscar
             
         Returns:
@@ -313,56 +316,57 @@ class AnalysisService:
             'sentiment': 'neutral'
         }
         
-        # Buscar en resultados orgánicos
-        organic_results = serp_data.get('organic_results', [])
-        ai_overview = serp_data.get('ai_overview', {})
+        # Google AI Mode estructura real según documentación SerpApi
+        text_blocks = serp_data.get('text_blocks', [])
+        references = serp_data.get('references', [])
         
-        result['total_sources'] = len(organic_results)
+        result['total_sources'] = len(references)
         
         # Buscar menciones de la marca (case-insensitive)
         brand_lower = brand_name.lower()
         
-        # Buscar primero en AI Overview (si existe)
-        if ai_overview:
-            ai_text = str(ai_overview.get('text', '')).lower()
-            ai_sources = ai_overview.get('sources', [])
+        # 1. Buscar en los text_blocks (respuesta generada por IA)
+        for block in text_blocks:
+            text = str(block.get('text', '')).lower()
             
-            if brand_lower in ai_text:
+            if brand_lower in text:
                 result['brand_mentioned'] = True
-                result['mention_context'] = ai_overview.get('text', '')[:500]
-                result['mention_position'] = 0  # Posición especial para AI Overview
+                result['mention_context'] = block.get('text', '')[:500]
+                result['mention_position'] = 0  # Posición 0 para menciones en texto de IA
                 
                 # Analizar sentimiento básico
-                if any(word in ai_text for word in ['best', 'excellent', 'great', 'top', 'leading', 'recommended']):
-                    result['sentiment'] = 'positive'
-                elif any(word in ai_text for word in ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue']):
-                    result['sentiment'] = 'negative'
-                
-                logger.info(f"✨ Brand '{brand_name}' found in AI Overview at position 0")
-                return result
-        
-        # Si no está en AI Overview, buscar en resultados orgánicos
-        for idx, organic in enumerate(organic_results, 1):
-            title = str(organic.get('title', '')).lower()
-            snippet = str(organic.get('snippet', '')).lower()
-            
-            if brand_lower in title or brand_lower in snippet:
-                result['brand_mentioned'] = True
-                result['mention_position'] = idx
-                result['mention_context'] = organic.get('snippet', '')[:500]
-                
-                # Análisis de sentimiento básico
-                text = f"{title} {snippet}"
                 if any(word in text for word in ['best', 'excellent', 'great', 'top', 'leading', 'recommended']):
                     result['sentiment'] = 'positive'
                 elif any(word in text for word in ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue']):
                     result['sentiment'] = 'negative'
                 
-                logger.info(f"✨ Brand '{brand_name}' found in organic result at position {idx}")
+                logger.info(f"✨ Brand '{brand_name}' found in AI text_blocks at position 0")
+                return result
+        
+        # 2. Si no está en text_blocks, buscar en references (fuentes citadas)
+        for ref in references:
+            title = str(ref.get('title', '')).lower()
+            link = str(ref.get('link', '')).lower()
+            source = str(ref.get('source', '')).lower()
+            position = ref.get('position', 0)
+            
+            if brand_lower in title or brand_lower in link or brand_lower in source:
+                result['brand_mentioned'] = True
+                result['mention_position'] = position if position else len(references)
+                result['mention_context'] = ref.get('title', '')[:500]
+                
+                # Análisis de sentimiento básico
+                text = f"{title} {source}"
+                if any(word in text for word in ['best', 'excellent', 'great', 'top', 'leading', 'recommended']):
+                    result['sentiment'] = 'positive'
+                elif any(word in text for word in ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue']):
+                    result['sentiment'] = 'negative'
+                
+                logger.info(f"✨ Brand '{brand_name}' found in reference at position {position}")
                 break
         
         if not result['brand_mentioned']:
-            logger.info(f"❌ Brand '{brand_name}' not found in search results")
+            logger.info(f"❌ Brand '{brand_name}' not found in AI Mode results")
         
         return result
 
