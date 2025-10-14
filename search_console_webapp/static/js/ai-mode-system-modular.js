@@ -279,6 +279,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Crear instancia global
     window.aiModeSystem = new AIModeSystem();
     
+    // Inicializar configuración de Clusters (event listeners para toggles)
+    try {
+        if (window.aiModeSystem && typeof window.aiModeSystem.initializeClustersConfiguration === 'function') {
+            window.aiModeSystem.initializeClustersConfiguration();
+        }
+    } catch (e) {
+        console.warn('⚠️ Error initializing clusters configuration:', e);
+    }
+    
     // Registrar plugin de Chart.js
     if (typeof Chart !== 'undefined') {
         Chart.register(htmlLegendPlugin);
