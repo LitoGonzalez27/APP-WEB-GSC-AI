@@ -30,7 +30,7 @@ class ClusterService:
         try:
             cur.execute("""
                 SELECT topic_clusters
-                FROM manual_ai_projects
+                FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
             
@@ -98,7 +98,7 @@ class ClusterService:
             
             # Actualizar en base de datos
             cur.execute("""
-                UPDATE manual_ai_projects
+                UPDATE ai_mode_projects
                 SET topic_clusters = %s,
                     updated_at = NOW()
                 WHERE id = %s
@@ -227,11 +227,10 @@ class ClusterService:
                     SELECT DISTINCT ON (k.id)
                         k.id as keyword_id,
                         k.keyword,
-                        r.has_ai_overview,
-                        r.domain_mentioned,
+                        r.brand_mentioned,
                         r.analysis_date
                     FROM ai_mode_keywords k
-                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                         AND r.analysis_date >= %s AND r.analysis_date <= %s
                     WHERE k.project_id = %s AND k.is_active = true
                     ORDER BY k.id, r.analysis_date DESC
@@ -239,8 +238,8 @@ class ClusterService:
                 SELECT 
                     keyword_id,
                     keyword,
-                    has_ai_overview,
-                    domain_mentioned
+                    brand_mentioned,
+                    analysis_date
                 FROM latest_results
             """, (start_date, end_date, project_id))
             
@@ -266,8 +265,8 @@ class ClusterService:
             # Clasificar keywords y calcular estadísticas
             for kw_data in keywords_data:
                 keyword = kw_data['keyword']
-                has_ai_overview = kw_data['has_ai_overview'] or False
-                domain_mentioned = kw_data['domain_mentioned'] or False
+                has_ai_mode = kw_data['analysis_date'] is not None
+                brand_mentioned = kw_data['brand_mentioned'] or False
                 
                 # Clasificar keyword
                 matching_clusters = ClusterService.classify_keyword(keyword, clusters_config)
@@ -278,16 +277,16 @@ class ClusterService:
                         if cluster_name in clusters_stats:
                             clusters_stats[cluster_name]['total_keywords'] += 1
                             clusters_stats[cluster_name]['keywords'].append(keyword)
-                            if has_ai_overview:
+                            if has_ai_mode:
                                 clusters_stats[cluster_name]['ai_overview_count'] += 1
-                            if domain_mentioned:
+                            if brand_mentioned:
                                 clusters_stats[cluster_name]['mentions_count'] += 1
                 else:
                     # Keyword no clasificada
                     unclassified_keywords.append({
                         'keyword': keyword,
-                        'has_ai_overview': has_ai_overview,
-                        'domain_mentioned': domain_mentioned
+                        'has_ai_mode': has_ai_mode,
+                        'brand_mentioned': brand_mentioned
                     })
             
             # Añadir cluster "Unclassified" si hay keywords sin clasificar
@@ -295,8 +294,8 @@ class ClusterService:
                 clusters_stats['Unclassified'] = {
                     'name': 'Unclassified',
                     'total_keywords': len(unclassified_keywords),
-                    'ai_overview_count': sum(1 for kw in unclassified_keywords if kw['has_ai_overview']),
-                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['domain_mentioned']),
+                    'ai_overview_count': sum(1 for kw in unclassified_keywords if kw['has_ai_mode']),
+                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['brand_mentioned']),
                     'keywords': [kw['keyword'] for kw in unclassified_keywords]
                 }
             

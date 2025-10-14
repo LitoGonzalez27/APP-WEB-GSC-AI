@@ -124,7 +124,7 @@ class CompetitorService:
             if not competitors_by_date:
                 cur.execute("""
                     SELECT selected_competitors
-                    FROM manual_ai_projects
+                    FROM ai_mode_projects
                     WHERE id = %s
                 """, (project_id,))
                 
@@ -146,7 +146,7 @@ class CompetitorService:
         """
         Sincronizar flags de competidores en datos históricos
         
-        Actualiza los flags is_selected_competitor en manual_ai_global_domains
+        Actualiza los flags is_selected_competitor en ai_mode_global_domains
         para reflejar la configuración actual de competidores
         
         Args:
@@ -165,7 +165,7 @@ class CompetitorService:
             
             # 1. Desmarcar todos los dominios como competidores
             cur.execute("""
-                UPDATE manual_ai_global_domains
+                UPDATE ai_mode_global_domains
                 SET is_selected_competitor = false
                 WHERE project_id = %s AND is_selected_competitor = true
             """, (project_id,))
@@ -175,7 +175,7 @@ class CompetitorService:
             # 2. Marcar dominios actuales como competidores
             if normalized_competitors:
                 cur.execute("""
-                    UPDATE manual_ai_global_domains
+                    UPDATE ai_mode_global_domains
                     SET is_selected_competitor = true
                     WHERE project_id = %s 
                         AND detected_domain = ANY(%s)
@@ -217,8 +217,8 @@ class CompetitorService:
         try:
             # Obtener configuración de competidores del proyecto
             cur.execute("""
-                SELECT selected_competitors, domain
-                FROM manual_ai_projects
+                SELECT selected_competitors, brand_name as domain
+                FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
             
@@ -251,7 +251,7 @@ class CompetitorService:
                     COUNT(DISTINCT keyword_id) as keywords_mentioned,
                     AVG(domain_position) as avg_position,
                     COUNT(*) as total_mentions
-                FROM manual_ai_global_domains
+                FROM ai_mode_global_domains
                 WHERE project_id = %s 
                     AND analysis_date >= %s 
                     AND analysis_date <= %s
@@ -271,7 +271,7 @@ class CompetitorService:
                         analysis_date,
                         AVG(domain_position) as avg_position,
                         COUNT(DISTINCT keyword_id) as keyword_count
-                    FROM manual_ai_global_domains
+                    FROM ai_mode_global_domains
                     WHERE project_id = %s 
                         AND detected_domain = %s
                         AND analysis_date >= %s 
@@ -319,7 +319,7 @@ class CompetitorService:
             # Obtener todos los cambios de competidores ordenados cronológicamente
             cur.execute("""
                 SELECT event_date, event_type, event_description 
-                FROM manual_ai_events 
+                FROM ai_mode_events 
                 WHERE project_id = %s 
                 AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
                 AND event_date <= %s
@@ -329,7 +329,7 @@ class CompetitorService:
             competitor_changes = cur.fetchall()
             
             # Obtener competidores actuales como fallback
-            cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
+            cur.execute("SELECT selected_competitors FROM ai_mode_projects WHERE id = %s", (project_id,))
             current_result = cur.fetchone()
             current_competitors = current_result['selected_competitors'] if current_result else []
             

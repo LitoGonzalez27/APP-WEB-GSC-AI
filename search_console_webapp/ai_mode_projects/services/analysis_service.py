@@ -159,29 +159,11 @@ class AnalysisService:
                     if hasattr(analysis_error, 'is_quota_error') and analysis_error.is_quota_error:
                         logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {analysis_error}")
                         
-                        # Guardar resultado de error de quota
-                        cur.execute('''
-                            INSERT INTO manual_ai_results 
-                            (project_id, keyword_id, keyword, analysis_date, has_ai_overview, 
-                             domain_mentioned, error_details, country_code)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (project_id, keyword_id, analysis_date) 
-                            DO UPDATE SET 
-                                has_ai_overview = EXCLUDED.has_ai_overview,
-                                domain_mentioned = EXCLUDED.domain_mentioned,
-                                error_details = EXCLUDED.error_details,
-                                updated_at = NOW()
-                        ''', (
-                            project_id, keyword_id, keyword, today, False, False,
-                            f"QUOTA_EXCEEDED: {getattr(analysis_error, 'quota_info', {}).get('message', 'Quota limit reached')}",
-                            project['country_code']
-                        ))
-                        
-                        # Terminar análisis y retornar información de quota
+                        # Terminar análisis y retornar información de quota (sin escribir en tablas ajenas)
                         quota_info = getattr(analysis_error, 'quota_info', {})
                         action_required = getattr(analysis_error, 'action_required', 'upgrade')
                         
-                        logger.error(f"🚫 Manual AI analysis stopped due to quota limit. "
+                        logger.error(f"🚫 AI Mode analysis stopped due to quota limit. "
                                    f"Plan: {quota_info.get('plan', 'unknown')}, "
                                    f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
                         
@@ -351,22 +333,35 @@ class AnalysisService:
             'sentiment': 'neutral'
         }
         
-        # Google AI Mode estructura real según documentación SerpApi
-        text_blocks = serp_data.get('text_blocks', [])
-        references = serp_data.get('references', [])
+        # Google AI Mode (SerpAPI engine=google_ai_mode) proporciona:
+        # - text_blocks: bloques de texto generados por AI Mode
+        # - references: fuentes citadas por AI Mode con campo position
+        # No usar campos propios de AI Overview (otro sistema)
+        text_blocks = serp_data.get('text_blocks', []) or []
+        references = serp_data.get('references', []) or []
         
         result['total_sources'] = len(references)
         
-        # Buscar menciones de la marca (case-insensitive)
-        brand_lower = brand_name.lower()
+        # Buscar menciones de la marca (case-insensitive) con pequeñas variaciones
+        brand_lower = (brand_name or '').strip().lower()
+        # Variaciones simples
+        variations = {brand_lower}
+        if ' ' in brand_lower:
+            variations.add(brand_lower.replace(' ', ''))
+        if '-' in brand_lower:
+            variations.add(brand_lower.replace('-', ''))
+        if brand_lower.startswith('get') and len(brand_lower) > 3:
+            variations.add(brand_lower[3:])
         
         # 1. Buscar en los text_blocks (respuesta generada por IA)
         for block in text_blocks:
-            text = str(block.get('text', '')).lower()
+            # Algunas variantes usan 'text', otras 'snippet' o 'content'
+            raw_text = block.get('text') or block.get('snippet') or block.get('content') or ''
+            text = str(raw_text).lower()
             
-            if brand_lower in text:
+            if any(v in text for v in variations if v):
                 result['brand_mentioned'] = True
-                result['mention_context'] = block.get('text', '')[:500]
+                result['mention_context'] = str(raw_text)[:500]
                 result['mention_position'] = 0  # Posición 0 para menciones en texto de IA
                 
                 # Analizar sentimiento básico
@@ -377,17 +372,33 @@ class AnalysisService:
                 
                 logger.info(f"✨ Brand '{brand_name}' found in AI text_blocks at position 0")
                 return result
+
+        # No buscar summaries de AI Overview: fuera de alcance AI Mode
         
         # 2. Si no está en text_blocks, buscar en references (fuentes citadas)
-        for ref in references:
+        for idx, ref in enumerate(references):
             title = str(ref.get('title', '')).lower()
             link = str(ref.get('link', '')).lower()
             source = str(ref.get('source', '')).lower()
-            position = ref.get('position', 0)
+            position = ref.get('position')
             
-            if brand_lower in title or brand_lower in link or brand_lower in source:
+            def _matches_brand():
+                if any(v and (v in title or v in link or v in source) for v in variations):
+                    return True
+                # Comprobar dominio del link
+                try:
+                    from urllib.parse import urlparse
+                    netloc = urlparse(link).netloc.lower()
+                    if netloc.startswith('www.'):
+                        netloc = netloc[4:]
+                    return any(v and v in netloc for v in variations)
+                except Exception:
+                    return False
+            
+            if _matches_brand():
                 result['brand_mentioned'] = True
-                result['mention_position'] = position if position else len(references)
+                # Fallback a índice+1 si no hay position
+                result['mention_position'] = position if isinstance(position, int) and position > 0 else (idx + 1)
                 result['mention_context'] = ref.get('title', '')[:500]
                 
                 # Análisis de sentimiento básico

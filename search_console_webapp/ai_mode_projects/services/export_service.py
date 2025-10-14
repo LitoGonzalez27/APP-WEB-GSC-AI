@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExportService:
-    """Servicio para generar exportaciones de Manual AI"""
+    """Servicio para generar exportaciones de AI Mode"""
     
     def __init__(self):
         pass
@@ -22,7 +22,7 @@ class ExportService:
     @staticmethod
     def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, user_id: int) -> BytesIO:
         """
-        Generar Excel con todas las hojas para Manual AI:
+        Generar Excel con todas las hojas para AI Mode:
         1. Resumen
         2. Domain Visibility Over Time  
         3. Competitive Analysis
@@ -50,7 +50,7 @@ class ExportService:
             global_domains = stats_service.get_project_global_domains_ranking(project_id, days)
             logger.info(f"Found {len(global_domains) if global_domains else 0} global domains")
             
-            # 3. Obtener datos de AI Overview Keywords (igual que la UI)
+            # 3. Obtener datos de AI Mode Keywords (igual que la UI)
             ai_overview_data = stats_service.get_project_ai_overview_keywords_latest(project_id)
             logger.info(f"AI Overview keywords data fetched successfully: {len(ai_overview_data.get('keywordResults', []))} keywords")
             
@@ -95,13 +95,13 @@ class ExportService:
                                                 percent_format, project_id, project_info, days)
                 logger.info("Competitive analysis sheet created successfully")
                 
-                # HOJA 4: AI Overview Keywords Details
+                # HOJA 4: AI Mode Keywords Details
                 logger.info("Creating keywords details sheet")
                 ExportService._create_keywords_details_sheet(writer, workbook, header_format, date_format,
                                             ai_overview_data, project_id, days)
                 logger.info("Keywords details sheet created successfully")
                 
-                # HOJA 5: Global AI Overview Domains
+                # HOJA 5: Global AI Mode Domains
                 logger.info("Creating global domains sheet")
                 ExportService._create_global_domains_sheet(writer, workbook, header_format, percent_format,
                                           number_format, global_domains, project_info)
@@ -123,7 +123,7 @@ class ExportService:
             return output
             
         except Exception as e:
-            logger.error(f"Error generating manual AI Excel: {e}", exc_info=True)
+            logger.error(f"Error generating AI Mode Excel: {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -359,7 +359,7 @@ class ExportService:
 
     @staticmethod
     def _create_keywords_details_sheet(writer, workbook, header_format, date_format, ai_overview_data, project_id, days):
-        """Crear Hoja 4: AI Overview Keywords Details - EXACTAMENTE igual que la UI"""
+        """Crear Hoja 4: AI Mode Keywords Details - EXACTAMENTE igual que la UI"""
         # Obtener datos exactos de la UI
         keyword_results = ai_overview_data.get('keywordResults', [])
         competitor_domains = ai_overview_data.get('competitorDomains', [])
@@ -367,12 +367,12 @@ class ExportService:
         logger.info(f"📊 Creating keywords details sheet: {len(keyword_results)} keywords, {len(competitor_domains)} competitors")
         
         # Definir columnas base exactamente como en la UI
-        columns = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
+        columns = ['Keyword', 'Your Domain in AI Mode', 'Your Position in AI Mode']
         
         # Agregar columnas dinámicas para cada competidor (igual que la UI)
         for domain in competitor_domains:
-            columns.append(f'{domain} in AIO')
-            columns.append(f'Position of {domain}')
+            columns.append(f'{domain} in AI Mode')
+            columns.append(f'Position of {domain} in AI Mode')
         
         # Preparar datos exactamente como la UI
         rows = []
@@ -385,8 +385,8 @@ class ExportService:
             # Datos base (igual que la UI)
             row_data = {
                 'Keyword': keyword,
-                'Your Domain in AIO': 'Yes' if user_domain_in_aio else 'No',
-                'Your Position in AIO': user_domain_position if user_domain_position else 'N/A'
+                'Your Domain in AI Mode': 'Yes' if user_domain_in_aio else 'No',
+                'Your Position in AI Mode': user_domain_position if user_domain_position else 'N/A'
             }
             
             # Agregar datos de cada competidor (igual que la UI)
@@ -396,11 +396,11 @@ class ExportService:
             for domain in competitor_domains:
                 comp_info = competitors_dict.get(domain)
                 if comp_info:
-                    row_data[f'{domain} in AIO'] = 'Yes'
-                    row_data[f'Position of {domain}'] = comp_info.get('position') or 'N/A'
+                    row_data[f'{domain} in AI Mode'] = 'Yes'
+                    row_data[f'Position of {domain} in AI Mode'] = comp_info.get('position') or 'N/A'
                 else:
-                    row_data[f'{domain} in AIO'] = 'No'
-                    row_data[f'Position of {domain}'] = 'N/A'
+                    row_data[f'{domain} in AI Mode'] = 'No'
+                    row_data[f'Position of {domain} in AI Mode'] = 'N/A'
             
             rows.append(row_data)
         
@@ -411,9 +411,9 @@ class ExportService:
             # DataFrame vacío con columnas base
             df_keywords = pd.DataFrame(columns=columns)
         
-        df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
+        df_keywords.to_excel(writer, sheet_name='AI Mode Keywords Details', index=False)
         
-        worksheet = writer.sheets['AI Overview Keywords Details']
+        worksheet = writer.sheets['AI Mode Keywords Details']
         worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
         worksheet.set_column('A:A', 30)  # keyword
         worksheet.set_column('B:G', 20)  # otras columnas

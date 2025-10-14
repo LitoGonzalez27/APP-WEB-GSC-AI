@@ -34,7 +34,7 @@ def manual_ai_health():
         try:
             cur.execute("""
                 SELECT event_date, event_type, event_title
-                FROM manual_ai_events
+                FROM ai_mode_events
                 WHERE event_type IN ('daily_analysis')
                 ORDER BY event_date DESC
                 LIMIT 1
@@ -44,11 +44,12 @@ def manual_ai_health():
             last = None
         
         # Conteos de hoy
-        cur.execute("SELECT COUNT(*) AS c FROM manual_ai_results WHERE analysis_date = %s", (today,))
+        cur.execute("SELECT COUNT(*) AS c FROM ai_mode_results WHERE analysis_date = %s", (today,))
         results_today = cur.fetchone()['c']
         
+        # ai_mode_global_domains puede no existir aún: devolver 0 de forma segura
         try:
-            cur.execute("SELECT COUNT(*) AS c FROM manual_ai_global_domains WHERE analysis_date = %s", (today,))
+            cur.execute("SELECT COUNT(*) AS c FROM ai_mode_global_domains WHERE analysis_date = %s", (today,))
             global_today = cur.fetchone()['c']
         except Exception:
             global_today = 0
