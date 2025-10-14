@@ -249,22 +249,57 @@ class AnalysisService:
         brand_name = project.get('brand_name', '')
         country_code = project.get('country_code', 'US')
         
-        # Convertir código de país para country_param (interno de 3 letras)
-        country_param = convert_iso_to_internal_country(country_code)
+        # Mapeo de códigos ISO-2 a nombres de ubicación para Google AI Mode
+        # SerpApi requiere nombres de países/ciudades, no códigos
+        location_map = {
+            'ES': 'Spain',
+            'US': 'United States',
+            'GB': 'United Kingdom',
+            'FR': 'France',
+            'DE': 'Germany',
+            'IT': 'Italy',
+            'PT': 'Portugal',
+            'MX': 'Mexico',
+            'AR': 'Argentina',
+            'CO': 'Colombia',
+            'CL': 'Chile',
+            'PE': 'Peru',
+            'BR': 'Brazil',
+            'CA': 'Canada',
+            'AU': 'Australia',
+            'NZ': 'New Zealand',
+            'IN': 'India',
+            'JP': 'Japan',
+            'CN': 'China',
+            'KR': 'South Korea',
+            'NL': 'Netherlands',
+            'BE': 'Belgium',
+            'CH': 'Switzerland',
+            'AT': 'Austria',
+            'SE': 'Sweden',
+            'NO': 'Norway',
+            'DK': 'Denmark',
+            'FI': 'Finland',
+            'PL': 'Poland',
+            'CZ': 'Czech Republic',
+            'IE': 'Ireland',
+            'GR': 'Greece',
+            'RO': 'Romania',
+            'HU': 'Hungary'
+        }
         
-        # Para Google domain, usar el código ISO-2 directamente (2 letras)
-        google_domain_code = country_code.lower() if country_code else 'us'
+        location = location_map.get(country_code, 'Spain')  # Default a Spain
         
         try:
             # Parámetros para Google AI Mode (google.com/ai)
             params = {
                 "q": keyword,
                 "engine": "google_ai_mode",
-                "location": country_param,  # Usar location en vez de gl para AI Mode
+                "location": location,  # Nombre de país/ciudad que SerpApi acepta
                 "api_key": api_key
             }
             
-            logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: {keyword}")
+            logger.info(f"🔍 Calling SerpApi Google AI Mode for keyword: '{keyword}' (location: {location})")
             
             # Hacer la llamada a SerpApi
             search = GoogleSearch(params)
