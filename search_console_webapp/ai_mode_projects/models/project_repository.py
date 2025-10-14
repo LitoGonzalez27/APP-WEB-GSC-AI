@@ -44,6 +44,7 @@ class ProjectRepository:
                     p.country_code,
                     p.created_at,
                     p.updated_at,
+                    p.selected_competitors,
                     COALESCE(project_stats.total_keywords, 0) as total_keywords,
                     COALESCE(project_stats.total_mentions, 0) as total_mentions,
                     COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
