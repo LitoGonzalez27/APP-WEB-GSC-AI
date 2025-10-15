@@ -466,6 +466,16 @@ class CompetitorService:
             
             date_range = [str(row['analysis_date']) for row in cur.fetchall()]
             
+            # Total de keywords analizadas por fecha (denominador SoV)
+            cur.execute("""
+                SELECT r.analysis_date, COUNT(DISTINCT r.keyword_id) AS total_keywords
+                FROM ai_mode_results r
+                WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+                GROUP BY r.analysis_date
+            """, (project_id, start_date, end_date))
+            totals_rows = cur.fetchall()
+            total_keywords_by_date = {str(r['analysis_date']): r['total_keywords'] for r in totals_rows}
+
             visibility_chart_data['dates'] = date_range
             position_chart_data['dates'] = date_range
             
@@ -485,49 +495,51 @@ class CompetitorService:
             
             # Para cada dominio, obtener sus métricas por fecha
             for domain in domains_to_compare:
-                # Datos de Share of Voice
-                visibility_results = []
+                # Datos de Share of Voice por fecha
+                visibility_by_date = {}
+                position_by_date = {}
                 if domain == project_domain:
-                    # Para dominio del proyecto, usar ai_mode_results
-                    # Share of Voice = (Menciones del dominio / Total Keywords analizadas) × 100
+                    # Proyecto: directo desde ai_mode_results
                     cur.execute("""
-                        SELECT 
-                            r.analysis_date,
-                            (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)::float / 
-                             NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) as visibility_percentage
+                        SELECT r.analysis_date,
+                               (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)::float /
+                               NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) AS visibility_percentage
                         FROM ai_mode_results r
                         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
                         GROUP BY r.analysis_date
                         ORDER BY r.analysis_date
                     """, (project_id, start_date, end_date))
-                    visibility_results = cur.fetchall()
-                else:
-                    # TODO: Para competidores, necesitaríamos extraer media sources de raw_ai_mode_data
-                    # Por ahora, devolver datos vacíos ya que no existe ai_mode_global_domains
-                    visibility_results = []
-                
-                visibility_by_date = {str(row['analysis_date']): row['visibility_percentage'] for row in visibility_results}
-                
-                # Datos de posición media
-                position_results = []
-                if domain == project_domain:
-                    # Para dominio del proyecto, usar ai_mode_results
+                    for row in cur.fetchall():
+                        visibility_by_date[str(row['analysis_date'])] = row['visibility_percentage']
                     cur.execute("""
-                        SELECT 
-                            r.analysis_date,
-                            AVG(CASE WHEN r.mention_position IS NOT NULL THEN r.mention_position END) as avg_position
+                        SELECT r.analysis_date,
+                               AVG(CASE WHEN r.mention_position IS NOT NULL THEN r.mention_position END) AS avg_position
                         FROM ai_mode_results r
                         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
-                            AND r.brand_mentioned = true
+                          AND r.brand_mentioned = true
                         GROUP BY r.analysis_date
                         ORDER BY r.analysis_date
                     """, (project_id, start_date, end_date))
-                    position_results = cur.fetchall()
+                    for row in cur.fetchall():
+                        position_by_date[str(row['analysis_date'])] = row['avg_position']
                 else:
-                    # TODO: Para competidores, necesitaríamos extraer media sources de raw_ai_mode_data
-                    position_results = []
-                
-                position_by_date = {str(row['analysis_date']): row['avg_position'] for row in position_results}
+                    # Competidor: desde ai_mode_global_domains
+                    cur.execute("""
+                        SELECT analysis_date,
+                               COUNT(DISTINCT keyword_id) AS keywords_mentioned,
+                               AVG(domain_position) AS avg_position
+                        FROM ai_mode_global_domains
+                        WHERE project_id = %s AND detected_domain = %s
+                          AND analysis_date >= %s AND analysis_date <= %s
+                        GROUP BY analysis_date
+                        ORDER BY analysis_date
+                    """, (project_id, domain, start_date, end_date))
+                    for row in cur.fetchall():
+                        date_key = str(row['analysis_date'])
+                        total_kw = total_keywords_by_date.get(date_key, 0) or 0
+                        sov = (float(row['keywords_mentioned']) / float(total_kw) * 100.0) if total_kw > 0 else 0.0
+                        visibility_by_date[date_key] = sov
+                        position_by_date[date_key] = row['avg_position']
                 
                 # Preparar datos con lógica temporal
                 visibility_data = []
