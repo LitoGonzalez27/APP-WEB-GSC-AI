@@ -409,8 +409,18 @@ export async function loadTopUrlsRanking(projectId) {
         // Initialize filter chip event listener (only once)
         this.initUrlsFilter();
         
-        // Render with current filter state
-        this.renderTopUrlsRanking(this._allUrlsData);
+        // Check if filter is currently active
+        const filterBtn = document.getElementById('filterMyDomainUrls');
+        const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        
+        // Apply filter if active, otherwise show all
+        if (isFilterActive) {
+            console.log('🔵 Filter is active, applying filter...');
+            this.filterUrlsByDomain(true);
+        } else {
+            console.log('⚪ Filter is inactive, showing all URLs');
+            this.renderTopUrlsRanking(this._allUrlsData);
+        }
 
     } catch (error) {
         console.error('Error loading URLs ranking:', error);
@@ -434,25 +444,47 @@ export function initUrlsFilter() {
 
 export function filterUrlsByDomain(showOnlyMyDomain) {
     if (!this._allUrlsData || this._allUrlsData.length === 0) {
+        console.warn('No URLs data available for filtering');
         return;
     }
     
     let filteredUrls = this._allUrlsData;
     
-    if (showOnlyMyDomain && this.currentProject) {
-        // Get project domain
-        const projectDomain = this.currentProject.domain.toLowerCase().replace(/^www\./, '');
+    if (showOnlyMyDomain) {
+        // Get current project from analytics dropdown or currentProject
+        const projectSelect = document.getElementById('analyticsProjectSelect');
+        const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
+        const project = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
+        
+        if (!project || !project.domain) {
+            console.error('No project or domain found for filtering');
+            this.renderTopUrlsRanking(this._allUrlsData);
+            return;
+        }
+        
+        // Get project domain and normalize
+        const projectDomain = project.domain.toLowerCase().replace(/^www\./, '');
+        console.log('🔍 Filtering URLs for domain:', projectDomain);
         
         // Filter URLs that belong to the project domain
         filteredUrls = this._allUrlsData.filter(urlData => {
             try {
                 const url = new URL(urlData.url);
                 const urlDomain = url.hostname.toLowerCase().replace(/^www\./, '');
-                return urlDomain === projectDomain;
+                const matches = urlDomain === projectDomain;
+                
+                if (matches) {
+                    console.log('✅ Match:', urlData.url);
+                }
+                
+                return matches;
             } catch (e) {
+                console.error('Error parsing URL:', urlData.url, e);
                 return false;
             }
         });
+        
+        console.log(`📊 Filtered: ${filteredUrls.length} URLs from ${this._allUrlsData.length} total`);
         
         // Recalculate ranks
         filteredUrls = filteredUrls.map((url, index) => ({
