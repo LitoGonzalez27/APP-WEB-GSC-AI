@@ -297,7 +297,17 @@ export async function loadGlobalDomainsRanking(projectId) {
         }
 
         const data = await response.json();
-        this.renderGlobalDomainsRanking(data.domains || []);
+        // Añadir paginación simple en cliente (20 por página)
+        const fullList = data.domains || [];
+        const pageSize = 20;
+        const state = this._globalDomainsState || { page: 1 };
+        const totalPages = Math.max(1, Math.ceil(fullList.length / pageSize));
+        state.page = Math.min(state.page, totalPages);
+        const start = (state.page - 1) * pageSize;
+        const paged = fullList.slice(start, start + pageSize);
+        this._globalDomainsState = { page: state.page, totalPages, fullList };
+        this.renderGlobalDomainsRanking(paged);
+        this.renderGlobalDomainsPaginator();
 
     } catch (error) {
         console.error('Error loading global domains ranking:', error);
@@ -361,6 +371,33 @@ export function renderGlobalDomainsRanking(domains) {
         
         tableBody.appendChild(row);
     });
+}
+
+export function renderGlobalDomainsPaginator() {
+    const container = document.getElementById('noGlobalDomainsMessage')?.parentElement;
+    if (!container || !this._globalDomainsState) return;
+    let paginator = document.getElementById('globalDomainsPaginator');
+    if (!paginator) {
+        paginator = document.createElement('div');
+        paginator.id = 'globalDomainsPaginator';
+        paginator.style.cssText = 'display:flex;justify-content:center;gap:12px;margin-top:12px;';
+        container.appendChild(paginator);
+    }
+    const { page, totalPages } = this._globalDomainsState;
+    paginator.innerHTML = '';
+    const btnPrev = document.createElement('button');
+    btnPrev.textContent = 'Previous';
+    btnPrev.disabled = page <= 1;
+    btnPrev.onclick = () => { this._globalDomainsState.page = Math.max(1, page - 1); this.loadGlobalDomainsRanking(this.currentProject?.id || this.currentModalProject?.id); };
+    const info = document.createElement('span');
+    info.textContent = `Page ${page} / ${totalPages}`;
+    const btnNext = document.createElement('button');
+    btnNext.textContent = 'Next';
+    btnNext.disabled = page >= totalPages;
+    btnNext.onclick = () => { this._globalDomainsState.page = Math.min(totalPages, page + 1); this.loadGlobalDomainsRanking(this.currentProject?.id || this.currentModalProject?.id); };
+    paginator.appendChild(btnPrev);
+    paginator.appendChild(info);
+    paginator.appendChild(btnNext);
 }
 
 export function showNoGlobalDomainsMessage() {

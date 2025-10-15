@@ -18,6 +18,7 @@ from ai_mode_projects.models.keyword_repository import KeywordRepository
 from ai_mode_projects.models.result_repository import ResultRepository
 from ai_mode_projects.utils.country_utils import convert_iso_to_internal_country
 from ai_mode_projects.utils.decorators import with_backoff
+from ai_mode_projects.services.domains_service import DomainsService
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,35 @@ class AnalysisService:
                         serp_data=serp_data,
                         country_code=project['country_code']
                     )
+                    
+                    # Almacenar dominios globales detectados para ranking/competidores
+                    try:
+                        references = serp_data.get('references', []) or []
+                        # Adaptar formato a DomainsService (debug_info.references_found)
+                        ai_analysis_data = {
+                            'debug_info': {
+                                'references_found': [
+                                    {
+                                        'link': ref.get('link'),
+                                        'index': ref.get('position', i + 1) if (ref.get('position') and isinstance(ref.get('position'), int)) else i + 1,
+                                        'title': ref.get('title', ''),
+                                        'source': ref.get('source', '')
+                                    } for i, ref in enumerate(references)
+                                ]
+                            }
+                        }
+                        DomainsService.store_global_domains_detected(
+                            project_id=project_id,
+                            keyword_id=keyword_id,
+                            keyword=keyword,
+                            project_domain=project.get('brand_name', ''),
+                            ai_analysis_data=ai_analysis_data,
+                            analysis_date=today,
+                            country_code=project.get('country_code', 'ES'),
+                            selected_competitors=project.get('selected_competitors', []) if isinstance(project, dict) else []
+                        )
+                    except Exception as domains_error:
+                        logger.warning(f"[AI MODE] Error storing global domains for '{keyword}': {domains_error}")
                     
                     results.append({
                         'keyword': keyword,

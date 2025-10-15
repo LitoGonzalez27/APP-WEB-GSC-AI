@@ -330,9 +330,43 @@ class StatisticsService:
         Returns:
             Lista de dominios con sus métricas
         """
-        # TODO: Para AI Mode, necesitaríamos extraer dominios de raw_ai_mode_data
-        # Por ahora, no hay tabla ai_mode_global_domains, retornar lista vacía
-        return []
+        from database import get_db_connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT detected_domain,
+                       COUNT(*) AS appearances,
+                       AVG(domain_position)::float AS avg_position
+                FROM ai_mode_global_domains
+                WHERE project_id = %s
+                GROUP BY detected_domain
+                ORDER BY appearances DESC
+                LIMIT %s
+            """, (project_id, limit))
+            rows = cur.fetchall()
+            domains = []
+            for idx, row in enumerate(rows, 1):
+                domains.append({
+                    'detected_domain': row['detected_domain'],
+                    'domain_type': 'other',
+                    'appearances': row['appearances'],
+                    'days_appeared': None,
+                    'avg_position': row['avg_position'],
+                    'visibility_percentage': None,
+                    'is_project_domain': False,
+                    'is_selected_competitor': False,
+                    'rank': idx
+                })
+            return domains
+        except Exception as e:
+            logger.warning(f"Top domains not available: {e}")
+            return []
+        finally:
+            try:
+                cur.close(); conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
