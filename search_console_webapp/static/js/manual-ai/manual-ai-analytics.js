@@ -402,12 +402,67 @@ export async function loadTopUrlsRanking(projectId) {
         }
 
         const data = await response.json();
-        this.renderTopUrlsRanking(data.urls || []);
+        
+        // Store all URLs for filtering
+        this._allUrlsData = data.urls || [];
+        
+        // Initialize filter chip event listener (only once)
+        this.initUrlsFilter();
+        
+        // Render with current filter state
+        this.renderTopUrlsRanking(this._allUrlsData);
 
     } catch (error) {
         console.error('Error loading URLs ranking:', error);
         this.showNoUrlsMessage();
     }
+}
+
+export function initUrlsFilter() {
+    const filterBtn = document.getElementById('filterMyDomainUrls');
+    if (!filterBtn || filterBtn._listenerAttached) return;
+    
+    filterBtn._listenerAttached = true;
+    filterBtn.addEventListener('click', () => {
+        const isActive = filterBtn.getAttribute('data-active') === 'true';
+        filterBtn.setAttribute('data-active', !isActive);
+        
+        // Apply filter
+        this.filterUrlsByDomain(!isActive);
+    });
+}
+
+export function filterUrlsByDomain(showOnlyMyDomain) {
+    if (!this._allUrlsData || this._allUrlsData.length === 0) {
+        return;
+    }
+    
+    let filteredUrls = this._allUrlsData;
+    
+    if (showOnlyMyDomain && this.currentProject) {
+        // Get project domain
+        const projectDomain = this.currentProject.domain.toLowerCase().replace(/^www\./, '');
+        
+        // Filter URLs that belong to the project domain
+        filteredUrls = this._allUrlsData.filter(urlData => {
+            try {
+                const url = new URL(urlData.url);
+                const urlDomain = url.hostname.toLowerCase().replace(/^www\./, '');
+                return urlDomain === projectDomain;
+            } catch (e) {
+                return false;
+            }
+        });
+        
+        // Recalculate ranks
+        filteredUrls = filteredUrls.map((url, index) => ({
+            ...url,
+            rank: index + 1
+        }));
+    }
+    
+    // Render filtered URLs
+    this.renderTopUrlsRanking(filteredUrls);
 }
 
 export function renderTopUrlsRanking(urls) {
