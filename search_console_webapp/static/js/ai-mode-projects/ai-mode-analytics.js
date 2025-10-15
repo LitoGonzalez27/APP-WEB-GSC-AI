@@ -381,13 +381,16 @@ export function renderGlobalDomainsPaginator() {
     if (!paginator) {
         paginator = document.createElement('div');
         paginator.id = 'globalDomainsPaginator';
-        paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;';
+        paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:24px 0;';
         container.appendChild(paginator);
     }
     const { page, totalPages, projectId } = this._globalDomainsState;
     paginator.innerHTML = '';
     const btnPrev = document.createElement('button');
     btnPrev.className = 'btn btn-light btn-sm';
+    btnPrev.style.backgroundColor = '#C3F5A4';
+    btnPrev.style.borderColor = '#C3F5A4';
+    btnPrev.style.color = '#111827';
     btnPrev.textContent = 'Previous';
     btnPrev.disabled = page <= 1;
     btnPrev.onclick = () => { this._globalDomainsState.page = Math.max(1, page - 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
@@ -396,6 +399,9 @@ export function renderGlobalDomainsPaginator() {
     info.textContent = `Page ${page} / ${totalPages}`;
     const btnNext = document.createElement('button');
     btnNext.className = 'btn btn-light btn-sm';
+    btnNext.style.backgroundColor = '#C3F5A4';
+    btnNext.style.borderColor = '#C3F5A4';
+    btnNext.style.color = '#111827';
     btnNext.textContent = 'Next';
     btnNext.disabled = page >= totalPages;
     btnNext.onclick = () => { this._globalDomainsState.page = Math.min(totalPages, page + 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
@@ -523,12 +529,18 @@ export function renderAIOverviewKeywordsTable(data) {
         if (typeof grid.on === 'function') {
             grid.on('ready', () => {
                 const paginator = fresh.querySelector('.gridjs-pagination');
-                if (paginator) paginator.style.justifyContent = 'flex-end';
+                if (paginator) {
+                    paginator.style.justifyContent = 'flex-end';
+                    paginator.style.margin = '24px 0';
+                }
             });
         } else {
             setTimeout(() => {
                 const paginator = fresh.querySelector('.gridjs-pagination');
-                if (paginator) paginator.style.justifyContent = 'flex-end';
+                if (paginator) {
+                    paginator.style.justifyContent = 'flex-end';
+                    paginator.style.margin = '24px 0';
+                }
             }, 50);
         }
         console.log('✅ AI Overview table rendered successfully');
