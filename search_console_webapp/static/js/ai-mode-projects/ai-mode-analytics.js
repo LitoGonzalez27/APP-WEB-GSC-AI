@@ -305,7 +305,8 @@ export async function loadGlobalDomainsRanking(projectId) {
         state.page = Math.min(state.page, totalPages);
         const start = (state.page - 1) * pageSize;
         const paged = fullList.slice(start, start + pageSize);
-        this._globalDomainsState = { page: state.page, totalPages, fullList };
+        // Guardar también el projectId para navegación fiable
+        this._globalDomainsState = { page: state.page, totalPages, fullList, projectId };
         this.renderGlobalDomainsRanking(paged);
         this.renderGlobalDomainsPaginator();
 
@@ -374,7 +375,7 @@ export function renderGlobalDomainsRanking(domains) {
 }
 
 export function renderGlobalDomainsPaginator() {
-    const container = document.getElementById('noGlobalDomainsMessage')?.parentElement;
+    const container = document.getElementById('globalDomainsTable')?.parentElement || document.getElementById('noGlobalDomainsMessage')?.parentElement;
     if (!container || !this._globalDomainsState) return;
     let paginator = document.getElementById('globalDomainsPaginator');
     if (!paginator) {
@@ -383,18 +384,18 @@ export function renderGlobalDomainsPaginator() {
         paginator.style.cssText = 'display:flex;justify-content:center;gap:12px;margin-top:12px;';
         container.appendChild(paginator);
     }
-    const { page, totalPages } = this._globalDomainsState;
+    const { page, totalPages, projectId } = this._globalDomainsState;
     paginator.innerHTML = '';
     const btnPrev = document.createElement('button');
     btnPrev.textContent = 'Previous';
     btnPrev.disabled = page <= 1;
-    btnPrev.onclick = () => { this._globalDomainsState.page = Math.max(1, page - 1); this.loadGlobalDomainsRanking(this.currentProject?.id || this.currentModalProject?.id); };
+    btnPrev.onclick = () => { this._globalDomainsState.page = Math.max(1, page - 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
     const info = document.createElement('span');
     info.textContent = `Page ${page} / ${totalPages}`;
     const btnNext = document.createElement('button');
     btnNext.textContent = 'Next';
     btnNext.disabled = page >= totalPages;
-    btnNext.onclick = () => { this._globalDomainsState.page = Math.min(totalPages, page + 1); this.loadGlobalDomainsRanking(this.currentProject?.id || this.currentModalProject?.id); };
+    btnNext.onclick = () => { this._globalDomainsState.page = Math.min(totalPages, page + 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
     paginator.appendChild(btnPrev);
     paginator.appendChild(info);
     paginator.appendChild(btnNext);
