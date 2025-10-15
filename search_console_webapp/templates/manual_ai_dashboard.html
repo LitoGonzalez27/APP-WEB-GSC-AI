@@ -255,6 +255,16 @@
                             <div class="status-dot status-ready" id="statusManualAI"></div>
                         </div>
                     </button>
+                    
+                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
+                        <div class="nav-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <div class="nav-text">AI Mode Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready" id="statusAIMode"></div>
+                        </div>
+                    </button>
                 </div>
 
                 <div class="nav-section nav-section-global" id="navSectionGlobal" style="display: none;">
@@ -1596,6 +1606,12 @@ keyword 3"></textarea>
                 window.navbar = new Navbar();
             }
         };
+        
+        // Función para abrir AI Mode Monitoring
+        function openAIMode() {
+            console.log('🚀 Navegando a AI Mode Monitoring desde Manual AI...');
+            window.location.href = '/ai-mode';
+        }
     </script>
 </body>
 </html>
