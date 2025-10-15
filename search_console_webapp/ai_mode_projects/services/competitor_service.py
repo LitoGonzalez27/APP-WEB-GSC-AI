@@ -523,23 +523,28 @@ class CompetitorService:
                     for row in cur.fetchall():
                         position_by_date[str(row['analysis_date'])] = row['avg_position']
                 else:
-                    # Competidor: desde ai_mode_global_domains
-                    cur.execute("""
-                        SELECT analysis_date,
-                               COUNT(DISTINCT keyword_id) AS keywords_mentioned,
-                               AVG(domain_position) AS avg_position
-                        FROM ai_mode_global_domains
-                        WHERE project_id = %s AND detected_domain = %s
-                          AND analysis_date >= %s AND analysis_date <= %s
-                        GROUP BY analysis_date
-                        ORDER BY analysis_date
-                    """, (project_id, domain, start_date, end_date))
-                    for row in cur.fetchall():
-                        date_key = str(row['analysis_date'])
-                        total_kw = total_keywords_by_date.get(date_key, 0) or 0
-                        sov = (float(row['keywords_mentioned']) / float(total_kw) * 100.0) if total_kw > 0 else 0.0
-                        visibility_by_date[date_key] = sov
-                        position_by_date[date_key] = row['avg_position']
+                    # Competidor: preferir ai_mode_global_domains, con fallback si la tabla no existe
+                    try:
+                        cur.execute("""
+                            SELECT analysis_date,
+                                   COUNT(DISTINCT keyword_id) AS keywords_mentioned,
+                                   AVG(domain_position) AS avg_position
+                            FROM ai_mode_global_domains
+                            WHERE project_id = %s AND detected_domain = %s
+                              AND analysis_date >= %s AND analysis_date <= %s
+                            GROUP BY analysis_date
+                            ORDER BY analysis_date
+                        """, (project_id, domain, start_date, end_date))
+                        rows = cur.fetchall()
+                        for row in rows:
+                            date_key = str(row['analysis_date'])
+                            total_kw = total_keywords_by_date.get(date_key, 0) or 0
+                            sov = (float(row['keywords_mentioned']) / float(total_kw) * 100.0) if total_kw > 0 else 0.0
+                            visibility_by_date[date_key] = sov
+                            position_by_date[date_key] = row['avg_position']
+                    except Exception as e:
+                        logger.warning(f"ai_mode_global_domains unavailable, skipping competitor '{domain}' detail: {e}")
+                        # Fallback vacío: mantén dataset pero sin valores
                 
                 # Preparar datos con lógica temporal
                 visibility_data = []
