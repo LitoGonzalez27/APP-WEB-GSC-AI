@@ -161,6 +161,7 @@ export async function loadAnalyticsComponents(projectId) {
         // Load all components in parallel for better performance
         const promises = [
             this.loadGlobalDomainsRanking(projectId),
+            this.loadTopUrlsRanking(projectId),
             this.loadComparativeCharts(projectId),
             this.loadCompetitorsPreview(projectId),
             this.loadAIOverviewKeywordsTable(projectId),
@@ -375,6 +376,92 @@ export function showNoGlobalDomainsMessage() {
     if (tableBody) tableBody.innerHTML = '';
     if (globalDomainsTable) globalDomainsTable.style.display = 'none';
     if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+}
+
+// ================================
+// TOP URLS RANKING
+// ================================
+
+export async function loadTopUrlsRanking(projectId) {
+    if (!projectId) {
+        this.showNoUrlsMessage();
+        return;
+    }
+
+    const days = this.elements.analyticsTimeRange?.value || 30;
+
+    try {
+        const response = await fetch(`/manual-ai/api/projects/${projectId}/urls-ranking?days=${days}&limit=20`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                this.showNoUrlsMessage();
+                return;
+            }
+            throw new Error('Failed to load URLs ranking');
+        }
+
+        const data = await response.json();
+        this.renderTopUrlsRanking(data.urls || []);
+
+    } catch (error) {
+        console.error('Error loading URLs ranking:', error);
+        this.showNoUrlsMessage();
+    }
+}
+
+export function renderTopUrlsRanking(urls) {
+    const tableBody = document.getElementById('topUrlsBody');
+    const noUrlsMessage = document.getElementById('noUrlsMessage');
+    const topUrlsTable = document.getElementById('topUrlsTable');
+
+    if (!urls || urls.length === 0) {
+        this.showNoUrlsMessage();
+        return;
+    }
+
+    // Hide no URLs message and show table
+    noUrlsMessage.style.display = 'none';
+    topUrlsTable.style.display = 'table';
+
+    // Clear existing rows
+    tableBody.innerHTML = '';
+
+    // Render each URL row
+    urls.forEach((urlData, index) => {
+        const row = document.createElement('tr');
+        row.className = 'url-row';
+        
+        // Truncate URL for display if too long
+        const displayUrl = urlData.url.length > 80 
+            ? urlData.url.substring(0, 77) + '...' 
+            : urlData.url;
+        
+        row.innerHTML = `
+            <td class="rank-cell">${urlData.rank}</td>
+            <td class="url-cell">
+                <a href="${urlData.url}" target="_blank" rel="noopener noreferrer" title="${urlData.url}">
+                    ${displayUrl}
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
+            </td>
+            <td class="mentions-cell">${urlData.mentions || 0}</td>
+            <td class="position-cell">${urlData.avg_position ? urlData.avg_position.toFixed(1) : '-'}</td>
+            <td class="percentage-cell">${urlData.percentage ? urlData.percentage.toFixed(2) : '0.00'}%</td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+}
+
+export function showNoUrlsMessage() {
+    const tableBody = document.getElementById('topUrlsBody');
+    const noUrlsMessage = document.getElementById('noUrlsMessage');
+    const topUrlsTable = document.getElementById('topUrlsTable');
+
+    if (tableBody) tableBody.innerHTML = '';
+    if (topUrlsTable) topUrlsTable.style.display = 'none';
+    if (noUrlsMessage) noUrlsMessage.style.display = 'block';
 }
 
 // ================================

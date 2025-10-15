@@ -467,4 +467,99 @@ class StatisticsService:
         conn.close()
         
         return stats
+    
+    @staticmethod
+    def get_project_urls_ranking(project_id: int, days: int = 30, limit: int = 20) -> List[Dict]:
+        """
+        Obtener ranking de URLs más mencionadas en AI Overview
+        
+        Este método extrae y agrupa todas las URLs que aparecen en las referencias de AI Overview,
+        contando cuántas veces cada URL ha sido mencionada.
+        
+        Args:
+            project_id: ID del proyecto
+            days: Número de días hacia atrás
+            limit: Número máximo de URLs a retornar
+            
+        Returns:
+            Lista de URLs con sus métricas (menciones, %, posición promedio)
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener todos los resultados con AI Overview del periodo
+        cur.execute("""
+            SELECT 
+                r.id,
+                r.keyword,
+                r.ai_analysis_data
+            FROM manual_ai_results r
+            WHERE r.project_id = %s 
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+                AND r.has_ai_overview = true
+                AND r.ai_analysis_data IS NOT NULL
+        """, (project_id, start_date, end_date))
+        
+        results = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Procesar referencias y agrupar URLs
+        url_mentions = {}
+        url_positions = {}
+        total_mentions = 0
+        
+        for row in results:
+            ai_analysis = row['ai_analysis_data'] or {}
+            debug_info = ai_analysis.get('debug_info', {})
+            references_found = debug_info.get('references_found', [])
+            
+            for ref in references_found:
+                url = ref.get('link', '').strip()
+                position = ref.get('index')
+                
+                if url:
+                    # Contar menciones
+                    if url not in url_mentions:
+                        url_mentions[url] = 0
+                        url_positions[url] = []
+                    
+                    url_mentions[url] += 1
+                    total_mentions += 1
+                    
+                    # Guardar posiciones (index + 1 para posición visual)
+                    if position is not None:
+                        url_positions[url].append(position + 1)
+        
+        # Convertir a lista y calcular métricas
+        urls_data = []
+        for url, mentions in url_mentions.items():
+            # Calcular posición promedio
+            positions_list = url_positions.get(url, [])
+            avg_position = sum(positions_list) / len(positions_list) if positions_list else None
+            
+            # Calcular porcentaje sobre total de menciones
+            percentage = (mentions / total_mentions * 100) if total_mentions > 0 else 0
+            
+            urls_data.append({
+                'url': url,
+                'mentions': mentions,
+                'percentage': round(percentage, 2),
+                'avg_position': round(avg_position, 1) if avg_position else None
+            })
+        
+        # Ordenar por número de menciones (descendente)
+        urls_data.sort(key=lambda x: x['mentions'], reverse=True)
+        
+        # Limitar resultados y añadir ranking
+        top_urls = urls_data[:limit]
+        for index, url_data in enumerate(top_urls, start=1):
+            url_data['rank'] = index
+        
+        return top_urls
 
