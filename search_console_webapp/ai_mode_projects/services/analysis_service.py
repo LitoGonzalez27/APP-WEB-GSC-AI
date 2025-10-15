@@ -128,19 +128,23 @@ class AnalysisService:
                     # Almacenar dominios globales detectados para ranking/competidores
                     try:
                         references = serp_data.get('references', []) or []
-                        # Adaptar formato a DomainsService (debug_info.references_found)
-                        ai_analysis_data = {
-                            'debug_info': {
-                                'references_found': [
-                                    {
-                                        'link': ref.get('link'),
-                                        'index': ref.get('position', i + 1) if (ref.get('position') and isinstance(ref.get('position'), int)) else i + 1,
-                                        'title': ref.get('title', ''),
-                                        'source': ref.get('source', '')
-                                    } for i, ref in enumerate(references)
-                                ]
-                            }
-                        }
+                        # Orden estable: primero por position asc si existe, después los sin position
+                        enriched = []
+                        for i, ref in enumerate(references):
+                            pos = ref.get('position')
+                            pos_num = pos if isinstance(pos, int) and pos > 0 else None
+                            enriched.append((pos_num, i, ref))
+                        enriched.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+                        # Adaptar formato a DomainsService (debug_info.references_found) con índice visual consistente 0-based
+                        ordered_refs = []
+                        for display_idx, (_, _, ref) in enumerate(enriched):
+                            ordered_refs.append({
+                                'link': ref.get('link'),
+                                'index': display_idx,  # índice visual 0-based
+                                'title': ref.get('title', ''),
+                                'source': ref.get('source', '')
+                            })
+                        ai_analysis_data = { 'debug_info': { 'references_found': ordered_refs } }
                         DomainsService.store_global_domains_detected(
                             project_id=project_id,
                             keyword_id=keyword_id,
@@ -406,7 +410,15 @@ class AnalysisService:
         # No buscar summaries de AI Overview: fuera de alcance AI Mode
         
         # 2. Si no está en text_blocks, buscar en references (fuentes citadas)
-        for idx, ref in enumerate(references):
+        # Usar el mismo criterio de orden que para global domains: position asc, luego orden natural
+        enriched_refs = []
+        for i, ref in enumerate(references):
+            pos = ref.get('position')
+            pos_num = pos if isinstance(pos, int) and pos > 0 else None
+            enriched_refs.append((pos_num, i, ref))
+        enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+
+        for idx, (_, _, ref) in enumerate(enriched_refs):
             title = str(ref.get('title', '')).lower()
             link = str(ref.get('link', '')).lower()
             source = str(ref.get('source', '')).lower()
@@ -427,8 +439,8 @@ class AnalysisService:
             
             if _matches_brand():
                 result['brand_mentioned'] = True
-                # Fallback a índice+1 si no hay position
-                result['mention_position'] = position if isinstance(position, int) and position > 0 else (idx + 1)
+                # Posición consistente: usar el índice visual (idx + 1)
+                result['mention_position'] = idx + 1
                 result['mention_context'] = ref.get('title', '')[:500]
                 
                 # Análisis de sentimiento básico
