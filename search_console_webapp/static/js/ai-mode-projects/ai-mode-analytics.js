@@ -381,18 +381,21 @@ export function renderGlobalDomainsPaginator() {
     if (!paginator) {
         paginator = document.createElement('div');
         paginator.id = 'globalDomainsPaginator';
-        paginator.style.cssText = 'display:flex;justify-content:center;gap:12px;margin-top:12px;';
+        paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px;';
         container.appendChild(paginator);
     }
     const { page, totalPages, projectId } = this._globalDomainsState;
     paginator.innerHTML = '';
     const btnPrev = document.createElement('button');
+    btnPrev.className = 'btn btn-light btn-sm';
     btnPrev.textContent = 'Previous';
     btnPrev.disabled = page <= 1;
     btnPrev.onclick = () => { this._globalDomainsState.page = Math.max(1, page - 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
     const info = document.createElement('span');
+    info.style.cssText = 'display:flex;align-items:center;font-size:12px;color:#6b7280;';
     info.textContent = `Page ${page} / ${totalPages}`;
     const btnNext = document.createElement('button');
+    btnNext.className = 'btn btn-light btn-sm';
     btnNext.textContent = 'Next';
     btnNext.disabled = page >= totalPages;
     btnNext.onclick = () => { this._globalDomainsState.page = Math.min(totalPages, page + 1); this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); };
@@ -516,6 +519,18 @@ export function renderAIOverviewKeywordsTable(data) {
         });
 
         grid.render(fresh);
+        // Alinear paginación a la derecha para que coincida con otros listados
+        if (typeof grid.on === 'function') {
+            grid.on('ready', () => {
+                const paginator = fresh.querySelector('.gridjs-pagination');
+                if (paginator) paginator.style.justifyContent = 'flex-end';
+            });
+        } else {
+            setTimeout(() => {
+                const paginator = fresh.querySelector('.gridjs-pagination');
+                if (paginator) paginator.style.justifyContent = 'flex-end';
+            }, 50);
+        }
         console.log('✅ AI Overview table rendered successfully');
 
     } catch (error) {
