@@ -523,6 +523,8 @@ class CompetitorService:
                     for row in cur.fetchall():
                         position_by_date[str(row['analysis_date'])] = row['avg_position']
                 else:
+                    # Normalizar dominio para consulta (root domain, sin www)
+                    domain_query = normalize_search_console_url(domain) or domain.lower()
                     # Competidor: preferir ai_mode_global_domains, con fallback si la tabla no existe
                     try:
                         cur.execute("""
@@ -534,8 +536,9 @@ class CompetitorService:
                               AND analysis_date >= %s AND analysis_date <= %s
                             GROUP BY analysis_date
                             ORDER BY analysis_date
-                        """, (project_id, domain, start_date, end_date))
+                        """, (project_id, domain_query, start_date, end_date))
                         rows = cur.fetchall()
+                        logger.info(f"🔎 Competitor '{domain}' query domain '{domain_query}' -> {len(rows)} rows in ai_mode_global_domains")
                         for row in rows:
                             date_key = str(row['analysis_date'])
                             total_kw = total_keywords_by_date.get(date_key, 0) or 0
