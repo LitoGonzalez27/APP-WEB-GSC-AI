@@ -200,6 +200,7 @@ class CompetitorService:
     def get_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
         """
         Obtener datos para gráficas de competidores
+        ACTUALIZADO: Ahora lee del JSON raw_ai_mode_data (coherente con ranking de dominios)
         
         Args:
             project_id: ID del proyecto
@@ -208,6 +209,9 @@ class CompetitorService:
         Returns:
             Dict con datos para Brand Visibility Index y Brand Position Over Time
         """
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
@@ -217,7 +221,7 @@ class CompetitorService:
         try:
             # Obtener configuración de competidores del proyecto
             cur.execute("""
-                SELECT selected_competitors, brand_name as domain
+                SELECT selected_competitors, brand_name
                 FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
@@ -227,16 +231,14 @@ class CompetitorService:
                 return {'error': 'Project not found'}
             
             selected_competitors = project['selected_competitors'] or []
-            project_domain = normalize_search_console_url(project['domain']) or project['domain'].lower()
+            brand_name = project['brand_name']
             
-            # Normalizar competidores
-            normalized_competitors = [
-                normalize_search_console_url(comp) or comp.lower()
-                for comp in selected_competitors
-            ]
+            # Normalizar dominios
+            project_domain = brand_name.lower() if brand_name else ''
+            normalized_competitors = [comp.lower() for comp in selected_competitors if comp]
             
             # Incluir el dominio del proyecto en el análisis
-            all_domains = [project_domain] + normalized_competitors
+            all_domains = ([project_domain] if project_domain else []) + normalized_competitors
             
             if not all_domains:
                 return {
@@ -244,43 +246,110 @@ class CompetitorService:
                     'brand_position_over_time': {}
                 }
             
-            # 1. Brand Visibility Index (visibilidad por dominio)
+            # Obtener todos los resultados con AI Mode del periodo
             cur.execute("""
                 SELECT 
-                    detected_domain,
-                    COUNT(DISTINCT keyword_id) as keywords_mentioned,
-                    AVG(domain_position) as avg_position,
-                    COUNT(*) as total_mentions
-                FROM ai_mode_global_domains
-                WHERE project_id = %s 
-                    AND analysis_date >= %s 
-                    AND analysis_date <= %s
-                    AND detected_domain = ANY(%s)
-                GROUP BY detected_domain
-                ORDER BY keywords_mentioned DESC
-            """, (project_id, start_date, end_date, all_domains))
+                    r.raw_ai_mode_data,
+                    r.analysis_date,
+                    r.keyword_id
+                FROM ai_mode_results r
+                WHERE r.project_id = %s 
+                    AND r.analysis_date >= %s 
+                    AND r.analysis_date <= %s
+                    AND r.raw_ai_mode_data IS NOT NULL
+            """, (project_id, start_date, end_date))
             
-            visibility_data = [dict(row) for row in cur.fetchall()]
+            results = cur.fetchall()
             
-            # 2. Brand Position Over Time (posición promedio por fecha)
-            position_over_time = {}
+            cur.close()
+            conn.close()
             
+            # Procesar datos por dominio
+            domain_stats = defaultdict(lambda: {
+                'keywords': set(),
+                'positions': [],
+                'total_mentions': 0
+            })
+            
+            # Datos por fecha para evolution chart
+            domain_by_date = defaultdict(lambda: defaultdict(lambda: {
+                'positions': [],
+                'keywords': set()
+            }))
+            
+            # Procesar cada resultado
+            for row in results:
+                try:
+                    serp_data = row['raw_ai_mode_data']
+                    references = serp_data.get('references', [])
+                    analysis_date = str(row['analysis_date'])
+                    keyword_id = row['keyword_id']
+                    
+                    for ref in references:
+                        link = ref.get('link', '')
+                        position = ref.get('position', 0)
+                        
+                        if link:
+                            try:
+                                parsed = urlparse(link)
+                                domain = parsed.netloc.lower()
+                                if domain.startswith('www.'):
+                                    domain = domain[4:]
+                                
+                                # Verificar si el dominio está en la lista de competidores
+                                matched_domain = None
+                                for target_domain in all_domains:
+                                    if target_domain in domain or domain in target_domain:
+                                        matched_domain = target_domain
+                                        break
+                                
+                                if matched_domain:
+                                    # Estadísticas globales
+                                    domain_stats[matched_domain]['keywords'].add(keyword_id)
+                                    domain_stats[matched_domain]['positions'].append(position if position else 1)
+                                    domain_stats[matched_domain]['total_mentions'] += 1
+                                    
+                                    # Estadísticas por fecha
+                                    domain_by_date[matched_domain][analysis_date]['positions'].append(position if position else 1)
+                                    domain_by_date[matched_domain][analysis_date]['keywords'].add(keyword_id)
+                            except:
+                                continue
+                except Exception as e:
+                    logger.warning(f"Error processing result: {e}")
+                    continue
+            
+            # 1. Brand Visibility Index
+            visibility_data = []
             for domain in all_domains:
-                cur.execute("""
-                    SELECT 
-                        analysis_date,
-                        AVG(domain_position) as avg_position,
-                        COUNT(DISTINCT keyword_id) as keyword_count
-                    FROM ai_mode_global_domains
-                    WHERE project_id = %s 
-                        AND detected_domain = %s
-                        AND analysis_date >= %s 
-                        AND analysis_date <= %s
-                    GROUP BY analysis_date
-                    ORDER BY analysis_date
-                """, (project_id, domain, start_date, end_date))
-                
-                position_over_time[domain] = [dict(row) for row in cur.fetchall()]
+                if domain in domain_stats:
+                    stats = domain_stats[domain]
+                    avg_pos = sum(stats['positions']) / len(stats['positions']) if stats['positions'] else None
+                    visibility_data.append({
+                        'detected_domain': domain,
+                        'keywords_mentioned': len(stats['keywords']),
+                        'avg_position': float(avg_pos) if avg_pos else None,
+                        'total_mentions': stats['total_mentions']
+                    })
+            
+            # Ordenar por keywords mencionados
+            visibility_data.sort(key=lambda x: x['keywords_mentioned'], reverse=True)
+            
+            # 2. Brand Position Over Time
+            position_over_time = {}
+            for domain in all_domains:
+                if domain in domain_by_date:
+                    date_data = []
+                    for analysis_date in sorted(domain_by_date[domain].keys()):
+                        day_stats = domain_by_date[domain][analysis_date]
+                        avg_pos = sum(day_stats['positions']) / len(day_stats['positions']) if day_stats['positions'] else None
+                        date_data.append({
+                            'analysis_date': analysis_date,
+                            'avg_position': float(avg_pos) if avg_pos else None,
+                            'keyword_count': len(day_stats['keywords'])
+                        })
+                    position_over_time[domain] = date_data
+                else:
+                    position_over_time[domain] = []
             
             return {
                 'brand_visibility_index': visibility_data,
@@ -290,10 +359,14 @@ class CompetitorService:
             
         except Exception as e:
             logger.error(f"Error getting competitors charts data: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {'error': str(e)}
         finally:
-            cur.close()
-            conn.close()
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
     
     @staticmethod
     def get_competitors_for_date_range(project_id: int, start_date: date, end_date: date) -> Dict[str, List[str]]:
