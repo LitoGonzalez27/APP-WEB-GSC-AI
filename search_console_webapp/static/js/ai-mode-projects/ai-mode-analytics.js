@@ -523,19 +523,31 @@ export function filterAiModeUrlsByBrand(showOnlyMyBrand) {
                 return;
             }
             
-            // Get brand name and normalize
-            const brandName = project.brand_name.toLowerCase().trim();
-            console.log('🔍 Filtering URLs for brand:', brandName);
+            // Get brand name and normalize (same logic as renderTopUrlsRanking)
+            const rawBrand = project.brand_name || '';
+            const normalizedBrand = rawBrand.toLowerCase()
+                .replace(/^www\./, '')
+                .replace(/\s+/g, '')  // Remove spaces
+                .replace(/-/g, '')     // Remove hyphens
+                .trim();
+            
+            console.log('🔍 Filtering URLs for brand:', {
+                raw: project.brand_name,
+                normalized: normalizedBrand
+            });
             
             // Filter URLs that contain the brand name
             filteredUrls = this._allUrlsData.filter(urlData => {
                 try {
-                    const urlLower = urlData.url.toLowerCase();
-                    // Check if URL contains brand name
-                    const matches = urlLower.includes(brandName);
+                    const urlObj = new URL(urlData.url);
+                    const urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+                    const normalizedUrlDomain = urlDomain.replace(/\s+/g, '').replace(/-/g, '');
+                    
+                    // Check if normalized URL domain contains normalized brand name
+                    const matches = normalizedBrand && normalizedUrlDomain.includes(normalizedBrand);
                     
                     if (matches) {
-                        console.log('✅ Match:', urlData.url);
+                        console.log('✅ Match:', urlData.url, `(${normalizedUrlDomain} includes ${normalizedBrand})`);
                     }
                     
                     return matches;
@@ -584,13 +596,19 @@ export function renderTopUrlsRanking(urls) {
     const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
     const currentProject = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
     
-    // Normalize project domain
-    let projectDomain = '';
+    // Normalize project brand/domain
+    let projectBrandName = '';
     let competitorDomains = [];
     
     if (currentProject) {
-        // AI Mode uses domain or brand_name
-        projectDomain = (currentProject.domain || currentProject.brand_name || '').toLowerCase().replace(/^www\./, '').trim();
+        // AI Mode uses brand_name (e.g., "HM Fertility Center")
+        // Normalize it to match against URLs
+        const rawBrand = currentProject.brand_name || currentProject.domain || '';
+        projectBrandName = rawBrand.toLowerCase()
+            .replace(/^www\./, '')
+            .replace(/\s+/g, '')  // Remove spaces: "HM Fertility" → "hmfertility"
+            .replace(/-/g, '')     // Remove hyphens
+            .trim();
         
         // Normalize competitor domains - they might be stored as objects or strings
         const competitors = currentProject.competitors || currentProject.selected_competitors || [];
@@ -601,7 +619,8 @@ export function renderTopUrlsRanking(urls) {
         }).filter(d => d && d.length > 0);
         
         console.log('🎯 URL Highlighting Config (AI Mode):', {
-            projectDomain,
+            rawBrandName: currentProject.brand_name,
+            normalizedBrandName: projectBrandName,
             competitorDomains,
             totalUrls: urls.length
         });
@@ -618,16 +637,22 @@ export function renderTopUrlsRanking(urls) {
             const urlObj = new URL(urlData.url);
             urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
             
-            // Check if it's project or competitor domain
-            // Use more precise matching: check if domains match exactly or if URL domain ends with competitor domain
-            if (projectDomain && (urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain))) {
+            // Normalize URL domain for comparison (remove spaces, hyphens)
+            const normalizedUrlDomain = urlDomain.replace(/\s+/g, '').replace(/-/g, '');
+            
+            // Check if it's project brand
+            // Match if brand name appears in the domain
+            if (projectBrandName && normalizedUrlDomain.includes(projectBrandName)) {
                 domainType = 'project';
-            } else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
+            } 
+            // Check if it's competitor domain
+            else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
                 domainType = 'competitor';
             }
             
             if (index < 5) { // Log first 5 for debugging
-                console.log(`  URL ${index + 1}: ${urlDomain} → ${domainType}`);
+                console.log(`  URL ${index + 1}: ${urlDomain} (normalized: ${normalizedUrlDomain}) → ${domainType}`, 
+                    projectBrandName ? `(brand: ${projectBrandName})` : '');
             }
         } catch (e) {
             // Invalid URL, keep as 'other'
