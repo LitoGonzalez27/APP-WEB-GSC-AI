@@ -1729,28 +1729,55 @@
 
 .urls-table .url-cell {
   max-width: 600px;
+}
+
+.urls-table .url-cell .global-domain-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.urls-table .url-cell .domain-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.urls-table .url-cell .global-domain-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.urls-table .url-cell .global-domain-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.urls-table .url-cell .url-link {
+  color: var(--manual-ai-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.2s ease;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.urls-table .url-cell a {
-  color: var(--manual-ai-accent);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: color 0.2s ease;
-}
-
-.urls-table .url-cell a:hover {
+.urls-table .url-cell .url-link:hover {
   color: var(--manual-ai-accent-light);
   text-decoration: underline;
 }
 
-.urls-table .url-cell a i {
+.urls-table .url-cell .url-link i {
   font-size: 0.75rem;
   opacity: 0.6;
+  flex-shrink: 0;
 }
 
 .urls-table .mentions-cell {

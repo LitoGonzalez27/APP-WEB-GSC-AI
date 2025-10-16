@@ -578,24 +578,81 @@ export function renderTopUrlsRanking(urls) {
 
     // Clear existing rows
     tableBody.innerHTML = '';
+    
+    // Get current project info for domain highlighting
+    const projectSelect = document.getElementById('analyticsProjectSelect');
+    const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
+    const currentProject = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
+    
+    // Normalize project domain
+    let projectDomain = '';
+    let competitorDomains = [];
+    
+    if (currentProject) {
+        // AI Mode uses domain or brand_name
+        projectDomain = (currentProject.domain || currentProject.brand_name || '').toLowerCase().replace(/^www\./, '').trim();
+        competitorDomains = (currentProject.competitors || []).map(c => 
+            c.toLowerCase().replace(/^www\./, '').trim()
+        );
+    }
 
-    // Render each URL row
+    // Render each URL row with highlighting
     urls.forEach((urlData, index) => {
         const row = document.createElement('tr');
-        row.className = 'url-row';
+        
+        // Extract domain from URL
+        let urlDomain = '';
+        let domainType = 'other';
+        try {
+            const urlObj = new URL(urlData.url);
+            urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+            
+            // Check if it's project or competitor domain
+            if (projectDomain && urlDomain.includes(projectDomain)) {
+                domainType = 'project';
+            } else if (competitorDomains.some(comp => urlDomain.includes(comp))) {
+                domainType = 'competitor';
+            }
+        } catch (e) {
+            // Invalid URL, keep as 'other'
+        }
+        
+        // Use 'table' prefix for project domain to avoid conflicts with other CSS
+        const domainTypeClass = domainType === 'project' ? 'table' : domainType;
+        row.className = `url-row ${domainTypeClass}-domain`;
+        
+        // Get logo URL
+        const logoUrl = getDomainLogoUrl(urlDomain || 'unknown');
+        
+        // Create domain badge if needed
+        let domainBadge = '';
+        if (domainType === 'project') {
+            domainBadge = '<span class="domain-badge project">Your Domain</span>';
+        } else if (domainType === 'competitor') {
+            domainBadge = '<span class="domain-badge competitor">Competitor</span>';
+        }
         
         // Truncate URL for display if too long
-        const displayUrl = urlData.url.length > 80 
-            ? urlData.url.substring(0, 77) + '...' 
+        const displayUrl = urlData.url.length > 70 
+            ? urlData.url.substring(0, 67) + '...' 
             : urlData.url;
         
         row.innerHTML = `
             <td class="rank-cell">${urlData.rank}</td>
             <td class="url-cell">
-                <a href="${urlData.url}" target="_blank" rel="noopener noreferrer" title="${urlData.url}">
-                    ${displayUrl}
-                    <i class="fas fa-external-link-alt"></i>
-                </a>
+                <div class="global-domain-cell">
+                    <img src="${logoUrl}" alt="${urlDomain} logo" class="domain-logo" 
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${urlDomain.charAt(0).toUpperCase()}</text></svg>'">
+                    <div class="global-domain-info">
+                        <div class="global-domain-label">
+                            <a href="${urlData.url}" target="_blank" rel="noopener noreferrer" title="${urlData.url}" class="url-link">
+                                ${displayUrl}
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            ${domainBadge}
+                        </div>
+                    </div>
+                </div>
             </td>
             <td class="mentions-cell">${urlData.mentions || 0}</td>
             <td class="position-cell">${urlData.avg_position ? urlData.avg_position.toFixed(1) : '-'}</td>
