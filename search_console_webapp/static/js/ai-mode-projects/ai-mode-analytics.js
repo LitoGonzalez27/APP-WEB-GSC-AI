@@ -157,6 +157,7 @@ export async function loadAnalyticsComponents(projectId) {
         // Load all components in parallel for better performance
         const promises = [
             this.loadGlobalDomainsRanking(projectId),
+            this.loadTopUrlsRanking(projectId),
             this.loadComparativeCharts(projectId),
             this.loadCompetitorsPreview(projectId),
             this.loadAIOverviewKeywordsTable(projectId),
@@ -418,6 +419,201 @@ export function showNoGlobalDomainsMessage() {
     if (tableBody) tableBody.innerHTML = '';
     if (globalDomainsTable) globalDomainsTable.style.display = 'none';
     if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+}
+
+// ================================
+// TOP URLS RANKING
+// ================================
+
+export async function loadTopUrlsRanking(projectId) {
+    if (!projectId) {
+        this.showNoAiModeUrlsMessage();
+        return;
+    }
+
+    const days = this.elements.analyticsTimeRange?.value || 30;
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/urls-ranking?days=${days}&limit=20`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                this.showNoAiModeUrlsMessage();
+                return;
+            }
+            throw new Error('Failed to load URLs ranking');
+        }
+
+        const data = await response.json();
+        
+        // Store all URLs for filtering
+        this._allUrlsData = data.urls || [];
+        
+        console.log('📥 Loaded AI Mode URLs data:', this._allUrlsData.length);
+        
+        // Initialize filter chip event listener (only once)
+        try {
+            this.initAiModeUrlsFilter();
+        } catch (e) {
+            console.error('Error initializing filter:', e);
+        }
+        
+        // Check if filter is currently active
+        let isFilterActive = false;
+        try {
+            const filterBtn = document.getElementById('filterMyBrandUrls');
+            isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        } catch (e) {
+            console.error('Error checking filter state:', e);
+        }
+        
+        // Apply filter if active, otherwise show all
+        if (isFilterActive) {
+            console.log('🔵 Filter is active, applying filter...');
+            try {
+                this.filterAiModeUrlsByBrand(true);
+            } catch (e) {
+                console.error('Error applying filter, showing all URLs:', e);
+                this.renderTopUrlsRanking(this._allUrlsData);
+            }
+        } else {
+            console.log('⚪ Filter is inactive, showing all URLs');
+            this.renderTopUrlsRanking(this._allUrlsData);
+        }
+
+    } catch (error) {
+        console.error('Error loading URLs ranking:', error);
+        this.showNoAiModeUrlsMessage();
+    }
+}
+
+export function initAiModeUrlsFilter() {
+    const filterBtn = document.getElementById('filterMyBrandUrls');
+    if (!filterBtn || filterBtn._listenerAttached) return;
+    
+    filterBtn._listenerAttached = true;
+    filterBtn.addEventListener('click', () => {
+        const isActive = filterBtn.getAttribute('data-active') === 'true';
+        filterBtn.setAttribute('data-active', !isActive);
+        
+        // Apply filter
+        this.filterAiModeUrlsByBrand(!isActive);
+    });
+}
+
+export function filterAiModeUrlsByBrand(showOnlyMyBrand) {
+    if (!this._allUrlsData || this._allUrlsData.length === 0) {
+        console.warn('⚠️ No URLs data available for filtering');
+        this.showNoAiModeUrlsMessage();
+        return;
+    }
+    
+    let filteredUrls = this._allUrlsData;
+    
+    if (showOnlyMyBrand) {
+        try {
+            // Get current project brand name
+            const projectSelect = document.getElementById('analyticsProjectSelect');
+            const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
+            const project = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
+            
+            if (!project || !project.brand_name) {
+                console.error('❌ No project or brand name found for filtering, showing all URLs');
+                this.renderTopUrlsRanking(this._allUrlsData);
+                return;
+            }
+            
+            // Get brand name and normalize
+            const brandName = project.brand_name.toLowerCase().trim();
+            console.log('🔍 Filtering URLs for brand:', brandName);
+            
+            // Filter URLs that contain the brand name
+            filteredUrls = this._allUrlsData.filter(urlData => {
+                try {
+                    const urlLower = urlData.url.toLowerCase();
+                    // Check if URL contains brand name
+                    const matches = urlLower.includes(brandName);
+                    
+                    if (matches) {
+                        console.log('✅ Match:', urlData.url);
+                    }
+                    
+                    return matches;
+                } catch (e) {
+                    console.error('Error parsing URL:', urlData.url, e);
+                    return false;
+                }
+            });
+            
+            console.log(`📊 Filtered: ${filteredUrls.length} URLs from ${this._allUrlsData.length} total`);
+            
+            // Recalculate ranks
+            filteredUrls = filteredUrls.map((url, index) => ({
+                ...url,
+                rank: index + 1
+            }));
+        } catch (e) {
+            console.error('❌ Error in filterAiModeUrlsByBrand:', e);
+            filteredUrls = this._allUrlsData;
+        }
+    }
+    
+    // Always render something
+    this.renderTopUrlsRanking(filteredUrls);
+}
+
+export function renderTopUrlsRanking(urls) {
+    const tableBody = document.getElementById('topUrlsBody');
+    const noUrlsMessage = document.getElementById('noAiModeUrlsMessage');
+    const topUrlsTable = document.getElementById('topUrlsTable');
+
+    if (!urls || urls.length === 0) {
+        this.showNoAiModeUrlsMessage();
+        return;
+    }
+
+    // Hide no URLs message and show table
+    noUrlsMessage.style.display = 'none';
+    topUrlsTable.style.display = 'table';
+
+    // Clear existing rows
+    tableBody.innerHTML = '';
+
+    // Render each URL row
+    urls.forEach((urlData, index) => {
+        const row = document.createElement('tr');
+        row.className = 'url-row';
+        
+        // Truncate URL for display if too long
+        const displayUrl = urlData.url.length > 80 
+            ? urlData.url.substring(0, 77) + '...' 
+            : urlData.url;
+        
+        row.innerHTML = `
+            <td class="rank-cell">${urlData.rank}</td>
+            <td class="url-cell">
+                <a href="${urlData.url}" target="_blank" rel="noopener noreferrer" title="${urlData.url}">
+                    ${displayUrl}
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
+            </td>
+            <td class="mentions-cell">${urlData.mentions || 0}</td>
+            <td class="position-cell">${urlData.avg_position ? urlData.avg_position.toFixed(1) : '-'}</td>
+            <td class="percentage-cell">${urlData.percentage ? urlData.percentage.toFixed(2) : '0.00'}%</td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+}
+
+export function showNoAiModeUrlsMessage() {
+    const tableBody = document.getElementById('topUrlsBody');
+    const noUrlsMessage = document.getElementById('noAiModeUrlsMessage');
+    const topUrlsTable = document.getElementById('topUrlsTable');
+
+    if (tableBody) tableBody.innerHTML = '';
+    if (topUrlsTable) topUrlsTable.style.display = 'none';
+    if (noUrlsMessage) noUrlsMessage.style.display = 'block';
 }
 
 // ================================
