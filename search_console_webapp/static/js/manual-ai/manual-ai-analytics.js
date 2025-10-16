@@ -406,17 +406,33 @@ export async function loadTopUrlsRanking(projectId) {
         // Store all URLs for filtering
         this._allUrlsData = data.urls || [];
         
+        console.log('📥 Loaded URLs data:', this._allUrlsData.length);
+        
         // Initialize filter chip event listener (only once)
-        this.initUrlsFilter();
+        try {
+            this.initUrlsFilter();
+        } catch (e) {
+            console.error('Error initializing filter:', e);
+        }
         
         // Check if filter is currently active
-        const filterBtn = document.getElementById('filterMyDomainUrls');
-        const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        let isFilterActive = false;
+        try {
+            const filterBtn = document.getElementById('filterMyDomainUrls');
+            isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        } catch (e) {
+            console.error('Error checking filter state:', e);
+        }
         
         // Apply filter if active, otherwise show all
         if (isFilterActive) {
             console.log('🔵 Filter is active, applying filter...');
-            this.filterUrlsByDomain(true);
+            try {
+                this.filterUrlsByDomain(true);
+            } catch (e) {
+                console.error('Error applying filter, showing all URLs:', e);
+                this.renderTopUrlsRanking(this._allUrlsData);
+            }
         } else {
             console.log('⚪ Filter is inactive, showing all URLs');
             this.renderTopUrlsRanking(this._allUrlsData);
@@ -444,56 +460,68 @@ export function initUrlsFilter() {
 
 export function filterUrlsByDomain(showOnlyMyDomain) {
     if (!this._allUrlsData || this._allUrlsData.length === 0) {
-        console.warn('No URLs data available for filtering');
+        console.warn('⚠️ No URLs data available for filtering');
+        this.showNoUrlsMessage();
         return;
     }
     
     let filteredUrls = this._allUrlsData;
     
     if (showOnlyMyDomain) {
-        // Get current project from analytics dropdown or currentProject
-        const projectSelect = document.getElementById('analyticsProjectSelect');
-        const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
-        const project = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
-        
-        if (!project || !project.domain) {
-            console.error('No project or domain found for filtering');
-            this.renderTopUrlsRanking(this._allUrlsData);
-            return;
-        }
-        
-        // Get project domain and normalize
-        const projectDomain = project.domain.toLowerCase().replace(/^www\./, '');
-        console.log('🔍 Filtering URLs for domain:', projectDomain);
-        
-        // Filter URLs that belong to the project domain
-        filteredUrls = this._allUrlsData.filter(urlData => {
-            try {
-                const url = new URL(urlData.url);
-                const urlDomain = url.hostname.toLowerCase().replace(/^www\./, '');
-                const matches = urlDomain === projectDomain;
-                
-                if (matches) {
-                    console.log('✅ Match:', urlData.url);
-                }
-                
-                return matches;
-            } catch (e) {
-                console.error('Error parsing URL:', urlData.url, e);
-                return false;
+        try {
+            // Get current project from analytics dropdown or currentProject
+            const projectSelect = document.getElementById('analyticsProjectSelect');
+            const currentProjectId = projectSelect ? parseInt(projectSelect.value) : null;
+            const project = this.projects?.find(p => p.id === currentProjectId) || this.currentProject;
+            
+            if (!project || !project.domain) {
+                console.error('❌ No project or domain found for filtering, showing all URLs');
+                this.renderTopUrlsRanking(this._allUrlsData);
+                return;
             }
-        });
-        
-        console.log(`📊 Filtered: ${filteredUrls.length} URLs from ${this._allUrlsData.length} total`);
-        
-        // Recalculate ranks
-        filteredUrls = filteredUrls.map((url, index) => ({
-            ...url,
-            rank: index + 1
-        }));
+            
+            // Get project domain and normalize
+            const projectDomain = project.domain.toLowerCase().replace(/^www\./, '');
+            console.log('🔍 Filtering URLs for domain:', projectDomain);
+            
+            // Filter URLs that belong to the project domain
+            filteredUrls = this._allUrlsData.filter(urlData => {
+                try {
+                    const url = new URL(urlData.url);
+                    const urlDomain = url.hostname.toLowerCase().replace(/^www\./, '');
+                    const matches = urlDomain === projectDomain;
+                    
+                    if (matches) {
+                        console.log('✅ Match:', urlData.url);
+                    }
+                    
+                    return matches;
+                } catch (e) {
+                    console.error('Error parsing URL:', urlData.url, e);
+                    return false;
+                }
+            });
+            
+            console.log(`📊 Filtered: ${filteredUrls.length} URLs from ${this._allUrlsData.length} total`);
+            
+            // If no URLs match, show message
+            if (filteredUrls.length === 0) {
+                console.warn('⚠️ No URLs found for your domain');
+                // Still show the table structure but empty
+            }
+            
+            // Recalculate ranks
+            filteredUrls = filteredUrls.map((url, index) => ({
+                ...url,
+                rank: index + 1
+            }));
+        } catch (e) {
+            console.error('❌ Error in filterUrlsByDomain:', e);
+            filteredUrls = this._allUrlsData;
+        }
     }
     
-    // Render filtered URLs
+    // Always render something
     this.renderTopUrlsRanking(filteredUrls);
 }
 
