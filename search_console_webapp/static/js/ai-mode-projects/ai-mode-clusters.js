@@ -322,12 +322,15 @@ export function renderClustersChart(chartData) {
         return;
     }
     
-    // Destroy existing chart
+    // Destroy existing chart properly
+    const existingChart = Chart.getChart('clustersChart');
+    if (existingChart) {
+        existingChart.destroy();
+    }
+    
+    // Initialize charts object if needed
     if (!this.charts) {
         this.charts = {};
-    }
-    if (this.charts.clustersChart) {
-        this.charts.clustersChart.destroy();
     }
     
     // Use data directly from backend
