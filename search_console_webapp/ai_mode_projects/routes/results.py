@@ -235,3 +235,40 @@ def get_global_domains_ranking(project_id):
         logger.error(f"Error getting global domains ranking for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@ai_mode_bp.route('/api/projects/<int:project_id>/urls-ranking', methods=['GET'])
+@auth_required
+def get_urls_ranking(project_id):
+    """
+    Obtener ranking de URLs más mencionadas en AI Mode
+    
+    Args:
+        project_id: ID del proyecto
+    
+    Query params:
+        days: Número de días hacia atrás (default: 30)
+        limit: Número máximo de URLs a retornar (default: 20)
+    
+    Returns:
+        JSON con ranking de URLs más mencionadas
+    """
+    user = get_current_user()
+    
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        days = int(request.args.get('days', DEFAULT_DAYS_RANGE))
+        limit = int(request.args.get('limit', 20))
+        
+        urls_ranking = stats_service.get_project_urls_ranking(project_id, days, limit)
+        
+        return jsonify({
+            'success': True,
+            'urls': urls_ranking,
+            'total_urls': len(urls_ranking)
+        })
+    except Exception as e:
+        logger.error(f"Error getting URLs ranking for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
