@@ -591,9 +591,20 @@ export function renderTopUrlsRanking(urls) {
     if (currentProject) {
         // AI Mode uses domain or brand_name
         projectDomain = (currentProject.domain || currentProject.brand_name || '').toLowerCase().replace(/^www\./, '').trim();
-        competitorDomains = (currentProject.competitors || []).map(c => 
-            c.toLowerCase().replace(/^www\./, '').trim()
-        );
+        
+        // Normalize competitor domains - they might be stored as objects or strings
+        const competitors = currentProject.competitors || currentProject.selected_competitors || [];
+        competitorDomains = competitors.map(c => {
+            // Handle if competitor is an object with domain property
+            const domain = typeof c === 'object' ? (c.domain || c.competitor_domain || c) : c;
+            return String(domain).toLowerCase().replace(/^www\./, '').trim();
+        }).filter(d => d && d.length > 0);
+        
+        console.log('🎯 URL Highlighting Config (AI Mode):', {
+            projectDomain,
+            competitorDomains,
+            totalUrls: urls.length
+        });
     }
 
     // Render each URL row with highlighting
@@ -608,10 +619,15 @@ export function renderTopUrlsRanking(urls) {
             urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
             
             // Check if it's project or competitor domain
-            if (projectDomain && urlDomain.includes(projectDomain)) {
+            // Use more precise matching: check if domains match exactly or if URL domain ends with competitor domain
+            if (projectDomain && (urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain))) {
                 domainType = 'project';
-            } else if (competitorDomains.some(comp => urlDomain.includes(comp))) {
+            } else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
                 domainType = 'competitor';
+            }
+            
+            if (index < 5) { // Log first 5 for debugging
+                console.log(`  URL ${index + 1}: ${urlDomain} → ${domainType}`);
             }
         } catch (e) {
             // Invalid URL, keep as 'other'
