@@ -8,7 +8,15 @@
 const htmlLegendPlugin = {
     id: 'htmlLegend',
     afterUpdate(chart, args, options) {
+        // Guardas de seguridad para evitar errores cuando falta el contenedor o las opciones
+        if (!options || !options.containerID) {
+            return;
+        }
+
         const ul = this.getOrCreateLegendList(chart, options.containerID);
+        if (!ul) {
+            return;
+        }
         
         // Remove old legend items
         while (ul.firstChild) {

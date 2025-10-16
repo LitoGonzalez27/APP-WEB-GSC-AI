@@ -10,7 +10,15 @@
 export const htmlLegendPlugin = {
     id: 'htmlLegend',
     afterUpdate(chart, args, options) {
+        // Guardas de seguridad: si no hay opciones o containerID, no hacemos nada
+        if (!options || !options.containerID) {
+            return;
+        }
+
         const ul = this.getOrCreateLegendList(chart, options.containerID);
+        if (!ul) {
+            return;
+        }
         
         // Remove old legend items
         while (ul.firstChild) {
