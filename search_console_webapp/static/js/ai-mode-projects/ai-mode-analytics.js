@@ -626,6 +626,11 @@ export function renderTopUrlsRanking(urls) {
         });
     }
 
+    // Debug: Log first URL data to see structure
+    if (urls.length > 0) {
+        console.log('🔍 First URL data structure:', urls[0]);
+    }
+    
     // Render each URL row with highlighting
     urls.forEach((urlData, index) => {
         const row = document.createElement('tr');

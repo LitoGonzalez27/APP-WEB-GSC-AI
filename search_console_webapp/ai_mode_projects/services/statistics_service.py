@@ -601,6 +601,10 @@ class StatisticsService:
         url_positions = {}
         total_mentions = 0
         
+        # Debug: contador de referencias sin posición
+        refs_without_position = 0
+        refs_with_position = 0
+        
         for row in results:
             raw_data = row['raw_ai_mode_data'] or {}
             
@@ -610,6 +614,11 @@ class StatisticsService:
             for ref in references:
                 url = ref.get('link', '').strip()
                 position = ref.get('position')
+                
+                # Debug: log de primeras referencias
+                if total_mentions < 5:
+                    logger.info(f"📍 URL #{total_mentions + 1}: {url[:50]}... | position={position} | type={type(position)}")
+                
                 # Normalizar posición: convertir strings numéricos a float
                 if isinstance(position, str):
                     try:
@@ -629,6 +638,12 @@ class StatisticsService:
                     # Guardar posiciones válidas (> 0)
                     if position is not None and isinstance(position, (int, float)) and position > 0:
                         url_positions[url].append(position)
+                        refs_with_position += 1
+                    else:
+                        refs_without_position += 1
+        
+        logger.info(f"📊 URLs Stats: {len(url_mentions)} unique URLs, {total_mentions} total mentions")
+        logger.info(f"📍 Position Stats: {refs_with_position} with valid position, {refs_without_position} without position")
         
         # Convertir a lista y calcular métricas
         urls_data = []
