@@ -562,9 +562,7 @@ class ExportService:
         # Preparar datos transpuestos (métricas como filas, clusters como columnas)
         metrics = [
             {'label': 'Total Keywords', 'key': 'total_keywords'},
-            {'label': 'AI Overview', 'key': 'ai_overview_count'},
             {'label': 'Brand Mentions', 'key': 'mentions_count'},
-            {'label': '% AI Overview', 'key': 'ai_overview_percentage', 'is_percent': True},
             {'label': '% Mentions', 'key': 'mentions_percentage', 'is_percent': True}
         ]
         
@@ -640,7 +638,6 @@ class ExportService:
                     SELECT DISTINCT ON (k.id)
                         k.id as keyword_id,
                         k.keyword,
-                        r.has_ai_overview,
                         r.domain_mentioned,
                         r.analysis_date
                     FROM manual_ai_keywords k
@@ -652,7 +649,6 @@ class ExportService:
                 SELECT 
                     keyword_id,
                     keyword,
-                    has_ai_overview,
                     domain_mentioned,
                     analysis_date
                 FROM latest_results
@@ -665,7 +661,6 @@ class ExportService:
             rows = []
             for kw_data in keywords_data:
                 keyword = kw_data['keyword']
-                has_ai_overview = 'Yes' if kw_data.get('has_ai_overview') else 'No'
                 domain_mentioned = 'Yes' if kw_data.get('domain_mentioned') else 'No'
                 last_analysis = kw_data.get('analysis_date')
                 last_analysis_str = str(last_analysis) if last_analysis else 'Never'
@@ -679,8 +674,7 @@ class ExportService:
                         rows.append({
                             'Cluster': cluster_name,
                             'Keyword': keyword,
-                            'Has AI Overview': has_ai_overview,
-                            'Domain Mentioned': domain_mentioned,
+                            'Brand Mentioned': domain_mentioned,
                             'Last Analysis': last_analysis_str
                         })
                 else:
@@ -688,8 +682,7 @@ class ExportService:
                     rows.append({
                         'Cluster': 'Unclassified',
                         'Keyword': keyword,
-                        'Has AI Overview': has_ai_overview,
-                        'Domain Mentioned': domain_mentioned,
+                        'Brand Mentioned': domain_mentioned,
                         'Last Analysis': last_analysis_str
                     })
             
@@ -699,7 +692,7 @@ class ExportService:
                 df_keywords = df_keywords.sort_values(['Cluster', 'Keyword'])
             else:
                 # DataFrame vacío
-                df_keywords = pd.DataFrame(columns=['Cluster', 'Keyword', 'Has AI Overview', 'Domain Mentioned', 'Last Analysis'])
+                df_keywords = pd.DataFrame(columns=['Cluster', 'Keyword', 'Brand Mentioned', 'Last Analysis'])
             
             df_keywords.to_excel(writer, sheet_name='Clusters Keywords Detail', index=False)
             
@@ -707,8 +700,8 @@ class ExportService:
             worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
             worksheet.set_column('A:A', 20)  # Cluster
             worksheet.set_column('B:B', 40)  # Keyword
-            worksheet.set_column('C:D', 18)  # Has AI Overview, Domain Mentioned
-            worksheet.set_column('E:E', 15)  # Last Analysis
+            worksheet.set_column('C:C', 18)  # Brand Mentioned
+            worksheet.set_column('D:D', 15)  # Last Analysis
             
             # Si no hay datos, agregar nota
             if not rows:
