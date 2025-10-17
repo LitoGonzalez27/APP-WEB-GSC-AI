@@ -306,11 +306,14 @@ class CompetitorService:
                                 if matched_domain:
                                     # Estadísticas globales
                                     domain_stats[matched_domain]['keywords'].add(keyword_id)
-                                    domain_stats[matched_domain]['positions'].append(position if position else 1)
+                                    # Almacenar solo posiciones válidas (> 0) para promedios correctos
+                                    if position and isinstance(position, (int, float)) and position > 0:
+                                        domain_stats[matched_domain]['positions'].append(position)
                                     domain_stats[matched_domain]['total_mentions'] += 1
                                     
                                     # Estadísticas por fecha
-                                    domain_by_date[matched_domain][analysis_date]['positions'].append(position if position else 1)
+                                    if position and isinstance(position, (int, float)) and position > 0:
+                                        domain_by_date[matched_domain][analysis_date]['positions'].append(position)
                                     domain_by_date[matched_domain][analysis_date]['keywords'].add(keyword_id)
                             except:
                                 continue

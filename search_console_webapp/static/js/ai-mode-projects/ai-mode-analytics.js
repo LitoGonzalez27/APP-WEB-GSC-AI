@@ -696,7 +696,7 @@ export function renderTopUrlsRanking(urls) {
                 </div>
             </td>
             <td class="mentions-cell">${urlData.mentions || 0}</td>
-            <td class="position-cell">${urlData.avg_position ? urlData.avg_position.toFixed(1) : '-'}</td>
+            <td class="position-cell">${(typeof urlData.avg_position === 'number') ? urlData.avg_position.toFixed(1) : '-'}</td>
             <td class="percentage-cell">${urlData.percentage ? urlData.percentage.toFixed(2) : '0.00'}%</td>
         `;
         

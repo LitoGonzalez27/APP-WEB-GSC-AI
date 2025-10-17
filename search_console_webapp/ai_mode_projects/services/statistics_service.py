@@ -620,8 +620,8 @@ class StatisticsService:
                     url_mentions[url] += 1
                     total_mentions += 1
                     
-                    # Guardar posiciones
-                    if position is not None and isinstance(position, (int, float)):
+                    # Guardar posiciones válidas (> 0)
+                    if position is not None and isinstance(position, (int, float)) and position > 0:
                         url_positions[url].append(position)
         
         # Convertir a lista y calcular métricas
@@ -638,7 +638,7 @@ class StatisticsService:
                 'url': url,
                 'mentions': mentions,
                 'percentage': round(percentage, 2),
-                'avg_position': round(avg_position, 1) if avg_position else None
+                'avg_position': round(avg_position, 1) if avg_position is not None else None
             })
         
         # Ordenar por número de menciones (descendente)
