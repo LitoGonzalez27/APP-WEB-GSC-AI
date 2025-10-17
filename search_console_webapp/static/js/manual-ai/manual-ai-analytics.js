@@ -302,7 +302,19 @@ export async function loadGlobalDomainsRanking(projectId) {
         }
 
         const data = await response.json();
-        this.renderGlobalDomainsRanking(data.domains || []);
+        
+        // Añadir paginación simple en cliente (20 por página)
+        const fullList = data.domains || [];
+        const pageSize = 20;
+        const state = this._globalDomainsState || { page: 1 };
+        const totalPages = Math.max(1, Math.ceil(fullList.length / pageSize));
+        state.page = Math.min(state.page, totalPages);
+        const start = (state.page - 1) * pageSize;
+        const paged = fullList.slice(start, start + pageSize);
+        // Guardar también el projectId para navegación fiable
+        this._globalDomainsState = { page: state.page, totalPages, fullList, projectId };
+        this.renderGlobalDomainsRanking(paged);
+        this.renderGlobalDomainsPaginator();
 
     } catch (error) {
         console.error('Error loading global domains ranking:', error);
@@ -368,6 +380,57 @@ export function renderGlobalDomainsRanking(domains) {
     });
 }
 
+export function renderGlobalDomainsPaginator() {
+    const container = document.getElementById('globalDomainsTable')?.parentElement || document.getElementById('noGlobalDomainsMessage')?.parentElement;
+    if (!container || !this._globalDomainsState) return;
+    
+    let paginator = document.getElementById('globalDomainsPaginator');
+    if (!paginator) {
+        paginator = document.createElement('div');
+        paginator.id = 'globalDomainsPaginator';
+        paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:24px 0;';
+        container.appendChild(paginator);
+    }
+    
+    const { page, totalPages, projectId } = this._globalDomainsState;
+    paginator.innerHTML = '';
+    
+    // Previous button
+    const btnPrev = document.createElement('button');
+    btnPrev.className = 'btn btn-light btn-sm';
+    btnPrev.style.backgroundColor = '#C3F5A4';
+    btnPrev.style.borderColor = '#C3F5A4';
+    btnPrev.style.color = '#111827';
+    btnPrev.textContent = 'Previous';
+    btnPrev.disabled = page <= 1;
+    btnPrev.onclick = () => { 
+        this._globalDomainsState.page = Math.max(1, page - 1); 
+        this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); 
+    };
+    
+    // Page info
+    const info = document.createElement('span');
+    info.style.cssText = 'display:flex;align-items:center;font-size:12px;color:#6b7280;';
+    info.textContent = `Page ${page} / ${totalPages}`;
+    
+    // Next button
+    const btnNext = document.createElement('button');
+    btnNext.className = 'btn btn-light btn-sm';
+    btnNext.style.backgroundColor = '#C3F5A4';
+    btnNext.style.borderColor = '#C3F5A4';
+    btnNext.style.color = '#111827';
+    btnNext.textContent = 'Next';
+    btnNext.disabled = page >= totalPages;
+    btnNext.onclick = () => { 
+        this._globalDomainsState.page = Math.min(totalPages, page + 1); 
+        this.loadGlobalDomainsRanking(projectId || this.currentProject?.id || this.currentModalProject?.id); 
+    };
+    
+    paginator.appendChild(btnPrev);
+    paginator.appendChild(info);
+    paginator.appendChild(btnNext);
+}
+
 export function showNoGlobalDomainsMessage() {
     const tableBody = document.getElementById('globalDomainsBody');
     const noDomainsMessage = document.getElementById('noGlobalDomainsMessage');
@@ -376,6 +439,10 @@ export function showNoGlobalDomainsMessage() {
     if (tableBody) tableBody.innerHTML = '';
     if (globalDomainsTable) globalDomainsTable.style.display = 'none';
     if (noDomainsMessage) noDomainsMessage.style.display = 'block';
+    
+    // Remove paginator if exists
+    const paginator = document.getElementById('globalDomainsPaginator');
+    if (paginator) paginator.remove();
 }
 
 // ================================
