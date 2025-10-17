@@ -66,7 +66,7 @@ export function renderResults(results) {
                 </div>
                 <div class="stat">
                     <span class="stat-number">${results.filter(r => r.has_ai_overview).length}</span>
-                    <span class="stat-label">AI Overview</span>
+                    <span class="stat-label">AI Mode</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">${results.filter(r => r.domain_mentioned).length}</span>
@@ -91,7 +91,7 @@ export function renderResults(results) {
                     <div class="results-table">
                         <div class="results-table-header">
                             <div class="col-keyword">Keyword</div>
-                            <div class="col-ai">AI Overview</div>
+                            <div class="col-ai">AI Mode</div>
                             <div class="col-mentioned">Mentioned</div>
                             <div class="col-position">Position</div>
                             <div class="col-impact">Impact</div>
@@ -264,7 +264,7 @@ export function renderModalKeywords(keywords) {
                 <span class="keyword-stat" title="Analyses count">
                     <i class="fas fa-chart-line"></i> ${keyword.analysis_count || 0}
                 </span>
-                <span class="keyword-stat" title="AI Overview frequency">
+                <span class="keyword-stat" title="AI Mode frequency">
                     <i class="fas fa-robot"></i> ${keyword.ai_overview_frequency ? Math.round(keyword.ai_overview_frequency * 100) + '%' : '0%'}
                 </span>
             </div>
