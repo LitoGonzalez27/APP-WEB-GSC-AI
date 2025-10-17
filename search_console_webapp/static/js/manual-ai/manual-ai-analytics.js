@@ -458,7 +458,7 @@ export async function loadTopUrlsRanking(projectId) {
     const days = this.elements.analyticsTimeRange?.value || 30;
 
     try {
-        const response = await fetch(`/manual-ai/api/projects/${projectId}/urls-ranking?days=${days}&limit=20`);
+        const response = await fetch(`/manual-ai/api/projects/${projectId}/urls-ranking?days=${days}&limit=100`);
         
         if (!response.ok) {
             if (response.status === 404) {
