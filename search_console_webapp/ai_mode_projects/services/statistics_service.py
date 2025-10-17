@@ -610,6 +610,12 @@ class StatisticsService:
             for ref in references:
                 url = ref.get('link', '').strip()
                 position = ref.get('position')
+                # Normalizar posición: convertir strings numéricos a float
+                if isinstance(position, str):
+                    try:
+                        position = float(position.strip())
+                    except Exception:
+                        position = None
                 
                 if url:
                     # Contar menciones

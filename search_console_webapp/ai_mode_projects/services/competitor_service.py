@@ -630,6 +630,18 @@ class CompetitorService:
                             for ref in references:
                                 link = ref.get('link', '')
                                 position = ref.get('position', 0)
+                                # Normalizar posición si llega como string
+                                if isinstance(position, str):
+                                    try:
+                                        position = float(position.strip())
+                                    except Exception:
+                                        position = 0
+                                position = ref.get('position', 0)
+                                if isinstance(position, str):
+                                    try:
+                                        position = float(position.strip())
+                                    except Exception:
+                                        position = 0
                                 
                                 if link:
                                     try:
