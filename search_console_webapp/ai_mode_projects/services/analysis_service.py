@@ -266,46 +266,47 @@ class AnalysisService:
         brand_name = project.get('brand_name', '')
         country_code = project.get('country_code', 'US')
         
-        # Mapeo de códigos ISO-2 a nombres de ubicación para Google AI Mode
-        # SerpApi requiere nombres de países/ciudades, no códigos
+        # Mapeo de códigos ISO-2 a ubicaciones para Google AI Mode
+        # SerpApi requiere formato "Ciudad, País" para evitar errores de dominio
+        # Usar ciudad principal evita que SerpAPI derive dominios incorrectos (ej: google.esp)
         location_map = {
-            'ES': 'Spain',
-            'US': 'United States',
-            'GB': 'United Kingdom',
-            'FR': 'France',
-            'DE': 'Germany',
-            'IT': 'Italy',
-            'PT': 'Portugal',
-            'MX': 'Mexico',
-            'AR': 'Argentina',
-            'CO': 'Colombia',
-            'CL': 'Chile',
-            'PE': 'Peru',
-            'BR': 'Brazil',
-            'CA': 'Canada',
-            'AU': 'Australia',
-            'NZ': 'New Zealand',
-            'IN': 'India',
-            'JP': 'Japan',
-            'CN': 'China',
-            'KR': 'South Korea',
-            'NL': 'Netherlands',
-            'BE': 'Belgium',
-            'CH': 'Switzerland',
-            'AT': 'Austria',
-            'SE': 'Sweden',
-            'NO': 'Norway',
-            'DK': 'Denmark',
-            'FI': 'Finland',
-            'PL': 'Poland',
-            'CZ': 'Czech Republic',
-            'IE': 'Ireland',
-            'GR': 'Greece',
-            'RO': 'Romania',
-            'HU': 'Hungary'
+            'ES': 'Madrid, Spain',           # NO usar solo 'Spain' (causa error google.esp)
+            'US': 'New York, United States',
+            'GB': 'London, United Kingdom',
+            'FR': 'Paris, France',
+            'DE': 'Berlin, Germany',
+            'IT': 'Rome, Italy',
+            'PT': 'Lisbon, Portugal',
+            'MX': 'Mexico City, Mexico',
+            'AR': 'Buenos Aires, Argentina',
+            'CO': 'Bogotá, Colombia',
+            'CL': 'Santiago, Chile',
+            'PE': 'Lima, Peru',
+            'BR': 'São Paulo, Brazil',
+            'CA': 'Toronto, Canada',
+            'AU': 'Sydney, Australia',
+            'NZ': 'Auckland, New Zealand',
+            'IN': 'Mumbai, India',
+            'JP': 'Tokyo, Japan',
+            'CN': 'Beijing, China',
+            'KR': 'Seoul, South Korea',
+            'NL': 'Amsterdam, Netherlands',
+            'BE': 'Brussels, Belgium',
+            'CH': 'Zurich, Switzerland',
+            'AT': 'Vienna, Austria',
+            'SE': 'Stockholm, Sweden',
+            'NO': 'Oslo, Norway',
+            'DK': 'Copenhagen, Denmark',
+            'FI': 'Helsinki, Finland',
+            'PL': 'Warsaw, Poland',
+            'CZ': 'Prague, Czech Republic',
+            'IE': 'Dublin, Ireland',
+            'GR': 'Athens, Greece',
+            'RO': 'Bucharest, Romania',
+            'HU': 'Budapest, Hungary'
         }
         
-        location = location_map.get(country_code, 'Spain')  # Default a Spain
+        location = location_map.get(country_code, 'Madrid, Spain')  # Default con ciudad
         
         try:
             # Parámetros para Google AI Mode (google.com/ai)
