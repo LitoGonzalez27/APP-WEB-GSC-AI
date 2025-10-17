@@ -349,8 +349,8 @@ class AnalysisService:
         Parsear respuesta de Google AI Mode (google.com/ai) para detectar menciones de marca
         
         Estructura de SerpApi Google AI Mode:
-        - text_blocks: Array de bloques de texto generados por IA
-        - references: Array de fuentes citadas (con link, title, source)
+        - text_blocks: [{"type": "paragraph", "snippet": "...", "reference_indexes": [0,1]}]
+        - references: [{"link": "...", "index": 0, "title": "...", "source": "...", "snippet": "..."}]
         - inline_images: Imágenes inline (opcional)
         - related_questions: Preguntas relacionadas (opcional)
         
@@ -361,6 +361,30 @@ class AnalysisService:
         Returns:
             Dict con resultados del análisis
         """
+        # VALIDACIÓN CRÍTICA 1: Verificar que serp_data es válido
+        if not serp_data or not isinstance(serp_data, dict):
+            logger.error("❌ CRITICAL: Invalid serp_data structure (not a dict)")
+            return {
+                'brand_mentioned': False,
+                'mention_position': None,
+                'mention_context': None,
+                'total_sources': 0,
+                'sentiment': 'neutral',
+                'error': 'Invalid serp_data'
+            }
+        
+        # VALIDACIÓN CRÍTICA 2: Verificar que brand_name existe
+        if not brand_name or not brand_name.strip():
+            logger.error("❌ CRITICAL: brand_name is empty or None!")
+            return {
+                'brand_mentioned': False,
+                'mention_position': None,
+                'mention_context': None,
+                'total_sources': 0,
+                'sentiment': 'neutral',
+                'error': 'No brand name configured'
+            }
+        
         result = {
             'brand_mentioned': False,
             'mention_position': None,
@@ -369,44 +393,87 @@ class AnalysisService:
             'sentiment': 'neutral'
         }
         
-        # Google AI Mode (SerpAPI engine=google_ai_mode) proporciona:
-        # - text_blocks: bloques de texto generados por AI Mode
-        # - references: fuentes citadas por AI Mode con campo 'index' (0-based)
-        # No usar campos propios de AI Overview (otro sistema)
-        text_blocks = serp_data.get('text_blocks', []) or []
-        references = serp_data.get('references', []) or []
+        # Extraer y validar estructura de datos
+        text_blocks = serp_data.get('text_blocks') or []
+        references = serp_data.get('references') or []
+        
+        # VALIDACIÓN: Asegurar que son listas
+        if not isinstance(text_blocks, list):
+            logger.warning(f"⚠️ text_blocks is not a list: {type(text_blocks)}")
+            text_blocks = []
+        
+        if not isinstance(references, list):
+            logger.warning(f"⚠️ references is not a list: {type(references)}")
+            references = []
         
         result['total_sources'] = len(references)
         
-        # Buscar menciones de la marca (case-insensitive) con pequeñas variaciones
-        brand_lower = (brand_name or '').strip().lower()
-        # Variaciones simples
+        # Preparar variaciones de la marca (mejorado)
+        brand_lower = brand_name.strip().lower()
         variations = {brand_lower}
+        
+        # Variación sin espacios: "HM Fertility" → "hmfertility"
         if ' ' in brand_lower:
             variations.add(brand_lower.replace(' ', ''))
+        
+        # Variación sin guiones: "click-and-seo" → "clickandseo"
         if '-' in brand_lower:
             variations.add(brand_lower.replace('-', ''))
+        
+        # Variación sin prefijo 'get': "getquipu" → "quipu"
         if brand_lower.startswith('get') and len(brand_lower) > 3:
             variations.add(brand_lower[3:])
         
+        # MEJORA: Añadir variaciones con dominios comunes
+        # Útil para casos como "getquipu" donde el dominio es "getquipu.com"
+        for var in list(variations):
+            variations.add(f"{var}.com")
+            variations.add(f"{var}.es")
+            variations.add(f"www.{var}")
+        
+        logger.debug(f"🔍 Brand variations for '{brand_name}': {variations}")
+        
         # 1. Buscar en los text_blocks (respuesta generada por IA)
-        for block in text_blocks:
-            # Algunas variantes usan 'text', otras 'snippet' o 'content'
-            raw_text = block.get('text') or block.get('snippet') or block.get('content') or ''
-            text = str(raw_text).lower()
+        for block_idx, block in enumerate(text_blocks):
+            if not isinstance(block, dict):
+                continue
             
-            if any(v in text for v in variations if v):
+            # FIX CRÍTICO: SerpAPI solo usa 'snippet' en text_blocks (no 'text' ni 'content')
+            # Estructura real: {"type": "paragraph", "snippet": "...", "reference_indexes": [0, 1]}
+            raw_text = block.get('snippet', '')
+            text = str(raw_text).lower()
+            reference_indexes = block.get('reference_indexes', [])
+            
+            # Buscar marca en snippet
+            matched_variation = None
+            for v in variations:
+                if v and v in text:
+                    matched_variation = v
+                    break
+            
+            if matched_variation:
                 result['brand_mentioned'] = True
                 result['mention_context'] = str(raw_text)[:500]
                 result['mention_position'] = 0  # Posición 0 para menciones en texto de IA
                 
-                # Analizar sentimiento básico
-                if any(word in text for word in ['best', 'excellent', 'great', 'top', 'leading', 'recommended']):
+                # Analizar sentimiento mejorado (con más palabras)
+                positive_words = ['best', 'excellent', 'great', 'top', 'leading', 'recommended', 
+                                  'outstanding', 'superior', 'perfect', 'amazing', 'fantastic']
+                negative_words = ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue', 
+                                  'terrible', 'horrible', 'disappointing', 'unreliable']
+                
+                if any(word in text for word in positive_words):
                     result['sentiment'] = 'positive'
-                elif any(word in text for word in ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue']):
+                elif any(word in text for word in negative_words):
                     result['sentiment'] = 'negative'
                 
+                # MEJORA: Logging detallado
                 logger.info(f"✨ Brand '{brand_name}' found in AI text_blocks at position 0")
+                logger.info(f"   → Matched variation: '{matched_variation}'")
+                logger.info(f"   → Block index: {block_idx}")
+                logger.info(f"   → Referenced sources: {reference_indexes}")
+                logger.info(f"   → Sentiment: {result['sentiment']}")
+                
                 return result
 
         # No buscar summaries de AI Overview: fuera de alcance AI Mode
@@ -415,51 +482,97 @@ class AnalysisService:
         # Usar el mismo criterio de orden que para global domains: index asc (0-based), luego orden natural
         enriched_refs = []
         for i, ref in enumerate(references):
+            if not isinstance(ref, dict):
+                continue
+            
             idx = ref.get('index')
             # index es 0-based: 0, 1, 2, ...
             idx_num = idx if isinstance(idx, int) and idx >= 0 else None
             enriched_refs.append((idx_num, i, ref))
         enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
 
-        for idx, (_, _, ref) in enumerate(enriched_refs):
+        for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
             title = str(ref.get('title', '')).lower()
             link = str(ref.get('link', '')).lower()
             source = str(ref.get('source', '')).lower()
-            index = ref.get('index')
-            # Convertir index (0-based) a position (1-based) para logging
-            position = (index + 1) if isinstance(index, int) and index >= 0 else None
+            snippet = str(ref.get('snippet', '')).lower()  # FIX CRÍTICO: Añadir snippet
             
-            def _matches_brand():
-                if any(v and (v in title or v in link or v in source) for v in variations):
-                    return True
-                # Comprobar dominio del link
+            # Usar index del campo para position (1-based)
+            actual_index = ref.get('index')
+            position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+            
+            # Buscar marca en todos los campos (incluyendo snippet)
+            matched_variation = None
+            matched_field = None
+            
+            for v in variations:
+                if not v:
+                    continue
+                
+                if v in title:
+                    matched_variation = v
+                    matched_field = 'title'
+                    break
+                elif v in snippet:  # FIX CRÍTICO: Buscar en snippet
+                    matched_variation = v
+                    matched_field = 'snippet'
+                    break
+                elif v in source:
+                    matched_variation = v
+                    matched_field = 'source'
+                    break
+                elif v in link:
+                    matched_variation = v
+                    matched_field = 'link'
+                    break
+            
+            # Si no se encontró directamente, verificar dominio del link
+            if not matched_variation:
                 try:
                     from urllib.parse import urlparse
                     netloc = urlparse(link).netloc.lower()
                     if netloc.startswith('www.'):
                         netloc = netloc[4:]
-                    return any(v and v in netloc for v in variations)
+                    
+                    for v in variations:
+                        if v and v in netloc:
+                            matched_variation = v
+                            matched_field = 'domain'
+                            break
                 except Exception:
-                    return False
+                    pass
             
-            if _matches_brand():
+            if matched_variation:
                 result['brand_mentioned'] = True
-                # Posición consistente: usar el índice visual (idx + 1)
-                result['mention_position'] = idx + 1
+                result['mention_position'] = position
                 result['mention_context'] = ref.get('title', '')[:500]
                 
-                # Análisis de sentimiento básico
-                text = f"{title} {source}"
-                if any(word in text for word in ['best', 'excellent', 'great', 'top', 'leading', 'recommended']):
+                # Análisis de sentimiento mejorado (incluir snippet)
+                text = f"{title} {source} {snippet}"
+                positive_words = ['best', 'excellent', 'great', 'top', 'leading', 'recommended',
+                                  'outstanding', 'superior', 'perfect', 'amazing', 'fantastic']
+                negative_words = ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue',
+                                  'terrible', 'horrible', 'disappointing', 'unreliable']
+                
+                if any(word in text for word in positive_words):
                     result['sentiment'] = 'positive'
-                elif any(word in text for word in ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue']):
+                elif any(word in text for word in negative_words):
                     result['sentiment'] = 'negative'
                 
+                # MEJORA: Logging detallado
                 logger.info(f"✨ Brand '{brand_name}' found in reference at position {position}")
+                logger.info(f"   → Matched variation: '{matched_variation}'")
+                logger.info(f"   → Matched field: '{matched_field}'")
+                logger.info(f"   → Reference index (0-based): {actual_index}")
+                logger.info(f"   → Title: {ref.get('title', '')[:80]}...")
+                logger.info(f"   → Sentiment: {result['sentiment']}")
+                
                 break
         
         if not result['brand_mentioned']:
             logger.info(f"❌ Brand '{brand_name}' not found in AI Mode results")
+            logger.info(f"   → Analyzed {len(text_blocks)} text_blocks and {len(references)} references")
+            logger.debug(f"   → Variations searched: {variations}")
         
         return result
 
