@@ -143,20 +143,11 @@ export async function handleDownloadPDF() {
             });
         }
 
-        const target = document.querySelector('.manual-ai-app') || document.body;
-        const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-
         const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth;
-        const imgHeight = canvas.height * (imgWidth / canvas.width);
-        let position = 0;
-        let heightLeft = imgHeight;
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
 
-        // Añadir logotipo como marca de agua en cada página (esquina inferior derecha)
+        // Función para añadir logotipo en esquina inferior derecha
         const addCornerLogo = async () => {
             try {
                 const logoEl = document.querySelector('.navbar .logo-image');
@@ -171,7 +162,7 @@ export async function handleDownloadPDF() {
                     const ctx = tempCanvas.getContext('2d');
                     ctx.drawImage(logoImg, 0, 0);
                     const dataUrl = tempCanvas.toDataURL('image/png');
-                    const margin = 16; // pt
+                    const margin = 16;
                     const maxLogoWidth = Math.min(80, pageWidth * 0.18);
                     const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
                     const logoW = maxLogoWidth;
@@ -183,17 +174,101 @@ export async function handleDownloadPDF() {
             } catch (_) { /* silencioso */ }
         };
 
-        await addCornerLogo();
-        heightLeft -= pageHeight;
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        // Función auxiliar para capturar y añadir sección al PDF
+        const addSectionToPDF = async (selector, isFirstPage = false) => {
+            const element = document.querySelector(selector);
+            if (!element) {
+                console.warn(`⚠️ Section not found: ${selector}`);
+                return false;
+            }
+
+            if (btnText) btnText.textContent = `Capturing ${selector}...`;
+            
+            const canvas = await html2canvas(element, { 
+                scale: 2, 
+                useCORS: true, 
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const imgWidth = pageWidth - 40; // Márgenes de 20pt a cada lado
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            
+            if (!isFirstPage) {
+                pdf.addPage();
+            }
+            
+            // Centrar la imagen con márgenes
+            const xPos = 20;
+            let yPos = 20;
+            
+            // Si la imagen es más alta que la página, ajustar
+            if (imgHeight > pageHeight - 40) {
+                const scaleFactor = (pageHeight - 40) / imgHeight;
+                const scaledWidth = imgWidth * scaleFactor;
+                const scaledHeight = imgHeight * scaleFactor;
+                const xCentered = (pageWidth - scaledWidth) / 2;
+                pdf.addImage(imgData, 'JPEG', xCentered, yPos, scaledWidth, scaledHeight);
+            } else {
+                pdf.addImage(imgData, 'JPEG', xPos, yPos, imgWidth, imgHeight);
+            }
+            
             await addCornerLogo();
-            heightLeft -= pageHeight;
+            return true;
+        };
+
+        // PÁGINA 1: Overview + Position Distribution
+        if (btnText) btnText.textContent = 'Page 1/4: Overview...';
+        const page1Container = document.createElement('div');
+        page1Container.style.cssText = 'background: white; padding: 20px;';
+        
+        const overviewSection = document.querySelector('.overview-section');
+        const positionSection = document.querySelector('.charts-section');
+        
+        if (overviewSection) page1Container.appendChild(overviewSection.cloneNode(true));
+        if (positionSection) page1Container.appendChild(positionSection.cloneNode(true));
+        
+        document.body.appendChild(page1Container);
+        await addSectionToPDF('body > div:last-child', true);
+        document.body.removeChild(page1Container);
+
+        // PÁGINA 2: Media Source Analysis vs Selected Sources
+        if (btnText) btnText.textContent = 'Page 2/4: Media Sources...';
+        const topDomainsSection = document.querySelector('.top-domains-section');
+        if (topDomainsSection) {
+            await addSectionToPDF('.top-domains-section', false);
         }
-        const fileName = `manual_ai_overview_${Date.now()}.pdf`;
+
+        // PÁGINA 3: Top Mentioned URLs in AI Mode
+        if (btnText) btnText.textContent = 'Page 3/4: Top URLs...';
+        const topUrlsSection = document.querySelectorAll('.top-domains-section')[1]; // Segunda sección con esta clase
+        if (topUrlsSection) {
+            const page3Container = document.createElement('div');
+            page3Container.style.cssText = 'background: white; padding: 20px;';
+            page3Container.appendChild(topUrlsSection.cloneNode(true));
+            document.body.appendChild(page3Container);
+            await addSectionToPDF('body > div:last-child', false);
+            document.body.removeChild(page3Container);
+        }
+
+        // PÁGINA 4: Global Media Sources Ranking
+        if (btnText) btnText.textContent = 'Page 4/4: Global Ranking...';
+        const globalDomainsSection = document.querySelectorAll('.top-domains-section')[2]; // Tercera sección
+        if (globalDomainsSection) {
+            const page4Container = document.createElement('div');
+            page4Container.style.cssText = 'background: white; padding: 20px;';
+            page4Container.appendChild(globalDomainsSection.cloneNode(true));
+            document.body.appendChild(page4Container);
+            await addSectionToPDF('body > div:last-child', false);
+            document.body.removeChild(page4Container);
+        }
+
+        const fileName = `ai_mode_monitoring_${Date.now()}.pdf`;
         pdf.save(fileName);
+        
+        if (btnText) btnText.textContent = 'Download PDF';
+        this.showSuccess('PDF generated successfully!');
         
         // Restaurar elementos excluidos
         excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
