@@ -128,12 +128,13 @@ class AnalysisService:
                     # Almacenar dominios globales detectados para ranking/competidores
                     try:
                         references = serp_data.get('references', []) or []
-                        # Orden estable: primero por position asc si existe, después los sin position
+                        # Orden estable: primero por index asc (AI Mode usa 'index' 0-based, no 'position')
                         enriched = []
                         for i, ref in enumerate(references):
-                            pos = ref.get('position')
-                            pos_num = pos if isinstance(pos, int) and pos > 0 else None
-                            enriched.append((pos_num, i, ref))
+                            idx = ref.get('index')
+                            # index es 0-based: 0, 1, 2, ...
+                            idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+                            enriched.append((idx_num, i, ref))
                         enriched.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
                         # Adaptar formato a DomainsService (debug_info.references_found) con índice visual consistente 0-based
                         ordered_refs = []
@@ -369,7 +370,7 @@ class AnalysisService:
         
         # Google AI Mode (SerpAPI engine=google_ai_mode) proporciona:
         # - text_blocks: bloques de texto generados por AI Mode
-        # - references: fuentes citadas por AI Mode con campo position
+        # - references: fuentes citadas por AI Mode con campo 'index' (0-based)
         # No usar campos propios de AI Overview (otro sistema)
         text_blocks = serp_data.get('text_blocks', []) or []
         references = serp_data.get('references', []) or []
@@ -410,19 +411,22 @@ class AnalysisService:
         # No buscar summaries de AI Overview: fuera de alcance AI Mode
         
         # 2. Si no está en text_blocks, buscar en references (fuentes citadas)
-        # Usar el mismo criterio de orden que para global domains: position asc, luego orden natural
+        # Usar el mismo criterio de orden que para global domains: index asc (0-based), luego orden natural
         enriched_refs = []
         for i, ref in enumerate(references):
-            pos = ref.get('position')
-            pos_num = pos if isinstance(pos, int) and pos > 0 else None
-            enriched_refs.append((pos_num, i, ref))
+            idx = ref.get('index')
+            # index es 0-based: 0, 1, 2, ...
+            idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+            enriched_refs.append((idx_num, i, ref))
         enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
 
         for idx, (_, _, ref) in enumerate(enriched_refs):
             title = str(ref.get('title', '')).lower()
             link = str(ref.get('link', '')).lower()
             source = str(ref.get('source', '')).lower()
-            position = ref.get('position')
+            index = ref.get('index')
+            # Convertir index (0-based) a position (1-based) para logging
+            position = (index + 1) if isinstance(index, int) and index >= 0 else None
             
             def _matches_brand():
                 if any(v and (v in title or v in link or v in source) for v in variations):

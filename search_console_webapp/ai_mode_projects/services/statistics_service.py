@@ -613,18 +613,23 @@ class StatisticsService:
             
             for ref in references:
                 url = ref.get('link', '').strip()
-                position = ref.get('position')
+                # AI Mode usa 'index' (0-based) en lugar de 'position'
+                index = ref.get('index')
+                position = None
+                
+                # Convertir index (0-based) a position (1-based)
+                if index is not None:
+                    if isinstance(index, (int, float)):
+                        position = float(index) + 1
+                    elif isinstance(index, str):
+                        try:
+                            position = float(index.strip()) + 1
+                        except Exception:
+                            position = None
                 
                 # Debug: log de primeras referencias
                 if total_mentions < 5:
-                    logger.info(f"📍 URL #{total_mentions + 1}: {url[:50]}... | position={position} | type={type(position)}")
-                
-                # Normalizar posición: convertir strings numéricos a float
-                if isinstance(position, str):
-                    try:
-                        position = float(position.strip())
-                    except Exception:
-                        position = None
+                    logger.info(f"📍 URL #{total_mentions + 1}: {url[:50]}... | index={index} | position={position}")
                 
                 if url:
                     # Contar menciones
@@ -635,8 +640,8 @@ class StatisticsService:
                     url_mentions[url] += 1
                     total_mentions += 1
                     
-                    # Guardar posiciones válidas (> 0)
-                    if position is not None and isinstance(position, (int, float)) and position > 0:
+                    # Guardar posiciones válidas (>= 1 después de la conversión)
+                    if position is not None and position >= 1:
                         url_positions[url].append(position)
                         refs_with_position += 1
                     else:
