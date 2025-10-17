@@ -112,6 +112,10 @@ export async function handleDownloadExcel() {
 // ================================
 
 export async function handleDownloadPDF() {
+    // Variables que necesitan estar disponibles en catch/finally
+    let chartsContainer = null;
+    let chartsContainerOriginalDisplay = null;
+    
     try {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
@@ -119,6 +123,13 @@ export async function handleDownloadPDF() {
         if (spinner && btnText) {
             spinner.style.display = 'inline-block';
             btnText.textContent = 'Preparing PDF...';
+        }
+
+        // Asegurar que el contenedor de charts esté visible temporalmente
+        chartsContainer = document.getElementById('chartsContainer');
+        chartsContainerOriginalDisplay = chartsContainer ? chartsContainer.style.display : null;
+        if (chartsContainer && chartsContainer.style.display === 'none') {
+            chartsContainer.style.display = 'block';
         }
 
         // Ocultar elementos excluidos del PDF
@@ -224,10 +235,12 @@ export async function handleDownloadPDF() {
         page1Container.style.cssText = 'background: white; padding: 20px;';
         
         const overviewSection = document.querySelector('.overview-section');
-        const positionSection = document.querySelector('.charts-section');
+        const summaryCards = document.querySelector('.summary-cards');
+        const chartsGrid = document.querySelector('.charts-grid');
         
         if (overviewSection) page1Container.appendChild(overviewSection.cloneNode(true));
-        if (positionSection) page1Container.appendChild(positionSection.cloneNode(true));
+        if (summaryCards) page1Container.appendChild(summaryCards.cloneNode(true));
+        if (chartsGrid) page1Container.appendChild(chartsGrid.cloneNode(true));
         
         document.body.appendChild(page1Container);
         await addSectionToPDF('body > div:last-child', true);
@@ -235,14 +248,19 @@ export async function handleDownloadPDF() {
 
         // PÁGINA 2: Media Source Analysis vs Selected Sources
         if (btnText) btnText.textContent = 'Page 2/4: Media Sources...';
-        const topDomainsSection = document.querySelector('.top-domains-section');
-        if (topDomainsSection) {
-            await addSectionToPDF('.top-domains-section', false);
+        const competitorsSection = document.querySelector('.competitors-charts-section');
+        if (competitorsSection) {
+            const page2Container = document.createElement('div');
+            page2Container.style.cssText = 'background: white; padding: 20px;';
+            page2Container.appendChild(competitorsSection.cloneNode(true));
+            document.body.appendChild(page2Container);
+            await addSectionToPDF('body > div:last-child', false);
+            document.body.removeChild(page2Container);
         }
 
         // PÁGINA 3: Top Mentioned URLs in AI Mode
         if (btnText) btnText.textContent = 'Page 3/4: Top URLs...';
-        const topUrlsSection = document.querySelectorAll('.top-domains-section')[1]; // Segunda sección con esta clase
+        const topUrlsSection = document.querySelector('.top-urls-section');
         if (topUrlsSection) {
             const page3Container = document.createElement('div');
             page3Container.style.cssText = 'background: white; padding: 20px;';
@@ -254,7 +272,7 @@ export async function handleDownloadPDF() {
 
         // PÁGINA 4: Global Media Sources Ranking
         if (btnText) btnText.textContent = 'Page 4/4: Global Ranking...';
-        const globalDomainsSection = document.querySelectorAll('.top-domains-section')[2]; // Tercera sección
+        const globalDomainsSection = document.querySelector('.top-domains-section');
         if (globalDomainsSection) {
             const page4Container = document.createElement('div');
             page4Container.style.cssText = 'background: white; padding: 20px;';
@@ -272,9 +290,19 @@ export async function handleDownloadPDF() {
         
         // Restaurar elementos excluidos
         excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
+        
+        // Restaurar display original del chartsContainer
+        if (chartsContainer && chartsContainerOriginalDisplay !== null) {
+            chartsContainer.style.display = chartsContainerOriginalDisplay;
+        }
     } catch (err) {
         console.error('Error generating PDF:', err);
         this.showError('Failed to generate PDF.');
+        
+        // Restaurar display del chartsContainer en caso de error
+        if (chartsContainer && chartsContainerOriginalDisplay !== null) {
+            chartsContainer.style.display = chartsContainerOriginalDisplay;
+        }
     } finally {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
