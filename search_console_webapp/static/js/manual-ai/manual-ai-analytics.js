@@ -491,18 +491,34 @@ export async function loadTopUrlsRanking(projectId) {
             console.error('Error checking filter state:', e);
         }
         
-        // Apply filter if active, otherwise show all
+        // Apply filter if active, otherwise show all with pagination
         if (isFilterActive) {
             console.log('🔵 Filter is active, applying filter...');
             try {
                 this.filterUrlsByDomain(true);
             } catch (e) {
                 console.error('Error applying filter, showing all URLs:', e);
-                this.renderTopUrlsRanking(this._allUrlsData);
+                // Apply pagination on error
+                const pageSize = 20;
+                const state = { page: 1 };
+                const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
+                const paged = this._allUrlsData.slice(0, pageSize);
+                this._topUrlsState = { page: state.page, totalPages, fullList: this._allUrlsData };
+                this.renderTopUrlsRanking(paged);
+                this.renderTopUrlsPaginator();
             }
         } else {
-            console.log('⚪ Filter is inactive, showing all URLs');
-            this.renderTopUrlsRanking(this._allUrlsData);
+            console.log('⚪ Filter is inactive, showing all URLs with pagination');
+            // Apply pagination
+            const pageSize = 20;
+            const state = this._topUrlsState || { page: 1 };
+            const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
+            state.page = Math.min(state.page, totalPages);
+            const start = (state.page - 1) * pageSize;
+            const paged = this._allUrlsData.slice(start, start + pageSize);
+            this._topUrlsState = { page: state.page, totalPages, fullList: this._allUrlsData };
+            this.renderTopUrlsRanking(paged);
+            this.renderTopUrlsPaginator();
         }
 
     } catch (error) {
@@ -543,7 +559,14 @@ export function filterUrlsByDomain(showOnlyMyDomain) {
             
             if (!project || !project.domain) {
                 console.error('❌ No project or domain found for filtering, showing all URLs');
-                this.renderTopUrlsRanking(this._allUrlsData);
+                // Reset pagination and render all
+                const pageSize = 20;
+                const state = { page: 1 };
+                const totalPages = Math.max(1, Math.ceil(this._allUrlsData.length / pageSize));
+                const paged = this._allUrlsData.slice(0, pageSize);
+                this._topUrlsState = { page: state.page, totalPages, fullList: this._allUrlsData };
+                this.renderTopUrlsRanking(paged);
+                this.renderTopUrlsPaginator();
                 return;
             }
             
@@ -574,7 +597,8 @@ export function filterUrlsByDomain(showOnlyMyDomain) {
             // If no URLs match, show message
             if (filteredUrls.length === 0) {
                 console.warn('⚠️ No URLs found for your domain');
-                // Still show the table structure but empty
+                this.showNoUrlsMessage();
+                return;
             }
             
             // Recalculate ranks
@@ -588,8 +612,16 @@ export function filterUrlsByDomain(showOnlyMyDomain) {
         }
     }
     
-    // Always render something
-    this.renderTopUrlsRanking(filteredUrls);
+    // Apply pagination
+    const pageSize = 20;
+    const state = this._topUrlsState || { page: 1 };
+    const totalPages = Math.max(1, Math.ceil(filteredUrls.length / pageSize));
+    state.page = Math.min(state.page, totalPages);
+    const start = (state.page - 1) * pageSize;
+    const paged = filteredUrls.slice(start, start + pageSize);
+    this._topUrlsState = { page: state.page, totalPages, fullList: filteredUrls };
+    this.renderTopUrlsRanking(paged);
+    this.renderTopUrlsPaginator();
 }
 
 export function renderTopUrlsRanking(urls) {
@@ -708,6 +740,79 @@ export function renderTopUrlsRanking(urls) {
     });
 }
 
+export function renderTopUrlsPaginator() {
+    const container = document.getElementById('topUrlsTable')?.parentElement || document.getElementById('noUrlsMessage')?.parentElement;
+    if (!container || !this._topUrlsState) return;
+    
+    let paginator = document.getElementById('topUrlsPaginator');
+    if (!paginator) {
+        paginator = document.createElement('div');
+        paginator.id = 'topUrlsPaginator';
+        paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:24px 0;';
+        container.appendChild(paginator);
+    }
+    
+    const { page, totalPages, fullList } = this._topUrlsState;
+    paginator.innerHTML = '';
+    
+    // Previous button
+    const btnPrev = document.createElement('button');
+    btnPrev.className = 'btn btn-light btn-sm';
+    btnPrev.style.backgroundColor = '#C3F5A4';
+    btnPrev.style.borderColor = '#C3F5A4';
+    btnPrev.style.color = '#111827';
+    btnPrev.textContent = 'Previous';
+    btnPrev.disabled = page <= 1;
+    btnPrev.onclick = () => { 
+        this._topUrlsState.page = Math.max(1, page - 1);
+        // Check if filter is active
+        const filterBtn = document.getElementById('filterMyDomainUrls');
+        const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        if (isFilterActive) {
+            this.filterUrlsByDomain(true);
+        } else {
+            const pageSize = 20;
+            const start = (this._topUrlsState.page - 1) * pageSize;
+            const paged = fullList.slice(start, start + pageSize);
+            this.renderTopUrlsRanking(paged);
+            this.renderTopUrlsPaginator();
+        }
+    };
+    
+    // Page info
+    const info = document.createElement('span');
+    info.style.cssText = 'display:flex;align-items:center;font-size:12px;color:#6b7280;';
+    info.textContent = `Page ${page} / ${totalPages}`;
+    
+    // Next button
+    const btnNext = document.createElement('button');
+    btnNext.className = 'btn btn-light btn-sm';
+    btnNext.style.backgroundColor = '#C3F5A4';
+    btnNext.style.borderColor = '#C3F5A4';
+    btnNext.style.color = '#111827';
+    btnNext.textContent = 'Next';
+    btnNext.disabled = page >= totalPages;
+    btnNext.onclick = () => { 
+        this._topUrlsState.page = Math.min(totalPages, page + 1);
+        // Check if filter is active
+        const filterBtn = document.getElementById('filterMyDomainUrls');
+        const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+        if (isFilterActive) {
+            this.filterUrlsByDomain(true);
+        } else {
+            const pageSize = 20;
+            const start = (this._topUrlsState.page - 1) * pageSize;
+            const paged = fullList.slice(start, start + pageSize);
+            this.renderTopUrlsRanking(paged);
+            this.renderTopUrlsPaginator();
+        }
+    };
+    
+    paginator.appendChild(btnPrev);
+    paginator.appendChild(info);
+    paginator.appendChild(btnNext);
+}
+
 export function showNoUrlsMessage() {
     const tableBody = document.getElementById('topUrlsBody');
     const noUrlsMessage = document.getElementById('noUrlsMessage');
@@ -716,6 +821,10 @@ export function showNoUrlsMessage() {
     if (tableBody) tableBody.innerHTML = '';
     if (topUrlsTable) topUrlsTable.style.display = 'none';
     if (noUrlsMessage) noUrlsMessage.style.display = 'block';
+    
+    // Remove paginator if exists
+    const paginator = document.getElementById('topUrlsPaginator');
+    if (paginator) paginator.remove();
 }
 
 // ================================
