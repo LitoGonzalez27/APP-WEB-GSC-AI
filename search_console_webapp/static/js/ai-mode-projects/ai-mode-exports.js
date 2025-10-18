@@ -186,14 +186,13 @@ export async function handleDownloadPDF() {
         };
 
         // Función auxiliar para capturar y añadir sección al PDF
-        const addSectionToPDF = async (selector, isFirstPage = false) => {
-            const element = document.querySelector(selector);
+        const addSectionToPDF = async (element, isFirstPage = false, label = '') => {
             if (!element) {
-                console.warn(`⚠️ Section not found: ${selector}`);
+                console.warn(`⚠️ Section not found: ${label}`);
                 return false;
             }
 
-            if (btnText) btnText.textContent = `Capturing ${selector}...`;
+            if (btnText) btnText.textContent = `Capturing ${label}...`;
             
             const canvas = await html2canvas(element, { 
                 scale: 2, 
@@ -229,57 +228,70 @@ export async function handleDownloadPDF() {
             return true;
         };
 
+        // Crear un wrapper temporal para agrupar elementos visualmente
+        const createTempWrapper = (elements) => {
+            const wrapper = document.createElement('div');
+            wrapper.id = 'pdf-temp-wrapper';
+            wrapper.style.cssText = 'background: white; padding: 20px;';
+            
+            // Guardar padres originales y mover elementos al wrapper
+            const originalParents = [];
+            elements.forEach(el => {
+                if (el) {
+                    originalParents.push({ element: el, parent: el.parentNode, nextSibling: el.nextSibling });
+                    wrapper.appendChild(el);
+                }
+            });
+            
+            chartsContainer.insertBefore(wrapper, chartsContainer.firstChild);
+            return { wrapper, originalParents };
+        };
+
+        const restoreElements = (originalParents, wrapper) => {
+            originalParents.forEach(({ element, parent, nextSibling }) => {
+                if (nextSibling) {
+                    parent.insertBefore(element, nextSibling);
+                } else {
+                    parent.appendChild(element);
+                }
+            });
+            if (wrapper && wrapper.parentNode) {
+                wrapper.parentNode.removeChild(wrapper);
+            }
+        };
+
         // PÁGINA 1: Overview + Position Distribution
         if (btnText) btnText.textContent = 'Page 1/4: Overview...';
-        const page1Container = document.createElement('div');
-        page1Container.style.cssText = 'background: white; padding: 20px;';
-        
         const overviewSection = document.querySelector('.overview-section');
         const summaryCards = document.querySelector('.summary-cards');
         const chartsGrid = document.querySelector('.charts-grid');
         
-        if (overviewSection) page1Container.appendChild(overviewSection.cloneNode(true));
-        if (summaryCards) page1Container.appendChild(summaryCards.cloneNode(true));
-        if (chartsGrid) page1Container.appendChild(chartsGrid.cloneNode(true));
-        
-        document.body.appendChild(page1Container);
-        await addSectionToPDF('body > div:last-child', true);
-        document.body.removeChild(page1Container);
+        const page1Elements = [overviewSection, summaryCards, chartsGrid].filter(el => el);
+        if (page1Elements.length > 0) {
+            const { wrapper: page1Wrapper, originalParents: page1Parents } = createTempWrapper(page1Elements);
+            await addSectionToPDF(page1Wrapper, true, 'Overview & Charts');
+            restoreElements(page1Parents, page1Wrapper);
+        }
 
         // PÁGINA 2: Media Source Analysis vs Selected Sources
         if (btnText) btnText.textContent = 'Page 2/4: Media Sources...';
         const competitorsSection = document.querySelector('.competitors-charts-section');
         if (competitorsSection) {
-            const page2Container = document.createElement('div');
-            page2Container.style.cssText = 'background: white; padding: 20px;';
-            page2Container.appendChild(competitorsSection.cloneNode(true));
-            document.body.appendChild(page2Container);
-            await addSectionToPDF('body > div:last-child', false);
-            document.body.removeChild(page2Container);
+            await addSectionToPDF(competitorsSection, false, 'Media Sources');
         }
 
         // PÁGINA 3: Top Mentioned URLs in AI Mode
         if (btnText) btnText.textContent = 'Page 3/4: Top URLs...';
         const topUrlsSection = document.querySelector('.top-urls-section');
         if (topUrlsSection) {
-            const page3Container = document.createElement('div');
-            page3Container.style.cssText = 'background: white; padding: 20px;';
-            page3Container.appendChild(topUrlsSection.cloneNode(true));
-            document.body.appendChild(page3Container);
-            await addSectionToPDF('body > div:last-child', false);
-            document.body.removeChild(page3Container);
+            await addSectionToPDF(topUrlsSection, false, 'Top URLs');
         }
 
         // PÁGINA 4: Global Media Sources Ranking
         if (btnText) btnText.textContent = 'Page 4/4: Global Ranking...';
         const globalDomainsSection = document.querySelector('.top-domains-section');
         if (globalDomainsSection) {
-            const page4Container = document.createElement('div');
-            page4Container.style.cssText = 'background: white; padding: 20px;';
-            page4Container.appendChild(globalDomainsSection.cloneNode(true));
-            document.body.appendChild(page4Container);
-            await addSectionToPDF('body > div:last-child', false);
-            document.body.removeChild(page4Container);
+            await addSectionToPDF(globalDomainsSection, false, 'Global Ranking');
         }
 
         const fileName = `ai_mode_monitoring_${Date.now()}.pdf`;
