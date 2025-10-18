@@ -232,7 +232,7 @@ export async function handleDownloadPDF() {
         const createTempWrapper = (elements) => {
             const wrapper = document.createElement('div');
             wrapper.id = 'pdf-temp-wrapper';
-            wrapper.style.cssText = 'background: white; padding: 20px;';
+            wrapper.style.cssText = 'background: white; padding: 20px; width: 1200px; max-width: 1200px;';
             
             // Guardar padres originales y mover elementos al wrapper
             const originalParents = [];
@@ -266,11 +266,24 @@ export async function handleDownloadPDF() {
         const summaryCards = document.querySelector('.summary-cards');
         const chartsGrid = document.querySelector('.charts-grid');
         
+        // Guardar estilos originales de summary-cards
+        const summaryCardsOriginalStyle = summaryCards ? summaryCards.style.cssText : '';
+        
         const page1Elements = [overviewSection, summaryCards, chartsGrid].filter(el => el);
         if (page1Elements.length > 0) {
+            // Forzar grid de 5 columnas para mantener todas las cards en una fila
+            if (summaryCards) {
+                summaryCards.style.cssText = summaryCardsOriginalStyle + '; display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 16px !important;';
+            }
+            
             const { wrapper: page1Wrapper, originalParents: page1Parents } = createTempWrapper(page1Elements);
             await addSectionToPDF(page1Wrapper, true, 'Overview & Charts');
             restoreElements(page1Parents, page1Wrapper);
+            
+            // Restaurar estilos originales
+            if (summaryCards) {
+                summaryCards.style.cssText = summaryCardsOriginalStyle;
+            }
         }
 
         // PÁGINA 2: Thematic Clusters Analysis + Competitive Analysis
