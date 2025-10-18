@@ -251,11 +251,11 @@ class ExportService:
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
         
-        # Primero obtener keywords con AIO por día (dato base)
+        # Primero obtener total de keywords analizadas por día (en AI Mode todos los resultados son de AI Mode)
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords
+                COUNT(DISTINCT r.keyword_id) as aio_keywords
             FROM ai_mode_results r
             JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
@@ -302,7 +302,6 @@ class ExportService:
                 AND gd.analysis_date >= %s 
                 AND gd.analysis_date <= %s
                 AND k.is_active = true
-                AND r.has_ai_overview = true
                 GROUP BY gd.analysis_date
                 ORDER BY gd.analysis_date
             """, (project_id, competitor, start_date, end_date))
