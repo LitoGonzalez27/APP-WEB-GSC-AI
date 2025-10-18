@@ -433,52 +433,7 @@ class AnalysisService:
         
         logger.debug(f"🔍 Brand variations for '{brand_name}': {variations}")
         
-        # 1. Buscar en los text_blocks (respuesta generada por IA)
-        for block_idx, block in enumerate(text_blocks):
-            if not isinstance(block, dict):
-                continue
-            
-            # FIX CRÍTICO: SerpAPI solo usa 'snippet' en text_blocks (no 'text' ni 'content')
-            # Estructura real: {"type": "paragraph", "snippet": "...", "reference_indexes": [0, 1]}
-            raw_text = block.get('snippet', '')
-            text = str(raw_text).lower()
-            reference_indexes = block.get('reference_indexes', [])
-            
-            # Buscar marca en snippet
-            matched_variation = None
-            for v in variations:
-                if v and v in text:
-                    matched_variation = v
-                    break
-            
-            if matched_variation:
-                result['brand_mentioned'] = True
-                result['mention_context'] = str(raw_text)[:500]
-                result['mention_position'] = 0  # Posición 0 para menciones en texto de IA
-                
-                # Analizar sentimiento mejorado (con más palabras)
-                positive_words = ['best', 'excellent', 'great', 'top', 'leading', 'recommended', 
-                                  'outstanding', 'superior', 'perfect', 'amazing', 'fantastic']
-                negative_words = ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue', 
-                                  'terrible', 'horrible', 'disappointing', 'unreliable']
-                
-                if any(word in text for word in positive_words):
-                    result['sentiment'] = 'positive'
-                elif any(word in text for word in negative_words):
-                    result['sentiment'] = 'negative'
-                
-                # MEJORA: Logging detallado
-                logger.info(f"✨ Brand '{brand_name}' found in AI text_blocks at position 0")
-                logger.info(f"   → Matched variation: '{matched_variation}'")
-                logger.info(f"   → Block index: {block_idx}")
-                logger.info(f"   → Referenced sources: {reference_indexes}")
-                logger.info(f"   → Sentiment: {result['sentiment']}")
-                
-                return result
-
-        # No buscar summaries de AI Overview: fuera de alcance AI Mode
-        
-        # 2. Si no está en text_blocks, buscar en references (fuentes citadas)
+        # PRIORIDAD: Buscar primero en references (fuentes citadas) - tienen posiciones específicas
         # Usar el mismo criterio de orden que para global domains: index asc (0-based), luego orden natural
         enriched_refs = []
         for i, ref in enumerate(references):
@@ -568,6 +523,49 @@ class AnalysisService:
                 logger.info(f"   → Sentiment: {result['sentiment']}")
                 
                 break
+        
+        # 2. Si NO se encontró en references, buscar en text_blocks (texto generado por IA)
+        if not result['brand_mentioned']:
+            text_blocks = text_blocks if isinstance(text_blocks, list) else []
+            for block_idx, block in enumerate(text_blocks):
+                if not isinstance(block, dict):
+                    continue
+                
+                raw_text = block.get('text', '')
+                text = str(raw_text).lower()
+                reference_indexes = block.get('reference_indexes', [])
+                
+                # Buscar marca en snippet
+                matched_variation = None
+                for v in variations:
+                    if v and v in text:
+                        matched_variation = v
+                        break
+                
+                if matched_variation:
+                    result['brand_mentioned'] = True
+                    result['mention_context'] = str(raw_text)[:500]
+                    result['mention_position'] = 0  # Posición 0 para menciones en texto de IA
+                    
+                    # Analizar sentimiento mejorado (con más palabras)
+                    positive_words = ['best', 'excellent', 'great', 'top', 'leading', 'recommended', 
+                                      'outstanding', 'superior', 'perfect', 'amazing', 'fantastic']
+                    negative_words = ['worst', 'bad', 'poor', 'avoid', 'problem', 'issue', 
+                                      'terrible', 'horrible', 'disappointing', 'unreliable']
+                    
+                    if any(word in text for word in positive_words):
+                        result['sentiment'] = 'positive'
+                    elif any(word in text for word in negative_words):
+                        result['sentiment'] = 'negative'
+                    
+                    # MEJORA: Logging detallado
+                    logger.info(f"✨ Brand '{brand_name}' found in AI text_blocks at position 0")
+                    logger.info(f"   → Matched variation: '{matched_variation}'")
+                    logger.info(f"   → Block index: {block_idx}")
+                    logger.info(f"   → Referenced sources: {reference_indexes}")
+                    logger.info(f"   → Sentiment: {result['sentiment']}")
+                    
+                    break
         
         if not result['brand_mentioned']:
             logger.info(f"❌ Brand '{brand_name}' not found in AI Mode results")

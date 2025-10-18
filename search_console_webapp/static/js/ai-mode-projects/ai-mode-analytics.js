@@ -1380,7 +1380,7 @@ export function processAIOverviewDataForGrid(keywordResults, competitorDomains) 
         const row = [
             kw.keyword,
             kw.user_domain_in_aio ? 'Yes' : 'No',
-            kw.user_domain_position || 'N/A'
+            (kw.user_domain_position !== null && kw.user_domain_position !== undefined) ? kw.user_domain_position : 'N/A'
         ];
 
         competitorDomains.forEach(comp => {
