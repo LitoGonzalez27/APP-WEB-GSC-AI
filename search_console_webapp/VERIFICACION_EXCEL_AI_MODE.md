@@ -74,6 +74,31 @@ AND r.has_ai_overview = true
 # (Línea eliminada completamente)
 ```
 
+### 5. ❌ Tabla inexistente: ai_mode_global_domains
+**Ubicación:** `ai_mode_projects/services/export_service.py` función `_create_competitive_analysis_sheet`
+
+**Problema:**
+Se intentaba consultar la tabla `ai_mode_global_domains` que no existe en la base de datos. Los dominios detectados se almacenan en el campo JSONB `raw_ai_mode_data` de la tabla `ai_mode_results`, no en una tabla separada.
+
+**Solución Aplicada:**
+```python
+# ANTES
+FROM ai_mode_global_domains gd
+WHERE gd.detected_domain = %s
+
+# DESPUÉS - Extraer desde raw_ai_mode_data
+SELECT raw_ai_mode_data, analysis_date, keyword_id
+FROM ai_mode_results
+WHERE raw_ai_mode_data IS NOT NULL
+
+# Procesar JSONB para extraer dominios:
+references = serp_data.get('references', [])
+for ref in references:
+    parsed = urlparse(ref.get('link', ''))
+    domain = parsed.netloc.lower()
+    # Comparar con competidores...
+```
+
 ---
 
 ## Verificación de Componentes UI vs Excel
