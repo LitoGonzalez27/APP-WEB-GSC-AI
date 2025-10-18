@@ -53,6 +53,27 @@ COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)
 COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)
 ```
 
+### 4. ❌ Campo inexistente: has_ai_overview
+**Ubicación:** `ai_mode_projects/services/export_service.py` líneas 258 y 305
+
+**Problema:**
+Se intentaba usar el campo `has_ai_overview` que no existe en la tabla `ai_mode_results`. En AI Mode, **todos** los resultados son de AI Mode por definición, no hay necesidad de un flag separado.
+
+**Solución Aplicada:**
+```python
+# ANTES (línea 258)
+COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords
+
+# DESPUÉS
+COUNT(DISTINCT r.keyword_id) as aio_keywords
+
+# ANTES (línea 305)
+AND r.has_ai_overview = true
+
+# DESPUÉS
+# (Línea eliminada completamente)
+```
+
 ---
 
 ## Verificación de Componentes UI vs Excel
