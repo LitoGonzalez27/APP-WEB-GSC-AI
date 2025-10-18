@@ -244,14 +244,17 @@ class ExportService:
 
     @staticmethod
     def _create_competitive_analysis_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
-        """Crear Hoja 3: Competitive Analysis - lógica corregida según especificaciones"""
+        """Crear Hoja 3: Competitive Analysis - extraer datos desde raw_ai_mode_data"""
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
         
-        # Primero obtener total de keywords analizadas por día (en AI Mode todos los resultados son de AI Mode)
+        # Obtener total de keywords analizadas por día
         cur.execute("""
             SELECT 
                 r.analysis_date,
@@ -268,7 +271,7 @@ class ExportService:
         
         aio_keywords_by_date = {str(row['analysis_date']): row['aio_keywords'] for row in cur.fetchall()}
         
-        # Obtener menciones del dominio del proyecto
+        # Obtener menciones del brand del proyecto
         cur.execute("""
             SELECT 
                 r.analysis_date,
@@ -285,28 +288,62 @@ class ExportService:
         
         project_mentions_by_date = {str(row['analysis_date']): row['project_mentions'] for row in cur.fetchall()}
         
-        # Obtener menciones de competidores
-        competitors_mentions = {}
+        # Obtener datos de competidores desde raw_ai_mode_data
         selected_competitors = project_info.get('selected_competitors', [])
+        competitors_mentions = {comp: {} for comp in selected_competitors}
         
-        for competitor in selected_competitors:
+        if selected_competitors:
+            # Obtener todos los resultados con raw_ai_mode_data
             cur.execute("""
                 SELECT 
-                    gd.analysis_date,
-                    COUNT(DISTINCT gd.keyword_id) as competitor_mentions
-                FROM ai_mode_global_domains gd
-                JOIN ai_mode_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
-                JOIN ai_mode_keywords k ON r.keyword_id = k.id
-                WHERE gd.project_id = %s 
-                AND gd.detected_domain = %s
-                AND gd.analysis_date >= %s 
-                AND gd.analysis_date <= %s
-                AND k.is_active = true
-                GROUP BY gd.analysis_date
-                ORDER BY gd.analysis_date
-            """, (project_id, competitor, start_date, end_date))
+                    raw_ai_mode_data,
+                    analysis_date,
+                    keyword_id
+                FROM ai_mode_results
+                WHERE project_id = %s 
+                    AND analysis_date >= %s 
+                    AND analysis_date <= %s
+                    AND raw_ai_mode_data IS NOT NULL
+            """, (project_id, start_date, end_date))
             
-            competitors_mentions[competitor] = {str(row['analysis_date']): row['competitor_mentions'] for row in cur.fetchall()}
+            results = cur.fetchall()
+            
+            # Procesar cada resultado para extraer competidores por día
+            # {competitor: {date: set(keyword_ids)}}
+            competitor_by_date = {comp: defaultdict(set) for comp in selected_competitors}
+            
+            for row in results:
+                try:
+                    serp_data = row['raw_ai_mode_data']
+                    keyword_id = row['keyword_id']
+                    analysis_date = str(row['analysis_date'])
+                    
+                    references = serp_data.get('references', [])
+                    
+                    for ref in references:
+                        link = ref.get('link', '')
+                        if link:
+                            try:
+                                parsed = urlparse(link)
+                                domain = parsed.netloc.lower()
+                                if domain.startswith('www.'):
+                                    domain = domain[4:]
+                                
+                                # Verificar si este dominio coincide con algún competidor
+                                for competitor in selected_competitors:
+                                    comp_lower = competitor.lower()
+                                    if comp_lower in domain or domain in comp_lower:
+                                        competitor_by_date[competitor][analysis_date].add(keyword_id)
+                                        break
+                            except:
+                                continue
+                except Exception as e:
+                    logger.warning(f"Error parsing raw_ai_mode_data: {e}")
+            
+            # Convertir sets a counts por fecha
+            for competitor in selected_competitors:
+                for date_str, keyword_set in competitor_by_date[competitor].items():
+                    competitors_mentions[competitor][date_str] = len(keyword_set)
         
         cur.close()
         conn.close()
