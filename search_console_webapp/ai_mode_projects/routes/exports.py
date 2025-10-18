@@ -59,7 +59,7 @@ def download_manual_ai_excel(project_id):
             logger.error(f"Project {project_id} not found for user {user['id']}")
             return jsonify({'success': False, 'error': 'Project not found'}), 404
         
-        logger.info(f"Project info retrieved: {project_info['name']} ({project_info['domain']})")
+        logger.info(f"Project info retrieved: {project_info['name']} ({project_info.get('brand_name', 'N/A')})")
         
         # Verificar que hay datos para exportar
         result_repo = ResultRepository()

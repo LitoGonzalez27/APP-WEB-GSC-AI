@@ -214,7 +214,7 @@ class ProjectRepository:
         
         try:
             cur.execute("""
-                SELECT id, name, description, brand_name, country_code, created_at, updated_at
+                SELECT id, name, description, brand_name, country_code, selected_competitors, created_at, updated_at
                 FROM ai_mode_projects
                 WHERE id = %s AND is_active = true
             """, (project_id,))

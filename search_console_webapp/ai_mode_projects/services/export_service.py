@@ -161,7 +161,7 @@ class ExportService:
             ['', ''],
             ['NOTAS', ''],
             [f'Proyecto: {project_info["name"]}', ''],
-            [f'Brand: {project_info.get("brand_name", project_info.get("domain", "N/A"))}', ''],
+            [f'Brand: {project_info.get("brand_name", "N/A")}', ''],
             [f'Rango de fechas: Últimos {days} días', ''],
             [f'Competidores: {len(project_info.get("selected_competitors", []))}', ''],
             [f'Thematic Clusters: {"Enabled" if clusters_enabled else "Disabled"}', ''],
@@ -272,7 +272,7 @@ class ExportService:
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as project_mentions
+                COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END) as project_mentions
             FROM ai_mode_results r
             JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
@@ -325,7 +325,7 @@ class ExportService:
             
             rows.append({
                 'date': date_str,
-                'domain': project_info['domain'],
+                'domain': project_info.get('brand_name', 'N/A'),
                 'aio_keywords': aio_keywords,
                 'domain_mentions': project_mentions,
                 'visibility_pct': visibility_pct
