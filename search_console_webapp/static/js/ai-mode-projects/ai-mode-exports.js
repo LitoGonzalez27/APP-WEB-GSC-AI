@@ -273,22 +273,50 @@ export async function handleDownloadPDF() {
             restoreElements(page1Parents, page1Wrapper);
         }
 
-        // PÁGINA 2: Media Source Analysis vs Selected Sources
-        if (btnText) btnText.textContent = 'Page 2/4: Media Sources...';
+        // PÁGINA 2: Media Source Analysis + Clusters
+        if (btnText) btnText.textContent = 'Page 2/5: Media Sources & Clusters...';
         const competitorsSection = document.querySelector('.competitors-charts-section');
-        if (competitorsSection) {
-            await addSectionToPDF(competitorsSection, false, 'Media Sources');
+        const clustersSection = document.querySelector('.clusters-visualization');
+        
+        // Verificar si clusters tiene datos (no está display: none por falta de datos)
+        const clustersHasData = clustersSection && 
+                                clustersSection.style.display !== 'none' && 
+                                !clustersSection.querySelector('.no-clusters-message[style*="display: block"]');
+        
+        const page2Elements = [competitorsSection];
+        if (clustersHasData) {
+            page2Elements.push(clustersSection);
+        }
+        
+        if (page2Elements.some(el => el)) {
+            const filteredElements = page2Elements.filter(el => el);
+            if (filteredElements.length === 1) {
+                // Solo una sección, capturar directamente
+                await addSectionToPDF(filteredElements[0], false, 'Media Sources');
+            } else {
+                // Múltiples secciones, usar wrapper
+                const { wrapper: page2Wrapper, originalParents: page2Parents } = createTempWrapper(filteredElements);
+                await addSectionToPDF(page2Wrapper, false, 'Media Sources & Clusters');
+                restoreElements(page2Parents, page2Wrapper);
+            }
         }
 
-        // PÁGINA 3: Top Mentioned URLs in AI Mode
-        if (btnText) btnText.textContent = 'Page 3/4: Top URLs...';
+        // PÁGINA 3: AI Mode Keywords Details
+        if (btnText) btnText.textContent = 'Page 3/5: Keywords Details...';
+        const keywordsSection = document.querySelector('.ai-overview-keywords-section');
+        if (keywordsSection) {
+            await addSectionToPDF(keywordsSection, false, 'Keywords Details');
+        }
+
+        // PÁGINA 4: Top Mentioned URLs in AI Mode
+        if (btnText) btnText.textContent = 'Page 4/5: Top URLs...';
         const topUrlsSection = document.querySelector('.top-urls-section');
         if (topUrlsSection) {
             await addSectionToPDF(topUrlsSection, false, 'Top URLs');
         }
 
-        // PÁGINA 4: Global Media Sources Ranking
-        if (btnText) btnText.textContent = 'Page 4/4: Global Ranking...';
+        // PÁGINA 5: Global Media Sources Ranking
+        if (btnText) btnText.textContent = 'Page 5/5: Global Ranking...';
         const globalDomainsSection = document.querySelector('.top-domains-section');
         if (globalDomainsSection) {
             await addSectionToPDF(globalDomainsSection, false, 'Global Ranking');
