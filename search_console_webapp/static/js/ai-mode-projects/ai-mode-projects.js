@@ -244,6 +244,43 @@ export function renderProjectCompetitorsHorizontal(project) {
     `;
 }
 
+export function renderProjectClustersHorizontal(project) {
+    const clustersConfig = project.topic_clusters_config || {};
+    const clustersEnabled = clustersConfig.enabled || false;
+    const clustersList = clustersConfig.clusters || [];
+    const clustersCount = clustersList.length;
+    
+    if (!clustersEnabled || clustersCount === 0) {
+        return ''; // No mostrar nada si no hay clusters
+    }
+    
+    // Mostrar hasta 3 clusters
+    const displayClusters = clustersList.slice(0, 3);
+    const moreCount = clustersCount > 3 ? clustersCount - 3 : 0;
+    
+    const clustersBadges = displayClusters.map(cluster => {
+        const escapedName = cluster.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `
+            <span class="cluster-badge" title="${escapedName}">
+                <i class="fas fa-layer-group"></i>
+                ${escapedName}
+            </span>
+        `;
+    }).join('');
+    
+    const moreText = moreCount > 0 ? `<span class="clusters-more">+${moreCount} more</span>` : '';
+    
+    return `
+        <div class="project-clusters-horizontal">
+            <h5 class="clusters-section-title">Thematic Clusters</h5>
+            <div class="clusters-horizontal-list">
+                ${clustersBadges}
+                ${moreText}
+            </div>
+        </div>
+    `;
+}
+
 export function goToProjectAnalytics(projectId) {
     // Switch to Analytics tab
     this.switchTab('analytics');
