@@ -45,7 +45,7 @@ class ProjectRepository:
                     p.created_at,
                     p.updated_at,
                     p.selected_competitors,
-                    p.topic_clusters_config,
+                    p.topic_clusters,
                     COALESCE(project_stats.total_keywords, 0) as total_keywords,
                     COALESCE(project_stats.total_mentions, 0) as total_mentions,
                     COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,

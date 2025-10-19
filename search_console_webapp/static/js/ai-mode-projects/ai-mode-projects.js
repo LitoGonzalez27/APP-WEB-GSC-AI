@@ -245,7 +245,7 @@ export function renderProjectCompetitorsHorizontal(project) {
 }
 
 export function renderProjectClustersHorizontal(project) {
-    const clustersConfig = project.topic_clusters_config || {};
+    const clustersConfig = project.topic_clusters || {};
     const clustersEnabled = clustersConfig.enabled || false;
     const clustersList = clustersConfig.clusters || [];
     const clustersCount = clustersList.length;
