@@ -469,3 +469,70 @@
         padding: 8px 10px;
     }
 }
+
+/* ========================================
+   Data Stale Warning
+   ======================================== */
+
+.clusters-stale-warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.1);
+}
+
+.stale-warning-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stale-warning-content i {
+    color: #856404;
+    font-size: 20px;
+}
+
+.stale-warning-content span {
+    font-size: 14px;
+    color: #856404;
+    line-height: 1.5;
+}
+
+.stale-warning-content strong {
+    font-weight: 600;
+    color: #664d03;
+}
+
+/* ========================================
+   Badge Styles for Table
+   ======================================== */
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.badge-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.cluster-name-cell {
+    font-weight: 600 !important;
+    color: #2c3e50;
+}
+
+.unclassified-row {
+    background-color: #f8f9fa !important;
+}
+
+.unclassified-row:hover {
+    background-color: #e9ecef !important;
+}

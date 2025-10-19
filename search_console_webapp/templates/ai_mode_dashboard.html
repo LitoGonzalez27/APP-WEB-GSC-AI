@@ -240,7 +240,7 @@
                         <div class="nav-icon">
                             <i class="fas fa-robot"></i>
                         </div>
-                        <div class="nav-text">AI Overview</div>
+                        <div class="nav-text">AI Mode</div>
                         <div class="section-status">
                             <div class="status-dot status-disabled" id="statusAI"></div>
                         </div>
@@ -294,9 +294,9 @@
             <div class="header-content">
                 <div class="header-left">
                     <h1>
-                        Manual AI Overview Analysis
+                        AI Mode Monitoring
                     </h1>
-                    <p class="header-subtitle">Create custom keyword projects and track AI Overview visibility</p>
+                    <p class="header-subtitle">Create custom keyword projects and track AI Mode visibility</p>
                 </div>
                 <div class="header-right">
                     <!-- Go Back button removed as requested -->
@@ -405,7 +405,7 @@
                                 <div class="tooltip-container tooltip-right">
                                     <i class="fas fa-info-circle tooltip-trigger"></i>
                                     <div class="tooltip-content tooltip-content-right">
-                                        Key metrics and performance indicators for your project's AI Overview visibility
+                                        Key metrics and performance indicators for your project's AI Mode visibility
                                     </div>
                                 </div>
                             </h3>
@@ -485,7 +485,7 @@
                         <div class="clusters-content">
                             <!-- Combined Chart (bars + line) -->
                             <div class="clusters-chart-section">
-                                <h4 class="chart-title">AI Overview & Brand Mentions by Cluster</h4>
+                                <h4 class="chart-title">Keywords & Brand Mentions by Cluster</h4>
                                 <canvas id="clustersChart"></canvas>
                             </div>
                             
@@ -494,7 +494,7 @@
                                 <h4 class="table-title">Cluster Performance Details</h4>
                                 <div id="clustersTableContainer">
                                     <table class="clusters-table" id="clustersTable">
-                                        <!-- Dynamic content will be loaded here (transposed table) -->
+                                        <!-- Dynamic content: Cluster | Total Keywords | Brand Mentions | % Mentions -->
                                     </table>
                                 </div>
                             </div>
@@ -565,6 +565,60 @@
                                     <i class="fas fa-robot"></i>
                                     <p>No AI Mode keywords found</p>
                                     <small>Run analysis to see keywords with AI Mode results</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Mentioned URLs Section -->
+                    <div class="top-urls-section">
+                        <div class="section-header">
+                            <h3>
+                                <i class="fas fa-link"></i>
+                                Top Mentioned URLs in AI Mode
+                                <div class="tooltip-container tooltip-right">
+                                    <i class="fas fa-info-circle tooltip-trigger"></i>
+                                    <div class="tooltip-content tooltip-content-right">
+                                        Ranking of the most frequently mentioned URLs in AI Mode across all analyzed keywords
+                                    </div>
+                                </div>
+                            </h3>
+                            <p class="section-description">
+                                URLs with the highest number of mentions in AI Mode results during the selected period
+                            </p>
+                        </div>
+                        
+                        <!-- URL Filters -->
+                        <div class="urls-filters">
+                            <button class="url-filter-chip" id="filterMyBrandUrls" data-active="false">
+                                <i class="fas fa-filter"></i>
+                                <span>My Brand URLs Only</span>
+                            </button>
+                        </div>
+                        
+                        <div class="urls-container">
+                            <div class="urls-table-wrapper">
+                                <table class="urls-table" id="topUrlsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>URL</th>
+                                            <th>Mentions</th>
+                                            <th>Avg Position</th>
+                                            <th>% of Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topUrlsBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="no-urls-message" id="noAiModeUrlsMessage" style="display: none;">
+                                <div class="empty-state">
+                                    <i class="fas fa-link"></i>
+                                    <p>No URL data available yet</p>
+                                    <small>Run analysis to see which URLs are most mentioned in AI Mode</small>
                                 </div>
                             </div>
                         </div>
@@ -688,7 +742,7 @@
             <div class="modal-header create-header">
                 <div class="header-text">
                     <h3 id="createProjectTitle">Create New AI Analysis Project</h3>
-                    <p id="createProjectDesc">Set up a new project to track AI Overview visibility</p>
+                    <p id="createProjectDesc">Set up a new project to track AI Mode visibility</p>
                 </div>
                 <button type="button" class="modal-close" onclick="aiModeSystem.hideCreateProject()">
                     <i class="fas fa-times"></i>
@@ -941,7 +995,7 @@
                                     <option value="ZW">🇿🇼 Zimbabwe</option>
                                 </select>
                             </div>
-                            <small class="form-help">Choose where you want the AI Overview visibility measured.</small>
+                            <small class="form-help">Choose where you want the AI Mode visibility measured.</small>
                         </div>
                     </div>
 
@@ -981,7 +1035,7 @@
                                 </label>
                                 <span class="label-optional" aria-hidden="true">Optional</span>
                             </div>
-                            <p class="field-caption">Group your keywords by topics to analyze AI Overview visibility per theme.</p>
+                            <p class="field-caption">Group your keywords by topics to analyze AI Mode visibility per theme.</p>
                             <div class="toggle-row">
                                 <input type="checkbox" id="enableClustersCreate" aria-controls="clustersConfigArea">
                                 <label for="enableClustersCreate">Enable thematic clusters for this project</label>
@@ -1243,7 +1297,7 @@ keyword 3"></textarea>
                     <!-- ✨ NUEVO: Thematic Clusters Configuration -->
                     <div class="tab-section">
                         <h4>Thematic Clusters</h4>
-                        <p class="section-description">Group keywords by topics to analyze AI Overview visibility per theme</p>
+                        <p class="section-description">Group keywords by topics to analyze AI Mode visibility per theme</p>
                         <div class="toggle-row" style="margin-bottom: 15px;">
                             <input type="checkbox" id="projectClustersEnabled">
                             <label for="projectClustersEnabled">Enable thematic clusters for this project</label>

@@ -16,7 +16,7 @@ export async function analyzeProject(projectId) {
     }
 
     this.showProgress('Running analysis...', 
-        `Analyzing ${project.keyword_count} keywords for AI Overview visibility. This may take several minutes.`);
+        `Analyzing ${project.keyword_count} keywords for AI Mode visibility. This may take several minutes.`);
 
     // Start a backup polling system in case main request fails
     const startTime = Date.now();

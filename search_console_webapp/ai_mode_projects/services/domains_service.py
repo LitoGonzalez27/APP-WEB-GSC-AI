@@ -43,7 +43,7 @@ class DomainsService:
             
             # Limpiar datos existentes del día para evitar duplicados
             cur.execute("""
-                DELETE FROM manual_ai_global_domains 
+                DELETE FROM ai_mode_global_domains 
                 WHERE project_id = %s AND keyword_id = %s AND analysis_date = %s
             """, (project_id, keyword_id, analysis_date))
             
@@ -88,7 +88,7 @@ class DomainsService:
                 try:
                     # Insertar dominio detectado
                     cur.execute("""
-                        INSERT INTO manual_ai_global_domains (
+                        INSERT INTO ai_mode_global_domains (
                             project_id, keyword_id, analysis_date, keyword, project_domain,
                             detected_domain, domain_position, domain_title, domain_source_url,
                             country_code, is_project_domain, is_selected_competitor

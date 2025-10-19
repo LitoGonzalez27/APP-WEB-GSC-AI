@@ -8,7 +8,15 @@
 const htmlLegendPlugin = {
     id: 'htmlLegend',
     afterUpdate(chart, args, options) {
+        // Guardas de seguridad para evitar errores cuando falta el contenedor o las opciones
+        if (!options || !options.containerID) {
+            return;
+        }
+
         const ul = this.getOrCreateLegendList(chart, options.containerID);
+        if (!ul) {
+            return;
+        }
         
         // Remove old legend items
         while (ul.firstChild) {
@@ -4887,8 +4895,8 @@ class ManualAISystem {
                 datasets: [
                     {
                         type: 'bar',
-                        label: 'AI Overview',
-                        data: chartData.ai_overview,
+                        label: 'Total Keywords',
+                        data: chartData.total_keywords || [],
                         backgroundColor: 'rgba(99, 102, 241, 0.7)',
                         borderColor: 'rgb(99, 102, 241)',
                         borderWidth: 1,
@@ -4897,8 +4905,8 @@ class ManualAISystem {
                     },
                     {
                         type: 'line',
-                        label: 'Menciones de Marca',
-                        data: chartData.mentions,
+                        label: 'Brand Mentions',
+                        data: chartData.mentions || [],
                         borderColor: 'rgb(34, 197, 94)',
                         backgroundColor: 'rgba(34, 197, 94, 0.1)',
                         borderWidth: 2,
@@ -4923,7 +4931,7 @@ class ManualAISystem {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Clusters Temáticos: AI Overview y Menciones',
+                        text: 'Thematic Clusters: Total Keywords & Brand Mentions',
                         font: {
                             size: 16,
                             weight: '600'
@@ -5044,11 +5052,7 @@ class ManualAISystem {
                     <strong>${this.escapeHtml(cluster.cluster_name)}</strong>
                 </td>
                 <td class="text-center">${cluster.total_keywords}</td>
-                <td class="text-center">${cluster.ai_overview_count}</td>
                 <td class="text-center">${cluster.mentions_count}</td>
-                <td class="text-center">
-                    <span class="badge badge-info">${cluster.ai_overview_percentage}%</span>
-                </td>
                 <td class="text-center">
                     <span class="badge badge-success">${cluster.mentions_percentage}%</span>
                 </td>

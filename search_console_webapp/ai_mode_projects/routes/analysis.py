@@ -176,11 +176,10 @@ def _calculate_snapshot_metrics(project_id: int) -> dict:
             SELECT 
                 COUNT(DISTINCT k.id) as total_keywords,
                 COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keywords,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as keywords_with_ai,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as domain_mentions,
-                AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END) as avg_position,
-                (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float /
-                 NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END), 0)::float * 100) as visibility_percentage
+                COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN k.id END) as total_mentions,
+                AVG(CASE WHEN r.brand_mentioned = true THEN r.mention_position END) as avg_position,
+                (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN k.id END)::float /
+                 NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) as visibility_percentage
             FROM ai_mode_keywords k
             LEFT JOIN ai_mode_results r ON k.id = r.keyword_id AND r.analysis_date = %s
             WHERE k.project_id = %s

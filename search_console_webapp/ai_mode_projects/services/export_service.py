@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExportService:
-    """Servicio para generar exportaciones de Manual AI"""
+    """Servicio para generar exportaciones de AI Mode"""
     
     def __init__(self):
         pass
@@ -22,14 +22,15 @@ class ExportService:
     @staticmethod
     def generate_manual_ai_excel(project_id: int, project_info: Dict, days: int, user_id: int) -> BytesIO:
         """
-        Generar Excel con todas las hojas para Manual AI:
+        Generar Excel con todas las hojas para AI Mode:
         1. Resumen
         2. Domain Visibility Over Time  
         3. Competitive Analysis
-        4. AI Overview Keywords Details
-        5. Global AI Overview Domains
-        6. Thematic Clusters Summary
-        7. Clusters Keywords Detail
+        4. AI Mode Keywords Details
+        5. Top Mentioned URLs
+        6. Global AI Mode Domains
+        7. Thematic Clusters Summary
+        8. Clusters Keywords Detail
         """
         from ai_mode_projects.services.statistics_service import StatisticsService
         from ai_mode_projects.services.cluster_service import ClusterService
@@ -50,13 +51,17 @@ class ExportService:
             global_domains = stats_service.get_project_global_domains_ranking(project_id, days)
             logger.info(f"Found {len(global_domains) if global_domains else 0} global domains")
             
-            # 3. Obtener datos de AI Overview Keywords (igual que la UI)
+            # 3. Obtener datos de AI Mode Keywords (igual que la UI)
             ai_overview_data = stats_service.get_project_ai_overview_keywords_latest(project_id)
             logger.info(f"AI Overview keywords data fetched successfully: {len(ai_overview_data.get('keywordResults', []))} keywords")
             
             # 4. Obtener datos de Clusters Temáticos (igual que la UI)
             clusters_data = cluster_service.get_cluster_statistics(project_id, days)
             logger.info(f"Clusters data fetched successfully: enabled={clusters_data.get('enabled', False)}, clusters={len(clusters_data.get('table_data', []))}")
+            
+            # 5. Obtener datos de URLs más mencionadas (igual que la UI)
+            urls_ranking = stats_service.get_project_urls_ranking(project_id, days, limit=50)
+            logger.info(f"URLs ranking data fetched successfully: {len(urls_ranking)} URLs")
             
             # Configuración de zona horaria
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -95,25 +100,31 @@ class ExportService:
                                                 percent_format, project_id, project_info, days)
                 logger.info("Competitive analysis sheet created successfully")
                 
-                # HOJA 4: AI Overview Keywords Details
+                # HOJA 4: AI Mode Keywords Details
                 logger.info("Creating keywords details sheet")
                 ExportService._create_keywords_details_sheet(writer, workbook, header_format, date_format,
                                             ai_overview_data, project_id, days)
                 logger.info("Keywords details sheet created successfully")
                 
-                # HOJA 5: Global AI Overview Domains
+                # HOJA 5: Top Mentioned URLs
+                logger.info("Creating top mentioned URLs sheet")
+                ExportService._create_top_urls_sheet(writer, workbook, header_format, percent_format,
+                                                    number_format, urls_ranking, project_info, days)
+                logger.info("Top mentioned URLs sheet created successfully")
+                
+                # HOJA 6: Global AI Mode Domains
                 logger.info("Creating global domains sheet")
                 ExportService._create_global_domains_sheet(writer, workbook, header_format, percent_format,
                                           number_format, global_domains, project_info)
                 logger.info("Global domains sheet created successfully")
                 
-                # HOJA 6: Thematic Clusters Summary
+                # HOJA 7: Thematic Clusters Summary
                 logger.info("Creating clusters summary sheet")
                 ExportService._create_clusters_summary_sheet(writer, workbook, header_format, percent_format,
                                                             clusters_data, project_info, days)
                 logger.info("Clusters summary sheet created successfully")
                 
-                # HOJA 7: Clusters Keywords Detail
+                # HOJA 8: Clusters Keywords Detail
                 logger.info("Creating clusters keywords detail sheet")
                 ExportService._create_clusters_keywords_detail_sheet(writer, workbook, header_format,
                                                                      project_id, clusters_data, days)
@@ -123,7 +134,7 @@ class ExportService:
             return output
             
         except Exception as e:
-            logger.error(f"Error generating manual AI Excel: {e}", exc_info=True)
+            logger.error(f"Error generating AI Mode Excel: {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -150,7 +161,7 @@ class ExportService:
             ['', ''],
             ['NOTAS', ''],
             [f'Proyecto: {project_info["name"]}', ''],
-            [f'Brand: {project_info.get("brand_name", project_info.get("domain", "N/A"))}', ''],
+            [f'Brand: {project_info.get("brand_name", "N/A")}', ''],
             [f'Rango de fechas: Últimos {days} días', ''],
             [f'Competidores: {len(project_info.get("selected_competitors", []))}', ''],
             [f'Thematic Clusters: {"Enabled" if clusters_enabled else "Disabled"}', ''],
@@ -233,18 +244,21 @@ class ExportService:
 
     @staticmethod
     def _create_competitive_analysis_sheet(writer, workbook, header_format, date_format, percent_format, project_id, project_info, days):
-        """Crear Hoja 3: Competitive Analysis - lógica corregida según especificaciones"""
+        """Crear Hoja 3: Competitive Analysis - extraer datos desde raw_ai_mode_data"""
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
         
-        # Primero obtener keywords con AIO por día (dato base)
+        # Obtener total de keywords analizadas por día
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as aio_keywords
+                COUNT(DISTINCT r.keyword_id) as aio_keywords
             FROM ai_mode_results r
             JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
@@ -257,11 +271,11 @@ class ExportService:
         
         aio_keywords_by_date = {str(row['analysis_date']): row['aio_keywords'] for row in cur.fetchall()}
         
-        # Obtener menciones del dominio del proyecto
+        # Obtener menciones del brand del proyecto
         cur.execute("""
             SELECT 
                 r.analysis_date,
-                COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as project_mentions
+                COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END) as project_mentions
             FROM ai_mode_results r
             JOIN ai_mode_keywords k ON r.keyword_id = k.id
             WHERE r.project_id = %s 
@@ -274,29 +288,62 @@ class ExportService:
         
         project_mentions_by_date = {str(row['analysis_date']): row['project_mentions'] for row in cur.fetchall()}
         
-        # Obtener menciones de competidores
-        competitors_mentions = {}
+        # Obtener datos de competidores desde raw_ai_mode_data
         selected_competitors = project_info.get('selected_competitors', [])
+        competitors_mentions = {comp: {} for comp in selected_competitors}
         
-        for competitor in selected_competitors:
+        if selected_competitors:
+            # Obtener todos los resultados con raw_ai_mode_data
             cur.execute("""
                 SELECT 
-                    gd.analysis_date,
-                    COUNT(DISTINCT gd.keyword_id) as competitor_mentions
-                FROM ai_mode_global_domains gd
-                JOIN ai_mode_results r ON gd.keyword_id = r.keyword_id AND gd.analysis_date = r.analysis_date
-                JOIN ai_mode_keywords k ON r.keyword_id = k.id
-                WHERE gd.project_id = %s 
-                AND gd.detected_domain = %s
-                AND gd.analysis_date >= %s 
-                AND gd.analysis_date <= %s
-                AND k.is_active = true
-                AND r.has_ai_overview = true
-                GROUP BY gd.analysis_date
-                ORDER BY gd.analysis_date
-            """, (project_id, competitor, start_date, end_date))
+                    raw_ai_mode_data,
+                    analysis_date,
+                    keyword_id
+                FROM ai_mode_results
+                WHERE project_id = %s 
+                    AND analysis_date >= %s 
+                    AND analysis_date <= %s
+                    AND raw_ai_mode_data IS NOT NULL
+            """, (project_id, start_date, end_date))
             
-            competitors_mentions[competitor] = {str(row['analysis_date']): row['competitor_mentions'] for row in cur.fetchall()}
+            results = cur.fetchall()
+            
+            # Procesar cada resultado para extraer competidores por día
+            # {competitor: {date: set(keyword_ids)}}
+            competitor_by_date = {comp: defaultdict(set) for comp in selected_competitors}
+            
+            for row in results:
+                try:
+                    serp_data = row['raw_ai_mode_data']
+                    keyword_id = row['keyword_id']
+                    analysis_date = str(row['analysis_date'])
+                    
+                    references = serp_data.get('references', [])
+                    
+                    for ref in references:
+                        link = ref.get('link', '')
+                        if link:
+                            try:
+                                parsed = urlparse(link)
+                                domain = parsed.netloc.lower()
+                                if domain.startswith('www.'):
+                                    domain = domain[4:]
+                                
+                                # Verificar si este dominio coincide con algún competidor
+                                for competitor in selected_competitors:
+                                    comp_lower = competitor.lower()
+                                    if comp_lower in domain or domain in comp_lower:
+                                        competitor_by_date[competitor][analysis_date].add(keyword_id)
+                                        break
+                            except:
+                                continue
+                except Exception as e:
+                    logger.warning(f"Error parsing raw_ai_mode_data: {e}")
+            
+            # Convertir sets a counts por fecha
+            for competitor in selected_competitors:
+                for date_str, keyword_set in competitor_by_date[competitor].items():
+                    competitors_mentions[competitor][date_str] = len(keyword_set)
         
         cur.close()
         conn.close()
@@ -314,7 +361,7 @@ class ExportService:
             
             rows.append({
                 'date': date_str,
-                'domain': project_info['domain'],
+                'domain': project_info.get('brand_name', 'N/A'),
                 'aio_keywords': aio_keywords,
                 'domain_mentions': project_mentions,
                 'visibility_pct': visibility_pct
@@ -359,7 +406,7 @@ class ExportService:
 
     @staticmethod
     def _create_keywords_details_sheet(writer, workbook, header_format, date_format, ai_overview_data, project_id, days):
-        """Crear Hoja 4: AI Overview Keywords Details - EXACTAMENTE igual que la UI"""
+        """Crear Hoja 4: AI Mode Keywords Details - EXACTAMENTE igual que la UI"""
         # Obtener datos exactos de la UI
         keyword_results = ai_overview_data.get('keywordResults', [])
         competitor_domains = ai_overview_data.get('competitorDomains', [])
@@ -367,12 +414,12 @@ class ExportService:
         logger.info(f"📊 Creating keywords details sheet: {len(keyword_results)} keywords, {len(competitor_domains)} competitors")
         
         # Definir columnas base exactamente como en la UI
-        columns = ['Keyword', 'Your Domain in AIO', 'Your Position in AIO']
+        columns = ['Keyword', 'Your Domain in AI Mode', 'Your Position in AI Mode']
         
         # Agregar columnas dinámicas para cada competidor (igual que la UI)
         for domain in competitor_domains:
-            columns.append(f'{domain} in AIO')
-            columns.append(f'Position of {domain}')
+            columns.append(f'{domain} in AI Mode')
+            columns.append(f'Position of {domain} in AI Mode')
         
         # Preparar datos exactamente como la UI
         rows = []
@@ -385,8 +432,8 @@ class ExportService:
             # Datos base (igual que la UI)
             row_data = {
                 'Keyword': keyword,
-                'Your Domain in AIO': 'Yes' if user_domain_in_aio else 'No',
-                'Your Position in AIO': user_domain_position if user_domain_position else 'N/A'
+                'Your Domain in AI Mode': 'Yes' if user_domain_in_aio else 'No',
+                'Your Position in AI Mode': user_domain_position if user_domain_position else 'N/A'
             }
             
             # Agregar datos de cada competidor (igual que la UI)
@@ -396,11 +443,11 @@ class ExportService:
             for domain in competitor_domains:
                 comp_info = competitors_dict.get(domain)
                 if comp_info:
-                    row_data[f'{domain} in AIO'] = 'Yes'
-                    row_data[f'Position of {domain}'] = comp_info.get('position') or 'N/A'
+                    row_data[f'{domain} in AI Mode'] = 'Yes'
+                    row_data[f'Position of {domain} in AI Mode'] = comp_info.get('position') or 'N/A'
                 else:
-                    row_data[f'{domain} in AIO'] = 'No'
-                    row_data[f'Position of {domain}'] = 'N/A'
+                    row_data[f'{domain} in AI Mode'] = 'No'
+                    row_data[f'Position of {domain} in AI Mode'] = 'N/A'
             
             rows.append(row_data)
         
@@ -411,9 +458,9 @@ class ExportService:
             # DataFrame vacío con columnas base
             df_keywords = pd.DataFrame(columns=columns)
         
-        df_keywords.to_excel(writer, sheet_name='AI Overview Keywords Details', index=False)
+        df_keywords.to_excel(writer, sheet_name='AI Mode Keywords Details', index=False)
         
-        worksheet = writer.sheets['AI Overview Keywords Details']
+        worksheet = writer.sheets['AI Mode Keywords Details']
         worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
         worksheet.set_column('A:A', 30)  # keyword
         worksheet.set_column('B:G', 20)  # otras columnas
@@ -423,8 +470,58 @@ class ExportService:
             worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
 
     @staticmethod
+    def _create_top_urls_sheet(writer, workbook, header_format, percent_format, number_format, urls_ranking, project_info, days):
+        """Crear Hoja 5: Top Mentioned URLs - usando datos exactos de la UI"""
+        
+        # Calcular total de menciones
+        total_mentions = sum(url.get('mentions', 0) for url in urls_ranking) if urls_ranking else 0
+        
+        # Preparar datos con ranking
+        rows = []
+        if urls_ranking:
+            for url_data in urls_ranking:
+                mentions = url_data.get('mentions', 0)
+                avg_position = url_data.get('avg_position')
+                percentage = url_data.get('percentage', 0)
+                
+                rows.append({
+                    'Rank': url_data.get('rank', 0),
+                    'URL': url_data.get('url', ''),
+                    'Mentions': mentions,
+                    'Avg Position': f"{avg_position:.1f}" if avg_position and avg_position > 0 else "-",
+                    'Percentage': f"{percentage:.2f}%"
+                })
+        
+        # Crear DataFrame con datos o vacío con columnas definidas
+        if rows:
+            df_urls = pd.DataFrame(rows)
+        else:
+            # Crear DataFrame vacío con las columnas requeridas
+            df_urls = pd.DataFrame(columns=['Rank', 'URL', 'Mentions', 'Avg Position', 'Percentage'])
+        
+        df_urls.to_excel(writer, sheet_name='Top Mentioned URLs', index=False)
+        
+        worksheet = writer.sheets['Top Mentioned URLs']
+        worksheet.write_row(0, 0, list(df_urls.columns), header_format)
+        worksheet.set_column('A:A', 8)   # Rank
+        worksheet.set_column('B:B', 70)  # URL
+        worksheet.set_column('C:C', 12)  # Mentions
+        worksheet.set_column('D:D', 15)  # Avg Position
+        worksheet.set_column('E:E', 12)  # Percentage
+        
+        # Agregar nota
+        note_row = len(df_urls) + 3
+        worksheet.write(note_row, 0, f"Proyecto: {project_info['name']}")
+        worksheet.write(note_row + 1, 0, f"Período: {days} días")
+        worksheet.write(note_row + 2, 0, f"Total de menciones: {total_mentions}")
+        
+        # Si no hay datos, agregar nota
+        if not rows:
+            worksheet.write(1, 0, 'Sin datos para los filtros aplicados')
+
+    @staticmethod
     def _create_global_domains_sheet(writer, workbook, header_format, percent_format, number_format, global_domains, project_info):
-        """Crear Hoja 5: Global AI Overview Domains - usando datos exactos de la UI"""
+        """Crear Hoja 6: Global AI Mode Domains - usando datos exactos de la UI"""
         
         # Calcular AIO_Events_total según especificaciones
         aio_events_total = sum(domain.get('appearances', 0) for domain in global_domains) if global_domains else 0
@@ -472,7 +569,7 @@ class ExportService:
 
     @staticmethod
     def _create_clusters_summary_sheet(writer, workbook, header_format, percent_format, clusters_data, project_info, days):
-        """Crear Hoja 6: Thematic Clusters Summary - Tabla transpuesta igual que la UI"""
+        """Crear Hoja 7: Thematic Clusters Summary - Tabla transpuesta igual que la UI"""
         
         if not clusters_data.get('enabled', False):
             # Crear hoja vacía con mensaje
@@ -498,12 +595,11 @@ class ExportService:
             worksheet.set_column('A:A', 60)
             return
         
-        # Preparar datos transpuestos (métricas como filas, clusters como columnas)
+        # Preparar datos (métricas como filas, clusters como columnas)
+        # Métrica base: Total Keywords vs Brand Mentions
         metrics = [
             {'label': 'Total Keywords', 'key': 'total_keywords'},
-            {'label': 'AI Overview', 'key': 'ai_overview_count'},
             {'label': 'Brand Mentions', 'key': 'mentions_count'},
-            {'label': '% AI Overview', 'key': 'ai_overview_percentage', 'is_percent': True},
             {'label': '% Mentions', 'key': 'mentions_percentage', 'is_percent': True}
         ]
         
@@ -548,7 +644,7 @@ class ExportService:
 
     @staticmethod
     def _create_clusters_keywords_detail_sheet(writer, workbook, header_format, project_id, clusters_data, days):
-        """Crear Hoja 7: Clusters Keywords Detail - Listado detallado de keywords por cluster"""
+        """Crear Hoja 8: Clusters Keywords Detail - Listado detallado de keywords por cluster"""
         from datetime import date, timedelta
         
         if not clusters_data.get('enabled', False):
@@ -574,13 +670,13 @@ class ExportService:
             clusters_config = ClusterService.get_project_clusters(project_id)
             
             # Obtener todas las keywords con sus últimos resultados
+            # Solo brand_mentioned (sin AI Overview)
             cur.execute("""
                 WITH latest_results AS (
                     SELECT DISTINCT ON (k.id)
                         k.id as keyword_id,
                         k.keyword,
-                        r.has_ai_overview,
-                        r.domain_mentioned,
+                        r.brand_mentioned,
                         r.analysis_date
                     FROM ai_mode_keywords k
                     LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
@@ -591,8 +687,7 @@ class ExportService:
                 SELECT 
                     keyword_id,
                     keyword,
-                    has_ai_overview,
-                    domain_mentioned,
+                    brand_mentioned,
                     analysis_date
                 FROM latest_results
                 ORDER BY keyword
@@ -604,8 +699,7 @@ class ExportService:
             rows = []
             for kw_data in keywords_data:
                 keyword = kw_data['keyword']
-                has_ai_overview = 'Yes' if kw_data.get('has_ai_overview') else 'No'
-                domain_mentioned = 'Yes' if kw_data.get('domain_mentioned') else 'No'
+                brand_mentioned = 'Yes' if kw_data.get('brand_mentioned') else 'No'
                 last_analysis = kw_data.get('analysis_date')
                 last_analysis_str = str(last_analysis) if last_analysis else 'Never'
                 
@@ -618,8 +712,7 @@ class ExportService:
                         rows.append({
                             'Cluster': cluster_name,
                             'Keyword': keyword,
-                            'Has AI Overview': has_ai_overview,
-                            'Domain Mentioned': domain_mentioned,
+                            'Brand Mentioned': brand_mentioned,
                             'Last Analysis': last_analysis_str
                         })
                 else:
@@ -627,8 +720,7 @@ class ExportService:
                     rows.append({
                         'Cluster': 'Unclassified',
                         'Keyword': keyword,
-                        'Has AI Overview': has_ai_overview,
-                        'Domain Mentioned': domain_mentioned,
+                        'Brand Mentioned': brand_mentioned,
                         'Last Analysis': last_analysis_str
                     })
             
@@ -638,7 +730,7 @@ class ExportService:
                 df_keywords = df_keywords.sort_values(['Cluster', 'Keyword'])
             else:
                 # DataFrame vacío
-                df_keywords = pd.DataFrame(columns=['Cluster', 'Keyword', 'Has AI Overview', 'Domain Mentioned', 'Last Analysis'])
+                df_keywords = pd.DataFrame(columns=['Cluster', 'Keyword', 'Brand Mentioned', 'Last Analysis'])
             
             df_keywords.to_excel(writer, sheet_name='Clusters Keywords Detail', index=False)
             
@@ -646,8 +738,8 @@ class ExportService:
             worksheet.write_row(0, 0, list(df_keywords.columns), header_format)
             worksheet.set_column('A:A', 20)  # Cluster
             worksheet.set_column('B:B', 40)  # Keyword
-            worksheet.set_column('C:D', 18)  # Has AI Overview, Domain Mentioned
-            worksheet.set_column('E:E', 15)  # Last Analysis
+            worksheet.set_column('C:C', 18)  # Brand Mentioned
+            worksheet.set_column('D:D', 15)  # Last Analysis
             
             # Si no hay datos, agregar nota
             if not rows:

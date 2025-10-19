@@ -44,6 +44,8 @@ class ProjectRepository:
                     p.country_code,
                     p.created_at,
                     p.updated_at,
+                    p.selected_competitors,
+                    p.topic_clusters,
                     COALESCE(project_stats.total_keywords, 0) as total_keywords,
                     COALESCE(project_stats.total_mentions, 0) as total_mentions,
                     COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
@@ -213,7 +215,7 @@ class ProjectRepository:
         
         try:
             cur.execute("""
-                SELECT id, name, description, brand_name, country_code, created_at, updated_at
+                SELECT id, name, description, brand_name, country_code, selected_competitors, created_at, updated_at
                 FROM ai_mode_projects
                 WHERE id = %s AND is_active = true
             """, (project_id,))

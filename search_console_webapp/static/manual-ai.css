@@ -1619,6 +1619,211 @@
 }
 
 /* =============================================
+   TOP URLS RANKING SECTION
+   ============================================= */
+
+.top-urls-section {
+  margin-top: var(--manual-ai-spacing-xl);
+  background: white;
+  border-radius: var(--manual-ai-border-radius-lg);
+  padding: var(--manual-ai-spacing-lg);
+  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.urls-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--manual-ai-spacing-sm);
+  margin-top: var(--manual-ai-spacing-md);
+  margin-bottom: var(--manual-ai-spacing-md);
+}
+
+.url-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid var(--manual-ai-gray-300);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--manual-ai-gray-700);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.url-filter-chip:hover {
+  background: var(--manual-ai-gray-50);
+  border-color: var(--manual-ai-accent);
+  color: var(--manual-ai-accent);
+}
+
+.url-filter-chip[data-active="true"] {
+  background: var(--manual-ai-accent);
+  border-color: var(--manual-ai-accent);
+  color: white;
+}
+
+.url-filter-chip[data-active="true"]:hover {
+  background: var(--manual-ai-accent-light);
+  border-color: var(--manual-ai-accent-light);
+}
+
+.url-filter-chip i {
+  font-size: 0.75rem;
+}
+
+.urls-container {
+  margin-top: var(--manual-ai-spacing-md);
+}
+
+.urls-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--manual-ai-border-radius);
+  border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
+}
+
+.urls-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.urls-table th {
+  background: var(--manual-ai-gray-50);
+  color: var(--manual-ai-gray-700);
+  font-weight: 600;
+  padding: var(--manual-ai-spacing-md);
+  text-align: left;
+  border-bottom: 2px solid var(--manual-ai-gray-200);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.urls-table td {
+  padding: var(--manual-ai-spacing-md);
+  border-bottom: var(--manual-ai-border-width) solid var(--manual-ai-gray-100);
+  color: var(--manual-ai-gray-700);
+}
+
+.urls-table tbody tr:hover {
+  background: var(--manual-ai-gray-50);
+  transition: background-color 0.2s ease;
+}
+
+.urls-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* URL table cells specific styling */
+.urls-table .rank-cell {
+  width: 60px;
+  text-align: center !important;
+  font-weight: 600;
+  color: var(--manual-ai-primary);
+}
+
+.urls-table .url-cell {
+  max-width: 600px;
+}
+
+.urls-table .url-cell .global-domain-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.urls-table .url-cell .domain-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.urls-table .url-cell .global-domain-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.urls-table .url-cell .global-domain-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.urls-table .url-cell .url-link {
+  color: var(--manual-ai-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.2s ease;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.urls-table .url-cell .url-link:hover {
+  color: var(--manual-ai-accent-light);
+  text-decoration: underline;
+}
+
+.urls-table .url-cell .url-link i {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.urls-table .mentions-cell {
+  text-align: center !important;
+  width: 100px;
+  font-weight: 600;
+  color: var(--manual-ai-success);
+}
+
+.urls-table .position-cell {
+  text-align: center !important;
+  width: 100px;
+  font-family: monospace;
+}
+
+.urls-table .percentage-cell {
+  text-align: center !important;
+  width: 120px;
+  font-weight: 600;
+  color: var(--manual-ai-gray-700);
+}
+
+/* Empty state for URLs */
+.no-urls-message {
+  text-align: center;
+  padding: var(--manual-ai-spacing-xl);
+  color: var(--manual-ai-gray-500);
+}
+
+/* Responsive design for URLs table */
+@media (max-width: 768px) {
+  .urls-table-wrapper {
+    font-size: 0.8rem;
+  }
+  
+  .urls-table th,
+  .urls-table td {
+    padding: var(--manual-ai-spacing-sm);
+  }
+  
+  .urls-table .url-cell {
+    max-width: 200px;
+  }
+}
+
+/* =============================================
    PROJECT MANAGEMENT MODAL
    ============================================= */
 
@@ -3839,7 +4044,7 @@ label.manual-ai-underline {
     border-top: 1px solid var(--border-color);
     padding: 1rem;
     display: flex;
-    justify-content: space-between;
+    justify-content: end;
     align-items: center;
 }
 

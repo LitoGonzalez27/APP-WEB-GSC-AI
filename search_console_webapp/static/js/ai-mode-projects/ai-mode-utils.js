@@ -10,7 +10,16 @@
 export const htmlLegendPlugin = {
     id: 'htmlLegend',
     afterUpdate(chart, args, options) {
+        // Guardas de seguridad: si no hay opciones o containerID, salir sin hacer nada
+        if (!options || !options.containerID) {
+            return;
+        }
+
         const ul = this.getOrCreateLegendList(chart, options.containerID);
+        if (!ul) {
+            // El contenedor de la leyenda no existe en el DOM; no intentamos construir la leyenda
+            return;
+        }
         
         // Remove old legend items
         while (ul.firstChild) {

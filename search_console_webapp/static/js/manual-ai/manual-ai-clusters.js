@@ -297,6 +297,9 @@ export async function loadClustersStatistics(projectId) {
             noDataMessage.style.display = 'none';
         }
         
+        // Mostrar aviso si los datos están desactualizados (>24h)
+        this.showDataStaleWarning(data.is_stale, data.last_update);
+        
         // Render chart and table
         this.renderClustersChart(chartData);
         this.renderClustersTable(tableData);
@@ -332,10 +335,10 @@ export function renderClustersChart(chartData) {
     
     // Use data directly from backend
     const labels = chartData.labels || [];
-    const aiOverviewData = chartData.ai_overview || [];
+    const totalKeywordsData = chartData.total_keywords || [];
     const mentionsData = chartData.mentions || [];
     
-    console.log('📊 Chart prepared:', { labels, aiOverviewData, mentionsData });
+    console.log('📊 Chart prepared:', { labels, totalKeywordsData, mentionsData });
     
     // Create chart
     const ctx = canvas.getContext('2d');
@@ -346,8 +349,8 @@ export function renderClustersChart(chartData) {
             datasets: [
                 {
                     type: 'bar',
-                    label: 'Keywords with AI Overview',
-                    data: aiOverviewData,
+                    label: 'Total Keywords',
+                    data: totalKeywordsData,
                     backgroundColor: 'rgba(99, 102, 241, 0.7)',
                     borderColor: 'rgb(99, 102, 241)',
                     borderWidth: 1,
@@ -356,7 +359,7 @@ export function renderClustersChart(chartData) {
                 },
                 {
                     type: 'line',
-                    label: 'Keywords with Brand Mentions',
+                    label: 'Brand Mentions',
                     data: mentionsData,
                     borderColor: 'rgb(34, 197, 94)',
                     backgroundColor: 'rgba(34, 197, 94, 0.1)',
@@ -404,10 +407,29 @@ export function renderClustersChart(chartData) {
                     padding: 12,
                     displayColors: true,
                     callbacks: {
+                        title: function(tooltipItems) {
+                            // Nombre del clúster
+                            return tooltipItems[0].label;
+                        },
                         label: function(context) {
-                            const label = context.dataset.label || '';
+                            const datasetLabel = context.dataset.label;
                             const value = context.parsed.y || 0;
-                            return `${label}: ${value} keywords`;
+                            const datasetIndex = context.datasetIndex;
+                            const clusterIndex = context.dataIndex;
+                            
+                            // Obtener total keywords y mentions para calcular porcentaje
+                            const totalKeywords = totalKeywordsData[clusterIndex] || 0;
+                            const mentions = mentionsData[clusterIndex] || 0;
+                            const percentage = totalKeywords > 0 ? ((mentions / totalKeywords) * 100).toFixed(1) : '0.0';
+                            
+                            // Formato según el dataset
+                            if (datasetIndex === 0) {
+                                // Barras (Total Keywords)
+                                return `Total Keywords: ${value}`;
+                            } else {
+                                // Línea (Brand Mentions)
+                                return `Brand Mentions: ${value} (${percentage}%)`;
+                            }
                         }
                     }
                 }
@@ -444,44 +466,40 @@ export function renderClustersTable(clustersData) {
         return;
     }
     
-    console.log('📋 Rendering clusters table (transposed) with data:', clustersData);
+    console.log('📋 Rendering clusters table with data:', clustersData);
     
     if (!clustersData || clustersData.length === 0) {
-        table.innerHTML = '<tbody><tr><td style="text-align: center;">No data available</td></tr></tbody>';
+        table.innerHTML = '<tbody><tr><td colspan="4" style="text-align: center;">No data available</td></tr></tbody>';
         return;
     }
     
-    // Transponer la tabla: las columnas son los clusters, las filas son las métricas
-    const metrics = [
-        { label: 'Total Keywords', key: 'total_keywords', format: (v) => v || 0 },
-        { label: 'AI Overview', key: 'ai_overview_count', format: (v) => v || 0 },
-        { label: 'Brand Mentions', key: 'mentions_count', format: (v) => v || 0 },
-        { label: '% AI Overview', key: 'ai_overview_percentage', format: (v) => `${(v || 0).toFixed(1)}%` },
-        { label: '% Mentions', key: 'mentions_percentage', format: (v) => `${(v || 0).toFixed(1)}%` }
-    ];
-    
-    // Crear header con nombres de clusters
-    const headerCells = clustersData.map(cluster => 
-        `<th class="text-center">${escapeHtml(cluster.cluster_name)}</th>`
-    ).join('');
-    
-    // Crear filas de métricas
-    const rows = metrics.map(metric => {
-        const cells = clustersData.map(cluster => 
-            `<td class="text-center">${metric.format(cluster[metric.key])}</td>`
-        ).join('');
+    // Crear filas de la tabla
+    const rows = clustersData.map(cluster => {
+        const clusterName = escapeHtml(cluster.cluster_name || '');
+        const totalKeywords = cluster.total_keywords || 0;
+        const brandMentions = cluster.mentions_count || 0;
+        const mentionsPercentage = (cluster.mentions_percentage || 0).toFixed(1);
         
-        return `<tr>
-            <th class="metric-label">${metric.label}</th>
-            ${cells}
+        // Aplicar clase especial para Unclassified
+        const rowClass = cluster.cluster_name === 'Unclassified' ? 'unclassified-row' : '';
+        
+        return `<tr class="${rowClass}">
+            <td class="cluster-name-cell"><strong>${clusterName}</strong></td>
+            <td class="text-center">${totalKeywords}</td>
+            <td class="text-center">${brandMentions}</td>
+            <td class="text-center">
+                <span class="badge badge-success">${mentionsPercentage}%</span>
+            </td>
         </tr>`;
     }).join('');
     
     table.innerHTML = `
         <thead>
             <tr>
-                <th class="metric-header">Metric</th>
-                ${headerCells}
+                <th>Cluster</th>
+                <th class="text-center">Total Keywords</th>
+                <th class="text-center">Brand Mentions</th>
+                <th class="text-center">% Mentions</th>
             </tr>
         </thead>
         <tbody>
@@ -489,7 +507,46 @@ export function renderClustersTable(clustersData) {
         </tbody>
     `;
     
-    console.log('✅ Clusters table (transposed) rendered successfully');
+    console.log('✅ Clusters table rendered successfully');
+}
+
+export function showDataStaleWarning(isStale, lastUpdate) {
+    // Buscar o crear el contenedor de aviso
+    let warningContainer = document.getElementById('clustersDataStaleWarning');
+    
+    if (isStale) {
+        // Crear aviso si no existe
+        if (!warningContainer) {
+            const clustersVisualization = document.getElementById('clustersVisualization');
+            if (clustersVisualization) {
+                warningContainer = document.createElement('div');
+                warningContainer.id = 'clustersDataStaleWarning';
+                warningContainer.className = 'clusters-stale-warning';
+                warningContainer.innerHTML = `
+                    <div class="stale-warning-content">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Data may be outdated. Last update: <strong>${lastUpdate || 'unknown'}</strong>. Run a new analysis for fresh insights.</span>
+                    </div>
+                `;
+                // Insertar antes del contenido de clusters
+                const clustersContent = clustersVisualization.querySelector('.clusters-content');
+                if (clustersContent) {
+                    clustersVisualization.insertBefore(warningContainer, clustersContent);
+                }
+            }
+        } else {
+            // Actualizar mensaje y mostrar
+            warningContainer.style.display = 'block';
+            const dateSpan = warningContainer.querySelector('strong');
+            if (dateSpan) dateSpan.textContent = lastUpdate || 'unknown';
+        }
+        console.log('⚠️ Data stale warning displayed');
+    } else {
+        // Ocultar aviso si existe
+        if (warningContainer) {
+            warningContainer.style.display = 'none';
+        }
+    }
 }
 
 export function showNoClustersMessage(reason = 'not_enabled') {

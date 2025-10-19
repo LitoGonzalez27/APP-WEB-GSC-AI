@@ -124,7 +124,7 @@ class CompetitorService:
             if not competitors_by_date:
                 cur.execute("""
                     SELECT selected_competitors
-                    FROM manual_ai_projects
+                    FROM ai_mode_projects
                     WHERE id = %s
                 """, (project_id,))
                 
@@ -146,7 +146,7 @@ class CompetitorService:
         """
         Sincronizar flags de competidores en datos históricos
         
-        Actualiza los flags is_selected_competitor en manual_ai_global_domains
+        Actualiza los flags is_selected_competitor en ai_mode_global_domains
         para reflejar la configuración actual de competidores
         
         Args:
@@ -165,7 +165,7 @@ class CompetitorService:
             
             # 1. Desmarcar todos los dominios como competidores
             cur.execute("""
-                UPDATE manual_ai_global_domains
+                UPDATE ai_mode_global_domains
                 SET is_selected_competitor = false
                 WHERE project_id = %s AND is_selected_competitor = true
             """, (project_id,))
@@ -175,7 +175,7 @@ class CompetitorService:
             # 2. Marcar dominios actuales como competidores
             if normalized_competitors:
                 cur.execute("""
-                    UPDATE manual_ai_global_domains
+                    UPDATE ai_mode_global_domains
                     SET is_selected_competitor = true
                     WHERE project_id = %s 
                         AND detected_domain = ANY(%s)
@@ -200,6 +200,7 @@ class CompetitorService:
     def get_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
         """
         Obtener datos para gráficas de competidores
+        ACTUALIZADO: Ahora lee del JSON raw_ai_mode_data (coherente con ranking de dominios)
         
         Args:
             project_id: ID del proyecto
@@ -208,6 +209,9 @@ class CompetitorService:
         Returns:
             Dict con datos para Brand Visibility Index y Brand Position Over Time
         """
+        from urllib.parse import urlparse
+        from collections import defaultdict
+        
         conn = get_db_connection()
         cur = conn.cursor()
         
@@ -217,8 +221,8 @@ class CompetitorService:
         try:
             # Obtener configuración de competidores del proyecto
             cur.execute("""
-                SELECT selected_competitors, domain
-                FROM manual_ai_projects
+                SELECT selected_competitors, brand_name
+                FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
             
@@ -227,16 +231,14 @@ class CompetitorService:
                 return {'error': 'Project not found'}
             
             selected_competitors = project['selected_competitors'] or []
-            project_domain = normalize_search_console_url(project['domain']) or project['domain'].lower()
+            brand_name = project['brand_name']
             
-            # Normalizar competidores
-            normalized_competitors = [
-                normalize_search_console_url(comp) or comp.lower()
-                for comp in selected_competitors
-            ]
+            # Normalizar dominios
+            project_domain = brand_name.lower() if brand_name else ''
+            normalized_competitors = [comp.lower() for comp in selected_competitors if comp]
             
             # Incluir el dominio del proyecto en el análisis
-            all_domains = [project_domain] + normalized_competitors
+            all_domains = ([project_domain] if project_domain else []) + normalized_competitors
             
             if not all_domains:
                 return {
@@ -244,43 +246,113 @@ class CompetitorService:
                     'brand_position_over_time': {}
                 }
             
-            # 1. Brand Visibility Index (visibilidad por dominio)
+            # Obtener todos los resultados con AI Mode del periodo
             cur.execute("""
                 SELECT 
-                    detected_domain,
-                    COUNT(DISTINCT keyword_id) as keywords_mentioned,
-                    AVG(domain_position) as avg_position,
-                    COUNT(*) as total_mentions
-                FROM manual_ai_global_domains
-                WHERE project_id = %s 
-                    AND analysis_date >= %s 
-                    AND analysis_date <= %s
-                    AND detected_domain = ANY(%s)
-                GROUP BY detected_domain
-                ORDER BY keywords_mentioned DESC
-            """, (project_id, start_date, end_date, all_domains))
+                    r.raw_ai_mode_data,
+                    r.analysis_date,
+                    r.keyword_id
+                FROM ai_mode_results r
+                WHERE r.project_id = %s 
+                    AND r.analysis_date >= %s 
+                    AND r.analysis_date <= %s
+                    AND r.raw_ai_mode_data IS NOT NULL
+            """, (project_id, start_date, end_date))
             
-            visibility_data = [dict(row) for row in cur.fetchall()]
+            results = cur.fetchall()
             
-            # 2. Brand Position Over Time (posición promedio por fecha)
-            position_over_time = {}
+            cur.close()
+            conn.close()
             
+            # Procesar datos por dominio
+            domain_stats = defaultdict(lambda: {
+                'keywords': set(),
+                'positions': [],
+                'total_mentions': 0
+            })
+            
+            # Datos por fecha para evolution chart
+            domain_by_date = defaultdict(lambda: defaultdict(lambda: {
+                'positions': [],
+                'keywords': set()
+            }))
+            
+            # Procesar cada resultado
+            for row in results:
+                try:
+                    serp_data = row['raw_ai_mode_data']
+                    references = serp_data.get('references', [])
+                    analysis_date = str(row['analysis_date'])
+                    keyword_id = row['keyword_id']
+                    
+                    for ref in references:
+                        link = ref.get('link', '')
+                        position = ref.get('position', 0)
+                        
+                        if link:
+                            try:
+                                parsed = urlparse(link)
+                                domain = parsed.netloc.lower()
+                                if domain.startswith('www.'):
+                                    domain = domain[4:]
+                                
+                                # Verificar si el dominio está en la lista de competidores
+                                matched_domain = None
+                                for target_domain in all_domains:
+                                    if target_domain in domain or domain in target_domain:
+                                        matched_domain = target_domain
+                                        break
+                                
+                                if matched_domain:
+                                    # Estadísticas globales
+                                    domain_stats[matched_domain]['keywords'].add(keyword_id)
+                                    # Almacenar solo posiciones válidas (> 0) para promedios correctos
+                                    if position and isinstance(position, (int, float)) and position > 0:
+                                        domain_stats[matched_domain]['positions'].append(position)
+                                    domain_stats[matched_domain]['total_mentions'] += 1
+                                    
+                                    # Estadísticas por fecha
+                                    if position and isinstance(position, (int, float)) and position > 0:
+                                        domain_by_date[matched_domain][analysis_date]['positions'].append(position)
+                                    domain_by_date[matched_domain][analysis_date]['keywords'].add(keyword_id)
+                            except:
+                                continue
+                except Exception as e:
+                    logger.warning(f"Error processing result: {e}")
+                    continue
+            
+            # 1. Brand Visibility Index
+            visibility_data = []
             for domain in all_domains:
-                cur.execute("""
-                    SELECT 
-                        analysis_date,
-                        AVG(domain_position) as avg_position,
-                        COUNT(DISTINCT keyword_id) as keyword_count
-                    FROM manual_ai_global_domains
-                    WHERE project_id = %s 
-                        AND detected_domain = %s
-                        AND analysis_date >= %s 
-                        AND analysis_date <= %s
-                    GROUP BY analysis_date
-                    ORDER BY analysis_date
-                """, (project_id, domain, start_date, end_date))
-                
-                position_over_time[domain] = [dict(row) for row in cur.fetchall()]
+                if domain in domain_stats:
+                    stats = domain_stats[domain]
+                    avg_pos = sum(stats['positions']) / len(stats['positions']) if stats['positions'] else None
+                    visibility_data.append({
+                        'detected_domain': domain,
+                        'keywords_mentioned': len(stats['keywords']),
+                        'avg_position': float(avg_pos) if avg_pos else None,
+                        'total_mentions': stats['total_mentions']
+                    })
+            
+            # Ordenar por keywords mencionados
+            visibility_data.sort(key=lambda x: x['keywords_mentioned'], reverse=True)
+            
+            # 2. Brand Position Over Time
+            position_over_time = {}
+            for domain in all_domains:
+                if domain in domain_by_date:
+                    date_data = []
+                    for analysis_date in sorted(domain_by_date[domain].keys()):
+                        day_stats = domain_by_date[domain][analysis_date]
+                        avg_pos = sum(day_stats['positions']) / len(day_stats['positions']) if day_stats['positions'] else None
+                        date_data.append({
+                            'analysis_date': analysis_date,
+                            'avg_position': float(avg_pos) if avg_pos else None,
+                            'keyword_count': len(day_stats['keywords'])
+                        })
+                    position_over_time[domain] = date_data
+                else:
+                    position_over_time[domain] = []
             
             return {
                 'brand_visibility_index': visibility_data,
@@ -290,10 +362,14 @@ class CompetitorService:
             
         except Exception as e:
             logger.error(f"Error getting competitors charts data: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {'error': str(e)}
         finally:
-            cur.close()
-            conn.close()
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
     
     @staticmethod
     def get_competitors_for_date_range(project_id: int, start_date: date, end_date: date) -> Dict[str, List[str]]:
@@ -319,7 +395,7 @@ class CompetitorService:
             # Obtener todos los cambios de competidores ordenados cronológicamente
             cur.execute("""
                 SELECT event_date, event_type, event_description 
-                FROM manual_ai_events 
+                FROM ai_mode_events 
                 WHERE project_id = %s 
                 AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
                 AND event_date <= %s
@@ -329,7 +405,7 @@ class CompetitorService:
             competitor_changes = cur.fetchall()
             
             # Obtener competidores actuales como fallback
-            cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
+            cur.execute("SELECT selected_competitors FROM ai_mode_projects WHERE id = %s", (project_id,))
             current_result = cur.fetchone()
             current_competitors = current_result['selected_competitors'] if current_result else []
             
@@ -466,6 +542,16 @@ class CompetitorService:
             
             date_range = [str(row['analysis_date']) for row in cur.fetchall()]
             
+            # Total de keywords analizadas por fecha (denominador SoV)
+            cur.execute("""
+                SELECT r.analysis_date, COUNT(DISTINCT r.keyword_id) AS total_keywords
+                FROM ai_mode_results r
+                WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+                GROUP BY r.analysis_date
+            """, (project_id, start_date, end_date))
+            totals_rows = cur.fetchall()
+            total_keywords_by_date = {str(r['analysis_date']): r['total_keywords'] for r in totals_rows}
+
             visibility_chart_data['dates'] = date_range
             position_chart_data['dates'] = date_range
             
@@ -485,49 +571,108 @@ class CompetitorService:
             
             # Para cada dominio, obtener sus métricas por fecha
             for domain in domains_to_compare:
-                # Datos de Share of Voice
-                visibility_results = []
+                # Datos de Share of Voice por fecha
+                visibility_by_date = {}
+                position_by_date = {}
                 if domain == project_domain:
-                    # Para dominio del proyecto, usar ai_mode_results
-                    # Share of Voice = (Menciones del dominio / Total Keywords analizadas) × 100
+                    # Proyecto: directo desde ai_mode_results
                     cur.execute("""
-                        SELECT 
-                            r.analysis_date,
-                            (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)::float / 
-                             NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) as visibility_percentage
+                        SELECT r.analysis_date,
+                               (COUNT(DISTINCT CASE WHEN r.brand_mentioned = true THEN r.keyword_id END)::float /
+                               NULLIF(COUNT(DISTINCT r.keyword_id), 0)::float * 100) AS visibility_percentage
                         FROM ai_mode_results r
                         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
                         GROUP BY r.analysis_date
                         ORDER BY r.analysis_date
                     """, (project_id, start_date, end_date))
-                    visibility_results = cur.fetchall()
-                else:
-                    # TODO: Para competidores, necesitaríamos extraer media sources de raw_ai_mode_data
-                    # Por ahora, devolver datos vacíos ya que no existe ai_mode_global_domains
-                    visibility_results = []
-                
-                visibility_by_date = {str(row['analysis_date']): row['visibility_percentage'] for row in visibility_results}
-                
-                # Datos de posición media
-                position_results = []
-                if domain == project_domain:
-                    # Para dominio del proyecto, usar ai_mode_results
+                    for row in cur.fetchall():
+                        visibility_by_date[str(row['analysis_date'])] = row['visibility_percentage']
                     cur.execute("""
-                        SELECT 
-                            r.analysis_date,
-                            AVG(CASE WHEN r.mention_position IS NOT NULL THEN r.mention_position END) as avg_position
+                        SELECT r.analysis_date,
+                               AVG(CASE WHEN r.mention_position IS NOT NULL THEN r.mention_position END) AS avg_position
                         FROM ai_mode_results r
                         WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
-                            AND r.brand_mentioned = true
+                          AND r.brand_mentioned = true
                         GROUP BY r.analysis_date
                         ORDER BY r.analysis_date
                     """, (project_id, start_date, end_date))
-                    position_results = cur.fetchall()
+                    for row in cur.fetchall():
+                        position_by_date[str(row['analysis_date'])] = row['avg_position']
                 else:
-                    # TODO: Para competidores, necesitaríamos extraer media sources de raw_ai_mode_data
-                    position_results = []
-                
-                position_by_date = {str(row['analysis_date']): row['avg_position'] for row in position_results}
+                    # Competidor: leer del JSON raw_ai_mode_data
+                    from urllib.parse import urlparse
+                    from collections import defaultdict
+                    
+                    domain_lower = domain.lower()
+                    
+                    # Obtener todos los resultados para procesar
+                    cur.execute("""
+                        SELECT raw_ai_mode_data, analysis_date, keyword_id
+                        FROM ai_mode_results
+                        WHERE project_id = %s 
+                          AND analysis_date >= %s 
+                          AND analysis_date <= %s
+                          AND raw_ai_mode_data IS NOT NULL
+                    """, (project_id, start_date, end_date))
+                    
+                    comp_results = cur.fetchall()
+                    
+                    # Agrupar por fecha
+                    mentions_by_date = defaultdict(lambda: {'keywords': set(), 'positions': []})
+                    
+                    for row in comp_results:
+                        try:
+                            serp_data = row['raw_ai_mode_data']
+                            references = serp_data.get('references', [])
+                            date_key = str(row['analysis_date'])
+                            keyword_id = row['keyword_id']
+                            
+                            # Ordenar referencias por campo 'index' (0-based) para mantener consistencia
+                            enriched_refs = []
+                            for i, ref in enumerate(references):
+                                if not isinstance(ref, dict):
+                                    continue
+                                idx = ref.get('index')
+                                idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+                                enriched_refs.append((idx_num, i, ref))
+                            enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+                            
+                            for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
+                                link = ref.get('link', '')
+                                
+                                # Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py y statistics_service.py
+                                actual_index = ref.get('index')
+                                position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+                                
+                                if link:
+                                    try:
+                                        parsed = urlparse(link)
+                                        link_domain = parsed.netloc.lower()
+                                        if link_domain.startswith('www.'):
+                                            link_domain = link_domain[4:]
+                                        
+                                        # Verificar si coincide con el competidor
+                                        if domain_lower in link_domain or link_domain in domain_lower:
+                                            mentions_by_date[date_key]['keywords'].add(keyword_id)
+                                            mentions_by_date[date_key]['positions'].append(position)
+                                    except:
+                                        continue
+                        except Exception as e:
+                            logger.warning(f"Error processing result for competitor {domain}: {e}")
+                            continue
+                    
+                    # Calcular métricas por fecha
+                    for date_key, stats in mentions_by_date.items():
+                        keywords_count = len(stats['keywords'])
+                        total_kw = total_keywords_by_date.get(date_key, 0) or 0
+                        sov = (float(keywords_count) / float(total_kw) * 100.0) if total_kw > 0 else 0.0
+                        visibility_by_date[date_key] = sov
+                        
+                        if stats['positions']:
+                            avg_pos = sum(stats['positions']) / len(stats['positions'])
+                            position_by_date[date_key] = avg_pos
+                    
+                    logger.info(f"🔎 Competitor '{domain}' -> {len(visibility_by_date)} dates with data from JSON")
                 
                 # Preparar datos con lógica temporal
                 visibility_data = []

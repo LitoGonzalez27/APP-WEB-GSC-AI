@@ -112,6 +112,10 @@ export async function handleDownloadExcel() {
 // ================================
 
 export async function handleDownloadPDF() {
+    // Variables que necesitan estar disponibles en catch/finally
+    let chartsContainer = null;
+    let chartsContainerOriginalDisplay = null;
+    
     try {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
@@ -119,6 +123,13 @@ export async function handleDownloadPDF() {
         if (spinner && btnText) {
             spinner.style.display = 'inline-block';
             btnText.textContent = 'Preparing PDF...';
+        }
+
+        // Asegurar que el contenedor de charts esté visible temporalmente
+        chartsContainer = document.getElementById('chartsContainer');
+        chartsContainerOriginalDisplay = chartsContainer ? chartsContainer.style.display : null;
+        if (chartsContainer && chartsContainer.style.display === 'none') {
+            chartsContainer.style.display = 'block';
         }
 
         // Ocultar elementos excluidos del PDF
@@ -143,20 +154,11 @@ export async function handleDownloadPDF() {
             });
         }
 
-        const target = document.querySelector('.manual-ai-app') || document.body;
-        const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-
         const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth;
-        const imgHeight = canvas.height * (imgWidth / canvas.width);
-        let position = 0;
-        let heightLeft = imgHeight;
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
 
-        // Añadir logotipo como marca de agua en cada página (esquina inferior derecha)
+        // Función para añadir logotipo en esquina inferior derecha
         const addCornerLogo = async () => {
             try {
                 const logoEl = document.querySelector('.navbar .logo-image');
@@ -171,7 +173,7 @@ export async function handleDownloadPDF() {
                     const ctx = tempCanvas.getContext('2d');
                     ctx.drawImage(logoImg, 0, 0);
                     const dataUrl = tempCanvas.toDataURL('image/png');
-                    const margin = 16; // pt
+                    const margin = 16;
                     const maxLogoWidth = Math.min(80, pageWidth * 0.18);
                     const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
                     const logoW = maxLogoWidth;
@@ -183,23 +185,164 @@ export async function handleDownloadPDF() {
             } catch (_) { /* silencioso */ }
         };
 
-        await addCornerLogo();
-        heightLeft -= pageHeight;
-        while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        // Función auxiliar para capturar y añadir sección al PDF
+        const addSectionToPDF = async (element, isFirstPage = false, label = '') => {
+            if (!element) {
+                console.warn(`⚠️ Section not found: ${label}`);
+                return false;
+            }
+
+            if (btnText) btnText.textContent = `Capturing ${label}...`;
+            
+            const canvas = await html2canvas(element, { 
+                scale: 2, 
+                useCORS: true, 
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const imgWidth = pageWidth - 40; // Márgenes de 20pt a cada lado
+            const imgHeight = canvas.height * (imgWidth / canvas.width);
+            
+            if (!isFirstPage) {
+                pdf.addPage();
+            }
+            
+            // Centrar la imagen con márgenes
+            const xPos = 20;
+            let yPos = 20;
+            
+            // Si la imagen es más alta que la página, ajustar
+            if (imgHeight > pageHeight - 40) {
+                const scaleFactor = (pageHeight - 40) / imgHeight;
+                const scaledWidth = imgWidth * scaleFactor;
+                const scaledHeight = imgHeight * scaleFactor;
+                const xCentered = (pageWidth - scaledWidth) / 2;
+                pdf.addImage(imgData, 'JPEG', xCentered, yPos, scaledWidth, scaledHeight);
+            } else {
+                pdf.addImage(imgData, 'JPEG', xPos, yPos, imgWidth, imgHeight);
+            }
+            
             await addCornerLogo();
-            heightLeft -= pageHeight;
+            return true;
+        };
+
+        // Crear un wrapper temporal para agrupar elementos visualmente
+        const createTempWrapper = (elements) => {
+            const wrapper = document.createElement('div');
+            wrapper.id = 'pdf-temp-wrapper';
+            wrapper.style.cssText = 'background: white; padding: 20px;';
+            
+            // Guardar padres originales y mover elementos al wrapper
+            const originalParents = [];
+            elements.forEach(el => {
+                if (el) {
+                    originalParents.push({ element: el, parent: el.parentNode, nextSibling: el.nextSibling });
+                    wrapper.appendChild(el);
+                }
+            });
+            
+            chartsContainer.insertBefore(wrapper, chartsContainer.firstChild);
+            return { wrapper, originalParents };
+        };
+
+        const restoreElements = (originalParents, wrapper) => {
+            originalParents.forEach(({ element, parent, nextSibling }) => {
+                if (nextSibling) {
+                    parent.insertBefore(element, nextSibling);
+                } else {
+                    parent.appendChild(element);
+                }
+            });
+            if (wrapper && wrapper.parentNode) {
+                wrapper.parentNode.removeChild(wrapper);
+            }
+        };
+
+        // PÁGINA 1: Overview + Position Distribution
+        if (btnText) btnText.textContent = 'Page 1/4: Overview...';
+        const overviewSection = document.querySelector('.overview-section');
+        const summaryCards = document.querySelector('.summary-cards');
+        const chartsGrid = document.querySelector('.charts-grid');
+        
+        const page1Elements = [overviewSection, summaryCards, chartsGrid].filter(el => el);
+        if (page1Elements.length > 0) {
+            const { wrapper: page1Wrapper, originalParents: page1Parents } = createTempWrapper(page1Elements);
+            await addSectionToPDF(page1Wrapper, true, 'Overview & Charts');
+            restoreElements(page1Parents, page1Wrapper);
         }
-        const fileName = `manual_ai_overview_${Date.now()}.pdf`;
+
+        // PÁGINA 2: Media Source Analysis + Clusters
+        if (btnText) btnText.textContent = 'Page 2/5: Media Sources & Clusters...';
+        const competitorsSection = document.querySelector('.competitors-charts-section');
+        const clustersSection = document.querySelector('.clusters-visualization');
+        
+        // Verificar si clusters tiene datos (no está display: none por falta de datos)
+        const clustersHasData = clustersSection && 
+                                clustersSection.style.display !== 'none' && 
+                                !clustersSection.querySelector('.no-clusters-message[style*="display: block"]');
+        
+        const page2Elements = [competitorsSection];
+        if (clustersHasData) {
+            page2Elements.push(clustersSection);
+        }
+        
+        if (page2Elements.some(el => el)) {
+            const filteredElements = page2Elements.filter(el => el);
+            if (filteredElements.length === 1) {
+                // Solo una sección, capturar directamente
+                await addSectionToPDF(filteredElements[0], false, 'Media Sources');
+            } else {
+                // Múltiples secciones, usar wrapper
+                const { wrapper: page2Wrapper, originalParents: page2Parents } = createTempWrapper(filteredElements);
+                await addSectionToPDF(page2Wrapper, false, 'Media Sources & Clusters');
+                restoreElements(page2Parents, page2Wrapper);
+            }
+        }
+
+        // PÁGINA 3: AI Mode Keywords Details
+        if (btnText) btnText.textContent = 'Page 3/5: Keywords Details...';
+        const keywordsSection = document.querySelector('.ai-overview-keywords-section');
+        if (keywordsSection) {
+            await addSectionToPDF(keywordsSection, false, 'Keywords Details');
+        }
+
+        // PÁGINA 4: Top Mentioned URLs in AI Mode
+        if (btnText) btnText.textContent = 'Page 4/5: Top URLs...';
+        const topUrlsSection = document.querySelector('.top-urls-section');
+        if (topUrlsSection) {
+            await addSectionToPDF(topUrlsSection, false, 'Top URLs');
+        }
+
+        // PÁGINA 5: Global Media Sources Ranking
+        if (btnText) btnText.textContent = 'Page 5/5: Global Ranking...';
+        const globalDomainsSection = document.querySelector('.top-domains-section');
+        if (globalDomainsSection) {
+            await addSectionToPDF(globalDomainsSection, false, 'Global Ranking');
+        }
+
+        const fileName = `ai_mode_monitoring_${Date.now()}.pdf`;
         pdf.save(fileName);
+        
+        if (btnText) btnText.textContent = 'Download PDF';
+        this.showSuccess('PDF generated successfully!');
         
         // Restaurar elementos excluidos
         excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
+        
+        // Restaurar display original del chartsContainer
+        if (chartsContainer && chartsContainerOriginalDisplay !== null) {
+            chartsContainer.style.display = chartsContainerOriginalDisplay;
+        }
     } catch (err) {
         console.error('Error generating PDF:', err);
         this.showError('Failed to generate PDF.');
+        
+        // Restaurar display del chartsContainer en caso de error
+        if (chartsContainer && chartsContainerOriginalDisplay !== null) {
+            chartsContainer.style.display = chartsContainerOriginalDisplay;
+        }
     } finally {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');

@@ -283,10 +283,22 @@ class StatisticsService:
                         serp_data = result_row['raw_ai_mode_data']
                         references = serp_data.get('references', [])
                         
-                        # Buscar cada competidor en las references
+                        # Ordenar referencias por el campo 'index' (0-based) para mantener consistencia
+                        # con analysis_service.py
+                        enriched_refs = []
+                        for i, ref in enumerate(references):
+                            if not isinstance(ref, dict):
+                                continue
+                            idx = ref.get('index')
+                            idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+                            enriched_refs.append((idx_num, i, ref))
+                        enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+                        
+                        # Buscar cada competidor en las references ordenadas
                         for comp_domain in competitor_domains:
                             comp_lower = comp_domain.lower()
-                            for ref in references:
+                            found = False
+                            for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
                                 link = ref.get('link', '')
                                 if link:
                                     try:
@@ -297,13 +309,20 @@ class StatisticsService:
                                         
                                         # Si el dominio coincide con el competidor
                                         if comp_lower in domain or domain in comp_lower:
+                                            # Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py
+                                            actual_index = ref.get('index')
+                                            position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+                                            
                                             keyword_data['competitors'].append({
                                                 'domain': comp_domain,
-                                                'position': ref.get('position', 0)
+                                                'position': position
                                             })
+                                            found = True
                                             break  # Solo la primera aparición de este competidor
                                     except:
                                         continue
+                                if found:
+                                    break
                     except Exception as e:
                         logger.warning(f"Error extracting competitors from raw_ai_mode_data: {e}")
             
@@ -330,9 +349,43 @@ class StatisticsService:
         Returns:
             Lista de dominios con sus métricas
         """
-        # TODO: Para AI Mode, necesitaríamos extraer dominios de raw_ai_mode_data
-        # Por ahora, no hay tabla ai_mode_global_domains, retornar lista vacía
-        return []
+        from database import get_db_connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT detected_domain,
+                       COUNT(*) AS appearances,
+                       AVG(domain_position)::float AS avg_position
+                FROM ai_mode_global_domains
+                WHERE project_id = %s
+                GROUP BY detected_domain
+                ORDER BY appearances DESC
+                LIMIT %s
+            """, (project_id, limit))
+            rows = cur.fetchall()
+            domains = []
+            for idx, row in enumerate(rows, 1):
+                domains.append({
+                    'detected_domain': row['detected_domain'],
+                    'domain_type': 'other',
+                    'appearances': row['appearances'],
+                    'days_appeared': None,
+                    'avg_position': row['avg_position'],
+                    'visibility_percentage': None,
+                    'is_project_domain': False,
+                    'is_selected_competitor': False,
+                    'rank': idx
+                })
+            return domains
+        except Exception as e:
+            logger.warning(f"Top domains not available: {e}")
+            return []
+        finally:
+            try:
+                cur.close(); conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
@@ -521,4 +574,125 @@ class StatisticsService:
         conn.close()
         
         return stats
+    
+    @staticmethod
+    def get_project_urls_ranking(project_id: int, days: int = 30, limit: int = 20) -> List[Dict]:
+        """
+        Obtener ranking de URLs más mencionadas en AI Mode
+        
+        Este método extrae y agrupa todas las URLs que aparecen en las referencias de AI Mode,
+        contando cuántas veces cada URL ha sido mencionada.
+        
+        Args:
+            project_id: ID del proyecto
+            days: Número de días hacia atrás
+            limit: Número máximo de URLs a retornar
+            
+        Returns:
+            Lista de URLs con sus métricas (menciones, %, posición promedio)
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener todos los resultados con AI Mode del periodo
+        cur.execute("""
+            SELECT 
+                r.id,
+                r.keyword,
+                r.raw_ai_mode_data
+            FROM ai_mode_results r
+            WHERE r.project_id = %s 
+                AND r.analysis_date >= %s 
+                AND r.analysis_date <= %s
+                AND r.raw_ai_mode_data IS NOT NULL
+        """, (project_id, start_date, end_date))
+        
+        results = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Procesar referencias y agrupar URLs
+        url_mentions = {}
+        url_positions = {}
+        total_mentions = 0
+        
+        # Debug: contador de referencias sin posición
+        refs_without_position = 0
+        refs_with_position = 0
+        
+        for row in results:
+            raw_data = row['raw_ai_mode_data'] or {}
+            
+            # En AI Mode, las referencias están directamente en 'references'
+            references = raw_data.get('references', [])
+            
+            for ref in references:
+                url = ref.get('link', '').strip()
+                # AI Mode usa 'index' (0-based) en lugar de 'position'
+                index = ref.get('index')
+                position = None
+                
+                # Convertir index (0-based) a position (1-based)
+                if index is not None:
+                    if isinstance(index, (int, float)):
+                        position = float(index) + 1
+                    elif isinstance(index, str):
+                        try:
+                            position = float(index.strip()) + 1
+                        except Exception:
+                            position = None
+                
+                # Debug: log de primeras referencias
+                if total_mentions < 5:
+                    logger.info(f"📍 URL #{total_mentions + 1}: {url[:50]}... | index={index} | position={position}")
+                
+                if url:
+                    # Contar menciones
+                    if url not in url_mentions:
+                        url_mentions[url] = 0
+                        url_positions[url] = []
+                    
+                    url_mentions[url] += 1
+                    total_mentions += 1
+                    
+                    # Guardar posiciones válidas (>= 1 después de la conversión)
+                    if position is not None and position >= 1:
+                        url_positions[url].append(position)
+                        refs_with_position += 1
+                    else:
+                        refs_without_position += 1
+        
+        logger.info(f"📊 URLs Stats: {len(url_mentions)} unique URLs, {total_mentions} total mentions")
+        logger.info(f"📍 Position Stats: {refs_with_position} with valid position, {refs_without_position} without position")
+        
+        # Convertir a lista y calcular métricas
+        urls_data = []
+        for url, mentions in url_mentions.items():
+            # Calcular posición promedio
+            positions_list = url_positions.get(url, [])
+            avg_position = sum(positions_list) / len(positions_list) if positions_list else None
+            
+            # Calcular porcentaje sobre total de menciones
+            percentage = (mentions / total_mentions * 100) if total_mentions > 0 else 0
+            
+            urls_data.append({
+                'url': url,
+                'mentions': mentions,
+                'percentage': round(percentage, 2),
+                'avg_position': round(avg_position, 1) if avg_position is not None else None
+            })
+        
+        # Ordenar por número de menciones (descendente)
+        urls_data.sort(key=lambda x: x['mentions'], reverse=True)
+        
+        # Limitar resultados y añadir ranking
+        top_urls = urls_data[:limit]
+        for index, url_data in enumerate(top_urls, start=1):
+            url_data['rank'] = index
+        
+        return top_urls
 

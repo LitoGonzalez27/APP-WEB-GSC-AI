@@ -19,7 +19,8 @@ try:
         keywords,
         analysis,
         results,
-        exports
+        exports,
+        clusters
     )
     logger.info("✅ AI Mode routes loaded successfully")
 except ImportError as e:

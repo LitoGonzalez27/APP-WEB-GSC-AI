@@ -85,7 +85,14 @@ import {
     showNoDomainsMessage,
     loadGlobalDomainsRanking,
     renderGlobalDomainsRanking,
+    renderGlobalDomainsPaginator,
     showNoGlobalDomainsMessage,
+    loadTopUrlsRanking,
+    renderTopUrlsRanking,
+    renderTopUrlsPaginator,
+    showNoAiModeUrlsMessage,
+    initAiModeUrlsFilter,
+    filterAiModeUrlsByBrand,
     loadAIOverviewKeywordsTable,
     renderAIOverviewKeywordsTable,
     showNoAIKeywordsMessage,
@@ -215,7 +222,14 @@ Object.assign(AIModeSystem.prototype, {
     showNoDomainsMessage,
     loadGlobalDomainsRanking,
     renderGlobalDomainsRanking,
+    renderGlobalDomainsPaginator,
     showNoGlobalDomainsMessage,
+    loadTopUrlsRanking,
+    renderTopUrlsRanking,
+    renderTopUrlsPaginator,
+    showNoAiModeUrlsMessage,
+    initAiModeUrlsFilter,
+    filterAiModeUrlsByBrand,
     loadAIOverviewKeywordsTable,
     renderAIOverviewKeywordsTable,
     showNoAIKeywordsMessage,
@@ -278,6 +292,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Crear instancia global
     window.aiModeSystem = new AIModeSystem();
+    
+    // Inicializar configuración de Clusters (event listeners para toggles)
+    try {
+        if (window.aiModeSystem && typeof window.aiModeSystem.initializeClustersConfiguration === 'function') {
+            window.aiModeSystem.initializeClustersConfiguration();
+        }
+    } catch (e) {
+        console.warn('⚠️ Error initializing clusters configuration:', e);
+    }
     
     // Registrar plugin de Chart.js
     if (typeof Chart !== 'undefined') {

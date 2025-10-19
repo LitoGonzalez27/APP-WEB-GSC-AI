@@ -30,7 +30,7 @@ class ClusterService:
         try:
             cur.execute("""
                 SELECT topic_clusters
-                FROM manual_ai_projects
+                FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
             
@@ -98,7 +98,7 @@ class ClusterService:
             
             # Actualizar en base de datos
             cur.execute("""
-                UPDATE manual_ai_projects
+                UPDATE ai_mode_projects
                 SET topic_clusters = %s,
                     updated_at = NOW()
                 WHERE id = %s
@@ -192,14 +192,20 @@ class ClusterService:
         """
         Obtener estadísticas de clusters para un proyecto
         
+        Métrica base: Total de keywords por cluster
+        Comparación: Brand mentions vs total keywords
+        
         Args:
             project_id: ID del proyecto
             days: Número de días hacia atrás
             
         Returns:
             Dict con estadísticas de clusters para gráficas y tablas
+            - chart_data: {labels, total_keywords, mentions}
+            - table_data: [{cluster_name, total_keywords, mentions_count, mentions_percentage}]
+            - data_freshness: timestamp del análisis más reciente
         """
-        from datetime import date, timedelta
+        from datetime import date, datetime, timedelta
         
         conn = get_db_connection()
         cur = conn.cursor()
@@ -217,8 +223,9 @@ class ClusterService:
                 return {
                     'enabled': False,
                     'clusters': [],
-                    'chart_data': {'labels': [], 'ai_overview': [], 'mentions': []},
-                    'table_data': []
+                    'chart_data': {'labels': [], 'total_keywords': [], 'mentions': []},
+                    'table_data': [],
+                    'data_freshness': None
                 }
             
             # Obtener todas las keywords activas del proyecto con sus últimos resultados
@@ -227,11 +234,10 @@ class ClusterService:
                     SELECT DISTINCT ON (k.id)
                         k.id as keyword_id,
                         k.keyword,
-                        r.has_ai_overview,
-                        r.domain_mentioned,
+                        r.brand_mentioned,
                         r.analysis_date
                     FROM ai_mode_keywords k
-                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    LEFT JOIN ai_mode_results r ON k.id = r.keyword_id
                         AND r.analysis_date >= %s AND r.analysis_date <= %s
                     WHERE k.project_id = %s AND k.is_active = true
                     ORDER BY k.id, r.analysis_date DESC
@@ -239,13 +245,22 @@ class ClusterService:
                 SELECT 
                     keyword_id,
                     keyword,
-                    has_ai_overview,
-                    domain_mentioned
+                    brand_mentioned,
+                    analysis_date
                 FROM latest_results
             """, (start_date, end_date, project_id))
             
             keywords_data = cur.fetchall()
-            logger.info(f"📊 Found {len(keywords_data)} keywords with results for project {project_id} in date range {start_date} to {end_date}")
+            logger.info(f"📊 Found {len(keywords_data)} keywords for project {project_id} in date range {start_date} to {end_date}")
+            
+            # Calcular data freshness (timestamp del análisis más reciente)
+            most_recent_analysis = None
+            for kw_data in keywords_data:
+                if kw_data['analysis_date']:
+                    if most_recent_analysis is None or kw_data['analysis_date'] > most_recent_analysis:
+                        most_recent_analysis = kw_data['analysis_date']
+            
+            data_freshness = most_recent_analysis.isoformat() if most_recent_analysis else None
             
             # Clasificar cada keyword en clusters
             clusters_stats = {}
@@ -258,7 +273,6 @@ class ClusterService:
                     clusters_stats[cluster_name] = {
                         'name': cluster_name,
                         'total_keywords': 0,
-                        'ai_overview_count': 0,
                         'mentions_count': 0,
                         'keywords': []
                     }
@@ -266,8 +280,7 @@ class ClusterService:
             # Clasificar keywords y calcular estadísticas
             for kw_data in keywords_data:
                 keyword = kw_data['keyword']
-                has_ai_overview = kw_data['has_ai_overview'] or False
-                domain_mentioned = kw_data['domain_mentioned'] or False
+                brand_mentioned = kw_data['brand_mentioned'] or False
                 
                 # Clasificar keyword
                 matching_clusters = ClusterService.classify_keyword(keyword, clusters_config)
@@ -278,16 +291,13 @@ class ClusterService:
                         if cluster_name in clusters_stats:
                             clusters_stats[cluster_name]['total_keywords'] += 1
                             clusters_stats[cluster_name]['keywords'].append(keyword)
-                            if has_ai_overview:
-                                clusters_stats[cluster_name]['ai_overview_count'] += 1
-                            if domain_mentioned:
+                            if brand_mentioned:
                                 clusters_stats[cluster_name]['mentions_count'] += 1
                 else:
                     # Keyword no clasificada
                     unclassified_keywords.append({
                         'keyword': keyword,
-                        'has_ai_overview': has_ai_overview,
-                        'domain_mentioned': domain_mentioned
+                        'brand_mentioned': brand_mentioned
                     })
             
             # Añadir cluster "Unclassified" si hay keywords sin clasificar
@@ -295,25 +305,46 @@ class ClusterService:
                 clusters_stats['Unclassified'] = {
                     'name': 'Unclassified',
                     'total_keywords': len(unclassified_keywords),
-                    'ai_overview_count': sum(1 for kw in unclassified_keywords if kw['has_ai_overview']),
-                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['domain_mentioned']),
+                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['brand_mentioned']),
                     'keywords': [kw['keyword'] for kw in unclassified_keywords]
                 }
             
-            # Preparar datos para la gráfica (barras + línea)
+            # Consolidar duplicados por nombre de cluster (case-insensitive)
+            consolidated_stats = {}
+            for cluster_name, stats in clusters_stats.items():
+                # Buscar si ya existe una versión del mismo nombre
+                found_key = None
+                for existing_key in consolidated_stats.keys():
+                    if existing_key.lower() == cluster_name.lower():
+                        found_key = existing_key
+                        break
+                
+                if found_key:
+                    # Consolidar con el existente
+                    logger.warning(f"⚠️ Duplicate cluster name detected: '{cluster_name}' (consolidating with '{found_key}')")
+                    consolidated_stats[found_key]['total_keywords'] += stats['total_keywords']
+                    consolidated_stats[found_key]['mentions_count'] += stats['mentions_count']
+                    consolidated_stats[found_key]['keywords'].extend(stats['keywords'])
+                else:
+                    consolidated_stats[cluster_name] = stats
+            
+            clusters_stats = consolidated_stats
+            
+            # Preparar datos para la gráfica (barras = total_keywords, línea = mentions)
             chart_data = {
                 'labels': [],
-                'ai_overview': [],
+                'total_keywords': [],
                 'mentions': []
             }
             
             # Preparar datos para la tabla
             table_data = []
             
-            # Ordenar clusters por nombre (excepto Unclassified al final)
+            # Ordenar clusters por total_keywords DESCENDENTE (excepto Unclassified al final)
             sorted_clusters = sorted(
                 [(name, stats) for name, stats in clusters_stats.items() if name != 'Unclassified'],
-                key=lambda x: x[0]
+                key=lambda x: x[1]['total_keywords'],
+                reverse=True  # Descendente
             )
             
             # Añadir Unclassified al final si existe
@@ -324,21 +355,25 @@ class ClusterService:
                 if stats['total_keywords'] == 0:
                     continue
                 
+                # Validación: brand mentions nunca puede superar total keywords
+                mentions_count = stats['mentions_count']
+                if mentions_count > stats['total_keywords']:
+                    logger.warning(f"⚠️ Brand mentions ({mentions_count}) exceeds total keywords ({stats['total_keywords']}) for cluster '{cluster_name}'. Capping to total.")
+                    mentions_count = stats['total_keywords']
+                
                 # Datos para gráfica
                 chart_data['labels'].append(cluster_name)
-                chart_data['ai_overview'].append(stats['ai_overview_count'])
-                chart_data['mentions'].append(stats['mentions_count'])
+                chart_data['total_keywords'].append(stats['total_keywords'])
+                chart_data['mentions'].append(mentions_count)
+                
+                # Calcular porcentaje de menciones
+                mentions_pct = (mentions_count / stats['total_keywords'] * 100) if stats['total_keywords'] > 0 else 0.0
                 
                 # Datos para tabla
-                ai_overview_pct = (stats['ai_overview_count'] / stats['total_keywords'] * 100) if stats['total_keywords'] > 0 else 0
-                mentions_pct = (stats['mentions_count'] / stats['total_keywords'] * 100) if stats['total_keywords'] > 0 else 0
-                
                 table_data.append({
                     'cluster_name': cluster_name,
                     'total_keywords': stats['total_keywords'],
-                    'ai_overview_count': stats['ai_overview_count'],
-                    'mentions_count': stats['mentions_count'],
-                    'ai_overview_percentage': round(ai_overview_pct, 1),
+                    'mentions_count': mentions_count,
                     'mentions_percentage': round(mentions_pct, 1)
                 })
             
@@ -348,13 +383,14 @@ class ClusterService:
                 'chart_data': chart_data,
                 'table_data': table_data,
                 'total_clusters': len([c for c in clusters_stats.values() if c['total_keywords'] > 0]),
+                'data_freshness': data_freshness,
                 'date_range': {
                     'start': str(start_date),
                     'end': str(end_date)
                 }
             }
             
-            logger.info(f"✅ Returning cluster statistics: {len(table_data)} clusters with data, total_clusters={result['total_clusters']}")
+            logger.info(f"✅ Returning cluster statistics: {len(table_data)} clusters with data, total_clusters={result['total_clusters']}, freshness={data_freshness}")
             return result
             
         except Exception as e:
@@ -364,8 +400,9 @@ class ClusterService:
             return {
                 'enabled': False,
                 'clusters': [],
-                'chart_data': {'labels': [], 'ai_overview': [], 'mentions': []},
+                'chart_data': {'labels': [], 'total_keywords': [], 'mentions': []},
                 'table_data': [],
+                'data_freshness': None,
                 'error': str(e)
             }
         finally:

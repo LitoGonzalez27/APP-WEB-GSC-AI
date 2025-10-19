@@ -86,8 +86,8 @@ def update_project_competitors(project_id):
         if not project:
             return jsonify({'success': False, 'error': 'Project not found'}), 404
         
-        # Validar competidores
-        validation = competitor_service.validate_competitors(competitors, project['domain'])
+        # Validar competidores (AI Mode usa brand_name en lugar de domain)
+        validation = competitor_service.validate_competitors(competitors, project.get('brand_name', ''))
         
         if not validation['success']:
             return jsonify(validation), 400

@@ -2,8 +2,8 @@
 Configuración y constantes del sistema AI Mode Monitoring
 """
 
-# Costes en RUs (AI Mode puede ser más costoso que Manual AI)
-AI_MODE_KEYWORD_ANALYSIS_COST = 2
+# Costes en RUs (mismo coste que Manual AI)
+AI_MODE_KEYWORD_ANALYSIS_COST = 1
 
 # Límites del sistema
 MAX_KEYWORDS_PER_PROJECT = 100
