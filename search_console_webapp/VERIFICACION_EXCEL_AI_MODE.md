@@ -291,3 +291,45 @@ No se muestra explícitamente en la UI actual, pero es útil para análisis deta
 
 Todos los componentes visibles en la interfaz están representados en el Excel generado, con la misma estructura de datos y métricas. Los errores críticos han sido corregidos y el sistema está listo para uso en producción.
 
+---
+
+## 🔧 Fix Adicional: Posiciones de Competidores (2025-10-19)
+
+### Problema Detectado
+Las posiciones de los competidores no se calculaban correctamente en la tabla de "AI Mode Keywords Details". En la UI, la tabla mostraba "N/A" para todas las posiciones de competidores, mientras que el gráfico mostraba posiciones correctas (ej: "Position 1").
+
+### Causa Raíz
+**Ubicación:** `ai_mode_projects/services/statistics_service.py` línea 302
+
+El código intentaba obtener la posición con:
+```python
+'position': ref.get('position', 0)
+```
+
+Sin embargo, las referencias de SerpAPI usan el campo `index` (0-based), no `position`. Además, las referencias no se estaban ordenando antes de procesarlas, lo que podía causar inconsistencias en las posiciones.
+
+### Solución Aplicada
+
+1. **Ordenar referencias por campo `index`** (igual que en `analysis_service.py`):
+```python
+# Ordenar referencias por el campo 'index' (0-based) para mantener consistencia
+enriched_refs = []
+for i, ref in enumerate(references):
+    if not isinstance(ref, dict):
+        continue
+    idx = ref.get('index')
+    idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+    enriched_refs.append((idx_num, i, ref))
+enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+```
+
+2. **Calcular posición correctamente** (convertir de 0-based a 1-based):
+```python
+# Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py
+actual_index = ref.get('index')
+position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+```
+
+### Resultado
+✅ Ahora las posiciones de competidores se calculan correctamente tanto en la tabla como en el gráfico, usando el mismo algoritmo consistente que se utiliza para calcular las posiciones del brand del proyecto.
+

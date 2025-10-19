@@ -283,10 +283,22 @@ class StatisticsService:
                         serp_data = result_row['raw_ai_mode_data']
                         references = serp_data.get('references', [])
                         
-                        # Buscar cada competidor en las references
+                        # Ordenar referencias por el campo 'index' (0-based) para mantener consistencia
+                        # con analysis_service.py
+                        enriched_refs = []
+                        for i, ref in enumerate(references):
+                            if not isinstance(ref, dict):
+                                continue
+                            idx = ref.get('index')
+                            idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+                            enriched_refs.append((idx_num, i, ref))
+                        enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+                        
+                        # Buscar cada competidor en las references ordenadas
                         for comp_domain in competitor_domains:
                             comp_lower = comp_domain.lower()
-                            for ref in references:
+                            found = False
+                            for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
                                 link = ref.get('link', '')
                                 if link:
                                     try:
@@ -297,13 +309,20 @@ class StatisticsService:
                                         
                                         # Si el dominio coincide con el competidor
                                         if comp_lower in domain or domain in comp_lower:
+                                            # Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py
+                                            actual_index = ref.get('index')
+                                            position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+                                            
                                             keyword_data['competitors'].append({
                                                 'domain': comp_domain,
-                                                'position': ref.get('position', 0)
+                                                'position': position
                                             })
+                                            found = True
                                             break  # Solo la primera aparición de este competidor
                                     except:
                                         continue
+                                if found:
+                                    break
                     except Exception as e:
                         logger.warning(f"Error extracting competitors from raw_ai_mode_data: {e}")
             
