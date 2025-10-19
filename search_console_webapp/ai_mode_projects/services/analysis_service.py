@@ -408,49 +408,46 @@ class AnalysisService:
         
         result['total_sources'] = len(references)
         
-        # Preparar variaciones de la marca (mejorado con protección contra falsos positivos)
+        # Preparar variaciones de la marca con protección inteligente
+        import re
+        
         brand_lower = brand_name.strip().lower()
         
-        # Variaciones ESTRICTAS: solo para búsqueda en dominios/links
-        strict_variations = {brand_lower}
+        # Variaciones para dominios/links (búsqueda simple de substring)
+        domain_variations = {brand_lower}
         
-        # Variaciones LAXAS: para búsqueda en títulos/snippets/sources
-        # Solo incluir variaciones largas (>= 6 caracteres) para evitar falsos positivos
-        lax_variations = {brand_lower} if len(brand_lower) >= 6 else set()
+        # Variaciones para texto (búsqueda con word boundaries)
+        # Incluir TODAS las variaciones, pero buscar como palabras completas
+        text_variations = {brand_lower}
         
         # Variación sin espacios: "HM Fertility" → "hmfertility"
         if ' ' in brand_lower:
             no_space = brand_lower.replace(' ', '')
-            strict_variations.add(no_space)
-            if len(no_space) >= 6:
-                lax_variations.add(no_space)
+            domain_variations.add(no_space)
+            text_variations.add(no_space)
         
         # Variación sin guiones: "click-and-seo" → "clickandseo"
         if '-' in brand_lower:
             no_dash = brand_lower.replace('-', '')
-            strict_variations.add(no_dash)
-            if len(no_dash) >= 6:
-                lax_variations.add(no_dash)
+            domain_variations.add(no_dash)
+            text_variations.add(no_dash)
         
         # Variación sin prefijo 'get': "getquipu" → "quipu"
-        # IMPORTANTE: Solo para dominios, NO para texto libre (evita falsos positivos)
-        short_variation = None
+        # Incluir en ambas, pero en texto buscar con word boundaries
         if brand_lower.startswith('get') and len(brand_lower) > 3:
             short_variation = brand_lower[3:]
-            strict_variations.add(short_variation)
-            # Solo añadir a lax si es >= 6 caracteres
-            if len(short_variation) >= 6:
-                lax_variations.add(short_variation)
+            domain_variations.add(short_variation)
+            text_variations.add(short_variation)
         
-        # Añadir variaciones con dominios (para strict)
-        for var in list(strict_variations):
-            strict_variations.add(f"{var}.com")
-            strict_variations.add(f"{var}.es")
-            strict_variations.add(f"www.{var}")
+        # Añadir variaciones con dominios
+        for var in list(domain_variations):
+            domain_variations.add(f"{var}.com")
+            domain_variations.add(f"{var}.es")
+            domain_variations.add(f"www.{var}")
         
-        logger.debug(f"🔍 Brand variations (strict: {len(strict_variations)}, lax: {len(lax_variations)})")
-        logger.debug(f"   Strict (domain/link): {strict_variations}")
-        logger.debug(f"   Lax (title/snippet/source): {lax_variations}")
+        logger.debug(f"🔍 Brand variations:")
+        logger.debug(f"   Domain (substring): {domain_variations}")
+        logger.debug(f"   Text (word boundary): {text_variations}")
         
         # PRIORIDAD: Buscar primero en references (fuentes citadas) - tienen posiciones específicas
         # Usar el mismo criterio de orden que para global domains: index asc (0-based), luego orden natural
@@ -479,15 +476,14 @@ class AnalysisService:
             matched_variation = None
             matched_field = None
             
-            # PRIORIDAD 1: Buscar en dominio/link (usar strict_variations)
-            # Verificar dominio del link primero (más confiable)
+            # PRIORIDAD 1: Buscar en dominio del link (substring simple - MÁS CONFIABLE)
             try:
                 from urllib.parse import urlparse
                 netloc = urlparse(link).netloc.lower()
                 if netloc.startswith('www.'):
                     netloc = netloc[4:]
                 
-                for v in strict_variations:
+                for v in domain_variations:
                     if v and v in netloc:
                         matched_variation = v
                         matched_field = 'domain'
@@ -495,30 +491,34 @@ class AnalysisService:
             except Exception:
                 pass
             
-            # PRIORIDAD 2: Buscar en link completo (usar strict_variations)
+            # PRIORIDAD 2: Buscar en link completo (substring simple)
             if not matched_variation:
-                for v in strict_variations:
+                for v in domain_variations:
                     if v and v in link:
                         matched_variation = v
                         matched_field = 'link'
                         break
             
-            # PRIORIDAD 3: Buscar en texto (title/snippet/source) - usar lax_variations
-            # Solo variaciones largas para evitar falsos positivos
-            if not matched_variation and lax_variations:
-                for v in lax_variations:
+            # PRIORIDAD 3: Buscar en texto con WORD BOUNDARIES (evita falsos positivos)
+            # Ejemplo: "quipu" como palabra completa, NO dentro de "quipus" o "quipuxyz"
+            if not matched_variation:
+                for v in text_variations:
                     if not v:
                         continue
                     
-                    if v in title:
+                    # Crear patrón con word boundaries: \bquipu\b
+                    # Esto matchea "quipu" pero NO "quipus" ni "antiquipu"
+                    pattern = r'\b' + re.escape(v) + r'\b'
+                    
+                    if re.search(pattern, title):
                         matched_variation = v
                         matched_field = 'title'
                         break
-                    elif v in snippet:
+                    elif re.search(pattern, snippet):
                         matched_variation = v
                         matched_field = 'snippet'
                         break
-                    elif v in source:
+                    elif re.search(pattern, source):
                         matched_variation = v
                         matched_field = 'source'
                         break
@@ -551,7 +551,7 @@ class AnalysisService:
                 break
         
         # 2. Si NO se encontró en references, buscar en text_blocks (texto generado por IA)
-        if not result['brand_mentioned'] and lax_variations:
+        if not result['brand_mentioned']:
             text_blocks = text_blocks if isinstance(text_blocks, list) else []
             for block_idx, block in enumerate(text_blocks):
                 if not isinstance(block, dict):
@@ -561,10 +561,14 @@ class AnalysisService:
                 text = str(raw_text).lower()
                 reference_indexes = block.get('reference_indexes', [])
                 
-                # Buscar marca en texto usando lax_variations (solo palabras >= 6 caracteres)
+                # Buscar marca con word boundaries para evitar falsos positivos
                 matched_variation = None
-                for v in lax_variations:
-                    if v and v in text:
+                for v in text_variations:
+                    if not v:
+                        continue
+                    # Word boundary: "quipu" como palabra completa, NO dentro de "quipus"
+                    pattern = r'\b' + re.escape(v) + r'\b'
+                    if re.search(pattern, text):
                         matched_variation = v
                         break
                 
