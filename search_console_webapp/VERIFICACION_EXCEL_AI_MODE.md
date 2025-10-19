@@ -333,3 +333,57 @@ position = (actual_index + 1) if isinstance(actual_index, int) and actual_index 
 ### Resultado
 ✅ Ahora las posiciones de competidores se calculan correctamente tanto en la tabla como en el gráfico, usando el mismo algoritmo consistente que se utiliza para calcular las posiciones del brand del proyecto.
 
+---
+
+## 🔧 Fix Adicional: Posiciones Medias en Gráfica Comparativa (2025-10-19)
+
+### Problema Detectado
+Las posiciones medias de los competidores en la gráfica "Average Position in AI Mode" no coincidían con las posiciones reales mostradas en la tabla. Por ejemplo, holded.com mostraba "Position 1" en la gráfica, pero en la tabla tenía posiciones como 4, 7, 13, 8, 11, 1, 4 (promedio ≈ 6.86).
+
+### Causa Raíz
+**Ubicación:** `ai_mode_projects/services/competitor_service.py` líneas 630-656
+
+El código en la función `get_project_comparative_charts_data` también estaba usando `ref.get('position', 0)` en lugar del campo correcto `index`. Además:
+1. Había código duplicado (líneas 632-644) que intentaba normalizar un campo `position` inexistente
+2. No se ordenaban las referencias antes de calcular posiciones
+3. Se usaba `position if position else 1`, lo que podía causar posiciones incorrectas
+
+### Solución Aplicada
+
+El mismo fix que aplicamos en `statistics_service.py`:
+
+1. **Ordenar referencias por campo `index`**:
+```python
+# Ordenar referencias por campo 'index' (0-based) para mantener consistencia
+enriched_refs = []
+for i, ref in enumerate(references):
+    if not isinstance(ref, dict):
+        continue
+    idx = ref.get('index')
+    idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+    enriched_refs.append((idx_num, i, ref))
+enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+```
+
+2. **Calcular posición correctamente**:
+```python
+# Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py y statistics_service.py
+actual_index = ref.get('index')
+position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
+```
+
+3. **Eliminar código duplicado y fallback incorrecto**:
+```python
+# ANTES
+mentions_by_date[date_key]['positions'].append(position if position else 1)
+
+# DESPUÉS
+mentions_by_date[date_key]['positions'].append(position)
+```
+
+### Archivos Modificados
+- ✅ `ai_mode_projects/services/competitor_service.py` - Cálculo de posiciones medias para gráfica comparativa
+
+### Resultado
+✅ Las posiciones medias en la gráfica "Average Position in AI Mode" ahora se calculan correctamente, reflejando el promedio real de las posiciones individuales mostradas en la tabla. Todos los servicios (`analysis_service.py`, `statistics_service.py`, `competitor_service.py`) ahora usan el mismo algoritmo consistente para calcular posiciones.
+

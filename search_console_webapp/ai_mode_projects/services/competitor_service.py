@@ -627,21 +627,22 @@ class CompetitorService:
                             date_key = str(row['analysis_date'])
                             keyword_id = row['keyword_id']
                             
-                            for ref in references:
+                            # Ordenar referencias por campo 'index' (0-based) para mantener consistencia
+                            enriched_refs = []
+                            for i, ref in enumerate(references):
+                                if not isinstance(ref, dict):
+                                    continue
+                                idx = ref.get('index')
+                                idx_num = idx if isinstance(idx, int) and idx >= 0 else None
+                                enriched_refs.append((idx_num, i, ref))
+                            enriched_refs.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 10**9, t[1]))
+                            
+                            for loop_idx, (index_value, original_idx, ref) in enumerate(enriched_refs):
                                 link = ref.get('link', '')
-                                position = ref.get('position', 0)
-                                # Normalizar posición si llega como string
-                                if isinstance(position, str):
-                                    try:
-                                        position = float(position.strip())
-                                    except Exception:
-                                        position = 0
-                                position = ref.get('position', 0)
-                                if isinstance(position, str):
-                                    try:
-                                        position = float(position.strip())
-                                    except Exception:
-                                        position = 0
+                                
+                                # Calcular posición: usar index (0-based) + 1, igual que en analysis_service.py y statistics_service.py
+                                actual_index = ref.get('index')
+                                position = (actual_index + 1) if isinstance(actual_index, int) and actual_index >= 0 else (loop_idx + 1)
                                 
                                 if link:
                                     try:
@@ -653,7 +654,7 @@ class CompetitorService:
                                         # Verificar si coincide con el competidor
                                         if domain_lower in link_domain or link_domain in domain_lower:
                                             mentions_by_date[date_key]['keywords'].add(keyword_id)
-                                            mentions_by_date[date_key]['positions'].append(position if position else 1)
+                                            mentions_by_date[date_key]['positions'].append(position)
                                     except:
                                         continue
                         except Exception as e:
