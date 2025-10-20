@@ -259,6 +259,7 @@ class ClusterService:
                     clusters_stats[cluster_name] = {
                         'name': cluster_name,
                         'total_keywords': 0,
+                        'keywords_with_ai_overview': 0,
                         'mentions_count': 0,
                         'keywords': []
                     }
@@ -266,6 +267,7 @@ class ClusterService:
             # Clasificar keywords y calcular estadísticas
             for kw_data in keywords_data:
                 keyword = kw_data['keyword']
+                has_ai_overview = kw_data['has_ai_overview'] or False
                 domain_mentioned = kw_data['domain_mentioned'] or False
                 
                 # Clasificar keyword
@@ -277,21 +279,32 @@ class ClusterService:
                         if cluster_name in clusters_stats:
                             clusters_stats[cluster_name]['total_keywords'] += 1
                             clusters_stats[cluster_name]['keywords'].append(keyword)
-                            if domain_mentioned:
-                                clusters_stats[cluster_name]['mentions_count'] += 1
+                            
+                            # Contar solo keywords que generan AI Overview
+                            if has_ai_overview:
+                                clusters_stats[cluster_name]['keywords_with_ai_overview'] += 1
+                                
+                                # Contar menciones solo en keywords con AI Overview
+                                if domain_mentioned:
+                                    clusters_stats[cluster_name]['mentions_count'] += 1
                 else:
                     # Keyword no clasificada
                     unclassified_keywords.append({
                         'keyword': keyword,
+                        'has_ai_overview': has_ai_overview,
                         'domain_mentioned': domain_mentioned
                     })
             
             # Añadir cluster "Unclassified" si hay keywords sin clasificar
             if unclassified_keywords:
+                # Contar keywords con AI Overview en unclassified
+                unclassified_with_ai = [kw for kw in unclassified_keywords if kw['has_ai_overview']]
+                
                 clusters_stats['Unclassified'] = {
                     'name': 'Unclassified',
                     'total_keywords': len(unclassified_keywords),
-                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['domain_mentioned']),
+                    'keywords_with_ai_overview': len(unclassified_with_ai),
+                    'mentions_count': sum(1 for kw in unclassified_keywords if kw['has_ai_overview'] and kw['domain_mentioned']),
                     'keywords': [kw['keyword'] for kw in unclassified_keywords]
                 }
             
@@ -301,31 +314,32 @@ class ClusterService:
                 if cluster_name in consolidated_stats:
                     logger.warning(f"⚠️ Duplicado detectado para cluster '{cluster_name}', consolidando...")
                     consolidated_stats[cluster_name]['total_keywords'] += stats['total_keywords']
+                    consolidated_stats[cluster_name]['keywords_with_ai_overview'] += stats['keywords_with_ai_overview']
                     consolidated_stats[cluster_name]['mentions_count'] += stats['mentions_count']
                     consolidated_stats[cluster_name]['keywords'].extend(stats['keywords'])
                 else:
                     consolidated_stats[cluster_name] = stats.copy()
             
-            # Validar que mentions_count no supere total_keywords
+            # Validar que mentions_count no supere keywords_with_ai_overview
             for cluster_name, stats in consolidated_stats.items():
-                if stats['mentions_count'] > stats['total_keywords']:
-                    logger.warning(f"⚠️ Brand mentions ({stats['mentions_count']}) supera total keywords ({stats['total_keywords']}) en cluster '{cluster_name}'. Ajustando al límite.")
-                    stats['mentions_count'] = stats['total_keywords']
+                if stats['mentions_count'] > stats['keywords_with_ai_overview']:
+                    logger.warning(f"⚠️ Brand mentions ({stats['mentions_count']}) supera keywords with AI Overview ({stats['keywords_with_ai_overview']}) en cluster '{cluster_name}'. Ajustando al límite.")
+                    stats['mentions_count'] = stats['keywords_with_ai_overview']
             
-            # Preparar datos para la gráfica (barras = total keywords, línea = brand mentions)
+            # Preparar datos para la gráfica (barras = keywords con AI Overview, línea = brand mentions)
             chart_data = {
                 'labels': [],
-                'total_keywords': [],
+                'keywords_with_ai_overview': [],
                 'mentions': []
             }
             
             # Preparar datos para la tabla
             table_data = []
             
-            # Ordenar por total_keywords descendente (excepto Unclassified al final)
+            # Ordenar por keywords_with_ai_overview descendente (excepto Unclassified al final)
             sorted_clusters = sorted(
                 [(name, stats) for name, stats in consolidated_stats.items() if name != 'Unclassified'],
-                key=lambda x: x[1]['total_keywords'],
+                key=lambda x: x[1]['keywords_with_ai_overview'],
                 reverse=True
             )
             
@@ -337,19 +351,25 @@ class ClusterService:
                 if stats['total_keywords'] == 0:
                     continue
                 
-                # Datos para gráfica
+                # Datos para gráfica (mostrar solo keywords con AI Overview)
                 chart_data['labels'].append(cluster_name)
-                chart_data['total_keywords'].append(stats['total_keywords'])
+                chart_data['keywords_with_ai_overview'].append(stats['keywords_with_ai_overview'])
                 chart_data['mentions'].append(stats['mentions_count'])
                 
-                # Datos para tabla
-                mentions_pct = (stats['mentions_count'] / stats['total_keywords'] * 100) if stats['total_keywords'] > 0 else 0.0
+                # Calcular porcentajes para la tabla
+                # Peso de IA: % de keywords del cluster que generan AI Overview
+                ai_weight_pct = (stats['keywords_with_ai_overview'] / stats['total_keywords'] * 100) if stats['total_keywords'] > 0 else 0.0
+                
+                # Visibilidad de marca: % de menciones sobre keywords con AI Overview
+                brand_visibility_pct = (stats['mentions_count'] / stats['keywords_with_ai_overview'] * 100) if stats['keywords_with_ai_overview'] > 0 else 0.0
                 
                 table_data.append({
                     'cluster_name': cluster_name,
                     'total_keywords': stats['total_keywords'],
+                    'keywords_with_ai_overview': stats['keywords_with_ai_overview'],
+                    'ai_weight_percentage': round(ai_weight_pct, 1),
                     'mentions_count': stats['mentions_count'],
-                    'mentions_percentage': round(mentions_pct, 1)
+                    'brand_visibility_percentage': round(brand_visibility_pct, 1)
                 })
             
             # Calcular si los datos están desactualizados (>24h)

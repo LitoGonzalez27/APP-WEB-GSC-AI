@@ -335,10 +335,10 @@ export function renderClustersChart(chartData) {
     
     // Use data directly from backend
     const labels = chartData.labels || [];
-    const totalKeywordsData = chartData.total_keywords || [];
+    const keywordsWithAIData = chartData.keywords_with_ai_overview || [];
     const mentionsData = chartData.mentions || [];
     
-    console.log('📊 Chart prepared:', { labels, totalKeywordsData, mentionsData });
+    console.log('📊 Chart prepared:', { labels, keywordsWithAIData, mentionsData });
     
     // Create chart
     const ctx = canvas.getContext('2d');
@@ -349,8 +349,8 @@ export function renderClustersChart(chartData) {
             datasets: [
                 {
                     type: 'bar',
-                    label: 'Total Keywords',
-                    data: totalKeywordsData,
+                    label: 'Keywords with AI Overview',
+                    data: keywordsWithAIData,
                     backgroundColor: 'rgba(99, 102, 241, 0.7)',
                     borderColor: 'rgb(99, 102, 241)',
                     borderWidth: 1,
@@ -359,7 +359,7 @@ export function renderClustersChart(chartData) {
                 },
                 {
                     type: 'line',
-                    label: 'Brand Mentions',
+                    label: 'Brand Mentions in AI Overview',
                     data: mentionsData,
                     borderColor: 'rgb(34, 197, 94)',
                     backgroundColor: 'rgba(34, 197, 94, 0.1)',
@@ -417,18 +417,18 @@ export function renderClustersChart(chartData) {
                             const datasetIndex = context.datasetIndex;
                             const clusterIndex = context.dataIndex;
                             
-                            // Obtener total keywords y mentions para calcular porcentaje
-                            const totalKeywords = totalKeywordsData[clusterIndex] || 0;
+                            // Obtener keywords con AI Overview y mentions para calcular porcentaje de visibilidad
+                            const keywordsWithAI = keywordsWithAIData[clusterIndex] || 0;
                             const mentions = mentionsData[clusterIndex] || 0;
-                            const percentage = totalKeywords > 0 ? ((mentions / totalKeywords) * 100).toFixed(1) : '0.0';
+                            const visibilityPct = keywordsWithAI > 0 ? ((mentions / keywordsWithAI) * 100).toFixed(1) : '0.0';
                             
                             // Formato según el dataset
                             if (datasetIndex === 0) {
-                                // Barras (Total Keywords)
-                                return `Total Keywords: ${value}`;
+                                // Barras (Keywords with AI Overview)
+                                return `Keywords with AI Overview: ${value}`;
                             } else {
                                 // Línea (Brand Mentions)
-                                return `Brand Mentions: ${value} (${percentage}%)`;
+                                return `Brand Mentions: ${value} (${visibilityPct}% visibility)`;
                             }
                         }
                     }
@@ -469,7 +469,7 @@ export function renderClustersTable(clustersData) {
     console.log('📋 Rendering clusters table with data:', clustersData);
     
     if (!clustersData || clustersData.length === 0) {
-        table.innerHTML = '<tbody><tr><td colspan="4" style="text-align: center;">No data available</td></tr></tbody>';
+        table.innerHTML = '<tbody><tr><td colspan="6" style="text-align: center;">No data available</td></tr></tbody>';
         return;
     }
     
@@ -477,8 +477,10 @@ export function renderClustersTable(clustersData) {
     const rows = clustersData.map(cluster => {
         const clusterName = escapeHtml(cluster.cluster_name || '');
         const totalKeywords = cluster.total_keywords || 0;
+        const keywordsWithAI = cluster.keywords_with_ai_overview || 0;
+        const aiWeightPct = (cluster.ai_weight_percentage || 0).toFixed(1);
         const brandMentions = cluster.mentions_count || 0;
-        const mentionsPercentage = (cluster.mentions_percentage || 0).toFixed(1);
+        const visibilityPct = (cluster.brand_visibility_percentage || 0).toFixed(1);
         
         // Aplicar clase especial para Unclassified
         const rowClass = cluster.cluster_name === 'Unclassified' ? 'unclassified-row' : '';
@@ -486,9 +488,13 @@ export function renderClustersTable(clustersData) {
         return `<tr class="${rowClass}">
             <td class="cluster-name-cell"><strong>${clusterName}</strong></td>
             <td class="text-center">${totalKeywords}</td>
+            <td class="text-center">${keywordsWithAI}</td>
+            <td class="text-center">
+                <span class="badge badge-info">${aiWeightPct}%</span>
+            </td>
             <td class="text-center">${brandMentions}</td>
             <td class="text-center">
-                <span class="badge badge-success">${mentionsPercentage}%</span>
+                <span class="badge badge-success">${visibilityPct}%</span>
             </td>
         </tr>`;
     }).join('');
@@ -498,8 +504,10 @@ export function renderClustersTable(clustersData) {
             <tr>
                 <th>Cluster</th>
                 <th class="text-center">Total Keywords</th>
+                <th class="text-center">AI Overview Results</th>
+                <th class="text-center">AI Weight</th>
                 <th class="text-center">Brand Mentions</th>
-                <th class="text-center">% Mentions</th>
+                <th class="text-center">Brand Visibility</th>
             </tr>
         </thead>
         <tbody>

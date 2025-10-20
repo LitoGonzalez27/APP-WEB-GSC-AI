@@ -4895,8 +4895,8 @@ class ManualAISystem {
                 datasets: [
                     {
                         type: 'bar',
-                        label: 'Total Keywords',
-                        data: chartData.total_keywords || [],
+                        label: 'Keywords with AI Overview',
+                        data: chartData.keywords_with_ai_overview || [],
                         backgroundColor: 'rgba(99, 102, 241, 0.7)',
                         borderColor: 'rgb(99, 102, 241)',
                         borderWidth: 1,
@@ -4905,7 +4905,7 @@ class ManualAISystem {
                     },
                     {
                         type: 'line',
-                        label: 'Brand Mentions',
+                        label: 'Brand Mentions in AI Overview',
                         data: chartData.mentions || [],
                         borderColor: 'rgb(34, 197, 94)',
                         backgroundColor: 'rgba(34, 197, 94, 0.1)',
@@ -4931,7 +4931,7 @@ class ManualAISystem {
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Thematic Clusters: Total Keywords & Brand Mentions',
+                        text: 'Thematic Clusters: AI Overview Results & Brand Mentions',
                         font: {
                             size: 16,
                             weight: '600'
@@ -4964,7 +4964,15 @@ class ManualAISystem {
                             label: function(context) {
                                 const label = context.dataset.label || '';
                                 const value = context.parsed.y || 0;
-                                return `${label}: ${value} keywords`;
+                                
+                                if (context.datasetIndex === 0) {
+                                    return `${label}: ${value}`;
+                                } else {
+                                    // Para Brand Mentions, calcular visibilidad
+                                    const keywordsWithAI = chartData.keywords_with_ai_overview[context.dataIndex] || 0;
+                                    const visibilityPct = keywordsWithAI > 0 ? ((value / keywordsWithAI) * 100).toFixed(1) : '0.0';
+                                    return `${label}: ${value} (${visibilityPct}% visibility)`;
+                                }
                             }
                         }
                     }
@@ -5052,9 +5060,13 @@ class ManualAISystem {
                     <strong>${this.escapeHtml(cluster.cluster_name)}</strong>
                 </td>
                 <td class="text-center">${cluster.total_keywords}</td>
+                <td class="text-center">${cluster.keywords_with_ai_overview || 0}</td>
+                <td class="text-center">
+                    <span class="badge badge-info">${(cluster.ai_weight_percentage || 0).toFixed(1)}%</span>
+                </td>
                 <td class="text-center">${cluster.mentions_count}</td>
                 <td class="text-center">
-                    <span class="badge badge-success">${cluster.mentions_percentage}%</span>
+                    <span class="badge badge-success">${(cluster.brand_visibility_percentage || 0).toFixed(1)}%</span>
                 </td>
             `;
 
