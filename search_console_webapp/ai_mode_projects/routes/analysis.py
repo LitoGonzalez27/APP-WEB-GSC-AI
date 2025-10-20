@@ -3,6 +3,7 @@ Rutas para ejecución de análisis
 """
 
 import logging
+import threading
 from datetime import date
 from flask import request, jsonify
 from auth import auth_required, cron_or_auth_required, get_current_user
@@ -133,10 +134,41 @@ def trigger_daily_analysis():
     """
     Trigger para análisis diario automático (cron job)
     
+    Query params:
+        async (int): Si es 1, ejecuta en background y responde inmediatamente con 202
+    
     Returns:
         JSON con resultado de la ejecución del cron
     """
     try:
+        # Verificar si se solicita ejecución asíncrona
+        is_async = request.args.get('async', '0') == '1'
+        
+        if is_async:
+            # Ejecutar en background y responder inmediatamente
+            def run_analysis_in_background():
+                try:
+                    logger.info("🚀 AI Mode: Starting daily analysis in background")
+                    result = cron_service.run_daily_analysis_for_all_projects()
+                    if result.get('success'):
+                        logger.info(f"✅ AI Mode: Daily analysis completed - {result.get('total_projects', 0)} projects processed")
+                    else:
+                        logger.error(f"❌ AI Mode: Daily analysis failed - {result.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.error(f"💥 AI Mode: Background analysis error: {e}")
+            
+            # Iniciar thread en background
+            thread = threading.Thread(target=run_analysis_in_background, daemon=True)
+            thread.start()
+            
+            logger.info("📤 AI Mode: Daily analysis triggered (async mode)")
+            return jsonify({
+                'success': True,
+                'message': 'Daily analysis triggered in background',
+                'async': True
+            }), 202
+        
+        # Modo síncrono (comportamiento original)
         result = cron_service.run_daily_analysis_for_all_projects()
         
         if result.get('success'):
