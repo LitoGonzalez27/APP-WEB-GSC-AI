@@ -15,6 +15,10 @@ export class ManualAISystem {
         this.isLoading = false;
         this.refreshInterval = null;
         
+        // Progress bar state
+        this.progressInterval = null;
+        this.progressPercent = 0;
+        
         // DOM References
         this.elements = {};
         
@@ -460,6 +464,57 @@ export class ManualAISystem {
     hideProgress() {
         this.stopProgressBar();
         hideElement(this.elements.progressModal);
+    }
+
+    // ================================
+    // PROGRESS BAR METHODS
+    // ================================
+
+    resetProgressBar() {
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            progressBar.setAttribute('aria-valuenow', '0');
+        }
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+        this.progressPercent = 0;
+    }
+
+    startProgressBar(maxPercent = 90, stepMs = 100) {
+        this.resetProgressBar();
+        const progressBar = document.getElementById('progressBar');
+        if (!progressBar) return;
+
+        this.progressPercent = 0;
+        this.progressInterval = setInterval(() => {
+            if (this.progressPercent < maxPercent) {
+                // Slow down as it approaches max
+                const increment = Math.max(0.5, (maxPercent - this.progressPercent) / 10);
+                this.progressPercent += increment;
+                progressBar.style.width = this.progressPercent + '%';
+                progressBar.setAttribute('aria-valuenow', Math.round(this.progressPercent));
+            }
+        }, stepMs);
+    }
+
+    stopProgressBar() {
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+    }
+
+    completeProgressBar() {
+        this.stopProgressBar();
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.style.width = '100%';
+            progressBar.setAttribute('aria-valuenow', '100');
+        }
+        this.progressPercent = 100;
     }
 
     showSuccess(message) {
