@@ -49,7 +49,9 @@ import {
     hideAddKeywords,
     updateKeywordsCounter,
     handleAddKeywords,
-    toggleKeyword
+    toggleKeyword,
+    addKeywordsFromModal,
+    removeKeywordFromModal
 } from './manual-ai/manual-ai-keywords.js';
 
 // Analysis
@@ -197,6 +199,8 @@ Object.assign(ManualAISystem.prototype, {
     updateKeywordsCounter,
     handleAddKeywords,
     toggleKeyword,
+    addKeywordsFromModal,
+    removeKeywordFromModal,
     
     // Analysis
     analyzeProject,

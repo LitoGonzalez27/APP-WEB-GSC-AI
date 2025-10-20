@@ -163,3 +163,101 @@ export function toggleKeyword(keywordId) {
     console.log('Toggle keyword:', keywordId);
 }
 
+// ================================
+// KEYWORDS FROM MODAL
+// ================================
+
+export async function addKeywordsFromModal() {
+    const keywordsInput = document.getElementById('modalKeywordsInput');
+    const keywordsText = keywordsInput.value.trim();
+    
+    if (!keywordsText) {
+        this.showError('Please enter some keywords');
+        return;
+    }
+
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    try {
+        // Parse keywords (split by newlines or commas)
+        const keywords = keywordsText
+            .split(/[,\n]/)
+            .map(k => k.trim())
+            .filter(k => k.length > 0);
+
+        if (keywords.length === 0) {
+            this.showError('No valid keywords found');
+            return;
+        }
+
+        this.showProgress('Adding keywords...', `Adding ${keywords.length} keywords to project`);
+
+        const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}/keywords`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to add keywords');
+        }
+
+        const data = await response.json();
+
+        // Clear input and reload keywords
+        keywordsInput.value = '';
+        this.showSuccess(`${data.added_count || keywords.length} keywords added successfully!`);
+        
+        // Reload modal keywords and projects list
+        await this.loadModalKeywords(this.currentModalProject.id);
+        await this.loadProjects(); // Refresh projects list to update stats
+
+    } catch (error) {
+        console.error('Error adding keywords from modal:', error);
+        this.showError(error.message || 'Failed to add keywords');
+    } finally {
+        this.hideProgress();
+    }
+}
+
+export async function removeKeywordFromModal(keywordId) {
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to remove this keyword?')) {
+        return;
+    }
+
+    try {
+        this.showProgress('Removing keyword...', 'Deleting keyword from project');
+
+        const response = await fetch(`/manual-ai/api/keywords/${keywordId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to remove keyword');
+        }
+
+        this.showSuccess('Keyword removed successfully');
+        
+        // Reload modal keywords and projects list
+        await this.loadModalKeywords(this.currentModalProject.id);
+        await this.loadProjects(); // Refresh projects list to update stats
+
+    } catch (error) {
+        console.error('Error removing keyword:', error);
+        this.showError(error.message || 'Failed to remove keyword');
+    } finally {
+        this.hideProgress();
+    }
+}
+
