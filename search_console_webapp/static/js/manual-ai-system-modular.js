@@ -133,7 +133,12 @@ import {
     loadProjectIntoModal,
     loadModalKeywords,
     renderModalKeywords,
-    loadModalSettings
+    loadModalSettings,
+    confirmDeleteProjectFromModal,
+    confirmDeleteProject,
+    cancelDeleteProject,
+    executeDeleteProject,
+    updateProjectFromModal
 } from './manual-ai/manual-ai-modals.js';
 
 // Clusters
@@ -262,6 +267,11 @@ Object.assign(ManualAISystem.prototype, {
     switchModalTab,
     loadProjectIntoModal,
     loadModalKeywords,
+    confirmDeleteProjectFromModal,
+    confirmDeleteProject,
+    cancelDeleteProject,
+    executeDeleteProject,
+    updateProjectFromModal,
     renderModalKeywords,
     loadModalSettings,
     

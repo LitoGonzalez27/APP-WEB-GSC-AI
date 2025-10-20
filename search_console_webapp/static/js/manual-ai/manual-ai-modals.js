@@ -302,3 +302,234 @@ export function loadModalSettings(project) {
     }
 }
 
+// ================================
+// PROJECT DELETION
+// ================================
+
+export function confirmDeleteProjectFromModal() {
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    // Set project name in delete modal
+    document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
+    document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
+    
+    // Store project reference for deletion (use the same variable as the other function)
+    this.projectToDelete = this.currentModalProject;
+    
+    // Hide project modal and show delete confirmation
+    this.hideProjectModal();
+    this.showElement(document.getElementById('deleteProjectModal'));
+    
+    // Reset confirmation input
+    const confirmInput = document.getElementById('deleteConfirmInput');
+    confirmInput.value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    
+    // Remove any existing event listener to prevent duplicates
+    confirmInput.oninput = null;
+    
+    // Add input listener for enabling delete button
+    confirmInput.oninput = (e) => {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        const inputValue = e.target.value.trim();
+        
+        // Safety check: ensure projectToDelete exists
+        if (!this.projectToDelete || !this.projectToDelete.name) {
+            console.error('❌ projectToDelete is null or has no name');
+            deleteBtn.disabled = true;
+            return;
+        }
+        
+        const projectName = this.projectToDelete.name.trim();
+        const isMatch = inputValue === projectName;
+        
+        console.log('🔍 Delete button validation (modal):', {
+            inputValue: `"${inputValue}"`,
+            projectName: `"${projectName}"`,
+            inputLength: inputValue.length,
+            nameLength: projectName.length,
+            isMatch: isMatch,
+            inputCharCodes: Array.from(inputValue).map(c => c.charCodeAt(0)),
+            nameCharCodes: Array.from(projectName).map(c => c.charCodeAt(0))
+        });
+        
+        deleteBtn.disabled = !isMatch;
+    };
+}
+
+export function confirmDeleteProject(projectId) {
+    // Find project from list
+    const currentProject = this.projects.find(p => p.id === projectId);
+    if (!currentProject) {
+        this.showError('Project not found');
+        return;
+    }
+
+    // Set project name in delete modal
+    document.getElementById('deleteProjectName').textContent = currentProject.name;
+    document.getElementById('deleteProjectNamePrompt').textContent = currentProject.name;
+    
+    // Reset confirmation input
+    const confirmInput = document.getElementById('deleteConfirmInput');
+    confirmInput.value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    
+    // Store project reference for deletion
+    this.projectToDelete = currentProject;
+    
+    // Remove any existing event listener to prevent duplicates
+    confirmInput.oninput = null;
+    
+    // Add input listener for enabling delete button
+    confirmInput.oninput = (e) => {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        const inputValue = e.target.value.trim();
+        
+        // Use the stored project reference
+        if (!this.projectToDelete || !this.projectToDelete.name) {
+            console.error('❌ projectToDelete is null or has no name');
+            deleteBtn.disabled = true;
+            return;
+        }
+        
+        const projectName = this.projectToDelete.name.trim();
+        const isMatch = inputValue === projectName;
+        
+        console.log('🔍 Delete button validation:', {
+            inputValue: `"${inputValue}"`,
+            projectName: `"${projectName}"`,
+            inputLength: inputValue.length,
+            nameLength: projectName.length,
+            isMatch: isMatch,
+            charCodes: {
+                input: Array.from(inputValue).map(c => c.charCodeAt(0)),
+                name: Array.from(projectName).map(c => c.charCodeAt(0))
+            }
+        });
+        
+        deleteBtn.disabled = !isMatch;
+    };
+    
+    // Show delete modal
+    this.showElement(document.getElementById('deleteProjectModal'));
+}
+
+export function cancelDeleteProject() {
+    this.hideElement(document.getElementById('deleteProjectModal'));
+    this.projectToDelete = null;
+    document.getElementById('deleteConfirmInput').value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+}
+
+export async function executeDeleteProject() {
+    const projectToDelete = this.projectToDelete;
+    const confirmText = document.getElementById('deleteConfirmInput').value;
+    
+    if (!projectToDelete) {
+        this.showError('No project selected for deletion');
+        return;
+    }
+
+    if (confirmText.trim() !== projectToDelete.name.trim()) {
+        this.showError('Please type the project name exactly to confirm');
+        return;
+    }
+
+    try {
+        this.showProgress('Deleting project...', 'Removing project and all associated data...');
+        
+        const response = await fetch(`/manual-ai/api/projects/${encodeURIComponent(projectToDelete.id)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            this.showSuccess('Project deleted successfully');
+            
+            // Close delete modal
+            this.cancelDeleteProject();
+            
+            // Reload projects
+            await this.loadProjects();
+            this.populateAnalyticsProjectSelect();
+            
+            // Clear analytics if deleted project was selected
+            if (this.elements.analyticsProjectSelect?.value == projectToDelete.id) {
+                this.elements.analyticsProjectSelect.value = '';
+                this.elements.analyticsContent.innerHTML = '<div class="empty-analytics"><i class="fas fa-chart-line"></i><p>Select a project to view analytics</p></div>';
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete project');
+        }
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        this.showError(error.message || 'Failed to delete project');
+    } finally {
+        this.hideProgress();
+    }
+}
+
+export async function updateProjectFromModal() {
+    const newName = document.getElementById('projectNameEdit')?.value.trim();
+    const newDescription = document.getElementById('projectDescriptionEdit')?.value.trim();
+    
+    if (!newName) {
+        this.showError('Project name cannot be empty');
+        return;
+    }
+
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    try {
+        this.showProgress('Updating project...', 'Saving changes...');
+        
+        const response = await fetch(`/manual-ai/api/projects/${this.currentModalProject.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: newName,
+                description: newDescription
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            this.showSuccess('Project updated successfully');
+            
+            // Update local project data
+            const projectIndex = this.projects.findIndex(p => p.id === this.currentModalProject.id);
+            if (projectIndex !== -1) {
+                this.projects[projectIndex].name = newName;
+                this.projects[projectIndex].description = newDescription;
+            }
+            
+            // Update currentModalProject
+            this.currentModalProject.name = newName;
+            this.currentModalProject.description = newDescription;
+            
+            // Update modal title
+            document.getElementById('projectModalTitle').textContent = `${newName} - Settings`;
+            
+            // Reload projects to reflect changes
+            await this.loadProjects();
+            this.populateAnalyticsProjectSelect();
+        } else {
+            throw new Error(data.error || 'Failed to update project');
+        }
+    } catch (error) {
+        console.error('Error updating project:', error);
+        this.showError(error.message || 'Failed to update project');
+    } finally {
+        this.hideProgress();
+    }
+}
+
