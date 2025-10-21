@@ -1,17 +1,40 @@
 # services/ai_analysis.py
 import logging
 import re
+import unicodedata
 from .utils import urls_match, normalize_search_console_url, extract_domain
 
 logger = logging.getLogger(__name__)
+
+def remove_accents(text):
+    """
+    Elimina acentos y diacríticos de un texto.
+    
+    Ejemplos:
+    - "Láserum" → "Laserum"
+    - "José" → "Jose"
+    - "Müller" → "Muller"
+    """
+    if not text:
+        return text
+    
+    # Normalizar a NFD (separar caracteres base de diacríticos)
+    nfd = unicodedata.normalize('NFD', text)
+    # Filtrar solo caracteres que no sean diacríticos
+    without_accents = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    # Renormalizar a NFC
+    return unicodedata.normalize('NFC', without_accents)
 
 def extract_brand_variations(domain):
     """
     Extrae variaciones de marca comunes de un dominio para detectar menciones.
     
+    ✨ MEJORADO: Ahora incluye variaciones con acentos comunes en español.
+    
     Ejemplos:
-    - getquipu.com → ["quipu", "getquipu", "get quipu"]
-    - clickandseo.com → ["clickandseo", "click and seo", "clicandseo"]
+    - getquipu.com → ["quipu", "getquipu", "get quipu", "Quipu"]
+    - laserum.com → ["laserum", "Laserum", "Láserum", "láserum"]
+    - clickandseo.com → ["clickandseo", "click and seo", "Click And Seo"]
     - example-site.com → ["example-site", "example site", "examplesite"]
     """
     if not domain:
@@ -19,7 +42,7 @@ def extract_brand_variations(domain):
     
     # Remover extensiones comunes
     clean_domain = domain.lower()
-    for ext in ['.com', '.es', '.org', '.net', '.io', '.co']:
+    for ext in ['.com', '.es', '.org', '.net', '.io', '.co', '.uk', '.mx']:
         if clean_domain.endswith(ext):
             clean_domain = clean_domain[:-len(ext)]
             break
@@ -44,6 +67,21 @@ def extract_brand_variations(domain):
         variations.append(clean_domain.replace('-', ' '))
         variations.append(clean_domain.replace('-', ''))
     
+    # ✨ 3b. NUEVO: Si es una palabra compuesta (sin guiones pero claramente dos palabras),
+    # intentar separarla en palabras comunes
+    # Ejemplos: "clinicagarcia" → "clinica garcia", "josemartinez" → "jose martinez"
+    common_word_parts = ['clinica', 'centro', 'laser', 'jose', 'juan', 'garcia', 'lopez', 
+                         'martinez', 'fernandez', 'rodriguez', 'sanchez', 'perez']
+    for part in common_word_parts:
+        if part in clean_domain and len(part) >= 4:  # Solo palabras significativas
+            # Separar en ese punto
+            if clean_domain.startswith(part) and len(clean_domain) > len(part):
+                rest = clean_domain[len(part):]
+                variations.append(f"{part} {rest}")
+            elif clean_domain.endswith(part) and len(clean_domain) > len(part):
+                start = clean_domain[:-len(part)]
+                variations.append(f"{start} {part}")
+    
     # 4. Si detectamos palabras compuestas comunes, separarlas
     # Patrones comunes: click+and, get+word, etc.
     if 'and' in clean_domain:
@@ -53,6 +91,36 @@ def extract_brand_variations(domain):
     for var in list(variations):
         variations.append(var.capitalize())
         variations.append(var.title())
+    
+    # ✨ 6. NUEVO: Generar variaciones con acentos comunes en español
+    # Esto es crucial para marcas como "Láserum", "José", "García", etc.
+    accent_variations = []
+    for var in list(variations):
+        # Mapeo de vocales comunes con acentos (solo el más común para cada vocal)
+        accent_map = {
+            'a': 'á',
+            'e': 'é',
+            'i': 'í',
+            'o': 'ó',
+            'u': 'ú',
+            'n': 'ñ'
+        }
+        
+        # Generar variaciones con acento en CADA vocal (no solo la primera)
+        # Esto permite detectar "García", "José", "Depilación", etc.
+        for i, char in enumerate(var):
+            char_lower = char.lower()
+            if char_lower in accent_map:
+                accented = accent_map[char_lower]
+                # Mantener mayúsculas si el original era mayúscula
+                if char.isupper():
+                    accented = accented.upper()
+                new_var = var[:i] + accented + var[i+1:]
+                # Solo añadir si no está duplicado
+                if new_var not in accent_variations and new_var not in variations:
+                    accent_variations.append(new_var)
+    
+    variations.extend(accent_variations)
     
     # Eliminar duplicados y variaciones muy cortas
     unique_variations = []
@@ -66,6 +134,8 @@ def check_brand_mention(text, domain, brand_variations):
     """
     Verifica si el texto contiene menciones del dominio o sus variaciones de marca.
     
+    ✨ MEJORADO: Ahora busca también normalizando acentos para evitar falsos negativos.
+    
     Returns:
         tuple: (found, method) donde found es bool y method es string describiendo cómo se encontró
     """
@@ -73,23 +143,39 @@ def check_brand_mention(text, domain, brand_variations):
         return False, None
     
     text_lower = text.lower()
+    text_lower_no_accents = remove_accents(text_lower)
     
-    # 1. Buscar dominio completo primero
-    if domain.lower() in text_lower:
+    # 1. Buscar dominio completo primero (con y sin acentos)
+    domain_lower = domain.lower()
+    if domain_lower in text_lower or domain_lower in text_lower_no_accents:
         return True, "full_domain"
     
     # 2. Buscar variaciones de marca
     for variation in brand_variations:
         if len(variation) >= 3:  # Solo buscar variaciones significativas
-            # Buscar como palabra completa o parcial pero con contexto
-            if variation.lower() in text_lower:
-                # Verificar que no sea parte de otra palabra más larga
-                import re
-                pattern = r'\b' + re.escape(variation.lower()) + r'\b'
-                if re.search(pattern, text_lower):
-                    return True, f"brand_exact_match:{variation}"
-                elif variation.lower() in text_lower:
-                    return True, f"brand_partial_match:{variation}"
+            variation_lower = variation.lower()
+            variation_no_accents = remove_accents(variation_lower)
+            
+            # 🎯 BÚSQUEDA EXACTA: Buscar como palabra completa (word boundary)
+            # Buscar tanto con acentos como sin acentos
+            pattern = r'\b' + re.escape(variation_lower) + r'\b'
+            pattern_no_accents = r'\b' + re.escape(variation_no_accents) + r'\b'
+            
+            # Buscar en texto con acentos
+            if re.search(pattern, text_lower):
+                return True, f"brand_exact_match:{variation}"
+            
+            # ✨ NUEVO: Buscar en texto sin acentos (esto captura "Láserum" cuando buscamos "laserum")
+            if re.search(pattern_no_accents, text_lower_no_accents):
+                return True, f"brand_accent_match:{variation}"
+            
+            # 🔍 BÚSQUEDA PARCIAL: Como fallback, buscar substring (menos estricto)
+            if variation_lower in text_lower:
+                return True, f"brand_partial_match:{variation}"
+            
+            # ✨ NUEVO: Búsqueda parcial sin acentos
+            if variation_no_accents in text_lower_no_accents:
+                return True, f"brand_partial_accent_match:{variation}"
     
     return False, None
 
