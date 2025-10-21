@@ -917,11 +917,12 @@ def setup_auth_routes(app):
             session['state'] = secrets.token_urlsafe(32)
             session['oauth_action'] = 'login'  # ✅ MARCAR como LOGIN
             
+            # ✅ Sin 'prompt=consent' para no pedir consentimiento cada vez
+            # Solo se pedirá consentimiento la primera vez o si el token fue revocado
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state'],
-                prompt='consent'
+                state=session['state']
             )
             return redirect(authorization_url)
         except Exception as e:
@@ -957,11 +958,11 @@ def setup_auth_routes(app):
             session['state'] = secrets.token_urlsafe(32)
             session['oauth_action'] = 'signup'  # ✅ MARCAR como REGISTRO
             
+            # ✅ Sin 'prompt=consent' para mejor UX - Google lo pedirá solo cuando sea necesario
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=session['state'],
-                prompt='consent'
+                state=session['state']
             )
             return redirect(authorization_url)
         except Exception as e:
