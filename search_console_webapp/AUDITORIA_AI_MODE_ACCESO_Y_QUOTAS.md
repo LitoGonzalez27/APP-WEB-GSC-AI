@@ -319,3 +319,4 @@ El sistema está **listo para producción** tal como está. Las mejoras sugerida
 3. 🟢 Futuro: Alertas de quota (1 semana)
 
 
+

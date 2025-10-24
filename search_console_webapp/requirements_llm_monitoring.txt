@@ -1,0 +1,36 @@
+# ====================================================================
+# DEPENDENCIAS ADICIONALES PARA MULTI-LLM BRAND MONITORING
+# ====================================================================
+# Agregar estas líneas al requirements.txt principal
+# O instalar con: pip install -r requirements_llm_monitoring.txt
+# ====================================================================
+
+# OpenAI (GPT-5)
+openai==1.54.4
+
+# Anthropic (Claude Sonnet 4.5)
+anthropic==0.39.0
+
+# Google Generative AI (Gemini 2.0 Flash)
+google-generativeai==0.8.3
+
+# Perplexity y otros modelos online
+# (Perplexity usa una API REST compatible con OpenAI)
+# Ya incluido en openai>=1.0.0
+
+# ====================================================================
+# DEPENDENCIAS YA PRESENTES EN requirements.txt (NO DUPLICAR)
+# ====================================================================
+# requests==2.32.3          ✅ Ya presente
+# psycopg2-binary==2.9.9    ✅ Ya presente  
+# cryptography==43.0.1      ✅ Ya presente (para encriptar API keys)
+# python-dateutil==2.9.0    ✅ Ya presente
+
+# ====================================================================
+# NOTAS IMPORTANTES
+# ====================================================================
+# 1. OpenAI SDK v1+ incluye soporte para modelos compatibles (Perplexity)
+# 2. Anthropic SDK es oficial de Claude
+# 3. Google GenerativeAI es el SDK oficial de Gemini
+# 4. Todas las versiones son las más recientes y estables (Oct 2024)
+

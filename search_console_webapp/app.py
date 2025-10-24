@@ -3467,6 +3467,34 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register diagnostic endpoint: {e}")
 
+# ✅ NUEVO: Registrar sistema Multi-LLM Brand Monitoring
+try:
+    from llm_monitoring_routes import llm_monitoring_bp
+    app.register_blueprint(llm_monitoring_bp)
+    logger.info("✅ Multi-LLM Brand Monitoring system registered at /api/llm-monitoring")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register LLM Monitoring system: {e}")
+
+# ✅ NUEVO: Ruta para LLM Monitoring Dashboard
+@app.route('/llm-monitoring')
+@login_required
+def llm_monitoring_page():
+    """
+    LLM Visibility Monitor - Dashboard para monitorizar menciones de marca en LLMs
+    """
+    # Verificar si es un dispositivo móvil
+    if should_block_mobile_access():
+        device_type = get_device_type()
+        logger.info(f"Acceso bloqueado desde dispositivo móvil - Tipo: {device_type}")
+        return redirect(url_for('mobile_not_supported'))
+    
+    # Obtener información completa del usuario
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login_page'))
+    
+    return render_template('llm_monitoring.html', user=user, authenticated=True)
+
 # ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
 def register_billing_routes():
     """Register Billing Routes for SaaS self-service flow"""

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Visibility Monitor - ClicAndSEO</title>
+    
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+    <!-- End Google Tag Manager -->
+    
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+    
+    <!-- Reutilizar estilos existentes para consistencia -->
+    <link href="{{ url_for('static', filename='estilos-principales.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='base-y-componentes.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='modales-datos.css') }}" rel="stylesheet">
+    
+    <!-- CSS específico para LLM Monitoring -->
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}" rel="stylesheet">
+    
+    <!-- CSS para navbar principal -->
+    <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
+    
+    <!-- CSS para sidebar navigation -->
+    <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Grid.js para tablas -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+</head>
+<body data-authenticated="{{ 'true' if user else 'false' }}">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    
+    <!-- Navbar principal del SaaS -->
+    <nav class="navbar" id="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logos/logo clicandseo.png') }}" alt="Clicandseo Logo" class="logo-image">
+            </div>
+
+            <div class="navbar-desktop-actions">
+                <div class="navbar-user-dropdown" id="userDropdown" style="display: block;">
+                    <button class="user-dropdown-btn" id="userDropdownBtn" aria-expanded="false">
+                        <div class="user-avatar-small" id="userAvatarSmall">
+                            {% if user.picture %}
+                                <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                            {% else %}
+                                <i class="fas fa-user-circle"></i>
+                            {% endif %}
+                        </div>
+                        <span class="user-name-small" id="userNameDropdown">{{ user.name or user.email }}</span>
+                        <i class="fas fa-chevron-down dropdown-chevron"></i>
+                    </button>
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <div class="user-dropdown-header">
+                            <div class="user-avatar-large" id="userAvatarLarge">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="Avatar" class="user-avatar-img">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="user-details">
+                                <div class="user-name-large" id="userNameLarge">{{ user.name or 'Usuario' }}</div>
+                                <div class="user-email" id="userEmailDropdown">{{ user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/profile" class="dropdown-item">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="/dashboard" class="dropdown-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item logout-item" id="dropdownLogoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="navbar-toggle" id="navbarToggle" aria-label="Abrir menú de navegación" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+        </div>
+    </nav>
+    
+    <div class="layout-wrapper">
+        <!-- Sidebar de navegación -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-header-content">
+                    <h2 class="sidebar-title">Menu</h2>
+                </div>
+                <button class="sidebar-close" id="sidebarClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
+                <div class="nav-section nav-section-analysis">
+                    <div class="nav-section-title">Análisis</div>
+                    <button type="button" class="nav-item" id="navConfiguration" onclick="navigateToConfiguration()">
+                        <div class="nav-icon-wrapper">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="nav-text">Configuration</div>
+                    </button>
+                    
+                    <button type="button" class="nav-item" id="navManualAI" onclick="navigateToManualAI()">
+                        <div class="nav-icon-wrapper">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <div class="nav-text">Manual AI Analysis</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready"></div>
+                        </div>
+                    </button>
+                    
+                    <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
+                        <div class="nav-icon-wrapper">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">AI Mode Monitoring</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready"></div>
+                        </div>
+                    </button>
+                    
+                    <button type="button" class="nav-item active" id="navLLMMonitoring">
+                        <div class="nav-icon-wrapper">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="nav-text">LLM Visibility</div>
+                        <div class="section-status">
+                            <div class="status-dot status-ready"></div>
+                        </div>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Contenido principal -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="page-header">
+                <div class="header-content">
+                    <h1>
+                        <i class="fas fa-chart-line"></i>
+                        LLM Visibility Monitor
+                    </h1>
+                    <p class="header-subtitle">Track your brand mentions across ChatGPT, Claude, Gemini & Perplexity</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btnCreateProject">
+                        <i class="fas fa-plus"></i>
+                        <span>New Project</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Budget Alert -->
+            <div class="alert alert-warning" id="budgetAlert" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div class="alert-content">
+                    <strong>Budget Alert:</strong>
+                    <span id="budgetAlertText"></span>
+                </div>
+            </div>
+
+            <!-- Projects Section -->
+            <section class="content-section" id="projectsSection">
+                <div class="section-header">
+                    <h2>Your Projects</h2>
+                    <div class="section-actions">
+                        <button class="btn btn-ghost" id="btnRefreshProjects">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Projects Grid -->
+                <div class="projects-grid" id="projectsGrid">
+                    <!-- Loading state -->
+                    <div class="loading-state" id="projectsLoading">
+                        <div class="spinner"></div>
+                        <p>Loading projects...</p>
+                    </div>
+                    
+                    <!-- Empty state -->
+                    <div class="empty-state" id="projectsEmpty" style="display: none;">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>No projects yet</h3>
+                        <p>Create your first LLM monitoring project to get started</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('btnCreateProject').click()">
+                            <i class="fas fa-plus"></i>
+                            Create Project
+                        </button>
+                    </div>
+                    
+                    <!-- Projects cards will be inserted here -->
+                </div>
+            </section>
+
+            <!-- Metrics Section (shown when project is selected) -->
+            <section class="content-section" id="metricsSection" style="display: none;">
+                <div class="section-header">
+                    <div class="section-header-left">
+                        <button class="btn btn-ghost" id="btnBackToProjects">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to Projects
+                        </button>
+                        <h2 id="projectTitle">Project Metrics</h2>
+                    </div>
+                    <div class="section-actions">
+                        <button class="btn btn-success" id="btnAnalyzeProject">
+                            <i class="fas fa-play"></i>
+                            <span>Run Analysis</span>
+                        </button>
+                        <button class="btn btn-ghost" id="btnEditProject">
+                            <i class="fas fa-edit"></i>
+                            <span>Edit</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPIs -->
+                <div class="kpis-grid" id="kpisGrid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Mention Rate</div>
+                            <div class="kpi-value" id="kpiMentionRate">-</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Avg. Position</div>
+                            <div class="kpi-value" id="kpiAvgPosition">-</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Share of Voice</div>
+                            <div class="kpi-value" id="kpiShareOfVoice">-</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">
+                            <i class="fas fa-smile"></i>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Sentiment</div>
+                            <div class="kpi-value" id="kpiSentiment">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Mention Rate by LLM</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartMentionRate"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <h3>Share of Voice vs Competitors</h3>
+                        <div class="chart-container">
+                            <canvas id="chartShareOfVoice"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Table -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>LLM Comparison</h3>
+                        <div class="chart-actions">
+                            <button class="btn btn-ghost btn-sm" id="btnExportComparison">
+                                <i class="fas fa-download"></i>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="comparisonTable"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create/Edit Project Modal -->
+    <div class="modal" id="projectModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Create Project</h3>
+                    <button class="modal-close" id="btnCloseModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="projectForm">
+                        <div class="form-group">
+                            <label for="projectName">Project Name *</label>
+                            <input type="text" id="projectName" class="form-control" required placeholder="e.g., Brand SEO Monitoring">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="brandName">Brand Name *</label>
+                            <input type="text" id="brandName" class="form-control" required placeholder="e.g., MyBrand">
+                            <small class="form-help">The brand to monitor (min. 2 characters)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="industry">Industry *</label>
+                            <input type="text" id="industry" class="form-control" required placeholder="e.g., SEO tools">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="competitors">Competitors (comma separated)</label>
+                            <input type="text" id="competitors" class="form-control" placeholder="e.g., Semrush, Ahrefs">
+                            <small class="form-help">Optional: Competitors to track</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="language">Language</label>
+                            <select id="language" class="form-control">
+                                <option value="es" selected>Spanish</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Enabled LLMs *</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="llm" value="openai" checked>
+                                    <span>OpenAI (GPT-5)</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="llm" value="anthropic" checked>
+                                    <span>Anthropic (Claude)</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="llm" value="google" checked>
+                                    <span>Google (Gemini)</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="llm" value="perplexity" checked>
+                                    <span>Perplexity</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="queriesPerLlm">Queries per LLM</label>
+                            <input type="number" id="queriesPerLlm" class="form-control" value="15" min="5" max="50">
+                            <small class="form-help">Number of queries to test (5-50)</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" id="btnCancelModal">Cancel</button>
+                    <button class="btn btn-primary" id="btnSaveProject">
+                        <span id="btnSaveText">Create Project</span>
+                        <div class="btn-spinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Progress Modal -->
+    <div class="modal" id="analysisModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Running Analysis</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="analysisProgress"></div>
+                        </div>
+                        <p class="progress-text" id="analysisProgressText">Starting analysis...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}"></script>
+    
+    <script>
+        // Usuario actual
+        window.currentUser = {
+            id: {{ user.id if user else 'null' }},
+            email: '{{ user.email if user else '' }}',
+            name: '{{ user.name if user else '' }}'
+        };
+        
+        // Navigation functions
+        function navigateToConfiguration() {
+            window.location.href = '/dashboard';
+        }
+        
+        function navigateToManualAI() {
+            window.location.href = '/manual-ai';
+        }
+        
+        function openAIMode() {
+            window.location.href = '/ai-mode-projects/';
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 LLM Monitoring initialized');
+            
+            // Initialize navbar
+            if (typeof Navbar !== 'undefined') {
+                window.navbar = new Navbar();
+            }
+            
+            // Initialize LLM Monitoring
+            if (typeof LLMMonitoring !== 'undefined') {
+                window.llmMonitoring = new LLMMonitoring();
+                window.llmMonitoring.init();
+            }
+        });
+    </script>
+</body>
+</html>
+

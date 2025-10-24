@@ -50,3 +50,29 @@ stripe==12.4.0
 
 # Scheduling
 schedule==1.2.2
+
+# ====================================================================
+# LLM Providers para Multi-LLM Brand Monitoring
+# ====================================================================
+
+# OpenAI (GPT-5)
+openai==1.54.4
+
+# Anthropic (Claude Sonnet 4.5)
+anthropic==0.39.0
+
+# Google Generative AI (Gemini 2.0 Flash)
+google-generativeai==0.8.3
+
+# ====================================================================
+# Testing Dependencies
+# ====================================================================
+
+# pytest y plugins
+pytest==8.3.3
+pytest-mock==3.14.0
+pytest-cov==6.0.0
+pytest-asyncio==0.24.0
+
+# Para mocking y testing
+mock==5.1.0
