@@ -64,7 +64,10 @@ class LLMMonitoring {
             this.hideProjectModal();
         });
 
-        document.getElementById('btnSaveProject')?.addEventListener('click', () => {
+        // Form submit handler
+        document.getElementById('projectForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            console.log('📝 Form submitted!');
             this.saveProject();
         });
 
@@ -538,13 +541,22 @@ class LLMMonitoring {
         modal.style.display = 'flex';
         console.log('✅ Modal display set:', modal.style.display);
         console.log('✅ Modal should now be visible');
+        
+        // Add a slight delay to ensure styles are applied
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10);
     }
 
     /**
      * Hide project modal
      */
     hideProjectModal() {
-        document.getElementById('projectModal').style.display = 'none';
+        const modal = document.getElementById('projectModal');
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300); // Match transition duration
     }
 
     /**

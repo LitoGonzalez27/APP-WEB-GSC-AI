@@ -25,6 +25,12 @@
     <link href="{{ url_for('static', filename='tablas.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='modales-datos.css') }}" rel="stylesheet">
     
+    <!-- CSS específico para Manual AI (reusado para LLM Monitoring) -->
+    <link href="{{ url_for('static', filename='manual-ai.css') }}" rel="stylesheet">
+    
+    <!-- ✅ Quota UI para consistencia -->
+    <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
+    
     <!-- CSS específico para LLM Monitoring -->
     <link href="{{ url_for('static', filename='llm-monitoring.css') }}" rel="stylesheet">
     
@@ -33,6 +39,9 @@
     
     <!-- CSS para sidebar navigation -->
     <link href="{{ url_for('static', filename='sidebar-navigation.css') }}" rel="stylesheet">
+    
+    <!-- ✅ Paywall Styles para consistencia -->
+    <link href="{{ url_for('static', filename='paywall.css') }}" rel="stylesheet">
     
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -166,65 +175,41 @@
         </aside>
 
         <!-- Contenido principal -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="page-header">
-                <div class="header-content">
-                    <h1>
-                        <i class="fas fa-chart-line"></i>
-                        LLM Visibility Monitor
-                    </h1>
-                    <p class="header-subtitle">Track your brand mentions across ChatGPT, Claude, Gemini & Perplexity</p>
-                </div>
-                <div class="header-actions">
-                    <button class="btn btn-primary" id="btnCreateProject">
+        <main class="manual-ai-main">
+            <!-- Projects Tab (matching AI Mode structure) -->
+            <section class="tab-content active" id="projectsTab">
+                <div class="projects-header">
+                    <h2>Your LLM Monitoring Projects</h2>
+                    <button type="button" class="btn-primary" id="btnCreateProject">
                         <i class="fas fa-plus"></i>
-                        <span>New Project</span>
+                        Create New Project
                     </button>
                 </div>
-            </header>
 
-            <!-- Budget Alert -->
-            <div class="alert alert-warning" id="budgetAlert" style="display: none;">
-                <i class="fas fa-exclamation-triangle"></i>
-                <div class="alert-content">
-                    <strong>Budget Alert:</strong>
-                    <span id="budgetAlertText"></span>
-                </div>
-            </div>
-
-            <!-- Projects Section -->
-            <section class="content-section" id="projectsSection">
-                <div class="section-header">
-                    <h2>Your Projects</h2>
-                    <div class="section-actions">
-                        <button class="btn btn-ghost" id="btnRefreshProjects">
-                            <i class="fas fa-sync-alt"></i>
-                            <span>Refresh</span>
-                        </button>
+                <!-- Projects loading state -->
+                <div class="loading-container" id="projectsLoading">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
                     </div>
+                    <p>Loading your projects...</p>
                 </div>
 
-                <!-- Projects Grid -->
-                <div class="projects-grid" id="projectsGrid">
-                    <!-- Loading state -->
-                    <div class="loading-state" id="projectsLoading">
-                        <div class="spinner"></div>
-                        <p>Loading projects...</p>
-                    </div>
-                    
-                    <!-- Empty state -->
-                    <div class="empty-state" id="projectsEmpty" style="display: none;">
+                <!-- Projects list container -->
+                <div class="projects-grid" id="projectsGrid" style="display: none;">
+                    <!-- Projects will be rendered here by JavaScript -->
+                </div>
+
+                <!-- Empty state -->
+                <div class="empty-state" id="projectsEmpty" style="display: none;">
+                    <div class="empty-icon">
                         <i class="fas fa-folder-open"></i>
-                        <h3>No projects yet</h3>
-                        <p>Create your first LLM monitoring project to get started</p>
-                        <button class="btn btn-primary" onclick="document.getElementById('btnCreateProject').click()">
-                            <i class="fas fa-plus"></i>
-                            Create Project
-                        </button>
                     </div>
-                    
-                    <!-- Projects cards will be inserted here -->
+                    <h3>No projects yet</h3>
+                    <p>Create your first LLM monitoring project to get started</p>
+                    <button type="button" class="btn-primary btn-small mt-2" onclick="window.llmMonitoring.showProjectModal()">
+                        <i class="fas fa-plus"></i>
+                        Create Your First Project
+                    </button>
                 </div>
             </section>
 
@@ -327,83 +312,125 @@
     </div>
 
     <!-- Create/Edit Project Modal -->
-    <div class="modal" id="projectModal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 id="modalTitle">Create Project</h3>
-                    <button class="modal-close" id="btnCloseModal">
-                        <i class="fas fa-times"></i>
-                    </button>
+    <div class="modal-overlay" id="projectModal" style="display: none;">
+        <div class="modal-content create-project-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+            <div class="modal-header create-header">
+                <div class="header-text">
+                    <h3 id="modalTitle">Create New LLM Monitoring Project</h3>
+                    <p id="modalDesc">Set up a new project to track brand visibility in LLMs</p>
                 </div>
-                <div class="modal-body">
-                    <form id="projectForm">
-                        <div class="form-group">
-                            <label for="projectName">Project Name *</label>
-                            <input type="text" id="projectName" class="form-control" required placeholder="e.g., Brand SEO Monitoring">
+                <button type="button" class="modal-close" id="btnCloseModal" onclick="window.llmMonitoring.hideProjectModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="projectForm">
+                <div class="modal-body create-body">
+                    <div class="create-intro">
+                        <div class="create-intro-icon" aria-hidden="true">
+                            <i class="fas fa-eye"></i>
                         </div>
-                        
+                        <div class="create-intro-copy">
+                            <p class="create-intro-title">Monitor your brand across ChatGPT, Claude, Gemini & Perplexity</p>
+                            <p class="create-intro-text">Track brand mentions, sentiment, and positioning in LLM responses with automated daily analysis.</p>
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
-                            <label for="brandName">Brand Name *</label>
-                            <input type="text" id="brandName" class="form-control" required placeholder="e.g., MyBrand">
+                            <label for="projectName" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Project Name</span>*
+                            </label>
+                            <input type="text" id="projectName" required maxlength="255" class="enhanced-input" placeholder="e.g., Brand LLM Visibility Campaign">
+                            <small class="form-help">Choose a memorable name for your monitoring project</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row form-row-split">
+                        <div class="form-group">
+                            <label for="brandName" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Name</span>*
+                            </label>
+                            <input type="text" id="brandName" required class="enhanced-input" placeholder="e.g., Your Brand">
                             <small class="form-help">The brand to monitor (min. 2 characters)</small>
                         </div>
                         
                         <div class="form-group">
-                            <label for="industry">Industry *</label>
-                            <input type="text" id="industry" class="form-control" required placeholder="e.g., SEO tools">
+                            <label for="industry" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Industry</span>*
+                            </label>
+                            <input type="text" id="industry" required class="enhanced-input" placeholder="e.g., SEO Tools, Marketing">
+                            <small class="form-help">Your brand's industry or niche</small>
                         </div>
-                        
+                    </div>
+                    
+                    <div class="form-row">
                         <div class="form-group">
-                            <label for="competitors">Competitors (comma separated)</label>
-                            <input type="text" id="competitors" class="form-control" placeholder="e.g., Semrush, Ahrefs">
-                            <small class="form-help">Optional: Competitors to track</small>
+                            <label for="competitors" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitors</span>
+                            </label>
+                            <input type="text" id="competitors" class="enhanced-input" placeholder="e.g., Semrush, Ahrefs, Moz (comma separated)">
+                            <small class="form-help">Optional: Track competitor mentions for share of voice analysis</small>
                         </div>
-                        
+                    </div>
+                    
+                    <div class="form-row form-row-split">
                         <div class="form-group">
-                            <label for="language">Language</label>
-                            <select id="language" class="form-control">
-                                <option value="es" selected>Spanish</option>
-                                <option value="en">English</option>
+                            <label for="language" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Language</span>*
+                            </label>
+                            <select id="language" class="enhanced-select">
+                                <option value="es" selected>🇪🇸 Spanish</option>
+                                <option value="en">🇬🇧 English</option>
                             </select>
+                            <small class="form-help">Query language for LLM testing</small>
                         </div>
                         
                         <div class="form-group">
-                            <label>Enabled LLMs *</label>
+                            <label for="queriesPerLlm" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Queries per LLM</span>*
+                            </label>
+                            <input type="number" id="queriesPerLlm" class="enhanced-input" value="15" min="5" max="50">
+                            <small class="form-help">Number of test queries (5-50)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Enabled LLMs</span>*
+                            </label>
                             <div class="checkbox-group">
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="llm" value="openai" checked>
-                                    <span>OpenAI (GPT-5)</span>
+                                    <span><i class="fas fa-robot"></i> OpenAI (GPT-5)</span>
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="llm" value="anthropic" checked>
-                                    <span>Anthropic (Claude)</span>
+                                    <span><i class="fas fa-brain"></i> Anthropic (Claude Sonnet 4.5)</span>
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="llm" value="google" checked>
-                                    <span>Google (Gemini)</span>
+                                    <span><i class="fas fa-star"></i> Google (Gemini 2.0 Flash)</span>
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="llm" value="perplexity" checked>
-                                    <span>Perplexity</span>
+                                    <span><i class="fas fa-search"></i> Perplexity (Sonar Large)</span>
                                 </label>
                             </div>
+                            <small class="form-help">Select at least one LLM to monitor</small>
                         </div>
-                        
-                        <div class="form-group">
-                            <label for="queriesPerLlm">Queries per LLM</label>
-                            <input type="number" id="queriesPerLlm" class="form-control" value="15" min="5" max="50">
-                            <small class="form-help">Number of queries to test (5-50)</small>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-ghost" id="btnCancelModal">Cancel</button>
-                    <button class="btn btn-primary" id="btnSaveProject">
+                <div class="modal-footer create-footer">
+                    <button type="button" class="btn-secondary btn-enhanced" id="btnCancelModal" onclick="window.llmMonitoring.hideProjectModal()">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button type="submit" id="btnSaveProject" class="btn-primary btn-enhanced btn-create">
+                        <i class="fas fa-rocket"></i>
                         <span id="btnSaveText">Create Project</span>
-                        <div class="btn-spinner" style="display: none;"></div>
                     </button>
                 </div>
+            </form>
             </div>
         </div>
     </div>
@@ -470,4 +497,5 @@
     </script>
 </body>
 </html>
+
 
