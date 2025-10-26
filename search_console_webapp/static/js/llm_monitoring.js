@@ -92,13 +92,19 @@ class LLMMonitoring {
         oldCards.forEach(card => card.remove());
         
         try {
-            const response = await fetch(`${this.baseUrl}/projects`);
+            const response = await fetch(`${this.baseUrl}/projects`, {
+                credentials: 'same-origin' // Incluir cookies de sesión
+            });
+            
+            console.log('📡 Load projects response:', response.status, response.statusText);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
             
             const data = await response.json();
+            
+            console.log('📦 Projects loaded:', data.projects?.length || 0);
             
             loading.style.display = 'none';
             
@@ -588,22 +594,35 @@ class LLMMonitoring {
             const url = isEdit ? `${this.baseUrl}/projects/${this.currentProject.id}` : `${this.baseUrl}/projects`;
             const method = isEdit ? 'PUT' : 'POST';
             
+            console.log(`📡 Sending ${method} request to:`, url);
+            console.log('📦 Payload:', payload);
+            
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'same-origin', // Incluir cookies de sesión
                 body: JSON.stringify(payload)
             });
             
+            console.log('📡 Response status:', response.status, response.statusText);
+            
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const error = await response.json();
+                    errorMessage = error.error || errorMessage;
+                    console.error('❌ Server error:', error);
+                } catch (e) {
+                    console.error('❌ Failed to parse error response:', e);
+                }
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
             
-            console.log(`✅ Project ${isEdit ? 'updated' : 'created'} successfully`);
+            console.log(`✅ Project ${isEdit ? 'updated' : 'created'} successfully:`, data);
             
             // Hide modal
             this.hideProjectModal();
