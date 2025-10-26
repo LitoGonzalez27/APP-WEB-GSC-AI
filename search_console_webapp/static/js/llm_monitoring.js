@@ -21,9 +21,6 @@ class LLMMonitoring {
         // Load projects
         this.loadProjects();
         
-        // Load budget info
-        this.loadBudget();
-        
         // Setup event listeners
         this.setupEventListeners();
     }
@@ -684,7 +681,15 @@ class LLMMonitoring {
 
     /**
      * Load budget information
+     * 
+     * NOTA: Este método está deshabilitado porque en el modelo de negocio actual,
+     * los usuarios NO configuran presupuestos individuales. El dueño del servicio
+     * gestiona las API keys y los costes de forma global.
+     * 
+     * Si en el futuro se implementa un plan "Enterprise" donde los usuarios
+     * configuren sus propios presupuestos, este método se puede reactivar.
      */
+    /*
     async loadBudget() {
         try {
             const response = await fetch(`${this.baseUrl}/budget`);
@@ -713,6 +718,7 @@ class LLMMonitoring {
             console.error('❌ Error loading budget:', error);
         }
     }
+    */
 
     /**
      * Export comparison data
