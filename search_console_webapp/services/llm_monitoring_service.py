@@ -38,17 +38,19 @@ class MultiLLMMonitoringService:
         result = service.analyze_project(project_id=1)
     """
     
-    def __init__(self, api_keys: Dict[str, str]):
+    def __init__(self, api_keys: Dict[str, str] = None):
         """
         Inicializa el servicio
         
         Args:
-            api_keys: Dict con API keys por proveedor
-                     {'openai': 'sk-...', 'google': 'AIza...', ...}
+            api_keys: Dict con API keys por proveedor (opcional)
+                     Si es None, usa variables de entorno (recomendado)
+                     Ejemplo: {'openai': 'sk-...', 'google': 'AIza...', ...}
         """
         logger.info("🚀 Inicializando MultiLLMMonitoringService...")
         
         # Crear todos los proveedores usando Factory
+        # Si api_keys es None, el Factory usará variables de entorno
         self.providers = LLMProviderFactory.create_all_providers(
             api_keys,
             validate_connections=True
@@ -940,14 +942,14 @@ JSON:"""
 # HELPER FUNCTION
 # =====================================================
 
-def analyze_all_active_projects(api_keys: Dict[str, str], max_workers: int = 10) -> List[Dict]:
+def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: int = 10) -> List[Dict]:
     """
     Analiza todos los proyectos activos
     
     Útil para cron jobs que ejecutan análisis automáticos
     
     Args:
-        api_keys: Dict con API keys
+        api_keys: Dict con API keys (opcional, usa env vars si es None)
         max_workers: Threads paralelos
         
     Returns:

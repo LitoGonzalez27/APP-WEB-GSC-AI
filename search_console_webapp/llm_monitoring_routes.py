@@ -4,21 +4,23 @@ LLM Monitoring Routes Blueprint
 Este módulo contiene todos los endpoints REST para el sistema Multi-LLM Brand Monitoring.
 Se registra como Blueprint en app.py para mantener el código modular.
 
+MODELO DE NEGOCIO:
+    Los usuarios pagan una suscripción y el servicio incluye acceso a los LLMs.
+    Las API keys son gestionadas globalmente por el dueño del servicio (variables de entorno).
+    Los usuarios NO necesitan configurar sus propias API keys.
+
 Endpoints:
     GET    /api/llm-monitoring/projects               - Listar proyectos
     POST   /api/llm-monitoring/projects               - Crear proyecto
     GET    /api/llm-monitoring/projects/:id           - Obtener proyecto
     PUT    /api/llm-monitoring/projects/:id           - Actualizar proyecto
-    DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto
+    DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
     POST   /api/llm-monitoring/projects/:id/analyze   - Análisis manual
     GET    /api/llm-monitoring/projects/:id/metrics   - Métricas detalladas
     GET    /api/llm-monitoring/projects/:id/comparison - Comparativa LLMs
-    GET    /api/llm-monitoring/api-keys               - Ver API keys
-    POST   /api/llm-monitoring/api-keys               - Configurar API keys
-    PUT    /api/llm-monitoring/api-keys               - Actualizar API keys
-    GET    /api/llm-monitoring/budget                 - Ver presupuesto
-    GET    /api/llm-monitoring/models                 - Listar modelos
-    PUT    /api/llm-monitoring/models/:id             - Actualizar modelo
+    GET    /api/llm-monitoring/models                 - Listar modelos LLM disponibles
+    PUT    /api/llm-monitoring/models/:id             - Actualizar modelo (admin)
+    GET    /api/llm-monitoring/health                 - Health check del sistema
 """
 
 import logging
@@ -826,284 +828,15 @@ def get_llm_comparison(project_id):
 # ============================================================================
 # ENDPOINTS: CONFIGURACIÓN
 # ============================================================================
-
-@llm_monitoring_bp.route('/api-keys', methods=['GET'])
-@login_required
-def get_api_keys():
-    """
-    Obtiene las API keys del usuario (encriptadas, solo muestra si están configuradas)
-    
-    Returns:
-        JSON indicando qué API keys están configuradas
-    """
-    user = get_current_user()
-    if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
-    
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
-    try:
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                openai_api_key_encrypted IS NOT NULL as has_openai,
-                anthropic_api_key_encrypted IS NOT NULL as has_anthropic,
-                google_api_key_encrypted IS NOT NULL as has_google,
-                perplexity_api_key_encrypted IS NOT NULL as has_perplexity,
-                monthly_budget_usd,
-                current_month_spend,
-                spending_alert_threshold,
-                last_spend_reset
-            FROM user_llm_api_keys
-            WHERE user_id = %s
-        """, (user['id'],))
-        
-        result = cur.fetchone()
-        
-        if not result:
-            return jsonify({
-                'success': True,
-                'configured': False,
-                'api_keys': {
-                    'openai': False,
-                    'anthropic': False,
-                    'google': False,
-                    'perplexity': False
-                }
-            }), 200
-        
-        return jsonify({
-            'success': True,
-            'configured': True,
-            'api_keys': {
-                'openai': result['has_openai'],
-                'anthropic': result['has_anthropic'],
-                'google': result['has_google'],
-                'perplexity': result['has_perplexity']
-            },
-            'budget': {
-                'monthly_budget_usd': float(result['monthly_budget_usd']) if result['monthly_budget_usd'] else 100.0,
-                'current_month_spend': float(result['current_month_spend']) if result['current_month_spend'] else 0.0,
-                'spending_alert_threshold': float(result['spending_alert_threshold']) if result['spending_alert_threshold'] else 80.0,
-                'last_spend_reset': result['last_spend_reset'].isoformat() if result['last_spend_reset'] else None
-            }
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo API keys: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo API keys: {str(e)}'}), 500
-    finally:
-        cur.close()
-        conn.close()
-
-
-@llm_monitoring_bp.route('/api-keys', methods=['POST', 'PUT'])
-@login_required
-def configure_api_keys():
-    """
-    Configura o actualiza las API keys del usuario
-    
-    Body:
-    {
-        "openai_api_key": "sk-...",
-        "anthropic_api_key": "sk-ant-...",
-        "google_api_key": "AIza...",
-        "perplexity_api_key": "pplx-...",
-        "monthly_budget_usd": 100.0,
-        "spending_alert_threshold": 80.0
-    }
-    
-    NOTA: En producción, las keys deben encriptarse antes de guardar
-    
-    Returns:
-        JSON con confirmación
-    """
-    user = get_current_user()
-    if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
-    
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'error': 'Body vacío'}), 400
-    
-    # TODO: Implementar encriptación con cryptography.fernet
-    # Por ahora, guardar en texto plano (SOLO DESARROLLO)
-    
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
-    try:
-        cur = conn.cursor()
-        
-        # Verificar si ya tiene configuración
-        cur.execute("""
-            SELECT id FROM user_llm_api_keys WHERE user_id = %s
-        """, (user['id'],))
-        
-        exists = cur.fetchone()
-        
-        if exists:
-            # UPDATE
-            updates = []
-            params = []
-            
-            if 'openai_api_key' in data:
-                updates.append("openai_api_key_encrypted = %s")
-                params.append(data['openai_api_key'])  # TODO: Encriptar
-            
-            if 'anthropic_api_key' in data:
-                updates.append("anthropic_api_key_encrypted = %s")
-                params.append(data['anthropic_api_key'])  # TODO: Encriptar
-            
-            if 'google_api_key' in data:
-                updates.append("google_api_key_encrypted = %s")
-                params.append(data['google_api_key'])  # TODO: Encriptar
-            
-            if 'perplexity_api_key' in data:
-                updates.append("perplexity_api_key_encrypted = %s")
-                params.append(data['perplexity_api_key'])  # TODO: Encriptar
-            
-            if 'monthly_budget_usd' in data:
-                updates.append("monthly_budget_usd = %s")
-                params.append(data['monthly_budget_usd'])
-            
-            if 'spending_alert_threshold' in data:
-                updates.append("spending_alert_threshold = %s")
-                params.append(data['spending_alert_threshold'])
-            
-            updates.append("updated_at = NOW()")
-            params.append(user['id'])
-            
-            query = f"""
-                UPDATE user_llm_api_keys
-                SET {', '.join(updates)}
-                WHERE user_id = %s
-            """
-            
-            cur.execute(query, params)
-            
-        else:
-            # INSERT
-            cur.execute("""
-                INSERT INTO user_llm_api_keys (
-                    user_id,
-                    openai_api_key_encrypted,
-                    anthropic_api_key_encrypted,
-                    google_api_key_encrypted,
-                    perplexity_api_key_encrypted,
-                    monthly_budget_usd,
-                    spending_alert_threshold,
-                    created_at,
-                    updated_at
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
-                )
-            """, (
-                user['id'],
-                data.get('openai_api_key'),  # TODO: Encriptar
-                data.get('anthropic_api_key'),  # TODO: Encriptar
-                data.get('google_api_key'),  # TODO: Encriptar
-                data.get('perplexity_api_key'),  # TODO: Encriptar
-                data.get('monthly_budget_usd', 100.0),
-                data.get('spending_alert_threshold', 80.0)
-            ))
-        
-        conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'API keys configuradas exitosamente'
-        }), 200
-        
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Error configurando API keys: {e}", exc_info=True)
-        return jsonify({'error': f'Error configurando API keys: {str(e)}'}), 500
-    finally:
-        cur.close()
-        conn.close()
-
-
-@llm_monitoring_bp.route('/budget', methods=['GET'])
-@login_required
-def get_budget():
-    """
-    Obtiene información del presupuesto del usuario
-    
-    Returns:
-        JSON con presupuesto, gasto actual y alertas
-    """
-    user = get_current_user()
-    if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
-    
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
-    try:
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                monthly_budget_usd,
-                current_month_spend,
-                spending_alert_threshold,
-                last_spend_reset
-            FROM user_llm_api_keys
-            WHERE user_id = %s
-        """, (user['id'],))
-        
-        result = cur.fetchone()
-        
-        if not result:
-            return jsonify({
-                'success': True,
-                'configured': False,
-                'budget': {
-                    'monthly_budget_usd': 100.0,
-                    'current_month_spend': 0.0,
-                    'spending_alert_threshold': 80.0,
-                    'percentage_used': 0.0,
-                    'is_over_budget': False,
-                    'is_near_limit': False
-                }
-            }), 200
-        
-        budget = float(result['monthly_budget_usd']) if result['monthly_budget_usd'] else 100.0
-        spent = float(result['current_month_spend']) if result['current_month_spend'] else 0.0
-        threshold = float(result['spending_alert_threshold']) if result['spending_alert_threshold'] else 80.0
-        
-        percentage_used = (spent / budget * 100) if budget > 0 else 0
-        is_over_budget = percentage_used >= 100
-        is_near_limit = percentage_used >= threshold
-        
-        return jsonify({
-            'success': True,
-            'configured': True,
-            'budget': {
-                'monthly_budget_usd': budget,
-                'current_month_spend': spent,
-                'remaining': max(0, budget - spent),
-                'spending_alert_threshold': threshold,
-                'percentage_used': round(percentage_used, 2),
-                'is_over_budget': is_over_budget,
-                'is_near_limit': is_near_limit,
-                'last_spend_reset': result['last_spend_reset'].isoformat() if result['last_spend_reset'] else None
-            }
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo presupuesto: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo presupuesto: {str(e)}'}), 500
-    finally:
-        cur.close()
-        conn.close()
+# 
+# NOTA: Los endpoints de configuración de API keys y presupuesto por usuario
+# han sido ELIMINADOS porque en este modelo de negocio, los usuarios NO 
+# configuran sus propias API keys. El servicio usa API keys globales
+# gestionadas por el dueño del servicio en variables de entorno.
+#
+# Si en el futuro se necesita un modelo "Enterprise" donde clientes grandes
+# usen sus propias APIs, se pueden restaurar estos endpoints.
+# ============================================================================
 
 
 # ============================================================================

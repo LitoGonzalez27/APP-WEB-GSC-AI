@@ -97,17 +97,20 @@ class LLMProviderFactory:
     @classmethod
     def create_all_providers(
         cls, 
-        api_keys: Dict[str, str],
+        api_keys: Dict[str, str] = None,
         validate_connections: bool = True
     ) -> Dict[str, BaseLLMProvider]:
         """
         Crea múltiples proveedores en batch
         
-        IMPORTANTE: Solo retorna los proveedores que pasaron la validación.
-        Esto permite que la app funcione aunque algunos LLMs fallen.
+        IMPORTANTE: 
+        - Si api_keys es None, usa variables de entorno (modelo recomendado)
+        - Solo retorna los proveedores que pasaron la validación
+        - Permite que la app funcione aunque algunos LLMs fallen
         
         Args:
-            api_keys: Dict con API keys por proveedor
+            api_keys: Dict con API keys por proveedor (opcional)
+                     Si es None, usa variables de entorno
                      Ejemplo: {'openai': 'sk-...', 'google': 'AIza...'}
             validate_connections: Si True, solo retorna proveedores válidos
             
@@ -115,23 +118,36 @@ class LLMProviderFactory:
             Dict con proveedores creados exitosamente
             
         Example:
-            >>> api_keys = {
-            ...     'openai': 'sk-...',
-            ...     'anthropic': 'sk-ant-...',
-            ...     'google': 'AIza...',
-            ...     'perplexity': 'pplx-...'
-            ... }
+            >>> # Usar API keys globales (variables de entorno)
+            >>> providers = LLMProviderFactory.create_all_providers()
+            >>> 
+            >>> # O pasar API keys manualmente
+            >>> api_keys = {'openai': 'sk-...', 'google': 'AIza...'}
             >>> providers = LLMProviderFactory.create_all_providers(api_keys)
-            >>> print(f"Proveedores activos: {list(providers.keys())}")
-            >>> # Proveedores activos: ['openai', 'google']
         """
+        import os
+        
+        # Si no se pasan api_keys, usar variables de entorno
+        if api_keys is None:
+            logger.info("📌 API keys no proporcionadas, usando variables de entorno")
+            api_keys = {}
+            
+            if os.getenv('OPENAI_API_KEY'):
+                api_keys['openai'] = os.getenv('OPENAI_API_KEY')
+            if os.getenv('ANTHROPIC_API_KEY'):
+                api_keys['anthropic'] = os.getenv('ANTHROPIC_API_KEY')
+            if os.getenv('GOOGLE_API_KEY'):
+                api_keys['google'] = os.getenv('GOOGLE_API_KEY')
+            if os.getenv('PERPLEXITY_API_KEY'):
+                api_keys['perplexity'] = os.getenv('PERPLEXITY_API_KEY')
+        
         providers = {}
         
         logger.info("")
         logger.info("=" * 70)
         logger.info("🚀 CREANDO PROVEEDORES LLM")
         logger.info("=" * 70)
-        logger.info(f"API keys recibidas: {list(api_keys.keys())}")
+        logger.info(f"API keys disponibles: {list(api_keys.keys())}")
         logger.info("")
         
         for provider_name, api_key in api_keys.items():
