@@ -29,10 +29,21 @@ class LLMMonitoring {
      * Setup all event listeners
      */
     setupEventListeners() {
+        console.log('🎯 Setting up event listeners...');
+        
         // Create project button
-        document.getElementById('btnCreateProject')?.addEventListener('click', () => {
-            this.showProjectModal();
-        });
+        const btnCreateProject = document.getElementById('btnCreateProject');
+        console.log('📦 btnCreateProject element:', btnCreateProject);
+        
+        if (btnCreateProject) {
+            btnCreateProject.addEventListener('click', () => {
+                console.log('🖱️ btnCreateProject clicked!');
+                this.showProjectModal();
+            });
+            console.log('✅ Event listener added to btnCreateProject');
+        } else {
+            console.error('❌ btnCreateProject element not found!');
+        }
 
         // Refresh projects
         document.getElementById('btnRefreshProjects')?.addEventListener('click', () => {
@@ -482,9 +493,15 @@ class LLMMonitoring {
      * Show project modal (create or edit)
      */
     showProjectModal(project = null) {
+        console.log('🎬 showProjectModal() called, project:', project);
+        
         const modal = document.getElementById('projectModal');
         const title = document.getElementById('modalTitle');
         const btnText = document.getElementById('btnSaveText');
+        
+        console.log('📦 Modal element:', modal);
+        console.log('📦 Title element:', title);
+        console.log('📦 Button text element:', btnText);
         
         if (project) {
             // Edit mode
@@ -517,7 +534,10 @@ class LLMMonitoring {
             llmCheckboxes.forEach(cb => cb.checked = true);
         }
         
+        console.log('👁️ Setting modal display to flex...');
         modal.style.display = 'flex';
+        console.log('✅ Modal display set:', modal.style.display);
+        console.log('✅ Modal should now be visible');
     }
 
     /**
