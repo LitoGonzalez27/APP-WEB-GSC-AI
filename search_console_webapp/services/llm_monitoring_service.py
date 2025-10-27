@@ -1052,7 +1052,7 @@ def generate_query_suggestions_with_ai(
         from services.llm_providers import LLMProviderFactory
         
         logger.info("🔧 Creando proveedor de Gemini Flash...")
-        gemini = LLMProviderFactory.create_provider('google', {'google': google_api_key})
+        gemini = LLMProviderFactory.create_provider('google', google_api_key)
         
         if not gemini:
             logger.error("❌ No se pudo crear proveedor de Gemini")
