@@ -120,19 +120,33 @@ class LLMMonitoring {
             
             console.log('📦 Projects loaded:', data.projects?.length || 0);
             
+            // Hide loading
             loading.style.display = 'none';
             
+            // Check if we have projects
             if (!data.projects || data.projects.length === 0) {
+                console.log('📭 No projects found, showing empty state');
                 empty.style.display = 'flex';
+                grid.style.display = 'none';
                 return;
             }
             
+            // Hide empty state and show grid
+            empty.style.display = 'none';
+            grid.style.display = 'grid';
+            
+            console.log('📦 Rendering', data.projects.length, 'projects...');
+            
+            // Clear existing cards
+            grid.innerHTML = '';
+            
             // Render project cards
-            data.projects.forEach(project => {
+            data.projects.forEach((project, index) => {
+                console.log(`  → Rendering project ${index + 1}:`, project.name);
                 this.renderProjectCard(project, grid);
             });
             
-            console.log(`✅ Loaded ${data.projects.length} projects`);
+            console.log(`✅ Successfully rendered ${data.projects.length} projects`);
             
         } catch (error) {
             console.error('❌ Error loading projects:', error);
