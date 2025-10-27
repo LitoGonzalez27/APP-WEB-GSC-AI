@@ -356,7 +356,19 @@ def get_project(project_id):
         # Obtener proyecto
         cur.execute("""
             SELECT 
-                p.*,
+                p.id,
+                p.user_id,
+                p.name,
+                p.brand_name,
+                p.industry,
+                p.enabled_llms,
+                p.competitors,
+                p.language,
+                p.queries_per_llm,
+                p.is_active,
+                p.last_analysis_date,
+                p.created_at,
+                p.updated_at,
                 COUNT(DISTINCT q.id) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
@@ -364,7 +376,9 @@ def get_project(project_id):
             LEFT JOIN llm_monitoring_queries q ON p.id = q.project_id
             LEFT JOIN llm_monitoring_snapshots s ON p.id = s.project_id
             WHERE p.id = %s
-            GROUP BY p.id
+            GROUP BY p.id, p.user_id, p.name, p.brand_name, p.industry, 
+                     p.enabled_llms, p.competitors, p.language, p.queries_per_llm,
+                     p.is_active, p.last_analysis_date, p.created_at, p.updated_at
         """, (project_id,))
         
         project = cur.fetchone()
