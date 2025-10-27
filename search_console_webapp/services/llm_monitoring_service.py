@@ -990,3 +990,144 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
     
     return results
 
+
+# =====================================================
+# AI-POWERED QUERY SUGGESTIONS (NUEVO)
+# =====================================================
+
+def generate_query_suggestions_with_ai(
+    brand_name: str,
+    industry: str,
+    language: str = 'es',
+    existing_queries: List[str] = None,
+    competitors: List[str] = None,
+    count: int = 10
+) -> List[str]:
+    """
+    Genera sugerencias de queries usando IA (Gemini Flash)
+    
+    Analiza el contexto del proyecto (marca, industria, queries existentes)
+    y usa Gemini Flash para generar sugerencias contextuales y relevantes.
+    
+    Args:
+        brand_name: Nombre de la marca
+        industry: Industria/sector
+        language: Idioma ('es' o 'en')
+        existing_queries: Queries que el usuario ya tiene
+        competitors: Lista de competidores
+        count: Número de sugerencias a generar (max 20)
+        
+    Returns:
+        Lista de queries sugeridas
+        
+    Example:
+        >>> suggestions = generate_query_suggestions_with_ai(
+        ...     brand_name="ClicAndSEO",
+        ...     industry="SEO tools",
+        ...     language="es",
+        ...     existing_queries=["¿Qué es ClicAndSEO?", "Precio de ClicAndSEO"],
+        ...     competitors=["Semrush", "Ahrefs"],
+        ...     count=10
+        ... )
+    """
+    import os
+    
+    existing_queries = existing_queries or []
+    competitors = competitors or []
+    count = min(count, 20)  # Máximo 20
+    
+    logger.info(f"🤖 Generando {count} sugerencias de queries con IA para {brand_name}...")
+    
+    # Verificar que tenemos Google API key
+    google_api_key = os.getenv('GOOGLE_API_KEY')
+    if not google_api_key:
+        logger.error("❌ GOOGLE_API_KEY no configurada")
+        return []
+    
+    try:
+        # Crear proveedor de Gemini Flash
+        from services.llm_providers import LLMProviderFactory
+        
+        gemini = LLMProviderFactory.create_provider('google', {'google': google_api_key})
+        
+        if not gemini:
+            logger.error("❌ No se pudo crear proveedor de Gemini")
+            return []
+        
+        # Construir prompt contextual
+        lang_name = 'español' if language == 'es' else 'inglés'
+        
+        prompt = f"""Eres un experto en marketing digital y brand visibility en LLMs.
+
+CONTEXTO:
+- Marca: {brand_name}
+- Industria: {industry}
+- Idioma: {lang_name}
+- Competidores: {', '.join(competitors) if competitors else 'ninguno especificado'}
+
+QUERIES EXISTENTES ({len(existing_queries)}):
+{chr(10).join('- ' + q for q in existing_queries[:10]) if existing_queries else '(ninguna todavía)'}
+
+TAREA:
+Genera {count} preguntas/prompts adicionales en {lang_name} que un usuario haría a un LLM (ChatGPT, Claude, Gemini, Perplexity) para buscar información sobre {industry}.
+
+REQUISITOS:
+1. Las preguntas deben ser diferentes a las existentes
+2. Deben ser naturales y realistas
+3. Algunas deben mencionar la marca directamente
+4. Algunas deben ser generales sobre la industria
+5. Algunas deben comparar con competidores
+6. Mínimo 15 caracteres por pregunta
+7. Variedad: preguntas básicas, técnicas, comparativas
+
+FORMATO:
+Responde SOLO con las preguntas, una por línea, sin numeración ni viñetas.
+
+Ejemplo:
+¿Cuál es la mejor herramienta de {industry}?
+¿Cómo funciona {brand_name}?
+{brand_name} vs {competitors[0] if competitors else 'alternativas'}
+
+GENERA {count} PREGUNTAS:"""
+
+        # Ejecutar query en Gemini
+        result = gemini.execute_query(prompt)
+        
+        if not result['success']:
+            logger.error(f"❌ Gemini falló: {result.get('error')}")
+            return []
+        
+        # Parsear respuesta
+        response_text = result['content'].strip()
+        
+        # Dividir por líneas y limpiar
+        suggestions = []
+        for line in response_text.split('\n'):
+            line = line.strip()
+            
+            # Ignorar líneas vacías, numeraciones, viñetas
+            if not line:
+                continue
+            if line[0].isdigit() and (line[1] == '.' or line[1] == ')'):
+                line = line[2:].strip()
+            if line.startswith('-') or line.startswith('•'):
+                line = line[1:].strip()
+            
+            # Validar longitud
+            if len(line) >= 15 and len(line) <= 500:
+                # Evitar duplicados con existentes
+                if line.lower() not in [q.lower() for q in existing_queries]:
+                    suggestions.append(line)
+        
+        # Limitar a count
+        suggestions = suggestions[:count]
+        
+        logger.info(f"✅ Generadas {len(suggestions)} sugerencias con IA")
+        logger.info(f"   Coste: ${result.get('cost_usd', 0):.6f} USD")
+        
+        return suggestions
+        
+    except Exception as e:
+        logger.error(f"❌ Error generando sugerencias con IA: {e}", exc_info=True)
+        return []
+

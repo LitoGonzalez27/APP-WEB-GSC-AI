@@ -216,6 +216,10 @@
                         <h2 id="projectTitle">Project Metrics</h2>
                     </div>
                     <div class="section-actions">
+                        <button class="btn btn-primary" id="btnManagePrompts">
+                            <i class="fas fa-list"></i>
+                            <span>Manage Prompts</span>
+                        </button>
                         <button class="btn btn-success" id="btnAnalyzeProject">
                             <i class="fas fa-play"></i>
                             <span>Run Analysis</span>
@@ -224,6 +228,33 @@
                             <i class="fas fa-edit"></i>
                             <span>Edit</span>
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Prompts Management Section -->
+                <div class="chart-card" id="promptsCard" style="margin-bottom: 20px;">
+                    <div class="chart-header">
+                        <h3>
+                            <i class="fas fa-comments"></i>
+                            Prompts Management
+                            <span class="badge" id="promptsCount">0</span>
+                        </h3>
+                        <div class="chart-actions">
+                            <button class="btn btn-success btn-sm" id="btnGetSuggestions">
+                                <i class="fas fa-magic"></i>
+                                AI Suggestions
+                            </button>
+                            <button class="btn btn-primary btn-sm" id="btnAddPrompts">
+                                <i class="fas fa-plus"></i>
+                                Add Prompts
+                            </button>
+                        </div>
+                    </div>
+                    <div class="prompts-list" id="promptsList">
+                        <div class="loading-container" style="padding: 20px;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading prompts...</span>
+                        </div>
                     </div>
                 </div>
 
@@ -442,6 +473,144 @@
                         <p class="progress-text" id="analysisProgressText">Starting analysis...</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Prompts Modal -->
+    <div class="modal-overlay" id="promptsModal" style="display: none;">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="promptsModalTitle" tabindex="-1">
+            <div class="modal-header">
+                <div class="header-text">
+                    <h3 id="promptsModalTitle">Add Prompts</h3>
+                    <p>Add prompts/questions to test in LLMs. Enter one prompt per line.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="promptsForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="promptsInput" class="enhanced-label">
+                            <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Prompts/Questions</span>*
+                        </label>
+                        <textarea 
+                            id="promptsInput" 
+                            class="enhanced-input" 
+                            rows="10" 
+                            placeholder="¿Cuáles son las mejores herramientas de SEO?
+¿Qué es ClicAndSEO?
+¿Cómo funciona el análisis de IA?
+Alternativas a Semrush
+..."
+                            required
+                        ></textarea>
+                        <small class="form-help">
+                            Enter one prompt per line. Minimum 10 characters per prompt.
+                        </small>
+                    </div>
+                    
+                    <div class="form-row form-row-split">
+                        <div class="form-group">
+                            <label for="promptLanguage" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Language</span>
+                            </label>
+                            <select id="promptLanguage" class="enhanced-select">
+                                <option value="">Use project default</option>
+                                <option value="es">🇪🇸 Spanish</option>
+                                <option value="en">🇬🇧 English</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="promptType" class="enhanced-label">
+                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Type</span>
+                            </label>
+                            <select id="promptType" class="enhanced-select">
+                                <option value="manual">Manual</option>
+                                <option value="general">General</option>
+                                <option value="with_brand">With Brand</option>
+                                <option value="with_competitor">With Competitor</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hidePromptsModal()">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button type="submit" id="btnSavePrompts" class="btn-primary btn-enhanced">
+                        <i class="fas fa-plus"></i>
+                        <span id="btnSavePromptsText">Add Prompts</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AI Suggestions Modal -->
+    <div class="modal-overlay" id="suggestionsModal" style="display: none;">
+        <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="suggestionsModalTitle" tabindex="-1">
+            <div class="modal-header">
+                <div class="header-text">
+                    <h3 id="suggestionsModalTitle">
+                        <i class="fas fa-magic"></i>
+                        AI-Powered Prompt Suggestions
+                    </h3>
+                    <p>Select the prompts you want to add to your project. Generated by Gemini AI.</p>
+                </div>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideSuggestionsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading State -->
+                <div id="suggestionsLoading" class="suggestions-loading">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin fa-3x"></i>
+                    </div>
+                    <p>Generating AI suggestions...</p>
+                    <small>This may take a few seconds</small>
+                </div>
+
+                <!-- Suggestions List -->
+                <div id="suggestionsList" class="suggestions-list" style="display: none;">
+                    <div class="suggestions-header">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.selectAllSuggestions()">
+                            <i class="fas fa-check-double"></i>
+                            Select All
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.deselectAllSuggestions()">
+                            <i class="fas fa-times"></i>
+                            Deselect All
+                        </button>
+                    </div>
+                    <div id="suggestionsContainer" class="suggestions-container">
+                        <!-- Suggestions will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="suggestionsError" class="suggestions-error" style="display: none;">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <p id="suggestionsErrorText">Error generating suggestions</p>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.llmMonitoring.getSuggestions()">
+                        <i class="fas fa-redo"></i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hideSuggestionsModal()">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button type="button" id="btnAddSelectedSuggestions" class="btn-success btn-enhanced">
+                    <i class="fas fa-check"></i>
+                    <span id="btnAddSuggestionsText">Add Selected (0)</span>
+                </button>
             </div>
         </div>
     </div>

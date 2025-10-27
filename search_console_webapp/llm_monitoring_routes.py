@@ -268,49 +268,17 @@ def create_project():
         project_id = result['id']
         created_at = result['created_at']
         
-        # Generar queries iniciales
-        from services.llm_monitoring_service import MultiLLMMonitoringService
-        
-        # Crear servicio (sin API keys, solo para generar queries)
+        # ✅ NUEVO: Ya NO generamos queries automáticamente
+        # El usuario deberá añadirlas manualmente después de crear el proyecto
+        # Esto es consistente con Manual AI y AI Mode
         queries = []
-        try:
-            # Generar queries sin necesidad de inicializar proveedores
-            service_queries = MultiLLMMonitoringService({}).generate_queries_for_project(
-                brand_name=data['brand_name'],
-                industry=data['industry'],
-                language=language,
-                competitors=competitors,
-                count=queries_per_llm
-            )
-            
-            # Insertar queries en BD
-            for query_data in service_queries:
-                cur.execute("""
-                    INSERT INTO llm_monitoring_queries (
-                        project_id, query_text, language, query_type, created_at
-                    ) VALUES (%s, %s, %s, %s, NOW())
-                    RETURNING id
-                """, (
-                    project_id,
-                    query_data['query_text'],
-                    query_data['language'],
-                    query_data['query_type']
-                ))
-                
-                query_id = cur.fetchone()['id']
-                queries.append({
-                    'id': query_id,
-                    'query_text': query_data['query_text'],
-                    'query_type': query_data['query_type']
-                })
-        
-        except Exception as e:
-            logger.warning(f"No se pudieron generar queries automáticas: {e}")
+        logger.info(f"✅ Proyecto {project_id} creado. El usuario deberá añadir prompts manualmente.")
         
         conn.commit()
         
         return jsonify({
             'success': True,
+            'message': 'Proyecto creado exitosamente. Ahora añade tus prompts manualmente.',
             'project': {
                 'id': project_id,
                 'name': data['name'],
@@ -322,9 +290,8 @@ def create_project():
                 'queries_per_llm': queries_per_llm,
                 'is_active': True,
                 'created_at': created_at.isoformat(),
-                'total_queries_generated': len(queries)
-            },
-            'queries': queries[:5]  # Retornar solo las primeras 5 como ejemplo
+                'total_queries': 0  # Sin queries todavía
+            }
         }), 201
         
     except Exception as e:
@@ -618,6 +585,306 @@ def delete_project(project_id):
     finally:
         cur.close()
         conn.close()
+
+
+# ============================================================================
+# ENDPOINTS: PROMPTS/QUERIES (Manual Management)
+# ============================================================================
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_project_queries(project_id):
+    """
+    Obtiene todas las queries/prompts de un proyecto
+    
+    Returns:
+        JSON con lista de queries
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                id,
+                query_text,
+                language,
+                query_type,
+                is_active,
+                added_at
+            FROM llm_monitoring_queries
+            WHERE project_id = %s AND is_active = TRUE
+            ORDER BY added_at DESC
+        """, (project_id,))
+        
+        queries = cur.fetchall()
+        
+        # Formatear respuesta
+        queries_list = []
+        for query in queries:
+            queries_list.append({
+                'id': query['id'],
+                'query_text': query['query_text'],
+                'language': query['language'],
+                'query_type': query['query_type'],
+                'is_active': query['is_active'],
+                'added_at': query['added_at'].isoformat() if query['added_at'] else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'queries': queries_list,
+            'total': len(queries_list)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo queries: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo queries: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries', methods=['POST'])
+@login_required
+@validate_project_ownership
+def add_queries_to_project(project_id):
+    """
+    Añade queries/prompts manualmente a un proyecto
+    
+    Body esperado:
+    {
+        "queries": ["¿Qué es X?", "¿Cómo funciona Y?", ...],
+        "language": "es" (opcional, default del proyecto),
+        "query_type": "manual" (opcional, default: "manual")
+    }
+    
+    Returns:
+        JSON con resultado de la operación
+    """
+    user = get_current_user()
+    
+    data = request.get_json()
+    queries_list = data.get('queries', [])
+    language = data.get('language')
+    query_type = data.get('query_type', 'manual')
+    
+    if not queries_list:
+        return jsonify({'error': 'No se proporcionaron queries'}), 400
+    
+    if not isinstance(queries_list, list):
+        return jsonify({'error': 'queries debe ser una lista'}), 400
+    
+    # Obtener configuración del proyecto si no se especificó idioma
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Si no se especificó idioma, usar el del proyecto
+        if not language:
+            cur.execute("SELECT language FROM llm_monitoring_projects WHERE id = %s", (project_id,))
+            project = cur.fetchone()
+            if project:
+                language = project['language']
+            else:
+                language = 'es'
+        
+        added_count = 0
+        duplicate_count = 0
+        error_count = 0
+        
+        for query_text in queries_list:
+            query_text = query_text.strip()
+            if not query_text or len(query_text) < 10:
+                error_count += 1
+                continue
+            
+            try:
+                cur.execute("""
+                    INSERT INTO llm_monitoring_queries (
+                        project_id, query_text, language, query_type, is_active, added_at
+                    ) VALUES (%s, %s, %s, %s, TRUE, NOW())
+                    ON CONFLICT (project_id, query_text) DO NOTHING
+                """, (project_id, query_text, language, query_type))
+                
+                if cur.rowcount > 0:
+                    added_count += 1
+                else:
+                    duplicate_count += 1
+                    
+            except Exception as e:
+                logger.warning(f"Error añadiendo query '{query_text}': {e}")
+                error_count += 1
+                continue
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'added_count': added_count,
+            'duplicate_count': duplicate_count,
+            'error_count': error_count,
+            'message': f'{added_count} queries añadidas exitosamente'
+        }), 200
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error añadiendo queries: {e}", exc_info=True)
+        return jsonify({'error': f'Error añadiendo queries: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/<int:query_id>', methods=['DELETE'])
+@login_required
+@validate_project_ownership
+def delete_query(project_id, query_id):
+    """
+    Elimina una query de un proyecto (soft delete: marca is_active = false)
+    
+    Returns:
+        JSON con confirmación
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Verificar que la query pertenece al proyecto
+        cur.execute("""
+            SELECT id, query_text 
+            FROM llm_monitoring_queries
+            WHERE id = %s AND project_id = %s
+        """, (query_id, project_id))
+        
+        query = cur.fetchone()
+        
+        if not query:
+            return jsonify({'error': 'Query no encontrada'}), 404
+        
+        # Soft delete
+        cur.execute("""
+            UPDATE llm_monitoring_queries
+            SET is_active = FALSE
+            WHERE id = %s AND project_id = %s
+            RETURNING id
+        """, (query_id, project_id))
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Query eliminada exitosamente',
+            'query_id': query_id
+        }), 200
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error eliminando query: {e}", exc_info=True)
+        return jsonify({'error': f'Error eliminando query: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/suggest', methods=['POST'])
+@login_required
+@validate_project_ownership
+def suggest_queries(project_id):
+    """
+    Genera sugerencias de queries usando IA (Gemini Flash)
+    
+    Analiza los prompts existentes del proyecto y el contexto (marca, industria)
+    para sugerir prompts adicionales relevantes usando Gemini Flash.
+    
+    Body opcional:
+    {
+        "count": 10  (número de sugerencias, default: 10, max: 20)
+    }
+    
+    Returns:
+        JSON con lista de sugerencias generadas por IA
+    """
+    user = get_current_user()
+    
+    data = request.get_json() or {}
+    count = min(data.get('count', 10), 20)  # Máximo 20 sugerencias
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener datos del proyecto
+        cur.execute("""
+            SELECT name, brand_name, industry, language, competitors
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        # Obtener queries existentes
+        cur.execute("""
+            SELECT query_text
+            FROM llm_monitoring_queries
+            WHERE project_id = %s AND is_active = TRUE
+            ORDER BY added_at DESC
+            LIMIT 20
+        """, (project_id,))
+        
+        existing_queries = cur.fetchall()
+        existing_queries_list = [q['query_text'] for q in existing_queries]
+        
+        cur.close()
+        conn.close()
+        
+        # Generar sugerencias usando IA
+        from services.llm_monitoring_service import generate_query_suggestions_with_ai
+        
+        suggestions = generate_query_suggestions_with_ai(
+            brand_name=project['brand_name'],
+            industry=project['industry'],
+            language=project['language'],
+            existing_queries=existing_queries_list,
+            competitors=project['competitors'] or [],
+            count=count
+        )
+        
+        if not suggestions:
+            return jsonify({
+                'success': False,
+                'error': 'No se pudieron generar sugerencias. Intenta de nuevo.'
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions,
+            'count': len(suggestions),
+            'message': f'{len(suggestions)} sugerencias generadas por IA'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error generando sugerencias: {e}", exc_info=True)
+        return jsonify({
+            'error': f'Error generando sugerencias: {str(e)}',
+            'hint': 'Verifica que GOOGLE_API_KEY esté configurada'
+        }), 500
 
 
 # ============================================================================

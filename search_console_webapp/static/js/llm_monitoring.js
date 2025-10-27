@@ -85,6 +85,30 @@ class LLMMonitoring {
         document.getElementById('btnExportComparison')?.addEventListener('click', () => {
             this.exportComparison();
         });
+
+        // ✅ NUEVO: Gestión de prompts
+        document.getElementById('btnManagePrompts')?.addEventListener('click', () => {
+            this.scrollToPrompts();
+        });
+
+        document.getElementById('btnAddPrompts')?.addEventListener('click', () => {
+            this.showPromptsModal();
+        });
+
+        // Prompts form submit
+        document.getElementById('promptsForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.savePrompts();
+        });
+
+        // ✅ NUEVO: Sugerencias con IA
+        document.getElementById('btnGetSuggestions')?.addEventListener('click', () => {
+            this.showSuggestionsModal();
+        });
+
+        document.getElementById('btnAddSelectedSuggestions')?.addEventListener('click', () => {
+            this.addSelectedSuggestions();
+        });
     }
 
     /**
@@ -251,6 +275,9 @@ class LLMMonitoring {
             
             // Update KPIs
             this.updateKPIs(data.latest_metrics);
+            
+            // ✅ NUEVO: Cargar prompts del proyecto
+            await this.loadPrompts(projectId);
             
             // Load detailed metrics
             await this.loadMetrics(projectId);
@@ -824,6 +851,534 @@ class LLMMonitoring {
             // This would require additional implementation
             // For now, just show a message
             this.showInfo('Export functionality coming soon!');
+        }
+    }
+
+    // ============================================================================
+    // PROMPTS MANAGEMENT (NUEVO)
+    // ============================================================================
+
+    /**
+     * Load prompts for a project
+     */
+    async loadPrompts(projectId) {
+        console.log(`📝 Loading prompts for project ${projectId}...`);
+        
+        const container = document.getElementById('promptsList');
+        const counter = document.getElementById('promptsCount');
+        
+        if (!container) return;
+        
+        // Show loading
+        container.innerHTML = `
+            <div class="loading-container" style="padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading prompts...</span>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ Loaded ${data.queries.length} prompts`);
+            
+            // Update counter
+            if (counter) {
+                counter.textContent = data.queries.length;
+            }
+            
+            // Render prompts list
+            if (data.queries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 40px 20px;">
+                        <div class="empty-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h4>No prompts yet</h4>
+                        <p>Add prompts to start analyzing brand visibility in LLMs</p>
+                        <button class="btn btn-primary btn-sm mt-2" onclick="window.llmMonitoring.showPromptsModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Your First Prompt
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Render prompts as list
+            let html = '<div class="prompts-list-container">';
+            
+            data.queries.forEach(query => {
+                html += `
+                    <div class="prompt-item">
+                        <div class="prompt-content">
+                            <div class="prompt-text">${this.escapeHtml(query.query_text)}</div>
+                            <div class="prompt-meta">
+                                <span class="badge badge-${query.query_type}">${query.query_type}</span>
+                                <span class="badge badge-language">${query.language}</span>
+                                <span class="prompt-date">
+                                    <i class="fas fa-clock"></i>
+                                    ${this.formatDate(query.added_at)}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="prompt-actions">
+                            <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+            
+        } catch (error) {
+            console.error('❌ Error loading prompts:', error);
+            container.innerHTML = `
+                <div class="error-state" style="padding: 20px; text-align: center;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>Error loading prompts</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Show prompts modal
+     */
+    showPromptsModal() {
+        console.log('🎬 Showing prompts modal...');
+        
+        const modal = document.getElementById('promptsModal');
+        if (!modal) return;
+        
+        // Reset form
+        document.getElementById('promptsForm').reset();
+        
+        // Show modal
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10);
+    }
+
+    /**
+     * Hide prompts modal
+     */
+    hidePromptsModal() {
+        const modal = document.getElementById('promptsModal');
+        if (!modal) return;
+        
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    /**
+     * Save prompts
+     */
+    async savePrompts() {
+        console.log('💾 Saving prompts...');
+        
+        if (!this.currentProject || !this.currentProject.id) {
+            this.showError('No project selected');
+            return;
+        }
+        
+        // Get form data
+        const promptsText = document.getElementById('promptsInput').value.trim();
+        const language = document.getElementById('promptLanguage').value || null;
+        const queryType = document.getElementById('promptType').value || 'manual';
+        
+        if (!promptsText) {
+            this.showError('Please enter at least one prompt');
+            return;
+        }
+        
+        // Parse prompts (one per line)
+        const queries = promptsText
+            .split('\n')
+            .map(q => q.trim())
+            .filter(q => q.length >= 10);
+        
+        if (queries.length === 0) {
+            this.showError('All prompts must be at least 10 characters long');
+            return;
+        }
+        
+        // Prepare payload
+        const payload = {
+            queries: queries
+        };
+        
+        if (language) {
+            payload.language = language;
+        }
+        
+        if (queryType) {
+            payload.query_type = queryType;
+        }
+        
+        // Show loading
+        const btnSave = document.getElementById('btnSavePrompts');
+        const btnText = document.getElementById('btnSavePromptsText');
+        const originalText = btnText.textContent;
+        
+        btnText.textContent = 'Adding...';
+        btnSave.disabled = true;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ Added ${data.added_count} prompts`);
+            
+            // Hide modal
+            this.hidePromptsModal();
+            
+            // Reload prompts
+            await this.loadPrompts(this.currentProject.id);
+            
+            // Show success message
+            let message = `${data.added_count} prompts added successfully!`;
+            if (data.duplicate_count > 0) {
+                message += ` (${data.duplicate_count} duplicates skipped)`;
+            }
+            if (data.error_count > 0) {
+                message += ` (${data.error_count} errors)`;
+            }
+            this.showSuccess(message);
+            
+        } catch (error) {
+            console.error('❌ Error saving prompts:', error);
+            this.showError(error.message || 'Failed to save prompts');
+        } finally {
+            btnText.textContent = originalText;
+            btnSave.disabled = false;
+        }
+    }
+
+    /**
+     * Delete a prompt
+     */
+    async deletePrompt(queryId) {
+        if (!this.currentProject || !this.currentProject.id) {
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this prompt?')) {
+            return;
+        }
+        
+        console.log(`🗑️ Deleting prompt ${queryId}...`);
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/${queryId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ Prompt ${queryId} deleted`);
+            
+            // Reload prompts
+            await this.loadPrompts(this.currentProject.id);
+            
+            this.showSuccess('Prompt deleted successfully');
+            
+        } catch (error) {
+            console.error('❌ Error deleting prompt:', error);
+            this.showError(error.message || 'Failed to delete prompt');
+        }
+    }
+
+    /**
+     * Scroll to prompts section
+     */
+    scrollToPrompts() {
+        const promptsCard = document.getElementById('promptsCard');
+        if (promptsCard) {
+            promptsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // ============================================================================
+    // AI SUGGESTIONS (NUEVO)
+    // ============================================================================
+
+    /**
+     * Show suggestions modal and get AI suggestions
+     */
+    async showSuggestionsModal() {
+        console.log('🤖 Mostrando modal de sugerencias IA...');
+        
+        if (!this.currentProject || !this.currentProject.id) {
+            this.showError('No project selected');
+            return;
+        }
+        
+        const modal = document.getElementById('suggestionsModal');
+        if (!modal) return;
+        
+        // Show modal
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10);
+        
+        // Reset states
+        document.getElementById('suggestionsLoading').style.display = 'flex';
+        document.getElementById('suggestionsList').style.display = 'none';
+        document.getElementById('suggestionsError').style.display = 'none';
+        
+        // Get suggestions from AI
+        await this.getSuggestions();
+    }
+
+    /**
+     * Hide suggestions modal
+     */
+    hideSuggestionsModal() {
+        const modal = document.getElementById('suggestionsModal');
+        if (!modal) return;
+        
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    /**
+     * Get AI suggestions
+     */
+    async getSuggestions() {
+        console.log('🤖 Solicitando sugerencias a la IA...');
+        
+        if (!this.currentProject || !this.currentProject.id) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    count: 10
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ Recibidas ${data.suggestions.length} sugerencias de IA`);
+            
+            // Hide loading, show suggestions
+            document.getElementById('suggestionsLoading').style.display = 'none';
+            document.getElementById('suggestionsList').style.display = 'block';
+            document.getElementById('suggestionsError').style.display = 'none';
+            
+            // Render suggestions
+            this.renderSuggestions(data.suggestions);
+            
+        } catch (error) {
+            console.error('❌ Error obteniendo sugerencias:', error);
+            
+            // Show error state
+            document.getElementById('suggestionsLoading').style.display = 'none';
+            document.getElementById('suggestionsList').style.display = 'none';
+            document.getElementById('suggestionsError').style.display = 'flex';
+            document.getElementById('suggestionsErrorText').textContent = error.message || 'Error generating suggestions';
+        }
+    }
+
+    /**
+     * Render AI suggestions
+     */
+    renderSuggestions(suggestions) {
+        const container = document.getElementById('suggestionsContainer');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (suggestions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding: 40px;">
+                    <p>No suggestions generated. Try again.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.innerHTML = `
+                <label class="suggestion-label">
+                    <input type="checkbox" class="suggestion-checkbox" data-index="${index}" data-text="${this.escapeHtml(suggestion)}">
+                    <span class="suggestion-text">${this.escapeHtml(suggestion)}</span>
+                    <span class="suggestion-badge">
+                        <i class="fas fa-magic"></i>
+                        AI
+                    </span>
+                </label>
+            `;
+            container.appendChild(item);
+        });
+        
+        // Update counter
+        this.updateSuggestionsCounter();
+        
+        // Add change event listeners
+        const checkboxes = container.querySelectorAll('.suggestion-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.updateSuggestionsCounter();
+            });
+        });
+    }
+
+    /**
+     * Update suggestions counter
+     */
+    updateSuggestionsCounter() {
+        const checkboxes = document.querySelectorAll('.suggestion-checkbox:checked');
+        const count = checkboxes.length;
+        const btnText = document.getElementById('btnAddSuggestionsText');
+        
+        if (btnText) {
+            btnText.textContent = `Add Selected (${count})`;
+        }
+    }
+
+    /**
+     * Select all suggestions
+     */
+    selectAllSuggestions() {
+        const checkboxes = document.querySelectorAll('.suggestion-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        this.updateSuggestionsCounter();
+    }
+
+    /**
+     * Deselect all suggestions
+     */
+    deselectAllSuggestions() {
+        const checkboxes = document.querySelectorAll('.suggestion-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        this.updateSuggestionsCounter();
+    }
+
+    /**
+     * Add selected suggestions to project
+     */
+    async addSelectedSuggestions() {
+        console.log('💾 Añadiendo sugerencias seleccionadas...');
+        
+        if (!this.currentProject || !this.currentProject.id) {
+            return;
+        }
+        
+        // Get selected suggestions
+        const checkboxes = document.querySelectorAll('.suggestion-checkbox:checked');
+        
+        if (checkboxes.length === 0) {
+            this.showError('Please select at least one suggestion');
+            return;
+        }
+        
+        const selectedQueries = Array.from(checkboxes).map(cb => cb.dataset.text);
+        
+        console.log(`📝 Añadiendo ${selectedQueries.length} sugerencias...`);
+        
+        // Prepare payload
+        const payload = {
+            queries: selectedQueries,
+            query_type: 'general'  // Las sugerencias de IA se marcan como 'general'
+        };
+        
+        // Show loading
+        const btn = document.getElementById('btnAddSelectedSuggestions');
+        const btnText = document.getElementById('btnAddSuggestionsText');
+        const originalText = btnText.textContent;
+        
+        btnText.textContent = 'Adding...';
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ Añadidas ${data.added_count} sugerencias`);
+            
+            // Hide modal
+            this.hideSuggestionsModal();
+            
+            // Reload prompts
+            await this.loadPrompts(this.currentProject.id);
+            
+            // Show success
+            let message = `${data.added_count} AI suggestions added successfully!`;
+            if (data.duplicate_count > 0) {
+                message += ` (${data.duplicate_count} were duplicates)`;
+            }
+            this.showSuccess(message);
+            
+        } catch (error) {
+            console.error('❌ Error añadiendo sugerencias:', error);
+            this.showError(error.message || 'Failed to add suggestions');
+        } finally {
+            btnText.textContent = originalText;
+            btn.disabled = false;
         }
     }
 
