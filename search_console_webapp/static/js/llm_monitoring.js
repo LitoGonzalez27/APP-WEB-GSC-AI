@@ -81,6 +81,13 @@ class LLMMonitoring {
             this.showProjectModal(this.currentProject);
         });
 
+        // Delete project (from metrics view)
+        document.getElementById('btnDeleteProject')?.addEventListener('click', () => {
+            if (this.currentProject && this.currentProject.id) {
+                this.deleteProject(this.currentProject.id, this.currentProject.name);
+            }
+        });
+
         // Export comparison
         document.getElementById('btnExportComparison')?.addEventListener('click', () => {
             this.exportComparison();
@@ -228,6 +235,10 @@ class LLMMonitoring {
                 <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.showProjectModal(${JSON.stringify(project).replace(/"/g, '&quot;')})">
                     <i class="fas fa-edit"></i>
                     Edit
+                </button>
+                <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, '${this.escapeHtml(project.name)}')">
+                    <i class="fas fa-trash"></i>
+                    Delete
                 </button>
             </div>
         `;
@@ -552,6 +563,46 @@ class LLMMonitoring {
             metricsSection.classList.remove('active');
         }
         this.currentProject = null;
+    }
+
+    /**
+     * Delete a project
+     */
+    async deleteProject(projectId, projectName) {
+        console.log(`🗑️ Deleting project ${projectId}...`);
+        
+        // Confirm deletion
+        if (!confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ Project ${projectId} deleted`);
+            
+            // If we're viewing this project, go back to projects list
+            if (this.currentProject && this.currentProject.id === projectId) {
+                this.showProjectsList();
+            }
+            
+            // Reload projects list
+            await this.loadProjects();
+            
+            this.showSuccess(`Project "${projectName}" deleted successfully`);
+            
+        } catch (error) {
+            console.error('❌ Error deleting project:', error);
+            this.showError(error.message || 'Failed to delete project');
+        }
     }
 
     /**

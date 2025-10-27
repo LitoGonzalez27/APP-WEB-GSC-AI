@@ -401,6 +401,17 @@
     border-color: #d1d5db;
 }
 
+.btn-danger {
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #fee2e2;
+    border-color: #dc2626;
+    color: #991b1b;
+}
+
 .btn-sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
