@@ -119,18 +119,11 @@
         </div>
     </nav>
     
-    <div class="layout-wrapper">
-        <!-- Sidebar de navegación -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-header-content">
-                    <h2 class="sidebar-title">Menu</h2>
-                </div>
-                <button class="sidebar-close" id="sidebarClose">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
+    <div class="sidebar-mobile-overlay" id="sidebarMobileOverlay"></div>
 
+    <div class="app-layout">
+        <aside class="sidebar-container" id="sidebarContainer">
+            <div class="sidebar-header"></div>
             <nav class="sidebar-nav" role="navigation" aria-label="Navegación principal">
                 <div class="nav-section nav-section-analysis">
                     <div class="nav-section-title">Análisis</div>
@@ -140,7 +133,7 @@
                         </div>
                         <div class="nav-text">Configuration</div>
                     </button>
-                    
+
                     <button type="button" class="nav-item" id="navManualAI" onclick="navigateToManualAI()">
                         <div class="nav-icon">
                             <i class="fas fa-cogs"></i>
@@ -150,7 +143,7 @@
                             <div class="status-dot status-ready"></div>
                         </div>
                     </button>
-                    
+
                     <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
                         <div class="nav-icon">
                             <i class="fas fa-brain"></i>
@@ -160,7 +153,7 @@
                             <div class="status-dot status-ready"></div>
                         </div>
                     </button>
-                    
+
                     <button type="button" class="nav-item active" id="navLLMMonitoring">
                         <div class="nav-icon">
                             <i class="fas fa-eye"></i>
@@ -174,8 +167,7 @@
             </nav>
         </aside>
 
-        <!-- Contenido principal -->
-        <main class="manual-ai-main">
+        <main class="main-content-area">
             <!-- Projects Tab (matching AI Mode structure) -->
             <section class="tab-content active" id="projectsTab">
                 <div class="projects-header">
