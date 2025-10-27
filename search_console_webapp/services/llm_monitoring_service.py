@@ -1042,17 +1042,24 @@ def generate_query_suggestions_with_ai(
     google_api_key = os.getenv('GOOGLE_API_KEY')
     if not google_api_key:
         logger.error("❌ GOOGLE_API_KEY no configurada")
+        logger.error("   Verifica que la variable de entorno esté configurada en Railway")
         return []
+    
+    logger.info(f"✅ GOOGLE_API_KEY encontrada (longitud: {len(google_api_key)})")
     
     try:
         # Crear proveedor de Gemini Flash
         from services.llm_providers import LLMProviderFactory
         
+        logger.info("🔧 Creando proveedor de Gemini Flash...")
         gemini = LLMProviderFactory.create_provider('google', {'google': google_api_key})
         
         if not gemini:
             logger.error("❌ No se pudo crear proveedor de Gemini")
+            logger.error("   Verifica que el módulo LLMProviderFactory esté funcionando correctamente")
             return []
+        
+        logger.info("✅ Proveedor de Gemini creado correctamente")
         
         # Construir prompt contextual
         lang_name = 'español' if language == 'es' else 'inglés'
@@ -1091,11 +1098,20 @@ Ejemplo:
 GENERA {count} PREGUNTAS:"""
 
         # Ejecutar query en Gemini
+        logger.info("📤 Enviando prompt a Gemini Flash...")
+        logger.debug(f"   Prompt length: {len(prompt)} caracteres")
+        
         result = gemini.execute_query(prompt)
+        
+        logger.info(f"📥 Respuesta de Gemini recibida: success={result.get('success')}")
         
         if not result['success']:
             logger.error(f"❌ Gemini falló: {result.get('error')}")
+            logger.error(f"   Detalles: {result}")
             return []
+        
+        logger.info(f"✅ Gemini respondió exitosamente")
+        logger.debug(f"   Content length: {len(result.get('content', ''))} caracteres")
         
         # Parsear respuesta
         response_text = result['content'].strip()

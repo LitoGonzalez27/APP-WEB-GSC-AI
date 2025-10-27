@@ -857,6 +857,11 @@ def suggest_queries(project_id):
         # Generar sugerencias usando IA
         from services.llm_monitoring_service import generate_query_suggestions_with_ai
         
+        logger.info(f"🤖 Generando sugerencias para proyecto {project_id}: {project['brand_name']}")
+        logger.info(f"   - Industria: {project['industry']}")
+        logger.info(f"   - Queries existentes: {len(existing_queries_list)}")
+        logger.info(f"   - Competidores: {project['competitors']}")
+        
         suggestions = generate_query_suggestions_with_ai(
             brand_name=project['brand_name'],
             industry=project['industry'],
@@ -867,10 +872,21 @@ def suggest_queries(project_id):
         )
         
         if not suggestions:
-            return jsonify({
-                'success': False,
-                'error': 'No se pudieron generar sugerencias. Intenta de nuevo.'
-            }), 500
+            logger.warning(f"⚠️ No se generaron sugerencias para proyecto {project_id}")
+            # Verificar si es por falta de API key
+            import os
+            if not os.getenv('GOOGLE_API_KEY'):
+                return jsonify({
+                    'success': False,
+                    'error': 'GOOGLE_API_KEY no está configurada en el servidor',
+                    'hint': 'Contacta al administrador para configurar las API keys'
+                }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'No se pudieron generar sugerencias. Es posible que Gemini API esté teniendo problemas.',
+                    'hint': 'Intenta de nuevo en unos momentos'
+                }), 500
         
         return jsonify({
             'success': True,

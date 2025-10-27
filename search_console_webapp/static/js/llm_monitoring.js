@@ -1328,7 +1328,13 @@ class LLMMonitoring {
         }
         
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest`, {
+            // Create timeout promise (30 seconds)
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout - Gemini está tardando demasiado. Intenta de nuevo.')), 30000)
+            );
+            
+            // Create fetch promise
+            const fetchPromise = fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1339,9 +1345,15 @@ class LLMMonitoring {
                 })
             });
             
+            // Race between fetch and timeout
+            const response = await Promise.race([fetchPromise, timeoutPromise]);
+            
+            console.log(`📡 Response status: ${response.status}`);
+            
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
+                console.error('❌ Error response:', error);
+                throw new Error(error.error || error.hint || `HTTP ${response.status}`);
             }
             
             const data = await response.json();
@@ -1358,6 +1370,7 @@ class LLMMonitoring {
             
         } catch (error) {
             console.error('❌ Error obteniendo sugerencias:', error);
+            console.error('❌ Error stack:', error.stack);
             
             // Show error state
             document.getElementById('suggestionsLoading').style.display = 'none';
