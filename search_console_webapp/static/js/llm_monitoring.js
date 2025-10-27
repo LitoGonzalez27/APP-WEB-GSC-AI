@@ -500,15 +500,21 @@ class LLMMonitoring {
         
         const modal = document.getElementById('projectModal');
         const title = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
         const btnText = document.getElementById('btnSaveText');
         
         console.log('📦 Modal element:', modal);
         console.log('📦 Title element:', title);
+        console.log('📦 Modal desc element:', modalDesc);
         console.log('📦 Button text element:', btnText);
+        
+        // Store current project for later use
+        this.currentProject = project;
         
         if (project) {
             // Edit mode
-            title.textContent = 'Edit Project';
+            title.textContent = 'Edit LLM Monitoring Project';
+            if (modalDesc) modalDesc.textContent = 'Update your project settings and configuration';
             btnText.textContent = 'Update Project';
             
             // Fill form
@@ -526,7 +532,8 @@ class LLMMonitoring {
             });
         } else {
             // Create mode
-            title.textContent = 'Create Project';
+            title.textContent = 'Create New LLM Monitoring Project';
+            if (modalDesc) modalDesc.textContent = 'Set up a new project to track brand visibility in LLMs';
             btnText.textContent = 'Create Project';
             
             // Reset form
@@ -615,14 +622,16 @@ class LLMMonitoring {
         // Show loading
         const btnSave = document.getElementById('btnSaveProject');
         const btnText = document.getElementById('btnSaveText');
-        const btnSpinner = btnSave.querySelector('.btn-spinner');
+        const originalText = btnText.textContent;
         
-        btnText.style.display = 'none';
-        btnSpinner.style.display = 'inline-block';
+        const isEdit = this.currentProject && this.currentProject.id;
+        
+        console.log('🔄 Disabling button and showing loading...');
+        btnText.textContent = isEdit ? 'Updating...' : 'Creating...';
         btnSave.disabled = true;
+        btnSave.classList.add('loading');
         
         try {
-            const isEdit = this.currentProject && this.currentProject.id;
             const url = isEdit ? `${this.baseUrl}/projects/${this.currentProject.id}` : `${this.baseUrl}/projects`;
             const method = isEdit ? 'PUT' : 'POST';
             
@@ -669,9 +678,10 @@ class LLMMonitoring {
             console.error('❌ Error saving project:', error);
             this.showError(error.message || 'Failed to save project');
         } finally {
-            btnText.style.display = 'inline';
-            btnSpinner.style.display = 'none';
+            console.log('🔄 Re-enabling button...');
+            btnText.textContent = originalText;
             btnSave.disabled = false;
+            btnSave.classList.remove('loading');
         }
     }
 
