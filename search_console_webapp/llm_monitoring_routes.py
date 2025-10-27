@@ -79,8 +79,8 @@ def validate_project_ownership(f):
             return f(project_id, *args, **kwargs)
             
         except Exception as e:
-            logger.error(f"Error validando ownership: {e}")
-            return jsonify({'error': 'Error validando permisos'}), 500
+            logger.error(f"Error validando ownership: {e}", exc_info=True)
+            return jsonify({'error': f'Error validando permisos: {str(e)}'}), 500
         finally:
             cur.close()
             conn.close()
@@ -346,12 +346,16 @@ def get_project(project_id):
     Returns:
         JSON con detalles del proyecto y estadísticas
     """
+    logger.info(f"📊 GET /projects/{project_id} - Iniciando...")
+    
     conn = get_db_connection()
     if not conn:
+        logger.error("❌ Error de conexión a BD")
         return jsonify({'error': 'Error de conexión a BD'}), 500
     
     try:
         cur = conn.cursor()
+        logger.info(f"🔍 Consultando proyecto {project_id}...")
         
         # Obtener proyecto
         cur.execute("""
@@ -382,11 +386,14 @@ def get_project(project_id):
         """, (project_id,))
         
         project = cur.fetchone()
+        logger.info(f"✅ Proyecto obtenido: {project['name'] if project else 'None'}")
         
         if not project:
+            logger.warning(f"⚠️ Proyecto {project_id} no encontrado")
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         
         # Obtener últimas métricas de cada LLM
+        logger.info(f"📈 Consultando métricas para proyecto {project_id}...")
         cur.execute("""
             SELECT 
                 llm_provider,
@@ -405,6 +412,7 @@ def get_project(project_id):
         """, (project_id,))
         
         latest_metrics = cur.fetchall()
+        logger.info(f"📊 Métricas encontradas: {len(latest_metrics)} registros")
         
         # Formatear métricas
         metrics_by_llm = {}
@@ -422,6 +430,7 @@ def get_project(project_id):
                 'date': metric['snapshot_date'].isoformat() if metric['snapshot_date'] else None
             }
         
+        logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
             'success': True,
             'project': {
