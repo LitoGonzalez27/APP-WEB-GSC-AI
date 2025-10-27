@@ -241,6 +241,7 @@ def create_project():
             return jsonify({'error': 'Ya tienes un proyecto con ese nombre'}), 409
         
         # Insertar proyecto
+        import json
         cur.execute("""
             INSERT INTO llm_monitoring_projects (
                 user_id, name, brand_name, industry,
@@ -248,7 +249,7 @@ def create_project():
                 is_active, created_at, updated_at
             ) VALUES (
                 %s, %s, %s, %s,
-                %s, %s, %s, %s,
+                %s, %s::jsonb, %s, %s,
                 TRUE, NOW(), NOW()
             )
             RETURNING id, created_at
@@ -258,7 +259,7 @@ def create_project():
             data['brand_name'],
             data['industry'],
             enabled_llms,
-            competitors,
+            json.dumps(competitors),  # Convertir a JSON string
             language,
             queries_per_llm
         ))
