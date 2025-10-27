@@ -220,8 +220,14 @@ class LLMMonitoring {
         this.currentProject = { id: projectId };
         
         // Hide projects, show metrics
-        document.getElementById('projectsSection').style.display = 'none';
-        document.getElementById('metricsSection').style.display = 'block';
+        const projectsTab = document.getElementById('projectsTab');
+        const metricsSection = document.getElementById('metricsSection');
+        
+        console.log('📦 Projects tab element:', projectsTab);
+        console.log('📦 Metrics section element:', metricsSection);
+        
+        if (projectsTab) projectsTab.style.display = 'none';
+        if (metricsSection) metricsSection.style.display = 'block';
         
         try {
             // Load project details
@@ -501,8 +507,11 @@ class LLMMonitoring {
      * Show projects list
      */
     showProjectsList() {
-        document.getElementById('projectsSection').style.display = 'block';
-        document.getElementById('metricsSection').style.display = 'none';
+        const projectsTab = document.getElementById('projectsTab');
+        const metricsSection = document.getElementById('metricsSection');
+        
+        if (projectsTab) projectsTab.style.display = 'block';
+        if (metricsSection) metricsSection.style.display = 'none';
         this.currentProject = null;
     }
 
