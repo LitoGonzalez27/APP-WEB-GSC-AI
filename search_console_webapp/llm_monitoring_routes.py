@@ -400,10 +400,11 @@ def get_project(project_id):
                 mention_rate,
                 avg_position,
                 share_of_voice,
-                sentiment_positive_pct,
-                sentiment_neutral_pct,
-                sentiment_negative_pct,
-                total_queries_analyzed,
+                positive_mentions,
+                neutral_mentions,
+                negative_mentions,
+                total_mentions,
+                total_queries,
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
@@ -417,16 +418,25 @@ def get_project(project_id):
         # Formatear métricas
         metrics_by_llm = {}
         for metric in latest_metrics:
+            positive_mentions = metric.get('positive_mentions') or 0
+            neutral_mentions = metric.get('neutral_mentions') or 0
+            negative_mentions = metric.get('negative_mentions') or 0
+            total_mentions = metric.get('total_mentions') or (positive_mentions + neutral_mentions + negative_mentions)
+
+            positive_pct = (positive_mentions / total_mentions * 100) if total_mentions else 0
+            neutral_pct = (neutral_mentions / total_mentions * 100) if total_mentions else 0
+            negative_pct = (negative_mentions / total_mentions * 100) if total_mentions else 0
+
             metrics_by_llm[metric['llm_provider']] = {
-                'mention_rate': float(metric['mention_rate']) if metric['mention_rate'] else 0,
-                'avg_position': float(metric['avg_position']) if metric['avg_position'] else None,
-                'share_of_voice': float(metric['share_of_voice']) if metric['share_of_voice'] else 0,
+                'mention_rate': float(metric['mention_rate']) if metric['mention_rate'] is not None else 0,
+                'avg_position': float(metric['avg_position']) if metric['avg_position'] is not None else None,
+                'share_of_voice': float(metric['share_of_voice']) if metric['share_of_voice'] is not None else 0,
                 'sentiment': {
-                    'positive': float(metric['sentiment_positive_pct']) if metric['sentiment_positive_pct'] else 0,
-                    'neutral': float(metric['sentiment_neutral_pct']) if metric['sentiment_neutral_pct'] else 0,
-                    'negative': float(metric['sentiment_negative_pct']) if metric['sentiment_negative_pct'] else 0
+                    'positive': float(positive_pct),
+                    'neutral': float(neutral_pct),
+                    'negative': float(negative_pct)
                 },
-                'total_queries': metric['total_queries_analyzed'],
+                'total_queries': metric.get('total_queries'),
                 'date': metric['snapshot_date'].isoformat() if metric['snapshot_date'] else None
             }
         
@@ -727,23 +737,32 @@ def get_project_metrics(project_id):
         # Formatear snapshots
         snapshots_list = []
         for s in snapshots:
+            total_mentions = (s.get('total_mentions') or 0)
+            pos_mentions = (s.get('positive_mentions') or 0)
+            neu_mentions = (s.get('neutral_mentions') or 0)
+            neg_mentions = (s.get('negative_mentions') or 0)
+
+            positive_pct = (pos_mentions / total_mentions * 100) if total_mentions else 0
+            neutral_pct = (neu_mentions / total_mentions * 100) if total_mentions else 0
+            negative_pct = (neg_mentions / total_mentions * 100) if total_mentions else 0
+
             snapshots_list.append({
                 'id': s['id'],
                 'llm_provider': s['llm_provider'],
                 'snapshot_date': s['snapshot_date'].isoformat() if s['snapshot_date'] else None,
-                'mention_rate': float(s['mention_rate']) if s['mention_rate'] else 0,
-                'avg_position': float(s['avg_position']) if s['avg_position'] else None,
-                'top3_count': s['top3_count'],
-                'top5_count': s['top5_count'],
-                'top10_count': s['top10_count'],
-                'share_of_voice': float(s['share_of_voice']) if s['share_of_voice'] else 0,
+                'mention_rate': float(s['mention_rate']) if s['mention_rate'] is not None else 0,
+                'avg_position': float(s['avg_position']) if s['avg_position'] is not None else None,
+                'top3_count': s.get('appeared_in_top3'),
+                'top5_count': s.get('appeared_in_top5'),
+                'top10_count': s.get('appeared_in_top10'),
+                'share_of_voice': float(s['share_of_voice']) if s['share_of_voice'] is not None else 0,
                 'sentiment': {
-                    'positive': float(s['sentiment_positive_pct']) if s['sentiment_positive_pct'] else 0,
-                    'neutral': float(s['sentiment_neutral_pct']) if s['sentiment_neutral_pct'] else 0,
-                    'negative': float(s['sentiment_negative_pct']) if s['sentiment_negative_pct'] else 0
+                    'positive': float(positive_pct),
+                    'neutral': float(neutral_pct),
+                    'negative': float(negative_pct)
                 },
-                'total_queries': s['total_queries_analyzed'],
-                'total_cost': float(s['total_cost_usd']) if s['total_cost_usd'] else 0
+                'total_queries': s.get('total_queries') or 0,
+                'total_cost': float(s['total_cost_usd']) if s['total_cost_usd'] is not None else 0
             })
         
         # Calcular métricas agregadas
@@ -802,28 +821,35 @@ def get_llm_comparison(project_id):
     try:
         cur = conn.cursor()
         
-        # Usar vista de comparación
+        # Traer filas por LLM directamente desde snapshots
         cur.execute("""
-            SELECT *
-            FROM llm_visibility_comparison
+            SELECT 
+                llm_provider,
+                snapshot_date,
+                mention_rate,
+                avg_position,
+                share_of_voice,
+                avg_sentiment_score,
+                total_queries
+            FROM llm_monitoring_snapshots
             WHERE project_id = %s
             ORDER BY snapshot_date DESC, llm_provider
             LIMIT 100
         """, (project_id,))
         
-        comparisons = cur.fetchall()
+        rows = cur.fetchall()
         
         # Formatear datos
         comparison_list = []
-        for c in comparisons:
+        for c in rows:
             comparison_list.append({
                 'llm_provider': c['llm_provider'],
                 'snapshot_date': c['snapshot_date'].isoformat() if c['snapshot_date'] else None,
-                'mention_rate': float(c['mention_rate']) if c['mention_rate'] else 0,
-                'avg_position': float(c['avg_position']) if c['avg_position'] else None,
-                'share_of_voice': float(c['share_of_voice']) if c['share_of_voice'] else 0,
-                'sentiment_score': float(c['sentiment_score']) if c['sentiment_score'] else 0,
-                'total_queries': c['total_queries_analyzed']
+                'mention_rate': float(c['mention_rate']) if c['mention_rate'] is not None else 0,
+                'avg_position': float(c['avg_position']) if c['avg_position'] is not None else None,
+                'share_of_voice': float(c['share_of_voice']) if c['share_of_voice'] is not None else 0,
+                'sentiment_score': float(c['avg_sentiment_score']) if c['avg_sentiment_score'] is not None else 0,
+                'total_queries': c['total_queries']
             })
         
         # Agrupar por fecha para comparación lado a lado
