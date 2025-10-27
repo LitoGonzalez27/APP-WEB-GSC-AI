@@ -25,6 +25,7 @@ Endpoints:
 
 import logging
 import os
+import json
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from functools import wraps
@@ -241,7 +242,6 @@ def create_project():
             return jsonify({'error': 'Ya tienes un proyecto con ese nombre'}), 409
         
         # Insertar proyecto
-        import json
         cur.execute("""
             INSERT INTO llm_monitoring_projects (
                 user_id, name, brand_name, industry,
@@ -490,8 +490,8 @@ def update_project(project_id):
             params.append(data['enabled_llms'])
         
         if 'competitors' in data:
-            updates.append("competitors = %s")
-            params.append(data['competitors'])
+            updates.append("competitors = %s::jsonb")
+            params.append(json.dumps(data['competitors']))
         
         if 'queries_per_llm' in data:
             if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 50:
