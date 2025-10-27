@@ -905,3 +905,83 @@
     }
 }
 
+/* ✅ NUEVO: Prompts Section Toggle Styles */
+#promptsToggleIcon {
+    margin-right: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+    transition: transform 0.3s ease;
+}
+
+.chart-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.prompts-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* ✅ NUEVO: Prompts Pagination Styles */
+.prompts-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.pagination-current {
+    font-size: 0.875rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.pagination-controls .btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-controls .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e5e7eb;
+    color: #9ca3af;
+}
+
+.pagination-controls .btn:not(:disabled):hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+/* Responsive Pagination */
+@media (max-width: 768px) {
+    .prompts-pagination {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .pagination-info {
+        text-align: center;
+    }
+}
+

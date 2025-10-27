@@ -10,6 +10,12 @@ class LLMMonitoring {
         this.currentProject = null;
         this.charts = {};
         this.comparisonGrid = null;
+        
+        // Pagination state
+        this.promptsPerPage = 10;
+        this.currentPromptsPage = 1;
+        this.allPrompts = [];
+        this.promptsSectionCollapsed = false;
     }
 
     /**
@@ -939,57 +945,17 @@ class LLMMonitoring {
             
             console.log(`✅ Loaded ${data.queries.length} prompts`);
             
+            // Store all prompts
+            this.allPrompts = data.queries;
+            this.currentPromptsPage = 1;
+            
             // Update counter
             if (counter) {
                 counter.textContent = data.queries.length;
             }
             
-            // Render prompts list
-            if (data.queries.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state" style="padding: 40px 20px;">
-                        <div class="empty-icon">
-                            <i class="fas fa-comments"></i>
-                        </div>
-                        <h4>No prompts yet</h4>
-                        <p>Add prompts to start analyzing brand visibility in LLMs</p>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="window.llmMonitoring.showPromptsModal()">
-                            <i class="fas fa-plus"></i>
-                            Add Your First Prompt
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Render prompts as list
-            let html = '<div class="prompts-list-container">';
-            
-            data.queries.forEach(query => {
-                html += `
-                    <div class="prompt-item">
-                        <div class="prompt-content">
-                            <div class="prompt-text">${this.escapeHtml(query.query_text)}</div>
-                            <div class="prompt-meta">
-                                <span class="badge badge-${query.query_type}">${query.query_type}</span>
-                                <span class="badge badge-language">${query.language}</span>
-                                <span class="prompt-date">
-                                    <i class="fas fa-clock"></i>
-                                    ${this.formatDate(query.added_at)}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="prompt-actions">
-                            <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.innerHTML = html;
+            // Render prompts list with pagination
+            this.renderPrompts();
             
         } catch (error) {
             console.error('❌ Error loading prompts:', error);
@@ -999,6 +965,132 @@ class LLMMonitoring {
                     <p>Error loading prompts</p>
                 </div>
             `;
+        }
+    }
+
+    /**
+     * Render prompts with pagination
+     */
+    renderPrompts() {
+        const container = document.getElementById('promptsList');
+        const paginationDiv = document.getElementById('promptsPagination');
+        
+        if (!container) return;
+        
+        // Handle empty state
+        if (this.allPrompts.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h4>No prompts yet</h4>
+                    <p>Add prompts to start analyzing brand visibility in LLMs</p>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="window.llmMonitoring.showPromptsModal()">
+                        <i class="fas fa-plus"></i>
+                        Add Your First Prompt
+                    </button>
+                </div>
+            `;
+            if (paginationDiv) paginationDiv.style.display = 'none';
+            return;
+        }
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(this.allPrompts.length / this.promptsPerPage);
+        const startIndex = (this.currentPromptsPage - 1) * this.promptsPerPage;
+        const endIndex = Math.min(startIndex + this.promptsPerPage, this.allPrompts.length);
+        const pagePrompts = this.allPrompts.slice(startIndex, endIndex);
+        
+        // Render prompts for current page
+        let html = '<div class="prompts-list-container">';
+        
+        pagePrompts.forEach(query => {
+            html += `
+                <div class="prompt-item">
+                    <div class="prompt-content">
+                        <div class="prompt-text">${this.escapeHtml(query.query_text)}</div>
+                        <div class="prompt-meta">
+                            <span class="badge badge-${query.query_type}">${query.query_type}</span>
+                            <span class="badge badge-language">${query.language}</span>
+                            <span class="prompt-date">
+                                <i class="fas fa-clock"></i>
+                                ${this.formatDate(query.added_at)}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="prompt-actions">
+                        <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Update pagination controls
+        if (this.allPrompts.length > this.promptsPerPage) {
+            if (paginationDiv) {
+                paginationDiv.style.display = 'flex';
+                
+                // Update pagination info
+                document.getElementById('paginationInfo').textContent = 
+                    `Showing ${startIndex + 1}-${endIndex} of ${this.allPrompts.length} prompts`;
+                
+                // Update page numbers
+                document.getElementById('currentPage').textContent = this.currentPromptsPage;
+                document.getElementById('totalPages').textContent = totalPages;
+                
+                // Update button states
+                document.getElementById('btnPrevPage').disabled = this.currentPromptsPage === 1;
+                document.getElementById('btnNextPage').disabled = this.currentPromptsPage === totalPages;
+            }
+        } else {
+            if (paginationDiv) paginationDiv.style.display = 'none';
+        }
+    }
+
+    /**
+     * Go to next page
+     */
+    nextPage() {
+        const totalPages = Math.ceil(this.allPrompts.length / this.promptsPerPage);
+        if (this.currentPromptsPage < totalPages) {
+            this.currentPromptsPage++;
+            this.renderPrompts();
+        }
+    }
+
+    /**
+     * Go to previous page
+     */
+    prevPage() {
+        if (this.currentPromptsPage > 1) {
+            this.currentPromptsPage--;
+            this.renderPrompts();
+        }
+    }
+
+    /**
+     * Toggle prompts section collapse/expand
+     */
+    togglePromptsSection() {
+        const content = document.getElementById('promptsContent');
+        const icon = document.getElementById('promptsToggleIcon');
+        
+        if (!content || !icon) return;
+        
+        this.promptsSectionCollapsed = !this.promptsSectionCollapsed;
+        
+        if (this.promptsSectionCollapsed) {
+            content.style.display = 'none';
+            icon.className = 'fas fa-chevron-right';
+        } else {
+            content.style.display = 'block';
+            icon.className = 'fas fa-chevron-down';
         }
     }
 
