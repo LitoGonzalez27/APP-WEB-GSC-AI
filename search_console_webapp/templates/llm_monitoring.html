@@ -32,7 +32,7 @@
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=2" rel="stylesheet">
     
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
@@ -448,7 +448,7 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=2"></script>
     
     <script>
         // Usuario actual

@@ -92,6 +92,12 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Asegurar visibilidad de la sección de métricas aunque el CSS global
+   o clases externas cambien la opacidad por defecto */
+#metricsSection {
+    opacity: 1 !important;
+}
+
 .section-header {
     display: flex;
     justify-content: space-between;
