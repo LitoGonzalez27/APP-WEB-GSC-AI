@@ -226,8 +226,14 @@ class LLMMonitoring {
         console.log('📦 Projects tab element:', projectsTab);
         console.log('📦 Metrics section element:', metricsSection);
         
-        if (projectsTab) projectsTab.style.display = 'none';
-        if (metricsSection) metricsSection.style.display = 'block';
+        if (projectsTab) {
+            projectsTab.style.display = 'none';
+            projectsTab.classList.remove('active');
+        }
+        if (metricsSection) {
+            metricsSection.style.display = 'block';
+            metricsSection.classList.add('active');
+        }
         
         try {
             // Load project details
@@ -510,8 +516,14 @@ class LLMMonitoring {
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
         
-        if (projectsTab) projectsTab.style.display = 'block';
-        if (metricsSection) metricsSection.style.display = 'none';
+        if (projectsTab) {
+            projectsTab.style.display = 'block';
+            projectsTab.classList.add('active');
+        }
+        if (metricsSection) {
+            metricsSection.style.display = 'none';
+            metricsSection.classList.remove('active');
+        }
         this.currentProject = null;
     }
 
