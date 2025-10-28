@@ -814,6 +814,13 @@ class LLMMonitoring {
         
         console.log(`🚀 Starting analysis for project ${this.currentProject.id}...`);
         
+        // Get button and add loading state
+        const btnAnalyze = document.getElementById('btnAnalyzeProject');
+        const originalHTML = btnAnalyze.innerHTML;
+        
+        btnAnalyze.disabled = true;
+        btnAnalyze.innerHTML = '<div class="btn-spinner"></div> <span>Analyzing...</span>';
+        
         // Show progress modal
         const modal = document.getElementById('analysisModal');
         const progressBar = document.getElementById('analysisProgress');
@@ -845,6 +852,10 @@ class LLMMonitoring {
             setTimeout(() => {
                 modal.style.display = 'none';
                 
+                // Restore button
+                btnAnalyze.disabled = false;
+                btnAnalyze.innerHTML = originalHTML;
+                
                 // Reload metrics
                 this.viewProject(this.currentProject.id);
                 
@@ -855,6 +866,11 @@ class LLMMonitoring {
         } catch (error) {
             console.error('❌ Error running analysis:', error);
             modal.style.display = 'none';
+            
+            // Restore button
+            btnAnalyze.disabled = false;
+            btnAnalyze.innerHTML = originalHTML;
+            
             this.showError(error.message || 'Failed to run analysis');
         }
     }
@@ -1080,17 +1096,20 @@ class LLMMonitoring {
     togglePromptsSection() {
         const content = document.getElementById('promptsContent');
         const icon = document.getElementById('promptsToggleIcon');
+        const card = document.getElementById('promptsCard');
         
-        if (!content || !icon) return;
+        if (!content || !icon || !card) return;
         
         this.promptsSectionCollapsed = !this.promptsSectionCollapsed;
         
         if (this.promptsSectionCollapsed) {
             content.style.display = 'none';
             icon.className = 'fas fa-chevron-right';
+            card.classList.add('collapsed');
         } else {
             content.style.display = 'block';
             icon.className = 'fas fa-chevron-down';
+            card.classList.remove('collapsed');
         }
     }
 

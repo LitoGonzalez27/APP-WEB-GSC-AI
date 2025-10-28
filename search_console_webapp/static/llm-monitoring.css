@@ -924,6 +924,17 @@
     overflow: hidden;
 }
 
+/* Cuando el toggle está cerrado, reducir el espacio del card */
+#promptsCard.collapsed {
+    min-height: auto;
+}
+
+#promptsCard.collapsed .prompts-content {
+    display: none;
+    height: 0;
+    opacity: 0;
+}
+
 /* ✅ NUEVO: Prompts Pagination Styles */
 .prompts-pagination {
     display: flex;

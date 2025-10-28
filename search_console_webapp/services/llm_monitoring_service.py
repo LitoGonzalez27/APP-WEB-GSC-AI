@@ -765,8 +765,7 @@ JSON:"""
                         brand_mentioned = EXCLUDED.brand_mentioned,
                         mention_count = EXCLUDED.mention_count,
                         sentiment = EXCLUDED.sentiment,
-                        cost_usd = EXCLUDED.cost_usd,
-                        updated_at = NOW()
+                        cost_usd = EXCLUDED.cost_usd
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
                     task['llm_name'], llm_result.get('model_used'),

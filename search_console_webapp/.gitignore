@@ -116,4 +116,10 @@ Desktop.ini
 node_modules/
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log* RAILWAY_STAGING_VARIABLES.txt
+yarn-error.log*
+
+# Archivos con variables de entorno y secretos - NUNCA commitear
+RAILWAY_STAGING_VARIABLES.txt
+*_VARIABLES.txt
+*.env.production
+*.env.staging
