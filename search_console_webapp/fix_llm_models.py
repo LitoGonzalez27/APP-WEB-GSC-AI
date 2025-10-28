@@ -21,6 +21,26 @@ def fix_llm_models():
     cur = conn.cursor()
     
     try:
+        # 0. Crear tabla si no existe
+        print("📋 Verificando tabla llm_models...")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS llm_models (
+                id SERIAL PRIMARY KEY,
+                llm_provider VARCHAR(50) NOT NULL,
+                model_id VARCHAR(100) NOT NULL,
+                model_name VARCHAR(200) NOT NULL,
+                cost_per_1m_input_tokens DECIMAL(10,2) NOT NULL,
+                cost_per_1m_output_tokens DECIMAL(10,2) NOT NULL,
+                max_tokens INTEGER,
+                is_current BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(llm_provider, model_id)
+            )
+        """)
+        conn.commit()
+        print("   ✅ Tabla verificada/creada\n")
+        
         # 1. Ver modelos actuales
         print("📋 Modelos actuales en BD:")
         cur.execute("""

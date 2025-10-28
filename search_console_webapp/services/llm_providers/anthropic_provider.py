@@ -44,8 +44,9 @@ class AnthropicProvider(BaseLLMProvider):
         else:
             self.model = get_current_model_for_provider('anthropic')
             if not self.model:
-                self.model = 'claude-sonnet-4-5-20250929'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando Claude 4.5 por defecto")
+                # Usar claude-sonnet-4-5 (nombre correcto sin fecha)
+                self.model = 'claude-sonnet-4-5'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando Claude Sonnet 4.5 por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('anthropic', self.model)
@@ -117,8 +118,9 @@ class AnthropicProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
-            'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
-            'claude-3-5-sonnet-20241022': 'Claude Sonnet 3.5'
+            'claude-sonnet-4-5': 'Claude Sonnet 4.5',
+            'claude-3-5-sonnet-20241022': 'Claude Sonnet 3.5',
+            'claude-3-5-sonnet-latest': 'Claude Sonnet 3.5 Latest'
         }
         return display_names.get(self.model, self.model)
     

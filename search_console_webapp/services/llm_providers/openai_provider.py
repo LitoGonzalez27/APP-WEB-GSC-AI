@@ -51,9 +51,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a gpt-5 si no hay nada en BD
-                self.model = 'gpt-5'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5' por defecto")
+                # Fallback a gpt-4o si no hay nada en BD (modelo real más reciente)
+                self.model = 'gpt-4o'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-4o' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -133,9 +133,10 @@ class OpenAIProvider(BaseLLMProvider):
     def get_model_display_name(self) -> str:
         # Mapeo de IDs a nombres legibles
         display_names = {
-            'gpt-5': 'GPT-5',
             'gpt-4o': 'GPT-4o',
-            'gpt-4-turbo': 'GPT-4 Turbo'
+            'gpt-4o-mini': 'GPT-4o Mini',
+            'gpt-4-turbo': 'GPT-4 Turbo',
+            'gpt-4': 'GPT-4'
         }
         return display_names.get(self.model, self.model)
     
