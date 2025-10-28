@@ -3475,6 +3475,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register LLM Monitoring system: {e}")
 
+# ✅ TEMPORAL: Endpoint de admin para corregir modelos LLM
+try:
+    from admin_fix_llm_models import admin_fix_bp
+    app.register_blueprint(admin_fix_bp)
+    logger.info("✅ Admin fix endpoint registered at /admin/fix-llm-models")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register admin fix endpoint: {e}")
+
 # ✅ NUEVO: Ruta para LLM Monitoring Dashboard
 @app.route('/llm-monitoring')
 @login_required
