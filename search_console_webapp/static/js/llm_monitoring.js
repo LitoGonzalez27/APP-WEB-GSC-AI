@@ -449,10 +449,75 @@ class LLMMonitoring {
             this.charts.shareOfVoice.destroy();
         }
         
-        // Prepare data (mock for now, replace with actual competitor data)
-        const labels = ['Your Brand'];
-        const values = [50]; // Replace with actual data
-        const colors = ['rgba(59, 130, 246, 0.8)'];
+        // Calcular datos reales de competidores desde snapshots
+        const labels = [];
+        const values = [];
+        const colors = [];
+        
+        // Agregar marca principal
+        const brandName = this.currentProject?.brand_name || 'Your Brand';
+        labels.push(brandName);
+        
+        // Calcular Share of Voice promedio de tu marca
+        const llms = Object.keys(data.aggregated?.metrics_by_llm || {});
+        let brandSOV = 0;
+        
+        if (llms.length > 0) {
+            brandSOV = llms.reduce((sum, llm) => {
+                return sum + (data.aggregated.metrics_by_llm[llm]?.avg_share_of_voice || 0);
+            }, 0) / llms.length;
+        }
+        
+        values.push(brandSOV);
+        colors.push('rgba(59, 130, 246, 0.8)'); // Blue for your brand
+        
+        // Agregar competidores si existen
+        const competitors = this.currentProject?.competitors || [];
+        if (competitors.length > 0 && data.snapshots && data.snapshots.length > 0) {
+            // Calcular total de menciones de competidores
+            const allSnapshots = data.snapshots || [];
+            let totalBrandMentions = 0;
+            let totalCompetitorMentions = {};
+            
+            allSnapshots.forEach(snapshot => {
+                totalBrandMentions += snapshot.total_mentions || 0;
+                
+                const breakdown = snapshot.competitor_breakdown || {};
+                Object.keys(breakdown).forEach(comp => {
+                    if (!totalCompetitorMentions[comp]) {
+                        totalCompetitorMentions[comp] = 0;
+                    }
+                    totalCompetitorMentions[comp] += breakdown[comp] || 0;
+                });
+            });
+            
+            const totalMentions = totalBrandMentions + Object.values(totalCompetitorMentions).reduce((a, b) => a + b, 0);
+            
+            // Agregar cada competidor con su porcentaje
+            const competitorColors = [
+                'rgba(239, 68, 68, 0.8)',    // Red
+                'rgba(251, 146, 60, 0.8)',   // Orange
+                'rgba(34, 197, 94, 0.8)',    // Green
+                'rgba(168, 85, 247, 0.8)',   // Purple
+                'rgba(236, 72, 153, 0.8)'    // Pink
+            ];
+            
+            competitors.forEach((comp, index) => {
+                const mentions = totalCompetitorMentions[comp] || 0;
+                const percentage = totalMentions > 0 ? (mentions / totalMentions * 100) : 0;
+                
+                if (percentage > 0) {
+                    labels.push(comp);
+                    values.push(percentage);
+                    colors.push(competitorColors[index % competitorColors.length]);
+                }
+            });
+        }
+        
+        // Si no hay datos de competidores, mostrar solo tu marca
+        if (values.length === 1 && values[0] === 0) {
+            values[0] = 100; // Mostrar 100% si no hay datos
+        }
         
         // Create chart
         this.charts.shareOfVoice = new Chart(canvas, {
@@ -524,7 +589,7 @@ class LLMMonitoring {
             `${item.mention_rate.toFixed(1)}%`,
             item.avg_position ? `#${item.avg_position.toFixed(1)}` : 'N/A',
             `${item.share_of_voice.toFixed(1)}%`,
-            this.getSentimentLabel(item.sentiment_score),
+            this.getSentimentLabel(item.sentiment),
             item.total_queries
         ]);
         
@@ -1573,10 +1638,29 @@ class LLMMonitoring {
     /**
      * Utility: Get sentiment label
      */
-    getSentimentLabel(score) {
-        if (score > 60) return '😊 Positive';
-        if (score > 40) return '😐 Neutral';
-        return '😞 Negative';
+    getSentimentLabel(sentiment) {
+        if (!sentiment) return '😐 Neutral';
+        
+        // Si es un número (legacy), usar el método anterior
+        if (typeof sentiment === 'number') {
+            if (sentiment > 60) return '😊 Positive';
+            if (sentiment > 40) return '😐 Neutral';
+            return '😞 Negative';
+        }
+        
+        // Si es un objeto con {positive, neutral, negative} porcentajes
+        const positive = sentiment.positive || 0;
+        const neutral = sentiment.neutral || 0;
+        const negative = sentiment.negative || 0;
+        
+        // Determinar cual es mayor
+        if (positive >= neutral && positive >= negative) {
+            return '😊 Positive';
+        } else if (negative > positive && negative > neutral) {
+            return '😞 Negative';
+        } else {
+            return '😐 Neutral';
+        }
     }
 
     /**
