@@ -75,14 +75,15 @@ class OpenAIProvider(BaseLLMProvider):
         start_time = time.time()
         
         try:
-            # ✅ CORRECCIÓN: GPT-4o usa max_completion_tokens en lugar de max_tokens
+            # ✅ CORRECCIÓN: GPT-4o solo acepta parámetros específicos
+            # - max_completion_tokens (NO max_tokens)
+            # - temperature debe ser 1 (o omitirse)
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "user", "content": query}
                 ],
-                temperature=0.7,
-                max_completion_tokens=2000  # GPT-4o requiere este parámetro
+                max_completion_tokens=2000
             )
             
             # Calcular tiempo de respuesta
