@@ -6,7 +6,7 @@ Configuración y constantes del sistema AI Mode Monitoring
 AI_MODE_KEYWORD_ANALYSIS_COST = 1
 
 # Límites del sistema
-MAX_KEYWORDS_PER_PROJECT = 100
+MAX_KEYWORDS_PER_PROJECT = 300
 MAX_COMPETITORS_PER_PROJECT = 10  # AI Mode: Fuentes/medios citados (TechCrunch, Forbes, etc.)
 MAX_NOTE_LENGTH = 500
 
