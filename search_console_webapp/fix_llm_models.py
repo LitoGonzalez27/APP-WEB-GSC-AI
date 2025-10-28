@@ -114,30 +114,52 @@ def fix_llm_models():
         """)
         print("   ✅ claude-sonnet-4-5 configurado")
         
-        # 6. Verificar Perplexity (debería estar bien)
-        print("\n5️⃣ Verificando Perplexity...")
+        # 6. Corregir Perplexity
+        print("\n5️⃣ Corrigiendo Perplexity...")
+        
+        # Desactivar modelo incorrecto si existe
+        cur.execute("""
+            UPDATE llm_models
+            SET is_current = FALSE
+            WHERE llm_provider = 'perplexity' 
+            AND model_id = 'llama-3.1-sonar-large-128k-online'
+        """)
+        
+        # Verificar si ya existe el modelo correcto
         cur.execute("""
             SELECT model_id, is_current
             FROM llm_models
-            WHERE llm_provider = 'perplexity'
+            WHERE llm_provider = 'perplexity' AND model_id = 'sonar'
         """)
         
         perplexity = cur.fetchone()
         if perplexity:
-            print(f"   ✅ Perplexity: {perplexity['model_id']} (is_current: {perplexity['is_current']})")
+            print(f"   ⚠️ Perplexity 'sonar' ya existe, actualizando...")
+            cur.execute("""
+                UPDATE llm_models
+                SET is_current = TRUE,
+                    model_name = 'Perplexity Sonar',
+                    cost_per_1m_input_tokens = 1.00,
+                    cost_per_1m_output_tokens = 1.00,
+                    updated_at = NOW()
+                WHERE llm_provider = 'perplexity' AND model_id = 'sonar'
+            """)
+            print("   ✅ Perplexity 'sonar' actualizado")
         else:
-            print("   ⚠️ No hay modelo de Perplexity, agregando...")
+            print("   ⚠️ Agregando modelo correcto de Perplexity...")
+            # ✅ CORRECCIÓN: Usar nombre de modelo correcto de Perplexity
+            # Modelo actual: sonar (modelo base con búsqueda online)
             cur.execute("""
                 INSERT INTO llm_models (
                     llm_provider, model_id, model_name,
                     cost_per_1m_input_tokens, cost_per_1m_output_tokens,
                     max_tokens, is_current
                 ) VALUES (
-                    'perplexity', 'llama-3.1-sonar-large-128k-online', 'Perplexity Sonar Large',
+                    'perplexity', 'sonar', 'Perplexity Sonar',
                     1.00, 1.00, 128000, TRUE
                 )
             """)
-            print("   ✅ Perplexity Sonar Large agregado")
+            print("   ✅ Perplexity 'sonar' agregado (modelo correcto)")
         
         # 7. Commit cambios
         conn.commit()

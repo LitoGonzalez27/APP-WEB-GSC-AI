@@ -1,11 +1,12 @@
 """
-Proveedor Perplexity - Sonar Large
-Versión: llama-3.1-sonar-large-128k-online
+Proveedor Perplexity - Sonar
+Versión: sonar (modelo actualizado Oct 2025)
 
 IMPORTANTE:
 - NO hardcodees precios aquí (se leen de BD)
 - Usa búsqueda en tiempo real (acceso a internet)
 - Compatible con SDK de OpenAI (diferente base_url)
+- Modelos disponibles: sonar, sonar-pro, sonar-reasoning
 """
 
 import logging
@@ -55,8 +56,9 @@ class PerplexityProvider(BaseLLMProvider):
         else:
             self.model = get_current_model_for_provider('perplexity')
             if not self.model:
-                self.model = 'llama-3.1-sonar-large-128k-online'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando Sonar Large por defecto")
+                # ✅ CORRECCIÓN: Usar 'sonar' como fallback (modelo correcto)
+                self.model = 'sonar'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'sonar' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('perplexity', self.model)
@@ -151,11 +153,14 @@ class PerplexityProvider(BaseLLMProvider):
         return 'perplexity'
     
     def get_model_display_name(self) -> str:
-        # Mapeo de IDs a nombres legibles
+        # Mapeo de IDs a nombres legibles (modelos actualizados Oct 2025)
         display_names = {
-            'llama-3.1-sonar-large-128k-online': 'Perplexity Sonar Large',
-            'llama-3.1-sonar-small-128k-online': 'Perplexity Sonar Small',
-            'llama-3.1-sonar-huge-128k-online': 'Perplexity Sonar Huge'
+            'sonar': 'Perplexity Sonar',
+            'sonar-pro': 'Perplexity Sonar Pro',
+            'sonar-reasoning': 'Perplexity Sonar Reasoning',
+            # Legacy (deprecated)
+            'llama-3.1-sonar-large-128k-online': 'Perplexity Sonar Large (Legacy)',
+            'llama-3.1-sonar-small-128k-online': 'Perplexity Sonar Small (Legacy)'
         }
         return display_names.get(self.model, self.model)
     
