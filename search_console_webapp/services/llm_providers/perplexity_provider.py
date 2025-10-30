@@ -60,6 +60,15 @@ class PerplexityProvider(BaseLLMProvider):
                 self.model = 'sonar'
                 logger.warning("⚠️ No se encontró modelo actual en BD, usando 'sonar' por defecto")
         
+        # ✅ NORMALIZACIÓN: Mapear IDs legacy a modelos actuales de Perplexity
+        legacy_to_current_map = {
+            'llama-3.1-sonar-large-128k-online': 'sonar',
+            'llama-3.1-sonar-small-128k-online': 'sonar'
+        }
+        if self.model in legacy_to_current_map:
+            logger.info(f"ℹ️ Normalizando modelo legacy '{self.model}' → '{legacy_to_current_map[self.model]}'")
+            self.model = legacy_to_current_map[self.model]
+        
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('perplexity', self.model)
         
