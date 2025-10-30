@@ -586,7 +586,7 @@ class LLMMonitoring {
         const rows = data.map(item => [
             this.getLLMDisplayName(item.llm_provider),
             this.formatDate(item.snapshot_date),
-            `${item.mention_rate.toFixed(1)}%`,
+            `${item.mention_rate.toFixed(1)}% (${(item.total_mentions || 0)}/${(item.total_queries || 0)})`,
             item.avg_position ? `#${item.avg_position.toFixed(1)}` : 'N/A',
             `${item.share_of_voice.toFixed(1)}%`,
             this.getSentimentLabel(item.sentiment),

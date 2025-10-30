@@ -1114,6 +1114,7 @@ def get_llm_comparison(project_id):
                 llm_provider,
                 snapshot_date,
                 mention_rate,
+                total_mentions,
                 avg_position,
                 share_of_voice,
                 avg_sentiment_score,
