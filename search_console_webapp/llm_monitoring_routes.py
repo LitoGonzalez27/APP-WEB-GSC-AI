@@ -1039,6 +1039,9 @@ def get_project_metrics(project_id):
                 'top5_count': s.get('appeared_in_top5'),
                 'top10_count': s.get('appeared_in_top10'),
                 'share_of_voice': float(s['share_of_voice']) if s['share_of_voice'] is not None else 0,
+                # ➕ Exponer datos de competidores para el frontend (gráfico SOV)
+                'total_competitor_mentions': int(s.get('total_competitor_mentions') or 0),
+                'competitor_breakdown': s.get('competitor_breakdown') or {},
                 'sentiment': {
                     'positive': float(positive_pct),
                     'neutral': float(neutral_pct),
@@ -1060,6 +1063,7 @@ def get_project_metrics(project_id):
                 metrics_by_llm[llm] = {
                     'avg_mention_rate': sum(s['mention_rate'] for s in llm_snapshots) / len(llm_snapshots),
                     'avg_position': sum(s['avg_position'] for s in llm_snapshots if s['avg_position']) / len([s for s in llm_snapshots if s['avg_position']]) if any(s['avg_position'] for s in llm_snapshots) else None,
+                    'avg_share_of_voice': sum(s['share_of_voice'] for s in llm_snapshots) / len(llm_snapshots),
                     'total_snapshots': len(llm_snapshots)
                 }
         

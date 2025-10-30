@@ -233,29 +233,51 @@ class MultiLLMMonitoringService:
         # Obtener variaciones de la marca
         brand_variations = extract_brand_variations(brand_name.lower())
         
-        # Buscar menciones (case-insensitive)
+        # Buscar menciones con tolerancia a acentos y coincidencias parciales
         mentions_found = []
         mention_contexts = []
         
         text_lower = response_text.lower()
+        text_lower_no_accents = remove_accents(text_lower)
         
         for variation in brand_variations:
-            # Usar word boundaries para evitar falsos positivos
-            pattern = r'\b' + re.escape(variation.lower()) + r'\b'
-            matches = list(re.finditer(pattern, text_lower, re.IGNORECASE))
+            var_lower = variation.lower()
+            var_no_accents = remove_accents(var_lower)
             
-            for match in matches:
-                start = match.start()
-                end = match.end()
-                mentions_found.append((start, end))
-                
-                # Extraer contexto (150 chars antes y después)
-                context_start = max(0, start - 150)
-                context_end = min(len(response_text), end + 150)
-                context = response_text[context_start:context_end].strip()
-                
-                if context not in mention_contexts:
-                    mention_contexts.append(context)
+            # Coincidencias exactas como palabra completa (con y sin acentos)
+            patterns = [
+                r'\b' + re.escape(var_lower) + r'\b',
+                r'\b' + re.escape(var_no_accents) + r'\b'
+            ]
+            
+            # Buscar en texto normal y sin acentos
+            for idx, pattern in enumerate(patterns):
+                hay_accents = (idx == 0)
+                search_text = text_lower if hay_accents else text_lower_no_accents
+                for match in re.finditer(pattern, search_text, re.IGNORECASE):
+                    start = match.start()
+                    end = match.end()
+                    # Contexto basado en texto original cuando es posible
+                    if hay_accents:
+                        context_start = max(0, start - 150)
+                        context_end = min(len(response_text), end + 150)
+                        context = response_text[context_start:context_end].strip()
+                        if context not in mention_contexts:
+                            mention_contexts.append(context)
+                    mentions_found.append((start, end))
+            
+            # Fallback: coincidencia parcial (substring) para no perder menciones
+            if var_lower in text_lower or var_no_accents in text_lower_no_accents:
+                if not mentions_found:
+                    # Asegurar al menos una mención si solo encontramos de forma parcial
+                    first_idx = text_lower_no_accents.find(var_no_accents) if var_no_accents in text_lower_no_accents else text_lower.find(var_lower)
+                    if first_idx != -1:
+                        context_start = max(0, first_idx - 150)
+                        context_end = min(len(response_text), first_idx + 150)
+                        context = response_text[context_start:context_end].strip()
+                        if context and context not in mention_contexts:
+                            mention_contexts.append(context)
+                        mentions_found.append((first_idx, first_idx + len(var_lower)))
         
         brand_mentioned = len(mentions_found) > 0
         mention_count = len(mentions_found)
@@ -263,16 +285,19 @@ class MultiLLMMonitoringService:
         # Detectar posición en listas numeradas
         list_info = self._detect_position_in_list(response_text, brand_variations)
         
-        # Detectar competidores mencionados
+        # Detectar competidores mencionados (tolerante a acentos)
         competitors_mentioned = {}
         for competitor in competitors:
             comp_variations = extract_brand_variations(competitor.lower())
             comp_count = 0
-            
             for variation in comp_variations:
-                pattern = r'\b' + re.escape(variation.lower()) + r'\b'
-                comp_count += len(re.findall(pattern, text_lower, re.IGNORECASE))
-            
+                v_lower = variation.lower()
+                v_no_accents = remove_accents(v_lower)
+                # Contar en texto normal y sin acentos usando límites de palabra
+                pattern_normal = r'\b' + re.escape(v_lower) + r'\b'
+                pattern_no_acc = r'\b' + re.escape(v_no_accents) + r'\b'
+                comp_count += len(re.findall(pattern_normal, text_lower, re.IGNORECASE))
+                comp_count += len(re.findall(pattern_no_acc, text_lower_no_accents, re.IGNORECASE))
             if comp_count > 0:
                 competitors_mentioned[competitor] = comp_count
         
