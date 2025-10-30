@@ -16,6 +16,11 @@ class LLMMonitoring {
         this.currentPromptsPage = 1;
         this.allPrompts = [];
         this.promptsSectionCollapsed = false;
+        
+        // Chips state
+        this.brandKeywordsChips = [];
+        this.competitorDomainsChips = [];
+        this.competitorKeywordsChips = [];
     }
 
     /**
@@ -29,6 +34,210 @@ class LLMMonitoring {
         
         // Setup event listeners
         this.setupEventListeners();
+        
+        // Setup chips functionality
+        this.setupChipsInputs();
+    }
+    
+    // ============================================================================
+    // CHIPS FUNCTIONALITY
+    // ============================================================================
+    
+    /**
+     * Setup chips inputs with event listeners
+     */
+    setupChipsInputs() {
+        // Brand Keywords
+        const brandKeywordsInput = document.getElementById('brandKeywords');
+        if (brandKeywordsInput) {
+            brandKeywordsInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    this.addChipFromInput('brandKeywords', 'brand');
+                }
+            });
+            
+            brandKeywordsInput.addEventListener('blur', () => {
+                this.addChipFromInput('brandKeywords', 'brand');
+            });
+        }
+        
+        // Competitor Domains
+        const competitorDomainsInput = document.getElementById('competitorDomains');
+        if (competitorDomainsInput) {
+            competitorDomainsInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    this.addChipFromInput('competitorDomains', 'competitor-domain');
+                }
+            });
+            
+            competitorDomainsInput.addEventListener('blur', () => {
+                this.addChipFromInput('competitorDomains', 'competitor-domain');
+            });
+        }
+        
+        // Competitor Keywords
+        const competitorKeywordsInput = document.getElementById('competitorKeywords');
+        if (competitorKeywordsInput) {
+            competitorKeywordsInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    this.addChipFromInput('competitorKeywords', 'competitor');
+                }
+            });
+            
+            competitorKeywordsInput.addEventListener('blur', () => {
+                this.addChipFromInput('competitorKeywords', 'competitor');
+            });
+        }
+    }
+    
+    /**
+     * Add chip from input field
+     */
+    addChipFromInput(inputId, type) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        
+        const value = input.value.trim().replace(/,/g, '');
+        
+        if (!value) return;
+        
+        // Determine which array to use
+        let chipsArray;
+        if (inputId === 'brandKeywords') {
+            chipsArray = this.brandKeywordsChips;
+        } else if (inputId === 'competitorDomains') {
+            chipsArray = this.competitorDomainsChips;
+        } else if (inputId === 'competitorKeywords') {
+            chipsArray = this.competitorKeywordsChips;
+        }
+        
+        // Check for duplicates
+        if (chipsArray.includes(value)) {
+            input.value = '';
+            return;
+        }
+        
+        // Add to array
+        chipsArray.push(value);
+        
+        // Clear input
+        input.value = '';
+        
+        // Render chips
+        this.renderChips(inputId, type);
+    }
+    
+    /**
+     * Render chips in container
+     */
+    renderChips(inputId, type) {
+        const containerId = inputId + 'Chips';
+        const container = document.getElementById(containerId);
+        
+        if (!container) return;
+        
+        // Determine which array to use
+        let chipsArray;
+        if (inputId === 'brandKeywords') {
+            chipsArray = this.brandKeywordsChips;
+        } else if (inputId === 'competitorDomains') {
+            chipsArray = this.competitorDomainsChips;
+        } else if (inputId === 'competitorKeywords') {
+            chipsArray = this.competitorKeywordsChips;
+        }
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        // Render each chip
+        chipsArray.forEach((value, index) => {
+            const chip = document.createElement('div');
+            chip.className = `chip chip-${type}`;
+            chip.innerHTML = `
+                <span class="chip-text">${this.escapeHtml(value)}</span>
+                <button type="button" class="chip-remove" data-input="${inputId}" data-index="${index}">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // Add remove event
+            const removeBtn = chip.querySelector('.chip-remove');
+            removeBtn.addEventListener('click', (e) => {
+                const inputIdAttr = e.currentTarget.dataset.input;
+                const indexAttr = parseInt(e.currentTarget.dataset.index);
+                this.removeChip(inputIdAttr, indexAttr, type);
+            });
+            
+            container.appendChild(chip);
+        });
+    }
+    
+    /**
+     * Remove chip
+     */
+    removeChip(inputId, index, type) {
+        // Determine which array to use
+        let chipsArray;
+        if (inputId === 'brandKeywords') {
+            chipsArray = this.brandKeywordsChips;
+        } else if (inputId === 'competitorDomains') {
+            chipsArray = this.competitorDomainsChips;
+        } else if (inputId === 'competitorKeywords') {
+            chipsArray = this.competitorKeywordsChips;
+        }
+        
+        // Remove from array
+        chipsArray.splice(index, 1);
+        
+        // Re-render
+        this.renderChips(inputId, type);
+    }
+    
+    /**
+     * Clear all chips
+     */
+    clearAllChips() {
+        this.brandKeywordsChips = [];
+        this.competitorDomainsChips = [];
+        this.competitorKeywordsChips = [];
+        
+        // Clear containers
+        const brandContainer = document.getElementById('brandKeywordsChips');
+        const compDomainsContainer = document.getElementById('competitorDomainsChips');
+        const compKeywordsContainer = document.getElementById('competitorKeywordsChips');
+        
+        if (brandContainer) brandContainer.innerHTML = '';
+        if (compDomainsContainer) compDomainsContainer.innerHTML = '';
+        if (compKeywordsContainer) compKeywordsContainer.innerHTML = '';
+    }
+    
+    /**
+     * Load chips from data
+     */
+    loadChipsFromData(brandKeywords, competitorDomains, competitorKeywords) {
+        // Clear existing chips
+        this.clearAllChips();
+        
+        // Load brand keywords
+        if (Array.isArray(brandKeywords) && brandKeywords.length > 0) {
+            this.brandKeywordsChips = [...brandKeywords];
+            this.renderChips('brandKeywords', 'brand');
+        }
+        
+        // Load competitor domains
+        if (Array.isArray(competitorDomains) && competitorDomains.length > 0) {
+            this.competitorDomainsChips = [...competitorDomains];
+            this.renderChips('competitorDomains', 'competitor-domain');
+        }
+        
+        // Load competitor keywords
+        if (Array.isArray(competitorKeywords) && competitorKeywords.length > 0) {
+            this.competitorKeywordsChips = [...competitorKeywords];
+            this.renderChips('competitorKeywords', 'competitor');
+        }
     }
 
     /**
@@ -695,6 +904,9 @@ class LLMMonitoring {
         // Store current project for later use
         this.currentProject = project;
         
+        // Clear all chips first
+        this.clearAllChips();
+        
         if (project) {
             // Edit mode
             title.textContent = 'Edit LLM Monitoring Project';
@@ -703,11 +915,19 @@ class LLMMonitoring {
             
             // Fill form
             document.getElementById('projectName').value = project.name || '';
-            document.getElementById('brandName').value = project.brand_name || '';
             document.getElementById('industry').value = project.industry || '';
-            document.getElementById('competitors').value = project.competitors?.join(', ') || '';
             document.getElementById('language').value = project.language || 'es';
             document.getElementById('queriesPerLlm').value = project.queries_per_llm || 15;
+            
+            // Fill brand domain
+            document.getElementById('brandDomain').value = project.brand_domain || '';
+            
+            // Load chips from project data
+            this.loadChipsFromData(
+                project.brand_keywords || [],
+                project.competitor_domains || [],
+                project.competitor_keywords || []
+            );
             
             // Check LLMs
             const llmCheckboxes = document.querySelectorAll('input[name="llm"]');
@@ -758,9 +978,8 @@ class LLMMonitoring {
         
         // Get form data
         const name = document.getElementById('projectName').value.trim();
-        const brandName = document.getElementById('brandName').value.trim();
         const industry = document.getElementById('industry').value.trim();
-        const competitorsStr = document.getElementById('competitors').value.trim();
+        const brandDomain = document.getElementById('brandDomain').value.trim();
         const language = document.getElementById('language').value;
         const queriesPerLlm = parseInt(document.getElementById('queriesPerLlm').value);
         
@@ -769,13 +988,14 @@ class LLMMonitoring {
         const enabledLlms = Array.from(llmCheckboxes).map(cb => cb.value);
         
         // Validate
-        if (!name || !brandName || !industry) {
+        if (!name || !industry) {
             this.showError('Please fill all required fields');
             return;
         }
         
-        if (brandName.length < 2) {
-            this.showError('Brand name must be at least 2 characters');
+        // Validate brand keywords (required)
+        if (this.brandKeywordsChips.length === 0) {
+            this.showError('Please add at least one brand keyword');
             return;
         }
         
@@ -789,15 +1009,14 @@ class LLMMonitoring {
             return;
         }
         
-        // Parse competitors
-        const competitors = competitorsStr ? competitorsStr.split(',').map(c => c.trim()).filter(c => c) : [];
-        
-        // Prepare payload
+        // Prepare payload with new structure
         const payload = {
             name,
-            brand_name: brandName,
             industry,
-            competitors,
+            brand_domain: brandDomain || null,
+            brand_keywords: this.brandKeywordsChips,
+            competitor_domains: this.competitorDomainsChips,
+            competitor_keywords: this.competitorKeywordsChips,
             language,
             enabled_llms: enabledLlms,
             queries_per_llm: queriesPerLlm

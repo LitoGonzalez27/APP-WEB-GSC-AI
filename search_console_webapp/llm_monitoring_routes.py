@@ -182,9 +182,11 @@ def create_project():
     Body esperado:
     {
         "name": "Mi Marca SEO",
-        "brand_name": "MiMarca",
         "industry": "SEO tools",
-        "competitors": ["Semrush", "Ahrefs"],
+        "brand_domain": "hmfertility.com",
+        "brand_keywords": ["hmfertility", "hm", "fertility clinic"],
+        "competitor_domains": ["competitor1.com"],
+        "competitor_keywords": ["semrush", "ahrefs"],
         "language": "es",
         "enabled_llms": ["openai", "anthropic", "google", "perplexity"],
         "queries_per_llm": 15
@@ -200,20 +202,23 @@ def create_project():
     data = request.get_json()
     
     # Validar campos requeridos
-    required_fields = ['name', 'brand_name', 'industry']
+    required_fields = ['name', 'industry', 'brand_keywords']
     for field in required_fields:
         if field not in data:
             return jsonify({'error': f'Campo requerido: {field}'}), 400
     
-    # Valores por defecto
-    competitors = data.get('competitors', [])
+    # Valores por defecto y extracción de datos
+    brand_domain = data.get('brand_domain')
+    brand_keywords = data.get('brand_keywords', [])
+    competitor_domains = data.get('competitor_domains', [])
+    competitor_keywords = data.get('competitor_keywords', [])
     language = data.get('language', 'es')
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
     queries_per_llm = data.get('queries_per_llm', 15)
     
     # Validaciones
-    if len(data['brand_name']) < 2:
-        return jsonify({'error': 'brand_name debe tener al menos 2 caracteres'}), 400
+    if not isinstance(brand_keywords, list) or len(brand_keywords) == 0:
+        return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
     
     if queries_per_llm < 5 or queries_per_llm > 50:
         return jsonify({'error': 'queries_per_llm debe estar entre 5 y 50'}), 400
@@ -241,37 +246,44 @@ def create_project():
         if cur.fetchone():
             return jsonify({'error': 'Ya tienes un proyecto con ese nombre'}), 409
         
-        # Insertar proyecto
+        # Insertar proyecto con nuevos campos
         cur.execute("""
             INSERT INTO llm_monitoring_projects (
-                user_id, name, brand_name, industry,
-                enabled_llms, competitors, language, queries_per_llm,
-                is_active, created_at, updated_at
+                user_id, name, industry,
+                brand_domain, brand_keywords,
+                competitor_domains, competitor_keywords,
+                enabled_llms, language, queries_per_llm,
+                is_active, created_at, updated_at,
+                brand_name, competitors
             ) VALUES (
-                %s, %s, %s, %s,
-                %s, %s::jsonb, %s, %s,
-                TRUE, NOW(), NOW()
+                %s, %s, %s,
+                %s, %s::jsonb,
+                %s::jsonb, %s::jsonb,
+                %s, %s, %s,
+                TRUE, NOW(), NOW(),
+                %s, %s::jsonb
             )
             RETURNING id, created_at
         """, (
             user['id'],
             data['name'],
-            data['brand_name'],
             data['industry'],
+            brand_domain,
+            json.dumps(brand_keywords),
+            json.dumps(competitor_domains),
+            json.dumps(competitor_keywords),
             enabled_llms,
-            json.dumps(competitors),  # Convertir a JSON string
             language,
-            queries_per_llm
+            queries_per_llm,
+            # Campos legacy por compatibilidad
+            brand_keywords[0] if brand_keywords else 'Brand',
+            json.dumps(competitor_keywords)  # Usar keywords como legacy competitors
         ))
         
         result = cur.fetchone()
         project_id = result['id']
         created_at = result['created_at']
         
-        # ✅ NUEVO: Ya NO generamos queries automáticamente
-        # El usuario deberá añadirlas manualmente después de crear el proyecto
-        # Esto es consistente con Manual AI y AI Mode
-        queries = []
         logger.info(f"✅ Proyecto {project_id} creado. El usuario deberá añadir prompts manualmente.")
         
         conn.commit()
@@ -282,15 +294,17 @@ def create_project():
             'project': {
                 'id': project_id,
                 'name': data['name'],
-                'brand_name': data['brand_name'],
                 'industry': data['industry'],
+                'brand_domain': brand_domain,
+                'brand_keywords': brand_keywords,
+                'competitor_domains': competitor_domains,
+                'competitor_keywords': competitor_keywords,
                 'enabled_llms': enabled_llms,
-                'competitors': competitors,
                 'language': language,
                 'queries_per_llm': queries_per_llm,
                 'is_active': True,
                 'created_at': created_at.isoformat(),
-                'total_queries': 0  # Sin queries todavía
+                'total_queries': 0
             }
         }), 201
         
@@ -407,6 +421,15 @@ def get_project(project_id):
                 'date': metric['snapshot_date'].isoformat() if metric['snapshot_date'] else None
             }
         
+        # Obtener los nuevos campos (brand_domain, brand_keywords, etc.)
+        cur.execute("""
+            SELECT brand_domain, brand_keywords, competitor_domains, competitor_keywords
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        new_fields = cur.fetchone()
+        
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
             'success': True,
@@ -414,9 +437,13 @@ def get_project(project_id):
                 'id': project['id'],
                 'name': project['name'],
                 'brand_name': project['brand_name'],
+                'brand_domain': new_fields['brand_domain'] if new_fields else None,
+                'brand_keywords': new_fields['brand_keywords'] if new_fields else [],
                 'industry': project['industry'],
                 'enabled_llms': project['enabled_llms'],
                 'competitors': project['competitors'],
+                'competitor_domains': new_fields['competitor_domains'] if new_fields else [],
+                'competitor_keywords': new_fields['competitor_keywords'] if new_fields else [],
                 'language': project['language'],
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
@@ -448,9 +475,13 @@ def update_project(project_id):
     Body (todos opcionales):
     {
         "name": "Nuevo Nombre",
+        "industry": "Nueva Industria",
+        "brand_domain": "newdomain.com",
+        "brand_keywords": ["keyword1", "keyword2"],
+        "competitor_domains": ["comp1.com"],
+        "competitor_keywords": ["comp_kw1", "comp_kw2"],
         "is_active": false,
         "enabled_llms": ["openai", "google"],
-        "competitors": ["Nuevo Competidor"],
         "queries_per_llm": 20
     }
     
@@ -477,6 +508,34 @@ def update_project(project_id):
             updates.append("name = %s")
             params.append(data['name'])
         
+        if 'industry' in data:
+            updates.append("industry = %s")
+            params.append(data['industry'])
+        
+        if 'brand_domain' in data:
+            updates.append("brand_domain = %s")
+            params.append(data['brand_domain'])
+        
+        if 'brand_keywords' in data:
+            if not isinstance(data['brand_keywords'], list) or len(data['brand_keywords']) == 0:
+                return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
+            updates.append("brand_keywords = %s::jsonb")
+            params.append(json.dumps(data['brand_keywords']))
+            # Actualizar también brand_name legacy
+            updates.append("brand_name = %s")
+            params.append(data['brand_keywords'][0])
+        
+        if 'competitor_domains' in data:
+            updates.append("competitor_domains = %s::jsonb")
+            params.append(json.dumps(data['competitor_domains']))
+        
+        if 'competitor_keywords' in data:
+            updates.append("competitor_keywords = %s::jsonb")
+            params.append(json.dumps(data['competitor_keywords']))
+            # Actualizar también competitors legacy
+            updates.append("competitors = %s::jsonb")
+            params.append(json.dumps(data['competitor_keywords']))
+        
         if 'is_active' in data:
             updates.append("is_active = %s")
             params.append(data['is_active'])
@@ -488,10 +547,6 @@ def update_project(project_id):
                 return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
             updates.append("enabled_llms = %s")
             params.append(data['enabled_llms'])
-        
-        if 'competitors' in data:
-            updates.append("competitors = %s::jsonb")
-            params.append(json.dumps(data['competitors']))
         
         if 'queries_per_llm' in data:
             if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 50:
@@ -524,9 +579,13 @@ def update_project(project_id):
                 'id': project['id'],
                 'name': project['name'],
                 'brand_name': project['brand_name'],
+                'brand_domain': project['brand_domain'],
+                'brand_keywords': project['brand_keywords'],
                 'industry': project['industry'],
                 'enabled_llms': project['enabled_llms'],
                 'competitors': project['competitors'],
+                'competitor_domains': project['competitor_domains'],
+                'competitor_keywords': project['competitor_keywords'],
                 'language': project['language'],
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],

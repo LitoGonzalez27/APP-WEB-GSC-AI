@@ -205,18 +205,26 @@ class MultiLLMMonitoringService:
     def analyze_brand_mention(
         self,
         response_text: str,
-        brand_name: str,
-        competitors: List[str] = None
+        brand_name: str = None,
+        brand_domain: str = None,
+        brand_keywords: List[str] = None,
+        competitors: List[str] = None,
+        competitor_domains: List[str] = None,
+        competitor_keywords: List[str] = None
     ) -> Dict:
         """
         Analiza si una respuesta menciona la marca y extrae contexto
         
-        IMPORTANTE: Reutiliza extract_brand_variations() de ai_analysis.py
+        MEJORADO: Ahora soporta dominios y palabras clave múltiples
         
         Args:
             response_text: Respuesta del LLM
-            brand_name: Nombre de la marca a buscar
-            competitors: Lista de competidores a detectar
+            brand_name: Nombre de la marca (legacy, opcional)
+            brand_domain: Dominio de la marca (ej: hmfertility.com)
+            brand_keywords: Lista de palabras clave de marca (ej: ["hmfertility", "hm"])
+            competitors: Lista de competidores (legacy, opcional)
+            competitor_domains: Lista de dominios de competidores
+            competitor_keywords: Lista de palabras clave de competidores
             
         Returns:
             Dict con:
@@ -228,10 +236,37 @@ class MultiLLMMonitoringService:
                 total_items_in_list: Optional[int]
                 competitors_mentioned: Dict[str, int]
         """
-        competitors = competitors or []
+        # Construir lista de todas las variaciones de marca a buscar
+        brand_variations = []
         
-        # Obtener variaciones de la marca
-        brand_variations = extract_brand_variations(brand_name.lower())
+        # 1. Añadir dominio si existe
+        if brand_domain:
+            brand_variations.extend(extract_brand_variations(brand_domain.lower()))
+        
+        # 2. Añadir palabras clave si existen
+        if brand_keywords:
+            for keyword in brand_keywords:
+                brand_variations.append(keyword.lower())
+        
+        # 3. Fallback: usar brand_name legacy si no hay nada más
+        if not brand_variations and brand_name:
+            brand_variations = extract_brand_variations(brand_name.lower())
+        
+        # Si no hay nada que buscar, retornar sin menciones
+        if not brand_variations:
+            return {
+                'brand_mentioned': False,
+                'mention_count': 0,
+                'mention_contexts': [],
+                'appears_in_numbered_list': False,
+                'position_in_list': None,
+                'total_items_in_list': None,
+                'competitors_mentioned': {}
+            }
+        
+        # Eliminar duplicados manteniendo orden
+        seen = set()
+        brand_variations = [x for x in brand_variations if not (x in seen or seen.add(x))]
         
         # Buscar menciones con tolerancia a acentos y coincidencias parciales
         mentions_found = []
@@ -286,8 +321,26 @@ class MultiLLMMonitoringService:
         list_info = self._detect_position_in_list(response_text, brand_variations)
         
         # Detectar competidores mencionados (tolerante a acentos)
+        # Ahora soporta dominios y palabras clave
         competitors_mentioned = {}
-        for competitor in competitors:
+        
+        # Construir lista de todos los competidores a buscar
+        all_competitors = []
+        
+        # 1. Añadir dominios de competidores
+        if competitor_domains:
+            all_competitors.extend(competitor_domains)
+        
+        # 2. Añadir palabras clave de competidores
+        if competitor_keywords:
+            all_competitors.extend(competitor_keywords)
+        
+        # 3. Fallback: usar competitors legacy
+        if not all_competitors and competitors:
+            all_competitors.extend(competitors)
+        
+        # Buscar cada competidor
+        for competitor in all_competitors:
             comp_variations = extract_brand_variations(competitor.lower())
             comp_count = 0
             for variation in comp_variations:
@@ -518,11 +571,14 @@ JSON:"""
         try:
             cur = conn.cursor()
             
-            # Obtener datos del proyecto
+            # Obtener datos del proyecto (incluyendo nuevos campos)
             cur.execute("""
                 SELECT 
                     id, user_id, name, brand_name, industry,
-                    enabled_llms, competitors, language, queries_per_llm
+                    brand_domain, brand_keywords,
+                    enabled_llms, competitors, 
+                    competitor_domains, competitor_keywords,
+                    language, queries_per_llm
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
             """, (project_id,))
@@ -615,8 +671,12 @@ JSON:"""
                     'query_text': query['query_text'],
                     'llm_name': llm_name,
                     'provider': provider,
-                    'brand_name': project['brand_name'],
-                    'competitors': project['competitors'] or [],
+                    'brand_name': project['brand_name'],  # Legacy
+                    'brand_domain': project.get('brand_domain'),
+                    'brand_keywords': project.get('brand_keywords', []),
+                    'competitors': project.get('competitors') or [],  # Legacy
+                    'competitor_domains': project.get('competitor_domains', []),
+                    'competitor_keywords': project.get('competitor_keywords', []),
                     'analysis_date': analysis_date
                 })
         
@@ -742,11 +802,15 @@ JSON:"""
                     'error': llm_result.get('error', 'Unknown error')
                 }
             
-            # Analizar menciones de marca
+            # Analizar menciones de marca con nuevos campos
             mention_analysis = self.analyze_brand_mention(
                 response_text=llm_result['content'],
-                brand_name=task['brand_name'],
-                competitors=task['competitors']
+                brand_name=task.get('brand_name'),  # Legacy
+                brand_domain=task.get('brand_domain'),
+                brand_keywords=task.get('brand_keywords'),
+                competitors=task.get('competitors'),  # Legacy
+                competitor_domains=task.get('competitor_domains'),
+                competitor_keywords=task.get('competitor_keywords')
             )
             
             # Analizar sentimiento si hay menciones
