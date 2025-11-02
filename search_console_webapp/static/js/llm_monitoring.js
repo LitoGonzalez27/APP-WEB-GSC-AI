@@ -533,19 +533,34 @@ class LLMMonitoring {
         const avgPosition = llms.reduce((sum, llm) => sum + (metrics[llm].avg_position || 0), 0) / llms.length;
         const avgSOV = llms.reduce((sum, llm) => sum + (metrics[llm].share_of_voice || 0), 0) / llms.length;
         
-        // Calculate weighted sentiment
-        let totalPositive = 0, totalNeutral = 0, totalNegative = 0;
+        // 🔧 FIX: Calculate weighted sentiment correctly
+        // Los porcentajes ya vienen calculados por LLM, ahora los promediamos
+        let totalPositivePct = 0, totalNeutralPct = 0, totalNegativePct = 0;
         llms.forEach(llm => {
             if (metrics[llm].sentiment) {
-                totalPositive += metrics[llm].sentiment.positive || 0;
-                totalNeutral += metrics[llm].sentiment.neutral || 0;
-                totalNegative += metrics[llm].sentiment.negative || 0;
+                totalPositivePct += metrics[llm].sentiment.positive || 0;
+                totalNeutralPct += metrics[llm].sentiment.neutral || 0;
+                totalNegativePct += metrics[llm].sentiment.negative || 0;
             }
         });
         
-        const avgPositive = totalPositive / llms.length;
-        const sentimentLabel = avgPositive > 60 ? 'Positive' : avgPositive > 40 ? 'Neutral' : 'Negative';
-        const sentimentClass = avgPositive > 60 ? 'positive' : avgPositive > 40 ? 'neutral' : 'negative';
+        // Promediar los porcentajes entre todos los LLMs
+        const avgPositive = totalPositivePct / llms.length;
+        const avgNeutral = totalNeutralPct / llms.length;
+        const avgNegative = totalNegativePct / llms.length;
+        
+        // Determinar el sentiment predominante
+        let sentimentLabel, sentimentClass;
+        if (avgPositive >= avgNeutral && avgPositive >= avgNegative) {
+            sentimentLabel = 'Positive';
+            sentimentClass = 'positive';
+        } else if (avgNegative > avgPositive && avgNegative > avgNeutral) {
+            sentimentLabel = 'Negative';
+            sentimentClass = 'negative';
+        } else {
+            sentimentLabel = 'Neutral';
+            sentimentClass = 'neutral';
+        }
         
         document.getElementById('kpiMentionRate').textContent = `${avgMentionRate.toFixed(1)}%`;
         document.getElementById('kpiAvgPosition').textContent = avgPosition > 0 ? `#${avgPosition.toFixed(1)}` : 'N/A';

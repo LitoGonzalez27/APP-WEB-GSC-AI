@@ -402,11 +402,13 @@ def get_project(project_id):
             positive_mentions = metric.get('positive_mentions') or 0
             neutral_mentions = metric.get('neutral_mentions') or 0
             negative_mentions = metric.get('negative_mentions') or 0
-            total_mentions = metric.get('total_mentions') or (positive_mentions + neutral_mentions + negative_mentions)
-
-            positive_pct = (positive_mentions / total_mentions * 100) if total_mentions else 0
-            neutral_pct = (neutral_mentions / total_mentions * 100) if total_mentions else 0
-            negative_pct = (negative_mentions / total_mentions * 100) if total_mentions else 0
+            total_queries = metric.get('total_queries') or 0
+            
+            # 🔧 FIX: Usar total_queries como divisor, no total_mentions
+            # positive/neutral/negative_mentions son contadores de QUERIES con ese sentiment
+            positive_pct = (positive_mentions / total_queries * 100) if total_queries else 0
+            neutral_pct = (neutral_mentions / total_queries * 100) if total_queries else 0
+            negative_pct = (negative_mentions / total_queries * 100) if total_queries else 0
 
             metrics_by_llm[metric['llm_provider']] = {
                 'mention_rate': float(metric['mention_rate']) if metric['mention_rate'] is not None else 0,
@@ -1177,6 +1179,9 @@ def get_llm_comparison(project_id):
                 avg_position,
                 share_of_voice,
                 avg_sentiment_score,
+                positive_mentions,
+                neutral_mentions,
+                negative_mentions,
                 total_queries
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
@@ -1189,6 +1194,16 @@ def get_llm_comparison(project_id):
         # Formatear datos
         comparison_list = []
         for c in rows:
+            # 🔧 FIX: Calcular sentiment basándose en los contadores, igual que en el KPI
+            positive_mentions = c.get('positive_mentions') or 0
+            neutral_mentions = c.get('neutral_mentions') or 0
+            negative_mentions = c.get('negative_mentions') or 0
+            total_queries_row = c.get('total_queries') or 0
+            
+            positive_pct = (positive_mentions / total_queries_row * 100) if total_queries_row else 0
+            neutral_pct = (neutral_mentions / total_queries_row * 100) if total_queries_row else 0
+            negative_pct = (negative_mentions / total_queries_row * 100) if total_queries_row else 0
+            
             comparison_list.append({
                 'llm_provider': c['llm_provider'],
                 'snapshot_date': c['snapshot_date'].isoformat() if c['snapshot_date'] else None,
@@ -1196,7 +1211,12 @@ def get_llm_comparison(project_id):
                 'avg_position': float(c['avg_position']) if c['avg_position'] is not None else None,
                 'share_of_voice': float(c['share_of_voice']) if c['share_of_voice'] is not None else 0,
                 'sentiment_score': float(c['avg_sentiment_score']) if c['avg_sentiment_score'] is not None else 0,
-                'total_queries': c['total_queries']
+                'sentiment': {
+                    'positive': float(positive_pct),
+                    'neutral': float(neutral_pct),
+                    'negative': float(negative_pct)
+                },
+                'total_queries': total_queries_row
             })
         
         # Agrupar por fecha para comparación lado a lado
