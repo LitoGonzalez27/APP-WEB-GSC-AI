@@ -1258,6 +1258,136 @@ def get_llm_comparison(project_id):
 
 
 # ============================================================================
+# ENDPOINTS: QUERIES DETALLADAS
+# ============================================================================
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_project_queries(project_id):
+    """
+    Obtener tabla detallada de queries/prompts con métricas agregadas
+    
+    Devuelve información similar a la tabla de LLM Pulse:
+    - Query text
+    - Country & Language
+    - Total responses (cuántos LLMs respondieron)
+    - Total mentions
+    - Visibility % (promedio)
+    - Average position
+    - Last update
+    - Creation date
+    
+    Query params:
+        days: Días hacia atrás para filtrar resultados (default: 30)
+    
+    Returns:
+        JSON con lista de queries y sus métricas
+    """
+    user = get_current_user()
+    days = int(request.args.get('days', 30))
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener información del proyecto (para country)
+        cur.execute("""
+            SELECT name, language FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        # Calcular rango de fechas
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener queries con métricas agregadas
+        cur.execute("""
+            WITH query_metrics AS (
+                SELECT 
+                    q.id,
+                    q.query_text,
+                    q.language,
+                    q.query_type,
+                    q.added_at as created_at,
+                    COUNT(DISTINCT r.llm_provider) as total_responses,
+                    COUNT(DISTINCT r.id) as total_results,
+                    SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                    AVG(CASE WHEN r.brand_mentioned THEN 100 ELSE 0 END) as visibility_pct,
+                    AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL) as avg_position,
+                    MAX(r.analysis_date) as last_analysis_date,
+                    MAX(r.created_at) as last_update
+                FROM llm_monitoring_queries q
+                LEFT JOIN llm_monitoring_results r ON q.id = r.query_id 
+                    AND r.analysis_date >= %s 
+                    AND r.analysis_date <= %s
+                WHERE q.project_id = %s AND q.is_active = TRUE
+                GROUP BY q.id, q.query_text, q.language, q.query_type, q.added_at
+            )
+            SELECT 
+                id,
+                query_text,
+                language,
+                query_type,
+                created_at,
+                total_responses,
+                total_results,
+                total_mentions,
+                ROUND(visibility_pct::numeric, 1) as visibility_pct,
+                ROUND(avg_position::numeric, 1) as avg_position,
+                last_analysis_date,
+                last_update
+            FROM query_metrics
+            ORDER BY last_update DESC NULLS LAST, created_at DESC
+        """, (start_date, end_date, project_id))
+        
+        queries_raw = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Formatear datos para el frontend
+        queries_list = []
+        for q in queries_raw:
+            queries_list.append({
+                'id': q['id'],
+                'prompt': q['query_text'],
+                'country': 'Global',  # Por ahora global, se puede añadir por query
+                'language': q['language'] or project['language'] or 'en',
+                'query_type': q['query_type'],
+                'total_responses': q['total_responses'] or 0,
+                'total_mentions': q['total_mentions'] or 0,
+                'visibility_pct': float(q['visibility_pct']) if q['visibility_pct'] else 0,
+                'avg_position': float(q['avg_position']) if q['avg_position'] else None,
+                'last_update': q['last_update'].isoformat() if q['last_update'] else None,
+                'last_analysis_date': q['last_analysis_date'].isoformat() if q['last_analysis_date'] else None,
+                'created_at': q['created_at'].isoformat() if q['created_at'] else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'queries': queries_list,
+            'total': len(queries_list),
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days': days
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo queries: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo queries: {str(e)}'}), 500
+
+
+# ============================================================================
 # ENDPOINTS: SHARE OF VOICE HISTÓRICO
 # ============================================================================
 

@@ -10,6 +10,7 @@ class LLMMonitoring {
         this.currentProject = null;
         this.charts = {};
         this.comparisonGrid = null;
+        this.queriesGrid = null;
         
         // Pagination state
         this.promptsPerPage = 10;
@@ -591,6 +592,9 @@ class LLMMonitoring {
             
             // Load comparison
             await this.loadComparison(projectId);
+            
+            // Load queries table
+            await this.loadQueriesTable(projectId);
             
         } catch (error) {
             console.error('❌ Error loading metrics:', error);
@@ -1205,6 +1209,149 @@ class LLMMonitoring {
                 }
             }
         }).render(container);
+    }
+
+    /**
+     * Load and render queries table
+     */
+    async loadQueriesTable(projectId) {
+        console.log(`📝 Loading queries table for project ${projectId}...`);
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries?days=30`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to load queries');
+            }
+            
+            console.log(`✅ Loaded ${result.queries.length} queries`);
+            this.renderQueriesTable(result.queries);
+            
+        } catch (error) {
+            console.error('❌ Error loading queries:', error);
+            const container = document.getElementById('queriesTable');
+            if (container) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; opacity: 0.5; margin-bottom: 1rem;"></i>
+                        <p>Error loading queries table</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /**
+     * Render queries table with Grid.js
+     */
+    renderQueriesTable(queries) {
+        const container = document.getElementById('queriesTable');
+        if (!container) return;
+        
+        // Destroy existing grid
+        if (this.queriesGrid) {
+            this.queriesGrid.destroy();
+        }
+        
+        // Si no hay queries, mostrar mensaje
+        if (!queries || queries.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                    <i class="fas fa-list-ul" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                    <p style="font-size: 1rem; font-weight: 500;">No queries found</p>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem;">Run analysis to see query results</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Formatear datos para la tabla
+        const rows = queries.map(q => [
+            q.prompt,
+            q.country,
+            q.language ? q.language.toUpperCase() : 'N/A',
+            q.total_responses || 0,
+            q.total_mentions || 0,
+            // Visibility con barra de progreso
+            gridjs.html(`
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
+                        <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${q.visibility_pct}%, transparent ${q.visibility_pct}%); width: 100%; border-radius: 9999px;"></div>
+                    </div>
+                    <span style="font-weight: 600; min-width: 45px;">${q.visibility_pct.toFixed(1)}%</span>
+                </div>
+            `),
+            q.avg_position ? q.avg_position.toFixed(1) : 'N/A',
+            q.last_update ? this.formatRelativeTime(q.last_update) : 'Never',
+            q.created_at ? new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+        ]);
+        
+        // Create grid
+        this.queriesGrid = new gridjs.Grid({
+            columns: [
+                { name: 'Prompt', width: '300px' },
+                { name: 'Country', width: '80px' },
+                { name: 'Language', width: '80px' },
+                { name: 'Responses', width: '90px' },
+                { name: 'Mentions', width: '90px' },
+                { name: 'Visibility', width: '150px' },
+                { name: 'Position', width: '80px' },
+                { name: 'Last Update', width: '120px' },
+                { name: 'Created', width: '110px' }
+            ],
+            data: rows,
+            sort: true,
+            search: {
+                placeholder: 'Search prompts...'
+            },
+            pagination: {
+                limit: 15,
+                summary: true
+            },
+            style: {
+                table: {
+                    'font-size': '14px'
+                },
+                th: {
+                    'background-color': '#161616',
+                    'color': '#D8F9B8',
+                    'font-weight': '700',
+                    'padding': '1rem'
+                },
+                td: {
+                    'padding': '0.875rem'
+                }
+            },
+            className: {
+                table: 'llm-queries-table'
+            }
+        }).render(container);
+    }
+
+    /**
+     * Format relative time (e.g., "2 hours ago")
+     */
+    formatRelativeTime(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffSeconds < 60) return 'just now';
+        if (diffMinutes < 60) return `${diffMinutes} min ago`;
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
     /**
