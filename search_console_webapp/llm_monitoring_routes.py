@@ -652,65 +652,6 @@ def delete_project(project_id):
 # ============================================================================
 # ENDPOINTS: PROMPTS/QUERIES (Manual Management)
 # ============================================================================
-
-@llm_monitoring_bp.route('/projects/<int:project_id>/queries', methods=['GET'])
-@login_required
-@validate_project_ownership
-def get_project_queries(project_id):
-    """
-    Obtiene todas las queries/prompts de un proyecto
-    
-    Returns:
-        JSON con lista de queries
-    """
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
-    try:
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                id,
-                query_text,
-                language,
-                query_type,
-                is_active,
-                added_at
-            FROM llm_monitoring_queries
-            WHERE project_id = %s AND is_active = TRUE
-            ORDER BY added_at DESC
-        """, (project_id,))
-        
-        queries = cur.fetchall()
-        
-        # Formatear respuesta
-        queries_list = []
-        for query in queries:
-            queries_list.append({
-                'id': query['id'],
-                'query_text': query['query_text'],
-                'language': query['language'],
-                'query_type': query['query_type'],
-                'is_active': query['is_active'],
-                'added_at': query['added_at'].isoformat() if query['added_at'] else None
-            })
-        
-        return jsonify({
-            'success': True,
-            'queries': queries_list,
-            'total': len(queries_list)
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo queries: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo queries: {str(e)}'}), 500
-    finally:
-        cur.close()
-        conn.close()
-
-
 @llm_monitoring_bp.route('/projects/<int:project_id>/queries', methods=['POST'])
 @login_required
 @validate_project_ownership
