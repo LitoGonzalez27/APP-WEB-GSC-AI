@@ -26,12 +26,13 @@ Endpoints:
 import logging
 import os
 import json
+import threading
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from functools import wraps
 
 # Importar sistema de autenticación
-from auth import login_required, get_current_user
+from auth import login_required, get_current_user, cron_or_auth_required
 
 # Importar servicios
 from database import get_db_connection
@@ -1423,6 +1424,85 @@ def update_model(model_id):
     finally:
         cur.close()
         conn.close()
+
+
+# ============================================================================
+# CRON JOBS
+# ============================================================================
+
+@llm_monitoring_bp.route('/cron/daily-analysis', methods=['POST'])
+@cron_or_auth_required
+def trigger_daily_analysis():
+    """
+    Trigger para análisis diario automático (cron job)
+    
+    Query params:
+        async (int): Si es 1, ejecuta en background y responde inmediatamente con 202
+    
+    Returns:
+        JSON con resultado de la ejecución del cron
+    """
+    try:
+        # Verificar si se solicita ejecución asíncrona
+        is_async = request.args.get('async', '0') == '1'
+        
+        if is_async:
+            # Ejecutar en background y responder inmediatamente
+            def run_analysis_in_background():
+                try:
+                    logger.info("🚀 LLM Monitoring: Starting daily analysis in background")
+                    results = analyze_all_active_projects(
+                        api_keys=None,  # Usar variables de entorno
+                        max_workers=10
+                    )
+                    
+                    # Procesar resultados
+                    successful = sum(1 for r in results if 'error' not in r)
+                    failed = sum(1 for r in results if 'error' in r)
+                    total_queries = sum(r.get('total_queries_executed', 0) for r in results if 'error' not in r)
+                    
+                    logger.info(f"✅ LLM Monitoring: Daily analysis completed - {len(results)} projects processed")
+                    logger.info(f"   Successful: {successful}, Failed: {failed}, Total queries: {total_queries}")
+                except Exception as e:
+                    logger.error(f"💥 LLM Monitoring: Background analysis error: {e}")
+            
+            # Iniciar thread en background
+            thread = threading.Thread(target=run_analysis_in_background, daemon=True)
+            thread.start()
+            
+            logger.info("📤 LLM Monitoring: Daily analysis triggered (async mode)")
+            return jsonify({
+                'success': True,
+                'message': 'Daily analysis triggered in background',
+                'async': True
+            }), 202
+        
+        # Modo síncrono (comportamiento original)
+        results = analyze_all_active_projects(
+            api_keys=None,  # Usar variables de entorno
+            max_workers=10
+        )
+        
+        # Procesar resultados
+        successful = sum(1 for r in results if 'error' not in r)
+        failed = sum(1 for r in results if 'error' in r)
+        total_queries = sum(r.get('total_queries_executed', 0) for r in results if 'error' not in r)
+        
+        return jsonify({
+            'success': True,
+            'total_projects': len(results),
+            'successful': successful,
+            'failed': failed,
+            'total_queries': total_queries,
+            'results': results
+        }), 200
+            
+    except Exception as e:
+        logger.error(f"Error in daily analysis cron trigger: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # ============================================================================

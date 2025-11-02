@@ -20,5 +20,13 @@
       "command": "python3 weekly_model_check_cron.py",
       "schedule": "0 0 * * 0"
     }
+  ],
+  "functions": [
+    {
+      "name": "llm-monitoring-cron",
+      "handler": "llm_monitoring_cron_function.js",
+      "schedule": "0 5 * * *",
+      "runtime": "bun"
+    }
   ]
 }
