@@ -1354,11 +1354,89 @@ def get_share_of_voice_history(project_id):
                 'datasets': []
             }), 200
         
-        # Agrupar datos por fecha
+        # =======================================================================
+        # AGRUPAR VARIANTES: Todas las variantes de un competidor = UNA línea
+        # =======================================================================
+        
+        # Obtener configuración de competidores del proyecto
+        competitor_domains = project.get('competitor_domains') or []
+        competitor_keywords = project.get('competitor_keywords') or []
+        legacy_competitors = project.get('competitors') or []
+        
+        # Crear mapeo: variante_detectada -> nombre_competidor_normalizado
+        # Estrategia: usar el primer keyword o dominio limpio como nombre base
+        competitor_mapping = {}
+        competitor_base_names = {}  # nombre_base -> nombre_display
+        
+        # Procesar cada configuración de competidor (usamos legacy para nombres base)
+        for comp_name in legacy_competitors:
+            comp_lower = comp_name.lower().strip()
+            comp_base = comp_lower.replace('.com', '').replace('.es', '').replace('.net', '').replace('.org', '')
+            
+            # Mapear el nombre legacy
+            competitor_mapping[comp_lower] = comp_base
+            competitor_base_names[comp_base] = comp_name
+        
+        # Mapear todos los dominios y keywords a sus nombres base
+        def normalize_variant(variant):
+            """Normaliza una variante para encontrar su raíz común"""
+            v = variant.lower().strip()
+            # Quitar extensiones de dominio comunes
+            v = v.replace('.com', '').replace('.es', '').replace('.net', '').replace('.org', '')
+            v = v.replace('.mx', '').replace('.ar', '').replace('.cl', '').replace('.pe', '')
+            v = v.replace('www.', '')
+            # Quitar espacios y guiones
+            v = v.replace('-', '').replace('_', '').replace(' ', '')
+            return v
+        
+        # Mapear dominios de competidores
+        for domain in competitor_domains:
+            normalized = normalize_variant(domain)
+            # Buscar el competitor_base más similar
+            best_match = None
+            best_score = 0
+            for comp_base in competitor_base_names.keys():
+                # Si el dominio contiene el nombre base o viceversa
+                if comp_base in normalized or normalized in comp_base:
+                    score = len(comp_base)
+                    if score > best_score:
+                        best_score = score
+                        best_match = comp_base
+            
+            if best_match:
+                competitor_mapping[domain.lower()] = best_match
+            else:
+                # Usar el dominio normalizado como nombre base
+                competitor_mapping[domain.lower()] = normalized
+                if normalized not in competitor_base_names:
+                    competitor_base_names[normalized] = domain.split('.')[0].title()
+        
+        # Mapear keywords de competidores
+        for keyword in competitor_keywords:
+            normalized = normalize_variant(keyword)
+            # Buscar el competitor_base más similar
+            best_match = None
+            best_score = 0
+            for comp_base in competitor_base_names.keys():
+                if comp_base in normalized or normalized in comp_base:
+                    score = len(comp_base)
+                    if score > best_score:
+                        best_score = score
+                        best_match = comp_base
+            
+            if best_match:
+                competitor_mapping[keyword.lower()] = best_match
+            else:
+                # Usar el keyword normalizado como nombre base
+                competitor_mapping[keyword.lower()] = normalized
+                if normalized not in competitor_base_names:
+                    competitor_base_names[normalized] = keyword.title()
+        
+        # Agrupar datos por fecha Y agrupar variantes de competidores
         from collections import defaultdict
         data_by_date = defaultdict(lambda: {
             'brand_mentions': 0,
-            'competitor_mentions': defaultdict(int),
+            'competitor_mentions': defaultdict(int),  # Ahora agrupado por nombre_base
             'llm_count': 0
         })
         
@@ -1367,10 +1445,32 @@ def get_share_of_voice_history(project_id):
             data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
             data_by_date[date_str]['llm_count'] += 1
             
-            # Agregar menciones de competidores
+            # Agregar menciones de competidores AGRUPADAS por nombre base
             breakdown = snapshot['competitor_breakdown'] or {}
-            for comp, mentions in breakdown.items():
-                data_by_date[date_str]['competitor_mentions'][comp] += mentions
+            for detected_variant, mentions in breakdown.items():
+                # Normalizar la variante detectada
+                variant_lower = detected_variant.lower()
+                variant_normalized = normalize_variant(detected_variant)
+                
+                # Buscar en el mapeo
+                competitor_base = None
+                if variant_lower in competitor_mapping:
+                    competitor_base = competitor_mapping[variant_lower]
+                else:
+                    # Buscar por coincidencia parcial
+                    for mapped_variant, base_name in competitor_mapping.items():
+                        if mapped_variant in variant_lower or variant_lower in mapped_variant:
+                            competitor_base = base_name
+                            break
+                    
+                    # Si no encuentra match, usar la variante normalizada
+                    if not competitor_base:
+                        competitor_base = variant_normalized
+                        if competitor_base not in competitor_base_names:
+                            competitor_base_names[competitor_base] = detected_variant.title()
+                
+                # Acumular menciones bajo el nombre base
+                data_by_date[date_str]['competitor_mentions'][competitor_base] += mentions
         
         # Ordenar fechas
         dates = sorted(data_by_date.keys())
@@ -1378,7 +1478,7 @@ def get_share_of_voice_history(project_id):
         # Preparar datasets
         datasets = []
         
-        # Dataset para la marca principal
+        # Dataset para la marca principal (TODAS las variantes ya están sumadas en total_mentions)
         brand_name = project['brand_name'] or 'Your Brand'
         brand_data = []
         
@@ -1404,7 +1504,7 @@ def get_share_of_voice_history(project_id):
             'pointHoverRadius': 6
         })
         
-        # Datasets para competidores
+        # Datasets para competidores (ahora agrupados)
         competitor_colors = [
             '#ef4444',  # Red
             '#f97316',  # Orange
@@ -1413,18 +1513,21 @@ def get_share_of_voice_history(project_id):
             '#ec4899'   # Pink
         ]
         
-        # Obtener lista única de competidores de todos los días
-        all_competitors = set()
+        # Obtener lista única de competidores base (ya agrupados)
+        all_competitors_base = set()
         for day_data in data_by_date.values():
-            all_competitors.update(day_data['competitor_mentions'].keys())
+            all_competitors_base.update(day_data['competitor_mentions'].keys())
         
-        for idx, competitor in enumerate(sorted(all_competitors)):
+        for idx, competitor_base in enumerate(sorted(all_competitors_base)):
             comp_data = []
+            
+            # Obtener nombre display (más bonito)
+            display_name = competitor_base_names.get(competitor_base, competitor_base.title())
             
             for date_str in dates:
                 day_data = data_by_date[date_str]
                 brand_mentions = day_data['brand_mentions']
-                comp_mentions = day_data['competitor_mentions'].get(competitor, 0)
+                comp_mentions = day_data['competitor_mentions'].get(competitor_base, 0)
                 total_comp_mentions = sum(day_data['competitor_mentions'].values())
                 total_mentions = brand_mentions + total_comp_mentions
                 
@@ -1434,7 +1537,7 @@ def get_share_of_voice_history(project_id):
             
             color = competitor_colors[idx % len(competitor_colors)]
             datasets.append({
-                'label': competitor,
+                'label': display_name,
                 'data': comp_data,
                 'borderColor': color,
                 'backgroundColor': color.replace('rgb', 'rgba').replace(')', ', 0.1)') if 'rgb' in color else f'{color}20',
