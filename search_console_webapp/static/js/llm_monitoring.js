@@ -1291,9 +1291,7 @@ class LLMMonitoring {
                         <span style="font-weight: 600; min-width: 45px;">${visibilityStr}%</span>
                     </div>
                 `),
-                q.avg_position != null ? q.avg_position.toFixed(1) : 'N/A',
-                q.last_update ? this.formatRelativeTime(q.last_update) : 'Never',
-                q.created_at ? new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+                q.last_update ? this.formatRelativeTime(q.last_update) : 'Never'
             ];
         });
         
@@ -1306,9 +1304,7 @@ class LLMMonitoring {
                 { name: 'Responses', width: '90px' },
                 { name: 'Mentions', width: '90px' },
                 { name: 'Visibility', width: '150px' },
-                { name: 'Position', width: '80px' },
-                { name: 'Last Update', width: '120px' },
-                { name: 'Created', width: '110px' }
+                { name: 'Last Update', width: '120px' }
             ],
             data: rows,
             sort: true,
