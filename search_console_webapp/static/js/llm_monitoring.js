@@ -1272,25 +1272,30 @@ class LLMMonitoring {
         }
         
         // Formatear datos para la tabla
-        const rows = queries.map(q => [
-            q.prompt,
-            q.country,
-            q.language ? q.language.toUpperCase() : 'N/A',
-            q.total_responses || 0,
-            q.total_mentions || 0,
-            // Visibility con barra de progreso
-            gridjs.html(`
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
-                        <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${q.visibility_pct}%, transparent ${q.visibility_pct}%); width: 100%; border-radius: 9999px;"></div>
+        const rows = queries.map(q => {
+            const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
+            const visibilityStr = visibilityPct.toFixed(1);
+            
+            return [
+                q.prompt,
+                q.country,
+                q.language ? q.language.toUpperCase() : 'N/A',
+                q.total_responses || 0,
+                q.total_mentions || 0,
+                // Visibility con barra de progreso
+                gridjs.html(`
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
+                            <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${visibilityPct}%, transparent ${visibilityPct}%); width: 100%; border-radius: 9999px;"></div>
+                        </div>
+                        <span style="font-weight: 600; min-width: 45px;">${visibilityStr}%</span>
                     </div>
-                    <span style="font-weight: 600; min-width: 45px;">${q.visibility_pct.toFixed(1)}%</span>
-                </div>
-            `),
-            q.avg_position ? q.avg_position.toFixed(1) : 'N/A',
-            q.last_update ? this.formatRelativeTime(q.last_update) : 'Never',
-            q.created_at ? new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
-        ]);
+                `),
+                q.avg_position != null ? q.avg_position.toFixed(1) : 'N/A',
+                q.last_update ? this.formatRelativeTime(q.last_update) : 'Never',
+                q.created_at ? new Date(q.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+            ];
+        });
         
         // Create grid
         this.queriesGrid = new gridjs.Grid({
