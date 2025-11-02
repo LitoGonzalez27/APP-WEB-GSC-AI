@@ -1258,6 +1258,210 @@ def get_llm_comparison(project_id):
 
 
 # ============================================================================
+# ENDPOINTS: SHARE OF VOICE HISTÓRICO
+# ============================================================================
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/share-of-voice-history', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_share_of_voice_history(project_id):
+    """
+    Obtener datos históricos de Share of Voice para gráfico de líneas temporal
+    
+    Similar a los gráficos comparativos de Manual AI, muestra la evolución
+    del Share of Voice de la marca vs competidores a lo largo del tiempo.
+    
+    Query params:
+        days: Número de días hacia atrás (default: 30)
+    
+    Returns:
+        JSON con datos para gráfico de líneas:
+        {
+            'dates': ['2025-01-01', '2025-01-02', ...],
+            'datasets': [
+                {
+                    'label': 'Tu Marca',
+                    'data': [45.2, 48.1, ...],
+                    'borderColor': '#3b82f6',
+                    ...
+                },
+                {
+                    'label': 'Competidor 1',
+                    'data': [30.5, 28.3, ...],
+                    'borderColor': '#ef4444',
+                    ...
+                }
+            ]
+        }
+    """
+    user = get_current_user()
+    days = int(request.args.get('days', 30))
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener información del proyecto
+        cur.execute("""
+            SELECT 
+                brand_name,
+                brand_domain,
+                brand_keywords,
+                competitors,
+                competitor_domains,
+                competitor_keywords
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        # Calcular rango de fechas
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener todos los snapshots del período agrupados por fecha
+        cur.execute("""
+            SELECT 
+                snapshot_date,
+                llm_provider,
+                share_of_voice,
+                total_mentions,
+                total_competitor_mentions,
+                competitor_breakdown
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s 
+                AND snapshot_date >= %s 
+                AND snapshot_date <= %s
+            ORDER BY snapshot_date, llm_provider
+        """, (project_id, start_date, end_date))
+        
+        snapshots = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Si no hay datos, devolver estructura vacía
+        if not snapshots:
+            return jsonify({
+                'success': True,
+                'dates': [],
+                'datasets': []
+            }), 200
+        
+        # Agrupar datos por fecha
+        from collections import defaultdict
+        data_by_date = defaultdict(lambda: {
+            'brand_mentions': 0,
+            'competitor_mentions': defaultdict(int),
+            'llm_count': 0
+        })
+        
+        for snapshot in snapshots:
+            date_str = snapshot['snapshot_date'].isoformat()
+            data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
+            data_by_date[date_str]['llm_count'] += 1
+            
+            # Agregar menciones de competidores
+            breakdown = snapshot['competitor_breakdown'] or {}
+            for comp, mentions in breakdown.items():
+                data_by_date[date_str]['competitor_mentions'][comp] += mentions
+        
+        # Ordenar fechas
+        dates = sorted(data_by_date.keys())
+        
+        # Preparar datasets
+        datasets = []
+        
+        # Dataset para la marca principal
+        brand_name = project['brand_name'] or 'Your Brand'
+        brand_data = []
+        
+        for date_str in dates:
+            day_data = data_by_date[date_str]
+            brand_mentions = day_data['brand_mentions']
+            total_comp_mentions = sum(day_data['competitor_mentions'].values())
+            total_mentions = brand_mentions + total_comp_mentions
+            
+            # Calcular Share of Voice de la marca
+            sov = (brand_mentions / total_mentions * 100) if total_mentions > 0 else 0
+            brand_data.append(round(sov, 2))
+        
+        datasets.append({
+            'label': brand_name,
+            'data': brand_data,
+            'borderColor': '#3b82f6',  # Blue para la marca
+            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderWidth': 3,
+            'tension': 0.4,
+            'fill': True,
+            'pointRadius': 4,
+            'pointHoverRadius': 6
+        })
+        
+        # Datasets para competidores
+        competitor_colors = [
+            '#ef4444',  # Red
+            '#f97316',  # Orange
+            '#22c55e',  # Green
+            '#a855f7',  # Purple
+            '#ec4899'   # Pink
+        ]
+        
+        # Obtener lista única de competidores de todos los días
+        all_competitors = set()
+        for day_data in data_by_date.values():
+            all_competitors.update(day_data['competitor_mentions'].keys())
+        
+        for idx, competitor in enumerate(sorted(all_competitors)):
+            comp_data = []
+            
+            for date_str in dates:
+                day_data = data_by_date[date_str]
+                brand_mentions = day_data['brand_mentions']
+                comp_mentions = day_data['competitor_mentions'].get(competitor, 0)
+                total_comp_mentions = sum(day_data['competitor_mentions'].values())
+                total_mentions = brand_mentions + total_comp_mentions
+                
+                # Calcular Share of Voice del competidor
+                sov = (comp_mentions / total_mentions * 100) if total_mentions > 0 else 0
+                comp_data.append(round(sov, 2))
+            
+            color = competitor_colors[idx % len(competitor_colors)]
+            datasets.append({
+                'label': competitor,
+                'data': comp_data,
+                'borderColor': color,
+                'backgroundColor': color.replace('rgb', 'rgba').replace(')', ', 0.1)') if 'rgb' in color else f'{color}20',
+                'borderWidth': 2,
+                'tension': 0.4,
+                'fill': False,
+                'pointRadius': 3,
+                'pointHoverRadius': 5
+            })
+        
+        return jsonify({
+            'success': True,
+            'dates': dates,
+            'datasets': datasets,
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days': days
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo histórico de Share of Voice: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo datos: {str(e)}'}), 500
+
+
+# ============================================================================
 # ENDPOINTS: MODELOS
 # ============================================================================
 

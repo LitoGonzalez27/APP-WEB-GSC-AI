@@ -585,7 +585,7 @@ class LLMMonitoring {
             
             // Render charts
             this.renderMentionRateChart(data);
-            this.renderShareOfVoiceChart(data);
+            await this.renderShareOfVoiceChart();  // Now async - fetches its own data
             
             // Load comparison
             await this.loadComparison(projectId);
@@ -664,7 +664,11 @@ class LLMMonitoring {
     /**
      * Render Share of Voice chart
      */
-    renderShareOfVoiceChart(data) {
+    /**
+     * Render Share of Voice chart - TEMPORAL LINE CHART
+     * Muestra la evolución del Share of Voice de la marca vs competidores a lo largo del tiempo
+     */
+    async renderShareOfVoiceChart() {
         const canvas = document.getElementById('chartShareOfVoice');
         if (!canvas) return;
         
@@ -673,103 +677,179 @@ class LLMMonitoring {
             this.charts.shareOfVoice.destroy();
         }
         
-        // Calcular datos reales de competidores desde snapshots
-        const labels = [];
-        const values = [];
-        const colors = [];
-        
-        // Agregar marca principal
-        const brandName = this.currentProject?.brand_name || 'Your Brand';
-        labels.push(brandName);
-        
-        // Calcular Share of Voice promedio de tu marca
-        const llms = Object.keys(data.aggregated?.metrics_by_llm || {});
-        let brandSOV = 0;
-        
-        if (llms.length > 0) {
-            brandSOV = llms.reduce((sum, llm) => {
-                return sum + (data.aggregated.metrics_by_llm[llm]?.avg_share_of_voice || 0);
-            }, 0) / llms.length;
-        }
-        
-        values.push(brandSOV);
-        colors.push('rgba(59, 130, 246, 0.8)'); // Blue for your brand
-        
-        // Agregar competidores si existen
-        const competitors = this.currentProject?.competitors || [];
-        if (competitors.length > 0 && data.snapshots && data.snapshots.length > 0) {
-            // Calcular total de menciones de competidores
-            const allSnapshots = data.snapshots || [];
-            let totalBrandMentions = 0;
-            let totalCompetitorMentions = {};
+        // Obtener datos históricos del nuevo endpoint
+        try {
+            const projectId = this.currentProject?.id;
+            if (!projectId) {
+                console.warn('No project ID available for Share of Voice history');
+                return;
+            }
             
-            allSnapshots.forEach(snapshot => {
-                totalBrandMentions += snapshot.total_mentions || 0;
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to load Share of Voice history');
+            }
+            
+            const { dates, datasets } = result;
+            
+            // Si no hay datos, mostrar mensaje
+            if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-line" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No historical data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to start tracking Share of Voice over time</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Formatear fechas para el eje X
+            const formattedLabels = dates.map(dateStr => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            // Configurar leyenda HTML personalizada
+            const legendContainer = document.getElementById('shareOfVoiceLegend');
+            if (legendContainer) {
+                legendContainer.innerHTML = '';
                 
-                const breakdown = snapshot.competitor_breakdown || {};
-                Object.keys(breakdown).forEach(comp => {
-                    if (!totalCompetitorMentions[comp]) {
-                        totalCompetitorMentions[comp] = 0;
-                    }
-                    totalCompetitorMentions[comp] += breakdown[comp] || 0;
+                datasets.forEach((dataset, index) => {
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    legendItem.dataset.index = index;
+                    
+                    legendItem.innerHTML = `
+                        <div class="legend-color" style="background-color: ${dataset.borderColor}"></div>
+                        <div class="legend-label">${dataset.label}</div>
+                    `;
+                    
+                    // Toggle visibility on click
+                    legendItem.addEventListener('click', () => {
+                        const chart = this.charts.shareOfVoice;
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = !meta.hidden;
+                        chart.update();
+                        legendItem.classList.toggle('hidden', meta.hidden);
+                    });
+                    
+                    legendContainer.appendChild(legendItem);
                 });
-            });
+            }
             
-            const totalMentions = totalBrandMentions + Object.values(totalCompetitorMentions).reduce((a, b) => a + b, 0);
-            
-            // Agregar cada competidor con su porcentaje
-            const competitorColors = [
-                'rgba(239, 68, 68, 0.8)',    // Red
-                'rgba(251, 146, 60, 0.8)',   // Orange
-                'rgba(34, 197, 94, 0.8)',    // Green
-                'rgba(168, 85, 247, 0.8)',   // Purple
-                'rgba(236, 72, 153, 0.8)'    // Pink
-            ];
-            
-            competitors.forEach((comp, index) => {
-                const mentions = totalCompetitorMentions[comp] || 0;
-                const percentage = totalMentions > 0 ? (mentions / totalMentions * 100) : 0;
-                
-                if (percentage > 0) {
-                    labels.push(comp);
-                    values.push(percentage);
-                    colors.push(competitorColors[index % competitorColors.length]);
-                }
-            });
-        }
-        
-        // Si no hay datos de competidores, mostrar solo tu marca
-        if (values.length === 1 && values[0] === 0) {
-            values[0] = 100; // Mostrar 100% si no hay datos
-        }
-        
-        // Create chart
-        this.charts.shareOfVoice = new Chart(canvas, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+            // Crear gráfico de líneas
+            this.charts.shareOfVoice = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: formattedLabels,
+                    datasets: datasets.map(ds => ({
+                        ...ds,
+                        pointBackgroundColor: ds.borderColor,
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: ds.borderColor,
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'circle',
+                        pointBorderWidth: 2
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: context => `${context.label}: ${context.parsed.toFixed(1)}%`
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: value => `${value}%`,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280'
+                            },
+                            grid: {
+                                color: '#f3f4f6',
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Share of Voice (%)',
+                                font: {
+                                    size: 13,
+                                    weight: '600'
+                                },
+                                color: '#374151'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false  // Usar leyenda HTML personalizada
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            callbacks: {
+                                title: context => {
+                                    return new Date(dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                        weekday: 'short',
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                },
+                                label: context => {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+            
+        } catch (error) {
+            console.error('Error loading Share of Voice history:', error);
+            canvas.parentElement.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #ef4444;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
+                </div>
+            `;
+        }
     }
 
     /**
