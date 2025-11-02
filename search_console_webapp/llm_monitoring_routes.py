@@ -214,6 +214,7 @@ def create_project():
     competitor_domains = data.get('competitor_domains', [])
     competitor_keywords = data.get('competitor_keywords', [])
     language = data.get('language', 'es')
+    country_code = data.get('country_code', 'ES')
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
     queries_per_llm = data.get('queries_per_llm', 15)
     
@@ -253,14 +254,14 @@ def create_project():
                 user_id, name, industry,
                 brand_domain, brand_keywords,
                 competitor_domains, competitor_keywords,
-                enabled_llms, language, queries_per_llm,
+                enabled_llms, language, country_code, queries_per_llm,
                 is_active, created_at, updated_at,
                 brand_name, competitors
             ) VALUES (
                 %s, %s, %s,
                 %s, %s::jsonb,
                 %s::jsonb, %s::jsonb,
-                %s, %s, %s,
+                %s, %s, %s, %s,
                 TRUE, NOW(), NOW(),
                 %s, %s::jsonb
             )
@@ -275,6 +276,7 @@ def create_project():
             json.dumps(competitor_keywords),
             enabled_llms,
             language,
+            country_code,
             queries_per_llm,
             # Campos legacy por compatibilidad
             brand_keywords[0] if brand_keywords else 'Brand',
@@ -302,6 +304,7 @@ def create_project():
                 'competitor_keywords': competitor_keywords,
                 'enabled_llms': enabled_llms,
                 'language': language,
+                'country_code': country_code,
                 'queries_per_llm': queries_per_llm,
                 'is_active': True,
                 'created_at': created_at.isoformat(),
@@ -426,7 +429,7 @@ def get_project(project_id):
         
         # Obtener los nuevos campos (brand_domain, brand_keywords, etc.)
         cur.execute("""
-            SELECT brand_domain, brand_keywords, competitor_domains, competitor_keywords
+            SELECT brand_domain, brand_keywords, competitor_domains, competitor_keywords, country_code
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -448,6 +451,7 @@ def get_project(project_id):
                 'competitor_domains': new_fields['competitor_domains'] if new_fields else [],
                 'competitor_keywords': new_fields['competitor_keywords'] if new_fields else [],
                 'language': project['language'],
+                'country_code': new_fields['country_code'] if new_fields else 'ES',
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'last_analysis_date': project['last_analysis_date'].isoformat() if project['last_analysis_date'] else None,
@@ -557,6 +561,10 @@ def update_project(project_id):
             updates.append("queries_per_llm = %s")
             params.append(data['queries_per_llm'])
         
+        if 'country_code' in data:
+            updates.append("country_code = %s")
+            params.append(data['country_code'])
+        
         if not updates:
             return jsonify({'error': 'No hay campos para actualizar'}), 400
         
@@ -590,6 +598,7 @@ def update_project(project_id):
                 'competitor_domains': project['competitor_domains'],
                 'competitor_keywords': project['competitor_keywords'],
                 'language': project['language'],
+                'country_code': project['country_code'],
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'updated_at': project['updated_at'].isoformat() if project['updated_at'] else None

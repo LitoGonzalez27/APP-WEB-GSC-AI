@@ -1445,6 +1445,7 @@ class LLMMonitoring {
             document.getElementById('projectName').value = project.name || '';
             document.getElementById('industry').value = project.industry || '';
             document.getElementById('language').value = project.language || 'es';
+            document.getElementById('countryCode').value = project.country_code || 'ES';
             document.getElementById('queriesPerLlm').value = project.queries_per_llm || 15;
             
             // Fill brand domain
@@ -1509,6 +1510,7 @@ class LLMMonitoring {
         const industry = document.getElementById('industry').value.trim();
         const brandDomain = document.getElementById('brandDomain').value.trim();
         const language = document.getElementById('language').value;
+        const countryCode = document.getElementById('countryCode').value;
         const queriesPerLlm = parseInt(document.getElementById('queriesPerLlm').value);
         
         // Get checked LLMs
@@ -1546,6 +1548,7 @@ class LLMMonitoring {
             competitor_domains: this.competitorDomainsChips,
             competitor_keywords: this.competitorKeywordsChips,
             language,
+            country_code: countryCode,
             enabled_llms: enabledLlms,
             queries_per_llm: queriesPerLlm
         };
