@@ -1548,10 +1548,89 @@ def get_share_of_voice_history(project_id):
                 'pointHoverRadius': 5
             })
         
+        # =======================================================================
+        # DATOS ADICIONALES: Menciones absolutas + Donut data
+        # =======================================================================
+        
+        # 1. Datasets para gráfico de menciones (números absolutos)
+        mentions_datasets = []
+        
+        # Dataset de menciones de marca
+        brand_mentions_data = []
+        for date_str in dates:
+            day_data = data_by_date[date_str]
+            brand_mentions_data.append(day_data['brand_mentions'])
+        
+        mentions_datasets.append({
+            'label': brand_name,
+            'data': brand_mentions_data,
+            'borderColor': '#3b82f6',
+            'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+            'borderWidth': 3,
+            'tension': 0.4,
+            'fill': True,
+            'pointRadius': 4,
+            'pointHoverRadius': 6
+        })
+        
+        # Datasets de menciones de competidores
+        for idx, competitor_base in enumerate(sorted(all_competitors_base)):
+            comp_mentions_data = []
+            display_name = competitor_base_names.get(competitor_base, competitor_base.title())
+            
+            for date_str in dates:
+                day_data = data_by_date[date_str]
+                comp_mentions_data.append(day_data['competitor_mentions'].get(competitor_base, 0))
+            
+            color = competitor_colors[idx % len(competitor_colors)]
+            mentions_datasets.append({
+                'label': display_name,
+                'data': comp_mentions_data,
+                'borderColor': color,
+                'backgroundColor': color.replace('rgb', 'rgba').replace(')', ', 0.1)') if 'rgb' in color else f'{color}20',
+                'borderWidth': 2,
+                'tension': 0.4,
+                'fill': False,
+                'pointRadius': 3,
+                'pointHoverRadius': 5
+            })
+        
+        # 2. Datos para gráfico de rosco (promedio del período)
+        total_brand_mentions_period = sum(data_by_date[date_str]['brand_mentions'] for date_str in dates)
+        total_competitor_mentions_period = defaultdict(int)
+        
+        for date_str in dates:
+            for comp_base, mentions in data_by_date[date_str]['competitor_mentions'].items():
+                total_competitor_mentions_period[comp_base] += mentions
+        
+        # Calcular totales
+        grand_total = total_brand_mentions_period + sum(total_competitor_mentions_period.values())
+        
+        # Preparar datos del donut
+        donut_labels = [brand_name]
+        donut_values = [round(total_brand_mentions_period / grand_total * 100, 2) if grand_total > 0 else 0]
+        donut_colors = ['#3b82f6']
+        
+        for idx, competitor_base in enumerate(sorted(all_competitors_base)):
+            display_name = competitor_base_names.get(competitor_base, competitor_base.title())
+            comp_total = total_competitor_mentions_period.get(competitor_base, 0)
+            comp_percentage = round(comp_total / grand_total * 100, 2) if grand_total > 0 else 0
+            
+            if comp_percentage > 0:  # Solo incluir si tiene menciones
+                donut_labels.append(display_name)
+                donut_values.append(comp_percentage)
+                donut_colors.append(competitor_colors[idx % len(competitor_colors)])
+        
         return jsonify({
             'success': True,
             'dates': dates,
-            'datasets': datasets,
+            'datasets': datasets,  # Share of Voice (%)
+            'mentions_datasets': mentions_datasets,  # Menciones absolutas
+            'donut_data': {
+                'labels': donut_labels,
+                'values': donut_values,
+                'colors': donut_colors
+            },
             'period': {
                 'start_date': start_date.isoformat(),
                 'end_date': end_date.isoformat(),

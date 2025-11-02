@@ -586,6 +586,8 @@ class LLMMonitoring {
             // Render charts
             this.renderMentionRateChart(data);
             await this.renderShareOfVoiceChart();  // Now async - fetches its own data
+            await this.renderMentionsTimelineChart();  // Gráfico de líneas de menciones
+            await this.renderShareOfVoiceDonutChart();  // Gráfico de rosco
             
             // Load comparison
             await this.loadComparison(projectId);
@@ -843,6 +845,289 @@ class LLMMonitoring {
             
         } catch (error) {
             console.error('Error loading Share of Voice history:', error);
+            canvas.parentElement.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #ef4444;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render Mentions Timeline Chart - Gráfico de líneas con total de menciones
+     */
+    async renderMentionsTimelineChart() {
+        const canvas = document.getElementById('chartMentionsTimeline');
+        if (!canvas) return;
+        
+        // Destroy existing chart
+        if (this.charts.mentionsTimeline) {
+            this.charts.mentionsTimeline.destroy();
+        }
+        
+        try {
+            const projectId = this.currentProject?.id;
+            if (!projectId) {
+                console.warn('No project ID available for Mentions Timeline');
+                return;
+            }
+            
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success || !result.mentions_datasets) {
+                throw new Error('No mentions data available');
+            }
+            
+            const { dates, mentions_datasets } = result;
+            
+            // Formatear fechas para el eje X
+            const formattedLabels = dates.map(dateStr => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            // Configurar leyenda HTML
+            const legendContainer = document.getElementById('mentionsTimelineLegend');
+            if (legendContainer) {
+                legendContainer.innerHTML = '';
+                
+                mentions_datasets.forEach((dataset, index) => {
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    legendItem.dataset.index = index;
+                    
+                    legendItem.innerHTML = `
+                        <div class="legend-color" style="background-color: ${dataset.borderColor}"></div>
+                        <div class="legend-label">${dataset.label}</div>
+                    `;
+                    
+                    legendItem.addEventListener('click', () => {
+                        const chart = this.charts.mentionsTimeline;
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = !meta.hidden;
+                        chart.update();
+                        legendItem.classList.toggle('hidden', meta.hidden);
+                    });
+                    
+                    legendContainer.appendChild(legendItem);
+                });
+            }
+            
+            // Crear gráfico
+            this.charts.mentionsTimeline = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: formattedLabels,
+                    datasets: mentions_datasets.map(ds => ({
+                        ...ds,
+                        pointBackgroundColor: ds.borderColor,
+                        pointBorderColor: '#FFFFFF',
+                        pointHoverBackgroundColor: ds.borderColor,
+                        pointHoverBorderColor: '#FFFFFF',
+                        pointStyle: 'circle',
+                        pointBorderWidth: 2
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => Math.round(value),
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280'
+                            },
+                            grid: {
+                                color: '#f3f4f6',
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Total Mentions',
+                                font: {
+                                    size: 13,
+                                    weight: '600'
+                                },
+                                color: '#374151'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            callbacks: {
+                                title: context => {
+                                    return new Date(dates[context[0].dataIndex]).toLocaleDateString('en-US', {
+                                        weekday: 'short',
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                },
+                                label: context => {
+                                    return `${context.dataset.label}: ${Math.round(context.parsed.y)} mentions`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error loading Mentions Timeline:', error);
+            canvas.parentElement.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #ef4444;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Render Share of Voice Donut Chart - Gráfico de rosco con distribución
+     */
+    async renderShareOfVoiceDonutChart() {
+        const canvas = document.getElementById('chartShareOfVoiceDonut');
+        if (!canvas) return;
+        
+        // Destroy existing chart
+        if (this.charts.shareOfVoiceDonut) {
+            this.charts.shareOfVoiceDonut.destroy();
+        }
+        
+        try {
+            const projectId = this.currentProject?.id;
+            if (!projectId) {
+                console.warn('No project ID available for Share of Voice Donut');
+                return;
+            }
+            
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success || !result.donut_data) {
+                throw new Error('No donut data available');
+            }
+            
+            const { donut_data } = result;
+            
+            // Si no hay datos, mostrar mensaje
+            if (!donut_data.labels || donut_data.labels.length === 0) {
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500;">No data available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Crear gráfico de rosco
+            this.charts.shareOfVoiceDonut = new Chart(canvas, {
+                type: 'doughnut',
+            data: {
+                    labels: donut_data.labels,
+                datasets: [{
+                        data: donut_data.values,
+                        backgroundColor: donut_data.colors,
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                    cutout: '65%',
+                plugins: {
+                    legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 13,
+                                    weight: '500'
+                                },
+                                color: '#374151',
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                    },
+                    tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                        callbacks: {
+                                label: context => {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    return `${label}: ${value.toFixed(1)}%`;
+                                }
+                        }
+                    }
+                }
+            }
+        });
+            
+        } catch (error) {
+            console.error('Error loading Share of Voice Donut:', error);
             canvas.parentElement.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: #ef4444;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
