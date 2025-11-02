@@ -879,13 +879,29 @@ class LLMMonitoring {
             
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                console.warn('Could not load mentions timeline data');
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-area" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No timeline data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to start tracking mentions over time</p>
+                    </div>
+                `;
+                return;
             }
             
             const result = await response.json();
             
-            if (!result.success || !result.mentions_datasets) {
-                throw new Error('No mentions data available');
+            if (!result.success || !result.mentions_datasets || !result.dates || result.dates.length === 0) {
+                console.log('No mentions data available yet for this project');
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-area" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No timeline data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to start tracking mentions over time</p>
+                    </div>
+                `;
+                return;
             }
             
             const { dates, mentions_datasets } = result;
@@ -1051,13 +1067,29 @@ class LLMMonitoring {
             
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                console.warn('Could not load Share of Voice donut data');
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
+                    </div>
+                `;
+                return;
             }
             
             const result = await response.json();
             
             if (!result.success || !result.donut_data) {
-                throw new Error('No donut data available');
+                console.log('No donut data available yet for this project');
+                canvas.parentElement.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
+                    </div>
+                `;
+                return;
             }
             
             const { donut_data } = result;
@@ -1067,7 +1099,8 @@ class LLMMonitoring {
                 canvas.parentElement.innerHTML = `
                     <div style="text-align: center; padding: 3rem; color: #6b7280;">
                         <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500;">No data available</p>
+                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
+                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
                     </div>
                 `;
                 return;
