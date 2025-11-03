@@ -704,15 +704,9 @@ class LLMMonitoring {
             
             const { dates, datasets } = result;
             
-            // Si no hay datos, mostrar mensaje
+            // Si no hay datos, simplemente retornar sin renderizar
             if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-line" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No historical data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to start tracking Share of Voice over time</p>
-                    </div>
-                `;
+                console.warn('⚠️ No data available for Share of Voice chart');
                 return;
             }
             
@@ -848,13 +842,7 @@ class LLMMonitoring {
             });
             
         } catch (error) {
-            console.error('Error loading Share of Voice history:', error);
-            canvas.parentElement.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: #ef4444;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
-                </div>
-            `;
+            console.error('❌ Error loading Share of Voice history:', error);
         }
     }
 
@@ -880,27 +868,13 @@ class LLMMonitoring {
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-area" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No timeline data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to start tracking mentions over time</p>
-                    </div>
-                `;
                 return;
             }
             
             const result = await response.json();
             
             if (!result.success || !result.mentions_datasets || !result.dates || result.dates.length === 0) {
-                console.log('No mentions data available yet for this project');
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-area" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No timeline data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to start tracking mentions over time</p>
-                    </div>
-                `;
+                console.warn('⚠️ No mentions data available yet for this project');
                 return;
             }
             
@@ -1036,13 +1010,7 @@ class LLMMonitoring {
             });
             
         } catch (error) {
-            console.error('Error loading Mentions Timeline:', error);
-            canvas.parentElement.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: #ef4444;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
-                </div>
-            `;
+            console.error('❌ Error loading Mentions Timeline:', error);
         }
     }
 
@@ -1068,41 +1036,21 @@ class LLMMonitoring {
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
             if (!response.ok) {
                 console.warn('Could not load Share of Voice donut data');
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
-                    </div>
-                `;
                 return;
             }
             
             const result = await response.json();
             
             if (!result.success || !result.donut_data) {
-                console.log('No donut data available yet for this project');
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
-                    </div>
-                `;
+                console.warn('⚠️ No donut data available yet for this project');
                 return;
             }
             
             const { donut_data } = result;
             
-            // Si no hay datos, mostrar mensaje
+            // Si no hay datos, simplemente retornar
             if (!donut_data.labels || donut_data.labels.length === 0) {
-                canvas.parentElement.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                        <i class="fas fa-chart-pie" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                        <p style="font-size: 1rem; font-weight: 500; margin-bottom: 0.5rem;">No distribution data available</p>
-                        <p style="font-size: 0.875rem;">Run analysis to see Share of Voice distribution</p>
-                    </div>
-                `;
+                console.warn('⚠️ No distribution data available');
                 return;
             }
             
@@ -1164,13 +1112,7 @@ class LLMMonitoring {
         });
             
         } catch (error) {
-            console.error('Error loading Share of Voice Donut:', error);
-            canvas.parentElement.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: #ef4444;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
-                    <p style="font-size: 1rem; font-weight: 500;">Error loading chart data</p>
-                </div>
-            `;
+            console.error('❌ Error loading Share of Voice Donut:', error);
         }
     }
 
