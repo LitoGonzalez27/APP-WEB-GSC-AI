@@ -1815,13 +1815,13 @@ class LLMMonitoring {
             html += `
                 <div class="prompt-item">
                     <div class="prompt-content">
-                        <div class="prompt-text">${this.escapeHtml(query.query_text)}</div>
+                        <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
                         <div class="prompt-meta">
                             <span class="badge badge-${query.query_type}">${query.query_type}</span>
                             <span class="badge badge-language">${query.language}</span>
                             <span class="prompt-date">
                                 <i class="fas fa-clock"></i>
-                                ${this.formatDate(query.added_at)}
+                                ${this.formatDate(query.created_at)}
                             </span>
                         </div>
                     </div>
