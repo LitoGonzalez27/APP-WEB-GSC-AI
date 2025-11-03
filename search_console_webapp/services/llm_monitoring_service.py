@@ -305,18 +305,9 @@ class MultiLLMMonitoringService:
                             mention_contexts.append(context)
                     mentions_found.append((start, end))
             
-            # Fallback: coincidencia parcial (substring) para no perder menciones
-            if var_lower in text_lower or var_no_accents in text_lower_no_accents:
-                if not mentions_found:
-                    # Asegurar al menos una mención si solo encontramos de forma parcial
-                    first_idx = text_lower_no_accents.find(var_no_accents) if var_no_accents in text_lower_no_accents else text_lower.find(var_lower)
-                    if first_idx != -1:
-                        context_start = max(0, first_idx - 150)
-                        context_end = min(len(response_text), first_idx + 150)
-                        context = response_text[context_start:context_end].strip()
-                        if context and context not in mention_contexts:
-                            mention_contexts.append(context)
-                        mentions_found.append((first_idx, first_idx + len(var_lower)))
+            # ✅ ELIMINADO: Fallback substring que causaba falsos positivos
+            # ("quipus", "antiquipu" detectaban incorrectamente)
+            # Word boundaries (\b regex) son suficientemente robustos
         
         brand_mentioned = len(mentions_found) > 0
         mention_count = len(mentions_found)
