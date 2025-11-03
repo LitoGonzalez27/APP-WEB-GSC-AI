@@ -11,7 +11,12 @@ import logging
 import time
 from typing import Dict
 import anthropic
-from .base_provider import BaseLLMProvider, get_model_pricing_from_db, get_current_model_for_provider
+from .base_provider import (
+    BaseLLMProvider, 
+    get_model_pricing_from_db, 
+    get_current_model_for_provider,
+    extract_urls_from_text
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +84,9 @@ class AnthropicProvider(BaseLLMProvider):
             output_tokens = response.usage.output_tokens
             total_tokens = input_tokens + output_tokens
             
+            # ✨ NUEVO: Extraer URLs del texto
+            sources = extract_urls_from_text(content)
+            
             # Calcular coste usando pricing de BD
             cost = (input_tokens * self.pricing['input'] + 
                    output_tokens * self.pricing['output'])
@@ -86,6 +94,7 @@ class AnthropicProvider(BaseLLMProvider):
             return {
                 'success': True,
                 'content': content,
+                'sources': sources,  # ✨ NUEVO
                 'tokens': total_tokens,
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,

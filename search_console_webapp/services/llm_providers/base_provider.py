@@ -8,10 +8,54 @@ IMPORTANTE:
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# FUNCIONES HELPER GLOBALES
+# ============================================
+
+def extract_urls_from_text(text: str) -> List[Dict]:
+    """
+    Extrae todas las URLs de un texto
+    
+    Args:
+        text: Texto que puede contener URLs
+        
+    Returns:
+        Lista de dicts con URLs encontradas
+        [{'url': 'https://example.com', 'provider': 'extracted'}]
+    """
+    if not text:
+        return []
+    
+    # Regex para URLs (http/https)
+    url_pattern = r'https?://[^\s\)\]\>\"\'\,\;]+'
+    urls = re.findall(url_pattern, text)
+    
+    # Limpiar URLs (remover puntuación al final)
+    cleaned_urls = []
+    for url in urls:
+        # Remover puntuación al final
+        url = re.sub(r'[.,;:!?]+$', '', url)
+        cleaned_urls.append({
+            'url': url,
+            'provider': 'extracted'
+        })
+    
+    # Eliminar duplicados manteniendo el orden
+    seen = set()
+    unique_urls = []
+    for url_dict in cleaned_urls:
+        if url_dict['url'] not in seen:
+            seen.add(url_dict['url'])
+            unique_urls.append(url_dict)
+    
+    return unique_urls
 
 
 # ============================================

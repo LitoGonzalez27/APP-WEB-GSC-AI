@@ -2694,6 +2694,31 @@ class LLMMonitoring {
                             </div>
                         </div>
                     ` : ''}
+
+                    ${response.sources && response.sources.length > 0 ? `
+                        <div class="sources-list">
+                            <h5>
+                                <i class="fas fa-link"></i>
+                                Sources & Links (${response.sources.length})
+                            </h5>
+                            <div class="sources-container">
+                                ${response.sources.map((source, idx) => {
+                                    const domain = new URL(source.url).hostname.replace('www.', '');
+                                    return `
+                                        <a href="${this.escapeHtml(source.url)}" 
+                                           target="_blank" 
+                                           rel="noopener noreferrer" 
+                                           class="source-link"
+                                           title="${this.escapeHtml(source.url)}">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            <span class="source-domain">${this.escapeHtml(domain)}</span>
+                                            <span class="source-badge">${source.provider === 'perplexity' ? 'Citation' : 'Link'}</span>
+                                        </a>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `;
         });

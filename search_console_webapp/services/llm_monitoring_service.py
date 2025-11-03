@@ -837,6 +837,7 @@ JSON:"""
                         sentiment, sentiment_score,
                         competitors_mentioned,
                         full_response, response_length,
+                        sources,
                         tokens_used, input_tokens, output_tokens, cost_usd, response_time_ms
                     ) VALUES (
                         %s, %s, %s,
@@ -847,6 +848,7 @@ JSON:"""
                         %s, %s,
                         %s,
                         %s, %s,
+                        %s,
                         %s, %s, %s, %s, %s
                     )
                     ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
@@ -854,6 +856,7 @@ JSON:"""
                         brand_mentioned = EXCLUDED.brand_mentioned,
                         mention_count = EXCLUDED.mention_count,
                         sentiment = EXCLUDED.sentiment,
+                        sources = EXCLUDED.sources,
                         cost_usd = EXCLUDED.cost_usd
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
@@ -870,6 +873,7 @@ JSON:"""
                     json.dumps(mention_analysis['competitors_mentioned']),
                     llm_result['content'],
                     len(llm_result['content']),
+                    json.dumps(llm_result.get('sources', [])),  # ✨ NUEVO
                     llm_result['tokens'],
                     llm_result['input_tokens'],
                     llm_result['output_tokens'],

@@ -2070,6 +2070,7 @@ def get_project_responses(project_id):
                 r.competitors_mentioned,
                 r.full_response,
                 r.response_length,
+                r.sources,
                 r.analysis_date,
                 r.created_at
             FROM llm_monitoring_results r
@@ -2111,6 +2112,7 @@ def get_project_responses(project_id):
                 'competitors_mentioned': r['competitors_mentioned'] or {},
                 'full_response': r['full_response'],
                 'response_length': r['response_length'],
+                'sources': r['sources'] or [],  # ✨ NUEVO
                 'analysis_date': r['analysis_date'].isoformat() if r['analysis_date'] else None,
                 'created_at': r['created_at'].isoformat() if r['created_at'] else None
             })

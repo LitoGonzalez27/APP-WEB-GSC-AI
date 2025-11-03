@@ -108,6 +108,16 @@ class PerplexityProvider(BaseLLMProvider):
             # Extraer datos (mismo formato que OpenAI)
             content = response.choices[0].message.content
             
+            # ✨ NUEVO: Capturar citations de Perplexity
+            sources = []
+            if hasattr(response, 'citations') and response.citations:
+                for citation in response.citations:
+                    sources.append({
+                        'url': citation if isinstance(citation, str) else str(citation),
+                        'provider': 'perplexity'
+                    })
+                logger.debug(f"✅ Capturadas {len(sources)} citations de Perplexity")
+            
             # Tokens usados
             input_tokens = 0
             output_tokens = 0
@@ -131,6 +141,7 @@ class PerplexityProvider(BaseLLMProvider):
             return {
                 'success': True,
                 'content': content,
+                'sources': sources,  # ✨ NUEVO
                 'tokens': total_tokens,
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
