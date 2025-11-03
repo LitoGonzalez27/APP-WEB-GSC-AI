@@ -321,11 +321,12 @@
 /* Charts - Replicate Manual AI Styles */
 .charts-grid {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 2rem;
 }
 
-/* Both charts take full width - like Manual AI */
-.charts-grid .chart-container {
+/* Single chart containers take full width */
+.charts-grid > .chart-container {
     grid-column: 1 / -1;
 }
 
@@ -346,6 +347,14 @@
 .chart-container canvas {
     width: 100% !important;
     height: 300px !important;
+}
+
+/* Chart cards inside charts-grid can be side by side */
+.charts-grid .chart-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
 }
 
 /* Buttons */
@@ -879,14 +888,17 @@
     }
     
     .charts-grid {
+        grid-template-columns: 1fr;
         gap: 1rem;
     }
     
-    .chart-container {
+    .chart-container,
+    .chart-card {
         padding: 1rem;
     }
     
-    .chart-container h3 {
+    .chart-container h3,
+    .chart-card h3 {
         font-size: 1rem;
         margin-bottom: 1rem;
     }
@@ -1217,6 +1229,12 @@
     margin-top: 12px;
     padding: 8px 0;
     border-top: 1px solid rgba(229, 231, 235, 0.6);
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
 }
 
 .chart-html-legend ul {
