@@ -617,6 +617,7 @@ JSON:"""
                     brand_domain, brand_keywords,
                     enabled_llms, competitors, 
                     competitor_domains, competitor_keywords,
+                    selected_competitors,
                     language, queries_per_llm
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
@@ -700,6 +701,34 @@ JSON:"""
             conn.close()
             raise
         
+        # ✨ Parsear selected_competitors para extraer dominios y keywords
+        selected_competitors = project.get('selected_competitors', [])
+        competitor_domains_flat = []
+        competitor_keywords_flat = []
+        
+        if selected_competitors and len(selected_competitors) > 0:
+            for comp in selected_competitors:
+                domain = comp.get('domain', '').strip()
+                keywords = comp.get('keywords', [])
+                
+                if domain:
+                    competitor_domains_flat.append(domain)
+                if keywords:
+                    competitor_keywords_flat.extend(keywords)
+            
+            logger.info(f"   🏢 {len(selected_competitors)} competidores configurados:")
+            for comp in selected_competitors:
+                comp_name = comp.get('name', 'Unknown')
+                comp_domain = comp.get('domain', 'N/A')
+                comp_keywords = comp.get('keywords', [])
+                logger.info(f"      • {comp_name}: {comp_domain} → {comp_keywords}")
+        else:
+            # Fallback a campos legacy si no hay selected_competitors
+            competitor_domains_flat = project.get('competitor_domains', [])
+            competitor_keywords_flat = project.get('competitor_keywords', [])
+            if competitor_domains_flat or competitor_keywords_flat:
+                logger.info(f"   ⚠️  Usando competitor fields legacy (migrar a selected_competitors)")
+        
         # Crear todas las tareas (combinaciones de LLM + query)
         tasks = []
         for llm_name, provider in active_providers.items():
@@ -714,8 +743,8 @@ JSON:"""
                     'brand_domain': project.get('brand_domain'),
                     'brand_keywords': project.get('brand_keywords', []),
                     'competitors': project.get('competitors') or [],  # Legacy
-                    'competitor_domains': project.get('competitor_domains', []),
-                    'competitor_keywords': project.get('competitor_keywords', []),
+                    'competitor_domains': competitor_domains_flat,  # ✨ NUEVO: Array plano
+                    'competitor_keywords': competitor_keywords_flat,  # ✨ NUEVO: Array plano
                     'analysis_date': analysis_date
                 })
         
@@ -773,6 +802,17 @@ JSON:"""
         conn = get_db_connection()
         cur = conn.cursor()
         
+        # ✨ NUEVO: Crear lista unificada de todos los competidores para el snapshot
+        all_competitors = []
+        if competitor_domains_flat:
+            all_competitors.extend(competitor_domains_flat)
+        if competitor_keywords_flat:
+            all_competitors.extend(competitor_keywords_flat)
+        
+        # Eliminar duplicados manteniendo orden
+        seen = set()
+        all_competitors = [x for x in all_competitors if not (x in seen or seen.add(x))]
+        
         try:
             for llm_name, llm_results in results_by_llm.items():
                 if len(llm_results) > 0:
@@ -782,7 +822,7 @@ JSON:"""
                         date=analysis_date,
                         llm_provider=llm_name,
                         llm_results=llm_results,
-                        competitors=project['competitors'] or []
+                        competitors=all_competitors  # ✨ NUEVO: Usar lista unificada
                     )
             
             # Actualizar fecha de último análisis

@@ -349,9 +349,14 @@ def get_project(project_id):
                 p.user_id,
                 p.name,
                 p.brand_name,
+                p.brand_domain,
+                p.brand_keywords,
                 p.industry,
                 p.enabled_llms,
                 p.competitors,
+                p.competitor_domains,
+                p.competitor_keywords,
+                p.selected_competitors,
                 p.language,
                 p.queries_per_llm,
                 p.is_active,
@@ -365,8 +370,9 @@ def get_project(project_id):
             LEFT JOIN llm_monitoring_queries q ON p.id = q.project_id
             LEFT JOIN llm_monitoring_snapshots s ON p.id = s.project_id
             WHERE p.id = %s
-            GROUP BY p.id, p.user_id, p.name, p.brand_name, p.industry, 
-                     p.enabled_llms, p.competitors, p.language, p.queries_per_llm,
+            GROUP BY p.id, p.user_id, p.name, p.brand_name, p.brand_domain, p.brand_keywords,
+                     p.industry, p.enabled_llms, p.competitors, p.competitor_domains, 
+                     p.competitor_keywords, p.selected_competitors, p.language, p.queries_per_llm,
                      p.is_active, p.last_analysis_date, p.created_at, p.updated_at
         """, (project_id,))
         
@@ -427,15 +433,6 @@ def get_project(project_id):
                 'date': metric['snapshot_date'].isoformat() if metric['snapshot_date'] else None
             }
         
-        # Obtener los nuevos campos (brand_domain, brand_keywords, etc.)
-        cur.execute("""
-            SELECT brand_domain, brand_keywords, competitor_domains, competitor_keywords, country_code
-            FROM llm_monitoring_projects
-            WHERE id = %s
-        """, (project_id,))
-        
-        new_fields = cur.fetchone()
-        
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
             'success': True,
@@ -443,15 +440,15 @@ def get_project(project_id):
                 'id': project['id'],
                 'name': project['name'],
                 'brand_name': project['brand_name'],
-                'brand_domain': new_fields['brand_domain'] if new_fields else None,
-                'brand_keywords': new_fields['brand_keywords'] if new_fields else [],
+                'brand_domain': project.get('brand_domain'),
+                'brand_keywords': project.get('brand_keywords', []),
                 'industry': project['industry'],
                 'enabled_llms': project['enabled_llms'],
-                'competitors': project['competitors'],
-                'competitor_domains': new_fields['competitor_domains'] if new_fields else [],
-                'competitor_keywords': new_fields['competitor_keywords'] if new_fields else [],
+                'competitors': project['competitors'],  # Legacy
+                'competitor_domains': project.get('competitor_domains', []),  # Legacy
+                'competitor_keywords': project.get('competitor_keywords', []),  # Legacy
+                'selected_competitors': project.get('selected_competitors', []),  # ✨ NUEVO
                 'language': project['language'],
-                'country_code': new_fields['country_code'] if new_fields else 'ES',
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'last_analysis_date': project['last_analysis_date'].isoformat() if project['last_analysis_date'] else None,
