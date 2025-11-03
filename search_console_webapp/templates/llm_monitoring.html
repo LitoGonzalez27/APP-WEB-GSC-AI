@@ -411,6 +411,39 @@
                     </div>
                     <div id="queriesTable"></div>
                 </div>
+
+                <!-- ✨ LLM Responses Inspector -->
+                <div class="chart-card" id="responsesInspectorCard">
+                    <div class="chart-header">
+                        <h3>
+                            <i class="fas fa-search"></i>
+                            LLM Responses Inspector
+                        </h3>
+                        <div class="chart-actions">
+                            <select id="responsesQueryFilter" class="form-control" style="width: auto; display: inline-block; margin-right: 0.5rem;">
+                                <option value="">All Prompts</option>
+                            </select>
+                            <select id="responsesLLMFilter" class="form-control" style="width: auto; display: inline-block; margin-right: 0.5rem;">
+                                <option value="">All LLMs</option>
+                                <option value="openai">ChatGPT</option>
+                                <option value="anthropic">Claude</option>
+                                <option value="google">Gemini</option>
+                                <option value="perplexity">Perplexity</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" id="btnLoadResponses" onclick="window.llmMonitoring.loadResponses()">
+                                <i class="fas fa-sync-alt"></i>
+                                Load Responses
+                            </button>
+                        </div>
+                    </div>
+                    <div id="responsesContainer" class="responses-container">
+                        <div class="empty-state">
+                            <i class="fas fa-robot"></i>
+                            <h4>LLM Responses Inspector</h4>
+                            <p>Click "Load Responses" to view detailed LLM responses for manual inspection</p>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>

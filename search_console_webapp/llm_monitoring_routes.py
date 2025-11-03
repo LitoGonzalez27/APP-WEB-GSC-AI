@@ -2025,5 +2025,114 @@ def health_check():
         }), 500
 
 
+@llm_monitoring_bp.route('/projects/<int:project_id>/responses', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_project_responses(project_id):
+    """
+    Obtener respuestas detalladas de LLMs para inspección manual
+    
+    Query params:
+        query_id: ID de query específica (opcional)
+        llm_provider: Filtrar por proveedor (opcional)
+        days: Días hacia atrás (default: 7)
+    
+    Returns:
+        JSON con respuestas completas de cada LLM
+    """
+    query_id = request.args.get('query_id', type=int)
+    llm_provider = request.args.get('llm_provider')
+    days = int(request.args.get('days', 7))
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Calcular rango de fechas
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        # Query base
+        query = """
+            SELECT 
+                r.id,
+                r.query_id,
+                q.query_text,
+                r.llm_provider,
+                r.model_used,
+                r.brand_mentioned,
+                r.position_in_list,
+                r.sentiment,
+                r.mention_contexts,
+                r.competitors_mentioned,
+                r.full_response,
+                r.response_length,
+                r.analysis_date,
+                r.created_at
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON r.query_id = q.id
+            WHERE r.project_id = %s
+                AND r.analysis_date >= %s
+                AND r.analysis_date <= %s
+        """
+        
+        params = [project_id, start_date, end_date]
+        
+        # Filtros opcionales
+        if query_id:
+            query += " AND r.query_id = %s"
+            params.append(query_id)
+        
+        if llm_provider:
+            query += " AND r.llm_provider = %s"
+            params.append(llm_provider)
+        
+        query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
+        
+        cur.execute(query, params)
+        results = cur.fetchall()
+        
+        # Formatear resultados
+        responses = []
+        for r in results:
+            responses.append({
+                'id': r['id'],
+                'query_id': r['query_id'],
+                'query_text': r['query_text'],
+                'llm_provider': r['llm_provider'],
+                'model_used': r['model_used'],
+                'brand_mentioned': r['brand_mentioned'],
+                'position_in_list': r['position_in_list'],
+                'sentiment': r['sentiment'],
+                'mention_contexts': r['mention_contexts'] or [],
+                'competitors_mentioned': r['competitors_mentioned'] or {},
+                'full_response': r['full_response'],
+                'response_length': r['response_length'],
+                'analysis_date': r['analysis_date'].isoformat() if r['analysis_date'] else None,
+                'created_at': r['created_at'].isoformat() if r['created_at'] else None
+            })
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'responses': responses,
+            'total': len(responses),
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days': days
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo respuestas: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo respuestas: {str(e)}'}), 500
+
+
 logger.info("✅ LLM Monitoring Blueprint loaded successfully")
 

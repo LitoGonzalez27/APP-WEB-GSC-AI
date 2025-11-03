@@ -35,3 +35,4 @@ echo "   2. Hacer push: git push"
 echo ""
 echo "⚠️  El archivo RAILWAY_STAGING_VARIABLES.txt ahora está en .gitignore y no se subirá"
 
+

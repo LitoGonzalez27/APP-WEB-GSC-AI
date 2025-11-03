@@ -2428,6 +2428,210 @@ class LLMMonitoring {
     showInfo(message) {
         alert(message);
     }
+
+    /**
+     * Load and display LLM responses for manual inspection
+     */
+    async loadResponses() {
+        const projectId = this.currentProject?.id;
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+
+        const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
+        const llmFilter = document.getElementById('responsesLLMFilter')?.value || '';
+        const container = document.getElementById('responsesContainer');
+
+        if (!container) return;
+
+        // Show loading
+        container.innerHTML = `
+            <div class="loading-state" style="padding: 40px; text-align: center;">
+                <div class="spinner"></div>
+                <p>Loading LLM responses...</p>
+            </div>
+        `;
+
+        try {
+            let url = `${this.baseUrl}/projects/${projectId}/responses?days=7`;
+            if (queryFilter) url += `&query_id=${queryFilter}`;
+            if (llmFilter) url += `&llm_provider=${llmFilter}`;
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`✅ Loaded ${data.responses.length} responses`);
+
+            if (data.responses.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h4>No responses found</h4>
+                        <p>Try changing the filters or run an analysis first</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Populate query filter dropdown if empty
+            this.populateQueryFilter(data.responses);
+
+            // Render responses
+            this.renderResponses(data.responses, container);
+
+        } catch (error) {
+            console.error('❌ Error loading responses:', error);
+            container.innerHTML = `
+                <div class="empty-state" style="color: #ef4444;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h4>Error loading responses</h4>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Populate query filter dropdown with unique queries
+     */
+    populateQueryFilter(responses) {
+        const select = document.getElementById('responsesQueryFilter');
+        if (!select || select.options.length > 1) return;
+
+        const uniqueQueries = new Map();
+        responses.forEach(r => {
+            if (!uniqueQueries.has(r.query_id)) {
+                uniqueQueries.set(r.query_id, r.query_text);
+            }
+        });
+
+        uniqueQueries.forEach((text, id) => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = text.length > 60 ? text.substring(0, 60) + '...' : text;
+            select.appendChild(option);
+        });
+    }
+
+    /**
+     * Render responses in the container
+     */
+    renderResponses(responses, container) {
+        let html = '';
+
+        responses.forEach((response, index) => {
+            const llmName = this.getLLMDisplayName(response.llm_provider);
+            const isCollapsed = response.full_response && response.full_response.length > 500;
+            
+            html += `
+                <div class="response-item">
+                    <div class="response-header">
+                        <div class="response-header-left">
+                            <h4>
+                                <span class="response-llm-badge ${response.llm_provider}">${llmName}</span>
+                                ${this.escapeHtml(response.query_text)}
+                            </h4>
+                            <div class="response-meta">
+                                <span class="response-meta-item">
+                                    <i class="fas fa-calendar"></i>
+                                    ${this.formatDate(response.analysis_date)}
+                                </span>
+                                <span class="response-meta-item">
+                                    <i class="fas fa-robot"></i>
+                                    ${this.escapeHtml(response.model_used || 'N/A')}
+                                </span>
+                                <span class="response-meta-item">
+                                    <i class="fas fa-align-left"></i>
+                                    ${response.response_length || 0} chars
+                                </span>
+                            </div>
+                        </div>
+                        <div class="response-status">
+                            <span class="status-badge ${response.brand_mentioned ? 'mentioned' : 'not-mentioned'}">
+                                ${response.brand_mentioned ? '✓ Mentioned' : '✗ Not Mentioned'}
+                            </span>
+                            ${response.sentiment ? `
+                                <span class="status-badge ${response.sentiment}">
+                                    ${response.sentiment.charAt(0).toUpperCase() + response.sentiment.slice(1)}
+                                </span>
+                            ` : ''}
+                            ${response.position_in_list ? `
+                                <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
+                                    Position #${response.position_in_list}
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <div class="response-body">
+                        <div class="response-text ${isCollapsed ? 'collapsed' : ''}" id="responseText${index}">
+                            ${this.escapeHtml(response.full_response || 'No response text available')}
+                        </div>
+                        ${isCollapsed ? `
+                            <button class="response-expand-btn" onclick="window.llmMonitoring.toggleResponseText(${index})">
+                                <i class="fas fa-chevron-down"></i>
+                                Show Full Response
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    ${response.mention_contexts && response.mention_contexts.length > 0 ? `
+                        <div class="mention-contexts">
+                            <h5>
+                                <i class="fas fa-quote-left"></i>
+                                Mention Contexts (${response.mention_contexts.length})
+                            </h5>
+                            ${response.mention_contexts.map(context => `
+                                <div class="context-item">
+                                    ${this.escapeHtml(context)}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${response.competitors_mentioned && Object.keys(response.competitors_mentioned).length > 0 ? `
+                        <div class="competitors-list">
+                            <h5>
+                                <i class="fas fa-users"></i>
+                                Competitors Mentioned (${Object.keys(response.competitors_mentioned).length})
+                            </h5>
+                            <div class="competitor-chips">
+                                ${Object.entries(response.competitors_mentioned).map(([comp, count]) => `
+                                    <span class="competitor-chip">
+                                        ${this.escapeHtml(comp)} (${count})
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Toggle expand/collapse response text
+     */
+    toggleResponseText(index) {
+        const textEl = document.getElementById(`responseText${index}`);
+        const btn = event.target.closest('.response-expand-btn');
+        
+        if (!textEl || !btn) return;
+
+        if (textEl.classList.contains('collapsed')) {
+            textEl.classList.remove('collapsed');
+            btn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
+        } else {
+            textEl.classList.add('collapsed');
+            btn.innerHTML = '<i class="fas fa-chevron-down"></i> Show Full Response';
+        }
+    }
 }
 
 // Initialize when DOM is ready
