@@ -2430,6 +2430,92 @@ class LLMMonitoring {
     }
 
     /**
+     * Parse Markdown text to HTML
+     */
+    parseMarkdown(text) {
+        if (!text) return '';
+        
+        let html = text;
+        
+        // Headers (### Header -> <h3>)
+        html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>');
+        
+        // Bold (**text** or __text__)
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        
+        // Italic (*text* or _text_)
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+        
+        // Inline code (`code`)
+        html = html.replace(/`(.+?)`/g, '<code class="md-code">$1</code>');
+        
+        // Links [text](url)
+        html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
+        
+        // Unordered lists (- item or * item)
+        html = html.replace(/^\s*[-*]\s+(.+)$/gm, '<li class="md-li">$1</li>');
+        html = html.replace(/(<li class="md-li">.+<\/li>\n?)+/g, '<ul class="md-ul">$&</ul>');
+        
+        // Ordered lists (1. item)
+        html = html.replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="md-li">$1</li>');
+        // Wrap consecutive <li> in <ol> if not already in <ul>
+        const lines = html.split('\n');
+        let inList = false;
+        let listType = null;
+        let result = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            if (line.includes('<li class="md-li">') && !line.includes('<ul') && !line.includes('<ol')) {
+                if (!inList) {
+                    // Start new list - determine type by checking previous lines
+                    const prevLines = html.substring(0, html.indexOf(line));
+                    if (prevLines.match(/^\s*\d+\.\s+/m)) {
+                        result.push('<ol class="md-ol">');
+                        listType = 'ol';
+                    } else {
+                        result.push('<ul class="md-ul">');
+                        listType = 'ul';
+                    }
+                    inList = true;
+                }
+                result.push(line);
+            } else {
+                if (inList && !line.includes('<li')) {
+                    result.push(`</${listType}>`);
+                    inList = false;
+                    listType = null;
+                }
+                result.push(line);
+            }
+        }
+        
+        if (inList) {
+            result.push(`</${listType}>`);
+        }
+        
+        html = result.join('\n');
+        
+        // Paragraphs (double line breaks)
+        html = html.replace(/\n\n/g, '</p><p class="md-p">');
+        html = '<p class="md-p">' + html + '</p>';
+        
+        // Clean up empty paragraphs and fix nested tags
+        html = html.replace(/<p class="md-p"><\/p>/g, '');
+        html = html.replace(/<p class="md-p">(<[uo]l class="md-[uo]l">)/g, '$1');
+        html = html.replace(/(<\/[uo]l>)<\/p>/g, '$1');
+        html = html.replace(/<p class="md-p">(<h[1-3] class="md-h[1-3]">)/g, '$1');
+        html = html.replace(/(<\/h[1-3]>)<\/p>/g, '$1');
+        
+        return html;
+    }
+
+    /**
      * Load and display LLM responses for manual inspection
      */
     async loadResponses() {
@@ -2569,7 +2655,7 @@ class LLMMonitoring {
 
                     <div class="response-body">
                         <div class="response-text ${isCollapsed ? 'collapsed' : ''}" id="responseText${index}">
-                            ${this.escapeHtml(response.full_response || 'No response text available')}
+                            ${response.full_response ? this.parseMarkdown(response.full_response) : '<em style="color: #9ca3af;">No response text available</em>'}
                         </div>
                         ${isCollapsed ? `
                             <button class="response-expand-btn" onclick="window.llmMonitoring.toggleResponseText(${index})">
