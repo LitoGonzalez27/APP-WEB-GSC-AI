@@ -868,6 +868,57 @@
  * LLM RESPONSES INSPECTOR
  * ============================================================================ */
 
+/* ✨ NEW: Responses count and load more */
+.responses-count {
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, rgba(216, 249, 184, 0.05) 0%, rgba(216, 249, 184, 0) 100%);
+    border-bottom: 1px solid rgba(216, 249, 184, 0.3);
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.responses-count small {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.responses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.load-more-section {
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+    margin-top: 1rem;
+}
+
+.load-more-section button {
+    padding: 0.875rem 2rem;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.load-more-section button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.load-more-section button i {
+    transition: transform 0.2s ease;
+}
+
+.load-more-section button:hover i {
+    transform: translateY(2px);
+}
+
 .responses-container {
     min-height: 300px;
 }

@@ -18,6 +18,11 @@ class LLMMonitoring {
         this.allPrompts = [];
         this.promptsSectionCollapsed = false;
         
+        // ✨ NEW: Responses pagination
+        this.allResponses = [];
+        this.responsesPerPage = 5;
+        this.currentResponsesShown = 5;
+        
         // Chips state
         this.brandKeywordsChips = [];
         
@@ -2605,11 +2610,15 @@ class LLMMonitoring {
                 return;
             }
 
+            // ✨ NEW: Store all responses and reset pagination
+            this.allResponses = data.responses;
+            this.currentResponsesShown = this.responsesPerPage;
+
             // Populate query filter dropdown if empty
             this.populateQueryFilter(data.responses);
 
-            // Render responses
-            this.renderResponses(data.responses, container);
+            // Render responses with pagination
+            this.renderResponsesPaginated(container);
 
         } catch (error) {
             console.error('❌ Error loading responses:', error);
@@ -2643,6 +2652,63 @@ class LLMMonitoring {
             option.textContent = text.length > 60 ? text.substring(0, 60) + '...' : text;
             select.appendChild(option);
         });
+    }
+
+    /**
+     * ✨ NEW: Render responses with pagination
+     */
+    renderResponsesPaginated(container) {
+        if (!container) return;
+
+        // Get subset of responses to show
+        const responsesToShow = this.allResponses.slice(0, this.currentResponsesShown);
+        const hasMore = this.currentResponsesShown < this.allResponses.length;
+        const remaining = this.allResponses.length - this.currentResponsesShown;
+
+        // Clear container
+        container.innerHTML = '';
+
+        // Create responses wrapper
+        const responsesWrapper = document.createElement('div');
+        responsesWrapper.className = 'responses-list';
+        this.renderResponses(responsesToShow, responsesWrapper);
+        container.appendChild(responsesWrapper);
+
+        // Add "Load More" button if there are more responses
+        if (hasMore) {
+            const loadMoreSection = document.createElement('div');
+            loadMoreSection.className = 'load-more-section';
+            loadMoreSection.innerHTML = `
+                <button class="btn btn-ghost" onclick="window.llmMonitoring.loadMoreResponses()">
+                    <i class="fas fa-chevron-down"></i>
+                    Load ${Math.min(this.responsesPerPage, remaining)} More
+                    <span style="color: #6b7280;">(${remaining} remaining)</span>
+                </button>
+            `;
+            container.appendChild(loadMoreSection);
+        }
+
+        // Show total count
+        const countSection = document.createElement('div');
+        countSection.className = 'responses-count';
+        countSection.innerHTML = `
+            <small style="color: #6b7280;">
+                <i class="fas fa-info-circle"></i>
+                Showing ${responsesToShow.length} of ${this.allResponses.length} responses
+            </small>
+        `;
+        container.insertBefore(countSection, container.firstChild);
+    }
+
+    /**
+     * ✨ NEW: Load more responses
+     */
+    loadMoreResponses() {
+        this.currentResponsesShown += this.responsesPerPage;
+        const container = document.getElementById('responsesContainer');
+        if (container) {
+            this.renderResponsesPaginated(container);
+        }
     }
 
     /**
