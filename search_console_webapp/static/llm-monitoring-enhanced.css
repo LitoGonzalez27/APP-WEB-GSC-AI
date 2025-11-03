@@ -566,4 +566,37 @@
     animation: spin 0.8s linear infinite;
 }
 
+/* ============================================================================
+ * COMPETITOR SECTIONS
+ * ============================================================================ */
+
+.competitor-section {
+    background: linear-gradient(135deg, rgba(216, 249, 184, 0.05) 0%, rgba(216, 249, 184, 0) 100%);
+    border: 1px solid rgba(216, 249, 184, 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+.competitor-section:hover {
+    border-color: rgba(216, 249, 184, 0.5);
+    box-shadow: 0 2px 8px rgba(216, 249, 184, 0.15);
+}
+
+.competitor-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--llm-gray-800);
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.competitor-title i {
+    color: var(--llm-accent-green-dark);
+    font-size: 1rem;
+}
+
 

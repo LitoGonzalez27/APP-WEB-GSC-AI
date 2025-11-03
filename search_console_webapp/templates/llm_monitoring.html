@@ -525,25 +525,109 @@
                             <i class="fas fa-users"></i>
                             Competitors Configuration
                         </h4>
-                        <p class="form-section-desc">Optional: Track competitors for Share of Voice analysis</p>
+                        <p class="form-section-desc">Optional: Track up to 4 competitors for Share of Voice analysis. Each competitor can have its own domain and associated keywords.</p>
                         
-                        <div class="form-row form-row-split">
-                            <div class="form-group">
-                                <label for="competitorDomains" class="enhanced-label">
-                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitor Domains</span>
-                                </label>
-                                <input type="text" id="competitorDomains" class="enhanced-input chip-input" placeholder="e.g., competitor1.com, competitor2.com">
-                                <small class="form-help">Competitor domains (comma-separated)</small>
-                                <div class="chips-container" id="competitorDomainsChips"></div>
+                        <!-- Competitor 1 -->
+                        <div class="competitor-section">
+                            <h5 class="competitor-title">
+                                <i class="fas fa-user-circle"></i>
+                                Competitor 1
+                            </h5>
+                            <div class="form-row form-row-split">
+                                <div class="form-group">
+                                    <label for="competitor1Domain" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                    </label>
+                                    <input type="text" id="competitor1Domain" class="enhanced-input" placeholder="e.g., holded.com">
+                                    <small class="form-help">Your website domain (we'll detect it automatically)</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="competitor1Keywords" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                    </label>
+                                    <input type="text" id="competitor1Keywords" class="enhanced-input chip-input" placeholder="e.g., holded, holded software">
+                                    <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
+                                    <div class="chips-container" id="competitor1KeywordsChips"></div>
+                                </div>
                             </div>
-                            
-                            <div class="form-group">
-                                <label for="competitorKeywords" class="enhanced-label">
-                                    <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Competitor Keywords</span>
-                                </label>
-                                <input type="text" id="competitorKeywords" class="enhanced-input chip-input" placeholder="e.g., semrush, ahrefs, moz">
-                                <small class="form-help">Competitor keywords (comma-separated)</small>
-                                <div class="chips-container" id="competitorKeywordsChips"></div>
+                        </div>
+
+                        <!-- Competitor 2 -->
+                        <div class="competitor-section">
+                            <h5 class="competitor-title">
+                                <i class="fas fa-user-circle"></i>
+                                Competitor 2
+                            </h5>
+                            <div class="form-row form-row-split">
+                                <div class="form-group">
+                                    <label for="competitor2Domain" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                    </label>
+                                    <input type="text" id="competitor2Domain" class="enhanced-input" placeholder="e.g., declarando.es">
+                                    <small class="form-help">Competitor domain</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="competitor2Keywords" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                    </label>
+                                    <input type="text" id="competitor2Keywords" class="enhanced-input chip-input" placeholder="e.g., declarando">
+                                    <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
+                                    <div class="chips-container" id="competitor2KeywordsChips"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Competitor 3 -->
+                        <div class="competitor-section">
+                            <h5 class="competitor-title">
+                                <i class="fas fa-user-circle"></i>
+                                Competitor 3
+                            </h5>
+                            <div class="form-row form-row-split">
+                                <div class="form-group">
+                                    <label for="competitor3Domain" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                    </label>
+                                    <input type="text" id="competitor3Domain" class="enhanced-input" placeholder="e.g., competitor3.com">
+                                    <small class="form-help">Competitor domain</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="competitor3Keywords" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                    </label>
+                                    <input type="text" id="competitor3Keywords" class="enhanced-input chip-input" placeholder="e.g., competitor keyword">
+                                    <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
+                                    <div class="chips-container" id="competitor3KeywordsChips"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Competitor 4 -->
+                        <div class="competitor-section">
+                            <h5 class="competitor-title">
+                                <i class="fas fa-user-circle"></i>
+                                Competitor 4
+                            </h5>
+                            <div class="form-row form-row-split">
+                                <div class="form-group">
+                                    <label for="competitor4Domain" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Domain</span>
+                                    </label>
+                                    <input type="text" id="competitor4Domain" class="enhanced-input" placeholder="e.g., competitor4.com">
+                                    <small class="form-help">Competitor domain</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="competitor4Keywords" class="enhanced-label">
+                                        <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Brand Keywords</span>
+                                    </label>
+                                    <input type="text" id="competitor4Keywords" class="enhanced-input chip-input" placeholder="e.g., competitor keyword">
+                                    <small class="form-help">Brand keywords (comma-separated). Press Enter or type comma to add</small>
+                                    <div class="chips-container" id="competitor4KeywordsChips"></div>
+                                </div>
                             </div>
                         </div>
                     </div>

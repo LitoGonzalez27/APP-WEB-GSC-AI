@@ -211,8 +211,7 @@ def create_project():
     # Valores por defecto y extracción de datos
     brand_domain = data.get('brand_domain')
     brand_keywords = data.get('brand_keywords', [])
-    competitor_domains = data.get('competitor_domains', [])
-    competitor_keywords = data.get('competitor_keywords', [])
+    selected_competitors = data.get('selected_competitors', [])  # ✨ NEW
     language = data.get('language', 'es')
     country_code = data.get('country_code', 'ES')
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
@@ -248,11 +247,22 @@ def create_project():
         if cur.fetchone():
             return jsonify({'error': 'Ya tienes un proyecto con ese nombre'}), 409
         
+        # ✨ NEW: Extract legacy fields from selected_competitors for backward compatibility
+        competitor_domains = []
+        competitor_keywords = []
+        if selected_competitors:
+            for comp in selected_competitors:
+                if comp.get('domain'):
+                    competitor_domains.append(comp['domain'])
+                if comp.get('keywords'):
+                    competitor_keywords.extend(comp['keywords'])
+        
         # Insertar proyecto con nuevos campos
         cur.execute("""
             INSERT INTO llm_monitoring_projects (
                 user_id, name, industry,
                 brand_domain, brand_keywords,
+                selected_competitors,
                 competitor_domains, competitor_keywords,
                 enabled_llms, language, country_code, queries_per_llm,
                 is_active, created_at, updated_at,
@@ -260,6 +270,7 @@ def create_project():
             ) VALUES (
                 %s, %s, %s,
                 %s, %s::jsonb,
+                %s::jsonb,
                 %s::jsonb, %s::jsonb,
                 %s, %s, %s, %s,
                 TRUE, NOW(), NOW(),
@@ -272,8 +283,9 @@ def create_project():
             data['industry'],
             brand_domain,
             json.dumps(brand_keywords),
-            json.dumps(competitor_domains),
-            json.dumps(competitor_keywords),
+            json.dumps(selected_competitors),  # ✨ NEW
+            json.dumps(competitor_domains),  # Legacy
+            json.dumps(competitor_keywords),  # Legacy
             enabled_llms,
             language,
             country_code,
@@ -529,16 +541,29 @@ def update_project(project_id):
             updates.append("brand_name = %s")
             params.append(data['brand_keywords'][0])
         
-        if 'competitor_domains' in data:
+        # ✨ NEW: Handle selected_competitors (and extract legacy fields)
+        if 'selected_competitors' in data:
+            selected_competitors = data['selected_competitors']
+            updates.append("selected_competitors = %s::jsonb")
+            params.append(json.dumps(selected_competitors))
+            
+            # Extract legacy fields for backward compatibility
+            competitor_domains = []
+            competitor_keywords = []
+            if selected_competitors:
+                for comp in selected_competitors:
+                    if comp.get('domain'):
+                        competitor_domains.append(comp['domain'])
+                    if comp.get('keywords'):
+                        competitor_keywords.extend(comp['keywords'])
+            
+            # Update legacy fields
             updates.append("competitor_domains = %s::jsonb")
-            params.append(json.dumps(data['competitor_domains']))
-        
-        if 'competitor_keywords' in data:
+            params.append(json.dumps(competitor_domains))
             updates.append("competitor_keywords = %s::jsonb")
-            params.append(json.dumps(data['competitor_keywords']))
-            # Actualizar también competitors legacy
+            params.append(json.dumps(competitor_keywords))
             updates.append("competitors = %s::jsonb")
-            params.append(json.dumps(data['competitor_keywords']))
+            params.append(json.dumps(competitor_keywords))
         
         if 'is_active' in data:
             updates.append("is_active = %s")

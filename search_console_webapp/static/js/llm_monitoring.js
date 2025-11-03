@@ -20,8 +20,12 @@ class LLMMonitoring {
         
         // Chips state
         this.brandKeywordsChips = [];
-        this.competitorDomainsChips = [];
-        this.competitorKeywordsChips = [];
+        
+        // ✨ NEW: Individual competitor chips (4 competitors max)
+        this.competitor1KeywordsChips = [];
+        this.competitor2KeywordsChips = [];
+        this.competitor3KeywordsChips = [];
+        this.competitor4KeywordsChips = [];
     }
 
     /**
@@ -78,19 +82,21 @@ class LLMMonitoring {
             });
         }
         
-        // Competitor Keywords
-        const competitorKeywordsInput = document.getElementById('competitorKeywords');
-        if (competitorKeywordsInput) {
-            competitorKeywordsInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    this.addChipFromInput('competitorKeywords', 'competitor');
-                }
-            });
-            
-            competitorKeywordsInput.addEventListener('blur', () => {
-                this.addChipFromInput('competitorKeywords', 'competitor');
-            });
+        // ✨ NEW: Competitor 1-4 Keywords
+        for (let i = 1; i <= 4; i++) {
+            const competitorKeywordsInput = document.getElementById(`competitor${i}Keywords`);
+            if (competitorKeywordsInput) {
+                competitorKeywordsInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        this.addChipFromInput(`competitor${i}Keywords`, 'competitor');
+                    }
+                });
+                
+                competitorKeywordsInput.addEventListener('blur', () => {
+                    this.addChipFromInput(`competitor${i}Keywords`, 'competitor');
+                });
+            }
         }
     }
     
@@ -109,10 +115,14 @@ class LLMMonitoring {
         let chipsArray;
         if (inputId === 'brandKeywords') {
             chipsArray = this.brandKeywordsChips;
-        } else if (inputId === 'competitorDomains') {
-            chipsArray = this.competitorDomainsChips;
-        } else if (inputId === 'competitorKeywords') {
-            chipsArray = this.competitorKeywordsChips;
+        } else if (inputId === 'competitor1Keywords') {
+            chipsArray = this.competitor1KeywordsChips;
+        } else if (inputId === 'competitor2Keywords') {
+            chipsArray = this.competitor2KeywordsChips;
+        } else if (inputId === 'competitor3Keywords') {
+            chipsArray = this.competitor3KeywordsChips;
+        } else if (inputId === 'competitor4Keywords') {
+            chipsArray = this.competitor4KeywordsChips;
         }
         
         // Check for duplicates
@@ -144,10 +154,14 @@ class LLMMonitoring {
         let chipsArray;
         if (inputId === 'brandKeywords') {
             chipsArray = this.brandKeywordsChips;
-        } else if (inputId === 'competitorDomains') {
-            chipsArray = this.competitorDomainsChips;
-        } else if (inputId === 'competitorKeywords') {
-            chipsArray = this.competitorKeywordsChips;
+        } else if (inputId === 'competitor1Keywords') {
+            chipsArray = this.competitor1KeywordsChips;
+        } else if (inputId === 'competitor2Keywords') {
+            chipsArray = this.competitor2KeywordsChips;
+        } else if (inputId === 'competitor3Keywords') {
+            chipsArray = this.competitor3KeywordsChips;
+        } else if (inputId === 'competitor4Keywords') {
+            chipsArray = this.competitor4KeywordsChips;
         }
         
         // Clear container
@@ -184,10 +198,14 @@ class LLMMonitoring {
         let chipsArray;
         if (inputId === 'brandKeywords') {
             chipsArray = this.brandKeywordsChips;
-        } else if (inputId === 'competitorDomains') {
-            chipsArray = this.competitorDomainsChips;
-        } else if (inputId === 'competitorKeywords') {
-            chipsArray = this.competitorKeywordsChips;
+        } else if (inputId === 'competitor1Keywords') {
+            chipsArray = this.competitor1KeywordsChips;
+        } else if (inputId === 'competitor2Keywords') {
+            chipsArray = this.competitor2KeywordsChips;
+        } else if (inputId === 'competitor3Keywords') {
+            chipsArray = this.competitor3KeywordsChips;
+        } else if (inputId === 'competitor4Keywords') {
+            chipsArray = this.competitor4KeywordsChips;
         }
         
         // Remove from array
@@ -202,23 +220,25 @@ class LLMMonitoring {
      */
     clearAllChips() {
         this.brandKeywordsChips = [];
-        this.competitorDomainsChips = [];
-        this.competitorKeywordsChips = [];
+        this.competitor1KeywordsChips = [];
+        this.competitor2KeywordsChips = [];
+        this.competitor3KeywordsChips = [];
+        this.competitor4KeywordsChips = [];
         
         // Clear containers
         const brandContainer = document.getElementById('brandKeywordsChips');
-        const compDomainsContainer = document.getElementById('competitorDomainsChips');
-        const compKeywordsContainer = document.getElementById('competitorKeywordsChips');
-        
         if (brandContainer) brandContainer.innerHTML = '';
-        if (compDomainsContainer) compDomainsContainer.innerHTML = '';
-        if (compKeywordsContainer) compKeywordsContainer.innerHTML = '';
+        
+        for (let i = 1; i <= 4; i++) {
+            const container = document.getElementById(`competitor${i}KeywordsChips`);
+            if (container) container.innerHTML = '';
+        }
     }
     
     /**
      * Load chips from data
      */
-    loadChipsFromData(brandKeywords, competitorDomains, competitorKeywords) {
+    loadChipsFromData(brandKeywords, selectedCompetitors) {
         // Clear existing chips
         this.clearAllChips();
         
@@ -228,16 +248,24 @@ class LLMMonitoring {
             this.renderChips('brandKeywords', 'brand');
         }
         
-        // Load competitor domains
-        if (Array.isArray(competitorDomains) && competitorDomains.length > 0) {
-            this.competitorDomainsChips = [...competitorDomains];
-            this.renderChips('competitorDomains', 'competitor-domain');
-        }
-        
-        // Load competitor keywords
-        if (Array.isArray(competitorKeywords) && competitorKeywords.length > 0) {
-            this.competitorKeywordsChips = [...competitorKeywords];
-            this.renderChips('competitorKeywords', 'competitor');
+        // ✨ NEW: Load selected_competitors into individual fields
+        if (Array.isArray(selectedCompetitors) && selectedCompetitors.length > 0) {
+            selectedCompetitors.forEach((comp, index) => {
+                const competitorNum = index + 1;
+                if (competitorNum > 4) return; // Max 4 competitors
+                
+                // Set domain field
+                const domainInput = document.getElementById(`competitor${competitorNum}Domain`);
+                if (domainInput && comp.domain) {
+                    domainInput.value = comp.domain;
+                }
+                
+                // Set keywords chips
+                if (Array.isArray(comp.keywords) && comp.keywords.length > 0) {
+                    this[`competitor${competitorNum}KeywordsChips`] = [...comp.keywords];
+                    this.renderChips(`competitor${competitorNum}Keywords`, 'competitor');
+                }
+            });
         }
     }
 
@@ -1426,11 +1454,10 @@ class LLMMonitoring {
             // Fill brand domain
             document.getElementById('brandDomain').value = project.brand_domain || '';
             
-            // Load chips from project data
+            // ✨ NEW: Load chips from project data (including selected_competitors)
             this.loadChipsFromData(
                 project.brand_keywords || [],
-                project.competitor_domains || [],
-                project.competitor_keywords || []
+                project.selected_competitors || []
             );
             
             // Check LLMs
@@ -1514,14 +1541,29 @@ class LLMMonitoring {
             return;
         }
         
+        // ✨ NEW: Build selected_competitors array from 4 individual fields
+        const selectedCompetitors = [];
+        for (let i = 1; i <= 4; i++) {
+            const domainInput = document.getElementById(`competitor${i}Domain`);
+            const domain = domainInput ? domainInput.value.trim() : '';
+            const keywords = this[`competitor${i}KeywordsChips`] || [];
+            
+            // Only add if domain is provided OR if there are keywords
+            if (domain || (keywords && keywords.length > 0)) {
+                selectedCompetitors.push({
+                    domain: domain || '',
+                    keywords: keywords
+                });
+            }
+        }
+        
         // Prepare payload with new structure
         const payload = {
             name,
             industry,
             brand_domain: brandDomain || null,
             brand_keywords: this.brandKeywordsChips,
-            competitor_domains: this.competitorDomainsChips,
-            competitor_keywords: this.competitorKeywordsChips,
+            selected_competitors: selectedCompetitors, // ✨ NEW: Use new structure
             language,
             country_code: countryCode,
             enabled_llms: enabledLlms,
