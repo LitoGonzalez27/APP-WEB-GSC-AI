@@ -208,6 +208,7 @@ class MultiLLMMonitoringService:
         brand_name: str = None,
         brand_domain: str = None,
         brand_keywords: List[str] = None,
+        sources: List[Dict] = None,
         competitors: List[str] = None,
         competitor_domains: List[str] = None,
         competitor_keywords: List[str] = None
@@ -215,13 +216,16 @@ class MultiLLMMonitoringService:
         """
         Analiza si una respuesta menciona la marca y extrae contexto
         
-        MEJORADO: Ahora soporta dominios y palabras clave múltiples
+        MEJORADO: 
+        - Soporta dominios y palabras clave múltiples
+        - ✨ NUEVO: Busca marca en sources/URLs (crítico para Perplexity, Claude, etc.)
         
         Args:
             response_text: Respuesta del LLM
             brand_name: Nombre de la marca (legacy, opcional)
-            brand_domain: Dominio de la marca (ej: hmfertility.com)
-            brand_keywords: Lista de palabras clave de marca (ej: ["hmfertility", "hm"])
+            brand_domain: Dominio de la marca (ej: getquipu.com)
+            brand_keywords: Lista de palabras clave de marca (ej: ["quipu", "getquipu"])
+            sources: Lista de fuentes/URLs citadas [{'url': '...', 'provider': '...'}]
             competitors: Lista de competidores (legacy, opcional)
             competitor_domains: Lista de dominios de competidores
             competitor_keywords: Lista de palabras clave de competidores
@@ -316,6 +320,41 @@ class MultiLLMMonitoringService:
         
         brand_mentioned = len(mentions_found) > 0
         mention_count = len(mentions_found)
+        
+        # ✨ NUEVO: Buscar marca en sources/URLs (CRÍTICO para Perplexity, etc.)
+        # Si no encontramos la marca en el texto, verificar si está en las fuentes citadas
+        brand_found_in_sources = False
+        if sources and len(sources) > 0:
+            for source in sources:
+                source_url = source.get('url', '').lower()
+                
+                # 1. Buscar dominio completo primero
+                if brand_domain and brand_domain.lower() in source_url:
+                    brand_found_in_sources = True
+                    # Añadir contexto especial indicando que se encontró en sources
+                    source_context = f"🔗 Brand domain found in cited source: {source.get('url', 'N/A')}"
+                    if source_context not in mention_contexts:
+                        mention_contexts.append(source_context)
+                    break
+                
+                # 2. Buscar variaciones de marca en la URL
+                for variation in brand_variations:
+                    if len(variation) >= 4 and variation.lower() in source_url:
+                        brand_found_in_sources = True
+                        source_context = f"🔗 Brand '{variation}' found in cited source: {source.get('url', 'N/A')}"
+                        if source_context not in mention_contexts:
+                            mention_contexts.append(source_context)
+                        break
+                
+                if brand_found_in_sources:
+                    break
+        
+        # Si se encontró en sources, marcar como mencionado incluso si no está en el texto
+        if brand_found_in_sources:
+            brand_mentioned = True
+            # Si no había menciones en texto, contar al menos 1 por la source
+            if mention_count == 0:
+                mention_count = 1
         
         # Detectar posición en listas numeradas
         list_info = self._detect_position_in_list(response_text, brand_variations)
@@ -808,6 +847,7 @@ JSON:"""
                 brand_name=task.get('brand_name'),  # Legacy
                 brand_domain=task.get('brand_domain'),
                 brand_keywords=task.get('brand_keywords'),
+                sources=llm_result.get('sources', []),  # ✨ NUEVO: Pasar sources para detección
                 competitors=task.get('competitors'),  # Legacy
                 competitor_domains=task.get('competitor_domains'),
                 competitor_keywords=task.get('competitor_keywords')
