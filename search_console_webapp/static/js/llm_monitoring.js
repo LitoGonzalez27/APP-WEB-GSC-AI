@@ -17,6 +17,7 @@ class LLMMonitoring {
         this.currentPromptsPage = 1;
         this.allPrompts = [];
         this.promptsSectionCollapsed = false;
+        this.isRenderingInModal = false; // Track if we're rendering prompts in modal
         
         // ✨ NEW: Responses pagination
         this.allResponses = [];
@@ -2070,7 +2071,7 @@ class LLMMonitoring {
         const totalPages = Math.ceil(this.allPrompts.length / this.promptsPerPage);
         if (this.currentPromptsPage < totalPages) {
             this.currentPromptsPage++;
-            this.renderPrompts();
+            this.renderPrompts(this.isRenderingInModal);
         }
     }
 
@@ -2080,7 +2081,7 @@ class LLMMonitoring {
     prevPage() {
         if (this.currentPromptsPage > 1) {
             this.currentPromptsPage--;
-            this.renderPrompts();
+            this.renderPrompts(this.isRenderingInModal);
         }
     }
 
@@ -2148,6 +2149,9 @@ class LLMMonitoring {
         const modal = document.getElementById('promptsManagementModal');
         if (!modal) return;
         
+        // Set flag for pagination
+        this.isRenderingInModal = true;
+        
         // Load prompts into modal
         if (this.currentProject && this.currentProject.id) {
             this.loadPrompts(this.currentProject.id, true); // true = render in modal
@@ -2166,6 +2170,9 @@ class LLMMonitoring {
     hidePromptsManagementModal() {
         const modal = document.getElementById('promptsManagementModal');
         if (!modal) return;
+        
+        // Reset flag for pagination
+        this.isRenderingInModal = false;
         
         modal.classList.remove('active');
         setTimeout(() => {
