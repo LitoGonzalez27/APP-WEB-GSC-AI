@@ -1166,8 +1166,8 @@ class LLMMonitoring {
                 return;
             }
             
-            // Obtener datos de queries/resultados del proyecto
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries`);
+            // Obtener datos de snapshots (comparación) que incluyen sentimiento
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/comparison`);
             if (!response.ok) {
                 console.warn('Could not load sentiment data');
                 return;
@@ -1175,46 +1175,45 @@ class LLMMonitoring {
             
             const result = await response.json();
             
-            if (!result.queries || result.queries.length === 0) {
-                console.warn('⚠️ No queries data available for sentiment analysis');
+            if (!result.comparison || result.comparison.length === 0) {
+                console.warn('⚠️ No comparison data available for sentiment analysis');
                 return;
             }
             
-            // Contar sentimientos por query
-            const sentimentCounts = {
-                positive: 0,
-                neutral: 0,
-                negative: 0
-            };
+            // Agregar contadores de sentimiento de todos los LLMs (último snapshot)
+            let totalPositive = 0;
+            let totalNeutral = 0;
+            let totalNegative = 0;
             
-            // Procesar resultados de queries
-            result.queries.forEach(query => {
-                if (query.results) {
-                    query.results.forEach(result => {
-                        const sentiment = (result.sentiment || 'neutral').toLowerCase();
-                        if (sentimentCounts.hasOwnProperty(sentiment)) {
-                            sentimentCounts[sentiment]++;
-                        } else {
-                            sentimentCounts.neutral++;
-                        }
-                    });
+            // Usar solo los datos más recientes (primeros resultados)
+            const recentSnapshots = result.comparison.slice(0, 4); // Último análisis de cada LLM
+            
+            recentSnapshots.forEach(snapshot => {
+                if (snapshot.sentiment) {
+                    totalPositive += snapshot.sentiment.positive || 0;
+                    totalNeutral += snapshot.sentiment.neutral || 0;
+                    totalNegative += snapshot.sentiment.negative || 0;
                 }
             });
             
-            // Calcular total y porcentajes
-            const total = sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative;
+            const total = totalPositive + totalNeutral + totalNegative;
             
             if (total === 0) {
                 console.warn('⚠️ No sentiment data available');
                 return;
             }
             
+            // Calcular porcentajes promedio
+            const avgPositive = totalPositive / recentSnapshots.length;
+            const avgNeutral = totalNeutral / recentSnapshots.length;
+            const avgNegative = totalNegative / recentSnapshots.length;
+            
             const data = {
                 labels: ['Positive', 'Neutral', 'Negative'],
                 values: [
-                    ((sentimentCounts.positive / total) * 100).toFixed(1),
-                    ((sentimentCounts.neutral / total) * 100).toFixed(1),
-                    ((sentimentCounts.negative / total) * 100).toFixed(1)
+                    avgPositive.toFixed(1),
+                    avgNeutral.toFixed(1),
+                    avgNegative.toFixed(1)
                 ],
                 colors: [
                     'rgba(34, 197, 94, 0.8)',   // Green for positive
