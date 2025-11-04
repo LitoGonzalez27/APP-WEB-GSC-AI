@@ -145,11 +145,6 @@
     justify-content: center;
     flex-shrink: 0;
     box-shadow: 0 8px 16px rgba(22, 22, 22, 0.2);
-    transition: transform 0.3s ease;
-}
-
-.kpi-card:hover .kpi-icon {
-    transform: scale(1.1) rotate(-5deg);
 }
 
 .kpi-icon i {
@@ -182,26 +177,14 @@
     background-clip: text;
 }
 
-/* Sentiment colors */
-.sentiment-positive {
-    color: #22c55e !important;
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.sentiment-neutral {
-    color: #f59e0b !important;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
+/* Sentiment colors - Always black */
+.sentiment-positive,
+.sentiment-neutral,
 .sentiment-negative {
-    color: #ef4444 !important;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--llm-gray-900) !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
 }
 
 /* ============================================================================

@@ -272,51 +272,7 @@
     margin-bottom: 2rem;
 }
 
-.kpi-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.kpi-card:nth-child(2) {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.kpi-card:nth-child(3) {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.kpi-card:nth-child(4) {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-
-.kpi-icon {
-    font-size: 2rem;
-    opacity: 0.9;
-}
-
-.kpi-content {
-    flex: 1;
-}
-
-.kpi-label {
-    font-size: 0.85rem;
-    opacity: 0.9;
-    margin-bottom: 0.25rem;
-}
-
-.kpi-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-}
-
-.sentiment-positive { color: #10b981; }
-.sentiment-neutral { color: #f59e0b; }
-.sentiment-negative { color: #ef4444; }
+/* KPI card styles removed - Using llm-monitoring-enhanced.css styles instead */
 
 /* Charts - Replicate Manual AI Styles */
 .charts-grid {
