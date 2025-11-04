@@ -135,16 +135,6 @@
     transition: transform 0.3s ease;
 }
 
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--llm-shadow-xl);
-    border-color: var(--llm-accent-green);
-}
-
-.kpi-card:hover::before {
-    transform: scaleX(1);
-}
-
 .kpi-icon {
     width: 64px;
     height: 64px;
@@ -242,20 +232,6 @@
     overflow: hidden;
 }
 
-.chart-card-full-width::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 6px;
-    background: linear-gradient(90deg, 
-        var(--llm-accent-green) 0%, 
-        var(--llm-primary-dark) 50%,
-        var(--llm-accent-green) 100%
-    );
-}
-
 .chart-header {
     display: flex;
     justify-content: space-between;
@@ -304,7 +280,6 @@
     font-weight: 500;
     margin-top: 0.5rem;
     display: inline-block;
-    background: linear-gradient(to right, var(--llm-accent-green) 40%, transparent 40%);
     padding: 2px 6px;
     border-radius: 4px;
 }
