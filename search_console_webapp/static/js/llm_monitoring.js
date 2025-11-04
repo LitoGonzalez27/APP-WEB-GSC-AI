@@ -342,11 +342,21 @@ class LLMMonitoring {
             this.exportComparison();
         });
 
-        // ✅ NUEVO: Gestión de prompts
+        // ✅ NUEVO: Gestión de prompts - Abrir modal
         document.getElementById('btnManagePrompts')?.addEventListener('click', () => {
-            this.scrollToPrompts();
+            this.showPromptsManagementModal();
         });
 
+        // Botones dentro del modal de Prompts Management
+        document.getElementById('btnAddPromptsModal')?.addEventListener('click', () => {
+            this.showPromptsModal();
+        });
+
+        document.getElementById('btnGetSuggestionsModal')?.addEventListener('click', () => {
+            this.showSuggestionsModal();
+        });
+
+        // Legacy: Mantener botón antiguo por si acaso
         document.getElementById('btnAddPrompts')?.addEventListener('click', () => {
             this.showPromptsModal();
         });
@@ -1906,11 +1916,11 @@ class LLMMonitoring {
     /**
      * Load prompts for a project
      */
-    async loadPrompts(projectId) {
-        console.log(`📝 Loading prompts for project ${projectId}...`);
+    async loadPrompts(projectId, renderInModal = false) {
+        console.log(`📝 Loading prompts for project ${projectId}...`, renderInModal ? '(in modal)' : '');
         
-        const container = document.getElementById('promptsList');
-        const counter = document.getElementById('promptsCount');
+        const container = document.getElementById(renderInModal ? 'promptsListModal' : 'promptsList');
+        const counter = document.getElementById(renderInModal ? 'promptsCountModal' : 'promptsCount');
         
         if (!container) return;
         
@@ -1943,7 +1953,7 @@ class LLMMonitoring {
             }
             
             // Render prompts list with pagination
-            this.renderPrompts();
+            this.renderPrompts(renderInModal);
             
         } catch (error) {
             console.error('❌ Error loading prompts:', error);
@@ -1959,9 +1969,9 @@ class LLMMonitoring {
     /**
      * Render prompts with pagination
      */
-    renderPrompts() {
-        const container = document.getElementById('promptsList');
-        const paginationDiv = document.getElementById('promptsPagination');
+    renderPrompts(renderInModal = false) {
+        const container = document.getElementById(renderInModal ? 'promptsListModal' : 'promptsList');
+        const paginationDiv = document.getElementById(renderInModal ? 'promptsPaginationModal' : 'promptsPagination');
         
         if (!container) return;
         
@@ -2025,16 +2035,28 @@ class LLMMonitoring {
                 paginationDiv.style.display = 'flex';
                 
                 // Update pagination info
-                document.getElementById('paginationInfo').textContent = 
-                    `Showing ${startIndex + 1}-${endIndex} of ${this.allPrompts.length} prompts`;
+                const paginationInfoId = renderInModal ? 'paginationInfoModal' : 'paginationInfo';
+                const currentPageId = renderInModal ? 'currentPageModal' : 'currentPage';
+                const totalPagesId = renderInModal ? 'totalPagesModal' : 'totalPages';
+                const btnPrevId = renderInModal ? 'btnPrevPageModal' : 'btnPrevPage';
+                const btnNextId = renderInModal ? 'btnNextPageModal' : 'btnNextPage';
+                
+                const paginationInfo = document.getElementById(paginationInfoId);
+                if (paginationInfo) {
+                    paginationInfo.textContent = `Showing ${startIndex + 1}-${endIndex} of ${this.allPrompts.length} prompts`;
+                }
                 
                 // Update page numbers
-                document.getElementById('currentPage').textContent = this.currentPromptsPage;
-                document.getElementById('totalPages').textContent = totalPages;
+                const currentPageEl = document.getElementById(currentPageId);
+                const totalPagesEl = document.getElementById(totalPagesId);
+                if (currentPageEl) currentPageEl.textContent = this.currentPromptsPage;
+                if (totalPagesEl) totalPagesEl.textContent = totalPages;
                 
                 // Update button states
-                document.getElementById('btnPrevPage').disabled = this.currentPromptsPage === 1;
-                document.getElementById('btnNextPage').disabled = this.currentPromptsPage === totalPages;
+                const btnPrev = document.getElementById(btnPrevId);
+                const btnNext = document.getElementById(btnNextId);
+                if (btnPrev) btnPrev.disabled = this.currentPromptsPage === 1;
+                if (btnNext) btnNext.disabled = this.currentPromptsPage === totalPages;
             }
         } else {
             if (paginationDiv) paginationDiv.style.display = 'none';
@@ -2109,6 +2131,40 @@ class LLMMonitoring {
      */
     hidePromptsModal() {
         const modal = document.getElementById('promptsModal');
+        if (!modal) return;
+        
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    /**
+     * Show prompts management modal
+     */
+    showPromptsManagementModal() {
+        console.log('🎬 Showing prompts management modal...');
+        
+        const modal = document.getElementById('promptsManagementModal');
+        if (!modal) return;
+        
+        // Load prompts into modal
+        if (this.currentProject && this.currentProject.id) {
+            this.loadPrompts(this.currentProject.id, true); // true = render in modal
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10);
+    }
+
+    /**
+     * Hide prompts management modal
+     */
+    hidePromptsManagementModal() {
+        const modal = document.getElementById('promptsManagementModal');
         if (!modal) return;
         
         modal.classList.remove('active');
