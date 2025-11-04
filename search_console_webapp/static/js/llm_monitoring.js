@@ -618,6 +618,7 @@ class LLMMonitoring {
             this.renderMentionRateChart(data);
             await this.renderShareOfVoiceChart();  // Now async - fetches its own data
             await this.renderMentionsTimelineChart();  // Gráfico de líneas de menciones
+            await this.renderSentimentDistributionChart();  // Gráfico de distribución de sentimiento
             await this.renderShareOfVoiceDonutChart();  // Gráfico de rosco
             
             // Load comparison
@@ -1143,6 +1144,144 @@ class LLMMonitoring {
             
         } catch (error) {
             console.error('❌ Error loading Share of Voice Donut:', error);
+        }
+    }
+
+    /**
+     * Render Sentiment Distribution Chart
+     */
+    async renderSentimentDistributionChart() {
+        const canvas = document.getElementById('chartSentimentDistribution');
+        if (!canvas) return;
+        
+        // Destroy existing chart
+        if (this.charts.sentimentDistribution) {
+            this.charts.sentimentDistribution.destroy();
+        }
+        
+        try {
+            const projectId = this.currentProject?.id;
+            if (!projectId) {
+                console.warn('No project ID available for Sentiment Distribution');
+                return;
+            }
+            
+            // Obtener datos de queries/resultados del proyecto
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/queries`);
+            if (!response.ok) {
+                console.warn('Could not load sentiment data');
+                return;
+            }
+            
+            const result = await response.json();
+            
+            if (!result.queries || result.queries.length === 0) {
+                console.warn('⚠️ No queries data available for sentiment analysis');
+                return;
+            }
+            
+            // Contar sentimientos por query
+            const sentimentCounts = {
+                positive: 0,
+                neutral: 0,
+                negative: 0
+            };
+            
+            // Procesar resultados de queries
+            result.queries.forEach(query => {
+                if (query.results) {
+                    query.results.forEach(result => {
+                        const sentiment = (result.sentiment || 'neutral').toLowerCase();
+                        if (sentimentCounts.hasOwnProperty(sentiment)) {
+                            sentimentCounts[sentiment]++;
+                        } else {
+                            sentimentCounts.neutral++;
+                        }
+                    });
+                }
+            });
+            
+            // Calcular total y porcentajes
+            const total = sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative;
+            
+            if (total === 0) {
+                console.warn('⚠️ No sentiment data available');
+                return;
+            }
+            
+            const data = {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                values: [
+                    ((sentimentCounts.positive / total) * 100).toFixed(1),
+                    ((sentimentCounts.neutral / total) * 100).toFixed(1),
+                    ((sentimentCounts.negative / total) * 100).toFixed(1)
+                ],
+                colors: [
+                    'rgba(34, 197, 94, 0.8)',   // Green for positive
+                    'rgba(245, 158, 11, 0.8)',  // Orange for neutral
+                    'rgba(239, 68, 68, 0.8)'    // Red for negative
+                ]
+            };
+            
+            // Crear gráfico de rosco
+            this.charts.sentimentDistribution = new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: data.colors,
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 13,
+                                    weight: '500'
+                                },
+                                color: '#374151',
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12,
+                            titleFont: {
+                                size: 13,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 12
+                            },
+                            callbacks: {
+                                label: context => {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    return `${label}: ${value}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Error loading Sentiment Distribution:', error);
         }
     }
 
