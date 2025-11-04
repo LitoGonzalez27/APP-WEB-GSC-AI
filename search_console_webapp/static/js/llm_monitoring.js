@@ -555,7 +555,6 @@ class LLMMonitoring {
     updateKPIs(metrics) {
         if (!metrics || Object.keys(metrics).length === 0) {
             document.getElementById('kpiMentionRate').textContent = 'No data';
-            document.getElementById('kpiAvgPosition').textContent = 'No data';
             document.getElementById('kpiShareOfVoice').textContent = 'No data';
             document.getElementById('kpiSentiment').textContent = 'No data';
             return;
@@ -564,7 +563,6 @@ class LLMMonitoring {
         // Calculate averages across all LLMs
         const llms = Object.keys(metrics);
         const avgMentionRate = llms.reduce((sum, llm) => sum + (metrics[llm].mention_rate || 0), 0) / llms.length;
-        const avgPosition = llms.reduce((sum, llm) => sum + (metrics[llm].avg_position || 0), 0) / llms.length;
         const avgSOV = llms.reduce((sum, llm) => sum + (metrics[llm].share_of_voice || 0), 0) / llms.length;
         
         // 🔧 FIX: Calculate weighted sentiment correctly
@@ -597,7 +595,6 @@ class LLMMonitoring {
         }
         
         document.getElementById('kpiMentionRate').textContent = `${avgMentionRate.toFixed(1)}%`;
-        document.getElementById('kpiAvgPosition').textContent = avgPosition > 0 ? `#${avgPosition.toFixed(1)}` : 'N/A';
         document.getElementById('kpiShareOfVoice').textContent = `${avgSOV.toFixed(1)}%`;
         document.getElementById('kpiSentiment').innerHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
     }
