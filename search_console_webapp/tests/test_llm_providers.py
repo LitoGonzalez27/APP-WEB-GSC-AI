@@ -344,6 +344,40 @@ class TestProviderPricing:
         assert abs(result['cost_usd'] - expected_cost) < 0.0001  # Tolerancia de error
 
 
+class TestOpenAIParameters:
+    """Tests para evitar regresiones de parametros en OpenAI"""
+
+    @patch('services.llm_providers.openai_provider.openai.OpenAI')
+    @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
+    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    def test_uses_max_tokens_not_max_completion_tokens(self, mock_get_model, mock_get_pricing, mock_openai_class):
+        mock_get_model.return_value = 'gpt-4o'
+        mock_get_pricing.return_value = {'input': 0.000015, 'output': 0.000045}
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        # Respuesta mínima válida
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "OK"
+        mock_response.choices = [mock_choice]
+        mock_usage = MagicMock()
+        mock_usage.prompt_tokens = 1
+        mock_usage.completion_tokens = 1
+        mock_usage.total_tokens = 2
+        mock_response.usage = mock_usage
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIProvider(api_key='test-key')
+        _ = provider.execute_query("hola")
+
+        # Verificar que se usa 'max_tokens' y NO 'max_completion_tokens'
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert 'max_tokens' in kwargs
+        assert 'max_completion_tokens' not in kwargs
+
+
 # Fixture para API keys de prueba
 @pytest.fixture
 def test_api_keys():

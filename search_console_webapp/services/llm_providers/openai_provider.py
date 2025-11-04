@@ -88,14 +88,20 @@ class OpenAIProvider(BaseLLMProvider):
                 messages=[
                     {"role": "user", "content": query}
                 ],
-                max_completion_tokens=2000
+                # Chat Completions usa 'max_tokens' (no 'max_completion_tokens')
+                max_tokens=2000
             )
             
             # Calcular tiempo de respuesta
             response_time = int((time.time() - start_time) * 1000)
             
-            # Extraer datos
-            content = response.choices[0].message.content
+            # Extraer datos (content puede variar segun SDK/version)
+            content = getattr(response.choices[0].message, 'content', None)
+            if not content:
+                # Fallback legacy (algunos clientes exponen 'text' en choices)
+                content = getattr(response.choices[0], 'text', '')
+            if not content:
+                logger.warning("⚠️ OpenAI devolvió contenido vacío. Revisar modelo/parámetros/respuesta")
             input_tokens = response.usage.prompt_tokens
             output_tokens = response.usage.completion_tokens
             total_tokens = response.usage.total_tokens
@@ -120,6 +126,41 @@ class OpenAIProvider(BaseLLMProvider):
             }
             
         except openai.APIError as e:
+            # Fallback automático si el modelo no existe/no está permitido
+            err_msg = str(e)
+            if ('model' in err_msg.lower() and 'does not exist' in err_msg.lower()) or ('not found' in err_msg.lower() and 'model' in err_msg.lower()):
+                logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Reintentando con 'gpt-4o'...")
+                try:
+                    fallback_model = 'gpt-4o'
+                    response = self.client.chat.completions.create(
+                        model=fallback_model,
+                        messages=[
+                            {"role": "user", "content": query}
+                        ],
+                        max_tokens=2000
+                    )
+                    response_time = int((time.time() - start_time) * 1000)
+                    content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
+                    if not content:
+                        logger.warning("⚠️ OpenAI (fallback gpt-4o) devolvió contenido vacío")
+                    input_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                    output_tokens = getattr(response.usage, 'completion_tokens', 0)
+                    total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
+                    sources = extract_urls_from_text(content)
+                    cost = (input_tokens * self.pricing['input'] + output_tokens * self.pricing['output'])
+                    return {
+                        'success': True,
+                        'content': content,
+                        'sources': sources,
+                        'tokens': total_tokens,
+                        'input_tokens': input_tokens,
+                        'output_tokens': output_tokens,
+                        'cost_usd': round(cost, 6),
+                        'response_time_ms': response_time,
+                        'model_used': fallback_model
+                    }
+                except Exception as e2:
+                    logger.error(f"❌ OpenAI fallback gpt-4o también falló: {e2}")
             logger.error(f"❌ OpenAI API Error: {e}")
             return {
                 'success': False,
