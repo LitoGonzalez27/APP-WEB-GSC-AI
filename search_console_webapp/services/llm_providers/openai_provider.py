@@ -10,6 +10,7 @@ IMPORTANTE:
 import logging
 import time
 from typing import Dict
+import os
 import openai
 from .base_provider import (
     BaseLLMProvider, 
@@ -49,8 +50,12 @@ class OpenAIProvider(BaseLLMProvider):
         """
         self.client = openai.OpenAI(api_key=api_key)
         
-        # ✅ CORRECCIÓN: Obtener modelo actual de BD (no hardcodeado)
-        if model:
+        # ✅ CORRECCIÓN: Priorizar variable de entorno, luego parámetro, luego BD
+        preferred = os.getenv('OPENAI_PREFERRED_MODEL')
+        if preferred:
+            self.model = preferred
+            logger.info(f"ℹ️ OPENAI_PREFERRED_MODEL detectado: {self.model}")
+        elif model:
             self.model = model
         else:
             # Obtener modelo marcado como 'current' en BD
