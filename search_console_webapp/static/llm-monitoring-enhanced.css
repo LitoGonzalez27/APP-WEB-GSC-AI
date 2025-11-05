@@ -398,7 +398,7 @@
 
 .gridjs-th {
     background: transparent !important;
-    color: var(--llm-accent-green) !important;
+    color: #161616 !important;
     font-weight: 700 !important;
     padding: 1rem !important;
     border-bottom: 2px solid var(--llm-accent-green) !important;
