@@ -85,32 +85,65 @@ class OpenAIProvider(BaseLLMProvider):
         start_time = time.time()
         
         try:
-            # ✅ CORRECCIÓN: GPT-4o solo acepta parámetros específicos
-            # - max_completion_tokens (NO max_tokens)
-            # - temperature debe ser 1 (o omitirse)
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": query}
-                ],
-                # Chat Completions usa 'max_tokens' (no 'max_completion_tokens')
-                max_tokens=2000
-            )
+            # Para modelos GPT-5 preferimos Responses API; fallback a Chat Completions
+            use_responses = self.model.startswith('gpt-5') or os.getenv('OPENAI_USE_RESPONSES') == '1'
+            content = None
+            input_tokens = 0
+            output_tokens = 0
+            total_tokens = 0
+
+            if use_responses:
+                try:
+                    resp = self.client.responses.create(
+                        model=self.model,
+                        input=query,
+                        max_output_tokens=2000
+                    )
+                    # Extraer texto
+                    content = getattr(resp, 'output_text', None)
+                    if not content and hasattr(resp, 'output'):
+                        # Reconstruir concatenando fragmentos tipo text
+                        try:
+                            parts = []
+                            for item in resp.output or []:
+                                if getattr(item, 'type', '') == 'output_text':
+                                    parts.append(getattr(item, 'text', '') or '')
+                            content = ''.join(parts)
+                        except Exception:
+                            content = None
+                    # Tokens
+                    if hasattr(resp, 'usage') and resp.usage:
+                        input_tokens = getattr(resp.usage, 'input_tokens', 0)
+                        output_tokens = getattr(resp.usage, 'output_tokens', 0)
+                        total_tokens = getattr(resp.usage, 'total_tokens', input_tokens + output_tokens)
+                except Exception as e_resp:
+                    logger.warning(f"ℹ️ Responses API falló para {self.model}: {e_resp}. Haciendo fallback a Chat Completions...")
+
+            if not content:
+                # Chat Completions clásico
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": query}
+                    ],
+                    max_tokens=2000
+                )
+                content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
+                input_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                output_tokens = getattr(response.usage, 'completion_tokens', 0)
+                total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
             
             # Calcular tiempo de respuesta
             response_time = int((time.time() - start_time) * 1000)
-            
-            # Extraer datos (content puede variar segun SDK/version)
-            content = getattr(response.choices[0].message, 'content', None)
-            if not content:
-                # Fallback legacy (algunos clientes exponen 'text' en choices)
-                content = getattr(response.choices[0], 'text', '')
-            if not content:
-                logger.warning("⚠️ OpenAI devolvió contenido vacío. Revisar modelo/parámetros/respuesta")
-            input_tokens = response.usage.prompt_tokens
-            output_tokens = response.usage.completion_tokens
-            total_tokens = response.usage.total_tokens
-            
+
+            # Si a estas alturas no hay contenido, tratar como error real
+            if not content or len(content.strip()) == 0:
+                logger.error("❌ OpenAI devolvió contenido vacío tras intentos (Responses/Chat).")
+                return {
+                    'success': False,
+                    'error': 'Empty content from OpenAI response'
+                }
+
             # ✨ NUEVO: Extraer URLs del texto
             sources = extract_urls_from_text(content)
             
@@ -121,7 +154,7 @@ class OpenAIProvider(BaseLLMProvider):
             return {
                 'success': True,
                 'content': content,
-                'sources': sources,  # ✨ NUEVO
+                'sources': sources,
                 'tokens': total_tokens,
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
