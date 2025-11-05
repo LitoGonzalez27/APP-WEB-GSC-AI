@@ -61,6 +61,14 @@ class RetryConfig:
     
     # Timeout por defecto para todas las requests
     DEFAULT_TIMEOUT = 60  # segundos
+    
+    # Timeouts específicos por provider (pueden ajustarse)
+    PROVIDER_TIMEOUTS = {
+        'openai': 60,      # GPT-5 puede tardar en respuestas largas
+        'google': 30,      # Gemini es muy rápido
+        'anthropic': 90,   # Claude puede hacer reasoning extenso
+        'perplexity': 45   # Búsqueda en tiempo real
+    }
 
 
 def classify_error(error: Exception) -> str:

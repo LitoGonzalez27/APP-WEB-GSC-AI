@@ -14,6 +14,7 @@ import time
 from typing import Dict
 import openai
 from .base_provider import BaseLLMProvider, get_model_pricing_from_db, get_current_model_for_provider
+from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class PerplexityProvider(BaseLLMProvider):
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
         logger.info(f"   ⚡ Búsqueda en tiempo real habilitada")
     
+    @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
         Ejecuta una query contra Perplexity Sonar

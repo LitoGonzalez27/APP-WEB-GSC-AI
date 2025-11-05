@@ -17,6 +17,7 @@ from .base_provider import (
     get_current_model_for_provider,
     extract_urls_from_text
 )
+from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class AnthropicProvider(BaseLLMProvider):
         logger.info(f"   Modelo: {self.model}")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
+    @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
         Ejecuta una query contra Claude Sonnet 4.5

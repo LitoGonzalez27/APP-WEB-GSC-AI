@@ -691,8 +691,63 @@ JSON:"""
             if len(active_providers) == 0:
                 raise Exception("No hay proveedores LLM habilitados para este proyecto")
             
-            logger.info(f"   🤖 {len(active_providers)} proveedores activos")
+            logger.info(f"   🤖 {len(active_providers)} proveedores habilitados")
             logger.info("")
+            
+            # ✨ NUEVO: Health Check Pre-Análisis
+            logger.info("=" * 70)
+            logger.info("🏥 HEALTH CHECK DE PROVIDERS")
+            logger.info("=" * 70)
+            logger.info("")
+            
+            healthy_providers = {}
+            unhealthy_providers = []
+            
+            for name, provider in active_providers.items():
+                logger.info(f"🔍 Testeando {name}...")
+                
+                try:
+                    # Test rápido con query simple
+                    test_result = provider.execute_query("Hi")
+                    
+                    if test_result.get('success'):
+                        healthy_providers[name] = provider
+                        logger.info(f"   ✅ {name} respondió OK en {test_result.get('response_time_ms', 0)}ms")
+                    else:
+                        unhealthy_providers.append(name)
+                        error = test_result.get('error', 'Unknown error')
+                        logger.error(f"   ❌ {name} falló: {error}")
+                        logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
+                        
+                except Exception as e:
+                    unhealthy_providers.append(name)
+                    logger.error(f"   ❌ {name} excepción: {e}")
+                    logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
+            
+            # Usar solo providers saludables
+            active_providers = healthy_providers
+            
+            logger.info("")
+            logger.info("=" * 70)
+            logger.info(f"✅ PROVIDERS SALUDABLES: {len(active_providers)}/{len(enabled_llms)}")
+            logger.info("=" * 70)
+            logger.info(f"Activos: {', '.join(active_providers.keys())}")
+            if unhealthy_providers:
+                logger.warning(f"⚠️  Excluidos: {', '.join(unhealthy_providers)}")
+                logger.warning(f"   → El análisis continuará sin estos providers")
+            logger.info("")
+            
+            if len(active_providers) == 0:
+                logger.error("❌ NINGÚN PROVIDER ESTÁ DISPONIBLE")
+                logger.error("   No se puede realizar el análisis")
+                cur.close()
+                conn.close()
+                return {
+                    'project_id': project_id,
+                    'error': 'No providers available after health check',
+                    'analysis_date': str(analysis_date),
+                    'unhealthy_providers': unhealthy_providers
+                }
             
             cur.close()
             conn.close()
