@@ -878,9 +878,13 @@ JSON:"""
             llm_result = task['provider'].execute_query(task['query_text'])
             
             if not llm_result['success']:
+                # ✨ NUEVO: Guardar el error en BD para que sea visible
+                error_msg = llm_result.get('error', 'Unknown error')
+                self._save_error_result(task, error_msg)
+                
                 return {
                     'success': False,
-                    'error': llm_result.get('error', 'Unknown error')
+                    'error': error_msg
                 }
             
             # Analizar menciones de marca con nuevos campos
@@ -1320,4 +1324,63 @@ GENERA {count} PREGUNTAS:"""
     except Exception as e:
         logger.error(f"❌ Error generando sugerencias con IA: {e}", exc_info=True)
         return []
+    
+    def _save_error_result(self, task: Dict, error_message: str):
+        """
+        Guarda un registro de error en BD cuando un LLM falla
+        
+        Esto permite:
+        - Diferenciar entre 'no mencionado' y 'error al consultar'
+        - Mostrar errores específicos en el frontend
+        - Analizar patrones de fallos
+        
+        Args:
+            task: Información de la tarea que falló
+            error_message: Mensaje de error detallado
+        """
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            try:
+                cur.execute("""
+                    INSERT INTO llm_monitoring_results (
+                        project_id, query_id, analysis_date,
+                        llm_provider, model_used,
+                        query_text, brand_name,
+                        brand_mentioned, mention_count,
+                        has_error, error_message,
+                        full_response, response_length,
+                        tokens_used, cost_usd
+                    ) VALUES (
+                        %s, %s, %s,
+                        %s, %s,
+                        %s, %s,
+                        FALSE, 0,
+                        TRUE, %s,
+                        %s, 0,
+                        0, 0
+                    )
+                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
+                    DO UPDATE SET
+                        has_error = TRUE,
+                        error_message = EXCLUDED.error_message,
+                        updated_at = NOW()
+                """, (
+                    task['project_id'], task['query_id'], task['analysis_date'],
+                    task['llm_name'], None,  # model_used es NULL en caso de error
+                    task['query_text'], task['brand_name'],
+                    error_message,
+                    f"Error: {error_message}"  # full_response contiene el error
+                ))
+                
+                conn.commit()
+                logger.debug(f"✅ Error guardado en BD: {task['llm_name']} - {error_message[:50]}...")
+                
+            finally:
+                cur.close()
+                conn.close()
+                
+        except Exception as e:
+            logger.error(f"❌ Error guardando registro de error: {e}")
 
