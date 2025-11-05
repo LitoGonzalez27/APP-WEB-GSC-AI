@@ -377,6 +377,44 @@ class TestOpenAIParameters:
         assert 'max_tokens' in kwargs
         assert 'max_completion_tokens' not in kwargs
 
+    @patch('services.llm_providers.openai_provider.openai.OpenAI')
+    @patch('services.llm_providers.openai_provider.get_model_pricing_from_db')
+    @patch('services.llm_providers.openai_provider.get_current_model_for_provider')
+    def test_fallback_on_not_found_model(self, mock_get_model, mock_get_pricing, mock_openai_class):
+        """Si el modelo no existe, debe reintentar con gpt-4o"""
+        mock_get_model.return_value = 'gpt-5'
+        mock_get_pricing.return_value = {'input': 0.000015, 'output': 0.000045}
+
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        # Primera llamada lanza NotFoundError (simular)
+        class NotFoundError(Exception):
+            pass
+        # Simular que openai expone NotFoundError, pero el provider lo atrapa de forma genérica
+        mock_client.chat.completions.create.side_effect = [NotFoundError("model not found"), MagicMock()]
+
+        # Segunda llamada (fallback) devuelve respuesta válida
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "OK fallback"
+        mock_response.choices = [mock_choice]
+        mock_usage = MagicMock()
+        mock_usage.prompt_tokens = 1
+        mock_usage.completion_tokens = 1
+        mock_usage.total_tokens = 2
+        # Reemplazar la segunda side_effect con la respuesta válida
+        def side_effect(*args, **kwargs):
+            return mock_response
+        mock_client.chat.completions.create.side_effect = [NotFoundError("model not found"), side_effect]
+        mock_response.usage = mock_usage
+
+        provider = OpenAIProvider(api_key='test-key')
+        result = provider.execute_query("hola")
+
+        assert result['success'] is True
+        assert result['model_used'] == 'gpt-4o'
+
 
 # Fixture para API keys de prueba
 @pytest.fixture

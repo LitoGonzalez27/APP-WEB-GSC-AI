@@ -125,7 +125,7 @@ class OpenAIProvider(BaseLLMProvider):
                 'model_used': self.model
             }
             
-        except openai.APIError as e:
+        except (getattr(openai, 'APIStatusError', Exception), getattr(openai, 'BadRequestError', Exception), getattr(openai, 'NotFoundError', Exception), openai.APIError) as e:
             # Fallback automático si el modelo no existe/no está permitido
             err_msg = str(e)
             if ('model' in err_msg.lower() and 'does not exist' in err_msg.lower()) or ('not found' in err_msg.lower() and 'model' in err_msg.lower()):

@@ -12,6 +12,11 @@ import re
 import json
 import time
 from datetime import date, datetime
+import os
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except Exception:  # pragma: no cover
+    ZoneInfo = None
 from typing import Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -585,7 +590,13 @@ JSON:"""
         Returns:
             Dict con métricas globales
         """
-        analysis_date = analysis_date or date.today()
+        if analysis_date is None:
+            # Usar zona horaria configurada para que la fecha refleje el día local del negocio
+            tz_name = os.getenv('APP_TZ', 'Europe/Madrid')
+            if ZoneInfo is not None:
+                analysis_date = datetime.now(ZoneInfo(tz_name)).date()
+            else:
+                analysis_date = date.today()
         start_time = time.time()
         
         logger.info("")
