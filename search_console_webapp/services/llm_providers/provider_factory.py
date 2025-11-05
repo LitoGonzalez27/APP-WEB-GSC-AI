@@ -171,7 +171,15 @@ class LLMProviderFactory:
                 pricing = provider.get_pricing_info()
                 logger.info(f"   💰 Pricing: ${pricing['input_per_1m']:.2f}/${pricing['output_per_1m']:.2f} per 1M tokens")
             else:
-                logger.warning(f"   ❌ {provider_name} falló (API key inválida o error de conexión)")
+                # ✨ MEJORADO: Logging detallado de por qué falló
+                logger.error(f"   ❌ {provider_name} falló")
+                logger.error(f"   ⚠️  Este provider NO estará disponible en este análisis")
+                logger.error(f"   💡 Causas posibles:")
+                logger.error(f"      • API key inválida o expirada")
+                logger.error(f"      • Rate limit temporal")
+                logger.error(f"      • Problemas de red/timeout")
+                logger.error(f"      • Modelo no disponible")
+                logger.error(f"   📋 Verifica los logs anteriores para más detalles")
         
         logger.info("")
         logger.info("=" * 70)
