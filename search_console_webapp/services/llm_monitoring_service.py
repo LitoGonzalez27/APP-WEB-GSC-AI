@@ -870,16 +870,40 @@ JSON:"""
         seen = set()
         all_competitors = [x for x in all_competitors if not (x in seen or seen.add(x))]
         
+        # ✨ NUEVO: Validar que todos los LLMs analicen todas las queries
+        total_queries_expected = len(queries)
+        
         try:
             for llm_name, llm_results in results_by_llm.items():
-                if len(llm_results) > 0:
+                queries_analyzed = len(llm_results)
+                
+                if queries_analyzed > 0:
+                    # ⚠️ VALIDACIÓN: Advertir si faltan queries
+                    if queries_analyzed < total_queries_expected:
+                        missing = total_queries_expected - queries_analyzed
+                        logger.warning("")
+                        logger.warning("=" * 70)
+                        logger.warning(f"⚠️  ANÁLISIS INCOMPLETO PARA {llm_name.upper()}")
+                        logger.warning("=" * 70)
+                        logger.warning(f"   Queries esperadas: {total_queries_expected}")
+                        logger.warning(f"   Queries analizadas: {queries_analyzed}")
+                        logger.warning(f"   Queries faltantes: {missing}")
+                        logger.warning(f"   Completitud: {queries_analyzed/total_queries_expected*100:.1f}%")
+                        logger.warning("")
+                        logger.warning(f"   ⚠️  El snapshot se creará con DATOS PARCIALES")
+                        logger.warning(f"   ⚠️  Los porcentajes pueden no ser representativos")
+                        logger.warning(f"   ⚠️  Considera ejecutar un nuevo análisis")
+                        logger.warning("=" * 70)
+                        logger.warning("")
+                    
                     self._create_snapshot(
                         cur=cur,
                         project_id=project_id,
                         date=analysis_date,
                         llm_provider=llm_name,
                         llm_results=llm_results,
-                        competitors=all_competitors  # ✨ NUEVO: Usar lista unificada
+                        competitors=all_competitors,  # ✨ NUEVO: Usar lista unificada
+                        total_queries_expected=total_queries_expected  # ✨ NUEVO: Pasar total esperado
                     )
             
             # Actualizar fecha de último análisis
@@ -902,6 +926,22 @@ JSON:"""
             cur.close()
             conn.close()
         
+        # ✨ NUEVO: Calcular completitud por LLM
+        completeness_by_llm = {}
+        incomplete_llms = []
+        
+        for llm_name, llm_results in results_by_llm.items():
+            queries_analyzed = len(llm_results)
+            completeness_pct = (queries_analyzed / total_queries_expected * 100) if total_queries_expected > 0 else 0
+            completeness_by_llm[llm_name] = {
+                'queries_analyzed': queries_analyzed,
+                'queries_expected': total_queries_expected,
+                'completeness_pct': round(completeness_pct, 1)
+            }
+            
+            if queries_analyzed < total_queries_expected:
+                incomplete_llms.append(llm_name)
+        
         # Retornar métricas globales
         return {
             'project_id': project_id,
@@ -912,7 +952,10 @@ JSON:"""
             'llms_analyzed': len(results_by_llm),
             'results_by_llm': {
                 llm: len(results) for llm, results in results_by_llm.items()
-            }
+            },
+            'completeness_by_llm': completeness_by_llm,  # ✨ NUEVO
+            'incomplete_llms': incomplete_llms,  # ✨ NUEVO
+            'all_queries_analyzed': len(incomplete_llms) == 0  # ✨ NUEVO
         }
     
     def _execute_single_query_task(self, task: Dict) -> Dict:
@@ -1060,7 +1103,8 @@ JSON:"""
         date: date,
         llm_provider: str,
         llm_results: List[Dict],
-        competitors: List[str]
+        competitors: List[str],
+        total_queries_expected: int = None
     ):
         """
         Crea un snapshot con métricas agregadas para un LLM
@@ -1080,6 +1124,7 @@ JSON:"""
             llm_provider: Nombre del proveedor
             llm_results: Lista de resultados de este LLM
             competitors: Lista de competidores
+            total_queries_expected: Total de queries que debería haber analizado (opcional)
         """
         total_queries = len(llm_results)
         
@@ -1168,7 +1213,13 @@ JSON:"""
             int(avg_response_time), round(total_cost, 4), total_tokens
         ))
         
-        logger.info(f"   📊 Snapshot {llm_provider}: {total_mentions}/{total_queries} menciones ({mention_rate:.1f}%)")
+        # ✨ NUEVO: Log mejorado con completitud
+        completeness_info = ""
+        if total_queries_expected and total_queries < total_queries_expected:
+            completeness = (total_queries / total_queries_expected) * 100
+            completeness_info = f" ({total_queries}/{total_queries_expected} queries - {completeness:.0f}% completo)"
+        
+        logger.info(f"   📊 Snapshot {llm_provider}: {total_mentions}/{total_queries} menciones ({mention_rate:.1f}%){completeness_info}")
 
 
 # =====================================================
