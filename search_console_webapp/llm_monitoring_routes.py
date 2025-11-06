@@ -1181,6 +1181,7 @@ def get_llm_comparison(project_id):
                 'llm_provider': c['llm_provider'],
                 'snapshot_date': c['snapshot_date'].isoformat() if c['snapshot_date'] else None,
                 'mention_rate': float(c['mention_rate']) if c['mention_rate'] is not None else 0,
+                'total_mentions': c.get('total_mentions') or 0,  # 🔧 FIX: Campo faltante para Grid.js
                 'avg_position': float(c['avg_position']) if c['avg_position'] is not None else None,
                 'share_of_voice': float(c['share_of_voice']) if c['share_of_voice'] is not None else 0,
                 'sentiment_score': float(c['avg_sentiment_score']) if c['avg_sentiment_score'] is not None else 0,
