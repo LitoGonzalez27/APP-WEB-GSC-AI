@@ -2625,9 +2625,9 @@ class LLMMonitoring {
      */
     getLLMDisplayName(llm) {
         const names = {
-            'openai': 'OpenAI',
-            'anthropic': 'Anthropic (Claude)',
-            'google': 'Google (Gemini)',
+            'openai': 'ChatGPT',
+            'anthropic': 'Claude',
+            'google': 'Gemini',
             'perplexity': 'Perplexity'
         };
         return names[llm] || llm;
