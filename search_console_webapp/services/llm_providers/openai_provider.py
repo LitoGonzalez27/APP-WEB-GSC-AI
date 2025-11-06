@@ -123,13 +123,20 @@ class OpenAIProvider(BaseLLMProvider):
 
             if not content:
                 # Chat Completions clásico
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": query}
-                    ],
-                    max_tokens=2000
-                )
+                # ✅ FIX: GPT-5 usa max_completion_tokens, modelos anteriores usan max_tokens
+                completion_params = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": query}]
+                }
+                
+                # GPT-5 y modelos nuevos usan max_completion_tokens
+                if self.model.startswith('gpt-5') or self.model.startswith('o1'):
+                    completion_params["max_completion_tokens"] = 2000
+                else:
+                    # Modelos anteriores (gpt-4o, gpt-4-turbo, etc.) usan max_tokens
+                    completion_params["max_tokens"] = 2000
+                
+                response = self.client.chat.completions.create(**completion_params)
                 content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
                 input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                 output_tokens = getattr(response.usage, 'completion_tokens', 0)
@@ -172,6 +179,7 @@ class OpenAIProvider(BaseLLMProvider):
                 logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Reintentando con 'gpt-4o'...")
                 try:
                     fallback_model = 'gpt-4o'
+                    # gpt-4o usa max_tokens (no max_completion_tokens)
                     response = self.client.chat.completions.create(
                         model=fallback_model,
                         messages=[
