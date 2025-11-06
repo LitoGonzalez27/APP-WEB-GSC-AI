@@ -813,6 +813,7 @@ JSON:"""
         results_by_llm = {name: [] for name in active_providers.keys()}
         completed_tasks = 0
         failed_tasks = 0
+        failed_task_list = []  # ✨ NUEVO: Registrar tareas fallidas para reintentos
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Enviar todas las tareas
@@ -837,12 +838,90 @@ JSON:"""
                             logger.info(f"   ✅ {completed_tasks}/{total_tasks} tareas completadas")
                     else:
                         failed_tasks += 1
+                        failed_task_list.append({
+                            'task': task,
+                            'error': result.get('error', 'Unknown error')
+                        })
                         logger.warning(f"   ⚠️ Tarea fallida: {task['llm_name']} - {task['query_text'][:50]}...")
                         
                 except Exception as e:
                     failed_tasks += 1
+                    failed_task_list.append({
+                        'task': task,
+                        'error': str(e)
+                    })
                     logger.error(f"   ❌ Excepción en tarea: {e}")
         
+        # ✨ NUEVO: Sistema de reintentos para tareas fallidas
+        if failed_tasks > 0:
+            logger.info("")
+            logger.info("=" * 70)
+            logger.info(f"🔄 REINTENTANDO {failed_tasks} TAREAS FALLIDAS")
+            logger.info("=" * 70)
+            logger.info(f"   Estrategia: 2 reintentos secuenciales con delay de 2s")
+            logger.info("")
+            
+            retry_count = 0
+            max_retries = 2
+            
+            for attempt in range(1, max_retries + 1):
+                if not failed_task_list:
+                    break
+                    
+                logger.info(f"📍 Intento {attempt}/{max_retries} ({len(failed_task_list)} tareas)")
+                
+                tasks_to_retry = failed_task_list.copy()
+                failed_task_list = []
+                
+                time.sleep(2)  # Delay antes de reintentar
+                
+                for failed_item in tasks_to_retry:
+                    task = failed_item['task']
+                    logger.info(f"   🔄 Reintentando: {task['llm_name']} - {task['query_text'][:50]}...")
+                    
+                    try:
+                        result = self._execute_single_query_task(task)
+                        
+                        if result['success']:
+                            results_by_llm[task['llm_name']].append(result)
+                            completed_tasks += 1
+                            retry_count += 1
+                            logger.info(f"   ✅ Exitoso en intento {attempt}")
+                        else:
+                            failed_task_list.append({
+                                'task': task,
+                                'error': result.get('error', 'Unknown error')
+                            })
+                            logger.warning(f"   ❌ Falló nuevamente: {result.get('error', 'Unknown')}")
+                    except Exception as e:
+                        failed_task_list.append({
+                            'task': task,
+                            'error': str(e)
+                        })
+                        logger.error(f"   ❌ Excepción en reintento: {e}")
+            
+            # Actualizar contador de tareas fallidas
+            failed_tasks = len(failed_task_list)
+            
+            logger.info("")
+            logger.info(f"   📊 Reintentos exitosos: {retry_count}")
+            logger.info(f"   📊 Tareas aún fallidas: {failed_tasks}")
+            
+            # Log detallado de tareas que no pudieron completarse
+            if failed_task_list:
+                logger.warning("")
+                logger.warning("=" * 70)
+                logger.warning("⚠️  TAREAS QUE NO PUDIERON COMPLETARSE")
+                logger.warning("=" * 70)
+                for failed_item in failed_task_list:
+                    task = failed_item['task']
+                    error = failed_item['error']
+                    logger.warning(f"❌ {task['llm_name']}: {task['query_text'][:60]}...")
+                    logger.warning(f"   Error: {error}")
+                logger.warning("=" * 70)
+                logger.warning("")
+        
+        # Recalcular duración después de reintentos
         duration = time.time() - start_time
         
         logger.info("")
