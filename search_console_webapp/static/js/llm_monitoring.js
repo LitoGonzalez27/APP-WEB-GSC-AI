@@ -389,6 +389,12 @@ class LLMMonitoring {
                 this.loadResponses();
             }
         });
+
+        document.getElementById('responsesDaysFilter')?.addEventListener('change', () => {
+            if (this.currentProject?.id) {
+                this.loadResponses();
+            }
+        });
     }
 
     /**
@@ -2794,6 +2800,7 @@ class LLMMonitoring {
 
         const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
         const llmFilter = document.getElementById('responsesLLMFilter')?.value || '';
+        const daysFilter = document.getElementById('responsesDaysFilter')?.value || '7';
         const container = document.getElementById('responsesContainer');
 
         if (!container) return;
@@ -2807,7 +2814,7 @@ class LLMMonitoring {
         `;
 
         try {
-            let url = `${this.baseUrl}/projects/${projectId}/responses?days=7`;
+            let url = `${this.baseUrl}/projects/${projectId}/responses?days=${daysFilter}`;
             if (queryFilter) url += `&query_id=${queryFilter}`;
             if (llmFilter) url += `&llm_provider=${llmFilter}`;
 

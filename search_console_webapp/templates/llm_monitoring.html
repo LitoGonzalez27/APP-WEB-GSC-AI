@@ -389,6 +389,13 @@
                                 <option value="google">Gemini</option>
                                 <option value="perplexity">Perplexity</option>
                             </select>
+                            <select id="responsesDaysFilter" class="form-control" style="width: auto; display: inline-block; margin-right: 0.5rem;">
+                                <option value="7" selected>Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30">Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
                             <button class="btn btn-primary btn-sm" id="btnLoadResponses" onclick="window.llmMonitoring.loadResponses()">
                                 <i class="fas fa-sync-alt"></i>
                                 Load Responses
