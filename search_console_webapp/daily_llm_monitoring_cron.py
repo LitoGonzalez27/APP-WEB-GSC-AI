@@ -72,7 +72,7 @@ def main():
         # 2. Importar el servicio
         logger.info("📦 Importando servicio de monitorización...")
         try:
-            from services.llm_monitoring_service import analyze_all_active_projects
+            from services.llm_monitoring_service import analyze_all_active_projects, MultiLLMMonitoringService
             logger.info("✅ Servicio importado correctamente")
         except ImportError as e:
             logger.error(f"❌ Error importando servicio: {e}")
@@ -125,6 +125,33 @@ def main():
         logger.info(f"   ❌ Fallidos: {failed}")
         logger.info(f"   📊 Total queries: {total_queries}")
         logger.info(f"   ⏱️  Duración total: {total_duration:.1f}s")
+        
+        # 5. Pasada de reconciliación si hay análisis incompletos
+        projects_with_incomplete = [r for r in results if isinstance(r, dict) and r.get('incomplete_llms')]
+        if projects_with_incomplete:
+            logger.info("")
+            logger.info("=" * 70)
+            logger.info("🔄 RECONCILIACIÓN: PROYECTOS CON ANÁLISIS INCOMPLETO")
+            logger.info("=" * 70)
+            for r in projects_with_incomplete:
+                logger.info(f"   • Proyecto #{r.get('project_id')}: LLMs incompletos → {', '.join(r.get('incomplete_llms', []))}")
+            
+            # Reducir concurrencia global y por proveedor (especialmente OpenAI)
+            os.environ.setdefault('OPENAI_CONCURRENCY', '3')
+            try:
+                service = MultiLLMMonitoringService(api_keys=None)
+                for r in projects_with_incomplete:
+                    pid = r.get('project_id')
+                    if not pid:
+                        continue
+                    logger.info("")
+                    logger.info(f"🔁 Reintentando proyecto #{pid} con menor concurrencia (max_workers=5)...")
+                    try:
+                        service.analyze_project(project_id=pid, max_workers=5)
+                    except Exception as e:
+                        logger.error(f"❌ Reintento falló para proyecto #{pid}: {e}")
+            except Exception as e:
+                logger.error(f"❌ No se pudo ejecutar la reconciliación: {e}")
         
         if total_duration > 0 and total_queries > 0:
             queries_per_second = total_queries / total_duration

@@ -19,6 +19,7 @@ except Exception:  # pragma: no cover
     ZoneInfo = None
 from typing import Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Semaphore
 
 from database import get_db_connection
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
@@ -70,6 +71,23 @@ class MultiLLMMonitoringService:
         
         if not self.sentiment_analyzer:
             logger.warning("⚠️ Gemini no disponible, sentimiento será por keywords")
+        
+        # ✨ NUEVO: Límites de concurrencia por proveedor (para evitar rate limits)
+        # Configurable vía variables de entorno. Valores conservadores por defecto.
+        self.provider_concurrency = {
+            'openai': int(os.getenv('OPENAI_CONCURRENCY', '3')),
+            'google': int(os.getenv('GOOGLE_CONCURRENCY', '6')),
+            'anthropic': int(os.getenv('ANTHROPIC_CONCURRENCY', '3')),
+            'perplexity': int(os.getenv('PERPLEXITY_CONCURRENCY', '4'))
+        }
+        # Crear semáforos por proveedor
+        self.provider_semaphores = {
+            name: Semaphore(max(1, limit)) for name, limit in self.provider_concurrency.items()
+        }
+        logger.info("🛡️ Límites de concurrencia por proveedor:")
+        for pname, limit in self.provider_concurrency.items():
+            if pname in self.providers:
+                logger.info(f"   • {pname}: {limit} concurrente(s)")
         
         logger.info(f"✅ Servicio inicializado con {len(self.providers)} proveedores")
     
@@ -1051,8 +1069,13 @@ JSON:"""
             Dict con resultado analizado
         """
         try:
-            # Ejecutar query en el LLM
-            llm_result = task['provider'].execute_query(task['query_text'])
+            # Ejecutar query en el LLM con control de concurrencia por proveedor
+            semaphore = self.provider_semaphores.get(task['llm_name'])
+            if semaphore is not None:
+                with semaphore:
+                    llm_result = task['provider'].execute_query(task['query_text'])
+            else:
+                llm_result = task['provider'].execute_query(task['query_text'])
             
             if not llm_result['success']:
                 # ✨ NUEVO: Guardar el error en BD para que sea visible
