@@ -39,6 +39,7 @@ from auth import login_required, get_current_user, cron_or_auth_required
 # Importar servicios
 from database import get_db_connection
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
+from services.llm_monitoring_stats import LLMMonitoringStatsService
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -1085,6 +1086,50 @@ def get_project_metrics(project_id):
     finally:
         cur.close()
         conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/urls-ranking', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_urls_ranking(project_id):
+    """
+    Obtiene el ranking de URLs más mencionadas por los LLMs
+    
+    Query params opcionales:
+        days: Número de días (default: 30)
+        llm_provider: Filtrar por LLM específico ('openai', 'anthropic', 'google', 'perplexity')
+        limit: Número máximo de URLs (default: 50)
+    
+    Returns:
+        JSON con ranking de URLs citadas por los LLMs
+    """
+    days = request.args.get('days', 30, type=int)
+    llm_provider = request.args.get('llm_provider')
+    limit = request.args.get('limit', 50, type=int)
+    
+    try:
+        urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
+            project_id=project_id,
+            days=days,
+            llm_provider=llm_provider,
+            limit=limit
+        )
+        
+        return jsonify({
+            'success': True,
+            'project_id': project_id,
+            'filters': {
+                'days': days,
+                'llm_provider': llm_provider or 'all',
+                'limit': limit
+            },
+            'urls': urls_ranking,
+            'total_urls': len(urls_ranking)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo ranking de URLs: {e}", exc_info=True)
+        return jsonify({'error': f'Error obteniendo ranking de URLs: {str(e)}'}), 500
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/comparison', methods=['GET'])

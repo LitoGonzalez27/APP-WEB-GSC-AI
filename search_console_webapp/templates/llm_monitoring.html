@@ -373,6 +373,88 @@
                     <div id="queriesTable"></div>
                 </div>
 
+                <!-- ✨ Top Mentioned URLs by LLMs -->
+                <div class="chart-card" id="topUrlsLLMCard">
+                    <div class="chart-header">
+                        <h3>
+                            <i class="fas fa-link"></i>
+                            Top Mentioned URLs by LLMs
+                            <div class="tooltip-container tooltip-right">
+                                <i class="fas fa-info-circle tooltip-trigger"></i>
+                                <div class="tooltip-content tooltip-content-right">
+                                    Ranking of the most frequently cited URLs in LLM responses (ChatGPT, Claude, Gemini, Perplexity)
+                                </div>
+                            </div>
+                        </h3>
+                    </div>
+                    
+                    <!-- URL Filters Row -->
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
+                        <div style="flex: 0 0 220px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>
+                                LLM Source
+                            </label>
+                            <select id="urlsLLMFilter" class="form-control" style="width: 100%;">
+                                <option value="">All LLMs (Combined)</option>
+                                <option value="openai">ChatGPT Only</option>
+                                <option value="anthropic">Claude Only</option>
+                                <option value="google">Gemini Only</option>
+                                <option value="perplexity">Perplexity Only</option>
+                            </select>
+                        </div>
+                        
+                        <div style="flex: 0 0 200px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-calendar" style="margin-right: 0.5rem;"></i>
+                                Time Range
+                            </label>
+                            <select id="urlsDaysFilter" class="form-control" style="width: 100%;">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
+                        </div>
+                        
+                        <div style="flex: 1; display: flex; align-items: flex-end; gap: 0.5rem; min-width: 200px;">
+                            <button class="url-filter-chip" id="filterMyBrandUrlsLLM" data-active="false" style="margin-bottom: 0;">
+                                <i class="fas fa-filter"></i>
+                                <span>My Brand URLs Only</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="urlsContainerLLM" class="urls-container">
+                        <div class="urls-table-wrapper">
+                            <table class="urls-table" id="topUrlsLLMTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th style="width: 50%;">URL</th>
+                                        <th style="width: 100px;">Mentions</th>
+                                        <th style="width: 150px;">LLM Sources</th>
+                                        <th style="width: 100px;">% of Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topUrlsLLMBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="no-urls-message" id="noUrlsLLMMessage" style="display: none;">
+                            <div class="empty-state">
+                                <i class="fas fa-link"></i>
+                                <h4>No URL Data Available</h4>
+                                <p>LLMs haven't cited any URLs yet in their responses</p>
+                                <small>This is normal if analysis just started or LLMs don't include sources</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ✨ LLM Responses Inspector -->
                 <div class="chart-card" id="responsesInspectorCard">
                     <!-- Header: Título y Botón -->

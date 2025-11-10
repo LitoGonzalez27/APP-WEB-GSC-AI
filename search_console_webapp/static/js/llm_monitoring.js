@@ -323,6 +323,30 @@ class LLMMonitoring {
 
         // Analyze project: REMOVED - Analysis now runs via daily cron, not manual triggers
 
+        // Top URLs LLM filters
+        document.getElementById('urlsLLMFilter')?.addEventListener('change', () => {
+            if (this.currentProject) {
+                this.loadTopUrlsRanking(this.currentProject.id);
+            }
+        });
+        
+        document.getElementById('urlsDaysFilter')?.addEventListener('change', () => {
+            if (this.currentProject) {
+                this.loadTopUrlsRanking(this.currentProject.id);
+            }
+        });
+        
+        document.getElementById('filterMyBrandUrlsLLM')?.addEventListener('click', (e) => {
+            const btn = e.currentTarget;
+            const isActive = btn.dataset.active === 'true';
+            btn.dataset.active = !isActive;
+            btn.classList.toggle('active', !isActive);
+            
+            if (this.currentProject) {
+                this.filterLLMUrlsByBrand(!isActive);
+            }
+        });
+
         // Edit project
         document.getElementById('btnEditProject')?.addEventListener('click', () => {
             this.showProjectModal(this.currentProject);
@@ -656,6 +680,9 @@ class LLMMonitoring {
             
             // Load queries table
             await this.loadQueriesTable(projectId);
+            
+            // Load top URLs ranking
+            await this.loadTopUrlsRanking(projectId);
             
         } catch (error) {
             console.error('❌ Error loading metrics:', error);
@@ -3051,6 +3078,194 @@ class LLMMonitoring {
         } else {
             textEl.classList.add('collapsed');
             btn.innerHTML = '<i class="fas fa-chevron-down"></i> Show Full Response';
+        }
+    }
+
+    /**
+     * Load top URLs ranking from LLM responses
+     */
+    async loadTopUrlsRanking(projectId) {
+        console.log(`🔗 Loading top URLs ranking for project ${projectId}...`);
+        
+        const llmFilter = document.getElementById('urlsLLMFilter')?.value || '';
+        const days = parseInt(document.getElementById('urlsDaysFilter')?.value || 30);
+        
+        try {
+            const params = new URLSearchParams({ days });
+            if (llmFilter) params.append('llm_provider', llmFilter);
+            
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/urls-ranking?${params}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ Loaded ${data.urls.length} URLs`);
+            
+            // Store for filtering
+            this.allLLMUrls = data.urls;
+            
+            // Apply brand filter if active
+            const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
+            const showOnlyMyBrand = filterBtn?.dataset.active === 'true';
+            
+            if (showOnlyMyBrand) {
+                this.filterLLMUrlsByBrand(true);
+            } else {
+                this.renderTopUrlsRankingLLM(data.urls);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error loading URLs ranking:', error);
+            this.showNoUrlsLLMMessage();
+        }
+    }
+
+    /**
+     * Filter URLs by brand domain
+     */
+    filterLLMUrlsByBrand(showOnlyMyBrand) {
+        if (!this.allLLMUrls) return;
+        
+        let filtered = this.allLLMUrls;
+        
+        if (showOnlyMyBrand && this.currentProject) {
+            const brandDomain = this.currentProject.brand_domain?.toLowerCase();
+            
+            if (brandDomain) {
+                filtered = this.allLLMUrls.filter(urlData => {
+                    const url = urlData.url.toLowerCase();
+                    return url.includes(brandDomain);
+                });
+            }
+        }
+        
+        this.renderTopUrlsRankingLLM(filtered);
+    }
+
+    /**
+     * Render top URLs ranking table
+     */
+    renderTopUrlsRankingLLM(urls) {
+        const tableBody = document.getElementById('topUrlsLLMBody');
+        const noUrlsMessage = document.getElementById('noUrlsLLMMessage');
+        const topUrlsTable = document.getElementById('topUrlsLLMTable');
+        
+        if (!urls || urls.length === 0) {
+            this.showNoUrlsLLMMessage();
+            return;
+        }
+        
+        // Show table, hide message
+        noUrlsMessage.style.display = 'none';
+        topUrlsTable.style.display = 'table';
+        
+        // Clear existing rows
+        tableBody.innerHTML = '';
+        
+        // Get project info for highlighting
+        const brandDomain = this.currentProject?.brand_domain?.toLowerCase();
+        const competitorDomains = [];
+        
+        if (this.currentProject?.selected_competitors) {
+            this.currentProject.selected_competitors.forEach(comp => {
+                if (comp.domain) {
+                    competitorDomains.push(comp.domain.toLowerCase());
+                }
+            });
+        }
+        
+        // Render rows
+        urls.forEach((urlData, index) => {
+            const url = urlData.url;
+            const urlLower = url.toLowerCase();
+            
+            // Determine if it's our brand or competitor
+            let urlClass = '';
+            let badge = '';
+            
+            if (brandDomain && urlLower.includes(brandDomain)) {
+                urlClass = 'my-brand-url';
+                badge = '<span class="url-badge my-brand">My Brand</span>';
+            } else if (competitorDomains.some(domain => urlLower.includes(domain))) {
+                urlClass = 'competitor-url';
+                badge = '<span class="url-badge competitor">Competitor</span>';
+            }
+            
+            // LLM breakdown badges
+            const llmBadges = Object.entries(urlData.llm_breakdown || {})
+                .map(([llm, count]) => {
+                    const llmNames = {
+                        'openai': 'ChatGPT',
+                        'anthropic': 'Claude',
+                        'google': 'Gemini',
+                        'perplexity': 'Perplexity'
+                    };
+                    return `<span class="llm-badge llm-${llm}" title="${llmNames[llm]}: ${count} mentions">${llmNames[llm].substring(0, 3)}: ${count}</span>`;
+                })
+                .join(' ');
+            
+            const row = document.createElement('tr');
+            row.className = urlClass;
+            row.innerHTML = `
+                <td style="text-align: center;">${urlData.rank}</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <a href="${this.escapeHtml(url)}" target="_blank" rel="noopener noreferrer" 
+                           class="url-link" title="${this.escapeHtml(url)}">
+                            ${this.truncateUrl(url, 80)}
+                        </a>
+                        ${badge}
+                    </div>
+                </td>
+                <td style="text-align: center; font-weight: 600;">${urlData.mentions}</td>
+                <td>
+                    <div class="llm-badges-container">
+                        ${llmBadges}
+                    </div>
+                </td>
+                <td style="text-align: center;">${urlData.percentage.toFixed(1)}%</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        console.log(`✅ Rendered ${urls.length} URL rows`);
+    }
+
+    /**
+     * Show no URLs message
+     */
+    showNoUrlsLLMMessage() {
+        const tableBody = document.getElementById('topUrlsLLMBody');
+        const noUrlsMessage = document.getElementById('noUrlsLLMMessage');
+        const topUrlsTable = document.getElementById('topUrlsLLMTable');
+        
+        if (tableBody) tableBody.innerHTML = '';
+        if (topUrlsTable) topUrlsTable.style.display = 'none';
+        if (noUrlsMessage) noUrlsMessage.style.display = 'flex';
+    }
+
+    /**
+     * Truncate URL for display
+     */
+    truncateUrl(url, maxLength) {
+        if (url.length <= maxLength) return this.escapeHtml(url);
+        
+        try {
+            const urlObj = new URL(url);
+            const domain = urlObj.hostname.replace('www.', '');
+            const path = urlObj.pathname + urlObj.search;
+            
+            if (path.length > maxLength - domain.length - 3) {
+                return this.escapeHtml(domain + path.substring(0, maxLength - domain.length - 6) + '...');
+            }
+            
+            return this.escapeHtml(domain + path);
+        } catch {
+            return this.escapeHtml(url.substring(0, maxLength - 3) + '...');
         }
     }
 }
