@@ -3268,20 +3268,6 @@ class LLMMonitoring {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
             
-            // LLM breakdown badges con abreviaturas más claras
-            const llmBadges = Object.entries(urlData.llm_breakdown || {})
-                .map(([llm, count]) => {
-                    const llmInfo = {
-                        'openai': { name: 'ChatGPT', short: 'GPT' },
-                        'anthropic': { name: 'Claude', short: 'CLA' },
-                        'google': { name: 'Gemini', short: 'GEM' },
-                        'perplexity': { name: 'Perplexity', short: 'PPX' }
-                    };
-                    const info = llmInfo[llm] || { name: llm, short: llm.substring(0, 3).toUpperCase() };
-                    return `<span class="llm-badge llm-${llm}" title="${info.name}: ${count} mentions">${info.short}: ${count}</span>`;
-                })
-                .join(' ');
-            
             const row = document.createElement('tr');
             row.className = rowClass;
             row.innerHTML = `
@@ -3297,11 +3283,6 @@ class LLMMonitoring {
                     </div>
                 </td>
                 <td class="mentions-cell">${urlData.mentions}</td>
-                <td style="padding: var(--manual-ai-spacing-md);">
-                    <div class="llm-badges-container" style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-                        ${llmBadges}
-                    </div>
-                </td>
                 <td class="percentage-cell">${urlData.percentage.toFixed(1)}%</td>
             `;
             
