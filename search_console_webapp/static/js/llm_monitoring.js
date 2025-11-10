@@ -3132,12 +3132,17 @@ class LLMMonitoring {
         let filtered = this.allLLMUrls;
         
         if (showOnlyMyBrand && this.currentProject) {
-            const brandDomain = this.currentProject.brand_domain?.toLowerCase();
+            const projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
             
-            if (brandDomain) {
+            if (projectDomain) {
                 filtered = this.allLLMUrls.filter(urlData => {
-                    const url = urlData.url.toLowerCase();
-                    return url.includes(brandDomain);
+                    try {
+                        const urlObj = new URL(urlData.url);
+                        const urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+                        return urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain);
+                    } catch (e) {
+                        return false;
+                    }
                 });
             }
         }
@@ -3166,32 +3171,61 @@ class LLMMonitoring {
         tableBody.innerHTML = '';
         
         // Get project info for highlighting
-        const brandDomain = this.currentProject?.brand_domain?.toLowerCase();
-        const competitorDomains = [];
+        let projectDomain = '';
+        let competitorDomains = [];
         
-        if (this.currentProject?.selected_competitors) {
-            this.currentProject.selected_competitors.forEach(comp => {
-                if (comp.domain) {
-                    competitorDomains.push(comp.domain.toLowerCase());
-                }
+        if (this.currentProject) {
+            projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
+            
+            // Normalize competitor domains
+            const competitors = this.currentProject.selected_competitors || [];
+            competitorDomains = competitors.map(c => {
+                const domain = typeof c === 'object' ? (c.domain || c.competitor_domain || c) : c;
+                return String(domain).toLowerCase().replace(/^www\./, '').trim();
+            }).filter(d => d && d.length > 0);
+            
+            console.log('🎯 URL Highlighting Config (LLM Monitoring):', {
+                projectDomain,
+                competitorDomains,
+                totalUrls: urls.length
             });
         }
         
         // Render rows
         urls.forEach((urlData, index) => {
             const url = urlData.url;
-            const urlLower = url.toLowerCase();
             
-            // Determine if it's our brand or competitor
-            let urlClass = '';
-            let badge = '';
+            // Extract domain from URL
+            let urlDomain = '';
+            let domainType = 'other';
+            try {
+                const urlObj = new URL(url);
+                urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+                
+                // Check if it's project or competitor domain
+                if (projectDomain && (urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain))) {
+                    domainType = 'project';
+                } else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
+                    domainType = 'competitor';
+                }
+                
+                if (index < 5) { // Log first 5 for debugging
+                    console.log(`  URL ${index + 1}: ${urlDomain} → ${domainType}`);
+                }
+            } catch (e) {
+                // Invalid URL, keep as 'other'
+            }
             
-            if (brandDomain && urlLower.includes(brandDomain)) {
-                urlClass = 'my-brand-url';
-                badge = '<span class="url-badge my-brand">My Brand</span>';
-            } else if (competitorDomains.some(domain => urlLower.includes(domain))) {
-                urlClass = 'competitor-url';
-                badge = '<span class="url-badge competitor">Competitor</span>';
+            // Use 'table' prefix for project domain to avoid conflicts with other CSS
+            const domainTypeClass = domainType === 'project' ? 'table' : domainType;
+            const rowClass = `url-row ${domainTypeClass}-domain`;
+            
+            // Create domain badge if needed
+            let domainBadge = '';
+            if (domainType === 'project') {
+                domainBadge = '<span class="domain-badge project">Your Domain</span>';
+            } else if (domainType === 'competitor') {
+                domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
             
             // LLM breakdown badges
@@ -3208,31 +3242,32 @@ class LLMMonitoring {
                 .join(' ');
             
             const row = document.createElement('tr');
-            row.className = urlClass;
+            row.className = rowClass;
             row.innerHTML = `
-                <td style="text-align: center;">${urlData.rank}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <td class="rank-cell">${urlData.rank}</td>
+                <td class="url-cell">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <a href="${this.escapeHtml(url)}" target="_blank" rel="noopener noreferrer" 
                            class="url-link" title="${this.escapeHtml(url)}">
                             ${this.truncateUrl(url, 80)}
+                            <i class="fas fa-external-link-alt"></i>
                         </a>
-                        ${badge}
+                        ${domainBadge}
                     </div>
                 </td>
-                <td style="text-align: center; font-weight: 600;">${urlData.mentions}</td>
-                <td>
-                    <div class="llm-badges-container">
+                <td class="mentions-cell">${urlData.mentions}</td>
+                <td style="padding: var(--manual-ai-spacing-md);">
+                    <div class="llm-badges-container" style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
                         ${llmBadges}
                     </div>
                 </td>
-                <td style="text-align: center;">${urlData.percentage.toFixed(1)}%</td>
+                <td class="percentage-cell">${urlData.percentage.toFixed(1)}%</td>
             `;
             
             tableBody.appendChild(row);
         });
         
-        console.log(`✅ Rendered ${urls.length} URL rows`);
+        console.log(`✅ Rendered ${urls.length} URL rows with highlighting`);
     }
 
     /**

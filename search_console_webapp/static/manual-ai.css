@@ -3244,6 +3244,36 @@
     color: #92400e;
 }
 
+/* LLM badges for URL breakdown */
+.llm-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.llm-badge.llm-openai {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.llm-badge.llm-anthropic {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.llm-badge.llm-google {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.llm-badge.llm-perplexity {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+}
+
 /* Enhanced domain cell for global ranking */
 .global-domain-cell {
     display: flex;
