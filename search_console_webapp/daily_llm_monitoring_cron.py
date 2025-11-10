@@ -83,12 +83,17 @@ def main():
         
         # 3. Ejecutar análisis de todos los proyectos
         logger.info("🚀 Iniciando análisis de todos los proyectos activos...")
+        logger.info("   Configuración optimizada para CRON diario:")
+        logger.info("   • Prioridad: COMPLETITUD > Velocidad")
+        logger.info("   • Max workers: 8 (conservador)")
+        logger.info("   • Reintentos: 4 intentos con delays incrementales")
+        logger.info("   • Tiempo estimado: 15-30 minutos por proyecto")
         logger.info("")
         
         # analyze_all_active_projects() usará variables de entorno automáticamente
         results = analyze_all_active_projects(
             api_keys=None,  # None = usar variables de entorno
-            max_workers=10
+            max_workers=8   # Reducido de 10 a 8 para más estabilidad
         )
         
         logger.info("")
@@ -134,10 +139,28 @@ def main():
             logger.info("🔄 RECONCILIACIÓN: PROYECTOS CON ANÁLISIS INCOMPLETO")
             logger.info("=" * 70)
             for r in projects_with_incomplete:
-                logger.info(f"   • Proyecto #{r.get('project_id')}: LLMs incompletos → {', '.join(r.get('incomplete_llms', []))}")
+                incomplete_llms = r.get('incomplete_llms', [])
+                completeness = r.get('completeness_by_llm', {})
+                logger.info(f"   • Proyecto #{r.get('project_id')}:")
+                for llm in incomplete_llms:
+                    llm_data = completeness.get(llm, {})
+                    analyzed = llm_data.get('queries_analyzed', 0)
+                    expected = llm_data.get('queries_expected', 0)
+                    pct = llm_data.get('completeness_pct', 0)
+                    logger.info(f"      - {llm}: {analyzed}/{expected} ({pct}%)")
             
-            # Reducir concurrencia global y por proveedor (especialmente OpenAI)
-            os.environ.setdefault('OPENAI_CONCURRENCY', '3')
+            # Reducir AÚN MÁS la concurrencia para máxima fiabilidad en reconciliación
+            logger.info("")
+            logger.info("   Estrategia de reconciliación:")
+            logger.info("   • OpenAI: 1 worker (secuencial para máxima fiabilidad)")
+            logger.info("   • Google: 3 workers")
+            logger.info("   • Max workers global: 5")
+            logger.info("   • Delays más largos entre reintentos")
+            logger.info("")
+            
+            os.environ['OPENAI_CONCURRENCY'] = '1'  # Secuencial para OpenAI
+            os.environ['GOOGLE_CONCURRENCY'] = '3'  # Más conservador para Gemini
+            
             try:
                 service = MultiLLMMonitoringService(api_keys=None)
                 for r in projects_with_incomplete:
@@ -145,9 +168,17 @@ def main():
                     if not pid:
                         continue
                     logger.info("")
-                    logger.info(f"🔁 Reintentando proyecto #{pid} con menor concurrencia (max_workers=5)...")
+                    logger.info(f"🔁 Reintentando proyecto #{pid} con concurrencia MÍNIMA...")
+                    logger.info(f"   Esto puede tardar 30-45 minutos pero asegura completitud")
                     try:
-                        service.analyze_project(project_id=pid, max_workers=5)
+                        result = service.analyze_project(project_id=pid, max_workers=5)
+                        
+                        # Verificar si ahora está completo
+                        if result.get('all_queries_analyzed'):
+                            logger.info(f"   ✅ Proyecto #{pid} ahora está 100% completo")
+                        else:
+                            still_incomplete = result.get('incomplete_llms', [])
+                            logger.warning(f"   ⚠️ Proyecto #{pid} aún incompleto: {', '.join(still_incomplete)}")
                     except Exception as e:
                         logger.error(f"❌ Reintento falló para proyecto #{pid}: {e}")
             except Exception as e:

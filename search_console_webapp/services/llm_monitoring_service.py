@@ -73,12 +73,14 @@ class MultiLLMMonitoringService:
             logger.warning("⚠️ Gemini no disponible, sentimiento será por keywords")
         
         # ✨ NUEVO: Límites de concurrencia por proveedor (para evitar rate limits)
-        # Configurable vía variables de entorno. Valores conservadores por defecto.
+        # Configurable vía variables de entorno. 
+        # IMPORTANTE: Para cron diario, preferimos fiabilidad sobre velocidad
+        # Valores MUY conservadores por defecto para asegurar 100% de completitud
         self.provider_concurrency = {
-            'openai': int(os.getenv('OPENAI_CONCURRENCY', '3')),
-            'google': int(os.getenv('GOOGLE_CONCURRENCY', '6')),
-            'anthropic': int(os.getenv('ANTHROPIC_CONCURRENCY', '3')),
-            'perplexity': int(os.getenv('PERPLEXITY_CONCURRENCY', '4'))
+            'openai': int(os.getenv('OPENAI_CONCURRENCY', '2')),      # 2 (GPT-5 es lento, evitar rate limits)
+            'google': int(os.getenv('GOOGLE_CONCURRENCY', '5')),      # 5 (Gemini tiene límites estrictos)
+            'anthropic': int(os.getenv('ANTHROPIC_CONCURRENCY', '3')), # 3 (Claude es estable)
+            'perplexity': int(os.getenv('PERPLEXITY_CONCURRENCY', '4')) # 4 (Perplexity es rápido)
         }
         # Crear semáforos por proveedor
         self.provider_semaphores = {
@@ -588,25 +590,32 @@ JSON:"""
     def analyze_project(
         self,
         project_id: int,
-        max_workers: int = 10,
+        max_workers: int = 8,  # Reducido de 10 a 8 para más estabilidad
         analysis_date: date = None
     ) -> Dict:
         """
         Analiza un proyecto completo en todos los LLMs habilitados
         
-        ⚡ OPTIMIZACIÓN CRÍTICA: Usa ThreadPoolExecutor
+        ⚡ OPTIMIZADO PARA CRON DIARIO:
+        - Prioriza COMPLETITUD sobre velocidad
+        - Sistema de reintentos robusto (4 intentos con delays incrementales)
+        - Concurrencia conservadora por provider para evitar rate limits
+        - Timeouts generosos para queries lentas (GPT-5)
         
-        Antes: 4 LLMs × 20 queries × 5s = 400 segundos (6.7 minutos)
-        Después: 80 tareas / 10 workers = ~40 segundos
-        Mejora: 10x más rápido 🚀
+        TIEMPOS ESPERADOS (22 queries × 4 LLMs = 88 tareas):
+        - Claude: ~2-5 minutos (rápido)
+        - Gemini: ~2-5 minutos (rápido) 
+        - Perplexity: ~3-8 minutos (búsqueda en tiempo real)
+        - OpenAI GPT-5: ~10-20 minutos (lento pero potente)
+        - TOTAL: ~15-30 minutos (aceptable para cron diario)
         
         Args:
             project_id: ID del proyecto a analizar
-            max_workers: Número de threads paralelos
+            max_workers: Número de threads paralelos (default: 8, conservador)
             analysis_date: Fecha del análisis (default: hoy)
             
         Returns:
-            Dict con métricas globales
+            Dict con métricas globales y completitud por LLM
         """
         if analysis_date is None:
             # Usar zona horaria configurada para que la fecha refleje el día local del negocio
@@ -825,6 +834,10 @@ JSON:"""
         
         total_tasks = len(tasks)
         logger.info(f"⚡ Ejecutando {total_tasks} tareas en paralelo (max_workers={max_workers})...")
+        logger.info(f"   Concurrencia por provider:")
+        for pname in active_providers.keys():
+            logger.info(f"      • {pname}: {self.provider_concurrency.get(pname, 1)} workers")
+        logger.info(f"   🎯 Objetivo: 100% de completitud (velocidad no es crítica)")
         logger.info("")
         
         # Ejecutar en paralelo con ThreadPoolExecutor
@@ -871,27 +884,33 @@ JSON:"""
                     logger.error(f"   ❌ Excepción en tarea: {e}")
         
         # ✨ NUEVO: Sistema de reintentos para tareas fallidas
+        # OPTIMIZADO PARA CRON: Más reintentos y delays más largos para asegurar completitud
         if failed_tasks > 0:
             logger.info("")
             logger.info("=" * 70)
             logger.info(f"🔄 REINTENTANDO {failed_tasks} TAREAS FALLIDAS")
             logger.info("=" * 70)
-            logger.info(f"   Estrategia: 2 reintentos secuenciales con delay de 2s")
+            logger.info(f"   Estrategia para CRON: 4 reintentos con delays incrementales")
+            logger.info(f"   Objetivo: 100% de completitud (velocidad no es crítica)")
             logger.info("")
             
             retry_count = 0
-            max_retries = 2
+            max_retries = 4  # Aumentado de 2 a 4 para cron diario
             
             for attempt in range(1, max_retries + 1):
                 if not failed_task_list:
                     break
                     
+                # Delay incremental: 5s, 10s, 20s, 30s
+                delay = min(5 * (2 ** (attempt - 1)), 30)
+                
                 logger.info(f"📍 Intento {attempt}/{max_retries} ({len(failed_task_list)} tareas)")
+                logger.info(f"   Esperando {delay}s para evitar rate limits...")
                 
                 tasks_to_retry = failed_task_list.copy()
                 failed_task_list = []
                 
-                time.sleep(2)  # Delay antes de reintentar
+                time.sleep(delay)  # Delay incremental antes de reintentar
                 
                 for failed_item in tasks_to_retry:
                     task = failed_item['task']
@@ -1194,6 +1213,65 @@ JSON:"""
                 'error': str(e)
             }
     
+    def _save_error_result(self, task: Dict, error_message: str):
+        """
+        Guarda un registro de error en BD cuando un LLM falla
+        
+        Esto permite:
+        - Diferenciar entre 'no mencionado' y 'error al consultar'
+        - Mostrar errores específicos en el frontend
+        - Analizar patrones de fallos
+        
+        Args:
+            task: Información de la tarea que falló
+            error_message: Mensaje de error detallado
+        """
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            try:
+                cur.execute("""
+                    INSERT INTO llm_monitoring_results (
+                        project_id, query_id, analysis_date,
+                        llm_provider, model_used,
+                        query_text, brand_name,
+                        brand_mentioned, mention_count,
+                        has_error, error_message,
+                        full_response, response_length,
+                        tokens_used, cost_usd
+                    ) VALUES (
+                        %s, %s, %s,
+                        %s, %s,
+                        %s, %s,
+                        FALSE, 0,
+                        TRUE, %s,
+                        %s, 0,
+                        0, 0
+                    )
+                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
+                    DO UPDATE SET
+                        has_error = TRUE,
+                        error_message = EXCLUDED.error_message,
+                        updated_at = NOW()
+                """, (
+                    task['project_id'], task['query_id'], task['analysis_date'],
+                    task['llm_name'], None,  # model_used es NULL en caso de error
+                    task['query_text'], task['brand_name'],
+                    error_message,
+                    f"Error: {error_message}"  # full_response contiene el error
+                ))
+                
+                conn.commit()
+                logger.debug(f"✅ Error guardado en BD: {task['llm_name']} - {error_message[:50]}...")
+                
+            finally:
+                cur.close()
+                conn.close()
+                
+        except Exception as e:
+            logger.error(f"❌ Error guardando registro de error: {e}")
+    
     # =====================================================
     # CREACIÓN DE SNAPSHOTS
     # =====================================================
@@ -1328,18 +1406,21 @@ JSON:"""
 # HELPER FUNCTION
 # =====================================================
 
-def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: int = 10) -> List[Dict]:
+def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: int = 8) -> List[Dict]:
     """
     Analiza todos los proyectos activos
     
-    Útil para cron jobs que ejecutan análisis automáticos
+    OPTIMIZADO PARA CRON DIARIO:
+    - Prioriza completitud al 100% sobre velocidad
+    - Usa parámetros conservadores por defecto
+    - Sistema de reintentos robusto
     
     Args:
         api_keys: Dict con API keys (opcional, usa env vars si es None)
-        max_workers: Threads paralelos
+        max_workers: Threads paralelos (default: 8, conservador para cron)
         
     Returns:
-        Lista de resultados por proyecto
+        Lista de resultados por proyecto con métricas de completitud
     """
     service = MultiLLMMonitoringService(api_keys)
     
@@ -1532,63 +1613,4 @@ GENERA {count} PREGUNTAS:"""
     except Exception as e:
         logger.error(f"❌ Error generando sugerencias con IA: {e}", exc_info=True)
         return []
-    
-    def _save_error_result(self, task: Dict, error_message: str):
-        """
-        Guarda un registro de error en BD cuando un LLM falla
-        
-        Esto permite:
-        - Diferenciar entre 'no mencionado' y 'error al consultar'
-        - Mostrar errores específicos en el frontend
-        - Analizar patrones de fallos
-        
-        Args:
-            task: Información de la tarea que falló
-            error_message: Mensaje de error detallado
-        """
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            
-            try:
-                cur.execute("""
-                    INSERT INTO llm_monitoring_results (
-                        project_id, query_id, analysis_date,
-                        llm_provider, model_used,
-                        query_text, brand_name,
-                        brand_mentioned, mention_count,
-                        has_error, error_message,
-                        full_response, response_length,
-                        tokens_used, cost_usd
-                    ) VALUES (
-                        %s, %s, %s,
-                        %s, %s,
-                        %s, %s,
-                        FALSE, 0,
-                        TRUE, %s,
-                        %s, 0,
-                        0, 0
-                    )
-                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
-                    DO UPDATE SET
-                        has_error = TRUE,
-                        error_message = EXCLUDED.error_message,
-                        updated_at = NOW()
-                """, (
-                    task['project_id'], task['query_id'], task['analysis_date'],
-                    task['llm_name'], None,  # model_used es NULL en caso de error
-                    task['query_text'], task['brand_name'],
-                    error_message,
-                    f"Error: {error_message}"  # full_response contiene el error
-                ))
-                
-                conn.commit()
-                logger.debug(f"✅ Error guardado en BD: {task['llm_name']} - {error_message[:50]}...")
-                
-            finally:
-                cur.close()
-                conn.close()
-                
-        except Exception as e:
-            logger.error(f"❌ Error guardando registro de error: {e}")
 

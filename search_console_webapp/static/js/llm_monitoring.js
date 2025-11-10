@@ -321,10 +321,7 @@ class LLMMonitoring {
             this.saveProject();
         });
 
-        // Analyze project
-        document.getElementById('btnAnalyzeProject')?.addEventListener('click', () => {
-            this.analyzeProject();
-        });
+        // Analyze project: REMOVED - Analysis now runs via daily cron, not manual triggers
 
         // Edit project
         document.getElementById('btnEditProject')?.addEventListener('click', () => {
@@ -1811,74 +1808,19 @@ class LLMMonitoring {
 
     /**
      * Run analysis on current project
+     * 
+     * REMOVED: Manual analysis is no longer supported.
+     * Analysis now runs automatically via daily cron job at 4:00 AM.
+     * 
+     * This ensures:
+     * - 100% completeness (all LLMs, all prompts)
+     * - Reliable data collection
+     * - No timeout issues (analysis can take 15-30 minutes)
+     * - Automatic retry and reconciliation
+     * 
+     * Users can view the latest analysis results in the dashboard,
+     * which are updated daily by the cron job.
      */
-    async analyzeProject() {
-        if (!this.currentProject || !this.currentProject.id) {
-            return;
-        }
-        
-        console.log(`🚀 Starting analysis for project ${this.currentProject.id}...`);
-        
-        // Get button and add loading state
-        const btnAnalyze = document.getElementById('btnAnalyzeProject');
-        const originalHTML = btnAnalyze.innerHTML;
-        
-        btnAnalyze.disabled = true;
-        btnAnalyze.innerHTML = '<div class="btn-spinner"></div> <span>Analyzing...</span>';
-        
-        // Show progress modal
-        const modal = document.getElementById('analysisModal');
-        const progressBar = document.getElementById('analysisProgress');
-        const progressText = document.getElementById('analysisProgressText');
-        
-        modal.style.display = 'flex';
-        progressBar.style.width = '10%';
-        progressText.textContent = 'Starting analysis...';
-        
-        try {
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/analyze`, {
-                method: 'POST'
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            console.log('✅ Analysis completed:', data.results);
-            
-            // Update progress
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Analysis completed!';
-            
-            // Hide modal after delay
-            setTimeout(() => {
-                modal.style.display = 'none';
-                
-                // Restore button
-                btnAnalyze.disabled = false;
-                btnAnalyze.innerHTML = originalHTML;
-                
-                // Reload metrics
-                this.viewProject(this.currentProject.id);
-                
-                // Show success
-                this.showSuccess(`Analysis completed! ${data.results.total_queries_executed} queries analyzed.`);
-            }, 1500);
-            
-        } catch (error) {
-            console.error('❌ Error running analysis:', error);
-            modal.style.display = 'none';
-            
-            // Restore button
-            btnAnalyze.disabled = false;
-            btnAnalyze.innerHTML = originalHTML;
-            
-            this.showError(error.message || 'Failed to run analysis');
-        }
-    }
 
     /**
      * Load budget information

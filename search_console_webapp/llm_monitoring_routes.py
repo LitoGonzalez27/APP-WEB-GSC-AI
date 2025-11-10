@@ -15,12 +15,14 @@ Endpoints:
     GET    /api/llm-monitoring/projects/:id           - Obtener proyecto
     PUT    /api/llm-monitoring/projects/:id           - Actualizar proyecto
     DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
-    POST   /api/llm-monitoring/projects/:id/analyze   - Análisis manual
     GET    /api/llm-monitoring/projects/:id/metrics   - Métricas detalladas
     GET    /api/llm-monitoring/projects/:id/comparison - Comparativa LLMs
     GET    /api/llm-monitoring/models                 - Listar modelos LLM disponibles
     PUT    /api/llm-monitoring/models/:id             - Actualizar modelo (admin)
     GET    /api/llm-monitoring/health                 - Health check del sistema
+    
+    NOTA: El endpoint POST /projects/:id/analyze fue ELIMINADO.
+          El análisis ahora se ejecuta AUTOMÁTICAMENTE vía cron diario a las 4:00 AM.
 """
 
 import logging
@@ -941,62 +943,22 @@ def suggest_queries(project_id):
 # ENDPOINTS: ANÁLISIS
 # ============================================================================
 
-@llm_monitoring_bp.route('/projects/<int:project_id>/analyze', methods=['POST'])
-@login_required
-@validate_project_ownership
-def analyze_project(project_id):
-    """
-    Lanza análisis manual inmediato de un proyecto
-    
-    Query params opcionales:
-        max_workers: Número de workers paralelos (default: 10)
-    
-    Returns:
-        JSON con resultados del análisis
-    """
-    user = get_current_user()
-    
-    # Obtener API keys (primero de variables de entorno)
-    api_keys = {}
-    
-    if os.getenv('OPENAI_API_KEY'):
-        api_keys['openai'] = os.getenv('OPENAI_API_KEY')
-    if os.getenv('ANTHROPIC_API_KEY'):
-        api_keys['anthropic'] = os.getenv('ANTHROPIC_API_KEY')
-    if os.getenv('GOOGLE_API_KEY'):
-        api_keys['google'] = os.getenv('GOOGLE_API_KEY')
-    if os.getenv('PERPLEXITY_API_KEY'):
-        api_keys['perplexity'] = os.getenv('PERPLEXITY_API_KEY')
-    
-    if not api_keys:
-        return jsonify({
-            'error': 'No hay API keys configuradas',
-            'hint': 'Configura OPENAI_API_KEY, GOOGLE_API_KEY, etc. en variables de entorno'
-        }), 503
-    
-    max_workers = request.args.get('max_workers', 10, type=int)
-    
-    try:
-        # Crear servicio
-        service = MultiLLMMonitoringService(api_keys)
-        
-        # Ejecutar análisis
-        logger.info(f"Iniciando análisis manual del proyecto {project_id} por usuario {user['id']}")
-        
-        result = service.analyze_project(
-            project_id=project_id,
-            max_workers=max_workers
-        )
-        
-        return jsonify({
-            'success': True,
-            'message': 'Análisis completado',
-            'results': result
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error en análisis manual: {e}", exc_info=True)
-        return jsonify({'error': f'Error en análisis: {str(e)}'}), 500
+# REMOVED: Manual analysis endpoint
+#
+# Razón: El sistema ahora funciona EXCLUSIVAMENTE con cron diario (4:00 AM).
+# 
+# El análisis manual fue eliminado porque:
+# - Toma 15-30 minutos (timeout en navegador)
+# - Prioriza completitud sobre velocidad
+# - Requiere sistema robusto de reintentos
+# - El cron diario garantiza 100% de completitud
+#
+# El endpoint /projects/<int:project_id>/analyze ya NO está disponible.
+# Los usuarios ven los resultados del último análisis automático en el dashboard.
+#
+# Para ejecutar análisis manual (admin/debugging):
+# - Usar: python3 fix_openai_incomplete_analysis.py
+# - O ejecutar manualmente: python3 daily_llm_monitoring_cron.py
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/metrics', methods=['GET'])
