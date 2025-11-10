@@ -32,6 +32,9 @@ class LLMMonitoring {
         this.competitor2KeywordsChips = [];
         this.competitor3KeywordsChips = [];
         this.competitor4KeywordsChips = [];
+        
+        // ✨ Pagination state for URLs table
+        this._topUrlsLLMState = null;
     }
 
     /**
@@ -3114,7 +3117,17 @@ class LLMMonitoring {
             if (showOnlyMyBrand) {
                 this.filterLLMUrlsByBrand(true);
             } else {
-                this.renderTopUrlsRankingLLM(data.urls);
+                // Apply pagination for all URLs
+                const pageSize = 10;
+                const state = this._topUrlsLLMState || { page: 1 };
+                const totalPages = Math.max(1, Math.ceil(data.urls.length / pageSize));
+                state.page = Math.min(state.page, totalPages);
+                const start = (state.page - 1) * pageSize;
+                const paged = data.urls.slice(start, start + pageSize);
+                
+                this._topUrlsLLMState = { page: state.page, totalPages, fullList: data.urls };
+                this.renderTopUrlsRankingLLM(paged);
+                this.renderTopUrlsLLMPaginator();
             }
             
         } catch (error) {
@@ -3124,10 +3137,14 @@ class LLMMonitoring {
     }
 
     /**
-     * Filter URLs by brand domain
+     * Filter URLs by brand domain with pagination
      */
     filterLLMUrlsByBrand(showOnlyMyBrand) {
-        if (!this.allLLMUrls) return;
+        if (!this.allLLMUrls || this.allLLMUrls.length === 0) {
+            console.warn('⚠️ No URLs data available for filtering');
+            this.showNoUrlsLLMMessage();
+            return;
+        }
         
         let filtered = this.allLLMUrls;
         
@@ -3144,10 +3161,33 @@ class LLMMonitoring {
                         return false;
                     }
                 });
+                
+                console.log(`🔍 Filtered: ${filtered.length} URLs from ${this.allLLMUrls.length} total`);
             }
+            
+            // If no URLs match, show message
+            if (filtered.length === 0) {
+                console.warn('⚠️ No URLs found for your brand');
+                this.showNoUrlsLLMMessage();
+                return;
+            }
+            
+            // Recalculate ranks after filtering
+            filtered = filtered.map((url, index) => ({
+                ...url,
+                rank: index + 1
+            }));
         }
         
-        this.renderTopUrlsRankingLLM(filtered);
+        // Apply pagination
+        const pageSize = 10;
+        const state = { page: 1 };
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        const paged = filtered.slice(0, pageSize);
+        
+        this._topUrlsLLMState = { page: state.page, totalPages, fullList: filtered };
+        this.renderTopUrlsRankingLLM(paged);
+        this.renderTopUrlsLLMPaginator();
     }
 
     /**
@@ -3228,16 +3268,17 @@ class LLMMonitoring {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
             
-            // LLM breakdown badges
+            // LLM breakdown badges con abreviaturas más claras
             const llmBadges = Object.entries(urlData.llm_breakdown || {})
                 .map(([llm, count]) => {
-                    const llmNames = {
-                        'openai': 'ChatGPT',
-                        'anthropic': 'Claude',
-                        'google': 'Gemini',
-                        'perplexity': 'Perplexity'
+                    const llmInfo = {
+                        'openai': { name: 'ChatGPT', short: 'GPT' },
+                        'anthropic': { name: 'Claude', short: 'CLA' },
+                        'google': { name: 'Gemini', short: 'GEM' },
+                        'perplexity': { name: 'Perplexity', short: 'PPX' }
                     };
-                    return `<span class="llm-badge llm-${llm}" title="${llmNames[llm]}: ${count} mentions">${llmNames[llm].substring(0, 3)}: ${count}</span>`;
+                    const info = llmInfo[llm] || { name: llm, short: llm.substring(0, 3).toUpperCase() };
+                    return `<span class="llm-badge llm-${llm}" title="${info.name}: ${count} mentions">${info.short}: ${count}</span>`;
                 })
                 .join(' ');
             
@@ -3281,6 +3322,89 @@ class LLMMonitoring {
         if (tableBody) tableBody.innerHTML = '';
         if (topUrlsTable) topUrlsTable.style.display = 'none';
         if (noUrlsMessage) noUrlsMessage.style.display = 'flex';
+    }
+
+    /**
+     * Render pagination controls for URLs table
+     */
+    renderTopUrlsLLMPaginator() {
+        const container = document.getElementById('topUrlsLLMTable')?.parentElement || document.getElementById('noUrlsLLMMessage')?.parentElement;
+        if (!container || !this._topUrlsLLMState) return;
+        
+        let paginator = document.getElementById('topUrlsLLMPaginator');
+        if (!paginator) {
+            paginator = document.createElement('div');
+            paginator.id = 'topUrlsLLMPaginator';
+            paginator.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:24px 0;align-items:center;';
+            container.appendChild(paginator);
+        }
+        
+        const { page, totalPages, fullList } = this._topUrlsLLMState;
+        paginator.innerHTML = '';
+        
+        // Previous button
+        const btnPrev = document.createElement('button');
+        btnPrev.className = 'btn btn-light btn-sm';
+        btnPrev.style.backgroundColor = '#C3F5A4';
+        btnPrev.style.borderColor = '#C3F5A4';
+        btnPrev.style.color = '#111827';
+        btnPrev.innerHTML = '<i class="fas fa-chevron-left"></i> Previous';
+        btnPrev.disabled = page <= 1;
+        btnPrev.onclick = () => {
+            this._topUrlsLLMState.page = Math.max(1, page - 1);
+            
+            // Check if filter is active
+            const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
+            const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+            
+            if (isFilterActive) {
+                this.filterLLMUrlsByBrand(true);
+            } else {
+                const pageSize = 10;
+                const start = (this._topUrlsLLMState.page - 1) * pageSize;
+                const paged = fullList.slice(start, start + pageSize);
+                this.renderTopUrlsRankingLLM(paged);
+                this.renderTopUrlsLLMPaginator();
+            }
+        };
+        
+        // Page info
+        const info = document.createElement('span');
+        info.style.cssText = 'display:flex;align-items:center;font-size:13px;color:#6b7280;font-weight:500;';
+        info.textContent = `Page ${page} of ${totalPages}`;
+        
+        // Next button
+        const btnNext = document.createElement('button');
+        btnNext.className = 'btn btn-light btn-sm';
+        btnNext.style.backgroundColor = '#C3F5A4';
+        btnNext.style.borderColor = '#C3F5A4';
+        btnNext.style.color = '#111827';
+        btnNext.innerHTML = 'Next <i class="fas fa-chevron-right"></i>';
+        btnNext.disabled = page >= totalPages;
+        btnNext.onclick = () => {
+            this._topUrlsLLMState.page = Math.min(totalPages, page + 1);
+            
+            // Check if filter is active
+            const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
+            const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
+            
+            if (isFilterActive) {
+                this.filterLLMUrlsByBrand(true);
+            } else {
+                const pageSize = 10;
+                const start = (this._topUrlsLLMState.page - 1) * pageSize;
+                const paged = fullList.slice(start, start + pageSize);
+                this.renderTopUrlsRankingLLM(paged);
+                this.renderTopUrlsLLMPaginator();
+            }
+        };
+        
+        // Append buttons
+        paginator.appendChild(btnPrev);
+        paginator.appendChild(info);
+        paginator.appendChild(btnNext);
+        
+        console.log(`📄 Rendered paginator: Page ${page}/${totalPages}`);
     }
 
     /**
