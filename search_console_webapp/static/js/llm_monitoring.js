@@ -329,12 +329,26 @@ class LLMMonitoring {
         // Top URLs LLM filters
         document.getElementById('urlsLLMFilter')?.addEventListener('change', () => {
             if (this.currentProject) {
+                // Reset domain view when changing filters
+                const domainsBtn = document.getElementById('showTopDomainsLLM');
+                if (domainsBtn && domainsBtn.dataset.active === 'true') {
+                    domainsBtn.dataset.active = 'false';
+                    domainsBtn.classList.remove('active');
+                }
+                
                 this.loadTopUrlsRanking(this.currentProject.id);
             }
         });
         
         document.getElementById('urlsDaysFilter')?.addEventListener('change', () => {
             if (this.currentProject) {
+                // Reset domain view when changing filters
+                const domainsBtn = document.getElementById('showTopDomainsLLM');
+                if (domainsBtn && domainsBtn.dataset.active === 'true') {
+                    domainsBtn.dataset.active = 'false';
+                    domainsBtn.classList.remove('active');
+                }
+                
                 this.loadTopUrlsRanking(this.currentProject.id);
             }
         });
@@ -345,8 +359,33 @@ class LLMMonitoring {
             btn.dataset.active = !isActive;
             btn.classList.toggle('active', !isActive);
             
+            // Desactivar el botón de dominios si está activo
+            const domainsBtn = document.getElementById('showTopDomainsLLM');
+            if (domainsBtn && domainsBtn.dataset.active === 'true') {
+                domainsBtn.dataset.active = 'false';
+                domainsBtn.classList.remove('active');
+            }
+            
             if (this.currentProject) {
                 this.filterLLMUrlsByBrand(!isActive);
+            }
+        });
+        
+        document.getElementById('showTopDomainsLLM')?.addEventListener('click', (e) => {
+            const btn = e.currentTarget;
+            const isActive = btn.dataset.active === 'true';
+            btn.dataset.active = !isActive;
+            btn.classList.toggle('active', !isActive);
+            
+            // Desactivar el botón de my brand si está activo
+            const brandBtn = document.getElementById('filterMyBrandUrlsLLM');
+            if (brandBtn && brandBtn.dataset.active === 'true') {
+                brandBtn.dataset.active = 'false';
+                brandBtn.classList.remove('active');
+            }
+            
+            if (this.currentProject) {
+                this.toggleDomainsView(!isActive);
             }
         });
 
@@ -3125,7 +3164,11 @@ class LLMMonitoring {
                 const start = (state.page - 1) * pageSize;
                 const paged = data.urls.slice(start, start + pageSize);
                 
-                this._topUrlsLLMState = { page: state.page, totalPages, fullList: data.urls };
+                this._topUrlsLLMState = { page: state.page, totalPages, fullList: data.urls, isDomainView: false };
+                
+                // Ensure we're in URLs view (not domains)
+                this.updateTableHeaderForUrls();
+                
                 this.renderTopUrlsRankingLLM(paged);
                 this.renderTopUrlsLLMPaginator();
             }
@@ -3185,7 +3228,11 @@ class LLMMonitoring {
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
         const paged = filtered.slice(0, pageSize);
         
-        this._topUrlsLLMState = { page: state.page, totalPages, fullList: filtered };
+        this._topUrlsLLMState = { page: state.page, totalPages, fullList: filtered, isDomainView: false };
+        
+        // Make sure we're in URLs view, not domains view
+        this.updateTableHeaderForUrls();
+        
         this.renderTopUrlsRankingLLM(paged);
         this.renderTopUrlsLLMPaginator();
     }
@@ -3306,6 +3353,234 @@ class LLMMonitoring {
     }
 
     /**
+     * Toggle between URLs view and Domains view
+     */
+    toggleDomainsView(showDomains) {
+        if (!this.allLLMUrls || this.allLLMUrls.length === 0) {
+            console.warn('⚠️ No URLs data available');
+            this.showNoUrlsLLMMessage();
+            return;
+        }
+        
+        if (showDomains) {
+            console.log('🏢 Switching to Domains view...');
+            
+            // Aggregate URLs by domain
+            const domainsData = this.aggregateUrlsByDomain(this.allLLMUrls);
+            
+            // Apply pagination
+            const pageSize = 10;
+            const state = { page: 1 };
+            const totalPages = Math.max(1, Math.ceil(domainsData.length / pageSize));
+            const paged = domainsData.slice(0, pageSize);
+            
+            this._topUrlsLLMState = { page: state.page, totalPages, fullList: domainsData, isDomainView: true };
+            
+            // Update table header for domains view
+            this.updateTableHeaderForDomains();
+            
+            // Render domains table
+            this.renderTopDomainsRankingLLM(paged);
+            this.renderTopUrlsLLMPaginator();
+        } else {
+            console.log('🔗 Switching back to URLs view...');
+            
+            // Restore URLs view
+            const pageSize = 10;
+            const state = { page: 1 };
+            const totalPages = Math.max(1, Math.ceil(this.allLLMUrls.length / pageSize));
+            const paged = this.allLLMUrls.slice(0, pageSize);
+            
+            this._topUrlsLLMState = { page: state.page, totalPages, fullList: this.allLLMUrls, isDomainView: false };
+            
+            // Update table header for URLs view
+            this.updateTableHeaderForUrls();
+            
+            // Render URLs table
+            this.renderTopUrlsRankingLLM(paged);
+            this.renderTopUrlsLLMPaginator();
+        }
+    }
+
+    /**
+     * Aggregate URLs by domain
+     */
+    aggregateUrlsByDomain(urlsData) {
+        const domainStats = {};
+        
+        urlsData.forEach(urlData => {
+            try {
+                const urlObj = new URL(urlData.url);
+                const domain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+                
+                if (!domainStats[domain]) {
+                    domainStats[domain] = {
+                        domain: domain,
+                        urlCount: 0,
+                        totalMentions: 0,
+                        urls: []
+                    };
+                }
+                
+                domainStats[domain].urlCount++;
+                domainStats[domain].totalMentions += urlData.mentions || 0;
+                domainStats[domain].urls.push(urlData.url);
+                
+            } catch (e) {
+                console.warn('Invalid URL:', urlData.url);
+            }
+        });
+        
+        // Convert to array and calculate percentages
+        const totalMentions = Object.values(domainStats).reduce((sum, d) => sum + d.totalMentions, 0);
+        
+        const domainsArray = Object.values(domainStats).map(domainData => ({
+            ...domainData,
+            percentage: totalMentions > 0 ? (domainData.totalMentions / totalMentions * 100) : 0
+        }));
+        
+        // Sort by total mentions (descending)
+        domainsArray.sort((a, b) => b.totalMentions - a.totalMentions);
+        
+        // Add ranking
+        domainsArray.forEach((domain, index) => {
+            domain.rank = index + 1;
+        });
+        
+        console.log(`✅ Aggregated ${domainsArray.length} unique domains from ${urlsData.length} URLs`);
+        
+        return domainsArray;
+    }
+
+    /**
+     * Update table header for domains view
+     */
+    updateTableHeaderForDomains() {
+        const thead = document.querySelector('#topUrlsLLMTable thead');
+        if (!thead) return;
+        
+        thead.innerHTML = `
+            <tr>
+                <th style="width: 60px;">#</th>
+                <th style="width: 45%;">Domain</th>
+                <th style="width: 100px;">URLs</th>
+                <th style="width: 120px;">Total Mentions</th>
+                <th style="width: 120px;">% of Total</th>
+            </tr>
+        `;
+    }
+
+    /**
+     * Update table header for URLs view
+     */
+    updateTableHeaderForUrls() {
+        const thead = document.querySelector('#topUrlsLLMTable thead');
+        if (!thead) return;
+        
+        thead.innerHTML = `
+            <tr>
+                <th style="width: 60px;">#</th>
+                <th style="width: 60%;">URL</th>
+                <th style="width: 120px;">Mentions</th>
+                <th style="width: 120px;">% of Total</th>
+            </tr>
+        `;
+    }
+
+    /**
+     * Render top domains ranking table
+     */
+    renderTopDomainsRankingLLM(domains) {
+        const tableBody = document.getElementById('topUrlsLLMBody');
+        const noUrlsMessage = document.getElementById('noUrlsLLMMessage');
+        const topUrlsTable = document.getElementById('topUrlsLLMTable');
+        
+        if (!domains || domains.length === 0) {
+            this.showNoUrlsLLMMessage();
+            return;
+        }
+        
+        // Show table, hide message
+        noUrlsMessage.style.display = 'none';
+        topUrlsTable.style.display = 'table';
+        
+        // Clear existing rows
+        tableBody.innerHTML = '';
+        
+        // Get project info for highlighting
+        let projectDomain = '';
+        let competitorDomains = [];
+        
+        if (this.currentProject) {
+            projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
+            
+            // Normalize competitor domains
+            const competitors = this.currentProject.selected_competitors || [];
+            competitorDomains = competitors.map(c => {
+                const domain = typeof c === 'object' ? (c.domain || c.competitor_domain || c) : c;
+                return String(domain).toLowerCase().replace(/^www\./, '').trim();
+            }).filter(d => d && d.length > 0);
+        }
+        
+        // Render each domain row
+        domains.forEach((domainData, index) => {
+            const domain = domainData.domain;
+            
+            // Determine if it's project or competitor domain
+            let domainType = 'other';
+            if (projectDomain && (domain === projectDomain || domain.endsWith('.' + projectDomain))) {
+                domainType = 'project';
+            } else if (competitorDomains.some(comp => domain === comp || domain.endsWith('.' + comp))) {
+                domainType = 'competitor';
+            }
+            
+            const domainTypeClass = domainType === 'project' ? 'table' : domainType;
+            const rowClass = `url-row ${domainTypeClass}-domain`;
+            
+            // Create domain badge if needed
+            let domainBadge = '';
+            if (domainType === 'project') {
+                domainBadge = '<span class="domain-badge project">Your Domain</span>';
+            } else if (domainType === 'competitor') {
+                domainBadge = '<span class="domain-badge competitor">Competitor</span>';
+            }
+            
+            // Get logo URL
+            const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+            
+            const row = document.createElement('tr');
+            row.className = rowClass;
+            row.innerHTML = `
+                <td class="rank-cell">${domainData.rank}</td>
+                <td class="url-cell">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <img src="${logoUrl}" alt="${this.escapeHtml(domain)}" 
+                             style="width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.charAt(0).toUpperCase()}</text></svg>'">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="https://${this.escapeHtml(domain)}" target="_blank" rel="noopener noreferrer" 
+                                   class="url-link" style="font-weight: 500;">
+                                    ${this.escapeHtml(domain)}
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                ${domainBadge}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="mentions-cell" style="text-align: center;">${domainData.urlCount}</td>
+                <td class="mentions-cell">${domainData.totalMentions}</td>
+                <td class="percentage-cell">${domainData.percentage.toFixed(1)}%</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        console.log(`✅ Rendered ${domains.length} domain rows with highlighting`);
+    }
+
+    /**
      * Render pagination controls for URLs table
      */
     renderTopUrlsLLMPaginator() {
@@ -3334,7 +3609,10 @@ class LLMMonitoring {
         btnPrev.onclick = () => {
             this._topUrlsLLMState.page = Math.max(1, page - 1);
             
-            // Check if filter is active
+            // Check if domain view is active
+            const isDomainView = this._topUrlsLLMState.isDomainView;
+            
+            // Check if brand filter is active
             const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
             const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
             
@@ -3344,7 +3622,12 @@ class LLMMonitoring {
                 const pageSize = 10;
                 const start = (this._topUrlsLLMState.page - 1) * pageSize;
                 const paged = fullList.slice(start, start + pageSize);
-                this.renderTopUrlsRankingLLM(paged);
+                
+                if (isDomainView) {
+                    this.renderTopDomainsRankingLLM(paged);
+                } else {
+                    this.renderTopUrlsRankingLLM(paged);
+                }
                 this.renderTopUrlsLLMPaginator();
             }
         };
@@ -3365,7 +3648,10 @@ class LLMMonitoring {
         btnNext.onclick = () => {
             this._topUrlsLLMState.page = Math.min(totalPages, page + 1);
             
-            // Check if filter is active
+            // Check if domain view is active
+            const isDomainView = this._topUrlsLLMState.isDomainView;
+            
+            // Check if brand filter is active
             const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
             const isFilterActive = filterBtn && filterBtn.getAttribute('data-active') === 'true';
             
@@ -3375,7 +3661,12 @@ class LLMMonitoring {
                 const pageSize = 10;
                 const start = (this._topUrlsLLMState.page - 1) * pageSize;
                 const paged = fullList.slice(start, start + pageSize);
-                this.renderTopUrlsRankingLLM(paged);
+                
+                if (isDomainView) {
+                    this.renderTopDomainsRankingLLM(paged);
+                } else {
+                    this.renderTopUrlsRankingLLM(paged);
+                }
                 this.renderTopUrlsLLMPaginator();
             }
         };
