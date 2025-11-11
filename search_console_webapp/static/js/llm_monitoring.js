@@ -657,6 +657,7 @@ class LLMMonitoring {
         // Hide projects, show metrics
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
+        const fab = document.getElementById('globalMetricFab');
         
         console.log('📦 Projects tab element:', projectsTab);
         console.log('📦 Metrics section element:', metricsSection);
@@ -668,6 +669,10 @@ class LLMMonitoring {
         if (metricsSection) {
             metricsSection.style.display = 'block';
             metricsSection.classList.add('active');
+        }
+        // ✨ Show FAB when viewing a project
+        if (fab) {
+            fab.style.display = 'flex';
         }
         
         try {
@@ -1694,6 +1699,7 @@ class LLMMonitoring {
     showProjectsList() {
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
+        const fab = document.getElementById('globalMetricFab');
         
         if (projectsTab) {
             projectsTab.style.display = 'block';
@@ -1702,6 +1708,10 @@ class LLMMonitoring {
         if (metricsSection) {
             metricsSection.style.display = 'none';
             metricsSection.classList.remove('active');
+        }
+        // ✨ Hide FAB when viewing projects list
+        if (fab) {
+            fab.style.display = 'none';
         }
         this.currentProject = null;
     }

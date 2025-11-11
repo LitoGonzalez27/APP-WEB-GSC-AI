@@ -1748,3 +1748,10 @@
     }
 }
 
+/* ==========================================
+   Override: Remove margin-bottom from labels
+   ========================================== */
+label:not(.search-form label) {
+    margin-bottom: 0;
+}
+
