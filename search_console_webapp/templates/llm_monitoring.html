@@ -293,34 +293,8 @@
                         <div class="chart-header-left">
                             <h3>
                                 Share of Voice Over Time
-                                <button class="info-tooltip-btn" id="btnSovInfo" title="Learn about Share of Voice metrics">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
                             </h3>
                             <div class="chart-subtitle">Track your brand's visibility vs competitors across all LLMs</div>
-                        </div>
-                        <div class="chart-header-right">
-                            <!-- ✨ NEW: Metric Type Selector -->
-                            <div class="metric-selector">
-                                <label class="metric-selector-label">
-                                    <i class="fas fa-chart-line"></i>
-                                    Metric:
-                                </label>
-                                <div class="toggle-switch" id="sovMetricToggle">
-                                    <input type="radio" id="metricWeighted" name="sovMetric" value="weighted" checked>
-                                    <label for="metricWeighted" class="toggle-option">
-                                        <span class="toggle-icon">⭐</span>
-                                        <span class="toggle-text">Weighted</span>
-                                        <span class="toggle-badge">Recommended</span>
-                                    </label>
-                                    
-                                    <input type="radio" id="metricNormal" name="sovMetric" value="normal">
-                                    <label for="metricNormal" class="toggle-option">
-                                        <span class="toggle-icon">📊</span>
-                                        <span class="toggle-text">Standard</span>
-                                    </label>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="chart-container chart-container-timeline">
@@ -1491,6 +1465,36 @@ Alternativas a Semrush
                 <button class="btn-secondary" id="btnCloseSovInfoFooter">
                     Got it!
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✨ STICKY: Global Share of Voice Metric Selector -->
+    <div class="global-metric-fab" id="globalMetricFab">
+        <div class="fab-tooltip">
+            Change Share of Voice calculation method<br>
+            <small>(affects all charts and metrics)</small>
+        </div>
+        
+        <div class="fab-content">
+            <button class="fab-info-btn" id="btnGlobalSovInfo" title="Learn about Share of Voice metrics">
+                <i class="fas fa-info-circle"></i>
+            </button>
+            
+            <div class="fab-toggle-wrapper">
+                <div class="fab-toggle" id="globalSovMetricToggle">
+                    <input type="radio" id="globalMetricWeighted" name="globalSovMetric" value="weighted" checked>
+                    <label for="globalMetricWeighted" class="fab-toggle-option">
+                        <span class="fab-toggle-icon">⭐</span>
+                        <span class="fab-toggle-text">Weighted</span>
+                    </label>
+                    
+                    <input type="radio" id="globalMetricNormal" name="globalSovMetric" value="normal">
+                    <label for="globalMetricNormal" class="fab-toggle-option">
+                        <span class="fab-toggle-icon">📊</span>
+                        <span class="fab-toggle-text">Standard</span>
+                    </label>
+                </div>
             </div>
         </div>
     </div>

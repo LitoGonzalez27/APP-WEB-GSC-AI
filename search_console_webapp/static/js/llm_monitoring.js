@@ -340,20 +340,48 @@ class LLMMonitoring {
             }
         });
         
-        // ✨ NEW: Share of Voice metric toggle
-        document.querySelectorAll('input[name="sovMetric"]').forEach(radio => {
+        // ✨ GLOBAL: Share of Voice metric toggle (FAB)
+        document.querySelectorAll('input[name="globalSovMetric"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (this.currentProject) {
-                    console.log(`📊 Switching to ${e.target.value} Share of Voice metric`);
-                    this.renderShareOfVoiceChart();
+                    const metricType = e.target.value;
+                    console.log(`📊 GLOBAL: Switching to ${metricType} Share of Voice metric`);
+                    console.log(`   → Updating all charts and metrics...`);
+                    
+                    // Guardar preferencia en localStorage
+                    localStorage.setItem('llm_monitoring_sov_metric', metricType);
+                    
+                    // Actualizar TODOS los gráficos y métricas
+                    this.renderShareOfVoiceChart();  // Gráfico de líneas temporal
+                    this.renderShareOfVoiceDonutChart();  // Gráfico de rosco/distribución
+                    this.renderMentionsTimelineChart();  // Timeline de menciones (usa los mismos datos)
+                    
+                    // TODO: Si hay tablas que muestran SoV, actualizarlas aquí también
+                    
+                    console.log(`✅ All charts updated to ${metricType} metric`);
                 }
             });
         });
         
-        // ✨ NEW: Share of Voice info modal
-        document.getElementById('btnSovInfo')?.addEventListener('click', () => {
+        // ✨ GLOBAL: Share of Voice info modal (from FAB)
+        document.getElementById('btnGlobalSovInfo')?.addEventListener('click', () => {
             this.showSovInfoModal();
         });
+        
+        // Restaurar preferencia de métrica desde localStorage
+        const savedMetric = localStorage.getItem('llm_monitoring_sov_metric') || 'weighted';
+        const radioToCheck = document.getElementById(savedMetric === 'weighted' ? 'globalMetricWeighted' : 'globalMetricNormal');
+        if (radioToCheck) {
+            radioToCheck.checked = true;
+        }
+        
+        // Animación de pulso al cargar (destacar el FAB)
+        setTimeout(() => {
+            document.getElementById('globalMetricFab')?.classList.add('pulse');
+            setTimeout(() => {
+                document.getElementById('globalMetricFab')?.classList.remove('pulse');
+            }, 6000); // 3 pulsos x 2 segundos
+        }, 1000);
         
         document.getElementById('btnCloseSovInfo')?.addEventListener('click', () => {
             this.hideSovInfoModal();
@@ -873,8 +901,8 @@ class LLMMonitoring {
                 return;
             }
             
-            // ✨ NEW: Get selected metric type from toggle
-            const metricType = document.querySelector('input[name="sovMetric"]:checked')?.value || 'weighted';
+            // ✨ GLOBAL: Get selected metric type from global FAB toggle
+            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice chart with metric: ${metricType}`);
             
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
@@ -1051,7 +1079,10 @@ class LLMMonitoring {
                 return;
             }
             
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            // ✨ GLOBAL: Get selected metric type from global FAB toggle
+            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+            
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
                 return;
@@ -1219,7 +1250,11 @@ class LLMMonitoring {
                 return;
             }
             
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            // ✨ GLOBAL: Get selected metric type from global FAB toggle
+            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+            console.log(`📊 Rendering Share of Voice Donut with metric: ${metricType}`);
+            
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
             if (!response.ok) {
                 console.warn('Could not load Share of Voice donut data');
                 return;
