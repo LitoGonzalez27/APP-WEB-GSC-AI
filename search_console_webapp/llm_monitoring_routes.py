@@ -398,8 +398,11 @@ def get_project(project_id):
             logger.warning(f"⚠️ Proyecto {project_id} no encontrado")
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         
-        # Obtener últimas métricas de cada LLM
+        # 📊 CALCULAR PROMEDIOS DE TODOS LOS DÍAS DISPONIBLES (últimos 30 días)
+        # Los KPIs superiores deben reflejar el estado PROMEDIO del proyecto, no solo el último día
         logger.info(f"📈 Consultando métricas para proyecto {project_id}...")
+        
+        # Obtener todos los snapshots de los últimos 30 días
         cur.execute("""
             SELECT 
                 llm_provider,
@@ -414,39 +417,83 @@ def get_project(project_id):
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
+                AND snapshot_date >= CURRENT_DATE - INTERVAL '30 days'
             ORDER BY snapshot_date DESC, llm_provider
-            LIMIT 4
         """, (project_id,))
         
-        latest_metrics = cur.fetchall()
-        logger.info(f"📊 Métricas encontradas: {len(latest_metrics)} registros")
+        all_snapshots = cur.fetchall()
+        logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos 30 días)")
         
-        # Formatear métricas
+        # 🧮 Calcular PROMEDIOS por LLM (de todos los días disponibles)
         metrics_by_llm = {}
-        for metric in latest_metrics:
-            positive_mentions = metric.get('positive_mentions') or 0
-            neutral_mentions = metric.get('neutral_mentions') or 0
-            negative_mentions = metric.get('negative_mentions') or 0
-            total_queries = metric.get('total_queries') or 0
+        
+        # Agrupar snapshots por LLM
+        snapshots_by_llm = {}
+        for snapshot in all_snapshots:
+            llm = snapshot['llm_provider']
+            if llm not in snapshots_by_llm:
+                snapshots_by_llm[llm] = []
+            snapshots_by_llm[llm].append(snapshot)
+        
+        # Calcular promedios para cada LLM
+        for llm, llm_snapshots in snapshots_by_llm.items():
+            if not llm_snapshots:
+                continue
             
-            # 🔧 FIX: Usar total_queries como divisor, no total_mentions
-            # positive/neutral/negative_mentions son contadores de QUERIES con ese sentiment
-            positive_pct = (positive_mentions / total_queries * 100) if total_queries else 0
-            neutral_pct = (neutral_mentions / total_queries * 100) if total_queries else 0
-            negative_pct = (negative_mentions / total_queries * 100) if total_queries else 0
-
-            metrics_by_llm[metric['llm_provider']] = {
-                'mention_rate': float(metric['mention_rate']) if metric['mention_rate'] is not None else 0,
-                'avg_position': float(metric['avg_position']) if metric['avg_position'] is not None else None,
-                'share_of_voice': float(metric['share_of_voice']) if metric['share_of_voice'] is not None else 0,
+            # Promediar mention_rate
+            avg_mention_rate = sum(
+                float(s['mention_rate'] or 0) for s in llm_snapshots
+            ) / len(llm_snapshots)
+            
+            # Promediar avg_position (solo de snapshots que tienen posición)
+            positions = [float(s['avg_position']) for s in llm_snapshots if s['avg_position'] is not None]
+            avg_position = sum(positions) / len(positions) if positions else None
+            
+            # Promediar share_of_voice
+            avg_share_of_voice = sum(
+                float(s['share_of_voice'] or 0) for s in llm_snapshots
+            ) / len(llm_snapshots)
+            
+            # 🎭 Sentiment: Promediar porcentajes de cada snapshot
+            # Cada snapshot ya tiene los contadores (positive_mentions, neutral_mentions, negative_mentions)
+            # Calculamos el porcentaje de cada snapshot y luego promediamos
+            avg_positive_pct = 0
+            avg_neutral_pct = 0
+            avg_negative_pct = 0
+            
+            for snapshot in llm_snapshots:
+                total_queries_snap = snapshot.get('total_queries') or 0
+                if total_queries_snap > 0:
+                    pos_pct = (snapshot.get('positive_mentions') or 0) / total_queries_snap * 100
+                    neu_pct = (snapshot.get('neutral_mentions') or 0) / total_queries_snap * 100
+                    neg_pct = (snapshot.get('negative_mentions') or 0) / total_queries_snap * 100
+                    
+                    avg_positive_pct += pos_pct
+                    avg_neutral_pct += neu_pct
+                    avg_negative_pct += neg_pct
+            
+            avg_positive_pct /= len(llm_snapshots)
+            avg_neutral_pct /= len(llm_snapshots)
+            avg_negative_pct /= len(llm_snapshots)
+            
+            # Último snapshot para fecha de referencia
+            latest_snapshot = llm_snapshots[0]
+            
+            metrics_by_llm[llm] = {
+                'mention_rate': round(avg_mention_rate, 2),
+                'avg_position': round(avg_position, 2) if avg_position else None,
+                'share_of_voice': round(avg_share_of_voice, 2),
                 'sentiment': {
-                    'positive': float(positive_pct),
-                    'neutral': float(neutral_pct),
-                    'negative': float(negative_pct)
+                    'positive': round(avg_positive_pct, 2),
+                    'neutral': round(avg_neutral_pct, 2),
+                    'negative': round(avg_negative_pct, 2)
                 },
-                'total_queries': metric.get('total_queries'),
-                'date': metric['snapshot_date'].isoformat() if metric['snapshot_date'] else None
+                'total_queries': latest_snapshot.get('total_queries'),
+                'date': latest_snapshot['snapshot_date'].isoformat() if latest_snapshot['snapshot_date'] else None,
+                'snapshots_count': len(llm_snapshots)  # ✨ NUEVO: Cuántos snapshots se promediaron
             }
+        
+        logger.info(f"✅ Promedios calculados para {len(metrics_by_llm)} LLMs")
         
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
@@ -1142,9 +1189,15 @@ def get_llm_comparison(project_id):
     """
     Comparativa entre LLMs para un proyecto (usa vista llm_visibility_comparison)
     
+    Query params opcionales:
+        metric: 'weighted' o 'normal' (default: 'weighted')
+    
     Returns:
         JSON con comparativa de métricas entre LLMs
     """
+    # ✨ NUEVO: Parámetro de métrica para Share of Voice
+    metric_type = request.args.get('metric', 'weighted')
+    
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
@@ -1153,6 +1206,7 @@ def get_llm_comparison(project_id):
         cur = conn.cursor()
         
         # Traer filas por LLM directamente desde snapshots
+        # ✨ NUEVO: Incluir weighted_share_of_voice
         cur.execute("""
             SELECT 
                 llm_provider,
@@ -1161,6 +1215,7 @@ def get_llm_comparison(project_id):
                 total_mentions,
                 avg_position,
                 share_of_voice,
+                weighted_share_of_voice,
                 avg_sentiment_score,
                 positive_mentions,
                 neutral_mentions,
@@ -1187,13 +1242,19 @@ def get_llm_comparison(project_id):
             neutral_pct = (neutral_mentions / total_queries_row * 100) if total_queries_row else 0
             negative_pct = (negative_mentions / total_queries_row * 100) if total_queries_row else 0
             
+            # ✨ NUEVO: Seleccionar Share of Voice según métrica
+            if metric_type == 'weighted':
+                sov = c.get('weighted_share_of_voice') or c.get('share_of_voice') or 0
+            else:
+                sov = c.get('share_of_voice') or 0
+            
             comparison_list.append({
                 'llm_provider': c['llm_provider'],
                 'snapshot_date': c['snapshot_date'].isoformat() if c['snapshot_date'] else None,
                 'mention_rate': float(c['mention_rate']) if c['mention_rate'] is not None else 0,
                 'total_mentions': c.get('total_mentions') or 0,  # 🔧 FIX: Campo faltante para Grid.js
                 'avg_position': float(c['avg_position']) if c['avg_position'] is not None else None,
-                'share_of_voice': float(c['share_of_voice']) if c['share_of_voice'] is not None else 0,
+                'share_of_voice': float(sov) if sov is not None else 0,  # ✨ MODIFICADO: Usar métrica seleccionada
                 'sentiment_score': float(c['avg_sentiment_score']) if c['avg_sentiment_score'] is not None else 0,
                 'sentiment': {
                     'positive': float(positive_pct),

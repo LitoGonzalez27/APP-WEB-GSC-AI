@@ -351,14 +351,13 @@ class LLMMonitoring {
                     // Guardar preferencia en localStorage
                     localStorage.setItem('llm_monitoring_sov_metric', metricType);
                     
-                    // Actualizar TODOS los gráficos y métricas
+                    // Actualizar TODOS los gráficos, métricas y tablas
                     this.renderShareOfVoiceChart();  // Gráfico de líneas temporal
                     this.renderShareOfVoiceDonutChart();  // Gráfico de rosco/distribución
                     this.renderMentionsTimelineChart();  // Timeline de menciones (usa los mismos datos)
+                    this.loadComparison(this.currentProject.id);  // ✨ NUEVO: Tabla LLM Comparison
                     
-                    // TODO: Si hay tablas que muestran SoV, actualizarlas aquí también
-                    
-                    console.log(`✅ All charts updated to ${metricType} metric`);
+                    console.log(`✅ All charts and tables updated to ${metricType} metric`);
                 }
             });
         });
@@ -1486,7 +1485,11 @@ class LLMMonitoring {
         console.log(`📊 Loading comparison for project ${projectId}...`);
         
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/comparison`);
+            // ✨ GLOBAL: Get selected metric type from global FAB toggle
+            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+            console.log(`📊 Loading comparison with metric: ${metricType}`);
+            
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/comparison?metric=${metricType}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
