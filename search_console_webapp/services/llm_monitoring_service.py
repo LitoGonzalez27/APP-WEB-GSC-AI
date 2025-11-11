@@ -337,30 +337,52 @@ class MultiLLMMonitoringService:
         brand_mentioned = len(mentions_found) > 0
         mention_count = len(mentions_found)
         
-        # ✨ NUEVO: Buscar marca en sources/URLs (CRÍTICO para Perplexity, etc.)
+        # ✨ MEJORADO: Buscar marca en sources/URLs (CRÍTICO para Perplexity, etc.)
         # Si no encontramos la marca en el texto, verificar si está en las fuentes citadas
         brand_found_in_sources = False
         if sources and len(sources) > 0:
             for source in sources:
                 source_url = source.get('url', '').lower()
                 
-                # 1. Buscar dominio completo primero
-                if brand_domain and brand_domain.lower() in source_url:
-                    brand_found_in_sources = True
-                    # Añadir contexto especial indicando que se encontró en sources
-                    source_context = f"🔗 Brand domain found in cited source: {source.get('url', 'N/A')}"
-                    if source_context not in mention_contexts:
-                        mention_contexts.append(source_context)
-                    break
-                
-                # 2. Buscar variaciones de marca en la URL
-                for variation in brand_variations:
-                    if len(variation) >= 4 and variation.lower() in source_url:
-                        brand_found_in_sources = True
-                        source_context = f"🔗 Brand '{variation}' found in cited source: {source.get('url', 'N/A')}"
-                        if source_context not in mention_contexts:
-                            mention_contexts.append(source_context)
+                # PRIORIDAD 1: Buscar dominio COMPLETO como dominio válido (más restrictivo y preciso)
+                if brand_domain:
+                    domain_clean = brand_domain.lower().replace('www.', '').replace('.com', '').replace('.es', '').replace('.net', '').replace('.org', '')
+                    
+                    # Patrón para buscar como dominio real (entre :// y / o final)
+                    # Ejemplos que coinciden: "https://getkipu.com/", "http://www.getkipu.com", "getkipu.com/page"
+                    # Ejemplos que NO coinciden: "https://wikipedia.org/wiki/Kipuka" (kipuka ≠ kipu)
+                    domain_patterns = [
+                        r'://(?:www\.)?{}\.(?:com|es|net|org|io|co)(?:/|$)'.format(re.escape(domain_clean)),  # Con protocolo
+                        r'^(?:www\.)?{}\.(?:com|es|net|org|io|co)(?:/|$)'.format(re.escape(domain_clean)),  # Sin protocolo al inicio
+                    ]
+                    
+                    for pattern in domain_patterns:
+                        if re.search(pattern, source_url):
+                            brand_found_in_sources = True
+                            source_context = f"🔗 Brand domain {brand_domain} found in cited source: {source.get('url', 'N/A')}"
+                            if source_context not in mention_contexts:
+                                mention_contexts.append(source_context)
+                            logger.debug(f"[BRAND DETECTION] ✅ Domain match in source URL via pattern: {pattern}")
+                            break
+                    
+                    if brand_found_in_sources:
                         break
+                
+                # PRIORIDAD 2: Buscar variaciones de marca en la URL (solo si no encontramos dominio completo)
+                # Esto es más permisivo pero puede tener falsos positivos
+                # Solo buscar variaciones largas (>=5 chars) para minimizar falsos positivos
+                for variation in brand_variations:
+                    if len(variation) >= 5 and variation.lower() in source_url:
+                        # Verificación adicional: asegurarse de que no es parte de otra palabra
+                        # Por ejemplo, evitar detectar "kipu" en "kipuka"
+                        var_pattern = r'\b{}\b'.format(re.escape(variation.lower()))
+                        if re.search(var_pattern, source_url):
+                            brand_found_in_sources = True
+                            source_context = f"🔗 Brand '{variation}' found in cited source: {source.get('url', 'N/A')}"
+                            if source_context not in mention_contexts:
+                                mention_contexts.append(source_context)
+                            logger.debug(f"[BRAND DETECTION] ✅ Variation match in source URL: {variation}")
+                            break
                 
                 if brand_found_in_sources:
                     break
@@ -1276,6 +1298,68 @@ JSON:"""
     # CREACIÓN DE SNAPSHOTS
     # =====================================================
     
+    def _calculate_weighted_mentions(self, results: List[Dict], entity_key: str = None) -> float:
+        """
+        Calcula menciones ponderadas según la posición en listas
+        
+        PONDERACIÓN:
+        - Top 3: peso 2.0 (cuenta doble - muy visible)
+        - Top 5: peso 1.5 (cuenta 50% más - alta visibilidad)
+        - Top 10: peso 1.2 (cuenta 20% más - visible)
+        - Posición > 10: peso 0.8 (cuenta 80% - baja visibilidad)
+        - Sin posición (mención en texto): peso 1.0 (baseline)
+        
+        Args:
+            results: Lista de resultados de análisis
+            entity_key: Si se especifica, busca en competitors_mentioned[entity_key]
+                       Si es None, usa mention_count de la marca principal
+        
+        Returns:
+            float: Total de menciones ponderadas
+        
+        Example:
+            >>> # Marca principal
+            >>> weighted = service._calculate_weighted_mentions(llm_results)
+            >>> # Competidor específico
+            >>> weighted = service._calculate_weighted_mentions(llm_results, 'competitor.com')
+        """
+        weighted_total = 0.0
+        
+        for r in results:
+            # Obtener número base de menciones
+            if entity_key is None:
+                # Marca principal: usar mention_count
+                base_mentions = r.get('mention_count', 0)
+            else:
+                # Competidor: buscar en competitors_mentioned
+                base_mentions = r.get('competitors_mentioned', {}).get(entity_key, 0)
+            
+            if base_mentions == 0:
+                continue
+            
+            # Determinar peso según posición
+            position = r.get('position_in_list')
+            
+            if position is None:
+                # Mención en texto pero sin posición en lista = peso baseline
+                weight = 1.0
+            elif position <= 3:
+                # Top 3 = peso 2.0 (MUY visible, cuenta doble)
+                weight = 2.0
+            elif position <= 5:
+                # Top 5 = peso 1.5 (alta visibilidad)
+                weight = 1.5
+            elif position <= 10:
+                # Top 10 = peso 1.2 (visible)
+                weight = 1.2
+            else:
+                # Posición > 10 = peso 0.8 (baja visibilidad)
+                weight = 0.8
+            
+            weighted_total += base_mentions * weight
+        
+        return weighted_total
+    
     def _create_snapshot(
         self,
         cur,
@@ -1325,7 +1409,7 @@ JSON:"""
         appeared_in_top5 = sum(1 for p in positions if p <= 5)
         appeared_in_top10 = sum(1 for p in positions if p <= 10)
         
-        # Share of Voice
+        # Share of Voice (normal - sin ponderar)
         total_brand_mentions = sum(r['mention_count'] for r in llm_results)
         total_competitor_mentions = 0
         competitor_breakdown = {}
@@ -1341,6 +1425,21 @@ JSON:"""
         total_all_mentions = total_brand_mentions + total_competitor_mentions
         share_of_voice = (total_brand_mentions / total_all_mentions * 100) if total_all_mentions > 0 else 0
         
+        # ✨ NUEVO: Share of Voice PONDERADO por posición
+        weighted_brand_mentions = self._calculate_weighted_mentions(llm_results, entity_key=None)
+        weighted_competitor_mentions = 0.0
+        weighted_competitor_breakdown = {}
+        
+        for competitor in competitors:
+            comp_weighted = self._calculate_weighted_mentions(llm_results, entity_key=competitor)
+            weighted_competitor_breakdown[competitor] = round(comp_weighted, 2)
+            weighted_competitor_mentions += comp_weighted
+        
+        total_weighted_mentions = weighted_brand_mentions + weighted_competitor_mentions
+        weighted_share_of_voice = (weighted_brand_mentions / total_weighted_mentions * 100) if total_weighted_mentions > 0 else 0
+        
+        logger.debug(f"[SNAPSHOT] Share of Voice - Normal: {share_of_voice:.2f}% | Ponderado: {weighted_share_of_voice:.2f}%")
+        
         # Sentimiento
         positive_mentions = sum(1 for r in llm_results if r['sentiment'] == 'positive')
         neutral_mentions = sum(1 for r in llm_results if r['sentiment'] == 'neutral')
@@ -1354,13 +1453,14 @@ JSON:"""
         total_cost = sum(r['cost_usd'] for r in llm_results)
         total_tokens = sum(r['tokens_used'] for r in llm_results)
         
-        # Insertar snapshot
+        # Insertar snapshot (con métricas ponderadas y normales)
         cur.execute("""
             INSERT INTO llm_monitoring_snapshots (
                 project_id, snapshot_date, llm_provider,
                 total_queries, total_mentions, mention_rate,
                 avg_position, appeared_in_top3, appeared_in_top5, appeared_in_top10,
                 total_competitor_mentions, share_of_voice, competitor_breakdown,
+                weighted_share_of_voice, weighted_competitor_breakdown,
                 positive_mentions, neutral_mentions, negative_mentions, avg_sentiment_score,
                 avg_response_time_ms, total_cost_usd, total_tokens
             ) VALUES (
@@ -1368,6 +1468,7 @@ JSON:"""
                 %s, %s, %s,
                 %s, %s, %s, %s,
                 %s, %s, %s,
+                %s, %s,
                 %s, %s, %s, %s,
                 %s, %s, %s
             )
@@ -1378,6 +1479,8 @@ JSON:"""
                 mention_rate = EXCLUDED.mention_rate,
                 avg_position = EXCLUDED.avg_position,
                 share_of_voice = EXCLUDED.share_of_voice,
+                weighted_share_of_voice = EXCLUDED.weighted_share_of_voice,
+                weighted_competitor_breakdown = EXCLUDED.weighted_competitor_breakdown,
                 avg_sentiment_score = EXCLUDED.avg_sentiment_score,
                 total_cost_usd = EXCLUDED.total_cost_usd,
                 created_at = NOW()
@@ -1388,18 +1491,21 @@ JSON:"""
             appeared_in_top3, appeared_in_top5, appeared_in_top10,
             total_competitor_mentions, round(share_of_voice, 2),
             json.dumps(competitor_breakdown),
+            round(weighted_share_of_voice, 2),
+            json.dumps(weighted_competitor_breakdown),
             positive_mentions, neutral_mentions, negative_mentions,
             round(avg_sentiment_score, 2),
             int(avg_response_time), round(total_cost, 4), total_tokens
         ))
         
-        # ✨ NUEVO: Log mejorado con completitud
+        # ✨ NUEVO: Log mejorado con completitud y métricas ponderadas
         completeness_info = ""
         if total_queries_expected and total_queries < total_queries_expected:
             completeness = (total_queries / total_queries_expected) * 100
             completeness_info = f" ({total_queries}/{total_queries_expected} queries - {completeness:.0f}% completo)"
         
         logger.info(f"   📊 Snapshot {llm_provider}: {total_mentions}/{total_queries} menciones ({mention_rate:.1f}%){completeness_info}")
+        logger.info(f"      📈 Share of Voice: {share_of_voice:.1f}% (normal) | {weighted_share_of_voice:.1f}% (ponderado por posición)")
 
 
 # =====================================================

@@ -35,6 +35,9 @@
     <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=2" rel="stylesheet">
     <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=1" rel="stylesheet">
     
+    <!-- ✨ NEW: Share of Voice Metrics UI -->
+    <link href="{{ url_for('static', filename='sov-metrics-ui.css') }}?v=1" rel="stylesheet">
+    
     <!-- CSS para navbar principal -->
     <link href="{{ url_for('static', filename='navbar.css') }}" rel="stylesheet">
     
@@ -287,10 +290,38 @@
                 <!-- Share of Voice Timeline (Full Width) -->
                 <div class="chart-card chart-card-full-width">
                     <div class="chart-header">
-                        <h3>
-                            Share of Voice Over Time
-                        </h3>
-                        <div class="chart-subtitle">Track your brand's visibility vs competitors across all LLMs</div>
+                        <div class="chart-header-left">
+                            <h3>
+                                Share of Voice Over Time
+                                <button class="info-tooltip-btn" id="btnSovInfo" title="Learn about Share of Voice metrics">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </h3>
+                            <div class="chart-subtitle">Track your brand's visibility vs competitors across all LLMs</div>
+                        </div>
+                        <div class="chart-header-right">
+                            <!-- ✨ NEW: Metric Type Selector -->
+                            <div class="metric-selector">
+                                <label class="metric-selector-label">
+                                    <i class="fas fa-chart-line"></i>
+                                    Metric:
+                                </label>
+                                <div class="toggle-switch" id="sovMetricToggle">
+                                    <input type="radio" id="metricWeighted" name="sovMetric" value="weighted" checked>
+                                    <label for="metricWeighted" class="toggle-option">
+                                        <span class="toggle-icon">⭐</span>
+                                        <span class="toggle-text">Weighted</span>
+                                        <span class="toggle-badge">Recommended</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="metricNormal" name="sovMetric" value="normal">
+                                    <label for="metricNormal" class="toggle-option">
+                                        <span class="toggle-icon">📊</span>
+                                        <span class="toggle-text">Standard</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="chart-container chart-container-timeline">
                         <canvas id="chartShareOfVoice"></canvas>
@@ -1064,6 +1095,152 @@ Alternativas a Semrush
             }
         });
     </script>
+
+    <!-- ✨ NEW: Share of Voice Info Modal -->
+    <div id="sovInfoModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-chart-line"></i>
+                    Understanding Share of Voice Metrics
+                </h2>
+                <button class="modal-close-btn" id="btnCloseSovInfo">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="info-section">
+                    <h3><span class="metric-badge metric-weighted">⭐ Weighted Share of Voice</span></h3>
+                    <p class="metric-description">
+                        <strong>Position-aware metric</strong> that gives more value to mentions in top positions.
+                        This reflects real-world visibility: appearing #1 is much more valuable than appearing #15.
+                    </p>
+                    
+                    <div class="weighting-table">
+                        <div class="weight-row weight-excellent">
+                            <div class="position-label">Top 3</div>
+                            <div class="weight-value">2.0x weight</div>
+                            <div class="weight-desc">Counts double - maximum visibility</div>
+                        </div>
+                        <div class="weight-row weight-good">
+                            <div class="position-label">Top 5</div>
+                            <div class="weight-value">1.5x weight</div>
+                            <div class="weight-desc">Counts 50% more - high visibility</div>
+                        </div>
+                        <div class="weight-row weight-average">
+                            <div class="position-label">Top 10</div>
+                            <div class="weight-value">1.2x weight</div>
+                            <div class="weight-desc">Counts 20% more - visible</div>
+                        </div>
+                        <div class="weight-row weight-low">
+                            <div class="position-label">> 10</div>
+                            <div class="weight-value">0.8x weight</div>
+                            <div class="weight-desc">Counts 80% - low visibility</div>
+                        </div>
+                        <div class="weight-row weight-baseline">
+                            <div class="position-label">No position</div>
+                            <div class="weight-value">1.0x weight</div>
+                            <div class="weight-desc">Baseline - mentioned in text</div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-recommendation">
+                        <i class="fas fa-star"></i>
+                        <strong>Recommended:</strong> Use Weighted Share of Voice to understand your real market visibility.
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <h3><span class="metric-badge metric-standard">📊 Standard Share of Voice</span></h3>
+                    <p class="metric-description">
+                        <strong>Classic metric</strong> that counts all mentions equally, regardless of position.
+                        Useful for comparing total brand presence without position weighting.
+                    </p>
+                    
+                    <div class="formula-box">
+                        <div class="formula-label">Formula:</div>
+                        <div class="formula">
+                            Share of Voice = <span class="formula-fraction">
+                                <span class="formula-numerator">Your Mentions</span>
+                                <span class="formula-divider">÷</span>
+                                <span class="formula-denominator">Total Mentions (You + Competitors)</span>
+                            </span> × 100%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section example-section">
+                    <h3><i class="fas fa-lightbulb"></i> Example Scenario</h3>
+                    
+                    <div class="example-grid">
+                        <div class="example-card">
+                            <div class="example-title">Your Brand</div>
+                            <ul class="example-list">
+                                <li>5 mentions in <strong>top 3</strong> → 10 weighted points</li>
+                                <li>5 mentions at <strong>position 15</strong> → 4 weighted points</li>
+                                <li><strong>Total:</strong> 10 mentions = 14 weighted points</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="example-card">
+                            <div class="example-title">Competitor</div>
+                            <ul class="example-list">
+                                <li>10 mentions at <strong>positions 8-10</strong> → 12 weighted points</li>
+                                <li><strong>Total:</strong> 10 mentions = 12 weighted points</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="example-results">
+                        <div class="result-comparison">
+                            <div class="result-item">
+                                <div class="result-label">Standard Share of Voice</div>
+                                <div class="result-value result-equal">50% vs 50%</div>
+                                <div class="result-note">Equal - doesn't reflect position quality</div>
+                            </div>
+                            <div class="result-arrow">→</div>
+                            <div class="result-item">
+                                <div class="result-label">Weighted Share of Voice</div>
+                                <div class="result-value result-better">54% vs 46%</div>
+                                <div class="result-note">✨ Better reflects your top positions!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section tip-section">
+                    <h3><i class="fas fa-graduation-cap"></i> How to Interpret</h3>
+                    
+                    <div class="tip-grid">
+                        <div class="tip-card tip-success">
+                            <div class="tip-icon">✅</div>
+                            <div class="tip-title">Weighted > Standard</div>
+                            <div class="tip-text">Your mentions are in top positions - excellent quality!</div>
+                        </div>
+                        
+                        <div class="tip-card tip-warning">
+                            <div class="tip-icon">⚠️</div>
+                            <div class="tip-title">Weighted < Standard</div>
+                            <div class="tip-text">You have many mentions but in lower positions - focus on improving rankings.</div>
+                        </div>
+                        
+                        <div class="tip-card tip-info">
+                            <div class="tip-icon">📊</div>
+                            <div class="tip-title">Difference > 20%</div>
+                            <div class="tip-text">Large disparity indicates significant position quality differences.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCloseSovInfoFooter">
+                    Got it!
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

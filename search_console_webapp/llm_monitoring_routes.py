@@ -1036,9 +1036,12 @@ def get_project_metrics(project_id):
                 'top5_count': s.get('appeared_in_top5'),
                 'top10_count': s.get('appeared_in_top10'),
                 'share_of_voice': float(s['share_of_voice']) if s['share_of_voice'] is not None else 0,
+                # ✨ NUEVO: Share of Voice ponderado por posición
+                'weighted_share_of_voice': float(s.get('weighted_share_of_voice') or s.get('share_of_voice') or 0),
                 # ➕ Exponer datos de competidores para el frontend (gráfico SOV)
                 'total_competitor_mentions': int(s.get('total_competitor_mentions') or 0),
                 'competitor_breakdown': s.get('competitor_breakdown') or {},
+                'weighted_competitor_breakdown': s.get('weighted_competitor_breakdown') or {},
                 'sentiment': {
                     'positive': float(positive_pct),
                     'neutral': float(neutral_pct),
@@ -1383,6 +1386,7 @@ def get_share_of_voice_history(project_id):
     
     Query params:
         days: Número de días hacia atrás (default: 30)
+        metric: 'normal' o 'weighted' (default: 'weighted') - tipo de Share of Voice
     
     Returns:
         JSON con datos para gráfico de líneas:
@@ -1406,6 +1410,13 @@ def get_share_of_voice_history(project_id):
     """
     user = get_current_user()
     days = int(request.args.get('days', 30))
+    metric_type = request.args.get('metric', 'weighted')  # 'normal' o 'weighted'
+    
+    # Validar metric_type
+    if metric_type not in ['normal', 'weighted']:
+        metric_type = 'weighted'
+    
+    logger.info(f"📊 Share of Voice history requested - Type: {metric_type}, Days: {days}")
     
     conn = get_db_connection()
     if not conn:
@@ -1436,15 +1447,17 @@ def get_share_of_voice_history(project_id):
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
         
-        # Obtener todos los snapshots del período agrupados por fecha
+        # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
         cur.execute("""
             SELECT 
                 snapshot_date,
                 llm_provider,
                 share_of_voice,
+                weighted_share_of_voice,
                 total_mentions,
                 total_competitor_mentions,
-                competitor_breakdown
+                competitor_breakdown,
+                weighted_competitor_breakdown
             FROM llm_monitoring_snapshots
             WHERE project_id = %s 
                 AND snapshot_date >= %s 
@@ -1531,13 +1544,18 @@ def get_share_of_voice_history(project_id):
             'llm_count': 0
         })
         
+        # ✨ NUEVO: Elegir la métrica correcta según el parámetro
         for snapshot in snapshots:
             date_str = snapshot['snapshot_date'].isoformat()
             data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
             data_by_date[date_str]['llm_count'] += 1
             
-            # ✨ NEW: Agregar menciones de competidores agrupadas por DOMINIO
-            breakdown = snapshot['competitor_breakdown'] or {}
+            # ✨ MEJORADO: Usar breakdown normal o ponderado según el parámetro
+            if metric_type == 'weighted':
+                breakdown = snapshot.get('weighted_competitor_breakdown') or snapshot.get('competitor_breakdown') or {}
+            else:
+                breakdown = snapshot.get('competitor_breakdown') or {}
+            
             for detected_variant, mentions in breakdown.items():
                 variant_lower = detected_variant.lower().strip()
                 variant_normalized = normalize_variant(detected_variant)
@@ -1713,6 +1731,7 @@ def get_share_of_voice_history(project_id):
         
         return jsonify({
             'success': True,
+            'metric_type': metric_type,  # ✨ NUEVO: Indicar qué métrica se está usando
             'dates': dates,
             'datasets': datasets,  # Share of Voice (%)
             'mentions_datasets': mentions_datasets,  # Menciones absolutas

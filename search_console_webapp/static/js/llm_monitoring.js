@@ -340,6 +340,36 @@ class LLMMonitoring {
             }
         });
         
+        // ✨ NEW: Share of Voice metric toggle
+        document.querySelectorAll('input[name="sovMetric"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (this.currentProject) {
+                    console.log(`📊 Switching to ${e.target.value} Share of Voice metric`);
+                    this.renderShareOfVoiceChart();
+                }
+            });
+        });
+        
+        // ✨ NEW: Share of Voice info modal
+        document.getElementById('btnSovInfo')?.addEventListener('click', () => {
+            this.showSovInfoModal();
+        });
+        
+        document.getElementById('btnCloseSovInfo')?.addEventListener('click', () => {
+            this.hideSovInfoModal();
+        });
+        
+        document.getElementById('btnCloseSovInfoFooter')?.addEventListener('click', () => {
+            this.hideSovInfoModal();
+        });
+        
+        // Close modal on overlay click
+        document.getElementById('sovInfoModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'sovInfoModal') {
+                this.hideSovInfoModal();
+            }
+        });
+        
         document.getElementById('urlsDaysFilter')?.addEventListener('change', () => {
             if (this.currentProject) {
                 // Reset domain view when changing filters
@@ -798,6 +828,28 @@ class LLMMonitoring {
     }
 
     /**
+     * Show Share of Voice Info Modal
+     */
+    showSovInfoModal() {
+        const modal = document.getElementById('sovInfoModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    /**
+     * Hide Share of Voice Info Modal
+     */
+    hideSovInfoModal() {
+        const modal = document.getElementById('sovInfoModal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    /**
      * Render Share of Voice chart
      */
     /**
@@ -821,7 +873,11 @@ class LLMMonitoring {
                 return;
             }
             
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30`);
+            // ✨ NEW: Get selected metric type from toggle
+            const metricType = document.querySelector('input[name="sovMetric"]:checked')?.value || 'weighted';
+            console.log(`📊 Rendering Share of Voice chart with metric: ${metricType}`);
+            
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
