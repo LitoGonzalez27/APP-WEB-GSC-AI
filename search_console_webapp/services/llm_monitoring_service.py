@@ -494,23 +494,16 @@ class MultiLLMMonitoringService:
                             'detection_method': 'numbered_list'
                         }
         
-        # Patrón 2: Referencias numeradas [1], (1), etc.
-        reference_patterns = [
-            r'\[(\d+)\][^\n]*?(' + '|'.join(re.escape(v) for v in brand_variations) + r')',  # "[1] Brand..."
-            r'\((\d+)\)[^\n]*?(' + '|'.join(re.escape(v) for v in brand_variations) + r')',  # "(1) Brand..."
-        ]
-        
-        for pattern in reference_patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                position = int(match.group(1))
-                logger.info(f"[POSITION] ✅ Reference detected: Position {position}")
-                return {
-                    'appears_in_list': True,
-                    'position': position,
-                    'total_items': None,  # No podemos saber el total de referencias
-                    'detection_method': 'reference_number'
-                }
+            # ❌ ELIMINADO: Patrón 2 - Referencias numeradas [1], (1), etc.
+            # Las referencias bibliográficas [7], [2], etc. NO indican posición en rankings
+            # Solo indican la fuente citada. Confundirlas con posiciones genera datos incorrectos.
+            # 
+            # Ejemplo incorrecto:
+            #   "...tratamientos de fertilidad[2][7]. HM Fertility[19] ofrece..."
+            #   ❌ Esto NO significa que HM Fertility está en posición 19
+            #   ✅ Solo significa que la referencia bibliográfica #19 es hmfertility.com
+            #
+            # Por esta razón, este patrón ha sido eliminado del algoritmo.
         
         # Patrón 3: Ordinales en inglés (First, Second, etc.)
         ordinal_map = {
