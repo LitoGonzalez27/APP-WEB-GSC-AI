@@ -1547,14 +1547,39 @@ def get_share_of_voice_history(project_id):
         # ✨ NUEVO: Elegir la métrica correcta según el parámetro
         for snapshot in snapshots:
             date_str = snapshot['snapshot_date'].isoformat()
-            data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
-            data_by_date[date_str]['llm_count'] += 1
             
-            # ✨ MEJORADO: Usar breakdown normal o ponderado según el parámetro
+            # ✨ MEJORADO: Usar menciones ponderadas o normales según el parámetro
             if metric_type == 'weighted':
-                breakdown = snapshot.get('weighted_competitor_breakdown') or snapshot.get('competitor_breakdown') or {}
+                # Si hay weighted_share_of_voice, usarlo para inferir menciones ponderadas
+                weighted_sov = snapshot.get('weighted_share_of_voice')
+                weighted_breakdown = snapshot.get('weighted_competitor_breakdown')
+                
+                # Si tenemos datos ponderados, usarlos
+                if weighted_sov is not None and weighted_breakdown is not None:
+                    # Calcular menciones ponderadas de la marca desde el SoV y breakdown
+                    total_weighted_comp = sum(weighted_breakdown.values()) if weighted_breakdown else 0
+                    if weighted_sov > 0:
+                        # SoV = brand / (brand + comp) * 100
+                        # brand = (SoV * (brand + comp)) / 100
+                        # brand = (SoV * total) / 100
+                        # brand / comp = SoV / (100 - SoV)
+                        weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp if weighted_sov < 100 else total_weighted_comp
+                    else:
+                        weighted_brand = 0
+                    
+                    data_by_date[date_str]['brand_mentions'] += weighted_brand
+                    breakdown = weighted_breakdown
+                else:
+                    # Fallback a métricas normales si no hay datos ponderados
+                    logger.warning(f"⚠️ No weighted data for {date_str}, falling back to normal metrics")
+                    data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
+                    breakdown = snapshot.get('competitor_breakdown') or {}
             else:
+                # Modo normal: usar métricas estándar
+                data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
                 breakdown = snapshot.get('competitor_breakdown') or {}
+            
+            data_by_date[date_str]['llm_count'] += 1
             
             for detected_variant, mentions in breakdown.items():
                 variant_lower = detected_variant.lower().strip()
