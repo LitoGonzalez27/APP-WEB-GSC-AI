@@ -1209,26 +1209,279 @@ Alternativas a Semrush
                     </div>
                 </div>
                 
+                <div class="info-section technical-section">
+                    <h3><i class="fas fa-cogs"></i> How Position Detection Works</h3>
+                    
+                    <p class="metric-description">
+                        Our advanced system uses <strong>multiple detection methods</strong> to accurately identify where your brand appears in LLM responses:
+                    </p>
+                    
+                    <div class="detection-methods">
+                        <div class="detection-method">
+                            <div class="method-header">
+                                <span class="method-badge method-high-confidence">High Confidence</span>
+                                <strong>Explicit List Detection</strong>
+                            </div>
+                            <div class="method-examples">
+                                <div class="method-category">
+                                    <strong>Numbered Lists:</strong>
+                                    <code>1. Your Brand</code>, <code>1) Your Brand</code>, <code>**1.** Your Brand</code>
+                                </div>
+                                <div class="method-category">
+                                    <strong>Bullet Lists:</strong>
+                                    <code>• Your Brand</code>, <code>- Your Brand</code>, <code>● Your Brand</code>
+                                </div>
+                                <div class="method-category">
+                                    <strong>References:</strong>
+                                    <code>[1] Your Brand</code>, <code>(1) Your Brand</code>
+                                </div>
+                                <div class="method-category">
+                                    <strong>Ordinals:</strong>
+                                    <code>First, Your Brand...</code>, <code>Primero, tu marca...</code>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detection-method">
+                            <div class="method-header">
+                                <span class="method-badge method-context">Context-Based</span>
+                                <strong>Smart Inference</strong>
+                            </div>
+                            <p class="method-description">
+                                When no explicit list is present, we analyze the <strong>position in text</strong> to infer ranking:
+                            </p>
+                            <div class="inference-table">
+                                <div class="inference-row">
+                                    <div class="inference-position">First 15% of text</div>
+                                    <div class="inference-arrow">→</div>
+                                    <div class="inference-rank">Position 1</div>
+                                </div>
+                                <div class="inference-row">
+                                    <div class="inference-position">15-30% of text</div>
+                                    <div class="inference-arrow">→</div>
+                                    <div class="inference-rank">Position 3</div>
+                                </div>
+                                <div class="inference-row">
+                                    <div class="inference-position">30-50% of text</div>
+                                    <div class="inference-arrow">→</div>
+                                    <div class="inference-rank">Position 5</div>
+                                </div>
+                                <div class="inference-row">
+                                    <div class="inference-position">50-70% of text</div>
+                                    <div class="inference-arrow">→</div>
+                                    <div class="inference-rank">Position 8</div>
+                                </div>
+                                <div class="inference-row">
+                                    <div class="inference-position">70%+ of text</div>
+                                    <div class="inference-arrow">→</div>
+                                    <div class="inference-rank">Position 12</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accuracy-note">
+                        <i class="fas fa-check-circle"></i>
+                        <div class="accuracy-text">
+                            <strong>Why This Works:</strong> Different LLMs structure responses differently. Some (like Perplexity) always use numbered lists. 
+                            Others (like GPT-5) may give paragraph responses. Our dual approach ensures we <strong>always have a reliable baseline</strong> 
+                            for position-based weighting, giving you accurate Share of Voice metrics across all LLMs.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section calculation-section">
+                    <h3><i class="fas fa-calculator"></i> Detailed Calculation Example</h3>
+                    
+                    <p class="metric-description">
+                        Let's see exactly how each metric is calculated for the same scenario:
+                    </p>
+                    
+                    <div class="calculation-scenario">
+                        <div class="scenario-header">
+                            <strong>Scenario:</strong> Analysis across 20 queries, with 2 competitors
+                        </div>
+                        
+                        <div class="brand-breakdown">
+                            <div class="brand-column">
+                                <div class="brand-title">🎯 Your Brand</div>
+                                <ul class="breakdown-list">
+                                    <li>Mentioned in <strong>10 out of 20</strong> queries</li>
+                                    <li><span class="pos-badge pos-top3">5 times in Top 3</span> (weight 2.0x each)</li>
+                                    <li><span class="pos-badge pos-mid">3 times at position 7</span> (weight 1.0x each)</li>
+                                    <li><span class="pos-badge pos-low">2 times at position 15</span> (weight 0.8x each)</li>
+                                </ul>
+                                <div class="weighted-calc">
+                                    <strong>Weighted Points:</strong> (5×2.0) + (3×1.0) + (2×0.8) = <strong>14.6 points</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="brand-column">
+                                <div class="brand-title">⚔️ Competitor A</div>
+                                <ul class="breakdown-list">
+                                    <li>Mentioned in <strong>8 out of 20</strong> queries</li>
+                                    <li><span class="pos-badge pos-top5">6 times in Top 5</span> (weight 1.5x each)</li>
+                                    <li><span class="pos-badge pos-mid">2 times at position 8</span> (weight 1.0x each)</li>
+                                </ul>
+                                <div class="weighted-calc">
+                                    <strong>Weighted Points:</strong> (6×1.5) + (2×1.0) = <strong>11.0 points</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="brand-column">
+                                <div class="brand-title">⚔️ Competitor B</div>
+                                <ul class="breakdown-list">
+                                    <li>Mentioned in <strong>6 out of 20</strong> queries</li>
+                                    <li><span class="pos-badge pos-low">4 times at position 12</span> (weight 0.8x each)</li>
+                                    <li><span class="pos-badge pos-mid">2 times at position 6</span> (weight 1.0x each)</li>
+                                </ul>
+                                <div class="weighted-calc">
+                                    <strong>Weighted Points:</strong> (4×0.8) + (2×1.0) = <strong>5.2 points</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="final-calculations">
+                            <div class="calc-row calc-standard">
+                                <div class="calc-label">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <strong>Standard Share of Voice</strong>
+                                </div>
+                                <div class="calc-formula">
+                                    10 mentions ÷ (10 + 8 + 6) total = <strong>41.7%</strong>
+                                </div>
+                                <div class="calc-note">
+                                    Simple count - doesn't consider position quality
+                                </div>
+                            </div>
+                            
+                            <div class="calc-row calc-weighted">
+                                <div class="calc-label">
+                                    <i class="fas fa-star"></i>
+                                    <strong>Weighted Share of Voice</strong>
+                                </div>
+                                <div class="calc-formula">
+                                    14.6 points ÷ (14.6 + 11.0 + 5.2) total = <strong>47.4%</strong>
+                                </div>
+                                <div class="calc-note">
+                                    ✨ 5.7% higher - reflects your superior positions!
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="insight-box">
+                            <div class="insight-icon">💡</div>
+                            <div class="insight-content">
+                                <strong>Key Insight:</strong> Despite having fewer total mentions than Competitor A, 
+                                your <strong>higher quality positions</strong> give you a better weighted Share of Voice. 
+                                This accurately reflects that your brand has <strong>more visibility</strong> where it matters most.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section reliability-section">
+                    <h3><i class="fas fa-shield-alt"></i> Reliability Across Different LLMs</h3>
+                    
+                    <p class="metric-description">
+                        Each LLM has different response patterns. Here's how our system handles them:
+                    </p>
+                    
+                    <div class="llm-grid">
+                        <div class="llm-card llm-explicit">
+                            <div class="llm-header">
+                                <div class="llm-logo">🔍</div>
+                                <div class="llm-name">Perplexity</div>
+                                <span class="confidence-badge badge-high">High Confidence</span>
+                            </div>
+                            <p class="llm-behavior">
+                                <strong>Always uses numbered lists with sources.</strong> Position detection is extremely accurate.
+                            </p>
+                        </div>
+                        
+                        <div class="llm-card llm-explicit">
+                            <div class="llm-header">
+                                <div class="llm-logo">🤖</div>
+                                <div class="llm-name">ChatGPT (GPT-5)</div>
+                                <span class="confidence-badge badge-medium">Medium Confidence</span>
+                            </div>
+                            <p class="llm-behavior">
+                                <strong>Often uses lists, sometimes paragraphs.</strong> Explicit detection for lists, context inference for paragraphs.
+                            </p>
+                        </div>
+                        
+                        <div class="llm-card llm-mixed">
+                            <div class="llm-header">
+                                <div class="llm-logo">🧠</div>
+                                <div class="llm-name">Claude</div>
+                                <span class="confidence-badge badge-medium">Medium Confidence</span>
+                            </div>
+                            <p class="llm-behavior">
+                                <strong>Mix of structured and conversational responses.</strong> Adapts detection method based on format.
+                            </p>
+                        </div>
+                        
+                        <div class="llm-card llm-contextual">
+                            <div class="llm-header">
+                                <div class="llm-logo">✨</div>
+                                <div class="llm-name">Gemini</div>
+                                <span class="confidence-badge badge-medium">Medium Confidence</span>
+                            </div>
+                            <p class="llm-behavior">
+                                <strong>Varied formats with bullet points.</strong> Detects bullets or uses context inference.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="baseline-box">
+                        <div class="baseline-icon">🎯</div>
+                        <div class="baseline-content">
+                            <strong>The Bottom Line:</strong> Whether an LLM uses explicit lists or not, our system 
+                            <strong>always establishes a reliable baseline</strong> for position-based metrics. This means your 
+                            Weighted Share of Voice is <strong>consistently meaningful across all LLMs</strong>, giving you 
+                            accurate competitive insights regardless of response format.
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="info-section tip-section">
-                    <h3><i class="fas fa-graduation-cap"></i> How to Interpret</h3>
+                    <h3><i class="fas fa-graduation-cap"></i> How to Interpret Your Results</h3>
                     
                     <div class="tip-grid">
                         <div class="tip-card tip-success">
                             <div class="tip-icon">✅</div>
                             <div class="tip-title">Weighted > Standard</div>
-                            <div class="tip-text">Your mentions are in top positions - excellent quality!</div>
+                            <div class="tip-text">
+                                Your mentions are in <strong>top positions</strong> - excellent quality! 
+                                You're winning where visibility matters most.
+                            </div>
                         </div>
                         
                         <div class="tip-card tip-warning">
                             <div class="tip-icon">⚠️</div>
                             <div class="tip-title">Weighted < Standard</div>
-                            <div class="tip-text">You have many mentions but in lower positions - focus on improving rankings.</div>
+                            <div class="tip-text">
+                                You have mentions but in <strong>lower positions</strong>. Focus on improving 
+                                content quality to rank higher in LLM responses.
+                            </div>
                         </div>
                         
                         <div class="tip-card tip-info">
                             <div class="tip-icon">📊</div>
-                            <div class="tip-title">Difference > 20%</div>
-                            <div class="tip-text">Large disparity indicates significant position quality differences.</div>
+                            <div class="tip-title">Large Difference (>20%)</div>
+                            <div class="tip-text">
+                                Significant gap indicates major <strong>position quality differences</strong>. 
+                                This is where strategy should focus.
+                            </div>
+                        </div>
+                        
+                        <div class="tip-card tip-target">
+                            <div class="tip-icon">🎯</div>
+                            <div class="tip-title">Target: Top 3 Positions</div>
+                            <div class="tip-text">
+                                Focus on appearing in <strong>Top 3</strong> positions across more queries 
+                                to maximize your weighted Share of Voice.
+                            </div>
                         </div>
                     </div>
                 </div>
