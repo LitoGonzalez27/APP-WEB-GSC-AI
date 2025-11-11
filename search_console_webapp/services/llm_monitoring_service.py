@@ -447,24 +447,32 @@ class MultiLLMMonitoringService:
         brand_variations: List[str]
     ) -> Dict:
         """
-        Detecta si la marca aparece en una lista numerada y su posición
+        ✨ MEJORADO: Detecta posición en múltiples formatos de listas y contexto textual
         
-        Patrones detectados:
-        - "1. Brand name"
-        - "1) Brand name"
-        - "**1.** Brand name"
+        PATRONES SOPORTADOS:
+        - Listas numeradas: "1. Brand", "1) Brand", "**1.** Brand"
+        - Listas con bullets: "• Brand", "- Brand", "● Brand"
+        - Referencias: "[1] Brand", "(1) Brand"
+        - Ordinales: "First, Brand...", "Second, Brand..."
+        - Inferencia contextual: Posición del texto cuando no hay lista
         
         Returns:
-            Dict con appears_in_list, position, total_items
+            Dict con appears_in_list, position, total_items, detection_method
         """
-        # Patrones de listas numeradas
-        patterns = [
-            r'(\d+)\.\s*[*_]*(.+?)(?:\n|$)',  # "1. Item\n"
-            r'(\d+)\)\s*[*_]*(.+?)(?:\n|$)',  # "1) Item\n"
-            r'\*\*(\d+)\.\*\*\s*(.+?)(?:\n|$)',  # "**1.** Item\n"
+        # ============================================
+        # FASE 1: PATRONES EXPLÍCITOS DE POSICIÓN
+        # ============================================
+        
+        # Patrón 1: Listas numeradas (alta confianza)
+        numbered_patterns = [
+            r'(\d+)\.\s*[*_]*(.+?)(?:\n|$)',           # "1. Item\n"
+            r'(\d+)\)\s*[*_]*(.+?)(?:\n|$)',           # "1) Item\n"
+            r'\*\*(\d+)\.\*\*\s*(.+?)(?:\n|$)',        # "**1.** Item\n"
+            r'\*\*(\d+)\)\*\*\s*(.+?)(?:\n|$)',        # "**1)** Item\n"
+            r'#\s*(\d+)\s*[:\.\-]\s*(.+?)(?:\n|$)',    # "# 1: Item\n"
         ]
         
-        for pattern in patterns:
+        for pattern in numbered_patterns:
             matches = re.finditer(pattern, text, re.MULTILINE)
             
             for match in matches:
@@ -478,16 +486,126 @@ class MultiLLMMonitoringService:
                         all_matches = list(re.finditer(pattern, text, re.MULTILINE))
                         total_items = len(all_matches)
                         
+                        logger.info(f"[POSITION] ✅ Numbered list detected: Position {position}/{total_items}")
                         return {
                             'appears_in_list': True,
                             'position': position,
-                            'total_items': total_items
+                            'total_items': total_items,
+                            'detection_method': 'numbered_list'
                         }
         
+        # Patrón 2: Referencias numeradas [1], (1), etc.
+        reference_patterns = [
+            r'\[(\d+)\][^\n]*?(' + '|'.join(re.escape(v) for v in brand_variations) + r')',  # "[1] Brand..."
+            r'\((\d+)\)[^\n]*?(' + '|'.join(re.escape(v) for v in brand_variations) + r')',  # "(1) Brand..."
+        ]
+        
+        for pattern in reference_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                position = int(match.group(1))
+                logger.info(f"[POSITION] ✅ Reference detected: Position {position}")
+                return {
+                    'appears_in_list': True,
+                    'position': position,
+                    'total_items': None,  # No podemos saber el total de referencias
+                    'detection_method': 'reference_number'
+                }
+        
+        # Patrón 3: Ordinales en inglés (First, Second, etc.)
+        ordinal_map = {
+            'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
+            'sixth': 6, 'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10,
+            'primero': 1, 'segundo': 2, 'tercero': 3, 'cuarto': 4, 'quinto': 5,
+            'sexto': 6, 'séptimo': 7, 'octavo': 8, 'noveno': 9, 'décimo': 10
+        }
+        
+        for ordinal, position in ordinal_map.items():
+            # Pattern: "First, Brand..." or "En primer lugar, Brand..."
+            ordinal_pattern = rf'\b{ordinal}\b[,:]?\s*(.{{0,100}}?)\b(' + '|'.join(re.escape(v) for v in brand_variations) + r')\b'
+            match = re.search(ordinal_pattern, text, re.IGNORECASE)
+            if match:
+                logger.info(f"[POSITION] ✅ Ordinal detected: {ordinal} → Position {position}")
+                return {
+                    'appears_in_list': True,
+                    'position': position,
+                    'total_items': None,
+                    'detection_method': 'ordinal'
+                }
+        
+        # Patrón 4: Listas con bullets (inferir orden)
+        bullet_patterns = [
+            r'[•●○▪]\s*(.+?)(?:\n|$)',      # Bullets
+            r'[-–—]\s+(.+?)(?:\n|$)',        # Guiones
+            r'[►▸▹]\s*(.+?)(?:\n|$)',        # Flechas
+        ]
+        
+        for bullet_pattern in bullet_patterns:
+            matches = list(re.finditer(bullet_pattern, text, re.MULTILINE))
+            if len(matches) >= 2:  # Al menos 2 items con bullets
+                for idx, match in enumerate(matches, start=1):
+                    item_text = match.group(1).strip()
+                    
+                    for variation in brand_variations:
+                        if variation.lower() in item_text.lower():
+                            logger.info(f"[POSITION] ✅ Bullet list detected: Position {idx}/{len(matches)}")
+                            return {
+                                'appears_in_list': True,
+                                'position': idx,
+                                'total_items': len(matches),
+                                'detection_method': 'bullet_list'
+                            }
+        
+        # ============================================
+        # FASE 2: INFERENCIA POR CONTEXTO TEXTUAL
+        # ============================================
+        
+        # Si llegamos aquí, no hay lista explícita
+        # Inferir posición basada en dónde aparece la marca en el texto
+        
+        for variation in brand_variations:
+            pattern = r'\b' + re.escape(variation.lower()) + r'\b'
+            match = re.search(pattern, text.lower())
+            
+            if match:
+                mention_position = match.start()
+                text_length = len(text)
+                
+                # Calcular posición relativa (0-1)
+                relative_position = mention_position / text_length if text_length > 0 else 0.5
+                
+                # Inferir posición basada en ubicación en el texto
+                if relative_position < 0.15:  # Primeros 15% del texto
+                    inferred_position = 1
+                    logger.info(f"[POSITION] 🔍 Context inference: Early mention (char {mention_position}) → Position 1")
+                elif relative_position < 0.30:  # 15-30%
+                    inferred_position = 3
+                    logger.info(f"[POSITION] 🔍 Context inference: Early-mid mention (char {mention_position}) → Position 3")
+                elif relative_position < 0.50:  # 30-50%
+                    inferred_position = 5
+                    logger.info(f"[POSITION] 🔍 Context inference: Mid mention (char {mention_position}) → Position 5")
+                elif relative_position < 0.70:  # 50-70%
+                    inferred_position = 8
+                    logger.info(f"[POSITION] 🔍 Context inference: Late-mid mention (char {mention_position}) → Position 8")
+                else:  # 70%+
+                    inferred_position = 12
+                    logger.info(f"[POSITION] 🔍 Context inference: Late mention (char {mention_position}) → Position 12")
+                
+                return {
+                    'appears_in_list': False,  # No es lista explícita
+                    'position': inferred_position,
+                    'total_items': None,
+                    'detection_method': 'context_inference',
+                    'relative_position': round(relative_position, 3),
+                    'char_position': mention_position
+                }
+        
+        # No se detectó la marca en absoluto
         return {
             'appears_in_list': False,
             'position': None,
-            'total_items': None
+            'total_items': None,
+            'detection_method': None
         }
     
     # =====================================================
