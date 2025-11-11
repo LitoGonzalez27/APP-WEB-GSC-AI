@@ -12,7 +12,7 @@ openai>=1.56,<2
 anthropic==0.39.0
 
 # Google Generative AI (Gemini 2.0 Flash)
-google-generativeai>=0.9,<1
+google-generativeai==0.8.5
 
 # Perplexity y otros modelos online
 # (Perplexity usa una API REST compatible con OpenAI)
