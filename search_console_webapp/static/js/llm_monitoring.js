@@ -721,13 +721,13 @@ class LLMMonitoring {
             return;
         }
         
-        // ✨ NUEVO: Con Método 2 (SoV Agregado), todos los LLMs tienen el mismo valor
-        // Simplemente tomamos el valor del primer LLM (todos son iguales)
+        // ✨ MÉTODO 2 (SoV Agregado): TODOS los LLMs tienen el MISMO valor agregado
+        // Backend ya calcula y envía el mismo valor para todos los LLMs
         const llms = Object.keys(metrics);
         const firstLLM = llms[0];
         
-        // Calcular promedio de mention_rate (esta sí varía por LLM)
-        const avgMentionRate = llms.reduce((sum, llm) => sum + (metrics[llm].mention_rate || 0), 0) / llms.length;
+        // ✨ AGREGADO: Mention Rate (mismo valor para todos los LLMs)
+        const aggregatedMentionRate = metrics[firstLLM].mention_rate || 0;
         
         // ✨ AGREGADO: Share of Voice (mismo valor para todos los LLMs)
         const aggregatedSOV = metrics[firstLLM].share_of_voice || 0;
@@ -748,7 +748,7 @@ class LLMMonitoring {
             sentimentClass = 'neutral';
         }
         
-        document.getElementById('kpiMentionRate').textContent = `${avgMentionRate.toFixed(1)}%`;
+        document.getElementById('kpiMentionRate').textContent = `${aggregatedMentionRate.toFixed(1)}%`;
         document.getElementById('kpiShareOfVoice').textContent = `${aggregatedSOV.toFixed(1)}%`;
         document.getElementById('kpiSentiment').innerHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
     }

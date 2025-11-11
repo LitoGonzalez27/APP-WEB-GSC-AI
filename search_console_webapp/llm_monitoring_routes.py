@@ -476,20 +476,15 @@ def get_project(project_id):
             if not llm_snapshots:
                 continue
             
-            # Promediar mention_rate de este LLM específico
-            llm_mention_rate = sum(
-                float(s['mention_rate'] or 0) for s in llm_snapshots
-            ) / len(llm_snapshots)
-            
             # Último snapshot para fecha de referencia
             latest_snapshot = llm_snapshots[0]
             
-            # ✨ IMPORTANTE: Usar métricas AGREGADAS para SoV y Sentiment
-            # Esto asegura consistencia con las gráficas
+            # ✨ IMPORTANTE: Usar métricas AGREGADAS para TODO (consistencia total)
+            # Método 2: SoV Agregado aplicado a TODAS las métricas
             metrics_by_llm[llm] = {
-                'mention_rate': round(llm_mention_rate, 2),  # Individual por LLM
-                'avg_position': round(aggregated_avg_position, 2) if aggregated_avg_position else None,  # Agregado
-                'share_of_voice': round(aggregated_sov, 2),  # ✨ AGREGADO (consistente con gráficas)
+                'mention_rate': round(aggregated_mention_rate, 2),  # ✨ AGREGADO (consistente)
+                'avg_position': round(aggregated_avg_position, 2) if aggregated_avg_position else None,  # ✨ AGREGADO
+                'share_of_voice': round(aggregated_sov, 2),  # ✨ AGREGADO
                 'sentiment': {
                     'positive': round(aggregated_positive_pct, 2),  # ✨ AGREGADO
                     'neutral': round(aggregated_neutral_pct, 2),    # ✨ AGREGADO
