@@ -99,18 +99,34 @@ class OpenAIProvider(BaseLLMProvider):
                     resp = self.client.responses.create(
                         model=self.model,
                         input=query,
-                        max_output_tokens=2000
+                        max_output_tokens=2000,
+                        timeout=60
                     )
                     # Extraer texto
                     content = getattr(resp, 'output_text', None)
-                    if not content and hasattr(resp, 'output'):
-                        # Reconstruir concatenando fragmentos tipo text
+                    if not content:
+                        # Reconstrucción robusta desde bloques de salida
                         try:
                             parts = []
-                            for item in resp.output or []:
-                                if getattr(item, 'type', '') == 'output_text':
-                                    parts.append(getattr(item, 'text', '') or '')
-                            content = ''.join(parts)
+                            output_list = getattr(resp, 'output', None) or []
+                            for item in output_list:
+                                item_type = getattr(item, 'type', '') or ''
+                                # Bloques directos de texto
+                                if item_type in ('output_text', 'text'):
+                                    text_val = getattr(item, 'text', '') or ''
+                                    if text_val:
+                                        parts.append(text_val)
+                                # Mensajes con contenido anidado
+                                if item_type == 'message':
+                                    message_obj = getattr(item, 'message', None)
+                                    if message_obj and hasattr(message_obj, 'content'):
+                                        for block in (message_obj.content or []):
+                                            btype = getattr(block, 'type', '') or ''
+                                            if btype in ('output_text', 'text'):
+                                                btext = getattr(block, 'text', '') or ''
+                                                if btext:
+                                                    parts.append(btext)
+                            content = ''.join(parts).strip() if parts else None
                         except Exception:
                             content = None
                     # Tokens
@@ -123,19 +139,14 @@ class OpenAIProvider(BaseLLMProvider):
 
             if not content:
                 # Chat Completions clásico
-                # ✅ FIX: GPT-5 usa max_completion_tokens, modelos anteriores usan max_tokens
+                # ✅ Usar siempre max_tokens en Chat Completions para máxima compatibilidad
                 completion_params = {
                     "model": self.model,
-                    "messages": [{"role": "user", "content": query}]
+                    "messages": [{"role": "user", "content": query}],
+                    "max_tokens": 2000,
+                    "timeout": 60
                 }
-                
-                # GPT-5 y modelos nuevos usan max_completion_tokens
-                if self.model.startswith('gpt-5') or self.model.startswith('o1'):
-                    completion_params["max_completion_tokens"] = 2000
-                else:
-                    # Modelos anteriores (gpt-4o, gpt-4-turbo, etc.) usan max_tokens
-                    completion_params["max_tokens"] = 2000
-                
+
                 response = self.client.chat.completions.create(**completion_params)
                 content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
                 input_tokens = getattr(response.usage, 'prompt_tokens', 0)
