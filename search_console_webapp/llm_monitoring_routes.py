@@ -398,8 +398,9 @@ def get_project(project_id):
             logger.warning(f"⚠️ Proyecto {project_id} no encontrado")
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         
-        # 📊 CALCULAR PROMEDIOS DE TODOS LOS DÍAS DISPONIBLES (últimos 30 días)
-        # Los KPIs superiores deben reflejar el estado PROMEDIO del proyecto, no solo el último día
+        # 📊 CALCULAR SOV AGREGADO DE TODOS LOS DÍAS DISPONIBLES (últimos 30 días)
+        # Método 2: SoV Agregado - Suma TODAS las menciones de TODOS los LLMs
+        # Esto refleja el volumen REAL de menciones en el mercado
         logger.info(f"📈 Consultando métricas para proyecto {project_id}...")
         
         # Obtener todos los snapshots de los últimos 30 días
@@ -414,6 +415,7 @@ def get_project(project_id):
                 negative_mentions,
                 total_mentions,
                 total_queries,
+                total_competitor_mentions,
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
@@ -424,76 +426,81 @@ def get_project(project_id):
         all_snapshots = cur.fetchall()
         logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos 30 días)")
         
-        # 🧮 Calcular PROMEDIOS por LLM (de todos los días disponibles)
-        metrics_by_llm = {}
+        # 🧮 Calcular MÉTRICAS AGREGADAS (volumen real)
+        # En lugar de promediar SoV por LLM, sumamos TODAS las menciones
         
-        # Agrupar snapshots por LLM
+        # Totales agregados
+        total_brand_mentions = 0
+        total_competitor_mentions = 0
+        total_queries_all = 0
+        total_positive = 0
+        total_neutral = 0
+        total_negative = 0
+        all_positions = []
+        
+        # Agrupar por LLM para cálculos individuales
         snapshots_by_llm = {}
         for snapshot in all_snapshots:
             llm = snapshot['llm_provider']
             if llm not in snapshots_by_llm:
                 snapshots_by_llm[llm] = []
             snapshots_by_llm[llm].append(snapshot)
+            
+            # Acumular totales agregados
+            total_brand_mentions += (snapshot.get('total_mentions') or 0)
+            total_competitor_mentions += (snapshot.get('total_competitor_mentions') or 0)
+            total_queries_all += (snapshot.get('total_queries') or 0)
+            total_positive += (snapshot.get('positive_mentions') or 0)
+            total_neutral += (snapshot.get('neutral_mentions') or 0)
+            total_negative += (snapshot.get('negative_mentions') or 0)
+            
+            # Acumular posiciones
+            if snapshot.get('avg_position') is not None:
+                all_positions.append(float(snapshot['avg_position']))
         
-        # Calcular promedios para cada LLM
+        # 📊 Calcular métricas agregadas globales
+        aggregated_mention_rate = (total_brand_mentions / total_queries_all * 100) if total_queries_all > 0 else 0
+        aggregated_sov = (total_brand_mentions / (total_brand_mentions + total_competitor_mentions) * 100) if (total_brand_mentions + total_competitor_mentions) > 0 else 0
+        aggregated_avg_position = sum(all_positions) / len(all_positions) if all_positions else None
+        
+        # Sentiment agregado
+        aggregated_positive_pct = (total_positive / total_queries_all * 100) if total_queries_all > 0 else 0
+        aggregated_neutral_pct = (total_neutral / total_queries_all * 100) if total_queries_all > 0 else 0
+        aggregated_negative_pct = (total_negative / total_queries_all * 100) if total_queries_all > 0 else 0
+        
+        # 🎯 Calcular métricas individuales por LLM (para compatibilidad con frontend)
+        # El frontend espera datos por LLM, pero ahora usamos los valores agregados
+        metrics_by_llm = {}
+        
         for llm, llm_snapshots in snapshots_by_llm.items():
             if not llm_snapshots:
                 continue
             
-            # Promediar mention_rate
-            avg_mention_rate = sum(
+            # Promediar mention_rate de este LLM específico
+            llm_mention_rate = sum(
                 float(s['mention_rate'] or 0) for s in llm_snapshots
             ) / len(llm_snapshots)
-            
-            # Promediar avg_position (solo de snapshots que tienen posición)
-            positions = [float(s['avg_position']) for s in llm_snapshots if s['avg_position'] is not None]
-            avg_position = sum(positions) / len(positions) if positions else None
-            
-            # Promediar share_of_voice
-            avg_share_of_voice = sum(
-                float(s['share_of_voice'] or 0) for s in llm_snapshots
-            ) / len(llm_snapshots)
-            
-            # 🎭 Sentiment: Promediar porcentajes de cada snapshot
-            # Cada snapshot ya tiene los contadores (positive_mentions, neutral_mentions, negative_mentions)
-            # Calculamos el porcentaje de cada snapshot y luego promediamos
-            avg_positive_pct = 0
-            avg_neutral_pct = 0
-            avg_negative_pct = 0
-            
-            for snapshot in llm_snapshots:
-                total_queries_snap = snapshot.get('total_queries') or 0
-                if total_queries_snap > 0:
-                    pos_pct = (snapshot.get('positive_mentions') or 0) / total_queries_snap * 100
-                    neu_pct = (snapshot.get('neutral_mentions') or 0) / total_queries_snap * 100
-                    neg_pct = (snapshot.get('negative_mentions') or 0) / total_queries_snap * 100
-                    
-                    avg_positive_pct += pos_pct
-                    avg_neutral_pct += neu_pct
-                    avg_negative_pct += neg_pct
-            
-            avg_positive_pct /= len(llm_snapshots)
-            avg_neutral_pct /= len(llm_snapshots)
-            avg_negative_pct /= len(llm_snapshots)
             
             # Último snapshot para fecha de referencia
             latest_snapshot = llm_snapshots[0]
             
+            # ✨ IMPORTANTE: Usar métricas AGREGADAS para SoV y Sentiment
+            # Esto asegura consistencia con las gráficas
             metrics_by_llm[llm] = {
-                'mention_rate': round(avg_mention_rate, 2),
-                'avg_position': round(avg_position, 2) if avg_position else None,
-                'share_of_voice': round(avg_share_of_voice, 2),
+                'mention_rate': round(llm_mention_rate, 2),  # Individual por LLM
+                'avg_position': round(aggregated_avg_position, 2) if aggregated_avg_position else None,  # Agregado
+                'share_of_voice': round(aggregated_sov, 2),  # ✨ AGREGADO (consistente con gráficas)
                 'sentiment': {
-                    'positive': round(avg_positive_pct, 2),
-                    'neutral': round(avg_neutral_pct, 2),
-                    'negative': round(avg_negative_pct, 2)
+                    'positive': round(aggregated_positive_pct, 2),  # ✨ AGREGADO
+                    'neutral': round(aggregated_neutral_pct, 2),    # ✨ AGREGADO
+                    'negative': round(aggregated_negative_pct, 2)   # ✨ AGREGADO
                 },
                 'total_queries': latest_snapshot.get('total_queries'),
                 'date': latest_snapshot['snapshot_date'].isoformat() if latest_snapshot['snapshot_date'] else None,
-                'snapshots_count': len(llm_snapshots)  # ✨ NUEVO: Cuántos snapshots se promediaron
+                'snapshots_count': len(llm_snapshots)
             }
         
-        logger.info(f"✅ Promedios calculados para {len(metrics_by_llm)} LLMs")
+        logger.info(f"✅ Métricas agregadas calculadas: SoV={aggregated_sov:.2f}%, Mention Rate={aggregated_mention_rate:.2f}%")
         
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({

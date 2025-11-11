@@ -709,6 +709,9 @@ class LLMMonitoring {
 
     /**
      * Update KPI cards
+     * 
+     * ✨ ACTUALIZADO: Ahora usa métricas AGREGADAS (Método 2: SoV Agregado)
+     * Todos los LLMs reciben el mismo valor agregado del backend
      */
     updateKPIs(metrics) {
         if (!metrics || Object.keys(metrics).length === 0) {
@@ -718,33 +721,26 @@ class LLMMonitoring {
             return;
         }
         
-        // Calculate averages across all LLMs
+        // ✨ NUEVO: Con Método 2 (SoV Agregado), todos los LLMs tienen el mismo valor
+        // Simplemente tomamos el valor del primer LLM (todos son iguales)
         const llms = Object.keys(metrics);
+        const firstLLM = llms[0];
+        
+        // Calcular promedio de mention_rate (esta sí varía por LLM)
         const avgMentionRate = llms.reduce((sum, llm) => sum + (metrics[llm].mention_rate || 0), 0) / llms.length;
-        const avgSOV = llms.reduce((sum, llm) => sum + (metrics[llm].share_of_voice || 0), 0) / llms.length;
         
-        // 🔧 FIX: Calculate weighted sentiment correctly
-        // Los porcentajes ya vienen calculados por LLM, ahora los promediamos
-        let totalPositivePct = 0, totalNeutralPct = 0, totalNegativePct = 0;
-        llms.forEach(llm => {
-            if (metrics[llm].sentiment) {
-                totalPositivePct += metrics[llm].sentiment.positive || 0;
-                totalNeutralPct += metrics[llm].sentiment.neutral || 0;
-                totalNegativePct += metrics[llm].sentiment.negative || 0;
-            }
-        });
+        // ✨ AGREGADO: Share of Voice (mismo valor para todos los LLMs)
+        const aggregatedSOV = metrics[firstLLM].share_of_voice || 0;
         
-        // Promediar los porcentajes entre todos los LLMs
-        const avgPositive = totalPositivePct / llms.length;
-        const avgNeutral = totalNeutralPct / llms.length;
-        const avgNegative = totalNegativePct / llms.length;
+        // ✨ AGREGADO: Sentiment (mismo valor para todos los LLMs)
+        const sentiment = metrics[firstLLM].sentiment || { positive: 0, neutral: 0, negative: 0 };
         
         // Determinar el sentiment predominante
         let sentimentLabel, sentimentClass;
-        if (avgPositive >= avgNeutral && avgPositive >= avgNegative) {
+        if (sentiment.positive >= sentiment.neutral && sentiment.positive >= sentiment.negative) {
             sentimentLabel = 'Positive';
             sentimentClass = 'positive';
-        } else if (avgNegative > avgPositive && avgNegative > avgNeutral) {
+        } else if (sentiment.negative > sentiment.positive && sentiment.negative > sentiment.neutral) {
             sentimentLabel = 'Negative';
             sentimentClass = 'negative';
         } else {
@@ -753,7 +749,7 @@ class LLMMonitoring {
         }
         
         document.getElementById('kpiMentionRate').textContent = `${avgMentionRate.toFixed(1)}%`;
-        document.getElementById('kpiShareOfVoice').textContent = `${avgSOV.toFixed(1)}%`;
+        document.getElementById('kpiShareOfVoice').textContent = `${aggregatedSOV.toFixed(1)}%`;
         document.getElementById('kpiSentiment').innerHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
     }
 
