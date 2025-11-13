@@ -18,7 +18,7 @@ from .base_provider import (
     get_current_model_for_provider,
     extract_urls_from_text
 )
-from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry, classify_error  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -135,13 +135,27 @@ class OpenAIProvider(BaseLLMProvider):
                         output_tokens = getattr(resp.usage, 'output_tokens', 0)
                         total_tokens = getattr(resp.usage, 'total_tokens', input_tokens + output_tokens)
                 except Exception as e_resp:
-                    logger.warning(f"ℹ️ Responses API falló para {self.model}: {e_resp}. Haciendo fallback a Chat Completions...")
+                    # Clasificar error para decidir si reintentamos con GPT-5 o hacemos fallback inmediato
+                    err_type = classify_error(e_resp)
+                    if err_type in ('rate_limit', 'timeout', 'server_error', 'network'):
+                        # Reintentará el decorator with_retry para insistir con GPT-5
+                        logger.warning(f"ℹ️ Responses API falló ({err_type}) para {self.model}. Reintentaremos con GPT-5 (sin fallback aún). Detalle: {e_resp}")
+                        raise e_resp
+                    # Errores no retriables (p.ej. invalid_request/model_not_found): hacemos fallback
+                    logger.warning(f"ℹ️ Responses API fallo no-retriable para {self.model}: {e_resp}. Haciendo fallback a Chat Completions...")
 
             if not content:
                 # Chat Completions clásico
                 # ✅ Usar siempre max_tokens en Chat Completions para máxima compatibilidad
+                # 🛡️ IMPORTANTE: Si el modelo principal es GPT-5 (Responses),
+                # no intentamos Chat Completions con ese mismo modelo.
+                # Hacemos fallback explícito a un modelo compatible (gpt-4o por defecto).
+                completion_model = self.model
+                if use_responses:
+                    completion_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
+                    logger.info(f"ℹ️ Fallback a Chat Completions con modelo compatible: {completion_model}")
                 completion_params = {
-                    "model": self.model,
+                    "model": completion_model,
                     "messages": [{"role": "user", "content": query}],
                     "max_tokens": 2000,
                     "timeout": 60

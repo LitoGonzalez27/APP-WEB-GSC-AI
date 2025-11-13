@@ -1614,27 +1614,52 @@ def get_share_of_voice_history(project_id):
             # ✨ MEJORADO: Usar menciones ponderadas o normales según el parámetro
             if metric_type == 'weighted':
                 # Si hay weighted_share_of_voice, usarlo para inferir menciones ponderadas
-                weighted_sov = snapshot.get('weighted_share_of_voice')
-                weighted_breakdown = snapshot.get('weighted_competitor_breakdown')
-                
-                # Si tenemos datos ponderados, usarlos
-                if weighted_sov is not None and weighted_breakdown is not None:
-                    # Calcular menciones ponderadas de la marca desde el SoV y breakdown
-                    total_weighted_comp = sum(weighted_breakdown.values()) if weighted_breakdown else 0
-                    if weighted_sov > 0:
-                        # SoV = brand / (brand + comp) * 100
-                        # brand = (SoV * (brand + comp)) / 100
-                        # brand = (SoV * total) / 100
-                        # brand / comp = SoV / (100 - SoV)
-                        weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp if weighted_sov < 100 else total_weighted_comp
-                    else:
-                        weighted_brand = 0
+                try:
+                    weighted_sov_raw = snapshot.get('weighted_share_of_voice')
+                    # Convertir a float de forma segura
+                    try:
+                        weighted_sov = float(weighted_sov_raw) if weighted_sov_raw is not None else None
+                    except Exception:
+                        weighted_sov = None
                     
-                    data_by_date[date_str]['brand_mentions'] += weighted_brand
-                    breakdown = weighted_breakdown
-                else:
-                    # Fallback a métricas normales si no hay datos ponderados
-                    logger.warning(f"⚠️ No weighted data for {date_str}, falling back to normal metrics")
+                    weighted_breakdown_raw = snapshot.get('weighted_competitor_breakdown')
+                    # Asegurar que sea un dict; si viene en string JSON, parsear
+                    if isinstance(weighted_breakdown_raw, dict):
+                        weighted_breakdown = weighted_breakdown_raw
+                    elif isinstance(weighted_breakdown_raw, str):
+                        try:
+                            parsed = json.loads(weighted_breakdown_raw)
+                            weighted_breakdown = parsed if isinstance(parsed, dict) else {}
+                        except Exception:
+                            weighted_breakdown = {}
+                    else:
+                        weighted_breakdown = {}
+                    
+                    # Si tenemos datos ponderados, usarlos
+                    if weighted_sov is not None and weighted_breakdown:
+                        # Calcular menciones ponderadas de competidores
+                        try:
+                            total_weighted_comp = sum(float(v) for v in weighted_breakdown.values() if v is not None)
+                        except Exception:
+                            total_weighted_comp = 0.0
+                        
+                        if weighted_sov and weighted_sov > 0:
+                            # SoV = brand / (brand + comp) * 100
+                            # brand = (SoV / (100 - SoV)) * comp
+                            weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp if weighted_sov < 100 else total_weighted_comp
+                        else:
+                            weighted_brand = 0.0
+                        
+                        data_by_date[date_str]['brand_mentions'] += weighted_brand
+                        breakdown = weighted_breakdown
+                    else:
+                        # Fallback a métricas normales si no hay datos ponderados
+                        logger.warning(f"⚠️ No weighted data for {date_str}, falling back to normal metrics")
+                        data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
+                        breakdown = snapshot.get('competitor_breakdown') or {}
+                except Exception as e_weighted:
+                    # Cualquier error en la ruta ponderada no debe romper el endpoint
+                    logger.warning(f"⚠️ Weighted calc error on {date_str}: {e_weighted}. Using normal metrics as fallback.")
                     data_by_date[date_str]['brand_mentions'] += (snapshot['total_mentions'] or 0)
                     breakdown = snapshot.get('competitor_breakdown') or {}
             else:
