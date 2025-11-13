@@ -71,7 +71,7 @@ class AnthropicProvider(BaseLLMProvider):
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=16000,  # Aumentado de 8000 a 16000 para respuestas completas (Claude soporta hasta 64K)
+                max_tokens=64000,  # Máxima capacidad de Claude (64K) para respuestas de cualquier longitud
                 messages=[
                     {"role": "user", "content": query}
                 ]

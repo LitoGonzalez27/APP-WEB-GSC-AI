@@ -57,7 +57,7 @@ class GoogleProvider(BaseLLMProvider):
         
         # Configurar límites de generación
         generation_config = {
-            'max_output_tokens': 16000,  # Aumentado para respuestas completas
+            'max_output_tokens': 65536,  # Máxima capacidad (64K) para respuestas de cualquier longitud
             'temperature': 0.7,
         }
         
