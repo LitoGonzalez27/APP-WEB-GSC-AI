@@ -3133,15 +3133,13 @@ class LLMMonitoring {
                     </div>
 
                     <div class="response-body">
-                        <div class="response-text ${isCollapsed ? 'collapsed' : ''}" id="responseText${index}">
-                            ${response.full_response ? this.parseMarkdown(response.full_response) : '<em style="color: #9ca3af;">No response text available</em>'}
-                        </div>
-                        ${isCollapsed ? `
-                            <button class="response-expand-btn" onclick="window.llmMonitoring.toggleResponseText(${index})">
-                                <i class="fas fa-chevron-down"></i>
+                        <div class="response-summary">
+                            <p>${this.getSummaryText(response)}</p>
+                            <button class="btn-view-full-response" onclick="window.llmMonitoring.showResponseModal(${index})">
+                                <i class="fas fa-expand-alt"></i>
                                 Show Full Response
                             </button>
-                        ` : ''}
+                        </div>
                     </div>
 
                     ${response.mention_contexts && response.mention_contexts.length > 0 ? `
@@ -3206,20 +3204,293 @@ class LLMMonitoring {
     }
 
     /**
-     * Toggle expand/collapse response text
+     * Get summary text for response preview
      */
-    toggleResponseText(index) {
-        const textEl = document.getElementById(`responseText${index}`);
-        const btn = event.target.closest('.response-expand-btn');
+    getSummaryText(response) {
+        if (!response.full_response) {
+            return '<em style="color: #9ca3af;">No response text available</em>';
+        }
         
-        if (!textEl || !btn) return;
+        const maxLength = 200;
+        const text = response.full_response.replace(/[*#\[\]]/g, '').trim();
+        
+        if (text.length <= maxLength) {
+            return this.escapeHtml(text);
+        }
+        
+        return this.escapeHtml(text.substring(0, maxLength)) + '...';
+    }
 
-        if (textEl.classList.contains('collapsed')) {
-            textEl.classList.remove('collapsed');
-            btn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
-        } else {
-            textEl.classList.add('collapsed');
-            btn.innerHTML = '<i class="fas fa-chevron-down"></i> Show Full Response';
+    /**
+     * Show full response in modal with highlighting
+     */
+    showResponseModal(index) {
+        // Get the response from all responses stored in memory
+        const startIndex = this.currentResponsesShown - this.responsesPerPage;
+        const responses = this.allResponses.slice(startIndex, this.currentResponsesShown);
+        const response = responses[index];
+        
+        if (!response) {
+            console.error('Response not found for index:', index);
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'response-modal-overlay';
+        modal.innerHTML = `
+            <div class="response-modal">
+                <div class="response-modal-header">
+                    <div class="response-modal-title">
+                        <span class="response-llm-badge ${response.llm_provider}">
+                            ${this.getLLMDisplayName(response.llm_provider)}
+                        </span>
+                        <h3>${this.escapeHtml(response.query_text)}</h3>
+                    </div>
+                    <button class="response-modal-close" onclick="this.closest('.response-modal-overlay').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="response-modal-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>${this.formatDate(response.analysis_date)}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-robot"></i>
+                        <span>${this.escapeHtml(response.model_used || 'N/A')}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-align-left"></i>
+                        <span>${response.response_length || 0} chars</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="status-badge ${response.brand_mentioned ? 'mentioned' : 'not-mentioned'}">
+                            ${response.brand_mentioned ? '✓ Mentioned' : '✗ Not Mentioned'}
+                        </span>
+                    </div>
+                    ${response.sentiment ? `
+                        <div class="meta-item">
+                            <span class="status-badge ${response.sentiment}">
+                                ${response.sentiment.charAt(0).toUpperCase() + response.sentiment.slice(1)}
+                            </span>
+                        </div>
+                    ` : ''}
+                    ${response.position_in_list ? `
+                        <div class="meta-item">
+                            <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
+                                Position #${response.position_in_list}
+                            </span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="response-modal-body">
+                    <div class="response-modal-section">
+                        <h4><i class="fas fa-file-alt"></i> Full Response</h4>
+                        <div class="response-full-text">
+                            ${this.highlightMentions(response)}
+                        </div>
+                    </div>
+
+                    ${response.mention_contexts && response.mention_contexts.length > 0 ? `
+                        <div class="response-modal-section">
+                            <h4><i class="fas fa-quote-left"></i> Mention Contexts (${response.mention_contexts.length})</h4>
+                            <div class="mention-contexts-list">
+                                ${response.mention_contexts.map(context => `
+                                    <div class="context-item-modal">
+                                        ${this.highlightTextMentions(context, response)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${response.competitors_mentioned && Object.keys(response.competitors_mentioned).length > 0 ? `
+                        <div class="response-modal-section">
+                            <h4><i class="fas fa-users"></i> Competitors Mentioned (${Object.keys(response.competitors_mentioned).length})</h4>
+                            <div class="competitor-chips-modal">
+                                ${Object.entries(response.competitors_mentioned).map(([comp, count]) => `
+                                    <span class="competitor-chip-modal">
+                                        ${this.escapeHtml(comp)} <span class="count-badge">${count}</span>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${response.sources && response.sources.length > 0 ? `
+                        <div class="response-modal-section">
+                            <h4><i class="fas fa-link"></i> Sources & Links (${response.sources.length})</h4>
+                            <div class="sources-list-modal">
+                                ${response.sources.map((source, idx) => {
+                                    const domain = new URL(source.url).hostname.replace('www.', '');
+                                    const isBrand = this.isUrlFromBrand(source.url);
+                                    const isCompetitor = this.isUrlFromCompetitor(source.url);
+                                    
+                                    return `
+                                        <a href="${this.escapeHtml(source.url)}" 
+                                           target="_blank" 
+                                           rel="noopener noreferrer" 
+                                           class="source-link-modal ${isBrand ? 'brand-source' : ''} ${isCompetitor ? 'competitor-source' : ''}"
+                                           title="${this.escapeHtml(source.url)}">
+                                            <i class="fas fa-external-link-alt"></i>
+                                            <span class="source-domain">${this.escapeHtml(domain)}</span>
+                                            ${isBrand ? '<span class="source-label brand-label">Your Brand</span>' : ''}
+                                            ${isCompetitor ? '<span class="source-label competitor-label">Competitor</span>' : ''}
+                                            <span class="source-badge">${source.provider === 'perplexity' ? 'Citation' : 'Link'}</span>
+                                        </a>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="response-modal-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.response-modal-overlay').remove()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Add to body
+        document.body.appendChild(modal);
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // Close on ESC key
+        const closeOnEsc = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', closeOnEsc);
+            }
+        };
+        document.addEventListener('keydown', closeOnEsc);
+    }
+
+    /**
+     * Highlight brand and competitor mentions in text
+     */
+    highlightMentions(response) {
+        if (!response.full_response) {
+            return '<em style="color: #9ca3af;">No response text available</em>';
+        }
+
+        let html = this.parseMarkdown(response.full_response);
+        
+        // Get brand keywords and competitor keywords
+        const brandKeywords = this.currentProject?.brand_keywords || [];
+        const brandName = this.currentProject?.brand_name || '';
+        const brandDomain = this.currentProject?.brand_domain || '';
+        
+        // Get competitors
+        const competitors = this.currentProject?.selected_competitors || [];
+        const competitorKeywords = [];
+        competitors.forEach(comp => {
+            if (comp.domain) competitorKeywords.push(comp.domain);
+            if (comp.keywords) competitorKeywords.push(...comp.keywords);
+        });
+
+        // Combine all brand terms
+        const allBrandTerms = [...brandKeywords];
+        if (brandName) allBrandTerms.push(brandName);
+        if (brandDomain) allBrandTerms.push(brandDomain.replace('www.', ''));
+
+        // Highlight in order: first competitors (to avoid conflicts), then brand
+        html = this.highlightTextMentions(html, response, allBrandTerms, competitorKeywords);
+        
+        return html;
+    }
+
+    /**
+     * Highlight specific text mentions
+     */
+    highlightTextMentions(text, response, brandTerms = null, competitorTerms = null) {
+        if (!text) return '';
+
+        // Get brand and competitor terms if not provided
+        if (!brandTerms) {
+            const brandKeywords = this.currentProject?.brand_keywords || [];
+            const brandName = this.currentProject?.brand_name || '';
+            const brandDomain = this.currentProject?.brand_domain || '';
+            
+            brandTerms = [...brandKeywords];
+            if (brandName) brandTerms.push(brandName);
+            if (brandDomain) brandTerms.push(brandDomain.replace('www.', ''));
+        }
+
+        if (!competitorTerms) {
+            const competitors = this.currentProject?.selected_competitors || [];
+            competitorTerms = [];
+            competitors.forEach(comp => {
+                if (comp.domain) competitorTerms.push(comp.domain);
+                if (comp.keywords) competitorTerms.push(...comp.keywords);
+            });
+        }
+
+        let result = text;
+
+        // First highlight competitors (orange/red)
+        competitorTerms.forEach(term => {
+            if (!term) return;
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
+            result = result.replace(regex, '<mark class="competitor-mention">$1</mark>');
+        });
+
+        // Then highlight brand (blue) - will take precedence if term appears in both lists
+        brandTerms.forEach(term => {
+            if (!term) return;
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
+            result = result.replace(regex, '<mark class="brand-mention">$1</mark>');
+        });
+
+        return result;
+    }
+
+    /**
+     * Check if URL is from brand
+     */
+    isUrlFromBrand(url) {
+        if (!this.currentProject?.brand_domain || !url) return false;
+        
+        try {
+            const urlObj = new URL(url);
+            const urlDomain = urlObj.hostname.toLowerCase().replace('www.', '');
+            const brandDomain = this.currentProject.brand_domain.toLowerCase().replace('www.', '');
+            
+            return urlDomain === brandDomain || urlDomain.endsWith('.' + brandDomain);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if URL is from competitor
+     */
+    isUrlFromCompetitor(url) {
+        if (!this.currentProject?.selected_competitors || !url) return false;
+        
+        try {
+            const urlObj = new URL(url);
+            const urlDomain = urlObj.hostname.toLowerCase().replace('www.', '');
+            
+            return this.currentProject.selected_competitors.some(comp => {
+                if (!comp.domain) return false;
+                const compDomain = comp.domain.toLowerCase().replace('www.', '');
+                return urlDomain === compDomain || urlDomain.endsWith('.' + compDomain);
+            });
+        } catch (e) {
+            return false;
         }
     }
 
