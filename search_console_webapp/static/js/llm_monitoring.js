@@ -3042,7 +3042,8 @@ class LLMMonitoring {
         // Create responses wrapper
         const responsesWrapper = document.createElement('div');
         responsesWrapper.className = 'responses-list';
-        this.renderResponses(responsesToShow, responsesWrapper);
+        // Pass startIndex as 0 since we're slicing from the beginning
+        this.renderResponses(responsesToShow, responsesWrapper, 0);
         container.appendChild(responsesWrapper);
 
         // Add "Load More" button if there are more responses
@@ -3085,10 +3086,11 @@ class LLMMonitoring {
     /**
      * Render responses in the container
      */
-    renderResponses(responses, container) {
+    renderResponses(responses, container, startIndex = 0) {
         let html = '';
 
-        responses.forEach((response, index) => {
+        responses.forEach((response, relativeIndex) => {
+            const globalIndex = startIndex + relativeIndex;
             const llmName = this.getLLMDisplayName(response.llm_provider);
             const isCollapsed = response.full_response && response.full_response.length > 500;
             
@@ -3135,7 +3137,7 @@ class LLMMonitoring {
                     <div class="response-body">
                         <div class="response-summary">
                             <p>${this.getSummaryText(response)}</p>
-                            <button class="btn-view-full-response" onclick="window.llmMonitoring.showResponseModal(${index})">
+                            <button class="btn-view-full-response" onclick="window.llmMonitoring.showResponseModal(${globalIndex})">
                                 <i class="fas fa-expand-alt"></i>
                                 Show Full Response
                             </button>
@@ -3225,13 +3227,13 @@ class LLMMonitoring {
      * Show full response in modal with highlighting
      */
     showResponseModal(index) {
-        // Get the response from all responses stored in memory
-        const startIndex = this.currentResponsesShown - this.responsesPerPage;
-        const responses = this.allResponses.slice(startIndex, this.currentResponsesShown);
-        const response = responses[index];
+        // Get the response directly from allResponses using the global index
+        const response = this.allResponses[index];
         
         if (!response) {
             console.error('Response not found for index:', index);
+            console.error('Total responses:', this.allResponses.length);
+            console.error('Requested index:', index);
             return;
         }
 
