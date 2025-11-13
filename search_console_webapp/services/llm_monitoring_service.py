@@ -1449,7 +1449,8 @@ JSON:"""
                 continue
             
             # Determinar peso según posición
-            position = r.get('position_in_list')
+            # Ponderar SOLO si la posición proviene de una lista/ranking explícito
+            position = r.get('position_in_list') if r.get('appears_in_numbered_list') else None
             
             if position is None:
                 # Mención en texto pero sin posición en lista = peso baseline
@@ -1512,8 +1513,12 @@ JSON:"""
         mention_rate = (total_mentions / total_queries) * 100
         
         # Posicionamiento
-        positions = [r['position_in_list'] for r in llm_results 
-                    if r['position_in_list'] is not None]
+        # Solo considerar posiciones provenientes de listas/rankings explícitos
+        positions = [
+            r['position_in_list']
+            for r in llm_results
+            if r.get('appears_in_numbered_list') and r['position_in_list'] is not None
+        ]
         avg_position = sum(positions) / len(positions) if positions else None
         
         appeared_in_top3 = sum(1 for p in positions if p <= 3)
