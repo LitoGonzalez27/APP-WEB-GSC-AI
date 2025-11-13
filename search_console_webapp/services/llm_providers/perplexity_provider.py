@@ -101,7 +101,7 @@ class PerplexityProvider(BaseLLMProvider):
                     {"role": "user", "content": query}
                 ],
                 temperature=0.7,
-                max_tokens=2000
+                max_tokens=8000  # Aumentado de 2000 a 8000 para respuestas completas
             )
             
             # Calcular tiempo de respuesta

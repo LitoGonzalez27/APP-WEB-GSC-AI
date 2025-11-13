@@ -99,8 +99,8 @@ class OpenAIProvider(BaseLLMProvider):
                     resp = self.client.responses.create(
                         model=self.model,
                         input=query,
-                        max_output_tokens=2000,
-                        timeout=60
+                        max_output_tokens=16000,  # Aumentado de 2000 a 16000 para respuestas completas
+                        timeout=90
                     )
                     # Extraer texto
                     content = getattr(resp, 'output_text', None)
@@ -157,8 +157,8 @@ class OpenAIProvider(BaseLLMProvider):
                 completion_params = {
                     "model": completion_model,
                     "messages": [{"role": "user", "content": query}],
-                    "max_tokens": 2000,
-                    "timeout": 60
+                    "max_tokens": 16000,  # Aumentado de 2000 a 16000 para respuestas completas
+                    "timeout": 90
                 }
 
                 response = self.client.chat.completions.create(**completion_params)
@@ -210,7 +210,7 @@ class OpenAIProvider(BaseLLMProvider):
                         messages=[
                             {"role": "user", "content": query}
                         ],
-                        max_tokens=2000
+                        max_tokens=16000  # Aumentado de 2000 a 16000 para respuestas completas
                     )
                     response_time = int((time.time() - start_time) * 1000)
                     content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')

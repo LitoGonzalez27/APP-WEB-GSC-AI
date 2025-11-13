@@ -55,7 +55,16 @@ class GoogleProvider(BaseLLMProvider):
                 self.model_name = 'gemini-2.0-flash'
                 logger.warning("⚠️ No se encontró modelo actual en BD, usando Gemini Flash por defecto")
         
-        self.model = genai.GenerativeModel(self.model_name)
+        # Configurar límites de generación
+        generation_config = {
+            'max_output_tokens': 16000,  # Aumentado para respuestas completas
+            'temperature': 0.7,
+        }
+        
+        self.model = genai.GenerativeModel(
+            self.model_name,
+            generation_config=generation_config
+        )
         
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('google', self.model_name)
