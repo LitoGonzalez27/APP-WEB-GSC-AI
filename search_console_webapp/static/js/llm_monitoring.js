@@ -1627,20 +1627,18 @@ class LLMMonitoring {
                         </div>
                         <span style="font-weight: 600; min-width: 45px;">${visibilityStr}%</span>
                     </div>
-                `),
-                q.last_update ? this.formatRelativeTime(q.last_update) : 'Never'
+                `)
             ];
         });
         
         // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { name: 'Prompt', width: '300px' },
+                { name: 'Prompt', width: '350px' },
                 { name: 'Country', width: '80px' },
-                { name: 'Language', width: '80px' },
-                { name: 'Mentions', width: '90px' },
-                { name: 'Visibility', width: '150px' },
-                { name: 'Last Update', width: '120px' }
+                { name: 'Language', width: '90px' },
+                { name: 'Total Mentions (30d)', width: '140px', sort: true },
+                { name: 'Avg Visibility % (30d)', width: '180px', sort: true }
             ],
             data: rows,
             sort: true,
