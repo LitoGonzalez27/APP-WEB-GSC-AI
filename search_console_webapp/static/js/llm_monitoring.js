@@ -1079,8 +1079,9 @@ class LLMMonitoring {
                 return;
             }
             
-            // ✨ GLOBAL: Get selected metric type from global FAB toggle
-            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+            // ⚠️ Total Mentions siempre usa conteo estándar (no weighted)
+            // Una mención es una mención - el weighted solo aplica a Share of Voice
+            const metricType = 'normal';
             
             const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
             if (!response.ok) {
@@ -1617,7 +1618,6 @@ class LLMMonitoring {
                 q.prompt,
                 q.country,
                 q.language ? q.language.toUpperCase() : 'N/A',
-                q.total_responses || 0,
                 q.total_mentions || 0,
                 // Visibility con barra de progreso
                 gridjs.html(`
@@ -1638,7 +1638,6 @@ class LLMMonitoring {
                 { name: 'Prompt', width: '300px' },
                 { name: 'Country', width: '80px' },
                 { name: 'Language', width: '80px' },
-                { name: 'Responses', width: '90px' },
                 { name: 'Mentions', width: '90px' },
                 { name: 'Visibility', width: '150px' },
                 { name: 'Last Update', width: '120px' }
@@ -1649,7 +1648,7 @@ class LLMMonitoring {
                 placeholder: 'Search prompts...'
             },
             pagination: {
-                limit: 15,
+                limit: 10,
                 summary: true
             },
             style: {
@@ -3170,31 +3169,6 @@ class LLMMonitoring {
                                         ${this.escapeHtml(comp)} (${count})
                                     </span>
                                 `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${response.sources && response.sources.length > 0 ? `
-                        <div class="sources-list">
-                            <h5>
-                                <i class="fas fa-link"></i>
-                                Sources & Links (${response.sources.length})
-                            </h5>
-                            <div class="sources-container">
-                                ${response.sources.map((source, idx) => {
-                                    const domain = new URL(source.url).hostname.replace('www.', '');
-                                    return `
-                                        <a href="${this.escapeHtml(source.url)}" 
-                                           target="_blank" 
-                                           rel="noopener noreferrer" 
-                                           class="source-link"
-                                           title="${this.escapeHtml(source.url)}">
-                                            <i class="fas fa-external-link-alt"></i>
-                                            <span class="source-domain">${this.escapeHtml(domain)}</span>
-                                            <span class="source-badge">${source.provider === 'perplexity' ? 'Citation' : 'Link'}</span>
-                                        </a>
-                                    `;
-                                }).join('')}
                             </div>
                         </div>
                     ` : ''}
