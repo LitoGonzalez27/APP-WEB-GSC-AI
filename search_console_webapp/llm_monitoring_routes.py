@@ -1354,7 +1354,16 @@ def get_project_queries(project_id):
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
         
+        # Obtener información del proyecto para filtrar URLs de marca
+        cur.execute("""
+            SELECT brand_domain FROM llm_monitoring_projects WHERE id = %s
+        """, (project_id,))
+        
+        project_info = cur.fetchone()
+        brand_domain = project_info['brand_domain'] if project_info else None
+        
         # Obtener queries con métricas agregadas
+        # ✨ MEJORADO: Contar menciones en texto + menciones en URLs
         cur.execute("""
             WITH query_metrics AS (
                 SELECT 
@@ -1365,7 +1374,20 @@ def get_project_queries(project_id):
                     q.added_at as created_at,
                     COUNT(DISTINCT r.llm_provider) as total_responses,
                     COUNT(DISTINCT r.id) as total_results,
-                    SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                    -- ✨ NUEVO: Contar menciones en texto (brand_mentioned)
+                    SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as text_mentions,
+                    -- ✨ NUEVO: Contar URLs de marca en sources (requiere jsonb_array_elements)
+                    SUM(
+                        CASE 
+                            WHEN r.sources IS NOT NULL AND r.sources::text != '[]' 
+                            THEN (
+                                SELECT COUNT(*) 
+                                FROM jsonb_array_elements(r.sources::jsonb) AS source
+                                WHERE source->>'url' ILIKE %s
+                            )
+                            ELSE 0
+                        END
+                    ) as url_citations,
                     AVG(CASE WHEN r.brand_mentioned THEN 100 ELSE 0 END) as visibility_pct,
                     AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL) as avg_position,
                     MAX(r.analysis_date) as last_analysis_date,
@@ -1385,14 +1407,17 @@ def get_project_queries(project_id):
                 created_at,
                 total_responses,
                 total_results,
-                total_mentions,
+                -- ✨ NUEVO: Total de menciones = menciones en texto + citaciones en URLs
+                (COALESCE(text_mentions, 0) + COALESCE(url_citations, 0)) as total_mentions,
+                text_mentions,
+                url_citations,
                 ROUND(visibility_pct::numeric, 1) as visibility_pct,
                 ROUND(avg_position::numeric, 1) as avg_position,
                 last_analysis_date,
                 last_update
             FROM query_metrics
             ORDER BY last_update DESC NULLS LAST, created_at DESC
-        """, (start_date, end_date, project_id))
+        """, (f'%{brand_domain}%' if brand_domain else '%', start_date, end_date, project_id))
         
         queries_raw = cur.fetchall()
         
