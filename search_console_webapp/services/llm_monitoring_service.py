@@ -397,6 +397,27 @@ class MultiLLMMonitoringService:
         # Detectar posición en listas numeradas
         list_info = self._detect_position_in_list(response_text, brand_variations)
         
+        # ✨ NUEVO: Determinar position_source (text/link/both)
+        brand_in_text = len(mentions_found) > 0
+        brand_in_link = brand_found_in_sources
+        
+        position_source = None
+        final_position = list_info['position']
+        
+        if brand_mentioned:
+            if brand_in_text and brand_in_link:
+                position_source = 'both'
+                # Mantener la posición detectada en texto (más fiable)
+            elif brand_in_text:
+                position_source = 'text'
+                # Mantener la posición detectada
+            elif brand_in_link:
+                position_source = 'link'
+                # Si solo está en link y no tiene posición, asignar 15 (baja visibilidad)
+                if final_position is None:
+                    final_position = 15
+                    logger.info(f"[POSITION] 🔗 Brand only in link → Assigned position 15 (low visibility)")
+        
         # Detectar competidores mencionados (tolerante a acentos)
         # Ahora soporta dominios y palabras clave
         competitors_mentioned = {}
@@ -436,8 +457,9 @@ class MultiLLMMonitoringService:
             'mention_count': mention_count,
             'mention_contexts': mention_contexts[:5],  # Máximo 5 contextos
             'appears_in_numbered_list': list_info['appears_in_list'],
-            'position_in_list': list_info['position'],
+            'position_in_list': final_position,  # ✨ MODIFICADO: usar final_position (puede ser 15 si solo link)
             'total_items_in_list': list_info['total_items'],
+            'position_source': position_source,  # ✨ NUEVO: 'text', 'link', 'both'
             'competitors_mentioned': competitors_mentioned
         }
     
@@ -1271,7 +1293,7 @@ JSON:"""
                         llm_provider, model_used,
                         query_text, brand_name,
                         brand_mentioned, mention_count, mention_contexts,
-                        appears_in_numbered_list, position_in_list, total_items_in_list,
+                        appears_in_numbered_list, position_in_list, total_items_in_list, position_source,
                         sentiment, sentiment_score,
                         competitors_mentioned,
                         full_response, response_length,
@@ -1282,7 +1304,7 @@ JSON:"""
                         %s, %s,
                         %s, %s,
                         %s, %s, %s,
-                        %s, %s, %s,
+                        %s, %s, %s, %s,
                         %s, %s,
                         %s,
                         %s, %s,
@@ -1293,6 +1315,8 @@ JSON:"""
                     DO UPDATE SET
                         brand_mentioned = EXCLUDED.brand_mentioned,
                         mention_count = EXCLUDED.mention_count,
+                        position_in_list = EXCLUDED.position_in_list,
+                        position_source = EXCLUDED.position_source,
                         sentiment = EXCLUDED.sentiment,
                         sources = EXCLUDED.sources,
                         cost_usd = EXCLUDED.cost_usd
@@ -1306,12 +1330,13 @@ JSON:"""
                     mention_analysis['appears_in_numbered_list'],
                     mention_analysis['position_in_list'],
                     mention_analysis['total_items_in_list'],
+                    mention_analysis.get('position_source'),  # ✨ NUEVO: 'text', 'link', 'both'
                     sentiment_data['sentiment'],
                     sentiment_data['score'],
                     json.dumps(mention_analysis['competitors_mentioned']),
                     llm_result['content'],
                     len(llm_result['content']),
-                    json.dumps(llm_result.get('sources', [])),  # ✨ NUEVO
+                    json.dumps(llm_result.get('sources', [])),
                     llm_result['tokens'],
                     llm_result['input_tokens'],
                     llm_result['output_tokens'],
@@ -1449,8 +1474,7 @@ JSON:"""
                 continue
             
             # Determinar peso según posición
-            # Ponderar SOLO si la posición proviene de una lista/ranking explícito
-            position = r.get('position_in_list') if r.get('appears_in_numbered_list') else None
+            position = r.get('position_in_list')
             
             if position is None:
                 # Mención en texto pero sin posición en lista = peso baseline
@@ -1513,12 +1537,8 @@ JSON:"""
         mention_rate = (total_mentions / total_queries) * 100
         
         # Posicionamiento
-        # Solo considerar posiciones provenientes de listas/rankings explícitos
-        positions = [
-            r['position_in_list']
-            for r in llm_results
-            if r.get('appears_in_numbered_list') and r['position_in_list'] is not None
-        ]
+        positions = [r['position_in_list'] for r in llm_results 
+                    if r['position_in_list'] is not None]
         avg_position = sum(positions) / len(positions) if positions else None
         
         appeared_in_top3 = sum(1 for p in positions if p <= 3)
