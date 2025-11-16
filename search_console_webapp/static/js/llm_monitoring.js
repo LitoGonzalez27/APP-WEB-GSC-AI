@@ -1609,12 +1609,39 @@ class LLMMonitoring {
             return;
         }
         
+        // ✨ NUEVO: Guardar queries data para acceso en acordeón
+        this.queriesData = queries;
+        this.expandedRows = new Set(); // Track expanded rows
+        
         // Formatear datos para la tabla
-        const rows = queries.map(q => {
+        const rows = queries.map((q, idx) => {
             const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
             const visibilityStr = visibilityPct.toFixed(1);
             
+            // ✨ NUEVO: Botón expandible con icono
+            const expandBtn = gridjs.html(`
+                <button 
+                    class="expand-row-btn" 
+                    data-row-idx="${idx}"
+                    title="View brand mentions analysis"
+                    style="
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                        padding: 0.25rem 0.5rem;
+                        color: #6b7280;
+                        font-size: 1rem;
+                        transition: all 0.2s;
+                    "
+                    onmouseover="this.style.color='#D8F9B8'"
+                    onmouseout="this.style.color='#6b7280'"
+                >
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `);
+            
             return [
+                expandBtn,  // ✨ NUEVO: Columna expandible
                 q.prompt,
                 q.country,
                 q.language ? q.language.toUpperCase() : 'N/A',
@@ -1634,7 +1661,8 @@ class LLMMonitoring {
         // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { name: 'Prompt', width: '350px' },
+                { name: '', width: '40px', sort: false },  // ✨ NUEVO: Columna expandible
+                { name: 'Prompt', width: '320px' },
                 { name: 'Country', width: '80px' },
                 { name: 'Language', width: '90px' },
                 { name: 'Total Mentions (30d)', width: '140px', sort: true },
@@ -1667,6 +1695,169 @@ class LLMMonitoring {
                 table: 'llm-queries-table'
             }
         }).render(container);
+        
+        // ✨ NUEVO: Añadir event listeners para expansión de filas
+        setTimeout(() => {
+            this.attachExpandListeners();
+        }, 100);
+    }
+
+    /**
+     * ✨ NUEVO: Attach event listeners to expand buttons
+     */
+    attachExpandListeners() {
+        const expandBtns = document.querySelectorAll('.expand-row-btn');
+        expandBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const rowIdx = parseInt(btn.dataset.rowIdx);
+                this.toggleRowExpansion(rowIdx, btn);
+            });
+        });
+    }
+
+    /**
+     * ✨ NUEVO: Toggle row expansion (show/hide brand mentions analysis)
+     */
+    toggleRowExpansion(rowIdx, btn) {
+        const query = this.queriesData[rowIdx];
+        if (!query) return;
+        
+        // Get the table row
+        const icon = btn.querySelector('i');
+        const tr = btn.closest('tr');
+        
+        // Check if already expanded
+        if (this.expandedRows.has(rowIdx)) {
+            // Collapse
+            this.expandedRows.delete(rowIdx);
+            icon.className = 'fas fa-chevron-right';
+            
+            // Remove expanded content row
+            const nextRow = tr.nextElementSibling;
+            if (nextRow && nextRow.classList.contains('expanded-content-row')) {
+                nextRow.remove();
+            }
+        } else {
+            // Expand
+            this.expandedRows.add(rowIdx);
+            icon.className = 'fas fa-chevron-down';
+            
+            // Create and insert expanded content row
+            const expandedRow = document.createElement('tr');
+            expandedRow.classList.add('expanded-content-row');
+            expandedRow.innerHTML = `
+                <td colspan="6" style="padding: 0; background: #1a1a1a; border-bottom: 2px solid #D8F9B8;">
+                    ${this.renderExpandedContent(query)}
+                </td>
+            `;
+            
+            tr.parentNode.insertBefore(expandedRow, tr.nextSibling);
+        }
+    }
+
+    /**
+     * ✨ NUEVO: Render expanded content (brand mentions analysis)
+     */
+    renderExpandedContent(query) {
+        const mentionsByLLM = query.mentions_by_llm || {};
+        const llmNames = Object.keys(mentionsByLLM);
+        
+        if (llmNames.length === 0) {
+            return `
+                <div style="padding: 1.5rem; color: #9ca3af; text-align: center;">
+                    <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
+                    No analysis data available for this prompt yet.
+                </div>
+            `;
+        }
+        
+        // Calculate summary
+        let brandMentionedCount = 0;
+        const allCompetitors = new Set();
+        const competitorCounts = {};
+        
+        llmNames.forEach(llm => {
+            const data = mentionsByLLM[llm];
+            if (data.brand_mentioned) brandMentionedCount++;
+            
+            Object.keys(data.competitors || {}).forEach(comp => {
+                allCompetitors.add(comp);
+                competitorCounts[comp] = (competitorCounts[comp] || 0) + 1;
+            });
+        });
+        
+        // Build HTML
+        let html = `
+            <div style="padding: 1.5rem; background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);">
+                <!-- Header -->
+                <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #333;">
+                    <h4 style="margin: 0; color: #D8F9B8; font-size: 1rem; font-weight: 600;">
+                        <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
+                        Brand Mentions Analysis
+                    </h4>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <!-- Your Brand Card -->
+                    <div style="background: ${brandMentionedCount > 0 ? '#064e3b' : '#7f1d1d'}; padding: 1rem; border-radius: 8px; border: 1px solid ${brandMentionedCount > 0 ? '#10b981' : '#ef4444'};">
+                        <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Your Brand</div>
+                        <div style="color: white; font-size: 1.5rem; font-weight: 700;">${brandMentionedCount}/${llmNames.length}</div>
+                        <div style="color: #d1d5db; font-size: 0.875rem; margin-top: 0.25rem;">LLMs mentioned</div>
+                    </div>
+                    
+                    <!-- Competitors Card -->
+                    <div style="background: #1e293b; padding: 1rem; border-radius: 8px; border: 1px solid #475569;">
+                        <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Competitors</div>
+                        <div style="color: white; font-size: 1.5rem; font-weight: 700;">${allCompetitors.size}</div>
+                        <div style="color: #d1d5db; font-size: 0.875rem; margin-top: 0.25rem;">Mentioned total</div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Breakdown -->
+                <div style="background: #0d0d0d; border-radius: 8px; padding: 1rem; border: 1px solid #333;">
+                    <div style="font-weight: 600; color: #D8F9B8; margin-bottom: 1rem; font-size: 0.875rem;">
+                        <i class="fas fa-list-ul" style="margin-right: 0.5rem;"></i>
+                        Breakdown by LLM
+                    </div>
+                    <div style="display: grid; gap: 0.75rem;">
+        `;
+        
+        // LLM rows
+        llmNames.forEach(llm => {
+            const data = mentionsByLLM[llm];
+            const llmDisplayName = this.getLLMDisplayName(llm);
+            const brandIcon = data.brand_mentioned ? '✅' : '❌';
+            const brandColor = data.brand_mentioned ? '#10b981' : '#6b7280';
+            const position = data.position ? `#${data.position}` : 'N/A';
+            
+            const competitorsStr = Object.keys(data.competitors || {}).length > 0 
+                ? Object.keys(data.competitors).map(c => `<span style="background: #1e293b; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${c}</span>`).join(' ')
+                : '<span style="color: #6b7280; font-size: 0.75rem;">None</span>';
+            
+            html += `
+                <div style="display: grid; grid-template-columns: 120px 100px 1fr; gap: 1rem; align-items: center; padding: 0.75rem; background: #1a1a1a; border-radius: 6px; border: 1px solid #262626;">
+                    <div style="font-weight: 500; color: white;">${llmDisplayName}</div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1rem;">${brandIcon}</span>
+                        <span style="color: ${brandColor}; font-weight: 600;">${position}</span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        <span style="color: #9ca3af; font-size: 0.75rem; margin-right: 0.25rem;">Competitors:</span>
+                        ${competitorsStr}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return html;
     }
 
     /**

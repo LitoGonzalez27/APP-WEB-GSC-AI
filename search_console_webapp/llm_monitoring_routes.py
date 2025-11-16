@@ -1479,14 +1479,65 @@ def get_project_queries(project_id):
         
         queries_raw = cur.fetchall()
         
+        # ✨ NUEVO: Obtener menciones detalladas por LLM para cada query (para acordeón expandible)
+        # Esto nos permite mostrar qué LLMs mencionaron la marca y los competidores
+        cur.execute("""
+            SELECT 
+                r.query_id,
+                r.llm_provider,
+                r.brand_mentioned,
+                r.position_in_list,
+                r.competitors_mentioned,
+                r.analysis_date
+            FROM llm_monitoring_results r
+            WHERE r.query_id = ANY(%s)
+                AND r.analysis_date >= %s
+                AND r.analysis_date <= %s
+            ORDER BY r.query_id, r.llm_provider, r.analysis_date DESC
+        """, ([q['id'] for q in queries_raw], start_date, end_date))
+        
+        mentions_by_query = {}
+        for row in cur.fetchall():
+            query_id = row['query_id']
+            if query_id not in mentions_by_query:
+                mentions_by_query[query_id] = {}
+            
+            llm = row['llm_provider']
+            if llm not in mentions_by_query[query_id]:
+                mentions_by_query[query_id][llm] = {
+                    'brand_mentioned': False,
+                    'position': None,
+                    'competitors': {}
+                }
+            
+            # Solo tomar el resultado más reciente por LLM
+            if not mentions_by_query[query_id][llm]['brand_mentioned'] and row['brand_mentioned']:
+                mentions_by_query[query_id][llm]['brand_mentioned'] = True
+                mentions_by_query[query_id][llm]['position'] = row['position_in_list']
+            
+            # Agregar competidores mencionados
+            if row['competitors_mentioned']:
+                for comp, count in row['competitors_mentioned'].items():
+                    if comp not in mentions_by_query[query_id][llm]['competitors']:
+                        mentions_by_query[query_id][llm]['competitors'][comp] = 0
+                    mentions_by_query[query_id][llm]['competitors'][comp] = max(
+                        mentions_by_query[query_id][llm]['competitors'][comp], 
+                        count
+                    )
+        
         cur.close()
         conn.close()
         
         # Formatear datos para el frontend
         queries_list = []
         for q in queries_raw:
+            query_id = q['id']
+            
+            # ✨ NUEVO: Añadir información de menciones por LLM
+            mentions_detail = mentions_by_query.get(query_id, {})
+            
             queries_list.append({
-                'id': q['id'],
+                'id': query_id,
                 'prompt': q['query_text'],
                 'country': 'Global',  # Por ahora global, se puede añadir por query
                 'language': q['language'] or project['language'] or 'en',
@@ -1497,7 +1548,8 @@ def get_project_queries(project_id):
                 'avg_position': float(q['avg_position']) if q['avg_position'] else None,
                 'last_update': q['last_update'].isoformat() if q['last_update'] else None,
                 'last_analysis_date': q['last_analysis_date'].isoformat() if q['last_analysis_date'] else None,
-                'created_at': q['created_at'].isoformat() if q['created_at'] else None
+                'created_at': q['created_at'].isoformat() if q['created_at'] else None,
+                'mentions_by_llm': mentions_detail  # ✨ NUEVO: Detalles para acordeón
             })
         
         return jsonify({
