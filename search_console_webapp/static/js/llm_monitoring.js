@@ -2795,19 +2795,19 @@ class LLMMonitoring {
         
         const badge = badges[positionSource] || '';
         
-        // Crear tooltip con detalles
-        let tooltipText = 'Origen de la posición: ';
+        // Crear tooltip con detalles (en inglés)
+        let tooltipText = 'Position source: ';
         if (positionSource === 'text') {
-            tooltipText += 'Detectada en el texto de la respuesta';
+            tooltipText += 'Detected in response text';
         } else if (positionSource === 'link') {
-            tooltipText += 'Detectada en URLs citadas (posición 15 por defecto)';
+            tooltipText += 'Detected in cited URLs (default position 15)';
         } else if (positionSource === 'both') {
-            tooltipText += 'Detectada en texto y URLs';
+            tooltipText += 'Detected in text and URLs';
         }
         
         // Si hay detalles, añadirlos
         if (details && (details.text_count || details.link_count || details.both_count)) {
-            tooltipText += ` | Texto: ${details.text_count || 0}, URLs: ${details.link_count || 0}, Ambos: ${details.both_count || 0}`;
+            tooltipText += ` | Text: ${details.text_count || 0}, URLs: ${details.link_count || 0}, Both: ${details.both_count || 0}`;
         }
         
         // Grid.js soporta HTML en celdas, pero para tooltip necesitamos un wrapper
