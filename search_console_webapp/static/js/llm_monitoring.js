@@ -1533,7 +1533,7 @@ class LLMMonitoring {
                 { name: 'Avg Position', width: '100px' },
                 { name: 'Share of Voice', width: '120px' },
                 { name: 'Sentiment', width: '100px' },
-                { name: 'Queries', width: '80px' }
+                { name: 'Prompts', width: '80px' }
             ],
             data: rows,
             sort: true,
@@ -2745,13 +2745,13 @@ class LLMMonitoring {
      * Utility: Get sentiment label
      */
     getSentimentLabel(sentiment) {
-        if (!sentiment) return '😐 Neutral';
+        if (!sentiment) return 'Neutral';
         
         // Si es un número (legacy), usar el método anterior
         if (typeof sentiment === 'number') {
-            if (sentiment > 60) return '😊 Positive';
-            if (sentiment > 40) return '😐 Neutral';
-            return '😞 Negative';
+            if (sentiment > 60) return 'Positive';
+            if (sentiment > 40) return 'Neutral';
+            return 'Negative';
         }
         
         // Si es un objeto con {positive, neutral, negative} porcentajes
@@ -2761,11 +2761,11 @@ class LLMMonitoring {
         
         // Determinar cual es mayor
         if (positive >= neutral && positive >= negative) {
-            return '😊 Positive';
+            return 'Positive';
         } else if (negative > positive && negative > neutral) {
-            return '😞 Negative';
+            return 'Negative';
         } else {
-            return '😐 Neutral';
+            return 'Neutral';
         }
     }
 
