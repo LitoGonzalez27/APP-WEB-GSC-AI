@@ -1231,6 +1231,53 @@ def get_llm_comparison(project_id):
         
         rows = cur.fetchall()
         
+        # ✨ NUEVO: Obtener distribución de position_source para cada snapshot
+        # Esto nos permite mostrar badges 📝/🔗/📝🔗 en UI
+        cur.execute("""
+            SELECT 
+                s.llm_provider,
+                s.snapshot_date,
+                COUNT(*) FILTER (WHERE r.position_source = 'text') as text_count,
+                COUNT(*) FILTER (WHERE r.position_source = 'link') as link_count,
+                COUNT(*) FILTER (WHERE r.position_source = 'both') as both_count,
+                COUNT(*) as total_with_position
+            FROM llm_monitoring_snapshots s
+            LEFT JOIN llm_monitoring_results r ON 
+                s.project_id = r.project_id 
+                AND s.llm_provider = r.llm_provider 
+                AND s.snapshot_date = r.analysis_date
+                AND r.position_source IS NOT NULL
+            WHERE s.project_id = %s
+            GROUP BY s.llm_provider, s.snapshot_date
+            ORDER BY s.snapshot_date DESC, s.llm_provider
+            LIMIT 100
+        """, (project_id,))
+        
+        position_sources = cur.fetchall()
+        
+        # Crear lookup dict para position_source por (llm_provider, date)
+        position_source_map = {}
+        for ps in position_sources:
+            key = (ps['llm_provider'], ps['snapshot_date'].isoformat() if ps['snapshot_date'] else None)
+            text_count = ps['text_count'] or 0
+            link_count = ps['link_count'] or 0
+            both_count = ps['both_count'] or 0
+            
+            # Determinar badge predominante
+            if both_count > 0 or (text_count > 0 and link_count > 0):
+                dominant_source = 'both'
+            elif text_count >= link_count:
+                dominant_source = 'text'
+            else:
+                dominant_source = 'link'
+            
+            position_source_map[key] = {
+                'dominant': dominant_source,
+                'text_count': text_count,
+                'link_count': link_count,
+                'both_count': both_count
+            }
+        
         # Formatear datos
         comparison_list = []
         for c in rows:
@@ -1250,12 +1297,23 @@ def get_llm_comparison(project_id):
             else:
                 sov = c.get('share_of_voice') or 0
             
+            # ✨ NUEVO: Obtener position_source info para este snapshot
+            snapshot_key = (c['llm_provider'], c['snapshot_date'].isoformat() if c['snapshot_date'] else None)
+            position_source_info = position_source_map.get(snapshot_key, {
+                'dominant': None,
+                'text_count': 0,
+                'link_count': 0,
+                'both_count': 0
+            })
+            
             comparison_list.append({
                 'llm_provider': c['llm_provider'],
                 'snapshot_date': c['snapshot_date'].isoformat() if c['snapshot_date'] else None,
                 'mention_rate': float(c['mention_rate']) if c['mention_rate'] is not None else 0,
                 'total_mentions': c.get('total_mentions') or 0,  # 🔧 FIX: Campo faltante para Grid.js
                 'avg_position': float(c['avg_position']) if c['avg_position'] is not None else None,
+                'position_source': position_source_info['dominant'],  # ✨ NUEVO: 'text', 'link', 'both'
+                'position_source_details': position_source_info,  # ✨ NUEVO: Detalles para tooltip
                 'share_of_voice': float(sov) if sov is not None else 0,  # ✨ MODIFICADO: Usar métrica seleccionada
                 'sentiment_score': float(c['avg_sentiment_score']) if c['avg_sentiment_score'] is not None else 0,
                 'sentiment': {

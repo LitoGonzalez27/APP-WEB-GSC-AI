@@ -1518,7 +1518,7 @@ class LLMMonitoring {
             this.getLLMDisplayName(item.llm_provider),
             this.formatDate(item.snapshot_date),
             `${item.mention_rate.toFixed(1)}% (${(item.total_mentions || 0)}/${(item.total_queries || 0)})`,
-            item.avg_position ? `#${item.avg_position.toFixed(1)}` : 'N/A',
+            this.formatPositionWithBadge(item.avg_position, item.position_source, item.position_source_details),
             `${item.share_of_voice.toFixed(1)}%`,
             this.getSentimentLabel(item.sentiment),
             item.total_queries
@@ -2767,6 +2767,56 @@ class LLMMonitoring {
         } else {
             return 'Neutral';
         }
+    }
+
+    /**
+     * ✨ NUEVO: Formatear posición con badge de origen
+     * @param {number|null} avgPosition - Posición media
+     * @param {string|null} positionSource - 'text', 'link', 'both'
+     * @param {object} details - Detalles con counts de cada tipo
+     * @returns {string} HTML string con posición y badge
+     */
+    formatPositionWithBadge(avgPosition, positionSource, details) {
+        if (!avgPosition) return 'N/A';
+        
+        const positionStr = `#${avgPosition.toFixed(1)}`;
+        
+        // Si no hay información de source, solo mostrar posición
+        if (!positionSource) {
+            return positionStr;
+        }
+        
+        // Mapeo de badges
+        const badges = {
+            'text': '📝',
+            'link': '🔗',
+            'both': '📝🔗'
+        };
+        
+        const badge = badges[positionSource] || '';
+        
+        // Crear tooltip con detalles
+        let tooltipText = 'Origen de la posición: ';
+        if (positionSource === 'text') {
+            tooltipText += 'Detectada en el texto de la respuesta';
+        } else if (positionSource === 'link') {
+            tooltipText += 'Detectada en URLs citadas (posición 15 por defecto)';
+        } else if (positionSource === 'both') {
+            tooltipText += 'Detectada en texto y URLs';
+        }
+        
+        // Si hay detalles, añadirlos
+        if (details && (details.text_count || details.link_count || details.both_count)) {
+            tooltipText += ` | Texto: ${details.text_count || 0}, URLs: ${details.link_count || 0}, Ambos: ${details.both_count || 0}`;
+        }
+        
+        // Grid.js soporta HTML en celdas, pero para tooltip necesitamos un wrapper
+        return gridjs.html(`
+            <span title="${tooltipText}" style="display: inline-flex; align-items: center; gap: 4px;">
+                <span>${positionStr}</span>
+                <span style="font-size: 12px;">${badge}</span>
+            </span>
+        `);
     }
 
     /**
