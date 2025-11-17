@@ -260,8 +260,32 @@
 }
 
 .project-card-footer {
-    display: flex;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* Botones dentro del footer ocupan todo el ancho */
+.project-card-footer .btn {
+    width: 100%;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+/* ✨ Hover personalizado para botones del proyecto */
+.project-card-footer .btn:hover {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+.project-card-footer .btn i {
+    transition: color 0.2s ease;
+}
+
+.project-card-footer .btn:hover i {
+    color: #161616 !important;
 }
 
 /* KPI Cards */
