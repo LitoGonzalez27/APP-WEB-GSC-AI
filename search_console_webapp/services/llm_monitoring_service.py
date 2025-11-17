@@ -419,7 +419,7 @@ class MultiLLMMonitoringService:
                     logger.info(f"[POSITION] 🔗 Brand only in link → Assigned position 15 (low visibility)")
         
         # Detectar competidores mencionados (tolerante a acentos)
-        # Ahora soporta dominios y palabras clave
+        # Ahora soporta dominios y palabras clave, y TAMBIÉN busca en sources/enlaces
         competitors_mentioned = {}
         
         # Construir lista de todos los competidores a buscar
@@ -441,6 +441,8 @@ class MultiLLMMonitoringService:
         for competitor in all_competitors:
             comp_variations = extract_brand_variations(competitor.lower())
             comp_count = 0
+            
+            # A) Buscar en response_text
             for variation in comp_variations:
                 v_lower = variation.lower()
                 v_no_accents = remove_accents(v_lower)
@@ -449,6 +451,18 @@ class MultiLLMMonitoringService:
                 pattern_no_acc = r'\b' + re.escape(v_no_accents) + r'\b'
                 comp_count += len(re.findall(pattern_normal, text_lower, re.IGNORECASE))
                 comp_count += len(re.findall(pattern_no_acc, text_lower_no_accents, re.IGNORECASE))
+            
+            # B) ✨ NUEVO: Buscar también en sources/enlaces (importante para Perplexity)
+            if sources:
+                for source in sources:
+                    source_url = source.get('url', '').lower()
+                    # Verificar si alguna variación del competidor está en la URL
+                    for variation in comp_variations:
+                        if variation.lower() in source_url:
+                            comp_count += 1
+                            logger.debug(f"[COMPETITOR] Found '{competitor}' in source URL: {source_url}")
+                            break  # Solo contar una vez por URL
+            
             if comp_count > 0:
                 competitors_mentioned[competitor] = comp_count
         
