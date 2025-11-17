@@ -280,12 +280,26 @@
     border-color: #D8F9B8 !important;
 }
 
+/* ✨ Hover en ROJO para botones de acción peligrosa (Deactivate/Delete) */
+.project-card-footer .btn-danger:hover,
+.project-card-footer .btn-warning:hover {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+}
+
 .project-card-footer .btn i {
     transition: color 0.2s ease;
 }
 
 .project-card-footer .btn:hover i {
     color: #161616 !important;
+}
+
+/* Iconos blancos para botones de acción peligrosa en hover */
+.project-card-footer .btn-danger:hover i,
+.project-card-footer .btn-warning:hover i {
+    color: white !important;
 }
 
 /* KPI Cards */
