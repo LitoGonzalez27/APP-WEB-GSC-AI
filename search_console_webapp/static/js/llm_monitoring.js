@@ -1661,12 +1661,12 @@ class LLMMonitoring {
         // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { name: '', width: '40px', sort: false },  // ✨ NUEVO: Columna expandible
-                { name: 'Prompt', width: '320px' },
-                { name: 'Country', width: '80px' },
-                { name: 'Language', width: '90px' },
-                { name: 'Total Mentions (30d)', width: '140px', sort: true },
-                { name: 'Avg Visibility % (30d)', width: '180px', sort: true }
+                { id: 'expand', name: '', width: '40px', sort: false },  // ✨ NUEVO: Columna expandible
+                { id: 'prompt', name: 'Prompt', width: '320px' },
+                { id: 'country', name: 'Country', width: '80px' },
+                { id: 'language', name: 'Language', width: '90px' },
+                { id: 'mentions', name: 'Total Mentions (30d)', width: '140px', sort: true },
+                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '180px', sort: true }
             ],
             data: rows,
             sort: true,
@@ -1697,9 +1697,21 @@ class LLMMonitoring {
         }).render(container);
         
         // ✨ NUEVO: Añadir event listeners para expansión de filas
-        setTimeout(() => {
-            this.attachExpandListeners();
-        }, 100);
+        // Usar setTimeout más largo y también reintentar si no encuentra botones
+        const attachWithRetry = (attempts = 0) => {
+            const expandBtns = document.querySelectorAll('.expand-row-btn');
+            if (expandBtns.length > 0) {
+                console.log(`✅ Found ${expandBtns.length} expand buttons, attaching listeners...`);
+                this.attachExpandListeners();
+            } else if (attempts < 5) {
+                console.log(`⏳ Expand buttons not ready, retrying... (attempt ${attempts + 1})`);
+                setTimeout(() => attachWithRetry(attempts + 1), 200);
+            } else {
+                console.warn('⚠️ Could not find expand buttons after 5 attempts');
+            }
+        };
+        
+        setTimeout(() => attachWithRetry(), 100);
     }
 
     /**
@@ -1707,10 +1719,12 @@ class LLMMonitoring {
      */
     attachExpandListeners() {
         const expandBtns = document.querySelectorAll('.expand-row-btn');
-        expandBtns.forEach(btn => {
+        console.log(`🔗 Attaching listeners to ${expandBtns.length} expand buttons`);
+        expandBtns.forEach((btn, idx) => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const rowIdx = parseInt(btn.dataset.rowIdx);
+                console.log(`🔄 Toggle row ${rowIdx}`);
                 this.toggleRowExpansion(rowIdx, btn);
             });
         });
