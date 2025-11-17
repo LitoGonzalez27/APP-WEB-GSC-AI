@@ -1481,8 +1481,9 @@ def get_project_queries(project_id):
         
         # ✨ NUEVO: Obtener menciones detalladas por LLM para cada query (para acordeón expandible)
         # Esto nos permite mostrar qué LLMs mencionaron la marca y los competidores
+        # Usamos DISTINCT ON para obtener solo el resultado más reciente por (query_id, llm_provider)
         cur.execute("""
-            SELECT 
+            SELECT DISTINCT ON (r.query_id, r.llm_provider)
                 r.query_id,
                 r.llm_provider,
                 r.brand_mentioned,
@@ -1499,31 +1500,17 @@ def get_project_queries(project_id):
         mentions_by_query = {}
         for row in cur.fetchall():
             query_id = row['query_id']
+            llm = row['llm_provider']
+            
             if query_id not in mentions_by_query:
                 mentions_by_query[query_id] = {}
             
-            llm = row['llm_provider']
-            if llm not in mentions_by_query[query_id]:
-                mentions_by_query[query_id][llm] = {
-                    'brand_mentioned': False,
-                    'position': None,
-                    'competitors': {}
-                }
-            
-            # Solo tomar el resultado más reciente por LLM
-            if not mentions_by_query[query_id][llm]['brand_mentioned'] and row['brand_mentioned']:
-                mentions_by_query[query_id][llm]['brand_mentioned'] = True
-                mentions_by_query[query_id][llm]['position'] = row['position_in_list']
-            
-            # Agregar competidores mencionados
-            if row['competitors_mentioned']:
-                for comp, count in row['competitors_mentioned'].items():
-                    if comp not in mentions_by_query[query_id][llm]['competitors']:
-                        mentions_by_query[query_id][llm]['competitors'][comp] = 0
-                    mentions_by_query[query_id][llm]['competitors'][comp] = max(
-                        mentions_by_query[query_id][llm]['competitors'][comp], 
-                        count
-                    )
+            # Ahora cada fila es única por (query_id, llm_provider) - el más reciente
+            mentions_by_query[query_id][llm] = {
+                'brand_mentioned': row['brand_mentioned'] or False,
+                'position': row['position_in_list'],
+                'competitors': row['competitors_mentioned'] or {}
+            }
         
         cur.close()
         conn.close()
