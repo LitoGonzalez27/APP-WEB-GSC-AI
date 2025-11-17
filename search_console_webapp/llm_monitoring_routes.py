@@ -688,12 +688,13 @@ def update_project(project_id):
         conn.close()
 
 
-@llm_monitoring_bp.route('/projects/<int:project_id>', methods=['DELETE'])
+@llm_monitoring_bp.route('/projects/<int:project_id>/deactivate', methods=['PUT'])
 @login_required
 @validate_project_ownership
-def delete_project(project_id):
+def deactivate_project(project_id):
     """
-    Elimina un proyecto (soft delete: marca is_active = false)
+    Desactiva un proyecto (marca is_active = false)
+    El proyecto deja de ejecutarse en el CRON diario pero mantiene sus datos
     
     Returns:
         JSON con confirmación
@@ -705,22 +706,159 @@ def delete_project(project_id):
     try:
         cur = conn.cursor()
         
-        # Soft delete: marcar como inactivo
+        # Marcar como inactivo
         cur.execute("""
             UPDATE llm_monitoring_projects
             SET is_active = FALSE, updated_at = NOW()
-            WHERE id = %s
+            WHERE id = %s AND is_active = TRUE
             RETURNING id, name
         """, (project_id,))
         
         project = cur.fetchone()
         
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado o ya está inactivo'}), 404
+        
         conn.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Proyecto "{project["name"]}" marcado como inactivo',
+            'message': f'Proyecto "{project["name"]}" desactivado. Ya no se ejecutará en análisis automáticos.',
             'project_id': project['id']
+        }), 200
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error desactivando proyecto: {e}", exc_info=True)
+        return jsonify({'error': f'Error desactivando proyecto: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/activate', methods=['PUT'])
+@login_required
+@validate_project_ownership
+def activate_project(project_id):
+    """
+    Reactiva un proyecto inactivo (marca is_active = true)
+    
+    Returns:
+        JSON con confirmación
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Marcar como activo
+        cur.execute("""
+            UPDATE llm_monitoring_projects
+            SET is_active = TRUE, updated_at = NOW()
+            WHERE id = %s AND is_active = FALSE
+            RETURNING id, name
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado o ya está activo'}), 404
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Proyecto "{project["name"]}" reactivado. Se incluirá en próximos análisis automáticos.',
+            'project_id': project['id']
+        }), 200
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error reactivando proyecto: {e}", exc_info=True)
+        return jsonify({'error': f'Error reactivando proyecto: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>', methods=['DELETE'])
+@login_required
+@validate_project_ownership
+def delete_project(project_id):
+    """
+    Elimina DEFINITIVAMENTE un proyecto (hard delete)
+    SOLO funciona si el proyecto está INACTIVO
+    
+    Elimina:
+    - El proyecto
+    - Todas sus queries
+    - Todos los resultados de análisis
+    - Todos los snapshots
+    
+    Returns:
+        JSON con confirmación
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Verificar que el proyecto esté inactivo
+        cur.execute("""
+            SELECT id, name, is_active 
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        if project['is_active']:
+            return jsonify({
+                'error': 'No se puede eliminar un proyecto activo. Desactívalo primero.',
+                'action_required': 'deactivate_first'
+            }), 400
+        
+        project_name = project['name']
+        
+        # Eliminar en cascada (orden importante para foreign keys)
+        # 1. Snapshots
+        cur.execute("DELETE FROM llm_monitoring_snapshots WHERE project_id = %s", (project_id,))
+        snapshots_deleted = cur.rowcount
+        
+        # 2. Resultados
+        cur.execute("DELETE FROM llm_monitoring_results WHERE project_id = %s", (project_id,))
+        results_deleted = cur.rowcount
+        
+        # 3. Queries
+        cur.execute("DELETE FROM llm_monitoring_queries WHERE project_id = %s", (project_id,))
+        queries_deleted = cur.rowcount
+        
+        # 4. Proyecto
+        cur.execute("DELETE FROM llm_monitoring_projects WHERE id = %s", (project_id,))
+        
+        conn.commit()
+        
+        logger.info(f"🗑️ Proyecto '{project_name}' eliminado definitivamente:")
+        logger.info(f"   - Queries: {queries_deleted}")
+        logger.info(f"   - Resultados: {results_deleted}")
+        logger.info(f"   - Snapshots: {snapshots_deleted}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Proyecto "{project_name}" eliminado definitivamente',
+            'project_id': project_id,
+            'stats': {
+                'queries_deleted': queries_deleted,
+                'results_deleted': results_deleted,
+                'snapshots_deleted': snapshots_deleted
+            }
         }), 200
         
     except Exception as e:

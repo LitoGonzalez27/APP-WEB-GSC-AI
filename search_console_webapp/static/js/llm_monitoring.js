@@ -635,10 +635,21 @@ class LLMMonitoring {
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
-                <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, '${this.escapeHtml(project.name)}')">
-                    <i class="fas fa-trash"></i>
-                    Delete
-                </button>
+                ${project.is_active ? `
+                    <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, '${this.escapeHtml(project.name)}')">
+                        <i class="fas fa-pause"></i>
+                        Deactivate
+                    </button>
+                ` : `
+                    <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, '${this.escapeHtml(project.name)}')">
+                        <i class="fas fa-play"></i>
+                        Activate
+                    </button>
+                    <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, '${this.escapeHtml(project.name)}', true)">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                    </button>
+                `}
             </div>
         `;
         
@@ -1918,13 +1929,92 @@ class LLMMonitoring {
     }
 
     /**
-     * Delete a project
+     * ✨ NUEVO: Desactivar un proyecto (deja de ejecutarse en CRON)
      */
-    async deleteProject(projectId, projectName) {
-        console.log(`🗑️ Deleting project ${projectId}...`);
+    async deactivateProject(projectId, projectName) {
+        console.log(`⏸️ Deactivating project ${projectId}...`);
+        
+        // Confirm deactivation
+        if (!confirm(`Are you sure you want to deactivate the project "${projectName}"?\n\nThe project will stop running in automatic analysis, but all data will be preserved.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/deactivate`, {
+                method: 'PUT',
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ Project ${projectId} deactivated`);
+            
+            // If we're viewing this project, update current project state
+            if (this.currentProject && this.currentProject.id === projectId) {
+                this.currentProject.is_active = false;
+            }
+            
+            // Reload projects list
+            await this.loadProjects();
+            
+            this.showSuccess(`Project "${projectName}" deactivated. It won't run in automatic analysis.`);
+            
+        } catch (error) {
+            console.error('❌ Error deactivating project:', error);
+            this.showError(error.message || 'Failed to deactivate project');
+        }
+    }
+
+    /**
+     * ✨ NUEVO: Reactivar un proyecto inactivo
+     */
+    async activateProject(projectId, projectName) {
+        console.log(`▶️ Activating project ${projectId}...`);
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/activate`, {
+                method: 'PUT',
+                credentials: 'same-origin'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ Project ${projectId} activated`);
+            
+            // If we're viewing this project, update current project state
+            if (this.currentProject && this.currentProject.id === projectId) {
+                this.currentProject.is_active = true;
+            }
+            
+            // Reload projects list
+            await this.loadProjects();
+            
+            this.showSuccess(`Project "${projectName}" activated. It will be included in next automatic analysis.`);
+            
+        } catch (error) {
+            console.error('❌ Error activating project:', error);
+            this.showError(error.message || 'Failed to activate project');
+        }
+    }
+
+    /**
+     * Delete a project (permanent deletion, only works if inactive)
+     */
+    async deleteProject(projectId, projectName, isPermanent = false) {
+        console.log(`🗑️ Deleting project ${projectId}... (permanent: ${isPermanent})`);
         
         // Confirm deletion
-        if (!confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis action cannot be undone.`)) {
+        const message = isPermanent 
+            ? `⚠️ PERMANENT DELETION\n\nAre you sure you want to permanently delete the project "${projectName}"?\n\nThis will delete:\n- The project\n- All queries\n- All analysis results\n- All snapshots\n\nThis action CANNOT be undone!`
+            : `Are you sure you want to delete the project "${projectName}"?\n\nThis action cannot be undone.`;
+        
+        if (!confirm(message)) {
             return;
         }
         
@@ -1936,10 +2026,15 @@ class LLMMonitoring {
             
             if (!response.ok) {
                 const error = await response.json();
+                if (error.action_required === 'deactivate_first') {
+                    this.showError('Please deactivate the project first before deleting it.');
+                    return;
+                }
                 throw new Error(error.error || `HTTP ${response.status}`);
             }
             
-            console.log(`✅ Project ${projectId} deleted`);
+            const result = await response.json();
+            console.log(`✅ Project ${projectId} deleted permanently:`, result.stats);
             
             // If we're viewing this project, go back to projects list
             if (this.currentProject && this.currentProject.id === projectId) {
@@ -1949,7 +2044,7 @@ class LLMMonitoring {
             // Reload projects list
             await this.loadProjects();
             
-            this.showSuccess(`Project "${projectName}" deleted successfully`);
+            this.showSuccess(`Project "${projectName}" permanently deleted.`);
             
         } catch (error) {
             console.error('❌ Error deleting project:', error);
