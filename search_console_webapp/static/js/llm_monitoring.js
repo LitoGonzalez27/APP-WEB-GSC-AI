@@ -1629,30 +1629,38 @@ class LLMMonitoring {
             const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
             const visibilityStr = visibilityPct.toFixed(1);
             
-            // ✨ NUEVO: Botón expandible con icono
-            const expandBtn = gridjs.html(`
+            // ✨ NUEVO: Botón que abre modal con análisis detallado
+            const viewDetailsBtn = gridjs.html(`
                 <button 
-                    class="expand-row-btn" 
+                    class="view-details-btn" 
                     data-row-idx="${idx}"
-                    title="View brand mentions analysis"
+                    title="View detailed analysis"
                     style="
-                        background: none;
+                        background: linear-gradient(135deg, #D8F9B8 0%, #a8e063 100%);
                         border: none;
+                        border-radius: 6px;
                         cursor: pointer;
-                        padding: 0.25rem 0.5rem;
-                        color: #6b7280;
-                        font-size: 1rem;
+                        padding: 0.4rem 0.65rem;
+                        color: #1a1a1a;
+                        font-size: 0.8rem;
+                        font-weight: 600;
                         transition: all 0.2s;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.4rem;
+                        box-shadow: 0 2px 4px rgba(216, 249, 184, 0.2);
+                        white-space: nowrap;
                     "
-                    onmouseover="this.style.color='#D8F9B8'"
-                    onmouseout="this.style.color='#6b7280'"
+                    onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(216, 249, 184, 0.3)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(216, 249, 184, 0.2)'"
                 >
-                    <i class="fas fa-chevron-right"></i>
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Details</span>
                 </button>
             `);
             
             return [
-                expandBtn,  // ✨ NUEVO: Columna expandible
+                viewDetailsBtn,  // ✨ NUEVO: Botón para ver detalles
                 q.prompt,
                 q.country,
                 q.language ? q.language.toUpperCase() : 'N/A',
@@ -1707,18 +1715,17 @@ class LLMMonitoring {
             }
         }).render(container);
         
-        // ✨ NUEVO: Añadir event listeners para expansión de filas
-        // Usar setTimeout más largo y también reintentar si no encuentra botones
+        // ✨ NUEVO: Añadir event listeners para abrir modal
         const attachWithRetry = (attempts = 0) => {
-            const expandBtns = document.querySelectorAll('.expand-row-btn');
-            if (expandBtns.length > 0) {
-                console.log(`✅ Found ${expandBtns.length} expand buttons, attaching listeners...`);
-                this.attachExpandListeners();
+            const detailBtns = document.querySelectorAll('.view-details-btn');
+            if (detailBtns.length > 0) {
+                console.log(`✅ Found ${detailBtns.length} detail buttons, attaching listeners...`);
+                this.attachDetailListeners();
             } else if (attempts < 5) {
-                console.log(`⏳ Expand buttons not ready, retrying... (attempt ${attempts + 1})`);
+                console.log(`⏳ Detail buttons not ready, retrying... (attempt ${attempts + 1})`);
                 setTimeout(() => attachWithRetry(attempts + 1), 200);
             } else {
-                console.warn('⚠️ Could not find expand buttons after 5 attempts');
+                console.warn('⚠️ Could not find detail buttons after 5 attempts');
             }
         };
         
@@ -1726,65 +1733,69 @@ class LLMMonitoring {
     }
 
     /**
-     * ✨ NUEVO: Attach event listeners to expand buttons
+     * ✨ NUEVO: Attach event listeners to detail buttons
      */
-    attachExpandListeners() {
-        const expandBtns = document.querySelectorAll('.expand-row-btn');
-        console.log(`🔗 Attaching listeners to ${expandBtns.length} expand buttons`);
-        expandBtns.forEach((btn, idx) => {
+    attachDetailListeners() {
+        const detailBtns = document.querySelectorAll('.view-details-btn');
+        console.log(`🔗 Attaching listeners to ${detailBtns.length} detail buttons`);
+        detailBtns.forEach((btn, idx) => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const rowIdx = parseInt(btn.dataset.rowIdx);
-                console.log(`🔄 Toggle row ${rowIdx}`);
-                this.toggleRowExpansion(rowIdx, btn);
+                console.log(`📊 Opening brand mentions modal for row ${rowIdx}`);
+                this.showBrandMentionsModal(rowIdx);
             });
         });
     }
 
     /**
-     * ✨ NUEVO: Toggle row expansion (show/hide brand mentions analysis)
+     * ✨ NUEVO: Show brand mentions modal
      */
-    toggleRowExpansion(rowIdx, btn) {
+    showBrandMentionsModal(rowIdx) {
         const query = this.queriesData[rowIdx];
         if (!query) return;
         
-        // Get the table row
-        const icon = btn.querySelector('i');
-        const tr = btn.closest('tr');
+        const modal = document.getElementById('brandMentionsModal');
+        const modalTitle = document.getElementById('brandMentionsModalPrompt');
+        const modalBody = document.getElementById('brandMentionsModalBody');
         
-        // Check if already expanded
-        if (this.expandedRows.has(rowIdx)) {
-            // Collapse
-            this.expandedRows.delete(rowIdx);
-            icon.className = 'fas fa-chevron-right';
-            
-            // Remove expanded content row
-            const nextRow = tr.nextElementSibling;
-            if (nextRow && nextRow.classList.contains('expanded-content-row')) {
-                nextRow.remove();
-            }
-        } else {
-            // Expand
-            this.expandedRows.add(rowIdx);
-            icon.className = 'fas fa-chevron-down';
-            
-            // Create and insert expanded content row
-            const expandedRow = document.createElement('tr');
-            expandedRow.classList.add('expanded-content-row');
-            expandedRow.innerHTML = `
-                <td colspan="6" style="padding: 0; background: #1a1a1a; border-bottom: 2px solid #D8F9B8;">
-                    ${this.renderExpandedContent(query)}
-                </td>
-            `;
-            
-            tr.parentNode.insertBefore(expandedRow, tr.nextSibling);
+        if (!modal || !modalBody) {
+            console.error('❌ Modal elements not found');
+            return;
         }
+        
+        // Set prompt text in modal header
+        modalTitle.textContent = `"${query.prompt}"`;
+        
+        // Render modal content
+        modalBody.innerHTML = this.renderBrandMentionsModalContent(query);
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Add fade-in animation
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 10);
+    }
+    
+    /**
+     * ✨ NUEVO: Hide brand mentions modal
+     */
+    hideBrandMentionsModal() {
+        const modal = document.getElementById('brandMentionsModal');
+        if (!modal) return;
+        
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
     }
 
     /**
-     * ✨ NUEVO: Render expanded content (brand mentions analysis)
+     * ✨ NUEVO: Render brand mentions modal content
      */
-    renderExpandedContent(query) {
+    renderBrandMentionsModalContent(query) {
         const mentionsByLLM = query.mentions_by_llm || {};
         const llmNames = Object.keys(mentionsByLLM);
         
@@ -1814,39 +1825,42 @@ class LLMMonitoring {
         
         // Build HTML
         let html = `
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);">
-                <!-- Header -->
-                <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #333;">
-                    <h4 style="margin: 0; color: #D8F9B8; font-size: 1rem; font-weight: 600;">
-                        <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
-                        Brand Mentions Analysis
-                    </h4>
-                </div>
-                
+            <div style="padding: 0;">
                 <!-- Summary Cards -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem;">
                     <!-- Your Brand Card -->
-                    <div style="background: ${brandMentionedCount > 0 ? '#064e3b' : '#7f1d1d'}; padding: 1rem; border-radius: 8px; border: 1px solid ${brandMentionedCount > 0 ? '#10b981' : '#ef4444'};">
-                        <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Your Brand</div>
-                        <div style="color: white; font-size: 1.5rem; font-weight: 700;">${brandMentionedCount}/${llmNames.length}</div>
-                        <div style="color: #d1d5db; font-size: 0.875rem; margin-top: 0.25rem;">LLMs mentioned</div>
+                    <div style="background: linear-gradient(135deg, ${brandMentionedCount > 0 ? '#064e3b' : '#7f1d1d'} 0%, ${brandMentionedCount > 0 ? '#065f46' : '#991b1b'} 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid ${brandMentionedCount > 0 ? '#10b981' : '#ef4444'}; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                            <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Your Brand</div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 0.375rem 0.625rem; border-radius: 6px; font-size: 1.25rem;">
+                                ${brandMentionedCount > 0 ? '✅' : '❌'}
+                            </div>
+                        </div>
+                        <div style="color: white; font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem;">${brandMentionedCount}<span style="font-size: 1.5rem; color: #9ca3af;">/${llmNames.length}</span></div>
+                        <div style="color: #d1d5db; font-size: 0.9rem;">LLMs mentioned</div>
                     </div>
                     
                     <!-- Competitors Card -->
-                    <div style="background: #1e293b; padding: 1rem; border-radius: 8px; border: 1px solid #475569;">
-                        <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Competitors</div>
-                        <div style="color: white; font-size: 1.5rem; font-weight: 700;">${allCompetitors.size}</div>
-                        <div style="color: #d1d5db; font-size: 0.875rem; margin-top: 0.25rem;">Mentioned total</div>
+                    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid #475569; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                            <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Competitors</div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 0.375rem 0.625rem; border-radius: 6px; font-size: 1.25rem;">
+                                ⚔️
+                            </div>
+                        </div>
+                        <div style="color: white; font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem;">${allCompetitors.size}</div>
+                        <div style="color: #d1d5db; font-size: 0.9rem;">Mentioned total</div>
                     </div>
                 </div>
                 
                 <!-- Detailed Breakdown -->
-                <div style="background: #0d0d0d; border-radius: 8px; padding: 1rem; border: 1px solid #333;">
-                    <div style="font-weight: 600; color: #D8F9B8; margin-bottom: 1rem; font-size: 0.875rem;">
-                        <i class="fas fa-list-ul" style="margin-right: 0.5rem;"></i>
-                        Breakdown by LLM
+                <div style="background: linear-gradient(to bottom, #0a0a0a, #1a1a1a); border-radius: 12px; padding: 1.5rem; border: 1px solid #333; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                    <div style="font-weight: 700; color: #D8F9B8; margin-bottom: 1.25rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="background: linear-gradient(135deg, #D8F9B8, #a8e063); width: 4px; height: 20px; border-radius: 2px;"></div>
+                        <i class="fas fa-list-ul"></i>
+                        <span>Breakdown by LLM</span>
                     </div>
-                    <div style="display: grid; gap: 0.75rem;">
+                    <div style="display: grid; gap: 1rem;">
         `;
         
         // LLM rows
@@ -1857,19 +1871,38 @@ class LLMMonitoring {
             const brandColor = data.brand_mentioned ? '#10b981' : '#6b7280';
             const position = data.position ? `#${data.position}` : 'N/A';
             
+            // 🔧 FIX: Mostrar badge de tipo de mención (texto/URL/ambos)
+            let mentionBadge = '';
+            if (data.brand_mentioned) {
+                const inText = data.brand_mentioned_in_text;
+                const inUrls = data.brand_mentioned_in_urls;
+                
+                if (inText && inUrls) {
+                    mentionBadge = '<span style="background: #064e3b; color: #10b981; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in text and URLs">📝🔗</span>';
+                } else if (inText) {
+                    mentionBadge = '<span style="background: #064e3b; color: #10b981; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in text">📝</span>';
+                } else if (inUrls) {
+                    mentionBadge = '<span style="background: #1e3a5f; color: #60a5fa; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in URLs only">🔗</span>';
+                }
+            }
+            
             const competitorsStr = Object.keys(data.competitors || {}).length > 0 
                 ? Object.keys(data.competitors).map(c => `<span style="background: #1e293b; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${c}</span>`).join(' ')
                 : '<span style="color: #6b7280; font-size: 0.75rem;">None</span>';
             
             html += `
-                <div style="display: grid; grid-template-columns: 120px 100px 1fr; gap: 1rem; align-items: center; padding: 0.75rem; background: #1a1a1a; border-radius: 6px; border: 1px solid #262626;">
-                    <div style="font-weight: 500; color: white;">${llmDisplayName}</div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1rem;">${brandIcon}</span>
-                        <span style="color: ${brandColor}; font-weight: 600;">${position}</span>
+                <div style="display: grid; grid-template-columns: 140px 120px 1fr; gap: 1.25rem; align-items: center; padding: 1rem 1.25rem; background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%); border-radius: 10px; border: 1px solid ${data.brand_mentioned ? '#374151' : '#262626'}; transition: all 0.2s; ${data.brand_mentioned ? 'box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);' : ''}">
+                    <div style="font-weight: 600; color: white; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="${this.getLLMIcon(llm)}" style="color: ${this.getLLMColor(llm)};"></i>
+                        ${llmDisplayName}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.625rem;">
+                        <span style="font-size: 1.25rem;">${brandIcon}</span>
+                        <span style="color: ${brandColor}; font-weight: 700; font-size: 0.95rem;">${position}</span>
+                        ${mentionBadge}
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <span style="color: #9ca3af; font-size: 0.75rem; margin-right: 0.25rem;">Competitors:</span>
+                        <span style="color: #6b7280; font-size: 0.8rem; font-weight: 600;">Competitors:</span>
                         ${competitorsStr}
                     </div>
                 </div>
@@ -1877,6 +1910,28 @@ class LLMMonitoring {
         });
         
         html += `
+                    </div>
+                </div>
+                
+                <!-- Leyenda explicativa con diseño moderno -->
+                <div style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 10px; border: 1px solid #475569;">
+                    <div style="color: #D8F9B8; font-size: 0.85rem; margin-bottom: 0.875rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Mention Type Legend</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.875rem; font-size: 0.8rem; color: #d1d5db;">
+                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                            <span style="background: #064e3b; color: #10b981; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">📝</span>
+                            <span>Text mention</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                            <span style="background: #1e3a5f; color: #60a5fa; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">🔗</span>
+                            <span>URL citation</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                            <span style="background: #064e3b; color: #10b981; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">📝🔗</span>
+                            <span>Both</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3039,6 +3094,32 @@ class LLMMonitoring {
             'perplexity': 'Perplexity'
         };
         return names[llm] || llm;
+    }
+
+    /**
+     * Utility: Get LLM icon
+     */
+    getLLMIcon(llm) {
+        const icons = {
+            'openai': 'fas fa-robot',
+            'anthropic': 'fas fa-brain',
+            'google': 'fas fa-star',
+            'perplexity': 'fas fa-search'
+        };
+        return icons[llm] || 'fas fa-robot';
+    }
+
+    /**
+     * Utility: Get LLM color
+     */
+    getLLMColor(llm) {
+        const colors = {
+            'openai': '#10b981',
+            'anthropic': '#a855f7',
+            'google': '#3b82f6',
+            'perplexity': '#f59e0b'
+        };
+        return colors[llm] || '#6b7280';
     }
 
     /**

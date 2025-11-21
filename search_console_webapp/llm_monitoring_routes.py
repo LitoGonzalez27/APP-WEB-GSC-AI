@@ -1620,6 +1620,7 @@ def get_project_queries(project_id):
         # ✨ NUEVO: Obtener menciones detalladas por LLM para cada query (para acordeón expandible)
         # Esto nos permite mostrar qué LLMs mencionaron la marca y los competidores
         # Usamos DISTINCT ON para obtener solo el resultado más reciente por (query_id, llm_provider)
+        # 🔧 FIX: Incluir información sobre menciones en URLs también
         cur.execute("""
             SELECT DISTINCT ON (r.query_id, r.llm_provider)
                 r.query_id,
@@ -1627,6 +1628,7 @@ def get_project_queries(project_id):
                 r.brand_mentioned,
                 r.position_in_list,
                 r.competitors_mentioned,
+                r.sources,
                 r.analysis_date
             FROM llm_monitoring_results r
             WHERE r.query_id = ANY(%s)
@@ -1643,9 +1645,37 @@ def get_project_queries(project_id):
             if query_id not in mentions_by_query:
                 mentions_by_query[query_id] = {}
             
+            # 🔧 FIX: Detectar menciones en URLs también
+            brand_in_text = row['brand_mentioned'] or False
+            brand_in_urls = False
+            
+            # Verificar si la marca aparece en las URLs citadas
+            if brand_domain and row['sources']:
+                sources = row['sources']
+                # sources puede ser una string JSON o ya un dict/list
+                if isinstance(sources, str):
+                    import json
+                    try:
+                        sources = json.loads(sources)
+                    except:
+                        sources = []
+                
+                if isinstance(sources, list):
+                    for source in sources:
+                        if isinstance(source, dict):
+                            url = source.get('url', '').lower()
+                            if brand_domain.lower() in url:
+                                brand_in_urls = True
+                                break
+            
+            # La marca fue mencionada si apareció en texto O en URLs
+            brand_mentioned_total = brand_in_text or brand_in_urls
+            
             # Ahora cada fila es única por (query_id, llm_provider) - el más reciente
             mentions_by_query[query_id][llm] = {
-                'brand_mentioned': row['brand_mentioned'] or False,
+                'brand_mentioned': brand_mentioned_total,  # 🔧 FIX: Total incluyendo URLs
+                'brand_mentioned_in_text': brand_in_text,  # ✨ NUEVO: Desglose
+                'brand_mentioned_in_urls': brand_in_urls,  # ✨ NUEVO: Desglose
                 'position': row['position_in_list'],
                 'competitors': row['competitors_mentioned'] or {}
             }
