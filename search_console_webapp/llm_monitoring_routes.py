@@ -1784,9 +1784,6 @@ def get_share_of_voice_history(project_id):
     
     logger.info(f"📊 Share of Voice history requested - Type: {metric_type}, Days: {days}")
     
-    # ✨ NUEVO: Soporte para rango de fechas global
-    days = request.args.get('days', 30, type=int)
-    
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
@@ -1950,7 +1947,11 @@ def get_share_of_voice_history(project_id):
                         if weighted_sov and weighted_sov > 0:
                             # SoV = brand / (brand + comp) * 100
                             # brand = (SoV / (100 - SoV)) * comp
-                            weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp if weighted_sov < 100 else total_weighted_comp
+                            if weighted_sov >= 100:
+                                # Si SoV es 100%, la marca tiene todas las menciones
+                                weighted_brand = total_weighted_comp if total_weighted_comp > 0 else 1.0
+                            else:
+                                weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp
                         else:
                             weighted_brand = 0.0
                         
@@ -1972,6 +1973,18 @@ def get_share_of_voice_history(project_id):
                 breakdown = snapshot.get('competitor_breakdown') or {}
             
             data_by_date[date_str]['llm_count'] += 1
+            
+            # 🔧 FIX: Asegurar que breakdown es un dict antes de iterar
+            if isinstance(breakdown, str):
+                try:
+                    breakdown = json.loads(breakdown)
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"⚠️ Could not parse breakdown JSON for {date_str}, skipping")
+                    breakdown = {}
+            
+            if not isinstance(breakdown, dict):
+                logger.warning(f"⚠️ Breakdown is not a dict for {date_str}, skipping")
+                breakdown = {}
             
             for detected_variant, mentions in breakdown.items():
                 variant_lower = detected_variant.lower().strip()
@@ -2165,8 +2178,12 @@ def get_share_of_voice_history(project_id):
         }), 200
         
     except Exception as e:
-        logger.error(f"Error obteniendo histórico de Share of Voice: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo datos: {str(e)}'}), 500
+        logger.error(f"❌ Error obteniendo histórico de Share of Voice: {e}", exc_info=True)
+        logger.error(f"   Project ID: {project_id}, Days: {days}, Metric: {metric_type}")
+        return jsonify({
+            'error': f'Error obteniendo datos: {str(e)}',
+            'details': 'Check server logs for more information'
+        }), 500
 
 
 # ============================================================================
