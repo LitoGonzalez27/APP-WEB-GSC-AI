@@ -1809,7 +1809,8 @@ def get_share_of_voice_history(project_id):
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
             
-        # Calcular fecha de inicio
+        # Calcular fechas de inicio y fin
+        end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
@@ -2171,8 +2172,8 @@ def get_share_of_voice_history(project_id):
                 'colors': donut_colors
             },
             'period': {
-                'start_date': start_date.isoformat(),
-                'end_date': end_date.isoformat(),
+                'start_date': start_date,
+                'end_date': end_date,
                 'days': days
             }
         }), 200
