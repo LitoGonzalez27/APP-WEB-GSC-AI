@@ -1812,23 +1812,25 @@ def get_share_of_voice_history(project_id):
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
             
-        # Obtener todos los snapshots del rango seleccionado
+        # Calcular fecha de inicio
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        
+        # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
         cur.execute("""
             SELECT 
-                llm_provider,
                 snapshot_date,
-                mention_rate,
-                avg_position,
+                llm_provider,
                 share_of_voice,
                 weighted_share_of_voice,
-                sentiment_distribution,
-                total_queries,
-                total_cost_usd
+                total_mentions,
+                total_competitor_mentions,
+                competitor_breakdown,
+                weighted_competitor_breakdown
             FROM llm_monitoring_snapshots
-            WHERE project_id = %s
-                AND snapshot_date >= CURRENT_DATE - INTERVAL '%s days'
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, days))
+            WHERE project_id = %s 
+                AND snapshot_date >= %s 
+            ORDER BY snapshot_date, llm_provider
+        """, (project_id, start_date))
         
         snapshots = cur.fetchall()
         
