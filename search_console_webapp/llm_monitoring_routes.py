@@ -401,10 +401,12 @@ def get_project(project_id):
         # 📊 CALCULAR SOV AGREGADO DE TODOS LOS DÍAS DISPONIBLES (últimos 30 días)
         # Método 2: SoV Agregado - Suma TODAS las menciones de TODOS los LLMs
         # Esto refleja el volumen REAL de menciones en el mercado
-        logger.info(f"📈 Consultando métricas para proyecto {project_id}...")
+        # ✨ NUEVO: Soporte para rango de fechas global
+        days = request.args.get('days', 30, type=int)
+        logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
         
-        # Obtener todos los snapshots de los últimos 30 días
-        cur.execute("""
+        # Obtener todos los snapshots del rango seleccionado
+        cur.execute(f"""
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -419,7 +421,7 @@ def get_project(project_id):
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
-                AND snapshot_date >= CURRENT_DATE - INTERVAL '30 days'
+                AND snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
             ORDER BY snapshot_date DESC, llm_provider
         """, (project_id,))
         
@@ -1165,8 +1167,15 @@ def get_project_metrics(project_id):
         JSON con snapshots y métricas agregadas
     """
     # Parámetros de fecha
-    end_date = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
-    start_date = request.args.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+    days = request.args.get('days', type=int)
+    
+    if days:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    else:
+        end_date = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+        start_date = request.args.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        
     llm_provider = request.args.get('llm_provider')
     
     conn = get_db_connection()
@@ -1338,6 +1347,10 @@ def get_llm_comparison(project_id):
     # ✨ NUEVO: Parámetro de métrica para Share of Voice
     metric_type = request.args.get('metric', 'weighted')
     
+    # ✨ NUEVO: Parámetro de días
+    days = request.args.get('days', 30, type=int)
+    start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
@@ -1363,9 +1376,9 @@ def get_llm_comparison(project_id):
                 total_queries
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
+            AND snapshot_date >= %s
             ORDER BY snapshot_date DESC, llm_provider
-            LIMIT 100
-        """, (project_id,))
+        """, (project_id, start_date))
         
         rows = cur.fetchall()
         
@@ -1386,10 +1399,10 @@ def get_llm_comparison(project_id):
                 AND s.snapshot_date = r.analysis_date
                 AND r.position_source IS NOT NULL
             WHERE s.project_id = %s
+            AND s.snapshot_date >= %s
             GROUP BY s.llm_provider, s.snapshot_date
             ORDER BY s.snapshot_date DESC, s.llm_provider
-            LIMIT 100
-        """, (project_id,))
+        """, (project_id, start_date))
         
         position_sources = cur.fetchall()
         
@@ -1771,6 +1784,9 @@ def get_share_of_voice_history(project_id):
     
     logger.info(f"📊 Share of Voice history requested - Type: {metric_type}, Days: {days}")
     
+    # ✨ NUEVO: Soporte para rango de fechas global
+    days = request.args.get('days', 30, type=int)
+    
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
@@ -1778,45 +1794,41 @@ def get_share_of_voice_history(project_id):
     try:
         cur = conn.cursor()
         
-        # Obtener información del proyecto (incluir selected_competitors)
+        # Obtener proyecto
         cur.execute("""
             SELECT 
-                brand_name,
-                brand_domain,
-                brand_keywords,
-                selected_competitors,
-                competitors,
-                competitor_domains,
-                competitor_keywords
+                id, user_id, name, brand_name, industry, 
+                brand_domain, brand_keywords,
+                competitors, selected_competitors,
+                language, country_code,
+                queries_per_llm, enabled_llms,
+                is_active, created_at, last_analysis_date
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         
         project = cur.fetchone()
+        
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-        
-        # Calcular rango de fechas
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=days)
-        
-        # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
+            
+        # Obtener todos los snapshots del rango seleccionado
         cur.execute("""
             SELECT 
-                snapshot_date,
                 llm_provider,
+                snapshot_date,
+                mention_rate,
+                avg_position,
                 share_of_voice,
                 weighted_share_of_voice,
-                total_mentions,
-                total_competitor_mentions,
-                competitor_breakdown,
-                weighted_competitor_breakdown
+                sentiment_distribution,
+                total_queries,
+                total_cost_usd
             FROM llm_monitoring_snapshots
-            WHERE project_id = %s 
-                AND snapshot_date >= %s 
-                AND snapshot_date <= %s
-            ORDER BY snapshot_date, llm_provider
-        """, (project_id, start_date, end_date))
+            WHERE project_id = %s
+                AND snapshot_date >= CURRENT_DATE - INTERVAL '%s days'
+            ORDER BY snapshot_date DESC, llm_provider
+        """, (project_id, days))
         
         snapshots = cur.fetchall()
         

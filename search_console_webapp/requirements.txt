@@ -65,7 +65,7 @@ openai>=1.56,<2
 anthropic==0.39.0
 
 # Google Generative AI (Gemini 1.5 Flash)
-google-generativeai==0.8.5
+google-generativeai>=0.9,<1
 
 # ====================================================================
 # Testing Dependencies

@@ -223,6 +223,15 @@
                         <h2 id="projectTitle">Project Metrics</h2>
                     </div>
                     <div class="section-actions">
+                        <div class="global-time-filter" style="margin-right: 10px;">
+                            <select id="globalTimeRange" class="form-control" style="height: 36px; min-width: 140px;">
+                                <option value="7">Last 7 days</option>
+                                <option value="14">Last 14 days</option>
+                                <option value="30" selected>Last 30 days</option>
+                                <option value="60">Last 60 days</option>
+                                <option value="90">Last 90 days</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary" id="btnManagePrompts">
                             <i class="fas fa-list"></i>
                             <span>Manage Prompts</span>
