@@ -127,44 +127,88 @@
     flex-wrap: wrap;
 }
 
-/* ✨ Botones más pequeños en section-actions */
-.section-actions .btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.85rem;
+/* ============================================================================
+   TOOLBAR UNIFICADA - section-actions-toolbar
+   ============================================================================ */
+.section-actions-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
-.section-actions .btn i {
+/* Todos los elementos del toolbar tienen la misma altura */
+.section-actions-toolbar .toolbar-item {
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+/* Botones del toolbar */
+.section-actions-toolbar .btn.toolbar-item {
+    padding: 0 0.875rem;
+    gap: 0.4rem;
+}
+
+.section-actions-toolbar .btn.toolbar-item i {
     font-size: 0.8rem;
 }
 
-/* ✨ Selector de fechas global mejorado */
-.global-time-filter select {
-    height: 34px;
-    padding: 0.35rem 0.65rem;
+/* Select del toolbar */
+.section-actions-toolbar .toolbar-select {
+    height: 36px;
+    min-width: 140px;
+    padding: 0 0.75rem;
     font-size: 0.85rem;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: 8px;
     background-color: white;
     color: #374151;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.global-time-filter select:hover {
+.section-actions-toolbar .toolbar-select:hover {
     border-color: #d1d5db;
 }
 
-.global-time-filter select:focus {
+.section-actions-toolbar .toolbar-select:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
-/* ✨ Info badge más pequeño */
-.section-actions .info-badge {
-    padding: 6px 12px !important;
-    font-size: 0.8rem !important;
-    gap: 6px !important;
+/* Info badge del toolbar */
+.section-actions-toolbar .info-badge.toolbar-item {
+    padding: 0 0.875rem;
+    gap: 0.5rem;
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.section-actions-toolbar .info-badge.toolbar-item i {
+    font-size: 0.8rem;
+}
+
+/* ============================================================================
+   EMPTY STATE CENTRADO
+   ============================================================================ */
+.empty-state-centered {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-height: 200px;
+    padding: 2rem;
+}
+
+.empty-state-centered .empty-state {
+    text-align: center;
 }
 
 /* Projects Grid */
