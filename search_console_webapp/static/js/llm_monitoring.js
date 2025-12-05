@@ -1701,12 +1701,12 @@ class LLMMonitoring {
         // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
-                { id: 'expand', name: '', width: '40px', sort: false },  // ✨ NUEVO: Columna expandible
-                { id: 'prompt', name: 'Prompt', width: '320px' },
+                { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
+                { id: 'prompt', name: 'Prompt', width: '45%' },
                 { id: 'country', name: 'Country', width: '80px' },
-                { id: 'language', name: 'Language', width: '90px' },
-                { id: 'mentions', name: 'Total Mentions (30d)', width: '140px', sort: true },
-                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '180px', sort: true }
+                { id: 'language', name: 'Language', width: '80px' },
+                { id: 'mentions', name: 'Total Mentions (30d)', width: '130px', sort: true },
+                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '150px', sort: true }
             ],
             data: rows,
             sort: true,

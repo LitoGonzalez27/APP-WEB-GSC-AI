@@ -122,7 +122,49 @@
 
 .section-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ✨ Botones más pequeños en section-actions */
+.section-actions .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.section-actions .btn i {
+    font-size: 0.8rem;
+}
+
+/* ✨ Selector de fechas global mejorado */
+.global-time-filter select {
+    height: 34px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.85rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: white;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.global-time-filter select:hover {
+    border-color: #d1d5db;
+}
+
+.global-time-filter select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* ✨ Info badge más pequeño */
+.section-actions .info-badge {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+    gap: 6px !important;
 }
 
 /* Projects Grid */
@@ -398,6 +440,27 @@
 .btn-ghost:hover:not(:disabled) {
     background-color: #f9fafb;
     border-color: #d1d5db;
+}
+
+/* ✨ Estilo especial para botón Back to Projects y Edit */
+#btnBackToProjects,
+#btnEditProject {
+    background-color: #f9fafb;
+    color: #161616;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+#btnBackToProjects:hover,
+#btnEditProject:hover {
+    background-color: #161616;
+    color: white;
+    border-color: #161616;
+}
+
+#btnBackToProjects:hover i,
+#btnEditProject:hover i {
+    color: white;
 }
 
 .btn-danger {
