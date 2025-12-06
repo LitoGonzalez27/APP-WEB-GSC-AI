@@ -502,21 +502,13 @@ class LLMMonitoring {
             }
         });
 
-        document.getElementById('responsesDaysFilter')?.addEventListener('change', () => {
-            if (this.currentProject?.id) {
-                this.loadResponses();
-            }
-        });
+        // ✨ responsesDaysFilter listener removed - now using global time range
 
         // ✨ Global Time Range Selector - controls all data, charts and tables
         document.getElementById('globalTimeRange')?.addEventListener('change', (e) => {
             if (this.currentProject) {
                 this.globalTimeRange = parseInt(e.target.value);
                 console.log(`📅 Global time range changed to: ${this.globalTimeRange} days`);
-
-                // Update responses filter to match global (if exists)
-                const responsesFilter = document.getElementById('responsesDaysFilter');
-                if (responsesFilter) responsesFilter.value = this.globalTimeRange;
 
                 // Reload all project data with new time range
                 this.viewProject(this.currentProject.id);
@@ -3346,7 +3338,7 @@ class LLMMonitoring {
 
         const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
         const llmFilter = document.getElementById('responsesLLMFilter')?.value || '';
-        const daysFilter = document.getElementById('responsesDaysFilter')?.value || '7';
+        const daysFilter = this.globalTimeRange; // ✨ Use global time range
         const container = document.getElementById('responsesContainer');
 
         if (!container) return;
