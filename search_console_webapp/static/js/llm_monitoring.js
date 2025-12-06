@@ -1800,9 +1800,9 @@ class LLMMonitoring {
 
         if (llmNames.length === 0) {
             return `
-                <div style="padding: 1.5rem; color: #9ca3af; text-align: center;">
-                    <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>
-                    No analysis data available for this prompt yet.
+                <div class="brand-mentions-empty">
+                    <i class="fas fa-info-circle"></i>
+                    <p>No analysis data available for this prompt yet.</p>
                 </div>
             `;
         }
@@ -1810,7 +1810,6 @@ class LLMMonitoring {
         // Calculate summary
         let brandMentionedCount = 0;
         const allCompetitors = new Set();
-        const competitorCounts = {};
 
         llmNames.forEach(llm => {
             const data = mentionsByLLM[llm];
@@ -1818,48 +1817,44 @@ class LLMMonitoring {
 
             Object.keys(data.competitors || {}).forEach(comp => {
                 allCompetitors.add(comp);
-                competitorCounts[comp] = (competitorCounts[comp] || 0) + 1;
             });
         });
 
-        // Build HTML
+        const brandCardClass = brandMentionedCount > 0 ? 'brand-positive' : 'brand-negative';
+        const brandIcon = brandMentionedCount > 0 ? '✅' : '❌';
+
+        // Build HTML with CSS classes
         let html = `
-            <div style="padding: 0;">
-                <!-- Summary Cards -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 2rem;">
-                    <!-- Your Brand Card -->
-                    <div style="background: linear-gradient(135deg, ${brandMentionedCount > 0 ? '#064e3b' : '#7f1d1d'} 0%, ${brandMentionedCount > 0 ? '#065f46' : '#991b1b'} 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid ${brandMentionedCount > 0 ? '#10b981' : '#ef4444'}; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                            <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Your Brand</div>
-                            <div style="background: rgba(255,255,255,0.1); padding: 0.375rem 0.625rem; border-radius: 6px; font-size: 1.25rem;">
-                                ${brandMentionedCount > 0 ? '✅' : '❌'}
-                            </div>
-                        </div>
-                        <div style="color: white; font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem;">${brandMentionedCount}<span style="font-size: 1.5rem; color: #9ca3af;">/${llmNames.length}</span></div>
-                        <div style="color: #d1d5db; font-size: 0.9rem;">LLMs mentioned</div>
+            <!-- Summary Cards -->
+            <div class="brand-summary-grid">
+                <!-- Your Brand Card -->
+                <div class="brand-summary-card ${brandCardClass}">
+                    <div class="brand-summary-card-header">
+                        <div class="brand-summary-card-label">Your Brand</div>
+                        <div class="brand-summary-card-icon">${brandIcon}</div>
                     </div>
-                    
-                    <!-- Competitors Card -->
-                    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid #475569; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-                            <div style="color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Competitors</div>
-                            <div style="background: rgba(255,255,255,0.1); padding: 0.375rem 0.625rem; border-radius: 6px; font-size: 1.25rem;">
-                                ⚔️
-                            </div>
-                        </div>
-                        <div style="color: white; font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 0.5rem;">${allCompetitors.size}</div>
-                        <div style="color: #d1d5db; font-size: 0.9rem;">Mentioned total</div>
-                    </div>
+                    <div class="brand-summary-card-value">${brandMentionedCount}<span>/${llmNames.length}</span></div>
+                    <div class="brand-summary-card-subtitle">LLMs mentioned</div>
                 </div>
                 
-                <!-- Detailed Breakdown -->
-                <div style="background: linear-gradient(to bottom, #0a0a0a, #1a1a1a); border-radius: 12px; padding: 1.5rem; border: 1px solid #333; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                    <div style="font-weight: 700; color: #D8F9B8; margin-bottom: 1.25rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="background: linear-gradient(135deg, #D8F9B8, #a8e063); width: 4px; height: 20px; border-radius: 2px;"></div>
-                        <i class="fas fa-list-ul"></i>
-                        <span>Breakdown by LLM</span>
+                <!-- Competitors Card -->
+                <div class="brand-summary-card competitors">
+                    <div class="brand-summary-card-header">
+                        <div class="brand-summary-card-label">Competitors</div>
+                        <div class="brand-summary-card-icon">⚔️</div>
                     </div>
-                    <div style="display: grid; gap: 1rem;">
+                    <div class="brand-summary-card-value">${allCompetitors.size}</div>
+                    <div class="brand-summary-card-subtitle">Mentioned total</div>
+                </div>
+            </div>
+            
+            <!-- Detailed Breakdown -->
+            <div class="llm-breakdown-section">
+                <div class="llm-breakdown-title">
+                    <i class="fas fa-list-ul"></i>
+                    <span>Breakdown by LLM</span>
+                </div>
+                <div class="llm-breakdown-list">
         `;
 
         // LLM rows
@@ -1867,70 +1862,77 @@ class LLMMonitoring {
             const data = mentionsByLLM[llm];
             const llmDisplayName = this.getLLMDisplayName(llm);
             const brandIcon = data.brand_mentioned ? '✅' : '❌';
-            const brandColor = data.brand_mentioned ? '#10b981' : '#6b7280';
             const position = data.position ? `#${data.position}` : 'N/A';
+            const positionClass = data.brand_mentioned ? 'mentioned' : 'not-mentioned';
+            const rowClass = data.brand_mentioned ? 'mentioned' : '';
 
-            // 🔧 FIX: Mostrar badge de tipo de mención (texto/URL/ambos)
+            // Badge de tipo de mención
             let mentionBadge = '';
             if (data.brand_mentioned) {
                 const inText = data.brand_mentioned_in_text;
                 const inUrls = data.brand_mentioned_in_urls;
 
                 if (inText && inUrls) {
-                    mentionBadge = '<span style="background: #064e3b; color: #10b981; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in text and URLs">📝🔗</span>';
+                    mentionBadge = '<span class="llm-row-badge" title="Mentioned in text and URLs">📝🔗</span>';
                 } else if (inText) {
-                    mentionBadge = '<span style="background: #064e3b; color: #10b981; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in text">📝</span>';
+                    mentionBadge = '<span class="llm-row-badge" title="Mentioned in text">📝</span>';
                 } else if (inUrls) {
-                    mentionBadge = '<span style="background: #1e3a5f; color: #60a5fa; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-left: 0.5rem;" title="Mentioned in URLs only">🔗</span>';
+                    mentionBadge = '<span class="llm-row-badge url-only" title="Mentioned in URLs only">🔗</span>';
                 }
             }
 
-            const competitorsStr = Object.keys(data.competitors || {}).length > 0
-                ? Object.keys(data.competitors).map(c => `<span style="background: #1e293b; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${c}</span>`).join(' ')
-                : '<span style="color: #6b7280; font-size: 0.75rem;">None</span>';
+            // Competitors
+            const competitorKeys = Object.keys(data.competitors || {});
+            let competitorsHtml = '';
+            if (competitorKeys.length > 0) {
+                competitorsHtml = competitorKeys.map(c => 
+                    `<span class="llm-row-competitor-tag">${c}</span>`
+                ).join('');
+            } else {
+                competitorsHtml = '<span class="llm-row-no-competitors">None</span>';
+            }
 
             html += `
-                <div style="display: grid; grid-template-columns: 140px 120px 1fr; gap: 1.25rem; align-items: center; padding: 1rem 1.25rem; background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%); border-radius: 10px; border: 1px solid ${data.brand_mentioned ? '#374151' : '#262626'}; transition: all 0.2s; ${data.brand_mentioned ? 'box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);' : ''}">
-                    <div style="font-weight: 600; color: white; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                <div class="llm-row ${rowClass}">
+                    <div class="llm-row-name">
                         <i class="${this.getLLMIcon(llm)}" style="color: ${this.getLLMColor(llm)};"></i>
                         ${llmDisplayName}
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.625rem;">
-                        <span style="font-size: 1.25rem;">${brandIcon}</span>
-                        <span style="color: ${brandColor}; font-weight: 700; font-size: 0.95rem;">${position}</span>
+                    <div class="llm-row-status">
+                        <span class="llm-row-status-icon">${brandIcon}</span>
+                        <span class="llm-row-position ${positionClass}">${position}</span>
                         ${mentionBadge}
                     </div>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <span style="color: #6b7280; font-size: 0.8rem; font-weight: 600;">Competitors:</span>
-                        ${competitorsStr}
+                    <div class="llm-row-competitors">
+                        <span class="llm-row-competitors-label">Competitors:</span>
+                        ${competitorsHtml}
                     </div>
                 </div>
             `;
         });
 
         html += `
-                    </div>
                 </div>
-                
-                <!-- Leyenda explicativa con diseño moderno -->
-                <div style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 10px; border: 1px solid #475569;">
-                    <div style="color: #D8F9B8; font-size: 0.85rem; margin-bottom: 0.875rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Mention Type Legend</span>
+            </div>
+            
+            <!-- Legend -->
+            <div class="brand-mentions-legend">
+                <div class="brand-mentions-legend-title">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Mention Type Legend</span>
+                </div>
+                <div class="brand-mentions-legend-grid">
+                    <div class="brand-mentions-legend-item">
+                        <span class="brand-mentions-legend-badge text">📝</span>
+                        <span class="brand-mentions-legend-text">Text mention</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.875rem; font-size: 0.8rem; color: #d1d5db;">
-                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                            <span style="background: #064e3b; color: #10b981; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">📝</span>
-                            <span>Text mention</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                            <span style="background: #1e3a5f; color: #60a5fa; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">🔗</span>
-                            <span>URL citation</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                            <span style="background: #064e3b; color: #10b981; padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 600;">📝🔗</span>
-                            <span>Both</span>
-                        </div>
+                    <div class="brand-mentions-legend-item">
+                        <span class="brand-mentions-legend-badge url">🔗</span>
+                        <span class="brand-mentions-legend-text">URL citation</span>
+                    </div>
+                    <div class="brand-mentions-legend-item">
+                        <span class="brand-mentions-legend-badge both">📝🔗</span>
+                        <span class="brand-mentions-legend-text">Both</span>
                     </div>
                 </div>
             </div>

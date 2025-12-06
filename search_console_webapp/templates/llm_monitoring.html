@@ -1517,27 +1517,27 @@ Alternativas a Semrush
 
     <!-- ✨ Brand Mentions Analysis Modal -->
     <div class="modal-overlay" id="brandMentionsModal" style="display: none;">
-        <div class="modal-content modal-large" role="dialog" aria-modal="true" aria-labelledby="brandMentionsModalTitle" tabindex="-1">
-            <div class="modal-header">
+        <div class="modal-content brand-mentions-modal" role="dialog" aria-modal="true" aria-labelledby="brandMentionsModalTitle" tabindex="-1">
+            <div class="modal-header brand-mentions-header">
                 <div class="header-text">
                     <h3 id="brandMentionsModalTitle">
-                        <i class="fas fa-chart-bar" style="color: #D8F9B8; margin-right: 0.5rem;"></i>
+                        <i class="fas fa-chart-bar"></i>
                         Brand Mentions Analysis
                     </h3>
-                    <p id="brandMentionsModalPrompt" style="color: #9ca3af; font-size: 0.9rem; margin: 0.5rem 0 0 0;">Loading...</p>
+                    <p id="brandMentionsModalPrompt" class="brand-mentions-prompt">Loading...</p>
                 </div>
                 <button type="button" class="modal-close" onclick="window.llmMonitoring.hideBrandMentionsModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body" id="brandMentionsModalBody" style="max-height: 70vh; overflow-y: auto;">
-                <div class="loading-container" style="padding: 3rem; text-align: center;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #D8F9B8;"></i>
-                    <p style="margin-top: 1rem; color: #9ca3af;">Loading analysis...</p>
+            <div class="modal-body brand-mentions-body" id="brandMentionsModalBody">
+                <div class="brand-mentions-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading analysis...</p>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hideBrandMentionsModal()">
+            <div class="modal-footer brand-mentions-footer">
+                <button type="button" class="btn-close-modal" onclick="window.llmMonitoring.hideBrandMentionsModal()">
                     <i class="fas fa-times"></i>
                     Close
                 </button>
