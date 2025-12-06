@@ -2617,12 +2617,15 @@ def export_project_excel(project_id):
     from io import BytesIO
     from flask import send_file
     
+    logger.info(f"📥 Starting Excel export for project {project_id}")
+    
     try:
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
-    except ImportError:
-        logger.error("openpyxl no está instalado")
+        logger.info("✅ openpyxl imported successfully")
+    except ImportError as e:
+        logger.error(f"openpyxl no está instalado: {e}")
         return jsonify({'error': 'Excel export not available. Missing openpyxl library.'}), 500
     
     days = request.args.get('days', 30, type=int)
@@ -2783,7 +2786,7 @@ def export_project_excel(project_id):
         )
         
     except Exception as e:
-        logger.error(f"Error exportando Excel: {e}", exc_info=True)
+        logger.error(f"❌ Error exportando Excel para proyecto {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando Excel: {str(e)}'}), 500
 
 
@@ -2800,6 +2803,8 @@ def export_project_pdf(project_id):
     from io import BytesIO
     from flask import send_file
     
+    logger.info(f"📥 Starting PDF export for project {project_id}")
+    
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -2807,8 +2812,9 @@ def export_project_pdf(project_id):
         from reportlab.lib.units import inch, cm
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    except ImportError:
-        logger.error("reportlab no está instalado")
+        logger.info("✅ reportlab imported successfully")
+    except ImportError as e:
+        logger.error(f"reportlab no está instalado: {e}")
         return jsonify({'error': 'PDF export not available. Missing reportlab library.'}), 500
     
     days = request.args.get('days', 30, type=int)
@@ -2972,7 +2978,7 @@ def export_project_pdf(project_id):
         )
         
     except Exception as e:
-        logger.error(f"Error exportando PDF: {e}", exc_info=True)
+        logger.error(f"❌ Error exportando PDF para proyecto {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
 
 
