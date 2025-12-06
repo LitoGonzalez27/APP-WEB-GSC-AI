@@ -2655,10 +2655,10 @@ def export_project_excel(project_id):
         cur.execute("""
             SELECT 
                 llm_provider,
-                AVG(mention_rate) as avg_mention_rate,
-                AVG(share_of_voice) as avg_sov,
-                AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment,
-                COUNT(DISTINCT query_id) as total_queries
+                COUNT(DISTINCT query_id) as total_queries,
+                SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct,
+                AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment
             FROM llm_monitoring_results
             WHERE project_id = %s AND analysis_date >= %s
             GROUP BY llm_provider
@@ -2726,7 +2726,7 @@ def export_project_excel(project_id):
         # === Hoja 2: Métricas por LLM ===
         ws_metrics = wb.create_sheet("LLM Metrics")
         
-        headers = ["LLM Provider", "Avg Mention Rate (%)", "Avg Share of Voice (%)", "Avg Sentiment", "Total Queries"]
+        headers = ["LLM Provider", "Total Queries", "Total Mentions", "Mention Rate (%)", "Avg Sentiment"]
         for col, header in enumerate(headers, 1):
             cell = ws_metrics.cell(row=1, column=col, value=header)
             cell.font = header_font
@@ -2736,10 +2736,10 @@ def export_project_excel(project_id):
         
         for row_idx, m in enumerate(metrics, 2):
             ws_metrics.cell(row=row_idx, column=1, value=m['llm_provider'].upper()).border = border
-            ws_metrics.cell(row=row_idx, column=2, value=round(float(m['avg_mention_rate'] or 0) * 100, 1)).border = border
-            ws_metrics.cell(row=row_idx, column=3, value=round(float(m['avg_sov'] or 0) * 100, 1)).border = border
-            ws_metrics.cell(row=row_idx, column=4, value=round(float(m['avg_sentiment'] or 0), 2)).border = border
-            ws_metrics.cell(row=row_idx, column=5, value=m['total_queries']).border = border
+            ws_metrics.cell(row=row_idx, column=2, value=m['total_queries'] or 0).border = border
+            ws_metrics.cell(row=row_idx, column=3, value=m['total_mentions'] or 0).border = border
+            ws_metrics.cell(row=row_idx, column=4, value=round(float(m['mention_rate_pct'] or 0), 1)).border = border
+            ws_metrics.cell(row=row_idx, column=5, value=round(float(m['avg_sentiment'] or 0), 2)).border = border
         
         # Ajustar anchos
         for col in range(1, 6):
@@ -2844,14 +2844,13 @@ def export_project_pdf(project_id):
         cur.execute("""
             SELECT 
                 llm_provider,
-                AVG(mention_rate) as avg_mention_rate,
-                AVG(share_of_voice) as avg_sov,
                 COUNT(DISTINCT query_id) as total_queries,
-                SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions
+                SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
             FROM llm_monitoring_results
             WHERE project_id = %s AND analysis_date >= %s
             GROUP BY llm_provider
-            ORDER BY avg_mention_rate DESC
+            ORDER BY mention_rate_pct DESC
         """, (project_id, start_date))
         metrics = cur.fetchall()
         
@@ -2920,17 +2919,16 @@ def export_project_pdf(project_id):
         elements.append(Paragraph("LLM Performance Metrics", subtitle_style))
         
         if metrics:
-            table_data = [["LLM", "Mention Rate", "Share of Voice", "Queries", "Mentions"]]
+            table_data = [["LLM", "Queries", "Mentions", "Mention Rate"]]
             for m in metrics:
                 table_data.append([
                     m['llm_provider'].upper(),
-                    f"{round(float(m['avg_mention_rate'] or 0) * 100, 1)}%",
-                    f"{round(float(m['avg_sov'] or 0) * 100, 1)}%",
-                    str(m['total_queries']),
-                    str(m['total_mentions'])
+                    str(m['total_queries'] or 0),
+                    str(m['total_mentions'] or 0),
+                    f"{round(float(m['mention_rate_pct'] or 0), 1)}%"
                 ])
             
-            table = Table(table_data, colWidths=[2.5*cm, 3*cm, 3*cm, 2.5*cm, 2.5*cm])
+            table = Table(table_data, colWidths=[3*cm, 3*cm, 3*cm, 3*cm])
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
