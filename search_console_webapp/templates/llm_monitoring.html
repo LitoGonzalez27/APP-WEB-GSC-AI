@@ -395,35 +395,19 @@
                             </button>
                         </div>
                         
-                        <!-- Filtros a la derecha -->
-                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
-                            <div style="flex: 0 0 220px;">
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                    <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>
-                                    LLM Source
-                                </label>
-                                <select id="urlsLLMFilter" class="form-control" style="width: 100%;">
-                                    <option value="">All LLMs (Combined)</option>
-                                    <option value="openai">ChatGPT Only</option>
-                                    <option value="anthropic">Claude Only</option>
-                                    <option value="google">Gemini Only</option>
-                                    <option value="perplexity">Perplexity Only</option>
-                                </select>
-                            </div>
-                            
-                            <div style="flex: 0 0 200px;">
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
-                                    <i class="fas fa-calendar" style="margin-right: 0.5rem;"></i>
-                                    Time Range
-                                </label>
-                                <select id="urlsDaysFilter" class="form-control" style="width: 100%;">
-                                    <option value="7">Last 7 days</option>
-                                    <option value="14">Last 14 days</option>
-                                    <option value="30" selected>Last 30 days</option>
-                                    <option value="60">Last 60 days</option>
-                                    <option value="90">Last 90 days</option>
-                                </select>
-                            </div>
+                        <!-- Filtro de LLM a la derecha -->
+                        <div style="flex: 0 0 220px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>
+                                LLM Source
+                            </label>
+                            <select id="urlsLLMFilter" class="form-control" style="width: 100%;">
+                                <option value="">All LLMs (Combined)</option>
+                                <option value="openai">ChatGPT Only</option>
+                                <option value="anthropic">Claude Only</option>
+                                <option value="google">Gemini Only</option>
+                                <option value="perplexity">Perplexity Only</option>
+                            </select>
                         </div>
                     </div>
                     

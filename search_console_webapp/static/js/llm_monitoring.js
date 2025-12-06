@@ -400,18 +400,7 @@ class LLMMonitoring {
             }
         });
 
-        document.getElementById('urlsDaysFilter')?.addEventListener('change', () => {
-            if (this.currentProject) {
-                // Reset domain view when changing filters
-                const domainsBtn = document.getElementById('showTopDomainsLLM');
-                if (domainsBtn && domainsBtn.dataset.active === 'true') {
-                    domainsBtn.dataset.active = 'false';
-                    domainsBtn.classList.remove('active');
-                }
-
-                this.loadTopUrlsRanking(this.currentProject.id);
-            }
-        });
+        // ✨ urlsDaysFilter listener removed - now using global time range
 
         document.getElementById('filterMyBrandUrlsLLM')?.addEventListener('click', (e) => {
             const btn = e.currentTarget;
@@ -519,20 +508,17 @@ class LLMMonitoring {
             }
         });
 
-        // ✨ NEW: Global Time Range Selector
+        // ✨ Global Time Range Selector - controls all data, charts and tables
         document.getElementById('globalTimeRange')?.addEventListener('change', (e) => {
             if (this.currentProject) {
                 this.globalTimeRange = parseInt(e.target.value);
                 console.log(`📅 Global time range changed to: ${this.globalTimeRange} days`);
 
-                // Update local filters to match global
-                const urlsFilter = document.getElementById('urlsDaysFilter');
-                if (urlsFilter) urlsFilter.value = this.globalTimeRange;
-
+                // Update responses filter to match global (if exists)
                 const responsesFilter = document.getElementById('responsesDaysFilter');
                 if (responsesFilter) responsesFilter.value = this.globalTimeRange;
 
-                // Reload project data
+                // Reload all project data with new time range
                 this.viewProject(this.currentProject.id);
             }
         });
@@ -1115,7 +1101,7 @@ class LLMMonitoring {
             // Una mención es una mención - el weighted solo aplica a Share of Voice
             const metricType = 'normal';
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}`);
             if (!response.ok) {
                 console.warn('Could not load mentions timeline data');
                 return;
@@ -1287,7 +1273,7 @@ class LLMMonitoring {
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice Donut with metric: ${metricType}`);
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=30&metric=${metricType}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}`);
             if (!response.ok) {
                 console.warn('Could not load Share of Voice donut data');
                 return;
@@ -3435,8 +3421,8 @@ class LLMMonitoring {
         }
 
         try {
-            // Fetch ALL queries for the project (not just those with responses)
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries?days=30`);
+            // Fetch queries for the project based on global time range
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries?days=${this.globalTimeRange}`);
             if (!response.ok) {
                 console.warn('Could not load queries for filter');
                 return;
@@ -3927,7 +3913,7 @@ class LLMMonitoring {
         console.log(`🔗 Loading top URLs ranking for project ${projectId}...`);
 
         const llmFilter = document.getElementById('urlsLLMFilter')?.value || '';
-        const days = parseInt(document.getElementById('urlsDaysFilter')?.value || 30);
+        const days = this.globalTimeRange; // ✨ Use global time range
 
         try {
             const params = new URLSearchParams({ days });
