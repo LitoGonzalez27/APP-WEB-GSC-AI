@@ -2600,5 +2600,381 @@ def get_project_responses(project_id):
         return jsonify({'error': f'Error obteniendo respuestas: {str(e)}'}), 500
 
 
+# ============================================================================
+# EXPORTACIÓN DE DATOS - Excel y PDF
+# ============================================================================
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/export/excel', methods=['GET'])
+@login_required
+@validate_project_ownership
+def export_project_excel(project_id):
+    """
+    Exportar datos del proyecto a Excel
+    
+    Query params:
+        days: int - Período de días (default: 30)
+    """
+    from io import BytesIO
+    from flask import send_file
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        logger.error("openpyxl no está instalado")
+        return jsonify({'error': 'Excel export not available. Missing openpyxl library.'}), 500
+    
+    days = request.args.get('days', 30, type=int)
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener datos del proyecto
+        cur.execute("""
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        # Obtener métricas por LLM
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        cur.execute("""
+            SELECT 
+                llm_provider,
+                AVG(mention_rate) as avg_mention_rate,
+                AVG(share_of_voice) as avg_sov,
+                AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment,
+                COUNT(DISTINCT query_id) as total_queries
+            FROM llm_monitoring_results
+            WHERE project_id = %s AND analysis_date >= %s
+            GROUP BY llm_provider
+            ORDER BY llm_provider
+        """, (project_id, start_date))
+        metrics = cur.fetchall()
+        
+        # Obtener queries con resultados
+        cur.execute("""
+            SELECT 
+                q.prompt,
+                q.country,
+                q.language,
+                COUNT(DISTINCT r.llm_provider) as llms_analyzed,
+                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as times_mentioned,
+                AVG(r.position_in_list) as avg_position
+            FROM llm_monitoring_queries q
+            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s
+            WHERE q.project_id = %s AND q.is_active = TRUE
+            GROUP BY q.id, q.prompt, q.country, q.language
+            ORDER BY times_mentioned DESC
+        """, (start_date, project_id))
+        queries = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Crear Excel
+        wb = openpyxl.Workbook()
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="161616", end_color="161616", fill_type="solid")
+        accent_fill = PatternFill(start_color="D8F9B8", end_color="D8F9B8", fill_type="solid")
+        border = Border(
+            left=Side(style='thin', color='E5E7EB'),
+            right=Side(style='thin', color='E5E7EB'),
+            top=Side(style='thin', color='E5E7EB'),
+            bottom=Side(style='thin', color='E5E7EB')
+        )
+        
+        # === Hoja 1: Resumen del Proyecto ===
+        ws_summary = wb.active
+        ws_summary.title = "Project Summary"
+        
+        ws_summary['A1'] = "LLM Monitoring Report"
+        ws_summary['A1'].font = Font(bold=True, size=16)
+        ws_summary['A2'] = f"Project: {project['name']}"
+        ws_summary['A3'] = f"Period: Last {days} days"
+        ws_summary['A4'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        
+        ws_summary['A6'] = "Project Details"
+        ws_summary['A6'].font = Font(bold=True, size=12)
+        ws_summary['A7'] = "Industry:"
+        ws_summary['B7'] = project['industry'] or 'N/A'
+        ws_summary['A8'] = "Brand Domain:"
+        ws_summary['B8'] = project['brand_domain'] or 'N/A'
+        ws_summary['A9'] = "Brand Keywords:"
+        ws_summary['B9'] = ', '.join(project['brand_keywords']) if project['brand_keywords'] else 'N/A'
+        ws_summary['A10'] = "Language:"
+        ws_summary['B10'] = project['language'] or 'N/A'
+        ws_summary['A11'] = "Country:"
+        ws_summary['B11'] = project['country_code'] or 'N/A'
+        
+        # === Hoja 2: Métricas por LLM ===
+        ws_metrics = wb.create_sheet("LLM Metrics")
+        
+        headers = ["LLM Provider", "Avg Mention Rate (%)", "Avg Share of Voice (%)", "Avg Sentiment", "Total Queries"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_metrics.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = border
+        
+        for row_idx, m in enumerate(metrics, 2):
+            ws_metrics.cell(row=row_idx, column=1, value=m['llm_provider'].upper()).border = border
+            ws_metrics.cell(row=row_idx, column=2, value=round(float(m['avg_mention_rate'] or 0) * 100, 1)).border = border
+            ws_metrics.cell(row=row_idx, column=3, value=round(float(m['avg_sov'] or 0) * 100, 1)).border = border
+            ws_metrics.cell(row=row_idx, column=4, value=round(float(m['avg_sentiment'] or 0), 2)).border = border
+            ws_metrics.cell(row=row_idx, column=5, value=m['total_queries']).border = border
+        
+        # Ajustar anchos
+        for col in range(1, 6):
+            ws_metrics.column_dimensions[get_column_letter(col)].width = 20
+        
+        # === Hoja 3: Queries/Prompts ===
+        ws_queries = wb.create_sheet("Prompts & Queries")
+        
+        headers = ["Prompt", "Country", "Language", "LLMs Analyzed", "Times Mentioned", "Avg Position"]
+        for col, header in enumerate(headers, 1):
+            cell = ws_queries.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = border
+        
+        for row_idx, q in enumerate(queries, 2):
+            ws_queries.cell(row=row_idx, column=1, value=q['prompt']).border = border
+            ws_queries.cell(row=row_idx, column=2, value=q['country']).border = border
+            ws_queries.cell(row=row_idx, column=3, value=q['language']).border = border
+            ws_queries.cell(row=row_idx, column=4, value=q['llms_analyzed']).border = border
+            ws_queries.cell(row=row_idx, column=5, value=q['times_mentioned']).border = border
+            ws_queries.cell(row=row_idx, column=6, value=round(float(q['avg_position'] or 0), 1) if q['avg_position'] else 'N/A').border = border
+        
+        # Ajustar anchos
+        ws_queries.column_dimensions['A'].width = 60
+        for col in range(2, 7):
+            ws_queries.column_dimensions[get_column_letter(col)].width = 15
+        
+        # Guardar en memoria
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"llm-monitoring-{project['name'].replace(' ', '-')}-{datetime.now().strftime('%Y%m%d')}.xlsx"
+        
+        logger.info(f"✅ Excel exportado para proyecto {project_id}")
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exportando Excel: {e}", exc_info=True)
+        return jsonify({'error': f'Error exportando Excel: {str(e)}'}), 500
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/export/pdf', methods=['GET'])
+@login_required
+@validate_project_ownership
+def export_project_pdf(project_id):
+    """
+    Exportar datos del proyecto a PDF
+    
+    Query params:
+        days: int - Período de días (default: 30)
+    """
+    from io import BytesIO
+    from flask import send_file
+    
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch, cm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    except ImportError:
+        logger.error("reportlab no está instalado")
+        return jsonify({'error': 'PDF export not available. Missing reportlab library.'}), 500
+    
+    days = request.args.get('days', 30, type=int)
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener datos del proyecto
+        cur.execute("""
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        # Obtener métricas por LLM
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        cur.execute("""
+            SELECT 
+                llm_provider,
+                AVG(mention_rate) as avg_mention_rate,
+                AVG(share_of_voice) as avg_sov,
+                COUNT(DISTINCT query_id) as total_queries,
+                SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions
+            FROM llm_monitoring_results
+            WHERE project_id = %s AND analysis_date >= %s
+            GROUP BY llm_provider
+            ORDER BY avg_mention_rate DESC
+        """, (project_id, start_date))
+        metrics = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Crear PDF
+        output = BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=A4,
+            rightMargin=2*cm,
+            leftMargin=2*cm,
+            topMargin=2*cm,
+            bottomMargin=2*cm
+        )
+        
+        styles = getSampleStyleSheet()
+        
+        # Estilos personalizados
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#161616'),
+            spaceAfter=20
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#374151'),
+            spaceAfter=10
+        )
+        
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#4b5563'),
+            spaceAfter=8
+        )
+        
+        elements = []
+        
+        # Título
+        elements.append(Paragraph("LLM Visibility Monitor Report", title_style))
+        elements.append(Paragraph(f"Project: {project['name']}", subtitle_style))
+        elements.append(Paragraph(f"Period: Last {days} days | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", body_style))
+        elements.append(Spacer(1, 20))
+        
+        # Información del proyecto
+        elements.append(Paragraph("Project Details", subtitle_style))
+        project_info = [
+            f"<b>Industry:</b> {project['industry'] or 'N/A'}",
+            f"<b>Brand Domain:</b> {project['brand_domain'] or 'N/A'}",
+            f"<b>Brand Keywords:</b> {', '.join(project['brand_keywords']) if project['brand_keywords'] else 'N/A'}",
+            f"<b>Language:</b> {project['language'] or 'N/A'} | <b>Country:</b> {project['country_code'] or 'N/A'}"
+        ]
+        for info in project_info:
+            elements.append(Paragraph(info, body_style))
+        elements.append(Spacer(1, 20))
+        
+        # Tabla de métricas por LLM
+        elements.append(Paragraph("LLM Performance Metrics", subtitle_style))
+        
+        if metrics:
+            table_data = [["LLM", "Mention Rate", "Share of Voice", "Queries", "Mentions"]]
+            for m in metrics:
+                table_data.append([
+                    m['llm_provider'].upper(),
+                    f"{round(float(m['avg_mention_rate'] or 0) * 100, 1)}%",
+                    f"{round(float(m['avg_sov'] or 0) * 100, 1)}%",
+                    str(m['total_queries']),
+                    str(m['total_mentions'])
+                ])
+            
+            table = Table(table_data, colWidths=[2.5*cm, 3*cm, 3*cm, 2.5*cm, 2.5*cm])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FAFB')),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
+                ('TOPPADDING', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            ]))
+            elements.append(table)
+        else:
+            elements.append(Paragraph("No metrics data available for this period.", body_style))
+        
+        elements.append(Spacer(1, 30))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#9ca3af'),
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph("Generated by ClicAndSEO LLM Visibility Monitor", footer_style))
+        
+        # Construir PDF
+        doc.build(elements)
+        output.seek(0)
+        
+        filename = f"llm-monitoring-{project['name'].replace(' ', '-')}-{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        logger.info(f"✅ PDF exportado para proyecto {project_id}")
+        
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exportando PDF: {e}", exc_info=True)
+        return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
+
+
 logger.info("✅ LLM Monitoring Blueprint loaded successfully")
 

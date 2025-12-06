@@ -514,6 +514,20 @@ class LLMMonitoring {
                 this.viewProject(this.currentProject.id);
             }
         });
+
+        // ✨ Download Excel button
+        document.getElementById('llmDownloadExcelBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📥 LLM Monitoring Excel download clicked');
+            this.downloadExcel();
+        });
+
+        // ✨ Download PDF button
+        document.getElementById('llmDownloadPdfBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('📥 LLM Monitoring PDF download clicked');
+            this.downloadPdf();
+        });
     }
 
     /**
@@ -683,6 +697,9 @@ class LLMMonitoring {
         if (fab) {
             fab.style.display = 'flex';
         }
+
+        // ✨ Show download buttons in sidebar
+        this.showDownloadButtons(true);
 
         try {
             // Load project details with time range
@@ -1981,7 +1998,158 @@ class LLMMonitoring {
         if (fab) {
             fab.style.display = 'none';
         }
+        
+        // ✨ Hide download buttons in sidebar
+        this.showDownloadButtons(false);
+        
         this.currentProject = null;
+    }
+
+    /**
+     * ✨ Show/hide download buttons in sidebar
+     */
+    showDownloadButtons(show = true) {
+        const toolsSection = document.getElementById('navSectionTools');
+        const excelBtn = document.getElementById('llmDownloadExcelBtn');
+        const pdfBtn = document.getElementById('llmDownloadPdfBtn');
+
+        if (toolsSection) {
+            toolsSection.style.display = show ? 'block' : 'none';
+        }
+        if (excelBtn) {
+            excelBtn.style.display = show ? 'flex' : 'none';
+        }
+        if (pdfBtn) {
+            pdfBtn.style.display = show ? 'flex' : 'none';
+        }
+
+        console.log(`📥 Download buttons ${show ? 'shown' : 'hidden'}`);
+    }
+
+    /**
+     * ✨ Download project data as Excel
+     */
+    async downloadExcel() {
+        if (!this.currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        const btn = document.getElementById('llmDownloadExcelBtn');
+        const spinner = btn?.querySelector('.download-spinner');
+        const btnText = btn?.querySelector('span');
+
+        try {
+            // Show loading state
+            if (spinner) spinner.style.display = 'inline-block';
+            if (btnText) btnText.textContent = 'Exporting...';
+            if (btn) btn.disabled = true;
+
+            console.log(`📥 Downloading Excel for project ${this.currentProject.id}...`);
+
+            // Fetch export data from API
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/excel?days=${this.globalTimeRange}`,
+                { credentials: 'same-origin' }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            // Get the blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `llm-monitoring-${this.currentProject.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+            // Success state
+            if (btn) btn.classList.add('success');
+            if (btnText) btnText.textContent = 'Downloaded!';
+
+            setTimeout(() => {
+                if (btn) btn.classList.remove('success');
+                if (btnText) btnText.textContent = 'Download Excel';
+            }, 2000);
+
+            console.log('✅ Excel downloaded successfully');
+
+        } catch (error) {
+            console.error('❌ Error downloading Excel:', error);
+            this.showError('Failed to download Excel. Please try again.');
+            if (btnText) btnText.textContent = 'Download Excel';
+        } finally {
+            if (spinner) spinner.style.display = 'none';
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    /**
+     * ✨ Download project data as PDF
+     */
+    async downloadPdf() {
+        if (!this.currentProject) {
+            this.showError('No project selected');
+            return;
+        }
+
+        const btn = document.getElementById('llmDownloadPdfBtn');
+        const spinner = btn?.querySelector('.download-spinner');
+        const btnText = btn?.querySelector('span');
+
+        try {
+            // Show loading state
+            if (spinner) spinner.style.display = 'inline-block';
+            if (btnText) btnText.textContent = 'Generating...';
+            if (btn) btn.disabled = true;
+
+            console.log(`📥 Downloading PDF for project ${this.currentProject.id}...`);
+
+            // Fetch export data from API
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf?days=${this.globalTimeRange}`,
+                { credentials: 'same-origin' }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            // Get the blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `llm-monitoring-${this.currentProject.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+            // Success state
+            if (btn) btn.classList.add('success');
+            if (btnText) btnText.textContent = 'Downloaded!';
+
+            setTimeout(() => {
+                if (btn) btn.classList.remove('success');
+                if (btnText) btnText.textContent = 'Download PDF';
+            }, 2000);
+
+            console.log('✅ PDF downloaded successfully');
+
+        } catch (error) {
+            console.error('❌ Error downloading PDF:', error);
+            this.showError('Failed to download PDF. Please try again.');
+            if (btnText) btnText.textContent = 'Download PDF';
+        } finally {
+            if (spinner) spinner.style.display = 'none';
+            if (btn) btn.disabled = false;
+        }
     }
 
     /**
