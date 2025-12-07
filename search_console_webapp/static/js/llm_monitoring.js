@@ -2281,6 +2281,16 @@ class LLMMonitoring {
                             }
                         });
                         
+                        // CRITICAL: Remove ALL animations - they start with opacity: 0
+                        clonedElement.querySelectorAll('*').forEach(el => {
+                            el.style.animation = 'none';
+                            el.style.animationDelay = '0s';
+                            el.style.transition = 'none';
+                            el.style.opacity = '1';
+                        });
+                        clonedElement.style.animation = 'none';
+                        clonedElement.style.opacity = '1';
+                        
                         // Fix KPI values - gradient text doesn't render in html2canvas
                         clonedElement.querySelectorAll('.kpi-value').forEach(val => {
                             val.style.background = 'none';
@@ -2288,16 +2298,11 @@ class LLMMonitoring {
                             val.style.webkitTextFillColor = '#1a1a1a';
                             val.style.backgroundClip = 'unset';
                             val.style.color = '#1a1a1a';
-                            val.style.opacity = '1';
                         });
                         
-                        // Ensure full opacity on all elements
-                        clonedElement.style.opacity = '1';
-                        clonedElement.querySelectorAll('*').forEach(el => {
-                            const computed = window.getComputedStyle(el);
-                            if (parseFloat(computed.opacity) < 1) {
-                                el.style.opacity = '1';
-                            }
+                        // Ensure cards have solid white background
+                        clonedElement.querySelectorAll('.chart-card, .kpi-card').forEach(card => {
+                            card.style.background = '#ffffff';
                         });
                     }
                 });
