@@ -1452,6 +1452,9 @@ JSON:"""
         """
         Calcula menciones ponderadas según la posición en listas
         
+        ✨ CORREGIDO: Cuenta 1 mención por query (no por aparición de palabra)
+        y aplica ponderación según la posición.
+        
         PONDERACIÓN:
         - Top 3: peso 2.0 (cuenta doble - muy visible)
         - Top 5: peso 1.5 (cuenta 50% más - alta visibilidad)
@@ -1462,7 +1465,7 @@ JSON:"""
         Args:
             results: Lista de resultados de análisis
             entity_key: Si se especifica, busca en competitors_mentioned[entity_key]
-                       Si es None, usa mention_count de la marca principal
+                       Si es None, usa brand_mentioned de la marca principal
         
         Returns:
             float: Total de menciones ponderadas
@@ -1476,16 +1479,19 @@ JSON:"""
         weighted_total = 0.0
         
         for r in results:
-            # Obtener número base de menciones
+            # ✨ CORREGIDO: Verificar si fue mencionado (boolean), no contar apariciones
             if entity_key is None:
-                # Marca principal: usar mention_count
-                base_mentions = r.get('mention_count', 0)
+                # Marca principal: usar brand_mentioned (boolean)
+                was_mentioned = r.get('brand_mentioned', False)
             else:
-                # Competidor: buscar en competitors_mentioned
-                base_mentions = r.get('competitors_mentioned', {}).get(entity_key, 0)
+                # Competidor: verificar si tiene alguna mención (> 0)
+                was_mentioned = r.get('competitors_mentioned', {}).get(entity_key, 0) > 0
             
-            if base_mentions == 0:
+            if not was_mentioned:
                 continue
+            
+            # Base: 1 mención por query donde se detectó
+            base_mentions = 1
             
             # Determinar peso según posición
             position = r.get('position_in_list')
@@ -1560,14 +1566,17 @@ JSON:"""
         appeared_in_top10 = sum(1 for p in positions if p <= 10)
         
         # Share of Voice (normal - sin ponderar)
-        total_brand_mentions = sum(r['mention_count'] for r in llm_results)
+        # ✨ CORREGIDO: Contar QUERIES donde se menciona, NO apariciones de palabras
+        # Esto evita inflar los números cuando una marca aparece muchas veces en el texto
+        total_brand_mentions = total_mentions  # Número de queries donde la marca fue mencionada
         total_competitor_mentions = 0
         competitor_breakdown = {}
         
         for competitor in competitors:
+            # Contar cuántas queries mencionaron a este competidor (1 por query, no por aparición)
             comp_mentions = sum(
-                r['competitors_mentioned'].get(competitor, 0)
-                for r in llm_results
+                1 for r in llm_results
+                if r['competitors_mentioned'].get(competitor, 0) > 0
             )
             competitor_breakdown[competitor] = comp_mentions
             total_competitor_mentions += comp_mentions
