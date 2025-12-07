@@ -2812,3 +2812,97 @@ label:not(.search-form label) {
     }
 }
 
+
+/* ============================================
+   LLM MODELS INFO MODAL
+   ============================================ */
+
+.models-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.model-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.model-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.model-card .model-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.model-card .model-icon.openai {
+    background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%);
+    color: white;
+}
+
+.model-card .model-icon.anthropic {
+    background: linear-gradient(135deg, #d97757 0%, #c4593d 100%);
+    color: white;
+}
+
+.model-card .model-icon.google {
+    background: linear-gradient(135deg, #4285f4 0%, #3367d6 100%);
+    color: white;
+}
+
+.model-card .model-icon.perplexity {
+    background: linear-gradient(135deg, #20b8cd 0%, #1a99a8 100%);
+    color: white;
+}
+
+.model-card .model-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.model-card .model-provider {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    margin-bottom: 2px;
+}
+
+.model-card .model-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #161616;
+    margin-bottom: 4px;
+}
+
+.model-card .model-id {
+    font-family: monospace;
+    font-size: 11px;
+    color: #6b7280;
+    background: #e5e7eb;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+@media (max-width: 600px) {
+    .models-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

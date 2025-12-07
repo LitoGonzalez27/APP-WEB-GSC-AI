@@ -443,6 +443,11 @@ class LLMMonitoring {
             this.showProjectModal(this.currentProject);
         });
 
+        // Show models info
+        document.getElementById('btnShowModels')?.addEventListener('click', () => {
+            this.showModelsModal();
+        });
+
         // Delete project (from metrics view)
         document.getElementById('btnDeleteProject')?.addEventListener('click', () => {
             if (this.currentProject && this.currentProject.id) {
@@ -1806,6 +1811,89 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.style.display = 'none';
         }, 200);
+    }
+
+    /**
+     * ✨ Show LLM Models Info Modal
+     */
+    async showModelsModal() {
+        const modal = document.getElementById('modelsInfoModal');
+        const content = document.getElementById('modelsInfoContent');
+        if (!modal || !content) return;
+
+        modal.style.display = 'flex';
+        modal.style.opacity = '0';
+        setTimeout(() => modal.style.opacity = '1', 10);
+
+        // Show loading
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #3b82f6;"></i>
+                <p style="margin-top: 12px; color: #666;">Loading models...</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${this.baseUrl}/models/current`);
+            const data = await response.json();
+
+            if (data.success && data.models) {
+                const providerIcons = {
+                    'openai': 'fas fa-robot',
+                    'anthropic': 'fas fa-brain',
+                    'google': 'fab fa-google',
+                    'perplexity': 'fas fa-search'
+                };
+
+                const providerLabels = {
+                    'openai': 'ChatGPT',
+                    'anthropic': 'Claude',
+                    'google': 'Gemini',
+                    'perplexity': 'Perplexity'
+                };
+
+                let html = '<div class="models-grid">';
+                
+                for (const [provider, model] of Object.entries(data.models)) {
+                    html += `
+                        <div class="model-card">
+                            <div class="model-icon ${provider}">
+                                <i class="${providerIcons[provider] || 'fas fa-microchip'}"></i>
+                            </div>
+                            <div class="model-info">
+                                <div class="model-provider">${providerLabels[provider] || provider}</div>
+                                <div class="model-name">${model.display_name}</div>
+                                <div class="model-id">${model.model_id}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+                content.innerHTML = html;
+            } else {
+                throw new Error('Could not load models');
+            }
+        } catch (error) {
+            console.error('Error loading models:', error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #ef4444;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 24px;"></i>
+                    <p style="margin-top: 12px;">Failed to load models info</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * ✨ Hide LLM Models Info Modal
+     */
+    hideModelsModal() {
+        const modal = document.getElementById('modelsInfoModal');
+        if (!modal) return;
+
+        modal.style.opacity = '0';
+        setTimeout(() => modal.style.display = 'none', 200);
     }
 
     /**

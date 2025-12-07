@@ -259,6 +259,10 @@
                             <i class="fas fa-clock"></i>
                             <span>Analysis runs daily at 4:00 AM</span>
                         </div>
+                        <button class="btn btn-ghost toolbar-item" id="btnShowModels" title="View active LLM models">
+                            <i class="fas fa-microchip"></i>
+                            <span>Models</span>
+                        </button>
                         <button class="btn btn-ghost toolbar-item" id="btnEditProject">
                             <i class="fas fa-edit"></i>
                             <span>Edit</span>
@@ -1559,6 +1563,38 @@ Alternativas a Semrush
                 <button type="button" class="btn-close-modal" onclick="window.llmMonitoring.hideBrandMentionsModal()">
                     <i class="fas fa-times"></i>
                     Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✨ LLM Models Info Modal -->
+    <div class="modal-overlay" id="modelsInfoModal" style="display: none;" data-pdf-exclude="true">
+        <div class="modal-content" style="max-width: 600px;" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
+            <div class="modal-header" style="background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%); color: white; border-radius: 12px 12px 0 0;">
+                <h3 id="modelsInfoModalTitle" style="display: flex; align-items: center; gap: 10px; margin: 0;">
+                    <i class="fas fa-microchip"></i>
+                    Active LLM Models
+                </h3>
+                <button type="button" class="modal-close" onclick="window.llmMonitoring.hideModelsModal()" style="color: white;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+                    These are the AI models currently being used for your LLM Monitoring analysis:
+                </p>
+                <div id="modelsInfoContent" class="models-grid">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading models...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 24px;">
+                <button type="button" class="btn btn-primary" onclick="window.llmMonitoring.hideModelsModal()">
+                    <i class="fas fa-check"></i>
+                    Got it
                 </button>
             </div>
         </div>
