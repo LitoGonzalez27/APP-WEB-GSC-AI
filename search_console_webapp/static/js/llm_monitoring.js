@@ -2324,59 +2324,90 @@ class LLMMonitoring {
                 year: 'numeric', month: 'long', day: 'numeric' 
             });
 
-            // Create a header element for the first page
-            const headerDiv = document.createElement('div');
-            headerDiv.style.cssText = 'background: white; padding: 30px; width: 1200px; font-family: system-ui, -apple-system, sans-serif;';
-            headerDiv.innerHTML = `
-                <div style="border-bottom: 3px solid #161616; padding-bottom: 20px; margin-bottom: 20px;">
-                    <h1 style="margin: 0 0 8px 0; font-size: 28px; color: #161616;">LLM Visibility Monitor Report</h1>
-                    <p style="margin: 0; font-size: 16px; color: #666;">Project: <strong>${projectName}</strong></p>
-                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #888;">${dateRange} | Generated: ${generatedDate}</p>
+            // ================================================================
+            // PAGE 1: KPIs + Mention Rate by LLM + Share of Voice Over Time
+            // ================================================================
+            if (btnText) btnText.textContent = 'Page 1/4: Overview & Charts...';
+            
+            const page1Wrapper = document.createElement('div');
+            page1Wrapper.style.cssText = 'background: white; padding: 24px; width: 1100px; font-family: system-ui, -apple-system, sans-serif;';
+            
+            // Header
+            page1Wrapper.innerHTML = `
+                <div style="border-bottom: 3px solid #161616; padding-bottom: 16px; margin-bottom: 20px;">
+                    <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #161616;">LLM Visibility Monitor Report</h1>
+                    <p style="margin: 0; font-size: 14px; color: #666;">Project: <strong>${projectName}</strong> | ${dateRange} | Generated: ${generatedDate}</p>
                 </div>
             `;
-            document.body.appendChild(headerDiv);
-
-            // PAGE 1: Header + KPIs
-            if (btnText) btnText.textContent = 'Page 1/5: Overview...';
+            
+            // KPIs
             const kpisGrid = document.getElementById('kpisGrid');
             if (kpisGrid) {
-                headerDiv.appendChild(kpisGrid.cloneNode(true));
+                page1Wrapper.appendChild(kpisGrid.cloneNode(true));
             }
-            await addSectionToPDF(headerDiv, true, 'Overview');
-            document.body.removeChild(headerDiv);
-
-            // PAGE 2: Charts - Mention Rate + SOV Timeline
-            if (btnText) btnText.textContent = 'Page 2/5: Charts...';
-            const chartsElements = document.querySelectorAll('.charts-grid, .chart-card-full-width');
-            if (chartsElements.length > 0) {
-                const { wrapper } = createTempWrapper([...chartsElements].slice(0, 3));
-                await addSectionToPDF(wrapper, false, 'Charts');
-                removeTempWrapper(wrapper);
+            
+            // Mention Rate by LLM (first charts-grid)
+            const mentionRateChart = document.querySelectorAll('.charts-grid')[0];
+            if (mentionRateChart) {
+                const clone = mentionRateChart.cloneNode(true);
+                clone.style.marginTop = '20px';
+                page1Wrapper.appendChild(clone);
             }
+            
+            // Share of Voice Over Time (first chart-card-full-width)
+            const sovTimelineChart = document.querySelectorAll('.chart-card-full-width')[0];
+            if (sovTimelineChart) {
+                const clone = sovTimelineChart.cloneNode(true);
+                clone.style.marginTop = '20px';
+                page1Wrapper.appendChild(clone);
+            }
+            
+            document.body.appendChild(page1Wrapper);
+            await addSectionToPDF(page1Wrapper, true, 'Overview');
+            document.body.removeChild(page1Wrapper);
 
-            // PAGE 3: Distribution Charts (Sentiment + SOV Donut)
-            if (btnText) btnText.textContent = 'Page 3/5: Distributions...';
+            // ================================================================
+            // PAGE 2: Total Mentions Over Time + Sentiment + SOV Distribution
+            // ================================================================
+            if (btnText) btnText.textContent = 'Page 2/4: Mentions & Distributions...';
+            
+            const page2Wrapper = document.createElement('div');
+            page2Wrapper.style.cssText = 'background: white; padding: 24px; width: 1100px; font-family: system-ui, -apple-system, sans-serif;';
+            
+            // Total Mentions Over Time (second chart-card-full-width)
+            const mentionsTimelineChart = document.querySelectorAll('.chart-card-full-width')[1];
+            if (mentionsTimelineChart) {
+                page2Wrapper.appendChild(mentionsTimelineChart.cloneNode(true));
+            }
+            
+            // Sentiment Distribution + Share of Voice Distribution (second charts-grid)
             const distributionCharts = document.querySelectorAll('.charts-grid')[1];
             if (distributionCharts) {
-                await addSectionToPDF(distributionCharts, false, 'Distributions');
+                const clone = distributionCharts.cloneNode(true);
+                clone.style.marginTop = '20px';
+                page2Wrapper.appendChild(clone);
             }
-
-            // PAGE 4: Comparison Table
-            if (btnText) btnText.textContent = 'Page 4/5: LLM Comparison...';
-            const comparisonCard = document.getElementById('comparisonTable')?.closest('.chart-card');
-            if (comparisonCard) {
-                await addSectionToPDF(comparisonCard, false, 'LLM Comparison');
-            }
-
-            // PAGE 5: Prompts & URLs
-            if (btnText) btnText.textContent = 'Page 5/5: Prompts & URLs...';
-            const queriesCard = document.getElementById('queriesTable')?.closest('.chart-card');
-            const urlsCard = document.getElementById('topUrlsLLMCard');
             
+            document.body.appendChild(page2Wrapper);
+            await addSectionToPDF(page2Wrapper, false, 'Distributions');
+            document.body.removeChild(page2Wrapper);
+
+            // ================================================================
+            // PAGE 3: Prompts & Queries Table (completa)
+            // ================================================================
+            if (btnText) btnText.textContent = 'Page 3/4: Prompts & Queries...';
+            
+            const queriesCard = document.getElementById('queriesTable')?.closest('.chart-card');
             if (queriesCard) {
                 await addSectionToPDF(queriesCard, false, 'Prompts & Queries');
             }
+
+            // ================================================================
+            // PAGE 4: Top Mentioned URLs by LLMs (completa)
+            // ================================================================
+            if (btnText) btnText.textContent = 'Page 4/4: Top URLs...';
             
+            const urlsCard = document.getElementById('topUrlsLLMCard');
             if (urlsCard) {
                 await addSectionToPDF(urlsCard, false, 'Top URLs');
             }
