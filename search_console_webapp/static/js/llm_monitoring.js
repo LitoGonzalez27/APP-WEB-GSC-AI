@@ -2252,7 +2252,7 @@ class LLMMonitoring {
                 } catch (_) { /* silencioso */ }
             };
 
-            // Helper: capture element with canvas support and PDF-friendly styles
+            // Helper: capture element with high quality for PDF
             const captureElement = async (element, label = '') => {
                 if (!element) {
                     console.warn(`⚠️ Element not found: ${label}`);
@@ -2261,13 +2261,15 @@ class LLMMonitoring {
                 if (btnText) btnText.textContent = `Capturing ${label}...`;
                 
                 const canvas = await html2canvas(element, { 
-                    scale: 2, 
+                    scale: 3, // Higher scale for better quality
                     useCORS: true, 
                     backgroundColor: '#ffffff',
                     logging: false,
                     allowTaint: true,
+                    imageTimeout: 0,
+                    removeContainer: true,
                     onclone: (clonedDoc, clonedElement) => {
-                        // Copy canvas content (Chart.js) to cloned elements
+                        // Copy Chart.js canvas content to cloned elements
                         const origCanvases = element.querySelectorAll('canvas');
                         const clonedCanvases = clonedElement.querySelectorAll('canvas');
                         origCanvases.forEach((orig, idx) => {
@@ -2279,62 +2281,58 @@ class LLMMonitoring {
                             }
                         });
                         
-                        // Fix KPI icons - remove dark backgrounds for PDF
-                        clonedElement.querySelectorAll('.kpi-icon').forEach(icon => {
-                            icon.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)';
-                            icon.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                        });
-                        clonedElement.querySelectorAll('.kpi-icon i').forEach(i => {
-                            i.style.color = '#2e7d32';
-                        });
-                        
-                        // Fix KPI values - remove gradient text (not supported)
+                        // Fix KPI values - gradient text doesn't render in html2canvas
                         clonedElement.querySelectorAll('.kpi-value').forEach(val => {
                             val.style.background = 'none';
                             val.style.webkitBackgroundClip = 'unset';
-                            val.style.webkitTextFillColor = '#161616';
+                            val.style.webkitTextFillColor = '#1a1a1a';
                             val.style.backgroundClip = 'unset';
-                            val.style.color = '#161616';
+                            val.style.color = '#1a1a1a';
+                            val.style.opacity = '1';
                         });
                         
-                        // Ensure all text is visible with full opacity
-                        clonedElement.querySelectorAll('.kpi-label, .chart-title, h3, .chart-subtitle').forEach(el => {
-                            el.style.color = '#333333';
-                            el.style.opacity = '1';
-                        });
-                        
-                        // Ensure chart cards have white background
-                        clonedElement.querySelectorAll('.chart-card, .kpi-card').forEach(card => {
-                            card.style.background = '#ffffff';
-                            card.style.opacity = '1';
+                        // Ensure full opacity on all elements
+                        clonedElement.style.opacity = '1';
+                        clonedElement.querySelectorAll('*').forEach(el => {
+                            const computed = window.getComputedStyle(el);
+                            if (parseFloat(computed.opacity) < 1) {
+                                el.style.opacity = '1';
+                            }
                         });
                     }
                 });
                 
+                // Use PNG with maximum quality
                 return { 
-                    imgData: canvas.toDataURL('image/png'), 
+                    imgData: canvas.toDataURL('image/png', 1.0), 
                     width: canvas.width, 
                     height: canvas.height 
                 };
             };
 
             // Helper: add image to PDF with proper scaling
-            const addImageToPDF = (capture, yPos) => {
+            const addImageToPDF = (capture, yPos, maxHeight = null) => {
                 if (!capture) return yPos;
-                const imgW = pageWidth - (margin * 2);
-                const imgH = (capture.height / capture.width) * imgW;
+                let imgW = pageWidth - (margin * 2);
+                let imgH = (capture.height / capture.width) * imgW;
                 
+                // If maxHeight is specified, scale down to fit
+                if (maxHeight && imgH > maxHeight) {
+                    const scaleFactor = maxHeight / imgH;
+                    imgW = imgW * scaleFactor;
+                    imgH = maxHeight;
+                }
+                
+                // If still too tall for page, scale to fit
                 if (imgH > pageHeight - (margin * 2)) {
                     const scaleFactor = (pageHeight - (margin * 2)) / imgH;
-                    const scaledW = imgW * scaleFactor;
-                    const scaledH = imgH * scaleFactor;
-                    const xCentered = (pageWidth - scaledW) / 2;
-                    pdf.addImage(capture.imgData, 'PNG', xCentered, margin, scaledW, scaledH);
-                    return margin + scaledH + 10;
-                } else {
-                    pdf.addImage(capture.imgData, 'PNG', margin, yPos, imgW, imgH);
-                    return yPos + imgH + 10;
+                    imgW = imgW * scaleFactor;
+                    imgH = imgH * scaleFactor;
                 }
+                
+                const xPos = (pageWidth - imgW) / 2; // Center horizontally
+                pdf.addImage(capture.imgData, 'PNG', xPos, yPos, imgW, imgH);
+                return yPos + imgH + 8;
             };
 
             // Project info
@@ -2350,27 +2348,31 @@ class LLMMonitoring {
             if (btnText) btnText.textContent = 'Page 1/4: Overview...';
             
             // Add header text to PDF
-            pdf.setFontSize(20);
+            pdf.setFontSize(18);
             pdf.setTextColor(22, 22, 22);
-            pdf.text('LLM Visibility Monitor Report', margin, margin + 20);
+            pdf.text('LLM Visibility Monitor Report', margin, margin + 16);
             
-            pdf.setFontSize(11);
+            pdf.setFontSize(10);
             pdf.setTextColor(100, 100, 100);
-            pdf.text(`Project: ${projectName} | ${dateRange} | Generated: ${generatedDate}`, margin, margin + 38);
+            pdf.text(`Project: ${projectName} | ${dateRange} | Generated: ${generatedDate}`, margin, margin + 30);
             
             // Separator line
             pdf.setDrawColor(22, 22, 22);
-            pdf.setLineWidth(2);
-            pdf.line(margin, margin + 48, pageWidth - margin, margin + 48);
+            pdf.setLineWidth(1.5);
+            pdf.line(margin, margin + 38, pageWidth - margin, margin + 38);
             
-            let currentY = margin + 65;
+            let currentY = margin + 50;
+            
+            // Calculate available space for page 1 (3 sections must fit)
+            const availableHeight = pageHeight - currentY - margin - 40; // Leave space for logo
+            const sectionHeight = availableHeight / 3 - 5; // Divide equally
 
             // Capture and add KPIs
             const kpisGrid = document.getElementById('kpisGrid');
             if (kpisGrid) {
                 const kpisCapture = await captureElement(kpisGrid, 'KPIs');
                 if (kpisCapture) {
-                    currentY = addImageToPDF(kpisCapture, currentY);
+                    currentY = addImageToPDF(kpisCapture, currentY, sectionHeight);
                 }
             }
 
@@ -2379,28 +2381,18 @@ class LLMMonitoring {
             if (mentionRateSection) {
                 const mentionCapture = await captureElement(mentionRateSection, 'Mention Rate');
                 if (mentionCapture) {
-                    const imgW = pageWidth - (margin * 2);
-                    const imgH = (mentionCapture.height / mentionCapture.width) * imgW;
-                    if (currentY + imgH > pageHeight - margin - 60) {
-                        pdf.addPage();
-                        currentY = margin;
-                    }
-                    currentY = addImageToPDF(mentionCapture, currentY);
+                    currentY = addImageToPDF(mentionCapture, currentY, sectionHeight);
                 }
             }
 
-            // Capture Share of Voice Over Time (first chart-card-full-width)
+            // Capture Share of Voice Over Time (first chart-card-full-width) - MUST be on page 1
             const sovTimeline = document.querySelectorAll('.chart-card-full-width')[0];
             if (sovTimeline) {
                 const sovCapture = await captureElement(sovTimeline, 'SOV Timeline');
                 if (sovCapture) {
-                    const imgW = pageWidth - (margin * 2);
-                    const imgH = (sovCapture.height / sovCapture.width) * imgW;
-                    if (currentY + imgH > pageHeight - margin - 60) {
-                        pdf.addPage();
-                        currentY = margin;
-                    }
-                    currentY = addImageToPDF(sovCapture, currentY);
+                    // Use remaining space on page 1
+                    const remainingHeight = pageHeight - currentY - margin - 40;
+                    currentY = addImageToPDF(sovCapture, currentY, remainingHeight);
                 }
             }
             
