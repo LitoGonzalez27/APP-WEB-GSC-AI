@@ -1661,23 +1661,17 @@ class LLMMonitoring {
                         border: none;
                         border-radius: 6px;
                         cursor: pointer;
-                        padding: 0.4rem 0.65rem;
+                        padding: 0.35rem 0.7rem;
                         color: #1a1a1a;
-                        font-size: 0.8rem;
+                        font-size: 0.75rem;
                         font-weight: 600;
                         transition: all 0.2s;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 0.4rem;
                         box-shadow: 0 2px 4px rgba(216, 249, 184, 0.2);
                         white-space: nowrap;
                     "
                     onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(216, 249, 184, 0.3)'"
                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(216, 249, 184, 0.2)'"
-                >
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Details</span>
-                </button>
+                >Details</button>
             `);
 
             return [
