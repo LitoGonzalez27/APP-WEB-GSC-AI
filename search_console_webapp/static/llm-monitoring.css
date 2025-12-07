@@ -2820,33 +2820,35 @@ label:not(.search-form label) {
 .models-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    gap: 12px;
 }
 
 .model-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 14px;
     transition: all 0.2s ease;
+    min-height: 80px;
 }
 
 .model-card:hover {
     border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+    transform: translateY(-1px);
 }
 
 .model-card .model-icon {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 20px;
     flex-shrink: 0;
 }
 
@@ -2873,34 +2875,41 @@ label:not(.search-form label) {
 .model-card .model-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .model-card .model-provider {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #9ca3af;
-    margin-bottom: 2px;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    color: #94a3b8;
 }
 
 .model-card .model-name {
-    font-weight: 600;
-    font-size: 15px;
-    color: #161616;
-    margin-bottom: 4px;
+    font-weight: 700;
+    font-size: 16px;
+    color: #1e293b;
+    line-height: 1.2;
 }
 
 .model-card .model-id {
-    font-family: monospace;
-    font-size: 11px;
-    color: #6b7280;
-    background: #e5e7eb;
-    padding: 2px 6px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 10px;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 3px 8px;
     border-radius: 4px;
     display: inline-block;
+    max-width: fit-content;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 500px) {
     .models-grid {
         grid-template-columns: 1fr;
     }
