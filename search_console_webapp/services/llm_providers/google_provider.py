@@ -1,11 +1,14 @@
 """
-Proveedor Google - Gemini 2.0 Flash
-Versión: Flash (normal, no Pro)
+Proveedor Google - Gemini 3 Pro
+Versión: gemini-3-pro-preview (Diciembre 2025)
 
 IMPORTANTE:
-- Extremadamente económico (el más barato)
-- Muy rápido
-- Ideal para análisis de sentimiento auxiliar
+- Modelo más inteligente de Google hasta la fecha
+- Razonamiento avanzado con thinking_level
+- 1M tokens de contexto, 64K de salida
+- Ideal para tareas complejas multimodales
+
+Docs: https://ai.google.dev/gemini-api/docs/gemini-3
 """
 
 import logging
@@ -25,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 class GoogleProvider(BaseLLMProvider):
     """
-    Proveedor para Gemini 2.0 Flash (Google)
+    Proveedor para Gemini 3 Pro (Google)
     
     Características:
-    - MUY económico ($0.075/$0.30 por 1M tokens)
-    - Extremadamente rápido
+    - Modelo más inteligente de Google (Dic 2025)
+    - Razonamiento avanzado con thinking_level
+    - 1M tokens de contexto, 64K de salida
     - Multimodal (texto, imágenes, audio, video)
-    - Ventana de contexto de 1M tokens
-    - Ideal para volumen alto y análisis auxiliar
+    - $2/$12 por 1M tokens (< 200K), $4/$18 (> 200K)
     """
     
     def __init__(self, api_key: str, model: str = None):
@@ -52,8 +55,8 @@ class GoogleProvider(BaseLLMProvider):
         else:
             self.model_name = get_current_model_for_provider('google')
             if not self.model_name:
-                self.model_name = 'gemini-2.0-flash'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando Gemini Flash por defecto")
+                self.model_name = 'gemini-3-pro-preview'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando Gemini 3 Pro por defecto")
         
         # Configurar límites de generación
         generation_config = {
@@ -76,7 +79,7 @@ class GoogleProvider(BaseLLMProvider):
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra Gemini 2.0 Flash
+        Ejecuta una query contra Gemini 3 Pro
         """
         start_time = time.time()
         
@@ -143,6 +146,7 @@ class GoogleProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
+            'gemini-3-pro-preview': 'Gemini 3 Pro',
             'gemini-2.0-flash': 'Gemini 2.0 Flash',
             'gemini-1.5-flash': 'Gemini 1.5 Flash',
             'gemini-pro': 'Gemini Pro'

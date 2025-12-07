@@ -1,10 +1,13 @@
 """
 Proveedor OpenAI - GPT-5
-Última actualización: Octubre 2025
+Última actualización: Diciembre 2025
 
 IMPORTANTE:
+- Modelo: gpt-5-2025-08-07
 - NO hardcodees precios aquí (se leen de BD)
 - El modelo actual se obtiene de BD (is_current=TRUE)
+
+Docs: https://platform.openai.com/docs/models/gpt-5
 """
 
 import logging
@@ -62,9 +65,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a gpt-4o si no hay nada en BD (modelo real más reciente)
-                self.model = 'gpt-4o'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-4o' por defecto")
+                # Fallback a GPT-5 (modelo más reciente - Agosto 2025)
+                self.model = 'gpt-5-2025-08-07'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5-2025-08-07' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -201,7 +204,7 @@ class OpenAIProvider(BaseLLMProvider):
             # Fallback automático si el modelo no existe/no está permitido
             err_msg = str(e)
             if ('model' in err_msg.lower() and 'does not exist' in err_msg.lower()) or ('not found' in err_msg.lower() and 'model' in err_msg.lower()):
-                logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Reintentando con 'gpt-4o'...")
+                logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Reintentando con 'gpt-4o' como fallback...")
                 try:
                     fallback_model = 'gpt-4o'
                     # gpt-4o usa max_tokens (no max_completion_tokens)
@@ -258,6 +261,8 @@ class OpenAIProvider(BaseLLMProvider):
     def get_model_display_name(self) -> str:
         # Mapeo de IDs a nombres legibles
         display_names = {
+            'gpt-5-2025-08-07': 'GPT-5',
+            'gpt-5': 'GPT-5',
             'gpt-4o': 'GPT-4o',
             'gpt-4o-mini': 'GPT-4o Mini',
             'gpt-4-turbo': 'GPT-4 Turbo',
