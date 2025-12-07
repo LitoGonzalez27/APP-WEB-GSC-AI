@@ -2276,20 +2276,34 @@ def get_current_models():
             "models": {
                 "openai": {"model_id": "gpt-5-2025-08-07", "display_name": "GPT-5"},
                 "anthropic": {"model_id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5"},
-                "google": {"model_id": "gemini-3-pro-preview", "display_name": "Gemini 3 Pro"},
+                "google": {"model_id": "gemini-3", "display_name": "Gemini 3"},
                 "perplexity": {"model_id": "sonar", "display_name": "Perplexity Sonar"}
             }
         }
     """
+    # Fallbacks por defecto (siempre disponibles)
+    fallbacks = {
+        'openai': {'model_id': 'gpt-5-2025-08-07', 'display_name': 'GPT-5'},
+        'anthropic': {'model_id': 'claude-sonnet-4-5', 'display_name': 'Claude Sonnet 4.5'},
+        'google': {'model_id': 'gemini-3', 'display_name': 'Gemini 3'},
+        'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar'}
+    }
+    
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        # Si no hay BD, devolver fallbacks
+        return jsonify({
+            'success': True,
+            'models': fallbacks,
+            'source': 'fallback'
+        }), 200
     
     try:
         cur = conn.cursor()
         
+        # Query con columnas que SÍ existen en la tabla
         cur.execute("""
-            SELECT llm_provider, model_id, model_display_name, notes
+            SELECT llm_provider, model_id, model_display_name
             FROM llm_model_registry
             WHERE is_current = TRUE AND is_available = TRUE
             ORDER BY llm_provider
@@ -2301,30 +2315,28 @@ def get_current_models():
         for m in models:
             models_dict[m['llm_provider']] = {
                 'model_id': m['model_id'],
-                'display_name': m['model_display_name'],
-                'notes': m['notes']
+                'display_name': m['model_display_name'] or m['model_id']
             }
         
-        # Fallbacks si no hay modelos en BD
-        fallbacks = {
-            'openai': {'model_id': 'gpt-5-2025-08-07', 'display_name': 'GPT-5', 'notes': 'Default'},
-            'anthropic': {'model_id': 'claude-sonnet-4-5', 'display_name': 'Claude Sonnet 4.5', 'notes': 'Default'},
-            'google': {'model_id': 'gemini-3', 'display_name': 'Gemini 3', 'notes': 'Default'},
-            'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar', 'notes': 'Default'}
-        }
-        
+        # Aplicar fallbacks para providers que no tienen modelo en BD
         for provider, fallback in fallbacks.items():
             if provider not in models_dict:
                 models_dict[provider] = fallback
         
         return jsonify({
             'success': True,
-            'models': models_dict
+            'models': models_dict,
+            'source': 'database' if models else 'fallback'
         }), 200
         
     except Exception as e:
         logger.error(f"Error obteniendo modelos actuales: {e}", exc_info=True)
-        return jsonify({'error': f'Error: {str(e)}'}), 500
+        # En caso de error, devolver fallbacks
+        return jsonify({
+            'success': True,
+            'models': fallbacks,
+            'source': 'fallback_error'
+        }), 200
     finally:
         cur.close()
         conn.close()
