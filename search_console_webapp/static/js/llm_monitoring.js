@@ -2252,7 +2252,7 @@ class LLMMonitoring {
                 } catch (_) { /* silencioso */ }
             };
 
-            // Helper: capture element with canvas support (important for Chart.js)
+            // Helper: capture element with canvas support and PDF-friendly styles
             const captureElement = async (element, label = '') => {
                 if (!element) {
                     console.warn(`⚠️ Element not found: ${label}`);
@@ -2277,6 +2277,36 @@ class LLMMonitoring {
                                 clonedCanvases[idx].height = orig.height;
                                 try { clonedCtx.drawImage(orig, 0, 0); } catch (e) {}
                             }
+                        });
+                        
+                        // Fix KPI icons - remove dark backgrounds for PDF
+                        clonedElement.querySelectorAll('.kpi-icon').forEach(icon => {
+                            icon.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)';
+                            icon.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        });
+                        clonedElement.querySelectorAll('.kpi-icon i').forEach(i => {
+                            i.style.color = '#2e7d32';
+                        });
+                        
+                        // Fix KPI values - remove gradient text (not supported)
+                        clonedElement.querySelectorAll('.kpi-value').forEach(val => {
+                            val.style.background = 'none';
+                            val.style.webkitBackgroundClip = 'unset';
+                            val.style.webkitTextFillColor = '#161616';
+                            val.style.backgroundClip = 'unset';
+                            val.style.color = '#161616';
+                        });
+                        
+                        // Ensure all text is visible with full opacity
+                        clonedElement.querySelectorAll('.kpi-label, .chart-title, h3, .chart-subtitle').forEach(el => {
+                            el.style.color = '#333333';
+                            el.style.opacity = '1';
+                        });
+                        
+                        // Ensure chart cards have white background
+                        clonedElement.querySelectorAll('.chart-card, .kpi-card').forEach(card => {
+                            card.style.background = '#ffffff';
+                            card.style.opacity = '1';
                         });
                     }
                 });
