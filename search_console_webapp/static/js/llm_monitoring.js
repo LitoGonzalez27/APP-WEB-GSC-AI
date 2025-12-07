@@ -2219,6 +2219,7 @@ class LLMMonitoring {
             const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 20;
 
             // Function to add logo watermark in bottom-right corner
             const addCornerLogo = async () => {
@@ -2239,85 +2240,74 @@ class LLMMonitoring {
                         const ctx = tempCanvas.getContext('2d');
                         ctx.drawImage(logoImg, 0, 0);
                         const dataUrl = tempCanvas.toDataURL('image/png');
-                        const margin = 16;
+                        const logoMargin = 16;
                         const maxLogoWidth = Math.min(80, pageWidth * 0.18);
                         const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
                         const logoW = maxLogoWidth;
                         const logoH = logoW * ratio;
-                        const x = pageWidth - logoW - margin;
-                        const y = pageHeight - logoH - margin;
+                        const x = pageWidth - logoW - logoMargin;
+                        const y = pageHeight - logoH - logoMargin;
                         try { pdf.addImage(dataUrl, 'PNG', x, y, logoW, logoH); } catch (_) {}
                     }
                 } catch (_) { /* silencioso */ }
             };
 
-            // Helper function to capture and add section to PDF
-            const addSectionToPDF = async (element, isFirstPage = false, label = '') => {
+            // Helper: capture element with canvas support (important for Chart.js)
+            const captureElement = async (element, label = '') => {
                 if (!element) {
-                    console.warn(`⚠️ Section not found: ${label}`);
-                    return false;
+                    console.warn(`⚠️ Element not found: ${label}`);
+                    return null;
                 }
-
                 if (btnText) btnText.textContent = `Capturing ${label}...`;
                 
                 const canvas = await html2canvas(element, { 
                     scale: 2, 
                     useCORS: true, 
                     backgroundColor: '#ffffff',
-                    logging: false
-                });
-                
-                const imgData = canvas.toDataURL('image/jpeg', 0.92);
-                const imgWidth = pageWidth - 40; // 20pt margins on each side
-                const imgHeight = canvas.height * (imgWidth / canvas.width);
-                
-                if (!isFirstPage) {
-                    pdf.addPage();
-                }
-                
-                const xPos = 20;
-                let yPos = 20;
-                
-                // If image is taller than page, scale to fit
-                if (imgHeight > pageHeight - 40) {
-                    const scaleFactor = (pageHeight - 40) / imgHeight;
-                    const scaledWidth = imgWidth * scaleFactor;
-                    const scaledHeight = imgHeight * scaleFactor;
-                    const xCentered = (pageWidth - scaledWidth) / 2;
-                    pdf.addImage(imgData, 'JPEG', xCentered, yPos, scaledWidth, scaledHeight);
-                } else {
-                    pdf.addImage(imgData, 'JPEG', xPos, yPos, imgWidth, imgHeight);
-                }
-                
-                await addCornerLogo();
-                return true;
-            };
-
-            // Helper to create temporary wrapper for grouping elements
-            const createTempWrapper = (elements) => {
-                const wrapper = document.createElement('div');
-                wrapper.id = 'pdf-temp-wrapper';
-                wrapper.style.cssText = 'background: white; padding: 20px; width: 1200px; max-width: 1200px;';
-                
-                const originalParents = [];
-                elements.forEach(el => {
-                    if (el) {
-                        originalParents.push({ element: el, parent: el.parentNode, nextSibling: el.nextSibling });
-                        wrapper.appendChild(el.cloneNode(true));
+                    logging: false,
+                    allowTaint: true,
+                    onclone: (clonedDoc, clonedElement) => {
+                        // Copy canvas content (Chart.js) to cloned elements
+                        const origCanvases = element.querySelectorAll('canvas');
+                        const clonedCanvases = clonedElement.querySelectorAll('canvas');
+                        origCanvases.forEach((orig, idx) => {
+                            if (clonedCanvases[idx]) {
+                                const clonedCtx = clonedCanvases[idx].getContext('2d');
+                                clonedCanvases[idx].width = orig.width;
+                                clonedCanvases[idx].height = orig.height;
+                                try { clonedCtx.drawImage(orig, 0, 0); } catch (e) {}
+                            }
+                        });
                     }
                 });
                 
-                document.body.appendChild(wrapper);
-                return { wrapper, originalParents };
+                return { 
+                    imgData: canvas.toDataURL('image/png'), 
+                    width: canvas.width, 
+                    height: canvas.height 
+                };
             };
 
-            const removeTempWrapper = (wrapper) => {
-                if (wrapper && wrapper.parentNode) {
-                    wrapper.parentNode.removeChild(wrapper);
+            // Helper: add image to PDF with proper scaling
+            const addImageToPDF = (capture, yPos) => {
+                if (!capture) return yPos;
+                const imgW = pageWidth - (margin * 2);
+                const imgH = (capture.height / capture.width) * imgW;
+                
+                if (imgH > pageHeight - (margin * 2)) {
+                    const scaleFactor = (pageHeight - (margin * 2)) / imgH;
+                    const scaledW = imgW * scaleFactor;
+                    const scaledH = imgH * scaleFactor;
+                    const xCentered = (pageWidth - scaledW) / 2;
+                    pdf.addImage(capture.imgData, 'PNG', xCentered, margin, scaledW, scaledH);
+                    return margin + scaledH + 10;
+                } else {
+                    pdf.addImage(capture.imgData, 'PNG', margin, yPos, imgW, imgH);
+                    return yPos + imgH + 10;
                 }
             };
 
-            // Add PDF header with project info
+            // Project info
             const projectName = this.currentProject.name || 'LLM Monitoring';
             const dateRange = `Last ${this.globalTimeRange} days`;
             const generatedDate = new Date().toLocaleDateString('en-US', { 
@@ -2327,90 +2317,129 @@ class LLMMonitoring {
             // ================================================================
             // PAGE 1: KPIs + Mention Rate by LLM + Share of Voice Over Time
             // ================================================================
-            if (btnText) btnText.textContent = 'Page 1/4: Overview & Charts...';
+            if (btnText) btnText.textContent = 'Page 1/4: Overview...';
             
-            const page1Wrapper = document.createElement('div');
-            page1Wrapper.style.cssText = 'background: white; padding: 24px; width: 1100px; font-family: system-ui, -apple-system, sans-serif;';
+            // Add header text to PDF
+            pdf.setFontSize(20);
+            pdf.setTextColor(22, 22, 22);
+            pdf.text('LLM Visibility Monitor Report', margin, margin + 20);
             
-            // Header
-            page1Wrapper.innerHTML = `
-                <div style="border-bottom: 3px solid #161616; padding-bottom: 16px; margin-bottom: 20px;">
-                    <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #161616;">LLM Visibility Monitor Report</h1>
-                    <p style="margin: 0; font-size: 14px; color: #666;">Project: <strong>${projectName}</strong> | ${dateRange} | Generated: ${generatedDate}</p>
-                </div>
-            `;
+            pdf.setFontSize(11);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Project: ${projectName} | ${dateRange} | Generated: ${generatedDate}`, margin, margin + 38);
             
-            // KPIs
+            // Separator line
+            pdf.setDrawColor(22, 22, 22);
+            pdf.setLineWidth(2);
+            pdf.line(margin, margin + 48, pageWidth - margin, margin + 48);
+            
+            let currentY = margin + 65;
+
+            // Capture and add KPIs
             const kpisGrid = document.getElementById('kpisGrid');
             if (kpisGrid) {
-                page1Wrapper.appendChild(kpisGrid.cloneNode(true));
+                const kpisCapture = await captureElement(kpisGrid, 'KPIs');
+                if (kpisCapture) {
+                    currentY = addImageToPDF(kpisCapture, currentY);
+                }
+            }
+
+            // Capture Mention Rate by LLM (first charts-grid)
+            const mentionRateSection = document.querySelectorAll('.charts-grid')[0];
+            if (mentionRateSection) {
+                const mentionCapture = await captureElement(mentionRateSection, 'Mention Rate');
+                if (mentionCapture) {
+                    const imgW = pageWidth - (margin * 2);
+                    const imgH = (mentionCapture.height / mentionCapture.width) * imgW;
+                    if (currentY + imgH > pageHeight - margin - 60) {
+                        pdf.addPage();
+                        currentY = margin;
+                    }
+                    currentY = addImageToPDF(mentionCapture, currentY);
+                }
+            }
+
+            // Capture Share of Voice Over Time (first chart-card-full-width)
+            const sovTimeline = document.querySelectorAll('.chart-card-full-width')[0];
+            if (sovTimeline) {
+                const sovCapture = await captureElement(sovTimeline, 'SOV Timeline');
+                if (sovCapture) {
+                    const imgW = pageWidth - (margin * 2);
+                    const imgH = (sovCapture.height / sovCapture.width) * imgW;
+                    if (currentY + imgH > pageHeight - margin - 60) {
+                        pdf.addPage();
+                        currentY = margin;
+                    }
+                    currentY = addImageToPDF(sovCapture, currentY);
+                }
             }
             
-            // Mention Rate by LLM (first charts-grid)
-            const mentionRateChart = document.querySelectorAll('.charts-grid')[0];
-            if (mentionRateChart) {
-                const clone = mentionRateChart.cloneNode(true);
-                clone.style.marginTop = '20px';
-                page1Wrapper.appendChild(clone);
-            }
-            
-            // Share of Voice Over Time (first chart-card-full-width)
-            const sovTimelineChart = document.querySelectorAll('.chart-card-full-width')[0];
-            if (sovTimelineChart) {
-                const clone = sovTimelineChart.cloneNode(true);
-                clone.style.marginTop = '20px';
-                page1Wrapper.appendChild(clone);
-            }
-            
-            document.body.appendChild(page1Wrapper);
-            await addSectionToPDF(page1Wrapper, true, 'Overview');
-            document.body.removeChild(page1Wrapper);
+            await addCornerLogo();
 
             // ================================================================
             // PAGE 2: Total Mentions Over Time + Sentiment + SOV Distribution
             // ================================================================
-            if (btnText) btnText.textContent = 'Page 2/4: Mentions & Distributions...';
-            
-            const page2Wrapper = document.createElement('div');
-            page2Wrapper.style.cssText = 'background: white; padding: 24px; width: 1100px; font-family: system-ui, -apple-system, sans-serif;';
-            
+            pdf.addPage();
+            if (btnText) btnText.textContent = 'Page 2/4: Distributions...';
+            currentY = margin;
+
             // Total Mentions Over Time (second chart-card-full-width)
-            const mentionsTimelineChart = document.querySelectorAll('.chart-card-full-width')[1];
-            if (mentionsTimelineChart) {
-                page2Wrapper.appendChild(mentionsTimelineChart.cloneNode(true));
+            const mentionsTimeline = document.querySelectorAll('.chart-card-full-width')[1];
+            if (mentionsTimeline) {
+                const mentionsCapture = await captureElement(mentionsTimeline, 'Mentions Timeline');
+                if (mentionsCapture) {
+                    currentY = addImageToPDF(mentionsCapture, currentY);
+                }
+            }
+
+            // Sentiment + SOV Distribution (second charts-grid)
+            const distributionSection = document.querySelectorAll('.charts-grid')[1];
+            if (distributionSection) {
+                const distCapture = await captureElement(distributionSection, 'Distributions');
+                if (distCapture) {
+                    const imgW = pageWidth - (margin * 2);
+                    const imgH = (distCapture.height / distCapture.width) * imgW;
+                    if (currentY + imgH > pageHeight - margin - 60) {
+                        pdf.addPage();
+                        currentY = margin;
+                    }
+                    currentY = addImageToPDF(distCapture, currentY);
+                }
             }
             
-            // Sentiment Distribution + Share of Voice Distribution (second charts-grid)
-            const distributionCharts = document.querySelectorAll('.charts-grid')[1];
-            if (distributionCharts) {
-                const clone = distributionCharts.cloneNode(true);
-                clone.style.marginTop = '20px';
-                page2Wrapper.appendChild(clone);
-            }
-            
-            document.body.appendChild(page2Wrapper);
-            await addSectionToPDF(page2Wrapper, false, 'Distributions');
-            document.body.removeChild(page2Wrapper);
+            await addCornerLogo();
 
             // ================================================================
-            // PAGE 3: Prompts & Queries Table (completa)
+            // PAGE 3: Prompts & Queries Table
             // ================================================================
+            pdf.addPage();
             if (btnText) btnText.textContent = 'Page 3/4: Prompts & Queries...';
             
             const queriesCard = document.getElementById('queriesTable')?.closest('.chart-card');
             if (queriesCard) {
-                await addSectionToPDF(queriesCard, false, 'Prompts & Queries');
+                const queriesCapture = await captureElement(queriesCard, 'Queries Table');
+                if (queriesCapture) {
+                    addImageToPDF(queriesCapture, margin);
+                }
             }
+            
+            await addCornerLogo();
 
             // ================================================================
-            // PAGE 4: Top Mentioned URLs by LLMs (completa)
+            // PAGE 4: Top Mentioned URLs by LLMs
             // ================================================================
+            pdf.addPage();
             if (btnText) btnText.textContent = 'Page 4/4: Top URLs...';
             
             const urlsCard = document.getElementById('topUrlsLLMCard');
             if (urlsCard) {
-                await addSectionToPDF(urlsCard, false, 'Top URLs');
+                const urlsCapture = await captureElement(urlsCard, 'Top URLs');
+                if (urlsCapture) {
+                    addImageToPDF(urlsCapture, margin);
+                }
             }
+            
+            await addCornerLogo();
 
             // Save PDF
             const fileName = `llm-monitoring-${projectName.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
