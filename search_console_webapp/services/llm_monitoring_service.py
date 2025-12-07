@@ -236,7 +236,8 @@ class MultiLLMMonitoringService:
         sources: List[Dict] = None,
         competitors: List[str] = None,
         competitor_domains: List[str] = None,
-        competitor_keywords: List[str] = None
+        competitor_keywords: List[str] = None,
+        competitor_term_to_name: Dict[str, str] = None
     ) -> Dict:
         """
         Analiza si una respuesta menciona la marca y extrae contexto
@@ -244,6 +245,7 @@ class MultiLLMMonitoringService:
         MEJORADO: 
         - Soporta dominios y palabras clave múltiples
         - ✨ NUEVO: Busca marca en sources/URLs (crítico para Perplexity, Claude, etc.)
+        - ✨ NUEVO: Agrupa competidores por nombre (orange.es + orange = "Orange")
         
         Args:
             response_text: Respuesta del LLM
@@ -254,6 +256,7 @@ class MultiLLMMonitoringService:
             competitors: Lista de competidores (legacy, opcional)
             competitor_domains: Lista de dominios de competidores
             competitor_keywords: Lista de palabras clave de competidores
+            competitor_term_to_name: Mapeo de términos a nombre de competidor para agrupación
             
         Returns:
             Dict con:
@@ -420,6 +423,7 @@ class MultiLLMMonitoringService:
         
         # Detectar competidores mencionados (tolerante a acentos)
         # Ahora soporta dominios y palabras clave, y TAMBIÉN busca en sources/enlaces
+        # ✨ NUEVO: Agrupa por NOMBRE de competidor (orange.es + orange = "Orange")
         competitors_mentioned = {}
         
         # Construir lista de todos los competidores a buscar
@@ -437,34 +441,52 @@ class MultiLLMMonitoringService:
         if not all_competitors and competitors:
             all_competitors.extend(competitors)
         
-        # Buscar cada competidor
+        # ✨ NUEVO: Crear mapeo inverso si no se proporcionó
+        if not competitor_term_to_name:
+            competitor_term_to_name = {}
+            for term in all_competitors:
+                # En modo legacy, usar el término limpio como nombre
+                term_name = term.lower().replace('.es', '').replace('.com', '').replace('.net', '').replace('.org', '').title()
+                competitor_term_to_name[term.lower()] = term_name
+        
+        # Buscar cada competidor y agrupar por nombre
         for competitor in all_competitors:
             comp_variations = extract_brand_variations(competitor.lower())
-            comp_count = 0
+            found_in_this_response = False
             
             # A) Buscar en response_text
             for variation in comp_variations:
+                if found_in_this_response:
+                    break  # Ya encontramos este término, no seguir contando
                 v_lower = variation.lower()
                 v_no_accents = remove_accents(v_lower)
-                # Contar en texto normal y sin acentos usando límites de palabra
+                # Solo verificar si EXISTE (no contar apariciones)
                 pattern_normal = r'\b' + re.escape(v_lower) + r'\b'
                 pattern_no_acc = r'\b' + re.escape(v_no_accents) + r'\b'
-                comp_count += len(re.findall(pattern_normal, text_lower, re.IGNORECASE))
-                comp_count += len(re.findall(pattern_no_acc, text_lower_no_accents, re.IGNORECASE))
+                if re.search(pattern_normal, text_lower, re.IGNORECASE) or \
+                   re.search(pattern_no_acc, text_lower_no_accents, re.IGNORECASE):
+                    found_in_this_response = True
             
             # B) ✨ NUEVO: Buscar también en sources/enlaces (importante para Perplexity)
-            if sources:
+            if not found_in_this_response and sources:
                 for source in sources:
                     source_url = source.get('url', '').lower()
                     # Verificar si alguna variación del competidor está en la URL
                     for variation in comp_variations:
                         if variation.lower() in source_url:
-                            comp_count += 1
+                            found_in_this_response = True
                             logger.debug(f"[COMPETITOR] Found '{competitor}' in source URL: {source_url}")
-                            break  # Solo contar una vez por URL
+                            break
+                    if found_in_this_response:
+                        break
             
-            if comp_count > 0:
-                competitors_mentioned[competitor] = comp_count
+            # ✨ NUEVO: Agrupar bajo el NOMBRE del competidor
+            if found_in_this_response:
+                # Obtener nombre agrupado (ej: "orange.es" → "Orange")
+                comp_name = competitor_term_to_name.get(competitor.lower(), competitor)
+                # Marcar como mencionado (1 = mencionado en esta respuesta)
+                # Usamos max() para evitar sobrescribir si ya se encontró otro término del mismo competidor
+                competitors_mentioned[comp_name] = max(competitors_mentioned.get(comp_name, 0), 1)
         
         return {
             'brand_mentioned': brand_mentioned,
@@ -959,21 +981,34 @@ JSON:"""
         competitor_domains_flat = []
         competitor_keywords_flat = []
         
+        # ✨ NUEVO: Crear mapeo de términos a nombre de competidor para agrupación
+        # Esto permite que "orange" y "orange.es" se agrupen bajo "Orange"
+        competitor_term_to_name = {}  # {'orange': 'Orange', 'orange.es': 'Orange', ...}
+        competitor_names = []  # Lista de nombres únicos de competidores
+        
         if selected_competitors and len(selected_competitors) > 0:
             for comp in selected_competitors:
                 domain = comp.get('domain', '').strip()
                 keywords = comp.get('keywords', [])
+                # El nombre es el dominio sin extensión o el primer keyword
+                comp_name = domain.replace('.es', '').replace('.com', '').replace('.net', '').replace('.org', '').title() if domain else (keywords[0].title() if keywords else 'Unknown')
                 
                 if domain:
                     competitor_domains_flat.append(domain)
+                    competitor_term_to_name[domain.lower()] = comp_name
                 if keywords:
                     competitor_keywords_flat.extend(keywords)
+                    for kw in keywords:
+                        competitor_term_to_name[kw.lower()] = comp_name
+                
+                if comp_name not in competitor_names:
+                    competitor_names.append(comp_name)
             
             logger.info(f"   🏢 {len(selected_competitors)} competidores configurados:")
             for comp in selected_competitors:
-                comp_name = comp.get('name', 'Unknown')
                 comp_domain = comp.get('domain', 'N/A')
                 comp_keywords = comp.get('keywords', [])
+                comp_name = competitor_term_to_name.get(comp_domain.lower(), 'Unknown') if comp_domain else 'Unknown'
                 logger.info(f"      • {comp_name}: {comp_domain} → {comp_keywords}")
         else:
             # Fallback a campos legacy si no hay selected_competitors
@@ -981,6 +1016,12 @@ JSON:"""
             competitor_keywords_flat = project.get('competitor_keywords', [])
             if competitor_domains_flat or competitor_keywords_flat:
                 logger.info(f"   ⚠️  Usando competitor fields legacy (migrar a selected_competitors)")
+                # En modo legacy, cada término es su propio nombre
+                for term in competitor_domains_flat + competitor_keywords_flat:
+                    term_name = term.replace('.es', '').replace('.com', '').title()
+                    competitor_term_to_name[term.lower()] = term_name
+                    if term_name not in competitor_names:
+                        competitor_names.append(term_name)
         
         # Crear todas las tareas (combinaciones de LLM + query)
         tasks = []
@@ -996,8 +1037,9 @@ JSON:"""
                     'brand_domain': project.get('brand_domain'),
                     'brand_keywords': project.get('brand_keywords', []),
                     'competitors': project.get('competitors') or [],  # Legacy
-                    'competitor_domains': competitor_domains_flat,  # ✨ NUEVO: Array plano
-                    'competitor_keywords': competitor_keywords_flat,  # ✨ NUEVO: Array plano
+                    'competitor_domains': competitor_domains_flat,
+                    'competitor_keywords': competitor_keywords_flat,
+                    'competitor_term_to_name': competitor_term_to_name,  # ✨ NUEVO: Mapeo para agrupación
                     'analysis_date': analysis_date
                 })
         
@@ -1144,16 +1186,13 @@ JSON:"""
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # ✨ NUEVO: Crear lista unificada de todos los competidores para el snapshot
-        all_competitors = []
-        if competitor_domains_flat:
-            all_competitors.extend(competitor_domains_flat)
-        if competitor_keywords_flat:
-            all_competitors.extend(competitor_keywords_flat)
+        # ✨ NUEVO: Usar nombres de competidores agrupados para el snapshot
+        # En lugar de usar términos individuales, usamos los nombres agrupados
+        # Esto hace que "orange.es" y "orange" se cuenten bajo "Orange"
+        all_competitor_names = competitor_names if competitor_names else []
         
-        # Eliminar duplicados manteniendo orden
-        seen = set()
-        all_competitors = [x for x in all_competitors if not (x in seen or seen.add(x))]
+        # Guardar el mapeo para uso posterior
+        self._competitor_term_to_name = competitor_term_to_name
         
         # ✨ NUEVO: Validar que todos los LLMs analicen todas las queries
         total_queries_expected = len(queries)
@@ -1187,7 +1226,7 @@ JSON:"""
                         date=analysis_date,
                         llm_provider=llm_name,
                         llm_results=llm_results,
-                        competitors=all_competitors,  # ✨ NUEVO: Usar lista unificada
+                        competitors=all_competitor_names,  # ✨ NUEVO: Usar nombres agrupados
                         total_queries_expected=total_queries_expected  # ✨ NUEVO: Pasar total esperado
                     )
             
@@ -1284,7 +1323,8 @@ JSON:"""
                 sources=llm_result.get('sources', []),  # ✨ NUEVO: Pasar sources para detección
                 competitors=task.get('competitors'),  # Legacy
                 competitor_domains=task.get('competitor_domains'),
-                competitor_keywords=task.get('competitor_keywords')
+                competitor_keywords=task.get('competitor_keywords'),
+                competitor_term_to_name=task.get('competitor_term_to_name')  # ✨ NUEVO: Mapeo para agrupación
             )
             
             # Analizar sentimiento si hay menciones
