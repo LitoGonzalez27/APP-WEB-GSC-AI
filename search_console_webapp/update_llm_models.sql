@@ -35,7 +35,7 @@ ON CONFLICT (llm_provider, model_id) DO UPDATE SET
     updated_at = NOW();
 
 -- ============================================================================
--- GOOGLE - Gemini 3 Pro
+-- GOOGLE - Gemini 3
 -- ============================================================================
 INSERT INTO llm_model_registry (
     llm_provider, model_id, model_display_name,
@@ -43,10 +43,10 @@ INSERT INTO llm_model_registry (
     context_window, max_output_tokens,
     is_current, is_available, notes
 ) VALUES (
-    'google', 'gemini-3-pro-preview', 'Gemini 3 Pro',
-    0.000002, 0.000012,  -- $2/$12 per 1M tokens (< 200K)
+    'google', 'gemini-3', 'Gemini 3',
+    0.000001, 0.000004,  -- $1/$4 per 1M tokens (estimado)
     1000000, 64000,
-    TRUE, TRUE, 'Gemini 3 Pro - Diciembre 2025. Modelo más inteligente de Google con razonamiento avanzado.'
+    TRUE, TRUE, 'Gemini 3 - Diciembre 2025. Modelo inteligente de Google con razonamiento avanzado.'
 )
 ON CONFLICT (llm_provider, model_id) DO UPDATE SET
     is_current = TRUE,

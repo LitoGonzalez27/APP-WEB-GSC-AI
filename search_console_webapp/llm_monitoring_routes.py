@@ -2309,7 +2309,7 @@ def get_current_models():
         fallbacks = {
             'openai': {'model_id': 'gpt-5-2025-08-07', 'display_name': 'GPT-5', 'notes': 'Default'},
             'anthropic': {'model_id': 'claude-sonnet-4-5', 'display_name': 'Claude Sonnet 4.5', 'notes': 'Default'},
-            'google': {'model_id': 'gemini-3-pro-preview', 'display_name': 'Gemini 3 Pro', 'notes': 'Default'},
+            'google': {'model_id': 'gemini-3', 'display_name': 'Gemini 3', 'notes': 'Default'},
             'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar', 'notes': 'Default'}
         }
         
