@@ -2252,7 +2252,7 @@ class LLMMonitoring {
                 } catch (_) { /* silencioso */ }
             };
 
-            // Helper: capture element with high quality for PDF
+            // Helper: capture element optimized for PDF (balance quality vs size)
             const captureElement = async (element, label = '') => {
                 if (!element) {
                     console.warn(`⚠️ Element not found: ${label}`);
@@ -2261,7 +2261,7 @@ class LLMMonitoring {
                 if (btnText) btnText.textContent = `Capturing ${label}...`;
                 
                 const canvas = await html2canvas(element, { 
-                    scale: 3, // Higher scale for better quality
+                    scale: 2, // Reduced from 3 - still good quality, much smaller size
                     useCORS: true, 
                     backgroundColor: '#ffffff',
                     logging: false,
@@ -2307,9 +2307,9 @@ class LLMMonitoring {
                     }
                 });
                 
-                // Use PNG with maximum quality
+                // Use JPEG with 85% quality - much smaller than PNG, still looks good
                 return { 
-                    imgData: canvas.toDataURL('image/png', 1.0), 
+                    imgData: canvas.toDataURL('image/jpeg', 0.85), 
                     width: canvas.width, 
                     height: canvas.height 
                 };
@@ -2336,7 +2336,7 @@ class LLMMonitoring {
                 }
                 
                 const xPos = (pageWidth - imgW) / 2; // Center horizontally
-                pdf.addImage(capture.imgData, 'PNG', xPos, yPos, imgW, imgH);
+                pdf.addImage(capture.imgData, 'JPEG', xPos, yPos, imgW, imgH);
                 return yPos + imgH + 8;
             };
 
@@ -2521,9 +2521,9 @@ class LLMMonitoring {
                         const scaledW = imgW * scaleFactor;
                         const scaledH = imgH * scaleFactor;
                         const xCentered = (pageWidth - scaledW) / 2;
-                        pdf.addImage(queriesCapture.imgData, 'PNG', xCentered, margin, scaledW, scaledH);
+                        pdf.addImage(queriesCapture.imgData, 'JPEG', xCentered, margin, scaledW, scaledH);
                     } else {
-                        pdf.addImage(queriesCapture.imgData, 'PNG', margin, margin, imgW, imgH);
+                        pdf.addImage(queriesCapture.imgData, 'JPEG', margin, margin, imgW, imgH);
                     }
                 }
             }
