@@ -2453,13 +2453,13 @@ class LLMMonitoring {
                 
                 // Build rows for all queries (same format as renderQueriesTable)
                 const allRows = this.queriesData.map((q, idx) => {
-                    const visibility = q.visibility_score || 0;
-                    const visibilityPct = Math.min(100, Math.max(0, visibility * 100));
+                    // Use visibility_pct directly (same as original table)
+                    const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
                     const visibilityStr = visibilityPct.toFixed(1);
                     
                     return [
                         gridjs.html(`<span style="color: #666; font-size: 12px;">#${idx + 1}</span>`),
-                        q.prompt || 'N/A',  // ← Correct field name
+                        q.prompt || 'N/A',
                         q.country || 'N/A',
                         q.language ? q.language.toUpperCase() : 'N/A',
                         q.total_mentions || 0,
