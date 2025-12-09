@@ -2459,8 +2459,8 @@ class LLMMonitoring {
                     
                     return [
                         gridjs.html(`<span style="color: #666; font-size: 12px;">#${idx + 1}</span>`),
-                        q.query_text || 'N/A',
-                        q.country ? q.country.toUpperCase() : 'N/A',
+                        q.prompt || 'N/A',  // ← Correct field name
+                        q.country || 'N/A',
                         q.language ? q.language.toUpperCase() : 'N/A',
                         q.total_mentions || 0,
                         gridjs.html(`
