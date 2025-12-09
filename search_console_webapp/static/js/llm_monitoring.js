@@ -2437,16 +2437,94 @@ class LLMMonitoring {
             await addCornerLogo();
 
             // ================================================================
-            // PAGE 3: Prompts & Queries Table
+            // PAGE 3: Prompts & Queries Table (ALL rows, no pagination)
             // ================================================================
             pdf.addPage();
             if (btnText) btnText.textContent = 'Page 3/4: Prompts & Queries...';
             
             const queriesCard = document.getElementById('queriesTable')?.closest('.chart-card');
-            if (queriesCard) {
+            const queriesContainer = document.getElementById('queriesTable');
+            
+            if (queriesCard && queriesContainer && this.queriesData && this.queriesData.length > 0) {
+                // Temporarily render table without pagination for PDF
+                if (this.queriesGrid) {
+                    this.queriesGrid.destroy();
+                }
+                
+                // Build rows for all queries (same format as renderQueriesTable)
+                const allRows = this.queriesData.map((q, idx) => {
+                    const visibility = q.visibility_score || 0;
+                    const visibilityPct = Math.min(100, Math.max(0, visibility * 100));
+                    const visibilityStr = visibilityPct.toFixed(1);
+                    
+                    return [
+                        gridjs.html(`<span style="color: #666; font-size: 12px;">#${idx + 1}</span>`),
+                        q.query_text || 'N/A',
+                        q.country ? q.country.toUpperCase() : 'N/A',
+                        q.language ? q.language.toUpperCase() : 'N/A',
+                        q.total_mentions || 0,
+                        gridjs.html(`
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
+                                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${visibilityPct}%, transparent ${visibilityPct}%); width: 100%; border-radius: 9999px;"></div>
+                                </div>
+                                <span style="min-width: 45px; text-align: right; font-weight: 600;">${visibilityStr}%</span>
+                            </div>
+                        `)
+                    ];
+                });
+                
+                // Create grid WITHOUT pagination for PDF
+                const pdfGrid = new gridjs.Grid({
+                    columns: [
+                        { id: 'num', name: '#', width: '50px', sort: false },
+                        { id: 'prompt', name: 'Prompt', width: '45%' },
+                        { id: 'country', name: 'Country', width: '80px' },
+                        { id: 'language', name: 'Language', width: '80px' },
+                        { id: 'mentions', name: 'Total Mentions', width: '120px' },
+                        { id: 'visibility', name: 'Avg Visibility %', width: '140px' }
+                    ],
+                    data: allRows,
+                    sort: false,
+                    search: false,
+                    pagination: false, // NO PAGINATION for PDF
+                    style: {
+                        table: { 'font-size': '13px' },
+                        th: {
+                            'background-color': '#161616',
+                            'color': '#D8F9B8',
+                            'font-weight': '700',
+                            'padding': '0.75rem'
+                        },
+                        td: { 'padding': '0.65rem' }
+                    }
+                }).render(queriesContainer);
+                
+                // Wait for grid to render
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Capture the full table
                 const queriesCapture = await captureElement(queriesCard, 'Queries Table');
+                
+                // Destroy PDF grid and restore original with pagination
+                pdfGrid.destroy();
+                this.renderQueriesTable(this.queriesData);
+                
+                // Add to PDF - may need multiple pages if very long
                 if (queriesCapture) {
-                    addImageToPDF(queriesCapture, margin);
+                    const imgW = pageWidth - (margin * 2);
+                    const imgH = (queriesCapture.height / queriesCapture.width) * imgW;
+                    
+                    if (imgH > pageHeight - (margin * 2)) {
+                        // Table is very tall, scale to fit one page
+                        const scaleFactor = (pageHeight - (margin * 2)) / imgH;
+                        const scaledW = imgW * scaleFactor;
+                        const scaledH = imgH * scaleFactor;
+                        const xCentered = (pageWidth - scaledW) / 2;
+                        pdf.addImage(queriesCapture.imgData, 'PNG', xCentered, margin, scaledW, scaledH);
+                    } else {
+                        pdf.addImage(queriesCapture.imgData, 'PNG', margin, margin, imgW, imgH);
+                    }
                 }
             }
             
