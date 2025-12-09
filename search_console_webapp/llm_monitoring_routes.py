@@ -3065,6 +3065,80 @@ def export_project_pdf(project_id):
 # CRON: Model Discovery (cada 2 semanas)
 # ============================================================================
 
+def get_model_version_score(model_id: str) -> tuple:
+    """
+    Calcula un score de versión para comparar modelos.
+    Retorna una tupla (major_version, date_score, model_id) para ordenar.
+    
+    Ejemplos:
+        gpt-5.1 -> (5, 1, 99999999, 'gpt-5.1')
+        gpt-5-2025-08-07 -> (5, 0, 20250807, 'gpt-5-2025-08-07')
+        gpt-4o-2024-05-13 -> (4, 0, 20240513, 'gpt-4o-2024-05-13')
+        gemini-3-pro-preview -> (3, 0, 99999999, 'gemini-3-pro-preview')
+    """
+    import re
+    
+    model_lower = model_id.lower()
+    
+    # Extraer versión principal (gpt-5, gpt-4, gemini-3, etc.)
+    major = 0
+    if 'gpt-5' in model_lower or 'gpt5' in model_lower:
+        major = 5
+    elif 'gpt-4.1' in model_lower:
+        major = 4.1
+    elif 'gpt-4' in model_lower or 'gpt4' in model_lower:
+        major = 4
+    elif 'o3' in model_lower:
+        major = 6  # o3 es más nuevo que gpt-5
+    elif 'o1' in model_lower:
+        major = 5.5  # o1 está entre gpt-5 y o3
+    elif 'gemini-3' in model_lower:
+        major = 3
+    elif 'gemini-2' in model_lower:
+        major = 2
+    elif 'gemini-1' in model_lower:
+        major = 1
+    elif 'claude-sonnet-4' in model_lower or 'claude-4' in model_lower:
+        major = 4
+    elif 'claude-3' in model_lower:
+        major = 3
+    elif 'sonar-pro' in model_lower:
+        major = 2
+    elif 'sonar-reasoning' in model_lower:
+        major = 3
+    elif 'sonar' in model_lower:
+        major = 1
+    
+    # Extraer sub-versión (.1, .5, etc.)
+    sub_version = 0
+    sub_match = re.search(r'gpt-(\d+)\.(\d+)', model_lower)
+    if sub_match:
+        sub_version = int(sub_match.group(2))
+    
+    # Extraer fecha (YYYY-MM-DD o YYYYMMDD)
+    date_score = 0
+    date_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', model_id)
+    if date_match:
+        date_score = int(f"{date_match.group(1)}{date_match.group(2)}{date_match.group(3)}")
+    else:
+        # Si no tiene fecha, asumir que es el "latest" (muy reciente)
+        if 'preview' in model_lower or 'latest' in model_lower:
+            date_score = 99999998
+        else:
+            date_score = 99999999
+    
+    return (major, sub_version, date_score, model_id)
+
+
+def is_model_newer(new_model_id: str, current_model_id: str) -> bool:
+    """Determina si new_model_id es más nuevo que current_model_id."""
+    new_score = get_model_version_score(new_model_id)
+    current_score = get_model_version_score(current_model_id)
+    
+    # Comparar: (major, sub_version, date_score)
+    return (new_score[0], new_score[1], new_score[2]) > (current_score[0], current_score[1], current_score[2])
+
+
 @llm_monitoring_bp.route('/cron/model-discovery', methods=['POST'])
 @cron_or_auth_required
 def cron_model_discovery():
@@ -3073,8 +3147,9 @@ def cron_model_discovery():
     
     Este endpoint:
     1. Consulta las APIs de cada proveedor para detectar nuevos modelos
-    2. Añade los nuevos modelos a la BD
-    3. Envía email de notificación con el resumen
+    2. Compara versiones para identificar modelos MÁS NUEVOS vs MÁS ANTIGUOS
+    3. Solo notifica sobre modelos realmente más nuevos
+    4. Envía email de notificación con el resumen
     
     Llamar cada 2 semanas desde Railway Function-bun.
     
@@ -3123,20 +3198,36 @@ def cron_model_discovery():
         
         # 2. Descubrir modelos de cada proveedor
         discovered_models = []
-        new_models = []
+        newer_models = []      # Modelos MÁS NUEVOS que el actual
+        older_models = []      # Modelos MÁS ANTIGUOS que el actual
+        same_or_known = []     # Modelos ya conocidos
         errors = []
         
-        # OpenAI
+        # OpenAI - Solo buscar modelos de la familia GPT-5 y O-series (más recientes)
         try:
             openai_key = os.getenv('OPENAI_API_KEY')
             if openai_key:
                 client = openai.OpenAI(api_key=openai_key)
                 models = client.models.list()
+                current_openai = current_models.get('openai', 'gpt-5.1')
+                
                 for m in models.data:
+                    # Solo modelos GPT relevantes
                     if any(p in m.id.lower() for p in ['gpt-5', 'gpt-4', 'o1', 'o3']):
                         discovered_models.append({'provider': 'openai', 'model_id': m.id})
+                        
                         if m.id not in known_model_ids:
-                            new_models.append({'provider': 'openai', 'model_id': m.id, 'display_name': m.id})
+                            model_info = {'provider': 'openai', 'model_id': m.id, 'display_name': m.id}
+                            
+                            if is_model_newer(m.id, current_openai):
+                                model_info['status'] = 'NEWER'
+                                newer_models.append(model_info)
+                            else:
+                                model_info['status'] = 'OLDER'
+                                older_models.append(model_info)
+                        else:
+                            same_or_known.append({'provider': 'openai', 'model_id': m.id, 'status': 'KNOWN'})
+                            
                 logger.info(f"✅ OpenAI: Consultado correctamente")
         except Exception as e:
             errors.append(f"OpenAI: {str(e)[:100]}")
@@ -3148,28 +3239,46 @@ def cron_model_discovery():
             if google_key:
                 genai.configure(api_key=google_key)
                 models = genai.list_models()
+                current_google = current_models.get('google', 'gemini-3-pro-preview')
+                
                 for m in models:
                     if 'gemini' in m.name.lower():
                         model_id = m.name.split('/')[-1] if '/' in m.name else m.name
+                        display = getattr(m, 'display_name', model_id)
                         discovered_models.append({'provider': 'google', 'model_id': model_id})
+                        
                         if model_id not in known_model_ids:
-                            display = getattr(m, 'display_name', model_id)
-                            new_models.append({'provider': 'google', 'model_id': model_id, 'display_name': display})
+                            model_info = {'provider': 'google', 'model_id': model_id, 'display_name': display}
+                            
+                            if is_model_newer(model_id, current_google):
+                                model_info['status'] = 'NEWER'
+                                newer_models.append(model_info)
+                            else:
+                                model_info['status'] = 'OLDER'
+                                older_models.append(model_info)
+                                
                 logger.info(f"✅ Google: Consultado correctamente")
         except Exception as e:
             errors.append(f"Google: {str(e)[:100]}")
             logger.error(f"❌ Google error: {e}")
         
-        # Perplexity (lista estática - no tiene endpoint de listado)
+        # Perplexity (lista estática)
         perplexity_models = ['sonar', 'sonar-pro', 'sonar-reasoning']
+        current_perplexity = current_models.get('perplexity', 'sonar')
         for model_id in perplexity_models:
             discovered_models.append({'provider': 'perplexity', 'model_id': model_id})
             if model_id not in known_model_ids:
-                new_models.append({'provider': 'perplexity', 'model_id': model_id, 'display_name': f'Perplexity {model_id.title()}'})
+                model_info = {'provider': 'perplexity', 'model_id': model_id, 'display_name': f'Perplexity {model_id.title()}'}
+                if is_model_newer(model_id, current_perplexity):
+                    model_info['status'] = 'NEWER'
+                    newer_models.append(model_info)
+                else:
+                    model_info['status'] = 'OLDER'
+                    older_models.append(model_info)
         
-        # 3. Añadir nuevos modelos a BD
+        # 3. Añadir SOLO modelos más nuevos a BD (los antiguos se ignoran)
         models_added = []
-        for model in new_models:
+        for model in newer_models:
             try:
                 cur.execute("""
                     INSERT INTO llm_model_registry (llm_provider, model_id, model_display_name, is_current, is_available)
@@ -3179,10 +3288,9 @@ def cron_model_discovery():
                 
                 if cur.rowcount > 0:
                     models_added.append(model)
-                    logger.info(f"   ✅ Añadido: {model['provider']} / {model['model_id']}")
+                    logger.info(f"   ✅ Añadido (NUEVO): {model['provider']} / {model['model_id']}")
                     
                     if auto_update:
-                        # Quitar current del anterior
                         cur.execute("""
                             UPDATE llm_model_registry SET is_current = FALSE
                             WHERE llm_provider = %s AND model_id != %s
@@ -3210,9 +3318,9 @@ def cron_model_discovery():
                 from email_service import send_email
                 
                 # Construir contenido del email
-                subject = "🤖 LLM Model Discovery Report"
-                if new_models:
-                    subject = f"🆕 {len(new_models)} nuevos modelos LLM detectados"
+                subject = "🤖 LLM Model Discovery Report - Todo actualizado ✅"
+                if newer_models:
+                    subject = f"🆕 {len(newer_models)} modelos MÁS NUEVOS detectados - ¡Acción requerida!"
                 
                 html_body = f"""
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -3226,7 +3334,7 @@ def cron_model_discovery():
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
                         <tr style="background: #161616; color: #D8F9B8;">
                             <th style="padding: 10px; text-align: left;">Proveedor</th>
-                            <th style="padding: 10px; text-align: left;">Modelo</th>
+                            <th style="padding: 10px; text-align: left;">Modelo Activo</th>
                         </tr>
                 """
                 
@@ -3240,44 +3348,67 @@ def cron_model_discovery():
                 
                 html_body += "</table>"
                 
-                if new_models:
+                # Modelos MÁS NUEVOS (importante!)
+                if newer_models:
                     html_body += f"""
-                    <h2 style="color: #22c55e;">🆕 Nuevos Modelos Detectados ({len(new_models)})</h2>
-                    <ul style="background: #f0fdf4; padding: 15px 15px 15px 35px; border-radius: 8px;">
+                    <h2 style="color: #22c55e;">🚀 Modelos MÁS NUEVOS Detectados ({len(newer_models)})</h2>
+                    <p style="color: #666; font-size: 14px;">Estos modelos son más recientes que los que tienes activos:</p>
+                    <ul style="background: #f0fdf4; padding: 15px 15px 15px 35px; border-radius: 8px; border-left: 4px solid #22c55e;">
                     """
-                    for m in new_models:
-                        status = "✅ Activado" if auto_update else "⏳ Pendiente de activar"
-                        html_body += f"<li><strong>{m['provider']}</strong>: {m['model_id']} - {status}</li>"
+                    for m in newer_models:
+                        status = "✅ Activado automáticamente" if auto_update else "⏳ Pendiente de activar"
+                        html_body += f"<li><strong>{m['provider'].upper()}</strong>: <code>{m['model_id']}</code> - {status}</li>"
                     html_body += "</ul>"
                     
                     if not auto_update:
                         html_body += """
                         <p style="background: #fef3c7; padding: 15px; border-radius: 8px; color: #92400e;">
-                            ⚠️ <strong>Acción requerida:</strong> Los nuevos modelos no se han activado automáticamente.
-                            Para activarlos, ejecuta: <code>python update_models_now.py</code>
+                            ⚠️ <strong>Acción recomendada:</strong> Hay modelos más nuevos disponibles.
+                            Considera actualizar ejecutando: <code>python update_models_now.py</code>
                         </p>
                         """
                 else:
                     html_body += """
-                    <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; text-align: center;">
-                        <p style="color: #0369a1; margin: 0;">✅ No hay nuevos modelos. Tu APP está actualizada.</p>
+                    <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #22c55e;">
+                        <p style="color: #166534; margin: 0; font-weight: 600;">
+                            ✅ ¡Tu APP está usando los modelos más recientes!
+                        </p>
+                        <p style="color: #666; margin: 10px 0 0 0; font-size: 14px;">
+                            No se detectaron modelos más nuevos que los que tienes activos.
+                        </p>
                     </div>
                     """
                 
+                # Modelos MÁS ANTIGUOS (solo informativo)
+                if older_models:
+                    html_body += f"""
+                    <details style="margin-top: 20px;">
+                        <summary style="cursor: pointer; color: #666; font-size: 14px;">
+                            📁 {len(older_models)} modelos más antiguos detectados (no añadidos)
+                        </summary>
+                        <ul style="background: #f9fafb; padding: 15px 15px 15px 35px; border-radius: 8px; color: #666; font-size: 13px; margin-top: 10px;">
+                    """
+                    for m in older_models[:10]:  # Solo mostrar los primeros 10
+                        html_body += f"<li>{m['provider']}: {m['model_id']}</li>"
+                    if len(older_models) > 10:
+                        html_body += f"<li>... y {len(older_models) - 10} más</li>"
+                    html_body += "</ul></details>"
+                
                 if errors:
                     html_body += f"""
-                    <h3 style="color: #dc2626;">⚠️ Errores durante el descubrimiento</h3>
-                    <ul style="color: #666;">
+                    <h3 style="color: #dc2626; margin-top: 20px;">⚠️ Errores durante el descubrimiento</h3>
+                    <ul style="color: #666; font-size: 14px;">
                     """
                     for err in errors:
                         html_body += f"<li>{err}</li>"
                     html_body += "</ul>"
                 
-                html_body += """
+                html_body += f"""
                     <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
                     <p style="color: #999; font-size: 12px; text-align: center;">
                         ClicAndSEO - LLM Visibility Monitor<br>
-                        Este email se envía automáticamente cada 2 semanas.
+                        Este email se envía automáticamente cada 2 semanas.<br>
+                        <small>Total modelos escaneados: {len(discovered_models)}</small>
                     </p>
                 </div>
                 """
@@ -3292,7 +3423,8 @@ def cron_model_discovery():
         logger.info("=" * 60)
         logger.info(f"✅ Descubrimiento completado")
         logger.info(f"   Modelos descubiertos: {len(discovered_models)}")
-        logger.info(f"   Nuevos modelos: {len(new_models)}")
+        logger.info(f"   Modelos MÁS NUEVOS: {len(newer_models)}")
+        logger.info(f"   Modelos más antiguos (ignorados): {len(older_models)}")
         logger.info(f"   Modelos añadidos a BD: {len(models_added)}")
         logger.info("=" * 60)
         
@@ -3300,11 +3432,16 @@ def cron_model_discovery():
             'success': True,
             'message': 'Model discovery completed',
             'discovered_count': len(discovered_models),
-            'new_models': new_models,
+            'newer_models': newer_models,      # Solo modelos MÁS NUEVOS que los actuales
+            'older_models_count': len(older_models),  # Cuántos modelos antiguos se ignoraron
             'models_added': models_added,
             'current_models': final_models,
             'email_sent': email_sent,
-            'errors': errors
+            'errors': errors,
+            'summary': {
+                'app_is_updated': len(newer_models) == 0,
+                'action_required': len(newer_models) > 0 and not auto_update
+            }
         }), 200
         
     except Exception as e:
