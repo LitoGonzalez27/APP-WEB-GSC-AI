@@ -3061,5 +3061,259 @@ def export_project_pdf(project_id):
         return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
 
 
+# ============================================================================
+# CRON: Model Discovery (cada 2 semanas)
+# ============================================================================
+
+@llm_monitoring_bp.route('/cron/model-discovery', methods=['POST'])
+@cron_or_auth_required
+def cron_model_discovery():
+    """
+    Endpoint para CRON de descubrimiento de modelos LLM.
+    
+    Este endpoint:
+    1. Consulta las APIs de cada proveedor para detectar nuevos modelos
+    2. Añade los nuevos modelos a la BD
+    3. Envía email de notificación con el resumen
+    
+    Llamar cada 2 semanas desde Railway Function-bun.
+    
+    Query params:
+        - notify_email: Email para notificación (default: info@soycarlosgonzalez.com)
+        - auto_update: true/false - Activar automáticamente nuevos modelos (default: false)
+    
+    Returns:
+        JSON con resultados del descubrimiento
+    """
+    import openai
+    import google.generativeai as genai
+    
+    notify_email = request.args.get('notify_email', 'info@soycarlosgonzalez.com')
+    auto_update = request.args.get('auto_update', 'false').lower() == 'true'
+    
+    logger.info("=" * 60)
+    logger.info("🔍 CRON: Iniciando descubrimiento de modelos LLM...")
+    logger.info(f"   Notify email: {notify_email}")
+    logger.info(f"   Auto-update: {auto_update}")
+    logger.info("=" * 60)
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # 1. Obtener modelos actuales de BD
+        cur.execute("""
+            SELECT llm_provider, model_id, model_display_name, is_current
+            FROM llm_model_registry
+            ORDER BY llm_provider, is_current DESC
+        """)
+        db_models = cur.fetchall()
+        
+        current_models = {}
+        known_model_ids = set()
+        for m in db_models:
+            known_model_ids.add(m['model_id'])
+            if m['is_current']:
+                current_models[m['llm_provider']] = m['model_id']
+        
+        logger.info(f"📊 Modelos actuales en BD: {current_models}")
+        
+        # 2. Descubrir modelos de cada proveedor
+        discovered_models = []
+        new_models = []
+        errors = []
+        
+        # OpenAI
+        try:
+            openai_key = os.getenv('OPENAI_API_KEY')
+            if openai_key:
+                client = openai.OpenAI(api_key=openai_key)
+                models = client.models.list()
+                for m in models.data:
+                    if any(p in m.id.lower() for p in ['gpt-5', 'gpt-4', 'o1', 'o3']):
+                        discovered_models.append({'provider': 'openai', 'model_id': m.id})
+                        if m.id not in known_model_ids:
+                            new_models.append({'provider': 'openai', 'model_id': m.id, 'display_name': m.id})
+                logger.info(f"✅ OpenAI: Consultado correctamente")
+        except Exception as e:
+            errors.append(f"OpenAI: {str(e)[:100]}")
+            logger.error(f"❌ OpenAI error: {e}")
+        
+        # Google
+        try:
+            google_key = os.getenv('GOOGLE_AI_API_KEY')
+            if google_key:
+                genai.configure(api_key=google_key)
+                models = genai.list_models()
+                for m in models:
+                    if 'gemini' in m.name.lower():
+                        model_id = m.name.split('/')[-1] if '/' in m.name else m.name
+                        discovered_models.append({'provider': 'google', 'model_id': model_id})
+                        if model_id not in known_model_ids:
+                            display = getattr(m, 'display_name', model_id)
+                            new_models.append({'provider': 'google', 'model_id': model_id, 'display_name': display})
+                logger.info(f"✅ Google: Consultado correctamente")
+        except Exception as e:
+            errors.append(f"Google: {str(e)[:100]}")
+            logger.error(f"❌ Google error: {e}")
+        
+        # Perplexity (lista estática - no tiene endpoint de listado)
+        perplexity_models = ['sonar', 'sonar-pro', 'sonar-reasoning']
+        for model_id in perplexity_models:
+            discovered_models.append({'provider': 'perplexity', 'model_id': model_id})
+            if model_id not in known_model_ids:
+                new_models.append({'provider': 'perplexity', 'model_id': model_id, 'display_name': f'Perplexity {model_id.title()}'})
+        
+        # 3. Añadir nuevos modelos a BD
+        models_added = []
+        for model in new_models:
+            try:
+                cur.execute("""
+                    INSERT INTO llm_model_registry (llm_provider, model_id, model_display_name, is_current, is_available)
+                    VALUES (%s, %s, %s, %s, TRUE)
+                    ON CONFLICT (llm_provider, model_id) DO NOTHING
+                """, (model['provider'], model['model_id'], model['display_name'], auto_update))
+                
+                if cur.rowcount > 0:
+                    models_added.append(model)
+                    logger.info(f"   ✅ Añadido: {model['provider']} / {model['model_id']}")
+                    
+                    if auto_update:
+                        # Quitar current del anterior
+                        cur.execute("""
+                            UPDATE llm_model_registry SET is_current = FALSE
+                            WHERE llm_provider = %s AND model_id != %s
+                        """, (model['provider'], model['model_id']))
+                        logger.info(f"   🔄 Activado como modelo actual")
+                        
+            except Exception as e:
+                logger.error(f"   ❌ Error añadiendo {model['model_id']}: {e}")
+        
+        conn.commit()
+        
+        # 4. Obtener estado final
+        cur.execute("""
+            SELECT llm_provider, model_id, model_display_name
+            FROM llm_model_registry
+            WHERE is_current = TRUE
+            ORDER BY llm_provider
+        """)
+        final_models = {row['llm_provider']: row['model_id'] for row in cur.fetchall()}
+        
+        # 5. Enviar email de notificación
+        email_sent = False
+        if notify_email:
+            try:
+                from email_service import send_email
+                
+                # Construir contenido del email
+                subject = "🤖 LLM Model Discovery Report"
+                if new_models:
+                    subject = f"🆕 {len(new_models)} nuevos modelos LLM detectados"
+                
+                html_body = f"""
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h1 style="color: #161616; border-bottom: 3px solid #D8F9B8; padding-bottom: 10px;">
+                        🔍 LLM Model Discovery Report
+                    </h1>
+                    
+                    <p style="color: #666;">Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC</p>
+                    
+                    <h2 style="color: #161616;">📊 Modelos Actuales en tu APP</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr style="background: #161616; color: #D8F9B8;">
+                            <th style="padding: 10px; text-align: left;">Proveedor</th>
+                            <th style="padding: 10px; text-align: left;">Modelo</th>
+                        </tr>
+                """
+                
+                for provider, model_id in final_models.items():
+                    html_body += f"""
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;">{provider.upper()}</td>
+                            <td style="padding: 10px;"><code>{model_id}</code></td>
+                        </tr>
+                    """
+                
+                html_body += "</table>"
+                
+                if new_models:
+                    html_body += f"""
+                    <h2 style="color: #22c55e;">🆕 Nuevos Modelos Detectados ({len(new_models)})</h2>
+                    <ul style="background: #f0fdf4; padding: 15px 15px 15px 35px; border-radius: 8px;">
+                    """
+                    for m in new_models:
+                        status = "✅ Activado" if auto_update else "⏳ Pendiente de activar"
+                        html_body += f"<li><strong>{m['provider']}</strong>: {m['model_id']} - {status}</li>"
+                    html_body += "</ul>"
+                    
+                    if not auto_update:
+                        html_body += """
+                        <p style="background: #fef3c7; padding: 15px; border-radius: 8px; color: #92400e;">
+                            ⚠️ <strong>Acción requerida:</strong> Los nuevos modelos no se han activado automáticamente.
+                            Para activarlos, ejecuta: <code>python update_models_now.py</code>
+                        </p>
+                        """
+                else:
+                    html_body += """
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; text-align: center;">
+                        <p style="color: #0369a1; margin: 0;">✅ No hay nuevos modelos. Tu APP está actualizada.</p>
+                    </div>
+                    """
+                
+                if errors:
+                    html_body += f"""
+                    <h3 style="color: #dc2626;">⚠️ Errores durante el descubrimiento</h3>
+                    <ul style="color: #666;">
+                    """
+                    for err in errors:
+                        html_body += f"<li>{err}</li>"
+                    html_body += "</ul>"
+                
+                html_body += """
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                    <p style="color: #999; font-size: 12px; text-align: center;">
+                        ClicAndSEO - LLM Visibility Monitor<br>
+                        Este email se envía automáticamente cada 2 semanas.
+                    </p>
+                </div>
+                """
+                
+                send_email(notify_email, subject, html_body)
+                email_sent = True
+                logger.info(f"📧 Email enviado a {notify_email}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error enviando email: {e}")
+        
+        logger.info("=" * 60)
+        logger.info(f"✅ Descubrimiento completado")
+        logger.info(f"   Modelos descubiertos: {len(discovered_models)}")
+        logger.info(f"   Nuevos modelos: {len(new_models)}")
+        logger.info(f"   Modelos añadidos a BD: {len(models_added)}")
+        logger.info("=" * 60)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Model discovery completed',
+            'discovered_count': len(discovered_models),
+            'new_models': new_models,
+            'models_added': models_added,
+            'current_models': final_models,
+            'email_sent': email_sent,
+            'errors': errors
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error en model discovery: {e}", exc_info=True)
+        return jsonify({'error': f'Error en model discovery: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 logger.info("✅ LLM Monitoring Blueprint loaded successfully")
 
