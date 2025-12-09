@@ -2281,11 +2281,11 @@ def get_current_models():
             }
         }
     """
-    # Fallbacks por defecto (siempre disponibles)
+    # Fallbacks por defecto (Model IDs correctos según docs oficiales)
     fallbacks = {
-        'openai': {'model_id': 'gpt-5-2025-08-07', 'display_name': 'GPT-5'},
-        'anthropic': {'model_id': 'claude-sonnet-4-5', 'display_name': 'Claude Sonnet 4.5'},
-        'google': {'model_id': 'gemini-3', 'display_name': 'Gemini 3'},
+        'openai': {'model_id': 'gpt-5.1', 'display_name': 'GPT-5.1'},
+        'anthropic': {'model_id': 'claude-sonnet-4-5-20241022', 'display_name': 'Claude Sonnet 4.5'},
+        'google': {'model_id': 'gemini-3-pro-preview', 'display_name': 'Gemini 3 Pro'},
         'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar'}
     }
     

@@ -1,12 +1,16 @@
 """
-Proveedor Google - Gemini 3
-Versión: gemini-3 (Diciembre 2025)
+Proveedor Google - Gemini 3 Pro Preview
+Versión: gemini-3-pro-preview (Diciembre 2025)
 
 IMPORTANTE:
 - Modelo más inteligente de Google hasta la fecha
-- Razonamiento avanzado con thinking_level
+- Razonamiento avanzado con thinking_level (low/high)
 - 1M tokens de contexto, 64K de salida
 - Ideal para tareas complejas multimodales
+
+MODEL IDs disponibles:
+- gemini-3-pro-preview (principal)
+- gemini-3-pro-image-preview (para imágenes)
 
 Docs: https://ai.google.dev/gemini-api/docs/gemini-3
 """
@@ -54,8 +58,9 @@ class GoogleProvider(BaseLLMProvider):
         else:
             self.model_name = get_current_model_for_provider('google')
             if not self.model_name:
-                self.model_name = 'gemini-3'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando Gemini 3 por defecto")
+                # Model ID correcto según docs: gemini-3-pro-preview
+                self.model_name = 'gemini-3-pro-preview'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3-pro-preview por defecto")
         
         # Configurar límites de generación
         generation_config = {
@@ -145,8 +150,8 @@ class GoogleProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
-            'gemini-3': 'Gemini 3',
             'gemini-3-pro-preview': 'Gemini 3 Pro',
+            'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
             'gemini-2.0-flash': 'Gemini 2.0 Flash',
             'gemini-1.5-flash': 'Gemini 1.5 Flash',
             'gemini-pro': 'Gemini Pro'

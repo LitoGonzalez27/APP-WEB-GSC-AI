@@ -1,11 +1,18 @@
 """
-Proveedor OpenAI - GPT-5
+Proveedor OpenAI - GPT-5.1
 Última actualización: Diciembre 2025
 
 IMPORTANTE:
-- Modelo: gpt-5-2025-08-07
+- Modelo: gpt-5.1 (nuevo flagship, reemplaza gpt-5)
 - NO hardcodees precios aquí (se leen de BD)
 - El modelo actual se obtiene de BD (is_current=TRUE)
+
+MODEL IDs disponibles (GPT-5 family):
+- gpt-5.1 (flagship, mejor para tareas complejas)
+- gpt-5.1-codex-max (para coding)
+- gpt-5-mini (balance costo/calidad)
+- gpt-5-nano (alta velocidad, tareas simples)
+- gpt-5 (anterior flagship)
 
 Docs: https://platform.openai.com/docs/models/gpt-5
 """
@@ -65,9 +72,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a GPT-5 (modelo más reciente - Agosto 2025)
-                self.model = 'gpt-5-2025-08-07'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5-2025-08-07' por defecto")
+                # Fallback a GPT-5.1 (nuevo flagship - Dic 2025)
+                self.model = 'gpt-5.1'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.1' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)

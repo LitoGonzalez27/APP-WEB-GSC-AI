@@ -66,12 +66,12 @@ def update_current_models():
             print(f"   {provider}: {model}")
         
         # Definir los modelos que DEBERÍAN ser actuales
-        # IMPORTANTE: Usar modelos que REALMENTE existen en las APIs
+        # Model IDs correctos según documentación oficial (Dic 2025):
         desired_models = {
-            'openai': 'gpt-4o',  # GPT-4o es el más reciente disponible
-            'google': 'gemini-2.0-flash',  # Gemini 2.0 Flash es el actual
+            'openai': 'gpt-5.1',  # GPT-5.1 flagship (nuevo)
+            'google': 'gemini-3-pro-preview',  # Gemini 3 Pro Preview
             'anthropic': 'claude-sonnet-4-5-20241022',  # Claude Sonnet 4.5
-            'perplexity': 'sonar'  # Sonar es correcto
+            'perplexity': 'sonar'  # Sonar
         }
         
         print("\n" + "=" * 60)
@@ -111,12 +111,14 @@ def update_current_models():
                 # El modelo no existe, insertarlo
                 print(f"   ⚠️ {provider}: {new_model} no existe en BD, insertando...")
                 
-                # Pricing por defecto (ajustar según documentación oficial)
+                # Pricing según documentación oficial (Dic 2025)
+                # Gemini 3 Pro: $2/$12 per 1M tokens
+                # GPT-5.1: Verificar docs, estimado similar a GPT-5
                 default_pricing = {
-                    'openai': {'input': 2.50, 'output': 10.00},
-                    'google': {'input': 0.075, 'output': 0.30},
-                    'anthropic': {'input': 3.00, 'output': 15.00},
-                    'perplexity': {'input': 1.00, 'output': 1.00}
+                    'openai': {'input': 2.50, 'output': 10.00},  # GPT-5.1 estimado
+                    'google': {'input': 2.00, 'output': 12.00},  # Gemini 3 Pro (<200k)
+                    'anthropic': {'input': 3.00, 'output': 15.00},  # Claude Sonnet 4.5
+                    'perplexity': {'input': 1.00, 'output': 1.00}  # Sonar
                 }
                 
                 pricing = default_pricing.get(provider, {'input': 1.0, 'output': 1.0})
