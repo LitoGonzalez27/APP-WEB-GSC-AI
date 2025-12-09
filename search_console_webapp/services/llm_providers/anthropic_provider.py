@@ -50,8 +50,8 @@ class AnthropicProvider(BaseLLMProvider):
         else:
             self.model = get_current_model_for_provider('anthropic')
             if not self.model:
-                # Usar claude-sonnet-4-5 (nombre correcto sin fecha)
-                self.model = 'claude-sonnet-4-5'
+                # Model ID correcto según docs: claude-sonnet-4-5-20250929
+                self.model = 'claude-sonnet-4-5-20250929'
                 logger.warning("⚠️ No se encontró modelo actual en BD, usando Claude Sonnet 4.5 por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD

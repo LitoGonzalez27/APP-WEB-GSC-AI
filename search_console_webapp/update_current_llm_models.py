@@ -70,7 +70,7 @@ def update_current_models():
         desired_models = {
             'openai': 'gpt-5.1',  # GPT-5.1 flagship (nuevo)
             'google': 'gemini-3-pro-preview',  # Gemini 3 Pro Preview
-            'anthropic': 'claude-sonnet-4-5-20241022',  # Claude Sonnet 4.5
+            'anthropic': 'claude-sonnet-4-5-20250929',  # Claude Sonnet 4.5 (correcto)
             'perplexity': 'sonar'  # Sonar
         }
         
