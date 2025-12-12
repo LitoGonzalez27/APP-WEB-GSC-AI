@@ -103,12 +103,19 @@ class OpenAIProvider(BaseLLMProvider):
             total_tokens = 0
 
             # Chat Completions con el modelo configurado
+            # GPT-5.x usa max_completion_tokens, GPT-4o usa max_tokens
+            is_gpt5 = self.model.startswith('gpt-5')
             completion_params = {
                 "model": self.model,
                 "messages": [{"role": "user", "content": query}],
-                "max_tokens": 16000,  # Suficiente para respuestas de LLM monitoring
                 "timeout": 120
             }
+            
+            # Añadir el parámetro correcto según el modelo
+            if is_gpt5:
+                completion_params["max_completion_tokens"] = 16000
+            else:
+                completion_params["max_tokens"] = 16000
 
             try:
                 response = self.client.chat.completions.create(**completion_params)
@@ -117,13 +124,19 @@ class OpenAIProvider(BaseLLMProvider):
                 output_tokens = getattr(response.usage, 'completion_tokens', 0)
                 total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
             except Exception as e_chat:
-                # Si el modelo no está disponible, hacer fallback a gpt-4o
+                # Si el modelo no está disponible o hay error de parámetros, hacer fallback a gpt-4o
                 err_msg = str(e_chat).lower()
-                if 'model' in err_msg and ('not found' in err_msg or 'does not exist' in err_msg or 'not have access' in err_msg):
+                if 'model' in err_msg or 'not found' in err_msg or 'does not exist' in err_msg or 'not have access' in err_msg or 'unsupported' in err_msg:
                     fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
-                    logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Usando fallback: {fallback_model}")
-                    completion_params["model"] = fallback_model
-                    response = self.client.chat.completions.create(**completion_params)
+                    logger.warning(f"⚠️ Error con '{self.model}'. Usando fallback: {fallback_model}")
+                    # gpt-4o usa max_tokens
+                    fallback_params = {
+                        "model": fallback_model,
+                        "messages": [{"role": "user", "content": query}],
+                        "max_tokens": 16000,
+                        "timeout": 120
+                    }
+                    response = self.client.chat.completions.create(**fallback_params)
                     content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
                     input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                     output_tokens = getattr(response.usage, 'completion_tokens', 0)
