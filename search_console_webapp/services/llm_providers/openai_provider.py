@@ -26,7 +26,7 @@ from .base_provider import (
     get_current_model_for_provider,
     extract_urls_from_text
 )
-from .retry_handler import with_retry, classify_error  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry  # Sistema de retry
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ class OpenAIProvider(BaseLLMProvider):
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra GPT-5.2
+        Ejecuta una query contra GPT-5.1
         
         Args:
             query: Pregunta a hacer a ChatGPT
@@ -95,85 +95,41 @@ class OpenAIProvider(BaseLLMProvider):
         start_time = time.time()
         
         try:
-            # Para modelos GPT-5 preferimos Responses API; fallback a Chat Completions
-            use_responses = self.model.startswith('gpt-5') or os.getenv('OPENAI_USE_RESPONSES') == '1'
+            # Usar Chat Completions API directamente (más compatible)
+            # La Responses API requiere permisos especiales que no todos los proyectos tienen
             content = None
             input_tokens = 0
             output_tokens = 0
             total_tokens = 0
 
-            if use_responses:
-                try:
-                    resp = self.client.responses.create(
-                        model=self.model,
-                        input=query,
-                        max_output_tokens=64000,  # Máxima capacidad para respuestas de cualquier longitud
-                        timeout=120
-                    )
-                    # Extraer texto
-                    content = getattr(resp, 'output_text', None)
-                    if not content:
-                        # Reconstrucción robusta desde bloques de salida
-                        try:
-                            parts = []
-                            output_list = getattr(resp, 'output', None) or []
-                            for item in output_list:
-                                item_type = getattr(item, 'type', '') or ''
-                                # Bloques directos de texto
-                                if item_type in ('output_text', 'text'):
-                                    text_val = getattr(item, 'text', '') or ''
-                                    if text_val:
-                                        parts.append(text_val)
-                                # Mensajes con contenido anidado
-                                if item_type == 'message':
-                                    message_obj = getattr(item, 'message', None)
-                                    if message_obj and hasattr(message_obj, 'content'):
-                                        for block in (message_obj.content or []):
-                                            btype = getattr(block, 'type', '') or ''
-                                            if btype in ('output_text', 'text'):
-                                                btext = getattr(block, 'text', '') or ''
-                                                if btext:
-                                                    parts.append(btext)
-                            content = ''.join(parts).strip() if parts else None
-                        except Exception:
-                            content = None
-                    # Tokens
-                    if hasattr(resp, 'usage') and resp.usage:
-                        input_tokens = getattr(resp.usage, 'input_tokens', 0)
-                        output_tokens = getattr(resp.usage, 'output_tokens', 0)
-                        total_tokens = getattr(resp.usage, 'total_tokens', input_tokens + output_tokens)
-                except Exception as e_resp:
-                    # Clasificar error para decidir si reintentamos con GPT-5.1 o hacemos fallback inmediato
-                    err_type = classify_error(e_resp)
-                    if err_type in ('rate_limit', 'timeout', 'server_error', 'network'):
-                        # Reintentará el decorator with_retry para insistir con GPT-5.1
-                        logger.warning(f"ℹ️ Responses API falló ({err_type}) para {self.model}. Reintentaremos con GPT-5.1 (sin fallback aún). Detalle: {e_resp}")
-                        raise e_resp
-                    # Errores no retriables (p.ej. invalid_request/model_not_found): hacemos fallback
-                    logger.warning(f"ℹ️ Responses API fallo no-retriable para {self.model}: {e_resp}. Haciendo fallback a Chat Completions...")
+            # Chat Completions con el modelo configurado
+            completion_params = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": query}],
+                "max_tokens": 16000,  # Suficiente para respuestas de LLM monitoring
+                "timeout": 120
+            }
 
-            if not content:
-                # Chat Completions clásico
-                # ✅ Usar siempre max_tokens en Chat Completions para máxima compatibilidad
-                # 🛡️ IMPORTANTE: Si el modelo principal es GPT-5.1 (Responses),
-                # no intentamos Chat Completions con ese mismo modelo.
-                # Hacemos fallback explícito a un modelo compatible (gpt-4o por defecto).
-                completion_model = self.model
-                if use_responses:
-                    completion_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
-                    logger.info(f"ℹ️ Fallback a Chat Completions con modelo compatible: {completion_model}")
-                completion_params = {
-                    "model": completion_model,
-                    "messages": [{"role": "user", "content": query}],
-                    "max_tokens": 16000,  # GPT-4o máximo es 16K de salida
-                    "timeout": 120
-                }
-
+            try:
                 response = self.client.chat.completions.create(**completion_params)
                 content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
                 input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                 output_tokens = getattr(response.usage, 'completion_tokens', 0)
                 total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
+            except Exception as e_chat:
+                # Si el modelo no está disponible, hacer fallback a gpt-4o
+                err_msg = str(e_chat).lower()
+                if 'model' in err_msg and ('not found' in err_msg or 'does not exist' in err_msg or 'not have access' in err_msg):
+                    fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
+                    logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Usando fallback: {fallback_model}")
+                    completion_params["model"] = fallback_model
+                    response = self.client.chat.completions.create(**completion_params)
+                    content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
+                    input_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                    output_tokens = getattr(response.usage, 'completion_tokens', 0)
+                    total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
+                else:
+                    raise e_chat
             
             # Calcular tiempo de respuesta
             response_time = int((time.time() - start_time) * 1000)
