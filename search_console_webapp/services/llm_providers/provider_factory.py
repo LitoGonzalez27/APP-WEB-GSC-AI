@@ -238,10 +238,10 @@ class LLMProviderFactory:
         return {
             'openai': {
                 'display_name': 'OpenAI (ChatGPT)',
-                'models': ['gpt-5', 'gpt-4o', 'gpt-4-turbo'],
-                'description': 'Modelo más potente, razonamiento complejo',
+                'models': ['gpt-5.2', 'gpt-5.2-pro', 'gpt-5-mini', 'gpt-4o'],
+                'description': 'GPT-5.2: El mejor modelo para tareas autónomas y programación',
                 'website': 'https://platform.openai.com',
-                'pricing_note': 'Alto coste pero máxima calidad'
+                'pricing_note': 'GPT-5.2: $1.75/$14 per 1M tokens'
             },
             'anthropic': {
                 'display_name': 'Anthropic (Claude)',

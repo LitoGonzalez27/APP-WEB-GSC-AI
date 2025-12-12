@@ -2274,7 +2274,7 @@ def get_current_models():
         {
             "success": true,
             "models": {
-                "openai": {"model_id": "gpt-5-2025-08-07", "display_name": "GPT-5"},
+                "openai": {"model_id": "gpt-5.2", "display_name": "GPT-5.2"},
                 "anthropic": {"model_id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5"},
                 "google": {"model_id": "gemini-3", "display_name": "Gemini 3"},
                 "perplexity": {"model_id": "sonar", "display_name": "Perplexity Sonar"}
@@ -2283,7 +2283,7 @@ def get_current_models():
     """
     # Fallbacks por defecto (Model IDs correctos según docs oficiales)
     fallbacks = {
-        'openai': {'model_id': 'gpt-5.1', 'display_name': 'GPT-5.1'},
+        'openai': {'model_id': 'gpt-5.2', 'display_name': 'GPT-5.2'},
         'anthropic': {'model_id': 'claude-sonnet-4-5-20250929', 'display_name': 'Claude Sonnet 4.5'},
         'google': {'model_id': 'gemini-3-pro-preview', 'display_name': 'Gemini 3 Pro'},
         'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar'}
@@ -3209,7 +3209,7 @@ def cron_model_discovery():
             if openai_key:
                 client = openai.OpenAI(api_key=openai_key)
                 models = client.models.list()
-                current_openai = current_models.get('openai', 'gpt-5.1')
+                current_openai = current_models.get('openai', 'gpt-5.2')
                 
                 for m in models.data:
                     # Solo modelos GPT relevantes

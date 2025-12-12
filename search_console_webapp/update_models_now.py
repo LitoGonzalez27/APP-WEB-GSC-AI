@@ -37,7 +37,7 @@ def update_models():
         
         # Model IDs correctos según documentación oficial (Dic 2025)
         desired_models = {
-            'openai': ('gpt-5.1', 'GPT-5.1'),
+            'openai': ('gpt-5.2', 'GPT-5.2'),
             'google': ('gemini-3-pro-preview', 'Gemini 3 Pro'),
             'anthropic': ('claude-sonnet-4-5-20250929', 'Claude Sonnet 4.5'),
             'perplexity': ('sonar', 'Perplexity Sonar')

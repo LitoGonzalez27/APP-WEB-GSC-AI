@@ -1,20 +1,18 @@
 """
-Proveedor OpenAI - GPT-5.1
-Última actualización: Diciembre 2025
+Proveedor OpenAI - GPT-5.2
+Última actualización: 12 Diciembre 2025
 
 IMPORTANTE:
-- Modelo: gpt-5.1 (nuevo flagship, reemplaza gpt-5)
+- Modelo: gpt-5.2 (nuevo flagship, lanzado 12 Dic 2025)
 - NO hardcodees precios aquí (se leen de BD)
 - El modelo actual se obtiene de BD (is_current=TRUE)
 
-MODEL IDs disponibles (GPT-5 family):
-- gpt-5.1 (flagship, mejor para tareas complejas)
-- gpt-5.1-codex-max (para coding)
-- gpt-5-mini (balance costo/calidad)
-- gpt-5-nano (alta velocidad, tareas simples)
-- gpt-5 (anterior flagship)
+MODEL IDs disponibles (GPT-5.2 family):
+- gpt-5.2 (flagship, mejor para tareas autónomas y programación) - $1.75/$14 per 1M
+- gpt-5.2-pro (el modelo más inteligente y preciso) - $21/$168 per 1M
+- gpt-5-mini (versión económica y rápida) - $0.25/$2 per 1M
 
-Docs: https://platform.openai.com/docs/models/gpt-5
+Docs: https://platform.openai.com/docs/models/gpt-5.2
 """
 
 import logging
@@ -35,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 class OpenAIProvider(BaseLLMProvider):
     """
-    Proveedor para ChatGPT (OpenAI GPT-5)
+    Proveedor para ChatGPT (OpenAI GPT-5.2)
     
     Características:
-    - Modelo más potente disponible
-    - Razonamiento complejo
+    - Modelo más potente disponible (lanzado 12 Dic 2025)
+    - Mejor para tareas autónomas y programación
     - Ventana de contexto de 1M tokens
     """
     
@@ -56,8 +54,8 @@ class OpenAIProvider(BaseLLMProvider):
             >>> provider = OpenAIProvider(api_key='sk-proj-...')
             >>> # Usará el modelo marcado como 'current' en BD
             
-            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-4o')
-            >>> # Usará específicamente gpt-4o
+            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.2')
+            >>> # Usará específicamente gpt-5.2
         """
         self.client = openai.OpenAI(api_key=api_key)
         
@@ -72,9 +70,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a GPT-5.1 (nuevo flagship - Dic 2025)
-                self.model = 'gpt-5.1'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.1' por defecto")
+                # Fallback a GPT-5.2 (nuevo flagship - 12 Dic 2025)
+                self.model = 'gpt-5.2'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.2' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -86,7 +84,7 @@ class OpenAIProvider(BaseLLMProvider):
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra GPT-5
+        Ejecuta una query contra GPT-5.2
         
         Args:
             query: Pregunta a hacer a ChatGPT
@@ -145,11 +143,11 @@ class OpenAIProvider(BaseLLMProvider):
                         output_tokens = getattr(resp.usage, 'output_tokens', 0)
                         total_tokens = getattr(resp.usage, 'total_tokens', input_tokens + output_tokens)
                 except Exception as e_resp:
-                    # Clasificar error para decidir si reintentamos con GPT-5 o hacemos fallback inmediato
+                    # Clasificar error para decidir si reintentamos con GPT-5.2 o hacemos fallback inmediato
                     err_type = classify_error(e_resp)
                     if err_type in ('rate_limit', 'timeout', 'server_error', 'network'):
-                        # Reintentará el decorator with_retry para insistir con GPT-5
-                        logger.warning(f"ℹ️ Responses API falló ({err_type}) para {self.model}. Reintentaremos con GPT-5 (sin fallback aún). Detalle: {e_resp}")
+                        # Reintentará el decorator with_retry para insistir con GPT-5.2
+                        logger.warning(f"ℹ️ Responses API falló ({err_type}) para {self.model}. Reintentaremos con GPT-5.2 (sin fallback aún). Detalle: {e_resp}")
                         raise e_resp
                     # Errores no retriables (p.ej. invalid_request/model_not_found): hacemos fallback
                     logger.warning(f"ℹ️ Responses API fallo no-retriable para {self.model}: {e_resp}. Haciendo fallback a Chat Completions...")
@@ -157,7 +155,7 @@ class OpenAIProvider(BaseLLMProvider):
             if not content:
                 # Chat Completions clásico
                 # ✅ Usar siempre max_tokens en Chat Completions para máxima compatibilidad
-                # 🛡️ IMPORTANTE: Si el modelo principal es GPT-5 (Responses),
+                # 🛡️ IMPORTANTE: Si el modelo principal es GPT-5.2 (Responses),
                 # no intentamos Chat Completions con ese mismo modelo.
                 # Hacemos fallback explícito a un modelo compatible (gpt-4o por defecto).
                 completion_model = self.model
@@ -268,6 +266,10 @@ class OpenAIProvider(BaseLLMProvider):
     def get_model_display_name(self) -> str:
         # Mapeo de IDs a nombres legibles
         display_names = {
+            'gpt-5.2': 'GPT-5.2',
+            'gpt-5.2-pro': 'GPT-5.2 Pro',
+            'gpt-5-mini': 'GPT-5 Mini',
+            'gpt-5.1': 'GPT-5.1',
             'gpt-5-2025-08-07': 'GPT-5',
             'gpt-5': 'GPT-5',
             'gpt-4o': 'GPT-4o',
