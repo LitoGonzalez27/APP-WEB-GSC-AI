@@ -64,7 +64,7 @@ class RetryConfig:
     
     # Timeouts específicos por provider (pueden ajustarse)
     PROVIDER_TIMEOUTS = {
-        'openai': 60,      # GPT-5.2 puede tardar en respuestas largas
+        'openai': 60,      # GPT-5.1 puede tardar en respuestas largas
         'google': 30,      # Gemini es muy rápido
         'anthropic': 90,   # Claude puede hacer reasoning extenso
         'perplexity': 45   # Búsqueda en tiempo real

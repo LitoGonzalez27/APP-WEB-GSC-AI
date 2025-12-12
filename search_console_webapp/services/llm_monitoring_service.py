@@ -77,7 +77,7 @@ class MultiLLMMonitoringService:
         # IMPORTANTE: Para cron diario, preferimos fiabilidad sobre velocidad
         # Valores MUY conservadores por defecto para asegurar 100% de completitud
         self.provider_concurrency = {
-            'openai': int(os.getenv('OPENAI_CONCURRENCY', '2')),      # 2 (GPT-5.2 es lento, evitar rate limits)
+            'openai': int(os.getenv('OPENAI_CONCURRENCY', '2')),      # 2 (GPT-5.1 es lento, evitar rate limits)
             'google': int(os.getenv('GOOGLE_CONCURRENCY', '5')),      # 5 (Gemini tiene límites estrictos)
             'anthropic': int(os.getenv('ANTHROPIC_CONCURRENCY', '3')), # 3 (Claude es estable)
             'perplexity': int(os.getenv('PERPLEXITY_CONCURRENCY', '4')) # 4 (Perplexity es rápido)
@@ -791,13 +791,13 @@ JSON:"""
         - Prioriza COMPLETITUD sobre velocidad
         - Sistema de reintentos robusto (4 intentos con delays incrementales)
         - Concurrencia conservadora por provider para evitar rate limits
-        - Timeouts generosos para queries lentas (GPT-5.2)
+        - Timeouts generosos para queries lentas (GPT-5.1)
         
         TIEMPOS ESPERADOS (22 queries × 4 LLMs = 88 tareas):
         - Claude: ~2-5 minutos (rápido)
         - Gemini: ~2-5 minutos (rápido) 
         - Perplexity: ~3-8 minutos (búsqueda en tiempo real)
-        - OpenAI GPT-5.2: ~10-20 minutos (lento pero potente)
+        - OpenAI GPT-5.1: ~10-20 minutos (lento pero potente)
         - TOTAL: ~15-30 minutos (aceptable para cron diario)
         
         Args:
