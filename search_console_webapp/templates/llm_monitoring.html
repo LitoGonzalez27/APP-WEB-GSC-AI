@@ -139,6 +139,49 @@
                             <i class="fas fa-cog"></i>
                         </div>
                         <div class="nav-text">Configuration</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusConfiguration"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPerformance" onclick="navigateToSection('performance')">
+                        <div class="nav-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="nav-text">Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPerformance"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navKeywords" onclick="navigateToSection('keywords')">
+                        <div class="nav-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="nav-text">Keywords</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusKeywords"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navPages" onclick="navigateToSection('pages')">
+                        <div class="nav-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="nav-text">Pages</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusPages"></div>
+                        </div>
+                    </button>
+
+                    <button type="button" class="nav-item disabled" id="navAI" onclick="navigateToSection('ai-overview')">
+                        <div class="nav-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="nav-text">AI Overview</div>
+                        <div class="section-status">
+                            <div class="status-dot status-disabled" id="statusAI"></div>
+                        </div>
                     </button>
 
                     <button type="button" class="nav-item" id="navManualAI" onclick="navigateToManualAI()">
@@ -147,27 +190,27 @@
                         </div>
                         <div class="nav-text">Manual AI Analysis</div>
                         <div class="section-status">
-                            <div class="status-dot status-ready"></div>
+                            <div class="status-dot status-ready" id="statusManualAI"></div>
                         </div>
                     </button>
-
+                    
                     <button type="button" class="nav-item" id="navAIMode" onclick="openAIMode()">
                         <div class="nav-icon">
                             <i class="fas fa-brain"></i>
                         </div>
                         <div class="nav-text">AI Mode Monitoring</div>
                         <div class="section-status">
-                            <div class="status-dot status-ready"></div>
+                            <div class="status-dot status-ready" id="statusAIMode"></div>
                         </div>
                     </button>
-
+                    
                     <button type="button" class="nav-item active" id="navLLMMonitoring">
                         <div class="nav-icon">
                             <i class="fas fa-eye"></i>
                         </div>
                         <div class="nav-text">LLM Visibility Monitor</div>
                         <div class="section-status">
-                            <div class="status-dot status-ready"></div>
+                            <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
                         </div>
                     </button>
                 </div>
@@ -1027,6 +1070,12 @@ Alternativas a Semrush
         // Navigation functions
         function navigateToConfiguration() {
             window.location.href = '/dashboard';
+        }
+        
+        function navigateToSection(section) {
+            // Las secciones Overview, Keywords, Pages y AI Overview 
+            // redirigen a /app con la sección correspondiente
+            window.location.href = '/app#' + section;
         }
         
         function navigateToManualAI() {
