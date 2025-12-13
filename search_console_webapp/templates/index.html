@@ -266,6 +266,16 @@
               <div class="status-dot status-ready" id="statusAIMode"></div>
             </div>
           </button>
+          
+          <button type="button" class="nav-item" id="navLLMMonitoring" onclick="openLLMMonitoring()">
+            <div class="nav-icon">
+              <i class="fas fa-eye"></i>
+            </div>
+            <div class="nav-text">LLM Visibility Monitor</div>
+            <div class="section-status">
+              <div class="status-dot status-ready" id="statusLLMMonitoring"></div>
+            </div>
+          </button>
           {% else %}
           <div class="nav-item disabled" id="navManualAI" title="Authentication required">
             <div class="nav-icon">
@@ -284,6 +294,16 @@
             <div class="nav-text">AI Mode Monitoring</div>
             <div class="section-status">
               <div class="status-dot status-disabled" id="statusAIMode"></div>
+            </div>
+          </div>
+          
+          <div class="nav-item disabled" id="navLLMMonitoring" title="Authentication required">
+            <div class="nav-icon">
+              <i class="fas fa-eye"></i>
+            </div>
+            <div class="nav-text">LLM Visibility Monitor</div>
+            <div class="section-status">
+              <div class="status-dot status-disabled" id="statusLLMMonitoring"></div>
             </div>
           </div>
           {% endif %}
@@ -1292,6 +1312,11 @@
       
       // Navigate to AI Mode Monitoring in same tab
       window.location.href = '/ai-mode-projects/';
+    }
+    
+    function openLLMMonitoring() {
+      console.log('🚀 Navegando a LLM Visibility Monitor desde aplicación principal...');
+      window.location.href = '/llm-monitoring';
     }
   </script>
 
