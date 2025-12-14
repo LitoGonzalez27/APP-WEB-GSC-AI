@@ -20,7 +20,6 @@ import logging
 import time
 from typing import Dict
 import google.generativeai as genai
-from google.generativeai.types import Tool  # ✨ Para Google Search Grounding
 from .base_provider import (
     BaseLLMProvider, 
     get_model_pricing_from_db, 
@@ -34,19 +33,22 @@ logger = logging.getLogger(__name__)
 
 class GoogleProvider(BaseLLMProvider):
     """
-    Proveedor para Gemini 3 (Google) con Google Search Grounding
+    Proveedor para Gemini 3 (Google)
     
     Características:
     - Modelo más inteligente de Google (Dic 2025)
-    - ✨ GROUNDING: Busca en Google para información actualizada
     - 1M tokens de contexto, 64K de salida
     - Multimodal (texto, imágenes, audio, video)
     
-    Knowledge Cutoff: ~Marzo 2025 (SIN grounding)
-    Con Grounding: Información en tiempo real de Google Search
+    Knowledge Cutoff: ~Marzo 2025
+    
+    NOTA sobre Grounding:
+    El SDK 0.8.5 tiene soporte limitado para Google Search Grounding.
+    Está deshabilitado por defecto hasta que Google estabilice la API.
+    Para info actualizada, usa Perplexity.
     """
     
-    def __init__(self, api_key: str, model: str = None, enable_grounding: bool = True):
+    def __init__(self, api_key: str, model: str = None, enable_grounding: bool = False):
         """
         Inicializa el proveedor Google
         
@@ -85,10 +87,9 @@ class GoogleProvider(BaseLLMProvider):
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('google', self.model_name)
         
-        grounding_status = "✅ HABILITADO" if self.enable_grounding else "❌ DESHABILITADO"
         logger.info(f"🤖 Google Provider inicializado")
         logger.info(f"   Modelo: {self.model_name}")
-        logger.info(f"   Grounding (Google Search): {grounding_status}")
+        logger.info(f"   Knowledge Cutoff: ~Marzo 2025")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry  # Retry automático con exponential backoff
@@ -102,22 +103,9 @@ class GoogleProvider(BaseLLMProvider):
         start_time = time.time()
         
         try:
-            # ✨ Configurar herramientas (grounding si está habilitado)
-            tools = None
-            if self.enable_grounding:
-                try:
-                    # Google Search Grounding - permite buscar en Google
-                    tools = [Tool(google_search={})]
-                    logger.debug("🔍 Grounding habilitado: Gemini buscará en Google")
-                except Exception as e:
-                    logger.warning(f"⚠️ No se pudo habilitar grounding: {e}")
-                    tools = None
-            
-            # Ejecutar query (con o sin grounding)
-            if tools:
-                response = self.model.generate_content(query, tools=tools)
-            else:
-                response = self.model.generate_content(query)
+            # Ejecutar query (grounding deshabilitado por limitaciones del SDK)
+            # TODO: Habilitar grounding cuando Google estabilice la API
+            response = self.model.generate_content(query)
             
             response_time = int((time.time() - start_time) * 1000)
             
