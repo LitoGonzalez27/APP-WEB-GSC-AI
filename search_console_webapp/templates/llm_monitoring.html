@@ -1615,7 +1615,7 @@ Alternativas a Semrush
 
     <!-- ✨ LLM Models Info Modal -->
     <div class="modal-overlay" id="modelsInfoModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content" style="max-width: 600px;" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
+        <div class="modal-content" style="max-width: 700px;" role="dialog" aria-modal="true" aria-labelledby="modelsInfoModalTitle" tabindex="-1">
             <div class="modal-header" style="background: linear-gradient(135deg, #161616 0%, #2d2d2d 100%); color: white; border-radius: 12px 12px 0 0;">
                 <h3 id="modelsInfoModalTitle" style="display: flex; align-items: center; gap: 10px; margin: 0;">
                     <i class="fas fa-microchip"></i>
@@ -1634,6 +1634,47 @@ Alternativas a Semrush
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Loading models...</p>
                     </div>
+                </div>
+                
+                <!-- ✨ Knowledge Limitations Section -->
+                <div style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border-left: 4px solid #f59e0b;">
+                    <h4 style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-clock"></i>
+                        Knowledge Cutoff Dates
+                    </h4>
+                    <p style="margin: 0 0 12px 0; color: #78350f; font-size: 13px;">
+                        Each model has a "knowledge cutoff" - the date until which it was trained. Information after this date may be outdated or unknown.
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
+                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">ChatGPT</span>
+                            <span style="color: #374151;">~April 2025</span>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span style="background: #f97316; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Claude</span>
+                            <span style="color: #374151;">~April 2025</span>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Gemini</span>
+                            <span style="color: #059669; font-weight: 600;">🔍 Real-time (Grounding)</span>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                            <span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Perplexity</span>
+                            <span style="color: #059669; font-weight: 600;">🔍 Real-time (Web Search)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ✨ Real-time Info Section -->
+                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px; border-left: 4px solid #10b981;">
+                    <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-globe"></i>
+                        Real-time Information
+                    </h4>
+                    <p style="margin: 0; color: #047857; font-size: 13px;">
+                        <strong>Gemini</strong> uses Google Search Grounding and <strong>Perplexity</strong> always searches the web, 
+                        so they provide up-to-date information. For the most current results, prioritize these two models.
+                    </p>
                 </div>
             </div>
             <div class="modal-footer" style="background: #f9fafb; border-radius: 0 0 12px 12px; padding: 16px 24px;">

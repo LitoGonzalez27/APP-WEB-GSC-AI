@@ -1,10 +1,10 @@
 """
-Proveedor Google - Gemini 3 Pro Preview
+Proveedor Google - Gemini 3 Pro Preview con Google Search Grounding
 Versión: gemini-3-pro-preview (Diciembre 2025)
 
 IMPORTANTE:
 - Modelo más inteligente de Google hasta la fecha
-- Razonamiento avanzado con thinking_level (low/high)
+- ✨ GROUNDING HABILITADO: Busca en Google para info actualizada
 - 1M tokens de contexto, 64K de salida
 - Ideal para tareas complejas multimodales
 
@@ -13,44 +13,53 @@ MODEL IDs disponibles:
 - gemini-3-pro-image-preview (para imágenes)
 
 Docs: https://ai.google.dev/gemini-api/docs/gemini-3
+Grounding: https://ai.google.dev/gemini-api/docs/grounding
 """
 
 import logging
 import time
 from typing import Dict
 import google.generativeai as genai
+from google.generativeai.types import Tool  # ✨ Para Google Search Grounding
 from .base_provider import (
     BaseLLMProvider, 
     get_model_pricing_from_db, 
     get_current_model_for_provider,
     extract_urls_from_text
 )
-from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
+from .retry_handler import with_retry  # Sistema de retry
 
 logger = logging.getLogger(__name__)
 
 
 class GoogleProvider(BaseLLMProvider):
     """
-    Proveedor para Gemini 3 (Google)
+    Proveedor para Gemini 3 (Google) con Google Search Grounding
     
     Características:
     - Modelo más inteligente de Google (Dic 2025)
-    - Razonamiento avanzado con thinking_level
+    - ✨ GROUNDING: Busca en Google para información actualizada
     - 1M tokens de contexto, 64K de salida
     - Multimodal (texto, imágenes, audio, video)
+    
+    Knowledge Cutoff: ~Marzo 2025 (SIN grounding)
+    Con Grounding: Información en tiempo real de Google Search
     """
     
-    def __init__(self, api_key: str, model: str = None):
+    def __init__(self, api_key: str, model: str = None, enable_grounding: bool = True):
         """
         Inicializa el proveedor Google
         
         Args:
             api_key: API key de Google (obtener en aistudio.google.com)
             model: Modelo específico a usar (opcional)
+            enable_grounding: Habilitar búsqueda en Google (default: True)
         """
         # Configurar API key de Google
         genai.configure(api_key=api_key)
+        
+        # ✨ Guardar configuración de grounding
+        self.enable_grounding = enable_grounding
         
         # ✅ CORRECCIÓN: Obtener modelo actual de BD
         if model:
@@ -76,19 +85,40 @@ class GoogleProvider(BaseLLMProvider):
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('google', self.model_name)
         
+        grounding_status = "✅ HABILITADO" if self.enable_grounding else "❌ DESHABILITADO"
         logger.info(f"🤖 Google Provider inicializado")
         logger.info(f"   Modelo: {self.model_name}")
+        logger.info(f"   Grounding (Google Search): {grounding_status}")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
-    @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
+    @with_retry  # Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
         Ejecuta una query contra Gemini 3
+        
+        Si grounding está habilitado, Gemini buscará en Google
+        antes de responder, dando información actualizada.
         """
         start_time = time.time()
         
         try:
-            response = self.model.generate_content(query)
+            # ✨ Configurar herramientas (grounding si está habilitado)
+            tools = None
+            if self.enable_grounding:
+                try:
+                    # Google Search Grounding - permite buscar en Google
+                    tools = [Tool(google_search={})]
+                    logger.debug("🔍 Grounding habilitado: Gemini buscará en Google")
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo habilitar grounding: {e}")
+                    tools = None
+            
+            # Ejecutar query (con o sin grounding)
+            if tools:
+                response = self.model.generate_content(query, tools=tools)
+            else:
+                response = self.model.generate_content(query)
+            
             response_time = int((time.time() - start_time) * 1000)
             
             content = response.text
