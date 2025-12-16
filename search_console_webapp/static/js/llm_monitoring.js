@@ -1834,63 +1834,76 @@ class LLMMonitoring {
     }
 
     /**
-     * ✨ Render a simple sparkline chart
+     * ✨ Render a simple sparkline chart showing visibility % over time
      */
     renderSparkline(container, history) {
         const timeRangeLabel = this.getTimeRangeLabel();
         
-        // Calculate stats
+        // Calculate stats using visibility percentage (0-100%)
         const totalDays = history.length;
-        const avgMentions = history.reduce((sum, d) => sum + d.mentions_count, 0) / totalDays;
-        const maxMentions = Math.max(...history.map(d => d.mentions_count));
+        const avgVisibility = history.reduce((sum, d) => sum + (d.mention_rate || 0), 0) / totalDays;
+        const maxVisibility = Math.max(...history.map(d => d.mention_rate || 0));
+        const minVisibility = Math.min(...history.map(d => d.mention_rate || 0));
         const latestMentions = history[history.length - 1]?.mentions_count || 0;
         const latestTotal = history[history.length - 1]?.total_llms || 0;
+        const latestVisibility = history[history.length - 1]?.mention_rate || 0;
         
-        // Generate SVG sparkline
+        // Total mentions across all days
+        const totalMentions = history.reduce((sum, d) => sum + (d.mentions_count || 0), 0);
+        
+        // Generate SVG sparkline using visibility percentage
         const width = 280;
         const height = 50;
         const padding = 5;
-        const maxY = Math.max(maxMentions, 4); // Minimum scale of 4 LLMs
+        const maxY = 100; // Scale 0-100% for visibility
         
-        // Create points for the sparkline
+        // Create points for the sparkline using visibility %
         const points = history.map((d, i) => {
             const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-            const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+            const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
             return `${x},${y}`;
         }).join(' ');
         
-        // Create area fill points (same as line but closes to bottom)
+        // Create area fill points
         const areaPoints = history.map((d, i) => {
             const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-            const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+            const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
             return `${x},${y}`;
         });
         
         const areaPath = `M${padding},${height - padding} L${areaPoints.join(' L')} L${width - padding},${height - padding} Z`;
         
-        // Trend indicator
+        // Trend indicator based on visibility changes
         let trendIcon = '➡️';
         let trendClass = 'neutral';
         if (history.length >= 2) {
             const firstHalf = history.slice(0, Math.floor(history.length / 2));
             const secondHalf = history.slice(Math.floor(history.length / 2));
-            const firstAvg = firstHalf.reduce((s, d) => s + d.mentions_count, 0) / firstHalf.length;
-            const secondAvg = secondHalf.reduce((s, d) => s + d.mentions_count, 0) / secondHalf.length;
+            const firstAvg = firstHalf.reduce((s, d) => s + (d.mention_rate || 0), 0) / firstHalf.length;
+            const secondAvg = secondHalf.reduce((s, d) => s + (d.mention_rate || 0), 0) / secondHalf.length;
             
-            if (secondAvg > firstAvg * 1.1) {
+            if (secondAvg > firstAvg + 5) { // +5% improvement
                 trendIcon = '📈';
                 trendClass = 'up';
-            } else if (secondAvg < firstAvg * 0.9) {
+            } else if (secondAvg < firstAvg - 5) { // -5% decline
                 trendIcon = '📉';
                 trendClass = 'down';
             }
+        }
+        
+        // Determine color based on average visibility
+        let lineColor = '#ef4444'; // Red for low visibility
+        if (avgVisibility >= 50) {
+            lineColor = '#10b981'; // Green for high visibility
+        } else if (avgVisibility >= 25) {
+            lineColor = '#f59e0b'; // Yellow/orange for medium
         }
 
         container.innerHTML = `
             <div class="sparkline-header">
                 <div class="sparkline-title">
                     <i class="fas fa-chart-line"></i>
-                    Mentions Trend (${timeRangeLabel})
+                    Visibility Trend (${timeRangeLabel})
                 </div>
                 <div class="sparkline-trend ${trendClass}">
                     ${trendIcon}
@@ -1899,43 +1912,51 @@ class LLMMonitoring {
             <div class="sparkline-chart">
                 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
                     <!-- Area fill -->
-                    <path d="${areaPath}" fill="url(#sparklineGradient)" opacity="0.3"/>
+                    <path d="${areaPath}" fill="url(#sparklineGradient-${lineColor.replace('#', '')})" opacity="0.3"/>
                     <!-- Line -->
                     <polyline 
                         points="${points}" 
                         fill="none" 
-                        stroke="#10b981" 
-                        stroke-width="2"
+                        stroke="${lineColor}" 
+                        stroke-width="2.5"
                         stroke-linecap="round"
                         stroke-linejoin="round"
                     />
                     <!-- Dots at each point -->
                     ${history.map((d, i) => {
                         const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-                        const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+                        const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
                         const isLast = i === history.length - 1;
-                        return `<circle cx="${x}" cy="${y}" r="${isLast ? 4 : 2}" fill="${isLast ? '#10b981' : '#6ee7b7'}" />`;
+                        return `<circle cx="${x}" cy="${y}" r="${isLast ? 4 : 2}" fill="${isLast ? lineColor : lineColor + '99'}" />`;
                     }).join('')}
                     <defs>
-                        <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <linearGradient id="sparklineGradient-10b981" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.4" />
                             <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
+                        </linearGradient>
+                        <linearGradient id="sparklineGradient-f59e0b" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.4" />
+                            <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0" />
+                        </linearGradient>
+                        <linearGradient id="sparklineGradient-ef4444" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.4" />
+                            <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0" />
                         </linearGradient>
                     </defs>
                 </svg>
             </div>
             <div class="sparkline-stats">
                 <div class="sparkline-stat">
-                    <span class="sparkline-stat-value">${latestMentions}/${latestTotal}</span>
+                    <span class="sparkline-stat-value" style="color: ${lineColor}">${latestVisibility.toFixed(0)}%</span>
                     <span class="sparkline-stat-label">Today</span>
                 </div>
                 <div class="sparkline-stat">
-                    <span class="sparkline-stat-value">${avgMentions.toFixed(1)}</span>
-                    <span class="sparkline-stat-label">Avg/day</span>
+                    <span class="sparkline-stat-value">${totalMentions}</span>
+                    <span class="sparkline-stat-label">Total Mentions</span>
                 </div>
                 <div class="sparkline-stat">
-                    <span class="sparkline-stat-value">${totalDays}</span>
-                    <span class="sparkline-stat-label">Days</span>
+                    <span class="sparkline-stat-value">${avgVisibility.toFixed(0)}%</span>
+                    <span class="sparkline-stat-label">Avg Visibility</span>
                 </div>
             </div>
         `;
