@@ -1692,15 +1692,16 @@ class LLMMonitoring {
             ];
         });
 
-        // Create grid
+        // Create grid with dynamic time range labels
+        const timeRangeLabel = this.getTimeRangeLabel();
         this.queriesGrid = new gridjs.Grid({
             columns: [
                 { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
                 { id: 'prompt', name: 'Prompt', width: '45%' },
                 { id: 'country', name: 'Country', width: '80px' },
                 { id: 'language', name: 'Language', width: '80px' },
-                { id: 'mentions', name: 'Total Mentions (30d)', width: '130px', sort: true },
-                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '150px', sort: true }
+                { id: 'mentions', name: `Total Mentions (${timeRangeLabel})`, width: '130px', sort: true },
+                { id: 'visibility', name: `Avg Visibility % (${timeRangeLabel})`, width: '150px', sort: true }
             ],
             data: rows,
             sort: true,
@@ -1764,9 +1765,9 @@ class LLMMonitoring {
     }
 
     /**
-     * ✨ NUEVO: Show brand mentions modal
+     * ✨ Show brand mentions modal with trend sparkline
      */
-    showBrandMentionsModal(rowIdx) {
+    async showBrandMentionsModal(rowIdx) {
         const query = this.queriesData[rowIdx];
         if (!query) return;
 
@@ -1782,7 +1783,7 @@ class LLMMonitoring {
         // Set prompt text in modal header
         modalTitle.textContent = `"${query.prompt}"`;
 
-        // Render modal content
+        // Render modal content with sparkline placeholder
         modalBody.innerHTML = this.renderBrandMentionsModalContent(query);
 
         // Show modal
@@ -1792,6 +1793,151 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.style.opacity = '1';
         }, 10);
+
+        // Load and render trend sparkline async
+        this.loadQueryTrendSparkline(query.id);
+    }
+
+    /**
+     * ✨ Load and render trend sparkline for a query
+     */
+    async loadQueryTrendSparkline(queryId) {
+        const sparklineContainer = document.getElementById('queryTrendSparkline');
+        if (!sparklineContainer) return;
+
+        try {
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject}/queries/${queryId}/history?days=${this.globalTimeRange}`
+            );
+            const data = await response.json();
+
+            if (data.success && data.history && data.history.length > 0) {
+                this.renderSparkline(sparklineContainer, data.history);
+            } else {
+                sparklineContainer.innerHTML = `
+                    <div class="sparkline-empty">
+                        <i class="fas fa-chart-line"></i>
+                        <span>No trend data available yet</span>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading query history:', error);
+            sparklineContainer.innerHTML = `
+                <div class="sparkline-error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Could not load trend data</span>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * ✨ Render a simple sparkline chart
+     */
+    renderSparkline(container, history) {
+        const timeRangeLabel = this.getTimeRangeLabel();
+        
+        // Calculate stats
+        const totalDays = history.length;
+        const avgMentions = history.reduce((sum, d) => sum + d.mentions_count, 0) / totalDays;
+        const maxMentions = Math.max(...history.map(d => d.mentions_count));
+        const latestMentions = history[history.length - 1]?.mentions_count || 0;
+        const latestTotal = history[history.length - 1]?.total_llms || 0;
+        
+        // Generate SVG sparkline
+        const width = 280;
+        const height = 50;
+        const padding = 5;
+        const maxY = Math.max(maxMentions, 4); // Minimum scale of 4 LLMs
+        
+        // Create points for the sparkline
+        const points = history.map((d, i) => {
+            const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
+            const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+            return `${x},${y}`;
+        }).join(' ');
+        
+        // Create area fill points (same as line but closes to bottom)
+        const areaPoints = history.map((d, i) => {
+            const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
+            const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+            return `${x},${y}`;
+        });
+        
+        const areaPath = `M${padding},${height - padding} L${areaPoints.join(' L')} L${width - padding},${height - padding} Z`;
+        
+        // Trend indicator
+        let trendIcon = '➡️';
+        let trendClass = 'neutral';
+        if (history.length >= 2) {
+            const firstHalf = history.slice(0, Math.floor(history.length / 2));
+            const secondHalf = history.slice(Math.floor(history.length / 2));
+            const firstAvg = firstHalf.reduce((s, d) => s + d.mentions_count, 0) / firstHalf.length;
+            const secondAvg = secondHalf.reduce((s, d) => s + d.mentions_count, 0) / secondHalf.length;
+            
+            if (secondAvg > firstAvg * 1.1) {
+                trendIcon = '📈';
+                trendClass = 'up';
+            } else if (secondAvg < firstAvg * 0.9) {
+                trendIcon = '📉';
+                trendClass = 'down';
+            }
+        }
+
+        container.innerHTML = `
+            <div class="sparkline-header">
+                <div class="sparkline-title">
+                    <i class="fas fa-chart-line"></i>
+                    Mentions Trend (${timeRangeLabel})
+                </div>
+                <div class="sparkline-trend ${trendClass}">
+                    ${trendIcon}
+                </div>
+            </div>
+            <div class="sparkline-chart">
+                <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+                    <!-- Area fill -->
+                    <path d="${areaPath}" fill="url(#sparklineGradient)" opacity="0.3"/>
+                    <!-- Line -->
+                    <polyline 
+                        points="${points}" 
+                        fill="none" 
+                        stroke="#10b981" 
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                    <!-- Dots at each point -->
+                    ${history.map((d, i) => {
+                        const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
+                        const y = height - padding - (d.mentions_count / maxY) * (height - 2 * padding);
+                        const isLast = i === history.length - 1;
+                        return `<circle cx="${x}" cy="${y}" r="${isLast ? 4 : 2}" fill="${isLast ? '#10b981' : '#6ee7b7'}" />`;
+                    }).join('')}
+                    <defs>
+                        <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.4" />
+                            <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div class="sparkline-stats">
+                <div class="sparkline-stat">
+                    <span class="sparkline-stat-value">${latestMentions}/${latestTotal}</span>
+                    <span class="sparkline-stat-label">Today</span>
+                </div>
+                <div class="sparkline-stat">
+                    <span class="sparkline-stat-value">${avgMentions.toFixed(1)}</span>
+                    <span class="sparkline-stat-label">Avg/day</span>
+                </div>
+                <div class="sparkline-stat">
+                    <span class="sparkline-stat-value">${totalDays}</span>
+                    <span class="sparkline-stat-label">Days</span>
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -1924,6 +2070,14 @@ class LLMMonitoring {
 
         // Build HTML with CSS classes
         let html = `
+            <!-- ✨ Trend Sparkline Section -->
+            <div class="sparkline-container" id="queryTrendSparkline">
+                <div class="sparkline-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Loading trend...</span>
+                </div>
+            </div>
+            
             <!-- Summary Cards -->
             <div class="brand-summary-grid">
                 <!-- Your Brand Card -->
@@ -1933,7 +2087,7 @@ class LLMMonitoring {
                         <div class="brand-summary-card-icon">${brandIcon}</div>
                     </div>
                     <div class="brand-summary-card-value">${brandMentionedCount}<span>/${llmNames.length}</span></div>
-                    <div class="brand-summary-card-subtitle">LLMs mentioned</div>
+                    <div class="brand-summary-card-subtitle">LLMs mentioned today</div>
                 </div>
                 
                 <!-- Competitors Card -->
@@ -2038,6 +2192,19 @@ class LLMMonitoring {
         `;
 
         return html;
+    }
+
+    /**
+     * Get human-readable label for the current time range
+     */
+    getTimeRangeLabel() {
+        const days = this.globalTimeRange || 30;
+        if (days === 7) return '7d';
+        if (days === 14) return '14d';
+        if (days === 30) return '30d';
+        if (days === 60) return '60d';
+        if (days === 90) return '90d';
+        return `${days}d`;
     }
 
     /**

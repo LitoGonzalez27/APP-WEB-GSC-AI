@@ -1023,6 +1023,91 @@ def delete_query(project_id, query_id):
         conn.close()
 
 
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/<int:query_id>/history', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_query_history(project_id, query_id):
+    """
+    Obtener histórico de menciones día a día para un prompt específico.
+    
+    Devuelve datos para mostrar un sparkline de tendencia:
+    - Fecha
+    - Número de menciones (de cuántos LLMs)
+    - Total de LLMs que respondieron
+    
+    Query params:
+        days: Días hacia atrás (default: 30)
+    
+    Returns:
+        JSON con histórico diario
+    """
+    days = int(request.args.get('days', 30))
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Verificar que la query pertenece al proyecto
+        cur.execute("""
+            SELECT id, query_text FROM llm_monitoring_queries
+            WHERE id = %s AND project_id = %s
+        """, (query_id, project_id))
+        
+        query = cur.fetchone()
+        if not query:
+            return jsonify({'error': 'Query no encontrada'}), 404
+        
+        # Calcular rango de fechas
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        # Obtener histórico día a día
+        cur.execute("""
+            SELECT 
+                r.analysis_date,
+                COUNT(DISTINCT r.llm_provider) as total_llms,
+                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as mentions_count,
+                ARRAY_AGG(DISTINCT r.llm_provider) FILTER (WHERE r.brand_mentioned) as llms_with_mentions
+            FROM llm_monitoring_results r
+            WHERE r.query_id = %s
+                AND r.analysis_date >= %s
+                AND r.analysis_date <= %s
+            GROUP BY r.analysis_date
+            ORDER BY r.analysis_date ASC
+        """, (query_id, start_date, end_date))
+        
+        history_raw = cur.fetchall()
+        
+        # Formatear respuesta
+        history = []
+        for row in history_raw:
+            history.append({
+                'date': row['analysis_date'].isoformat() if row['analysis_date'] else None,
+                'total_llms': row['total_llms'] or 0,
+                'mentions_count': row['mentions_count'] or 0,
+                'llms_with_mentions': row['llms_with_mentions'] or [],
+                'mention_rate': round((row['mentions_count'] or 0) / max(row['total_llms'] or 1, 1) * 100, 1)
+            })
+        
+        return jsonify({
+            'success': True,
+            'query_id': query_id,
+            'query_text': query['query_text'],
+            'days': days,
+            'history': history
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo histórico de query: {e}", exc_info=True)
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 @llm_monitoring_bp.route('/projects/<int:project_id>/queries/suggest', methods=['POST'])
 @login_required
 @validate_project_ownership

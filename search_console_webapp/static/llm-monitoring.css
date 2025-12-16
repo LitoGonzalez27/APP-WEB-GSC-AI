@@ -2915,3 +2915,121 @@ label:not(.search-form label) {
     }
 }
 
+
+/* ========================================
+   SPARKLINE - Query Trend Chart
+   ======================================== */
+
+.sparkline-container {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.sparkline-loading,
+.sparkline-empty,
+.sparkline-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.sparkline-loading i {
+    color: #10b981;
+}
+
+.sparkline-empty i {
+    color: #9ca3af;
+}
+
+.sparkline-error {
+    color: #ef4444;
+    background: #fef2f2;
+    border-radius: 8px;
+}
+
+.sparkline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sparkline-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #065f46;
+}
+
+.sparkline-title i {
+    color: #10b981;
+}
+
+.sparkline-trend {
+    font-size: 18px;
+}
+
+.sparkline-trend.up {
+    animation: pulse 1s ease-in-out infinite alternate;
+}
+
+.sparkline-trend.down {
+    opacity: 0.7;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+
+.sparkline-chart {
+    background: white;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 12px;
+}
+
+.sparkline-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.sparkline-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 12px;
+}
+
+.sparkline-stat {
+    text-align: center;
+    flex: 1;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+}
+
+.sparkline-stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #065f46;
+}
+
+.sparkline-stat-label {
+    display: block;
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
