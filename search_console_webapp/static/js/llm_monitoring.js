@@ -1806,8 +1806,9 @@ class LLMMonitoring {
         if (!sparklineContainer) return;
 
         try {
+            const projectId = this.currentProject?.id || this.currentProject;
             const response = await fetch(
-                `${this.baseUrl}/projects/${this.currentProject}/queries/${queryId}/history?days=${this.globalTimeRange}`
+                `${this.baseUrl}/projects/${projectId}/queries/${queryId}/history?days=${this.globalTimeRange}`
             );
             const data = await response.json();
 
