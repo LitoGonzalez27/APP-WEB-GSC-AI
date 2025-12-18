@@ -716,12 +716,21 @@ class LLMMonitoring {
 
             const data = await response.json();
             this.currentProject = data.project;
+            
+            // ✨ NUEVO: Guardar datos adicionales para uso posterior
+            this.currentTrends = data.trends || null;
+            this.currentPositionMetrics = data.position_metrics || null;
+            this.currentQualityScore = data.quality_score || null;
 
             // Update title
             document.getElementById('projectTitle').textContent = data.project.name;
 
-            // Update KPIs
-            this.updateKPIs(data.latest_metrics);
+            // Update KPIs (✨ NUEVO: pasar tendencias)
+            this.updateKPIs(data.latest_metrics, data.trends);
+            
+            // ✨ NUEVO: Actualizar métricas de posición y quality score
+            this.updatePositionMetrics(data.position_metrics);
+            this.updateQualityScore(data.quality_score);
 
             // ✅ NUEVO: Cargar prompts del proyecto
             await this.loadPrompts(projectId);
@@ -744,12 +753,13 @@ class LLMMonitoring {
      * 
      * ✨ ACTUALIZADO: Ahora usa métricas AGREGADAS (Método 2: SoV Agregado)
      * Todos los LLMs reciben el mismo valor agregado del backend
+     * ✨ NUEVO: Incluye flechas de tendencia
      */
-    updateKPIs(metrics) {
+    updateKPIs(metrics, trends = null) {
         if (!metrics || Object.keys(metrics).length === 0) {
-            document.getElementById('kpiMentionRate').textContent = 'No data';
-            document.getElementById('kpiShareOfVoice').textContent = 'No data';
-            document.getElementById('kpiSentiment').textContent = 'No data';
+            document.getElementById('kpiMentionRate').innerHTML = '<span class="kpi-no-data">No data</span>';
+            document.getElementById('kpiShareOfVoice').innerHTML = '<span class="kpi-no-data">No data</span>';
+            document.getElementById('kpiSentiment').innerHTML = '<span class="kpi-no-data">No data</span>';
             return;
         }
 
@@ -780,9 +790,210 @@ class LLMMonitoring {
             sentimentClass = 'neutral';
         }
 
-        document.getElementById('kpiMentionRate').textContent = `${aggregatedMentionRate.toFixed(1)}%`;
-        document.getElementById('kpiShareOfVoice').textContent = `${aggregatedSOV.toFixed(1)}%`;
-        document.getElementById('kpiSentiment').innerHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
+        // ✨ NUEVO: Generar HTML con tendencias
+        const mentionRateHTML = this.renderKPIWithTrend(
+            aggregatedMentionRate, 
+            '%', 
+            trends?.mention_rate
+        );
+        
+        const sovHTML = this.renderKPIWithTrend(
+            aggregatedSOV, 
+            '%', 
+            trends?.share_of_voice
+        );
+        
+        // Sentiment con tendencia
+        let sentimentHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
+        if (trends?.sentiment_positive) {
+            const trend = trends.sentiment_positive;
+            if (trend.direction !== 'stable' && trend.change > 0) {
+                const trendClass = trend.direction === 'up' ? 'trend-up' : 'trend-down';
+                const trendIcon = trend.direction === 'up' ? 'fa-arrow-up' : 'fa-arrow-down';
+                sentimentHTML += `
+                    <div class="kpi-trend ${trendClass}">
+                        <i class="fas ${trendIcon}"></i>
+                        <span>${trend.change}%</span>
+                    </div>
+                `;
+            }
+        }
+
+        document.getElementById('kpiMentionRate').innerHTML = mentionRateHTML;
+        document.getElementById('kpiShareOfVoice').innerHTML = sovHTML;
+        document.getElementById('kpiSentiment').innerHTML = sentimentHTML;
+    }
+
+    /**
+     * ✨ NUEVO: Renderiza un KPI con flecha de tendencia
+     */
+    renderKPIWithTrend(value, suffix = '', trend = null) {
+        let html = `<span class="kpi-main-value">${value.toFixed(1)}${suffix}</span>`;
+        
+        if (trend && trend.direction !== 'stable' && trend.change > 0) {
+            const trendClass = trend.direction === 'up' ? 'trend-up' : 'trend-down';
+            const trendIcon = trend.direction === 'up' ? 'fa-arrow-up' : 'fa-arrow-down';
+            const trendLabel = trend.direction === 'up' ? '+' : '-';
+            
+            html += `
+                <div class="kpi-trend ${trendClass}" title="vs previous ${this.globalTimeRange} days: ${trend.previous}${suffix}">
+                    <i class="fas ${trendIcon}"></i>
+                    <span>${trendLabel}${trend.change}%</span>
+                </div>
+            `;
+        } else if (trend && trend.direction === 'stable') {
+            html += `
+                <div class="kpi-trend trend-stable" title="No significant change vs previous period">
+                    <i class="fas fa-minus"></i>
+                    <span>stable</span>
+                </div>
+            `;
+        }
+        
+        return html;
+    }
+
+    /**
+     * ✨ NUEVO: Actualiza las métricas de posición granulares
+     */
+    updatePositionMetrics(positionMetrics) {
+        const container = document.getElementById('positionMetricsCard');
+        if (!container) return;
+        
+        if (!positionMetrics || positionMetrics.total_appearances === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        
+        // Actualizar valores
+        const avgPosition = positionMetrics.avg_position;
+        const top3Rate = positionMetrics.top3_rate || 0;
+        const top5Rate = positionMetrics.top5_rate || 0;
+        const top10Rate = positionMetrics.top10_rate || 0;
+        
+        // Actualizar el contenido
+        document.getElementById('avgPositionValue').textContent = avgPosition ? avgPosition.toFixed(1) : 'N/A';
+        document.getElementById('top3RateValue').textContent = `${top3Rate.toFixed(1)}%`;
+        document.getElementById('top5RateValue').textContent = `${top5Rate.toFixed(1)}%`;
+        document.getElementById('top10RateValue').textContent = `${top10Rate.toFixed(1)}%`;
+        
+        // Actualizar barras de progreso
+        this.updateProgressBar('top3Progress', top3Rate);
+        this.updateProgressBar('top5Progress', top5Rate);
+        this.updateProgressBar('top10Progress', top10Rate);
+        
+        // Actualizar contador de apariciones
+        const appearancesEl = document.getElementById('totalAppearances');
+        if (appearancesEl) {
+            appearancesEl.textContent = `Based on ${positionMetrics.total_appearances} appearances`;
+        }
+    }
+    
+    /**
+     * ✨ NUEVO: Actualiza una barra de progreso
+     */
+    updateProgressBar(elementId, value) {
+        const bar = document.getElementById(elementId);
+        if (bar) {
+            bar.style.width = `${Math.min(value, 100)}%`;
+        }
+    }
+
+    /**
+     * ✨ NUEVO: Actualiza el Quality Score
+     */
+    updateQualityScore(qualityData) {
+        const container = document.getElementById('qualityScoreCard');
+        if (!container) return;
+        
+        if (!qualityData) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        
+        const score = qualityData.score || 0;
+        const components = qualityData.components || {};
+        const details = qualityData.details || {};
+        
+        // Determinar estado del score
+        let scoreClass, scoreLabel;
+        if (score >= 80) {
+            scoreClass = 'quality-excellent';
+            scoreLabel = 'Excellent';
+        } else if (score >= 60) {
+            scoreClass = 'quality-good';
+            scoreLabel = 'Good';
+        } else if (score >= 40) {
+            scoreClass = 'quality-fair';
+            scoreLabel = 'Fair';
+        } else {
+            scoreClass = 'quality-poor';
+            scoreLabel = 'Needs Attention';
+        }
+        
+        // Actualizar score principal
+        const scoreValueEl = document.getElementById('qualityScoreValue');
+        if (scoreValueEl) {
+            scoreValueEl.textContent = `${score}%`;
+            scoreValueEl.className = `quality-score-value ${scoreClass}`;
+        }
+        
+        const scoreLabelEl = document.getElementById('qualityScoreLabel');
+        if (scoreLabelEl) {
+            scoreLabelEl.textContent = scoreLabel;
+            scoreLabelEl.className = `quality-score-label ${scoreClass}`;
+        }
+        
+        // Actualizar componentes
+        this.updateQualityComponent('completeness', components.completeness, details.llms_with_data, details.llms_expected);
+        this.updateQualityComponent('freshness', components.freshness, details.days_since_update);
+        this.updateQualityComponent('coverage', 100 - components.error_rate, details.total_snapshots_in_period);
+    }
+    
+    /**
+     * ✨ NUEVO: Actualiza un componente del Quality Score
+     */
+    updateQualityComponent(type, value, detail1 = null, detail2 = null) {
+        const valueEl = document.getElementById(`quality${type.charAt(0).toUpperCase() + type.slice(1)}Value`);
+        const barEl = document.getElementById(`quality${type.charAt(0).toUpperCase() + type.slice(1)}Bar`);
+        const detailEl = document.getElementById(`quality${type.charAt(0).toUpperCase() + type.slice(1)}Detail`);
+        
+        if (valueEl) {
+            valueEl.textContent = `${(value || 0).toFixed(0)}%`;
+        }
+        
+        if (barEl) {
+            barEl.style.width = `${Math.min(value || 0, 100)}%`;
+            
+            // Color según valor
+            if (value >= 80) {
+                barEl.style.backgroundColor = '#22c55e';
+            } else if (value >= 60) {
+                barEl.style.backgroundColor = '#eab308';
+            } else {
+                barEl.style.backgroundColor = '#ef4444';
+            }
+        }
+        
+        if (detailEl) {
+            if (type === 'completeness' && detail1 !== null && detail2 !== null) {
+                detailEl.textContent = `${detail1}/${detail2} LLMs`;
+            } else if (type === 'freshness' && detail1 !== null) {
+                if (detail1 === 0) {
+                    detailEl.textContent = 'Updated today';
+                } else if (detail1 === 1) {
+                    detailEl.textContent = '1 day ago';
+                } else {
+                    detailEl.textContent = `${detail1} days ago`;
+                }
+            } else if (type === 'coverage' && detail1 !== null) {
+                detailEl.textContent = `${detail1} snapshots`;
+            }
+        }
     }
 
     /**
@@ -1692,16 +1903,15 @@ class LLMMonitoring {
             ];
         });
 
-        // Create grid with dynamic time range labels
-        const timeRangeLabel = this.getTimeRangeLabel();
+        // Create grid
         this.queriesGrid = new gridjs.Grid({
             columns: [
                 { id: 'expand', name: '', width: '90px', sort: false },  // ✨ Columna para botón Details
                 { id: 'prompt', name: 'Prompt', width: '45%' },
                 { id: 'country', name: 'Country', width: '80px' },
                 { id: 'language', name: 'Language', width: '80px' },
-                { id: 'mentions', name: `Total Mentions (${timeRangeLabel})`, width: '130px', sort: true },
-                { id: 'visibility', name: `Avg Visibility % (${timeRangeLabel})`, width: '150px', sort: true }
+                { id: 'mentions', name: 'Total Mentions (30d)', width: '130px', sort: true },
+                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '150px', sort: true }
             ],
             data: rows,
             sort: true,
@@ -1765,9 +1975,9 @@ class LLMMonitoring {
     }
 
     /**
-     * ✨ Show brand mentions modal with trend sparkline
+     * ✨ NUEVO: Show brand mentions modal
      */
-    async showBrandMentionsModal(rowIdx) {
+    showBrandMentionsModal(rowIdx) {
         const query = this.queriesData[rowIdx];
         if (!query) return;
 
@@ -1783,7 +1993,7 @@ class LLMMonitoring {
         // Set prompt text in modal header
         modalTitle.textContent = `"${query.prompt}"`;
 
-        // Render modal content with sparkline placeholder
+        // Render modal content
         modalBody.innerHTML = this.renderBrandMentionsModalContent(query);
 
         // Show modal
@@ -1793,173 +2003,6 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.style.opacity = '1';
         }, 10);
-
-        // Load and render trend sparkline async
-        this.loadQueryTrendSparkline(query.id);
-    }
-
-    /**
-     * ✨ Load and render trend sparkline for a query
-     */
-    async loadQueryTrendSparkline(queryId) {
-        const sparklineContainer = document.getElementById('queryTrendSparkline');
-        if (!sparklineContainer) return;
-
-        try {
-            const projectId = this.currentProject?.id || this.currentProject;
-            const response = await fetch(
-                `${this.baseUrl}/projects/${projectId}/queries/${queryId}/history?days=${this.globalTimeRange}`
-            );
-            const data = await response.json();
-
-            if (data.success && data.history && data.history.length > 0) {
-                this.renderSparkline(sparklineContainer, data.history);
-            } else {
-                sparklineContainer.innerHTML = `
-                    <div class="sparkline-empty">
-                        <i class="fas fa-chart-line"></i>
-                        <span>No trend data available yet</span>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Error loading query history:', error);
-            sparklineContainer.innerHTML = `
-                <div class="sparkline-error">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Could not load trend data</span>
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * ✨ Render a simple sparkline chart showing visibility % over time
-     */
-    renderSparkline(container, history) {
-        const timeRangeLabel = this.getTimeRangeLabel();
-        
-        // Calculate stats using visibility percentage (0-100%)
-        const totalDays = history.length;
-        const avgVisibility = history.reduce((sum, d) => sum + (d.mention_rate || 0), 0) / totalDays;
-        const maxVisibility = Math.max(...history.map(d => d.mention_rate || 0));
-        const minVisibility = Math.min(...history.map(d => d.mention_rate || 0));
-        const latestMentions = history[history.length - 1]?.mentions_count || 0;
-        const latestTotal = history[history.length - 1]?.total_llms || 0;
-        const latestVisibility = history[history.length - 1]?.mention_rate || 0;
-        
-        // Total mentions across all days
-        const totalMentions = history.reduce((sum, d) => sum + (d.mentions_count || 0), 0);
-        
-        // Generate SVG sparkline using visibility percentage
-        const width = 280;
-        const height = 50;
-        const padding = 5;
-        const maxY = 100; // Scale 0-100% for visibility
-        
-        // Create points for the sparkline using visibility %
-        const points = history.map((d, i) => {
-            const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-            const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
-            return `${x},${y}`;
-        }).join(' ');
-        
-        // Create area fill points
-        const areaPoints = history.map((d, i) => {
-            const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-            const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
-            return `${x},${y}`;
-        });
-        
-        const areaPath = `M${padding},${height - padding} L${areaPoints.join(' L')} L${width - padding},${height - padding} Z`;
-        
-        // Trend indicator based on visibility changes
-        let trendIcon = '➡️';
-        let trendClass = 'neutral';
-        if (history.length >= 2) {
-            const firstHalf = history.slice(0, Math.floor(history.length / 2));
-            const secondHalf = history.slice(Math.floor(history.length / 2));
-            const firstAvg = firstHalf.reduce((s, d) => s + (d.mention_rate || 0), 0) / firstHalf.length;
-            const secondAvg = secondHalf.reduce((s, d) => s + (d.mention_rate || 0), 0) / secondHalf.length;
-            
-            if (secondAvg > firstAvg + 5) { // +5% improvement
-                trendIcon = '📈';
-                trendClass = 'up';
-            } else if (secondAvg < firstAvg - 5) { // -5% decline
-                trendIcon = '📉';
-                trendClass = 'down';
-            }
-        }
-        
-        // Determine color based on average visibility
-        let lineColor = '#ef4444'; // Red for low visibility
-        if (avgVisibility >= 50) {
-            lineColor = '#10b981'; // Green for high visibility
-        } else if (avgVisibility >= 25) {
-            lineColor = '#f59e0b'; // Yellow/orange for medium
-        }
-
-        container.innerHTML = `
-            <div class="sparkline-header">
-                <div class="sparkline-title">
-                    <i class="fas fa-chart-line"></i>
-                    Visibility Trend (${timeRangeLabel})
-                </div>
-                <div class="sparkline-trend ${trendClass}">
-                    ${trendIcon}
-                </div>
-            </div>
-            <div class="sparkline-chart">
-                <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-                    <!-- Area fill -->
-                    <path d="${areaPath}" fill="url(#sparklineGradient-${lineColor.replace('#', '')})" opacity="0.3"/>
-                    <!-- Line -->
-                    <polyline 
-                        points="${points}" 
-                        fill="none" 
-                        stroke="${lineColor}" 
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                    <!-- Dots at each point -->
-                    ${history.map((d, i) => {
-                        const x = padding + (i / (totalDays - 1 || 1)) * (width - 2 * padding);
-                        const y = height - padding - ((d.mention_rate || 0) / maxY) * (height - 2 * padding);
-                        const isLast = i === history.length - 1;
-                        return `<circle cx="${x}" cy="${y}" r="${isLast ? 4 : 2}" fill="${isLast ? lineColor : lineColor + '99'}" />`;
-                    }).join('')}
-                    <defs>
-                        <linearGradient id="sparklineGradient-10b981" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.4" />
-                            <stop offset="100%" style="stop-color:#10b981;stop-opacity:0" />
-                        </linearGradient>
-                        <linearGradient id="sparklineGradient-f59e0b" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.4" />
-                            <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0" />
-                        </linearGradient>
-                        <linearGradient id="sparklineGradient-ef4444" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.4" />
-                            <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-            </div>
-            <div class="sparkline-stats">
-                <div class="sparkline-stat">
-                    <span class="sparkline-stat-value" style="color: ${lineColor}">${latestVisibility.toFixed(0)}%</span>
-                    <span class="sparkline-stat-label">Today</span>
-                </div>
-                <div class="sparkline-stat">
-                    <span class="sparkline-stat-value">${totalMentions}</span>
-                    <span class="sparkline-stat-label">Total Mentions</span>
-                </div>
-                <div class="sparkline-stat">
-                    <span class="sparkline-stat-value">${avgVisibility.toFixed(0)}%</span>
-                    <span class="sparkline-stat-label">Avg Visibility</span>
-                </div>
-            </div>
-        `;
     }
 
     /**
@@ -2092,14 +2135,6 @@ class LLMMonitoring {
 
         // Build HTML with CSS classes
         let html = `
-            <!-- ✨ Trend Sparkline Section -->
-            <div class="sparkline-container" id="queryTrendSparkline">
-                <div class="sparkline-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Loading trend...</span>
-                </div>
-            </div>
-            
             <!-- Summary Cards -->
             <div class="brand-summary-grid">
                 <!-- Your Brand Card -->
@@ -2109,7 +2144,7 @@ class LLMMonitoring {
                         <div class="brand-summary-card-icon">${brandIcon}</div>
                     </div>
                     <div class="brand-summary-card-value">${brandMentionedCount}<span>/${llmNames.length}</span></div>
-                    <div class="brand-summary-card-subtitle">LLMs mentioned today</div>
+                    <div class="brand-summary-card-subtitle">LLMs mentioned</div>
                 </div>
                 
                 <!-- Competitors Card -->
@@ -2214,19 +2249,6 @@ class LLMMonitoring {
         `;
 
         return html;
-    }
-
-    /**
-     * Get human-readable label for the current time range
-     */
-    getTimeRangeLabel() {
-        const days = this.globalTimeRange || 30;
-        if (days === 7) return '7d';
-        if (days === 14) return '14d';
-        if (days === 30) return '30d';
-        if (days === 60) return '60d';
-        if (days === 90) return '90d';
-        return `${days}d`;
     }
 
     /**

@@ -3033,3 +3033,369 @@ label:not(.search-form label) {
     letter-spacing: 0.5px;
     margin-top: 2px;
 }
+
+
+/* ========================================
+   KPI TREND ARROWS
+   ======================================== */
+
+.kpi-value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.kpi-main-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #161616;
+    line-height: 1.2;
+}
+
+.kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    cursor: help;
+}
+
+.kpi-trend.trend-up {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+}
+
+.kpi-trend.trend-up i {
+    color: #22c55e;
+}
+
+.kpi-trend.trend-down {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+}
+
+.kpi-trend.trend-down i {
+    color: #ef4444;
+}
+
+.kpi-trend.trend-stable {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #6b7280;
+}
+
+.kpi-trend.trend-stable i {
+    color: #9ca3af;
+}
+
+.kpi-no-data {
+    font-size: 1.25rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.kpi-tooltip {
+    margin-left: 4px;
+    color: #9ca3af;
+    cursor: help;
+    font-size: 0.75rem;
+}
+
+.kpi-tooltip:hover {
+    color: #6b7280;
+}
+
+
+/* ========================================
+   METRICS ROW (Position + Quality)
+   ======================================== */
+
+.metrics-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .metrics-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ========================================
+   POSITION METRICS CARD
+   ======================================== */
+
+.position-metrics-card {
+    min-height: 280px;
+}
+
+.position-metrics-content {
+    padding: 0.5rem 0;
+}
+
+.position-main-stat {
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+}
+
+.position-main-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.position-main-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #78350f;
+    line-height: 1;
+}
+
+.position-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.position-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.position-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.position-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 16px;
+}
+
+.position-badge-gold {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+}
+
+.position-badge-gold i {
+    color: #eab308;
+}
+
+.position-badge-silver {
+    background: linear-gradient(135deg, #f3f4f6 0%, #d1d5db 100%);
+    color: #374151;
+}
+
+.position-badge-silver i {
+    color: #6b7280;
+}
+
+.position-badge-bronze {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    color: #9a3412;
+}
+
+.position-badge-bronze i {
+    color: #ea580c;
+}
+
+.position-value {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #161616;
+}
+
+.position-bar-container {
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.position-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+}
+
+.position-bar-gold {
+    background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.position-bar-silver {
+    background: linear-gradient(90deg, #9ca3af 0%, #6b7280 100%);
+}
+
+.position-bar-bronze {
+    background: linear-gradient(90deg, #fb923c 0%, #ea580c 100%);
+}
+
+.position-footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.chart-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+
+/* ========================================
+   QUALITY SCORE CARD
+   ======================================== */
+
+.quality-score-card {
+    min-height: 280px;
+}
+
+.quality-score-content {
+    padding: 0.5rem 0;
+}
+
+.quality-main {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.quality-score-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 4px solid #22c55e;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.quality-score-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.quality-score-value.quality-excellent {
+    color: #166534;
+}
+
+.quality-score-value.quality-good {
+    color: #3f6212;
+}
+
+.quality-score-value.quality-fair {
+    color: #a16207;
+}
+
+.quality-score-value.quality-poor {
+    color: #991b1b;
+}
+
+.quality-score-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.quality-score-label.quality-excellent {
+    color: #22c55e;
+}
+
+.quality-score-label.quality-good {
+    color: #84cc16;
+}
+
+.quality-score-label.quality-fair {
+    color: #eab308;
+}
+
+.quality-score-label.quality-poor {
+    color: #ef4444;
+}
+
+.quality-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.quality-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.quality-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.quality-item-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.quality-item-label i {
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+.quality-item-value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #161616;
+}
+
+.quality-bar-container {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.quality-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease-out, background-color 0.3s ease;
+}
+
+.quality-item-detail {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}

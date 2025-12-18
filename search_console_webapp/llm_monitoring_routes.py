@@ -406,6 +406,7 @@ def get_project(project_id):
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
         
         # Obtener todos los snapshots del rango seleccionado
+        # ✨ NUEVO: Incluir campos Top3/5/10 para métricas de posición granulares
         cur.execute(f"""
             SELECT 
                 llm_provider,
@@ -418,6 +419,9 @@ def get_project(project_id):
                 total_mentions,
                 total_queries,
                 total_competitor_mentions,
+                appeared_in_top3,
+                appeared_in_top5,
+                appeared_in_top10,
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
@@ -426,12 +430,40 @@ def get_project(project_id):
         """, (project_id,))
         
         all_snapshots = cur.fetchall()
-        logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos 30 días)")
+        logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos {days} días)")
+        
+        # ✨ NUEVO: Obtener snapshots del período ANTERIOR para calcular tendencias
+        # Si el período actual es "últimos 30 días", el anterior es "hace 60-31 días"
+        cur.execute(f"""
+            SELECT 
+                llm_provider,
+                mention_rate,
+                avg_position,
+                share_of_voice,
+                positive_mentions,
+                neutral_mentions,
+                negative_mentions,
+                total_mentions,
+                total_queries,
+                total_competitor_mentions,
+                appeared_in_top3,
+                appeared_in_top5,
+                appeared_in_top10,
+                snapshot_date
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s
+                AND snapshot_date >= CURRENT_DATE - INTERVAL '{days * 2} days'
+                AND snapshot_date < CURRENT_DATE - INTERVAL '{days} days'
+            ORDER BY snapshot_date DESC, llm_provider
+        """, (project_id,))
+        
+        previous_snapshots = cur.fetchall()
+        logger.info(f"📊 Snapshots período anterior: {len(previous_snapshots)} (para calcular tendencias)")
         
         # 🧮 Calcular MÉTRICAS AGREGADAS (volumen real)
         # En lugar de promediar SoV por LLM, sumamos TODAS las menciones
         
-        # Totales agregados
+        # Totales agregados - PERÍODO ACTUAL
         total_brand_mentions = 0
         total_competitor_mentions = 0
         total_queries_all = 0
@@ -439,6 +471,11 @@ def get_project(project_id):
         total_neutral = 0
         total_negative = 0
         all_positions = []
+        
+        # ✨ NUEVO: Métricas de posición granulares
+        total_top3 = 0
+        total_top5 = 0
+        total_top10 = 0
         
         # Agrupar por LLM para cálculos individuales
         snapshots_by_llm = {}
@@ -456,19 +493,79 @@ def get_project(project_id):
             total_neutral += (snapshot.get('neutral_mentions') or 0)
             total_negative += (snapshot.get('negative_mentions') or 0)
             
+            # ✨ NUEVO: Acumular Top3/5/10
+            total_top3 += (snapshot.get('appeared_in_top3') or 0)
+            total_top5 += (snapshot.get('appeared_in_top5') or 0)
+            total_top10 += (snapshot.get('appeared_in_top10') or 0)
+            
             # Acumular posiciones
             if snapshot.get('avg_position') is not None:
                 all_positions.append(float(snapshot['avg_position']))
+        
+        # ✨ NUEVO: Calcular métricas del PERÍODO ANTERIOR para tendencias
+        prev_brand_mentions = 0
+        prev_competitor_mentions = 0
+        prev_queries_all = 0
+        prev_positive = 0
+        prev_positions = []
+        
+        for snapshot in previous_snapshots:
+            prev_brand_mentions += (snapshot.get('total_mentions') or 0)
+            prev_competitor_mentions += (snapshot.get('total_competitor_mentions') or 0)
+            prev_queries_all += (snapshot.get('total_queries') or 0)
+            prev_positive += (snapshot.get('positive_mentions') or 0)
+            if snapshot.get('avg_position') is not None:
+                prev_positions.append(float(snapshot['avg_position']))
+        
+        # Métricas del período anterior
+        prev_mention_rate = (prev_brand_mentions / prev_queries_all * 100) if prev_queries_all > 0 else 0
+        prev_sov = (prev_brand_mentions / (prev_brand_mentions + prev_competitor_mentions) * 100) if (prev_brand_mentions + prev_competitor_mentions) > 0 else 0
+        prev_positive_pct = (prev_positive / prev_queries_all * 100) if prev_queries_all > 0 else 0
         
         # 📊 Calcular métricas agregadas globales
         aggregated_mention_rate = (total_brand_mentions / total_queries_all * 100) if total_queries_all > 0 else 0
         aggregated_sov = (total_brand_mentions / (total_brand_mentions + total_competitor_mentions) * 100) if (total_brand_mentions + total_competitor_mentions) > 0 else 0
         aggregated_avg_position = sum(all_positions) / len(all_positions) if all_positions else None
         
+        # ✨ NUEVO: Calcular tasas de posición (% sobre total de menciones donde aparecimos)
+        # Nota: Top3 incluye Top1, Top5 incluye Top3, etc.
+        total_appearances = total_brand_mentions  # Usar menciones como base
+        top3_rate = (total_top3 / total_appearances * 100) if total_appearances > 0 else 0
+        top5_rate = (total_top5 / total_appearances * 100) if total_appearances > 0 else 0
+        top10_rate = (total_top10 / total_appearances * 100) if total_appearances > 0 else 0
+        
         # Sentiment agregado
         aggregated_positive_pct = (total_positive / total_queries_all * 100) if total_queries_all > 0 else 0
         aggregated_neutral_pct = (total_neutral / total_queries_all * 100) if total_queries_all > 0 else 0
         aggregated_negative_pct = (total_negative / total_queries_all * 100) if total_queries_all > 0 else 0
+        
+        # ✨ NUEVO: Calcular TENDENCIAS (cambio vs período anterior)
+        def calculate_trend(current, previous):
+            """Calcula tendencia: direction (up/down/stable) y change (%)"""
+            if previous == 0:
+                if current > 0:
+                    return {'direction': 'up', 'change': 100, 'previous': 0}
+                return {'direction': 'stable', 'change': 0, 'previous': 0}
+            
+            change = ((current - previous) / previous) * 100
+            
+            # Considerar "stable" si el cambio es menor al 2%
+            if abs(change) < 2:
+                direction = 'stable'
+            else:
+                direction = 'up' if change > 0 else 'down'
+            
+            return {
+                'direction': direction,
+                'change': round(abs(change), 1),
+                'previous': round(previous, 1)
+            }
+        
+        trends = {
+            'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate),
+            'share_of_voice': calculate_trend(aggregated_sov, prev_sov),
+            'sentiment_positive': calculate_trend(aggregated_positive_pct, prev_positive_pct)
+        }
         
         # 🎯 Calcular métricas individuales por LLM (para compatibilidad con frontend)
         # El frontend espera datos por LLM, pero ahora usamos los valores agregados
@@ -499,6 +596,48 @@ def get_project(project_id):
         
         logger.info(f"✅ Métricas agregadas calculadas: SoV={aggregated_sov:.2f}%, Mention Rate={aggregated_mention_rate:.2f}%")
         
+        # ✨ NUEVO: Calcular Quality Score
+        # Componentes del Quality Score:
+        # 1. Completeness: ¿Tenemos datos de todos los LLMs habilitados?
+        # 2. Freshness: ¿Cuánto hace del último análisis?
+        # 3. Coverage: ¿Qué % de queries se analizaron?
+        enabled_llms = project['enabled_llms'] or []
+        llms_with_data = len(snapshots_by_llm)
+        llms_expected = len(enabled_llms)
+        
+        # Completeness (0-100): % de LLMs con datos
+        completeness = (llms_with_data / llms_expected * 100) if llms_expected > 0 else 0
+        
+        # Freshness (0-100): 100 si datos de hoy, decrece con el tiempo
+        from datetime import date as date_type
+        last_snapshot = project['last_snapshot_date']
+        if last_snapshot:
+            days_since_update = (date_type.today() - last_snapshot).days
+            freshness = max(0, 100 - (days_since_update * 10))  # -10% por día
+        else:
+            freshness = 0
+        
+        # Error rate: % de snapshots sin errores (asumimos 100% si hay datos)
+        error_rate = 0 if len(all_snapshots) > 0 else 100
+        
+        # Quality Score final (promedio ponderado)
+        quality_score = round((completeness * 0.4 + freshness * 0.4 + (100 - error_rate) * 0.2), 1)
+        
+        quality_data = {
+            'score': quality_score,
+            'components': {
+                'completeness': round(completeness, 1),
+                'freshness': round(freshness, 1),
+                'error_rate': round(error_rate, 1)
+            },
+            'details': {
+                'llms_with_data': llms_with_data,
+                'llms_expected': llms_expected,
+                'days_since_update': (date_type.today() - last_snapshot).days if last_snapshot else None,
+                'total_snapshots_in_period': len(all_snapshots)
+            }
+        }
+        
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
             'success': True,
@@ -524,7 +663,22 @@ def get_project(project_id):
                 'total_snapshots': project['total_snapshots'],
                 'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None
             },
-            'latest_metrics': metrics_by_llm
+            'latest_metrics': metrics_by_llm,
+            # ✨ NUEVO: Tendencias (comparación con período anterior)
+            'trends': trends,
+            # ✨ NUEVO: Métricas de posición granulares
+            'position_metrics': {
+                'avg_position': round(aggregated_avg_position, 1) if aggregated_avg_position else None,
+                'top3_rate': round(top3_rate, 1),
+                'top5_rate': round(top5_rate, 1),
+                'top10_rate': round(top10_rate, 1),
+                'total_top3': total_top3,
+                'total_top5': total_top5,
+                'total_top10': total_top10,
+                'total_appearances': total_appearances
+            },
+            # ✨ NUEVO: Quality Score del análisis
+            'quality_score': quality_data
         }), 200
         
     except Exception as e:
@@ -1018,91 +1172,6 @@ def delete_query(project_id, query_id):
         conn.rollback()
         logger.error(f"Error eliminando query: {e}", exc_info=True)
         return jsonify({'error': f'Error eliminando query: {str(e)}'}), 500
-    finally:
-        cur.close()
-        conn.close()
-
-
-@llm_monitoring_bp.route('/projects/<int:project_id>/queries/<int:query_id>/history', methods=['GET'])
-@login_required
-@validate_project_ownership
-def get_query_history(project_id, query_id):
-    """
-    Obtener histórico de menciones día a día para un prompt específico.
-    
-    Devuelve datos para mostrar un sparkline de tendencia:
-    - Fecha
-    - Número de menciones (de cuántos LLMs)
-    - Total de LLMs que respondieron
-    
-    Query params:
-        days: Días hacia atrás (default: 30)
-    
-    Returns:
-        JSON con histórico diario
-    """
-    days = int(request.args.get('days', 30))
-    
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
-    try:
-        cur = conn.cursor()
-        
-        # Verificar que la query pertenece al proyecto
-        cur.execute("""
-            SELECT id, query_text FROM llm_monitoring_queries
-            WHERE id = %s AND project_id = %s
-        """, (query_id, project_id))
-        
-        query = cur.fetchone()
-        if not query:
-            return jsonify({'error': 'Query no encontrada'}), 404
-        
-        # Calcular rango de fechas
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=days)
-        
-        # Obtener histórico día a día
-        cur.execute("""
-            SELECT 
-                r.analysis_date,
-                COUNT(DISTINCT r.llm_provider) as total_llms,
-                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as mentions_count,
-                ARRAY_AGG(DISTINCT r.llm_provider) FILTER (WHERE r.brand_mentioned) as llms_with_mentions
-            FROM llm_monitoring_results r
-            WHERE r.query_id = %s
-                AND r.analysis_date >= %s
-                AND r.analysis_date <= %s
-            GROUP BY r.analysis_date
-            ORDER BY r.analysis_date ASC
-        """, (query_id, start_date, end_date))
-        
-        history_raw = cur.fetchall()
-        
-        # Formatear respuesta
-        history = []
-        for row in history_raw:
-            history.append({
-                'date': row['analysis_date'].isoformat() if row['analysis_date'] else None,
-                'total_llms': row['total_llms'] or 0,
-                'mentions_count': row['mentions_count'] or 0,
-                'llms_with_mentions': row['llms_with_mentions'] or [],
-                'mention_rate': round((row['mentions_count'] or 0) / max(row['total_llms'] or 1, 1) * 100, 1)
-            })
-        
-        return jsonify({
-            'success': True,
-            'query_id': query_id,
-            'query_text': query['query_text'],
-            'days': days,
-            'history': history
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo histórico de query: {e}", exc_info=True)
-        return jsonify({'error': f'Error: {str(e)}'}), 500
     finally:
         cur.close()
         conn.close()
