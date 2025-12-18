@@ -11,6 +11,7 @@ class LLMMonitoring {
         this.charts = {};
         this.comparisonGrid = null;
         this.queriesGrid = null;
+        this.historyChart = null; // ✨ NUEVO: Gráfica de historial en el modal
 
         // Pagination state
         this.promptsPerPage = 10;
@@ -716,7 +717,7 @@ class LLMMonitoring {
 
             const data = await response.json();
             this.currentProject = data.project;
-            
+
             // ✨ NUEVO: Guardar datos adicionales para uso posterior
             this.currentTrends = data.trends || null;
             this.currentPositionMetrics = data.position_metrics || null;
@@ -830,22 +831,38 @@ class LLMMonitoring {
     renderKPIWithTrend(value, suffix = '', trend = null) {
         let html = `<span class="kpi-main-value">${value.toFixed(1)}${suffix}</span>`;
         
-        if (trend && trend.direction !== 'stable' && trend.change > 0) {
-            const trendClass = trend.direction === 'up' ? 'trend-up' : 'trend-down';
-            const trendIcon = trend.direction === 'up' ? 'fa-arrow-up' : 'fa-arrow-down';
-            const trendLabel = trend.direction === 'up' ? '+' : '-';
-            
+        console.log('🔍 Rendering KPI trend:', { value, trend });
+        
+        if (trend) {
+            if (trend.direction === 'up') {
+                html += `
+                    <div class="kpi-trend trend-up" title="vs previous ${this.globalTimeRange} days: ${trend.previous}${suffix}">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+${trend.change}%</span>
+                    </div>
+                `;
+            } else if (trend.direction === 'down') {
+                html += `
+                    <div class="kpi-trend trend-down" title="vs previous ${this.globalTimeRange} days: ${trend.previous}${suffix}">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>-${trend.change}%</span>
+                    </div>
+                `;
+            } else {
+                // Stable
+                html += `
+                    <div class="kpi-trend trend-stable" title="No significant change vs previous ${this.globalTimeRange} days">
+                        <i class="fas fa-equals"></i>
+                        <span>stable</span>
+                    </div>
+                `;
+            }
+        } else {
+            // No hay datos de tendencia (primer período)
             html += `
-                <div class="kpi-trend ${trendClass}" title="vs previous ${this.globalTimeRange} days: ${trend.previous}${suffix}">
-                    <i class="fas ${trendIcon}"></i>
-                    <span>${trendLabel}${trend.change}%</span>
-                </div>
-            `;
-        } else if (trend && trend.direction === 'stable') {
-            html += `
-                <div class="kpi-trend trend-stable" title="No significant change vs previous period">
-                    <i class="fas fa-minus"></i>
-                    <span>stable</span>
+                <div class="kpi-trend trend-nodata" title="Not enough historical data to calculate trend">
+                    <i class="fas fa-clock"></i>
+                    <span>new</span>
                 </div>
             `;
         }
@@ -1977,7 +1994,7 @@ class LLMMonitoring {
     /**
      * ✨ NUEVO: Show brand mentions modal
      */
-    showBrandMentionsModal(rowIdx) {
+    async showBrandMentionsModal(rowIdx) {
         const query = this.queriesData[rowIdx];
         if (!query) return;
 
@@ -2003,6 +2020,9 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.style.opacity = '1';
         }, 10);
+
+        // ✨ NUEVO: Cargar y mostrar la gráfica histórica
+        await this.loadQueryHistoryChart(query.id);
     }
 
     /**
@@ -2012,10 +2032,209 @@ class LLMMonitoring {
         const modal = document.getElementById('brandMentionsModal');
         if (!modal) return;
 
+        // Destruir el gráfico de historial si existe
+        if (this.historyChart) {
+            this.historyChart.destroy();
+            this.historyChart = null;
+        }
+
         modal.style.opacity = '0';
         setTimeout(() => {
             modal.style.display = 'none';
         }, 200);
+    }
+
+    /**
+     * ✨ NUEVO: Cargar y renderizar la gráfica de historial del query
+     */
+    async loadQueryHistoryChart(queryId) {
+        const loadingEl = document.getElementById('historyChartLoading');
+        const emptyEl = document.getElementById('historyChartEmpty');
+        const chartContainer = document.querySelector('.history-chart-container');
+        const legendContainer = document.getElementById('historyChartLegend');
+        const canvas = document.getElementById('brandMentionsHistoryChart');
+
+        if (!canvas) {
+            console.error('❌ History chart canvas not found');
+            return;
+        }
+
+        // Mostrar loading
+        if (loadingEl) loadingEl.style.display = 'flex';
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (chartContainer) chartContainer.style.display = 'block';
+        if (legendContainer) legendContainer.innerHTML = '';
+
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProjectId}/queries/${queryId}/history`);
+            const data = await response.json();
+
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            if (!data.success || !data.history || data.history.length === 0) {
+                if (emptyEl) emptyEl.style.display = 'flex';
+                if (chartContainer) chartContainer.style.display = 'none';
+                return;
+            }
+
+            // Preparar datos para la gráfica
+            const labels = data.history.map(h => {
+                const date = new Date(h.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+
+            // Colores para los LLMs
+            const llmColors = {
+                'openai': { bg: 'rgba(16, 163, 127, 0.2)', border: '#10A37F' },
+                'anthropic': { bg: 'rgba(204, 148, 102, 0.2)', border: '#CC9466' },
+                'google': { bg: 'rgba(66, 133, 244, 0.2)', border: '#4285F4' },
+                'perplexity': { bg: 'rgba(32, 178, 170, 0.2)', border: '#20B2AA' }
+            };
+
+            // Dataset principal: Visibility Rate total
+            const visibilityData = data.history.map(h => h.visibility_rate);
+
+            // Destruir gráfico anterior si existe
+            if (this.historyChart) {
+                this.historyChart.destroy();
+            }
+
+            // Crear datasets
+            const datasets = [
+                {
+                    label: 'Overall Visibility',
+                    data: visibilityData,
+                    borderColor: '#8BC34A',
+                    backgroundColor: 'rgba(139, 195, 74, 0.15)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#8BC34A',
+                    pointBorderColor: 'white',
+                    pointBorderWidth: 2
+                }
+            ];
+
+            // Añadir líneas para cada LLM
+            data.llm_providers.forEach(llm => {
+                const llmData = data.history.map(h => {
+                    const llmInfo = h.by_llm[llm];
+                    return llmInfo && llmInfo.mentioned ? 100 : 0;
+                });
+
+                const colors = llmColors[llm] || { bg: 'rgba(156, 163, 175, 0.2)', border: '#9CA3AF' };
+
+                datasets.push({
+                    label: this.getLLMDisplayName(llm),
+                    data: llmData,
+                    borderColor: colors.border,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: colors.border
+                });
+            });
+
+            // Crear gráfico
+            const ctx = canvas.getContext('2d');
+            this.historyChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(22, 22, 22, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#e5e7eb',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    if (context.datasetIndex === 0) {
+                                        return `${label}: ${value.toFixed(1)}%`;
+                                    }
+                                    return `${label}: ${value > 0 ? '✅ Mentioned' : '❌ Not mentioned'}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#6b7280',
+                                font: { size: 10 }
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: { 
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                callback: value => `${value}%`,
+                                font: { size: 10 }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Renderizar leyenda personalizada
+            if (legendContainer) {
+                let legendHtml = `
+                    <div class="history-legend-item">
+                        <span class="history-legend-dot" style="background-color: #8BC34A;"></span>
+                        <span>Overall Visibility</span>
+                    </div>
+                `;
+                
+                data.llm_providers.forEach(llm => {
+                    const colors = llmColors[llm] || { border: '#9CA3AF' };
+                    legendHtml += `
+                        <div class="history-legend-item">
+                            <span class="history-legend-dot" style="background-color: ${colors.border}; border: 2px dashed ${colors.border}; background: transparent;"></span>
+                            <span>${this.getLLMDisplayName(llm)}</span>
+                        </div>
+                    `;
+                });
+
+                legendContainer.innerHTML = legendHtml;
+            }
+
+            console.log(`📊 History chart loaded with ${data.total_data_points} data points`);
+
+        } catch (error) {
+            console.error('❌ Error loading query history:', error);
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (emptyEl) {
+                emptyEl.style.display = 'flex';
+                emptyEl.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Error loading history</span>
+                `;
+            }
+        }
     }
 
     /**

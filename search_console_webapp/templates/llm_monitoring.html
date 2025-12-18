@@ -1734,6 +1734,32 @@ Alternativas a Semrush
                     <p>Loading analysis...</p>
                 </div>
             </div>
+            
+            <!-- ✨ NUEVO: Gráfica de Evolución Histórica -->
+            <div class="modal-history-section" id="brandMentionsHistorySection">
+                <div class="history-chart-header">
+                    <h4>
+                        <i class="fas fa-chart-line"></i>
+                        Visibility Evolution
+                    </h4>
+                    <span class="history-chart-period" id="historyChartPeriod">Last 90 days</span>
+                </div>
+                <div class="history-chart-container">
+                    <canvas id="brandMentionsHistoryChart"></canvas>
+                </div>
+                <div class="history-chart-legend" id="historyChartLegend">
+                    <!-- Legend will be populated dynamically -->
+                </div>
+                <div class="history-chart-loading" id="historyChartLoading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Loading history...</span>
+                </div>
+                <div class="history-chart-empty" id="historyChartEmpty" style="display: none;">
+                    <i class="fas fa-calendar-times"></i>
+                    <span>No historical data available yet</span>
+                </div>
+            </div>
+            
             <div class="modal-footer brand-mentions-footer">
                 <button type="button" class="btn-close-modal" onclick="window.llmMonitoring.hideBrandMentionsModal()">
                     <i class="fas fa-times"></i>
