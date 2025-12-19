@@ -1202,7 +1202,7 @@ def get_query_history(project_id, query_id):
     
     cur = None
     try:
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor()
         
         # Verificar que la query pertenece al proyecto
         cur.execute("""
