@@ -2066,7 +2066,7 @@ class LLMMonitoring {
         if (legendContainer) legendContainer.innerHTML = '';
 
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProjectId}/queries/${queryId}/history`);
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/${queryId}/history`);
             const data = await response.json();
 
             if (loadingEl) loadingEl.style.display = 'none';
