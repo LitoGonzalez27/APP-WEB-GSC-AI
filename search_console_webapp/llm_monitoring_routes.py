@@ -1185,13 +1185,22 @@ def get_query_history(project_id, query_id):
     ✨ NUEVO: Obtiene el historial de visibilidad de un prompt/query específico
     para mostrar la evolución temporal en una gráfica.
     
+    Query params:
+        - days: Número de días de historial (default: 30, usa el time range global)
+    
     Returns:
         JSON con historial de menciones por fecha y LLM
     """
+    # ✨ Obtener parámetro days del time range global
+    days = request.args.get('days', 30, type=int)
+    if days not in [7, 14, 30, 60, 90]:
+        days = 30
+    
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
     
+    cur = None
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
@@ -1205,10 +1214,12 @@ def get_query_history(project_id, query_id):
         query = cur.fetchone()
         
         if not query:
-            return jsonify({'error': 'Query no encontrada'}), 404
+            return jsonify({'error': 'Query no encontrada', 'success': False}), 404
         
-        # Obtener historial de resultados para esta query (últimos 90 días)
-        cur.execute("""
+        logger.info(f"📊 Fetching history for query {query_id} ('{query['query_text'][:30]}...') - last {days} days")
+        
+        # Obtener historial de resultados para esta query
+        cur.execute(f"""
             SELECT 
                 analysis_date,
                 llm_provider,
@@ -1217,18 +1228,36 @@ def get_query_history(project_id, query_id):
                 sentiment
             FROM llm_monitoring_results
             WHERE query_id = %s AND project_id = %s
-                AND analysis_date >= CURRENT_DATE - INTERVAL '90 days'
+                AND analysis_date >= CURRENT_DATE - INTERVAL '{days} days'
             ORDER BY analysis_date ASC, llm_provider
         """, (query_id, project_id))
         
         results = cur.fetchall()
+        
+        logger.info(f"   → Found {len(results)} result records")
+        
+        # Si no hay resultados, retornar lista vacía con éxito
+        if not results:
+            return jsonify({
+                'success': True,
+                'query_id': query_id,
+                'query_text': query['query_text'],
+                'history': [],
+                'llm_providers': [],
+                'total_data_points': 0,
+                'days': days,
+                'message': 'No historical data found for this query in the selected period'
+            }), 200
         
         # Agrupar resultados por fecha
         history_by_date = {}
         llm_providers_set = set()
         
         for row in results:
-            date_str = row['analysis_date'].isoformat()
+            date_str = row['analysis_date'].isoformat() if row['analysis_date'] else None
+            if not date_str:
+                continue
+                
             llm = row['llm_provider']
             llm_providers_set.add(llm)
             
@@ -1246,7 +1275,7 @@ def get_query_history(project_id, query_id):
                 history_by_date[date_str]['llms_mentioned'] += 1
             
             history_by_date[date_str]['by_llm'][llm] = {
-                'mentioned': row['brand_mentioned'],
+                'mentioned': row['brand_mentioned'] or False,
                 'position': row['position_in_list'],
                 'sentiment': row['sentiment']
             }
@@ -1267,21 +1296,26 @@ def get_query_history(project_id, query_id):
         # Obtener lista de LLMs únicos para la leyenda del gráfico
         llm_providers = sorted(list(llm_providers_set))
         
+        logger.info(f"   ✅ Returning {len(history_list)} data points for {len(llm_providers)} LLMs")
+        
         return jsonify({
             'success': True,
             'query_id': query_id,
             'query_text': query['query_text'],
             'history': history_list,
             'llm_providers': llm_providers,
-            'total_data_points': len(history_list)
+            'total_data_points': len(history_list),
+            'days': days
         }), 200
         
     except Exception as e:
         logger.error(f"Error obteniendo historial de query: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo historial: {str(e)}'}), 500
+        return jsonify({'error': f'Error obteniendo historial: {str(e)}', 'success': False}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/queries/suggest', methods=['POST'])

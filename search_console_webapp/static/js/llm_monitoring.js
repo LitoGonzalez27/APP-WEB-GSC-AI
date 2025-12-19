@@ -2052,11 +2052,17 @@ class LLMMonitoring {
         const emptyEl = document.getElementById('historyChartEmpty');
         const chartContainer = document.querySelector('.history-chart-container');
         const legendContainer = document.getElementById('historyChartLegend');
+        const periodLabel = document.getElementById('historyChartPeriod');
         const canvas = document.getElementById('brandMentionsHistoryChart');
 
         if (!canvas) {
             console.error('❌ History chart canvas not found');
             return;
+        }
+
+        // Actualizar el label del período con el time range global
+        if (periodLabel) {
+            periodLabel.textContent = `Last ${this.globalTimeRange} days`;
         }
 
         // Mostrar loading
@@ -2066,7 +2072,8 @@ class LLMMonitoring {
         if (legendContainer) legendContainer.innerHTML = '';
 
         try {
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/${queryId}/history`);
+            // ✨ Usar el time range global del proyecto
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/${queryId}/history?days=${this.globalTimeRange}`);
             const data = await response.json();
 
             if (loadingEl) loadingEl.style.display = 'none';
