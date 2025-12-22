@@ -3618,7 +3618,7 @@ class LLMMonitoring {
     }
 
     /**
-     * Show prompts modal
+     * Show prompts modal (Enhanced)
      */
     showPromptsModal() {
         console.log('🎬 Showing prompts modal...');
@@ -3628,11 +3628,26 @@ class LLMMonitoring {
 
         // Reset form
         document.getElementById('promptsForm').reset();
+        
+        // Reset counter and preview
+        this.updatePromptsCounter();
+        
+        // Add input listener for real-time updates
+        const textarea = document.getElementById('promptsInput');
+        if (textarea) {
+            // Remove previous listener if any
+            textarea.removeEventListener('input', this._promptsInputHandler);
+            // Create and store handler
+            this._promptsInputHandler = () => this.updatePromptsCounter();
+            textarea.addEventListener('input', this._promptsInputHandler);
+        }
 
         // Show modal
         modal.style.display = 'flex';
         setTimeout(() => {
             modal.classList.add('active');
+            // Focus textarea
+            textarea?.focus();
         }, 10);
     }
 
@@ -3647,6 +3662,119 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300);
+    }
+    
+    /**
+     * ✨ Clear prompts input
+     */
+    clearPromptsInput() {
+        const textarea = document.getElementById('promptsInput');
+        if (textarea) {
+            textarea.value = '';
+            textarea.focus();
+            this.updatePromptsCounter();
+        }
+    }
+    
+    /**
+     * ✨ Update prompts counter and preview in real-time
+     */
+    updatePromptsCounter() {
+        const textarea = document.getElementById('promptsInput');
+        const counterNumber = document.getElementById('promptsCountNumber');
+        const previewSection = document.getElementById('promptsPreviewSection');
+        const previewList = document.getElementById('promptsPreviewList');
+        const previewCount = document.getElementById('previewCount');
+        const validation = document.getElementById('promptsValidation');
+        const submitBtn = document.getElementById('btnSavePrompts');
+        const submitText = document.getElementById('btnSavePromptsText');
+        
+        if (!textarea) return;
+        
+        const text = textarea.value.trim();
+        const lines = text ? text.split('\n').filter(line => line.trim().length > 0) : [];
+        
+        // Count valid prompts (min 10 chars)
+        const validPrompts = lines.filter(line => line.trim().length >= 10);
+        const invalidPrompts = lines.filter(line => line.trim().length < 10 && line.trim().length > 0);
+        
+        // Update counter
+        if (counterNumber) {
+            counterNumber.textContent = validPrompts.length;
+        }
+        
+        // Update validation message
+        if (validation) {
+            if (lines.length === 0) {
+                validation.className = 'input-validation';
+                validation.innerHTML = '<i class="fas fa-info-circle"></i><span>One prompt per line • Minimum 10 characters each</span>';
+            } else if (invalidPrompts.length > 0) {
+                validation.className = 'input-validation invalid';
+                validation.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${invalidPrompts.length} prompt(s) too short (min 10 chars)</span>`;
+            } else {
+                validation.className = 'input-validation valid';
+                validation.innerHTML = `<i class="fas fa-check-circle"></i><span>All ${validPrompts.length} prompts are valid</span>`;
+            }
+        }
+        
+        // Update preview
+        if (previewSection && previewList) {
+            if (lines.length > 0) {
+                previewSection.style.display = 'block';
+                
+                // Show up to 5 prompts in preview
+                const previewLines = lines.slice(0, 5);
+                let previewHtml = '';
+                
+                previewLines.forEach((line, idx) => {
+                    const isValid = line.trim().length >= 10;
+                    const truncated = line.length > 60 ? line.substring(0, 60) + '...' : line;
+                    previewHtml += `
+                        <div class="preview-item ${isValid ? '' : 'invalid'}">
+                            <span class="preview-item-number">${idx + 1}</span>
+                            <span class="preview-item-text">${this.escapeHtml(truncated)}</span>
+                        </div>
+                    `;
+                });
+                
+                if (lines.length > 5) {
+                    previewHtml += `
+                        <div class="preview-item" style="justify-content: center; background: transparent;">
+                            <span style="color: #6b7280; font-size: 0.75rem;">+ ${lines.length - 5} more prompts</span>
+                        </div>
+                    `;
+                }
+                
+                previewList.innerHTML = previewHtml;
+                
+                if (previewCount) {
+                    previewCount.textContent = `(${validPrompts.length} valid prompt${validPrompts.length !== 1 ? 's' : ''})`;
+                }
+            } else {
+                previewSection.style.display = 'none';
+            }
+        }
+        
+        // Enable/disable submit button
+        if (submitBtn) {
+            submitBtn.disabled = validPrompts.length === 0;
+        }
+        
+        // Update button text
+        if (submitText) {
+            submitText.textContent = validPrompts.length > 0 
+                ? `Add ${validPrompts.length} Prompt${validPrompts.length !== 1 ? 's' : ''}`
+                : 'Add Prompts';
+        }
+    }
+    
+    /**
+     * ✨ Escape HTML for safe rendering
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**

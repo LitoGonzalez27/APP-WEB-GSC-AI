@@ -1047,72 +1047,148 @@
         </div>
     </div>
 
-    <!-- Add Prompts Modal -->
+    <!-- Add Prompts Modal (Enhanced) -->
     <div class="modal-overlay" id="promptsModal" style="display: none;" data-pdf-exclude="true">
-        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="promptsModalTitle" tabindex="-1">
-            <div class="modal-header">
-                <div class="header-text">
-                    <h3 id="promptsModalTitle">Add Prompts</h3>
-                    <p>Add prompts/questions to test in LLMs. Enter one prompt per line.</p>
+        <div class="modal-content add-prompts-modal" role="dialog" aria-modal="true" aria-labelledby="promptsModalTitle" tabindex="-1">
+            <div class="modal-header add-prompts-header">
+                <div class="header-content">
+                    <div class="header-icon">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <div class="header-text">
+                        <h3 id="promptsModalTitle">Add Prompts</h3>
+                        <p>Create prompts to monitor your brand visibility across LLMs</p>
+                    </div>
                 </div>
                 <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
+            
             <form id="promptsForm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="promptsInput" class="enhanced-label">
-                            <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Prompts/Questions</span>*
-                        </label>
-                        <textarea 
-                            id="promptsInput" 
-                            class="enhanced-input" 
-                            rows="10" 
-                            placeholder="¿Cuáles son las mejores herramientas de SEO?
-¿Qué es ClicAndSEO?
-¿Cómo funciona el análisis de IA?
-Alternativas a Semrush
-..."
-                            required
-                        ></textarea>
-                        <small class="form-help">
-                            Enter one prompt per line. Minimum 10 characters per prompt.
-                        </small>
+                <div class="modal-body add-prompts-body">
+                    <!-- Tips Section -->
+                    <div class="prompts-tips-section">
+                        <div class="tips-header">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Pro Tips for Better Results</span>
+                        </div>
+                        <div class="tips-grid">
+                            <div class="tip-item">
+                                <span class="tip-icon">🎯</span>
+                                <span class="tip-text">Be specific: "Best CRM for small business" vs "Best CRM"</span>
+                            </div>
+                            <div class="tip-item">
+                                <span class="tip-icon">🔍</span>
+                                <span class="tip-text">Include comparison queries: "X vs Y alternatives"</span>
+                            </div>
+                            <div class="tip-item">
+                                <span class="tip-icon">💬</span>
+                                <span class="tip-text">Ask like your customers would ask an AI assistant</span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-row form-row-split">
-                        <div class="form-group">
-                            <label for="promptLanguage" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Language</span>
+                    <!-- Main Input Section -->
+                    <div class="prompts-input-section">
+                        <div class="input-header">
+                            <label for="promptsInput" class="input-label">
+                                <i class="fas fa-pen"></i>
+                                Enter Your Prompts
                             </label>
-                            <select id="promptLanguage" class="enhanced-select">
-                                <option value="">Use project default</option>
-                                <option value="es">🇪🇸 Spanish</option>
-                                <option value="en">🇬🇧 English</option>
-                            </select>
+                            <div class="prompts-counter" id="promptsCounter">
+                                <span class="counter-number" id="promptsCountNumber">0</span>
+                                <span class="counter-label">prompts</span>
+                            </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="promptType" class="enhanced-label">
-                                <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Type</span>
-                            </label>
-                            <select id="promptType" class="enhanced-select">
-                                <option value="manual">Manual</option>
-                                <option value="general">General</option>
-                                <option value="with_brand">With Brand</option>
-                                <option value="with_competitor">With Competitor</option>
-                            </select>
+                        <div class="textarea-wrapper">
+                            <textarea 
+                                id="promptsInput" 
+                                class="prompts-textarea" 
+                                rows="8" 
+                                placeholder="Enter one prompt per line...
+
+Example prompts:
+• What are the best tools for [your industry]?
+• How does [your brand] compare to [competitor]?
+• Recommend a [product/service] for [use case]
+• What is [your brand] and what does it do?"
+                                required
+                            ></textarea>
+                            <div class="textarea-actions">
+                                <button type="button" class="action-btn" onclick="window.llmMonitoring.clearPromptsInput()" title="Clear all">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <button type="button" class="action-btn" onclick="window.llmMonitoring.showSuggestionsModal()" title="Generate with AI">
+                                    <i class="fas fa-magic"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="input-validation" id="promptsValidation">
+                            <i class="fas fa-info-circle"></i>
+                            <span>One prompt per line • Minimum 10 characters each</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Options Section -->
+                    <div class="prompts-options-section">
+                        <div class="options-header">
+                            <i class="fas fa-sliders-h"></i>
+                            <span>Options</span>
+                        </div>
+                        <div class="options-grid">
+                            <div class="option-item">
+                                <label for="promptLanguage" class="option-label">
+                                    <i class="fas fa-globe"></i>
+                                    Language
+                                </label>
+                                <select id="promptLanguage" class="option-select">
+                                    <option value="">📌 Project default</option>
+                                    <option value="es">🇪🇸 Spanish</option>
+                                    <option value="en">🇬🇧 English</option>
+                                    <option value="fr">🇫🇷 French</option>
+                                    <option value="de">🇩🇪 German</option>
+                                    <option value="pt">🇵🇹 Portuguese</option>
+                                    <option value="it">🇮🇹 Italian</option>
+                                </select>
+                            </div>
+                            
+                            <div class="option-item">
+                                <label for="promptType" class="option-label">
+                                    <i class="fas fa-tag"></i>
+                                    Category
+                                </label>
+                                <select id="promptType" class="option-select">
+                                    <option value="manual">📝 Manual</option>
+                                    <option value="general">🌐 General</option>
+                                    <option value="with_brand">🏷️ Brand-focused</option>
+                                    <option value="with_competitor">⚔️ Competitor comparison</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Section (shows when prompts are entered) -->
+                    <div class="prompts-preview-section" id="promptsPreviewSection" style="display: none;">
+                        <div class="preview-header">
+                            <i class="fas fa-eye"></i>
+                            <span>Preview</span>
+                            <span class="preview-count" id="previewCount">(0 valid prompts)</span>
+                        </div>
+                        <div class="preview-list" id="promptsPreviewList">
+                            <!-- Preview items will be rendered here -->
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary btn-enhanced" onclick="window.llmMonitoring.hidePromptsModal()">
-                        <i class="fas fa-times"></i>
+                
+                <div class="modal-footer add-prompts-footer">
+                    <button type="button" class="btn-cancel" onclick="window.llmMonitoring.hidePromptsModal()">
                         Cancel
                     </button>
-                    <button type="submit" id="btnSavePrompts" class="btn-primary btn-enhanced">
-                        <i class="fas fa-plus"></i>
+                    <button type="submit" id="btnSavePrompts" class="btn-submit" disabled>
+                        <i class="fas fa-plus-circle"></i>
                         <span id="btnSavePromptsText">Add Prompts</span>
                     </button>
                 </div>
