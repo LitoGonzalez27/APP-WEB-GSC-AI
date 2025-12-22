@@ -3540,11 +3540,16 @@ label:not(.search-form label) {
    ======================================== */
 
 .add-prompts-modal {
-    max-width: 520px;
+    max-width: 560px;
     width: 95%;
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+}
+
+.add-prompts-modal form {
+    width: 100%;
+    max-width: 100%;
 }
 
 .add-prompts-header {
@@ -3604,6 +3609,122 @@ label:not(.search-form label) {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+/* Quick Suggestions Section */
+.quick-suggestions-section {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    padding: 0.875rem;
+}
+
+.quick-suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.625rem;
+}
+
+.quick-suggestions-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #166534;
+}
+
+.quick-suggestions-header .header-left i {
+    color: #22c55e;
+}
+
+.refresh-suggestions-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 6px;
+    color: #166534;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 0.75rem;
+}
+
+.refresh-suggestions-btn:hover {
+    background: white;
+    transform: rotate(180deg);
+}
+
+.refresh-suggestions-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+.quick-suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.suggestion-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #bbf7d0;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: #166534;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    max-width: 100%;
+}
+
+.suggestion-chip:hover {
+    background: #166534;
+    color: white;
+    border-color: #166534;
+}
+
+.suggestion-chip:hover .chip-add-icon {
+    color: white;
+}
+
+.chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
+}
+
+.chip-add-icon {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    color: #22c55e;
+}
+
+.suggestions-loading-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.suggestions-loading-inline i {
+    color: #22c55e;
+}
+
+.quick-suggestions-empty {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-style: italic;
+    padding: 4px 0;
 }
 
 /* Input Section */

@@ -1067,6 +1067,28 @@
             
             <form id="promptsForm">
                 <div class="modal-body add-prompts-body">
+                    <!-- Quick Suggestions Section -->
+                    <div class="quick-suggestions-section" id="quickSuggestionsSection">
+                        <div class="quick-suggestions-header">
+                            <div class="header-left">
+                                <i class="fas fa-magic"></i>
+                                <span>Suggested Prompts</span>
+                            </div>
+                            <button type="button" class="refresh-suggestions-btn" onclick="window.llmMonitoring.refreshQuickSuggestions()" title="Generate new suggestions">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="quick-suggestions-list" id="quickSuggestionsList">
+                            <div class="suggestions-loading-inline">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Generating suggestions...</span>
+                            </div>
+                        </div>
+                        <div class="quick-suggestions-empty" id="quickSuggestionsEmpty" style="display: none;">
+                            <span>Add some prompts first to get AI-powered suggestions</span>
+                        </div>
+                    </div>
+                    
                     <!-- Main Input Section -->
                     <div class="prompts-input-section">
                         <div class="input-header">
@@ -1084,21 +1106,13 @@
                             <textarea 
                                 id="promptsInput" 
                                 class="prompts-textarea" 
-                                rows="6" 
-                                placeholder="Enter one prompt per line...
-
-Example:
-What are the best SEO tools?
-How does [brand] compare to competitors?
-Recommend a CRM for small business"
+                                rows="5" 
+                                placeholder="Enter one prompt per line..."
                                 required
                             ></textarea>
                             <div class="textarea-actions">
                                 <button type="button" class="action-btn" onclick="window.llmMonitoring.clearPromptsInput()" title="Clear all">
                                     <i class="fas fa-eraser"></i>
-                                </button>
-                                <button type="button" class="action-btn" onclick="window.llmMonitoring.showSuggestionsModal()" title="Generate with AI">
-                                    <i class="fas fa-magic"></i>
                                 </button>
                             </div>
                         </div>

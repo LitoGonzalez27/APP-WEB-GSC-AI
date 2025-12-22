@@ -3629,7 +3629,7 @@ class LLMMonitoring {
         // Reset form
         document.getElementById('promptsForm').reset();
         
-        // Reset counter and preview
+        // Reset counter
         this.updatePromptsCounter();
         
         // Add input listener for real-time updates
@@ -3649,6 +3649,188 @@ class LLMMonitoring {
             // Focus textarea
             textarea?.focus();
         }, 10);
+        
+        // Load quick suggestions
+        this.loadQuickSuggestions();
+    }
+    
+    /**
+     * ✨ Load quick suggestions based on existing prompts
+     */
+    async loadQuickSuggestions() {
+        const listEl = document.getElementById('quickSuggestionsList');
+        const emptyEl = document.getElementById('quickSuggestionsEmpty');
+        const sectionEl = document.getElementById('quickSuggestionsSection');
+        
+        if (!listEl || !this.currentProject) return;
+        
+        // Show loading
+        listEl.innerHTML = `
+            <div class="suggestions-loading-inline">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Generating suggestions...</span>
+            </div>
+        `;
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (sectionEl) sectionEl.style.display = 'block';
+        
+        try {
+            // Get existing prompts
+            const existingPrompts = this.allPrompts || [];
+            
+            if (existingPrompts.length === 0) {
+                // No existing prompts - show default suggestions based on brand
+                const brandName = this.currentProject.brand_name || 'your brand';
+                const industry = this.currentProject.industry || 'your industry';
+                
+                const defaultSuggestions = [
+                    `What is ${brandName}?`,
+                    `Best ${industry} tools`,
+                    `${brandName} vs competitors`,
+                    `${brandName} reviews`,
+                    `How does ${brandName} work?`,
+                    `Alternatives to ${brandName}`
+                ];
+                
+                this.renderQuickSuggestions(defaultSuggestions);
+                return;
+            }
+            
+            // Generate variations using existing prompts
+            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    existing_prompts: existingPrompts.slice(0, 5).map(p => p.prompt),
+                    count: 6
+                })
+            });
+            
+            if (!response.ok) {
+                // Fallback to simple variations
+                this.generateLocalSuggestions(existingPrompts);
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.suggestions && data.suggestions.length > 0) {
+                this.renderQuickSuggestions(data.suggestions);
+            } else {
+                this.generateLocalSuggestions(existingPrompts);
+            }
+            
+        } catch (error) {
+            console.error('Error loading quick suggestions:', error);
+            // Fallback to local generation
+            if (this.allPrompts && this.allPrompts.length > 0) {
+                this.generateLocalSuggestions(this.allPrompts);
+            } else {
+                if (emptyEl) emptyEl.style.display = 'block';
+                listEl.innerHTML = '';
+            }
+        }
+    }
+    
+    /**
+     * ✨ Generate suggestions locally (fallback)
+     */
+    generateLocalSuggestions(existingPrompts) {
+        const brandName = this.currentProject?.brand_name || 'the brand';
+        const suggestions = [];
+        
+        // Patterns for variations
+        const patterns = [
+            (prompt) => prompt.replace(/\?$/, '') + ' in 2024?',
+            (prompt) => 'Best alternatives to ' + brandName,
+            (prompt) => brandName + ' vs ' + (this.currentProject?.competitors?.[0] || 'competitors'),
+            (prompt) => 'Is ' + brandName + ' worth it?',
+            (prompt) => 'How to use ' + brandName,
+            (prompt) => brandName + ' pricing and plans'
+        ];
+        
+        // Generate variations
+        patterns.forEach((pattern, idx) => {
+            if (idx < 6) {
+                const suggestion = pattern(existingPrompts[0]?.prompt || '');
+                if (suggestion && suggestion.length > 5) {
+                    suggestions.push(suggestion);
+                }
+            }
+        });
+        
+        this.renderQuickSuggestions(suggestions);
+    }
+    
+    /**
+     * ✨ Render quick suggestion chips
+     */
+    renderQuickSuggestions(suggestions) {
+        const listEl = document.getElementById('quickSuggestionsList');
+        if (!listEl) return;
+        
+        if (!suggestions || suggestions.length === 0) {
+            listEl.innerHTML = '<span class="quick-suggestions-empty">No suggestions available</span>';
+            return;
+        }
+        
+        // Filter out duplicates with existing prompts
+        const existingTexts = (this.allPrompts || []).map(p => p.prompt.toLowerCase().trim());
+        const uniqueSuggestions = suggestions.filter(s => 
+            !existingTexts.includes(s.toLowerCase().trim())
+        ).slice(0, 6);
+        
+        if (uniqueSuggestions.length === 0) {
+            listEl.innerHTML = '<span class="quick-suggestions-empty">All suggestions already added</span>';
+            return;
+        }
+        
+        let html = '';
+        uniqueSuggestions.forEach((suggestion, idx) => {
+            const truncated = suggestion.length > 50 ? suggestion.substring(0, 47) + '...' : suggestion;
+            html += `
+                <div class="suggestion-chip" onclick="window.llmMonitoring.addSuggestionToTextarea('${this.escapeHtml(suggestion).replace(/'/g, "\\'")}')">
+                    <span class="chip-text" title="${this.escapeHtml(suggestion)}">${this.escapeHtml(truncated)}</span>
+                    <i class="fas fa-plus chip-add-icon"></i>
+                </div>
+            `;
+        });
+        
+        listEl.innerHTML = html;
+    }
+    
+    /**
+     * ✨ Add suggestion to textarea
+     */
+    addSuggestionToTextarea(suggestion) {
+        const textarea = document.getElementById('promptsInput');
+        if (!textarea) return;
+        
+        const currentValue = textarea.value.trim();
+        if (currentValue) {
+            textarea.value = currentValue + '\n' + suggestion;
+        } else {
+            textarea.value = suggestion;
+        }
+        
+        // Update counter
+        this.updatePromptsCounter();
+        
+        // Remove the chip that was clicked (visual feedback)
+        // The chip will be regenerated on refresh
+        textarea.focus();
+    }
+    
+    /**
+     * ✨ Refresh quick suggestions
+     */
+    refreshQuickSuggestions() {
+        const btn = document.querySelector('.refresh-suggestions-btn');
+        if (btn) {
+            btn.classList.add('loading');
+            setTimeout(() => btn.classList.remove('loading'), 1000);
+        }
+        this.loadQuickSuggestions();
     }
 
     /**

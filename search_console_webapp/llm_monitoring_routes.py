@@ -1459,6 +1459,124 @@ def suggest_queries(project_id):
         }), 500
 
 
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/suggest-variations', methods=['POST'])
+@login_required
+@validate_project_ownership
+def suggest_query_variations(project_id):
+    """
+    ✨ NUEVO: Genera variaciones rápidas de prompts existentes usando IA
+    
+    Body:
+    {
+        "existing_prompts": ["prompt1", "prompt2"],
+        "count": 6
+    }
+    
+    Returns:
+        JSON con lista de variaciones sugeridas
+    """
+    data = request.get_json() or {}
+    existing_prompts = data.get('existing_prompts', [])
+    count = min(data.get('count', 6), 10)
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cur = conn.cursor()
+        
+        # Obtener datos del proyecto
+        cur.execute("""
+            SELECT brand_name, industry, language, competitors
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        
+        project = cur.fetchone()
+        
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        
+        cur.close()
+        conn.close()
+        
+        brand_name = project['brand_name']
+        industry = project['industry'] or 'general'
+        competitors = project['competitors'] or []
+        
+        # Intentar generar con Gemini
+        try:
+            import google.generativeai as genai
+            import os
+            
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if api_key:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                prompt = f"""Generate {count} unique prompt variations for LLM brand monitoring.
+
+Brand: {brand_name}
+Industry: {industry}
+Competitors: {', '.join(competitors[:3]) if competitors else 'N/A'}
+Existing prompts: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
+
+Requirements:
+- Each prompt should be a question users might ask an AI about this industry/brand
+- Include variations: comparisons, recommendations, reviews, how-to, alternatives
+- Keep prompts concise (under 80 characters)
+- Return ONLY the prompts, one per line, no numbering or explanations
+- Language: {project['language'] or 'en'}"""
+
+                response = model.generate_content(prompt)
+                suggestions = [
+                    line.strip() 
+                    for line in response.text.strip().split('\n') 
+                    if line.strip() and len(line.strip()) > 5
+                ][:count]
+                
+                return jsonify({
+                    'success': True,
+                    'suggestions': suggestions,
+                    'source': 'ai'
+                }), 200
+        
+        except Exception as ai_error:
+            logger.warning(f"AI generation failed, using fallback: {ai_error}")
+        
+        # Fallback: Generate simple variations locally
+        suggestions = []
+        comp_name = competitors[0] if competitors else 'competitors'
+        
+        variations = [
+            f"What is {brand_name} and how does it work?",
+            f"Best {industry} tools and platforms",
+            f"{brand_name} vs {comp_name} comparison",
+            f"Is {brand_name} worth it? Reviews",
+            f"Alternatives to {brand_name}",
+            f"How to get started with {brand_name}",
+            f"{brand_name} pricing and plans",
+            f"Top rated {industry} solutions"
+        ]
+        
+        # Filter out existing prompts
+        existing_lower = [p.lower() for p in existing_prompts]
+        suggestions = [v for v in variations if v.lower() not in existing_lower][:count]
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions,
+            'source': 'fallback'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error generating variations: {e}", exc_info=True)
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
+        pass  # Connection already closed
+
+
 # ============================================================================
 # ENDPOINTS: ANÁLISIS
 # ============================================================================
