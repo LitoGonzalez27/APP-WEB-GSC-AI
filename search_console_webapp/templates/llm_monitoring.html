@@ -1067,28 +1067,6 @@
             
             <form id="promptsForm">
                 <div class="modal-body add-prompts-body">
-                    <!-- Tips Section -->
-                    <div class="prompts-tips-section">
-                        <div class="tips-header">
-                            <i class="fas fa-lightbulb"></i>
-                            <span>Pro Tips for Better Results</span>
-                        </div>
-                        <div class="tips-grid">
-                            <div class="tip-item">
-                                <span class="tip-icon">🎯</span>
-                                <span class="tip-text">Be specific: "Best CRM for small business" vs "Best CRM"</span>
-                            </div>
-                            <div class="tip-item">
-                                <span class="tip-icon">🔍</span>
-                                <span class="tip-text">Include comparison queries: "X vs Y alternatives"</span>
-                            </div>
-                            <div class="tip-item">
-                                <span class="tip-icon">💬</span>
-                                <span class="tip-text">Ask like your customers would ask an AI assistant</span>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <!-- Main Input Section -->
                     <div class="prompts-input-section">
                         <div class="input-header">
@@ -1106,14 +1084,13 @@
                             <textarea 
                                 id="promptsInput" 
                                 class="prompts-textarea" 
-                                rows="8" 
+                                rows="6" 
                                 placeholder="Enter one prompt per line...
 
-Example prompts:
-• What are the best tools for [your industry]?
-• How does [your brand] compare to [competitor]?
-• Recommend a [product/service] for [use case]
-• What is [your brand] and what does it do?"
+Example:
+What are the best SEO tools?
+How does [brand] compare to competitors?
+Recommend a CRM for small business"
                                 required
                             ></textarea>
                             <div class="textarea-actions">
@@ -1126,18 +1103,14 @@ Example prompts:
                             </div>
                         </div>
                         
-                        <div class="input-validation" id="promptsValidation">
+                        <div class="input-hint">
                             <i class="fas fa-info-circle"></i>
-                            <span>One prompt per line • Minimum 10 characters each</span>
+                            <span>One prompt per line</span>
                         </div>
                     </div>
                     
                     <!-- Options Section -->
                     <div class="prompts-options-section">
-                        <div class="options-header">
-                            <i class="fas fa-sliders-h"></i>
-                            <span>Options</span>
-                        </div>
                         <div class="options-grid">
                             <div class="option-item">
                                 <label for="promptLanguage" class="option-label">
@@ -1167,18 +1140,6 @@ Example prompts:
                                     <option value="with_competitor">⚔️ Competitor comparison</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Preview Section (shows when prompts are entered) -->
-                    <div class="prompts-preview-section" id="promptsPreviewSection" style="display: none;">
-                        <div class="preview-header">
-                            <i class="fas fa-eye"></i>
-                            <span>Preview</span>
-                            <span class="preview-count" id="previewCount">(0 valid prompts)</span>
-                        </div>
-                        <div class="preview-list" id="promptsPreviewList">
-                            <!-- Preview items will be rendered here -->
                         </div>
                     </div>
                 </div>
