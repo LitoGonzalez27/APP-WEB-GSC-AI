@@ -507,6 +507,8 @@ def get_project(project_id):
         prev_competitor_mentions = 0
         prev_queries_all = 0
         prev_positive = 0
+        prev_neutral = 0
+        prev_negative = 0
         prev_positions = []
         
         for snapshot in previous_snapshots:
@@ -514,6 +516,8 @@ def get_project(project_id):
             prev_competitor_mentions += (snapshot.get('total_competitor_mentions') or 0)
             prev_queries_all += (snapshot.get('total_queries') or 0)
             prev_positive += (snapshot.get('positive_mentions') or 0)
+            prev_neutral += (snapshot.get('neutral_mentions') or 0)
+            prev_negative += (snapshot.get('negative_mentions') or 0)
             if snapshot.get('avg_position') is not None:
                 prev_positions.append(float(snapshot['avg_position']))
         
@@ -561,10 +565,41 @@ def get_project(project_id):
                 'previous': round(previous, 1)
             }
         
+        # ✨ Calcular tendencia del SENTIMIENTO de forma categórica
+        def get_dominant_sentiment(positive, neutral, negative):
+            """Determina el sentimiento dominante y devuelve un valor numérico para comparación"""
+            if positive >= neutral and positive >= negative:
+                return ('positive', 3)  # 3 = mejor
+            elif neutral >= positive and neutral >= negative:
+                return ('neutral', 2)   # 2 = medio
+            else:
+                return ('negative', 1)  # 1 = peor
+        
+        current_sentiment, current_sentiment_value = get_dominant_sentiment(
+            aggregated_positive_pct, aggregated_neutral_pct, aggregated_negative_pct
+        )
+        
+        # Sentimiento del período anterior
+        prev_positive_pct_calc = (prev_positive / prev_queries_all * 100) if prev_queries_all > 0 else 0
+        prev_neutral_pct_calc = (prev_neutral / prev_queries_all * 100) if prev_queries_all > 0 else 0
+        prev_negative_pct_calc = (prev_negative / prev_queries_all * 100) if prev_queries_all > 0 else 0
+        
+        prev_sentiment, prev_sentiment_value = get_dominant_sentiment(
+            prev_positive_pct_calc, prev_neutral_pct_calc, prev_negative_pct_calc
+        )
+        
+        # Determinar la tendencia categórica del sentimiento
+        if current_sentiment_value > prev_sentiment_value:
+            sentiment_trend = {'direction': 'better', 'previous': prev_sentiment}
+        elif current_sentiment_value < prev_sentiment_value:
+            sentiment_trend = {'direction': 'worse', 'previous': prev_sentiment}
+        else:
+            sentiment_trend = {'direction': 'same', 'previous': prev_sentiment}
+        
         trends = {
             'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate),
             'share_of_voice': calculate_trend(aggregated_sov, prev_sov),
-            'sentiment_positive': calculate_trend(aggregated_positive_pct, prev_positive_pct)
+            'sentiment': sentiment_trend  # ✨ Ahora es categórico: better/worse/same
         }
         
         # 🎯 Calcular métricas individuales por LLM (para compatibilidad con frontend)

@@ -804,20 +804,35 @@ class LLMMonitoring {
             trends?.share_of_voice
         );
         
-        // Sentiment con tendencia
-        let sentimentHTML = `<span class="sentiment-${sentimentClass}">${sentimentLabel}</span>`;
-        if (trends?.sentiment_positive) {
-            const trend = trends.sentiment_positive;
-            if (trend.direction !== 'stable' && trend.change > 0) {
-                const trendClass = trend.direction === 'up' ? 'trend-up' : 'trend-down';
-                const trendIcon = trend.direction === 'up' ? 'fa-arrow-up' : 'fa-arrow-down';
-                sentimentHTML += `
-                    <div class="kpi-trend ${trendClass}">
-                        <i class="fas ${trendIcon}"></i>
-                        <span>${trend.change}%</span>
-                    </div>
-                `;
+        // ✨ Sentiment con tendencia CATEGÓRICA (better/worse/same)
+        let sentimentHTML = `<span class="kpi-main-value sentiment-${sentimentClass}">${sentimentLabel}</span>`;
+        if (trends?.sentiment) {
+            const trend = trends.sentiment;
+            let trendClass, trendIcon, trendLabel;
+            
+            if (trend.direction === 'better') {
+                trendClass = 'trend-up';
+                trendIcon = 'fa-arrow-up';
+                trendLabel = 'Better';
+            } else if (trend.direction === 'worse') {
+                trendClass = 'trend-down';
+                trendIcon = 'fa-arrow-down';
+                trendLabel = 'Worse';
+            } else {
+                trendClass = 'trend-stable';
+                trendIcon = 'fa-equals';
+                trendLabel = 'Same';
             }
+            
+            // Capitalizar el sentimiento anterior para el tooltip
+            const prevSentiment = trend.previous ? trend.previous.charAt(0).toUpperCase() + trend.previous.slice(1) : 'Unknown';
+            
+            sentimentHTML += `
+                <div class="kpi-trend ${trendClass}" title="Previous period: ${prevSentiment}">
+                    <i class="fas ${trendIcon}"></i>
+                    <span>${trendLabel}</span>
+                </div>
+            `;
         }
 
         document.getElementById('kpiMentionRate').innerHTML = mentionRateHTML;
