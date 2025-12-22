@@ -3136,65 +3136,93 @@ label:not(.search-form label) {
    KPI TREND ARROWS
    ======================================== */
 
-.kpi-value {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+/* Override enhanced.css styles for proper trend display */
+.kpi-card .kpi-value {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: unset !important;
+    background-clip: unset !important;
 }
 
-.kpi-main-value {
+.kpi-card .kpi-value .kpi-main-value {
     font-size: 1.75rem;
     font-weight: 700;
     color: #161616;
+    background: linear-gradient(135deg, #161616 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     line-height: 1.2;
 }
 
-.kpi-trend {
-    display: inline-flex;
+.kpi-card .kpi-value .kpi-trend {
+    display: inline-flex !important;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     font-size: 0.75rem;
     font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: 4px 10px;
+    border-radius: 16px;
     cursor: help;
+    -webkit-text-fill-color: initial !important;
+    background-clip: padding-box !important;
+    margin-top: 2px;
 }
 
-.kpi-trend.trend-up {
-    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-    color: #166534;
+.kpi-card .kpi-value .kpi-trend i {
+    font-size: 0.7rem;
 }
 
-.kpi-trend.trend-up i {
-    color: #22c55e;
+.kpi-card .kpi-value .kpi-trend span {
+    font-weight: 600;
 }
 
-.kpi-trend.trend-down {
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-    color: #991b1b;
+.kpi-card .kpi-trend.trend-up {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
+    color: #166534 !important;
+    -webkit-text-fill-color: #166534 !important;
 }
 
-.kpi-trend.trend-down i {
-    color: #ef4444;
+.kpi-card .kpi-trend.trend-up i {
+    color: #22c55e !important;
+    -webkit-text-fill-color: #22c55e !important;
 }
 
-.kpi-trend.trend-stable {
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-    color: #6b7280;
+.kpi-card .kpi-trend.trend-down {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%) !important;
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
 }
 
-.kpi-trend.trend-stable i {
-    color: #9ca3af;
+.kpi-card .kpi-trend.trend-down i {
+    color: #ef4444 !important;
+    -webkit-text-fill-color: #ef4444 !important;
 }
 
-.kpi-trend.trend-nodata {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    color: #0369a1;
+.kpi-card .kpi-trend.trend-stable {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+    color: #6b7280 !important;
+    -webkit-text-fill-color: #6b7280 !important;
 }
 
-.kpi-trend.trend-nodata i {
-    color: #0ea5e9;
+.kpi-card .kpi-trend.trend-stable i {
+    color: #9ca3af !important;
+    -webkit-text-fill-color: #9ca3af !important;
+}
+
+.kpi-card .kpi-trend.trend-nodata {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    color: #0369a1 !important;
+    -webkit-text-fill-color: #0369a1 !important;
+}
+
+.kpi-card .kpi-trend.trend-nodata i {
+    color: #0ea5e9 !important;
+    -webkit-text-fill-color: #0ea5e9 !important;
 }
 
 .kpi-no-data {
