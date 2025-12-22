@@ -1728,27 +1728,17 @@ Alternativas a Semrush
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body brand-mentions-body" id="brandMentionsModalBody">
-                <div class="brand-mentions-loading">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading analysis...</p>
-                </div>
-            </div>
-            
-            <!-- ✨ NUEVO: Gráfica de Evolución Histórica -->
+            <!-- ✨ Gráfica de Evolución Histórica (PRIMERO) -->
             <div class="modal-history-section" id="brandMentionsHistorySection">
                 <div class="history-chart-header">
                     <h4>
                         <i class="fas fa-chart-line"></i>
                         Visibility Evolution
                     </h4>
-                    <span class="history-chart-period" id="historyChartPeriod">Last 90 days</span>
+                    <span class="history-chart-period" id="historyChartPeriod">Last 30 days</span>
                 </div>
                 <div class="history-chart-container">
                     <canvas id="brandMentionsHistoryChart"></canvas>
-                </div>
-                <div class="history-chart-legend" id="historyChartLegend">
-                    <!-- Legend will be populated dynamically -->
                 </div>
                 <div class="history-chart-loading" id="historyChartLoading">
                     <i class="fas fa-spinner fa-spin"></i>
@@ -1757,6 +1747,14 @@ Alternativas a Semrush
                 <div class="history-chart-empty" id="historyChartEmpty" style="display: none;">
                     <i class="fas fa-calendar-times"></i>
                     <span>No historical data available yet</span>
+                </div>
+            </div>
+            
+            <!-- Contenido del modal (Your Brand, Competitors, etc.) -->
+            <div class="modal-body brand-mentions-body" id="brandMentionsModalBody">
+                <div class="brand-mentions-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading analysis...</p>
                 </div>
             </div>
             

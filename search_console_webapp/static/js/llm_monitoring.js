@@ -2051,7 +2051,6 @@ class LLMMonitoring {
         const loadingEl = document.getElementById('historyChartLoading');
         const emptyEl = document.getElementById('historyChartEmpty');
         const chartContainer = document.querySelector('.history-chart-container');
-        const legendContainer = document.getElementById('historyChartLegend');
         const periodLabel = document.getElementById('historyChartPeriod');
         const canvas = document.getElementById('brandMentionsHistoryChart');
 
@@ -2069,7 +2068,6 @@ class LLMMonitoring {
         if (loadingEl) loadingEl.style.display = 'flex';
         if (emptyEl) emptyEl.style.display = 'none';
         if (chartContainer) chartContainer.style.display = 'block';
-        if (legendContainer) legendContainer.innerHTML = '';
 
         try {
             // ✨ Usar el time range global del proyecto
@@ -2098,55 +2096,36 @@ class LLMMonitoring {
                 'perplexity': { bg: 'rgba(32, 178, 170, 0.2)', border: '#20B2AA' }
             };
 
-            // Dataset principal: Visibility Rate total
+            // Dataset principal: Visibility Rate total (% de LLMs que mencionan)
             const visibilityData = data.history.map(h => h.visibility_rate);
+            
+            // Guardar datos completos para el tooltip
+            const historyData = data.history;
+            const llmProviders = data.llm_providers;
+            const self = this;
 
             // Destruir gráfico anterior si existe
             if (this.historyChart) {
                 this.historyChart.destroy();
             }
 
-            // Crear datasets
+            // ✨ Solo una línea: Overall Visibility (más limpio y claro)
             const datasets = [
                 {
-                    label: 'Overall Visibility',
+                    label: 'Visibility Rate',
                     data: visibilityData,
                     borderColor: '#8BC34A',
-                    backgroundColor: 'rgba(139, 195, 74, 0.15)',
+                    backgroundColor: 'rgba(139, 195, 74, 0.2)',
                     borderWidth: 3,
                     fill: true,
-                    tension: 0.3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
                     pointBackgroundColor: '#8BC34A',
                     pointBorderColor: 'white',
                     pointBorderWidth: 2
                 }
             ];
-
-            // Añadir líneas para cada LLM
-            data.llm_providers.forEach(llm => {
-                const llmData = data.history.map(h => {
-                    const llmInfo = h.by_llm[llm];
-                    return llmInfo && llmInfo.mentioned ? 100 : 0;
-                });
-
-                const colors = llmColors[llm] || { bg: 'rgba(156, 163, 175, 0.2)', border: '#9CA3AF' };
-
-                datasets.push({
-                    label: this.getLLMDisplayName(llm),
-                    data: llmData,
-                    borderColor: colors.border,
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    pointBackgroundColor: colors.border
-                });
-            });
 
             // Crear gráfico
             const ctx = canvas.getContext('2d');
@@ -2168,16 +2147,37 @@ class LLMMonitoring {
                             backgroundColor: 'rgba(22, 22, 22, 0.95)',
                             titleColor: '#fff',
                             bodyColor: '#e5e7eb',
-                            padding: 12,
-                            cornerRadius: 8,
+                            padding: 14,
+                            cornerRadius: 10,
+                            displayColors: false,
                             callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
                                 label: function(context) {
-                                    const label = context.dataset.label || '';
+                                    const idx = context.dataIndex;
+                                    const dayData = historyData[idx];
                                     const value = context.parsed.y;
-                                    if (context.datasetIndex === 0) {
-                                        return `${label}: ${value.toFixed(1)}%`;
-                                    }
-                                    return `${label}: ${value > 0 ? '✅ Mentioned' : '❌ Not mentioned'}`;
+                                    
+                                    // Línea principal con el %
+                                    return `Visibility: ${value.toFixed(1)}% (${dayData.llms_mentioned}/${dayData.total_llms} LLMs)`;
+                                },
+                                afterLabel: function(context) {
+                                    const idx = context.dataIndex;
+                                    const dayData = historyData[idx];
+                                    
+                                    // Mostrar qué LLMs mencionaron
+                                    const lines = [];
+                                    llmProviders.forEach(llm => {
+                                        const llmInfo = dayData.by_llm[llm];
+                                        if (llmInfo) {
+                                            const icon = llmInfo.mentioned ? '✅' : '❌';
+                                            const displayName = self.getLLMDisplayName(llm);
+                                            lines.push(`${icon} ${displayName}`);
+                                        }
+                                    });
+                                    
+                                    return lines.length > 0 ? '\n' + lines.join('\n') : '';
                                 }
                             }
                         }
@@ -2187,47 +2187,27 @@ class LLMMonitoring {
                             grid: { display: false },
                             ticks: { 
                                 color: '#6b7280',
-                                font: { size: 10 }
+                                font: { size: 11 },
+                                maxRotation: 45
                             }
                         },
                         y: {
                             min: 0,
                             max: 100,
                             grid: { 
-                                color: 'rgba(0, 0, 0, 0.05)',
+                                color: 'rgba(0, 0, 0, 0.06)',
                                 drawBorder: false
                             },
                             ticks: {
                                 color: '#6b7280',
                                 callback: value => `${value}%`,
-                                font: { size: 10 }
+                                font: { size: 11 },
+                                stepSize: 25
                             }
                         }
                     }
                 }
             });
-
-            // Renderizar leyenda personalizada
-            if (legendContainer) {
-                let legendHtml = `
-                    <div class="history-legend-item">
-                        <span class="history-legend-dot" style="background-color: #8BC34A;"></span>
-                        <span>Overall Visibility</span>
-                    </div>
-                `;
-                
-                data.llm_providers.forEach(llm => {
-                    const colors = llmColors[llm] || { border: '#9CA3AF' };
-                    legendHtml += `
-                        <div class="history-legend-item">
-                            <span class="history-legend-dot" style="background-color: ${colors.border}; border: 2px dashed ${colors.border}; background: transparent;"></span>
-                            <span>${this.getLLMDisplayName(llm)}</span>
-                        </div>
-                    `;
-                });
-
-                legendContainer.innerHTML = legendHtml;
-            }
 
             console.log(`📊 History chart loaded with ${data.total_data_points} data points`);
 
