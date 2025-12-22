@@ -1515,6 +1515,9 @@ def suggest_query_variations(project_id):
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
+                language = project['language'] or 'en'
+                lang_instruction = "Spanish" if language == 'es' else "English" if language == 'en' else language.upper()
+                
                 prompt = f"""Generate {count} unique prompt variations for LLM brand monitoring.
 
 Brand: {brand_name}
@@ -1522,12 +1525,14 @@ Industry: {industry}
 Competitors: {', '.join(competitors[:3]) if competitors else 'N/A'}
 Existing prompts: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
 
+CRITICAL: Generate ALL prompts in {lang_instruction} language.
+
 Requirements:
 - Each prompt should be a question users might ask an AI about this industry/brand
 - Include variations: comparisons, recommendations, reviews, how-to, alternatives
 - Keep prompts concise (under 80 characters)
 - Return ONLY the prompts, one per line, no numbering or explanations
-- Language: {project['language'] or 'en'}"""
+- ALL prompts MUST be in {lang_instruction}"""
 
                 response = model.generate_content(prompt)
                 suggestions = [
@@ -1547,18 +1552,31 @@ Requirements:
         
         # Fallback: Generate simple variations locally
         suggestions = []
-        comp_name = competitors[0] if competitors else 'competitors'
+        comp_name = competitors[0] if competitors else 'competidores'
+        language = project['language'] or 'en'
         
-        variations = [
-            f"What is {brand_name} and how does it work?",
-            f"Best {industry} tools and platforms",
-            f"{brand_name} vs {comp_name} comparison",
-            f"Is {brand_name} worth it? Reviews",
-            f"Alternatives to {brand_name}",
-            f"How to get started with {brand_name}",
-            f"{brand_name} pricing and plans",
-            f"Top rated {industry} solutions"
-        ]
+        if language == 'es':
+            variations = [
+                f"¿Qué es {brand_name} y cómo funciona?",
+                f"Mejores herramientas de {industry}",
+                f"{brand_name} vs {comp_name} comparativa",
+                f"¿Vale la pena {brand_name}? Opiniones",
+                f"Alternativas a {brand_name}",
+                f"Cómo empezar con {brand_name}",
+                f"Precios y planes de {brand_name}",
+                f"Las mejores soluciones de {industry}"
+            ]
+        else:
+            variations = [
+                f"What is {brand_name} and how does it work?",
+                f"Best {industry} tools and platforms",
+                f"{brand_name} vs {comp_name} comparison",
+                f"Is {brand_name} worth it? Reviews",
+                f"Alternatives to {brand_name}",
+                f"How to get started with {brand_name}",
+                f"{brand_name} pricing and plans",
+                f"Top rated {industry} solutions"
+            ]
         
         # Filter out existing prompts
         existing_lower = [p.lower() for p in existing_prompts]

@@ -3679,18 +3679,31 @@ class LLMMonitoring {
             const existingPrompts = this.allPrompts || [];
             
             if (existingPrompts.length === 0) {
-                // No existing prompts - show default suggestions based on brand
+                // No existing prompts - show default suggestions based on brand and language
                 const brandName = this.currentProject.brand_name || 'your brand';
                 const industry = this.currentProject.industry || 'your industry';
+                const language = this.currentProject.language || 'en';
                 
-                const defaultSuggestions = [
-                    `What is ${brandName}?`,
-                    `Best ${industry} tools`,
-                    `${brandName} vs competitors`,
-                    `${brandName} reviews`,
-                    `How does ${brandName} work?`,
-                    `Alternatives to ${brandName}`
-                ];
+                let defaultSuggestions;
+                if (language === 'es') {
+                    defaultSuggestions = [
+                        `¿Qué es ${brandName}?`,
+                        `Mejores herramientas de ${industry}`,
+                        `${brandName} vs competidores`,
+                        `Opiniones de ${brandName}`,
+                        `¿Cómo funciona ${brandName}?`,
+                        `Alternativas a ${brandName}`
+                    ];
+                } else {
+                    defaultSuggestions = [
+                        `What is ${brandName}?`,
+                        `Best ${industry} tools`,
+                        `${brandName} vs competitors`,
+                        `${brandName} reviews`,
+                        `How does ${brandName} work?`,
+                        `Alternatives to ${brandName}`
+                    ];
+                }
                 
                 this.renderQuickSuggestions(defaultSuggestions);
                 return;
@@ -3737,27 +3750,30 @@ class LLMMonitoring {
      */
     generateLocalSuggestions(existingPrompts) {
         const brandName = this.currentProject?.brand_name || 'the brand';
-        const suggestions = [];
+        const language = this.currentProject?.language || 'en';
+        const competitor = this.currentProject?.competitors?.[0] || (language === 'es' ? 'competidores' : 'competitors');
         
-        // Patterns for variations
-        const patterns = [
-            (prompt) => prompt.replace(/\?$/, '') + ' in 2024?',
-            (prompt) => 'Best alternatives to ' + brandName,
-            (prompt) => brandName + ' vs ' + (this.currentProject?.competitors?.[0] || 'competitors'),
-            (prompt) => 'Is ' + brandName + ' worth it?',
-            (prompt) => 'How to use ' + brandName,
-            (prompt) => brandName + ' pricing and plans'
-        ];
+        let suggestions;
         
-        // Generate variations
-        patterns.forEach((pattern, idx) => {
-            if (idx < 6) {
-                const suggestion = pattern(existingPrompts[0]?.prompt || '');
-                if (suggestion && suggestion.length > 5) {
-                    suggestions.push(suggestion);
-                }
-            }
-        });
+        if (language === 'es') {
+            suggestions = [
+                `¿Qué es ${brandName} y cómo funciona?`,
+                `Mejores alternativas a ${brandName}`,
+                `${brandName} vs ${competitor}`,
+                `¿Vale la pena ${brandName}?`,
+                `Cómo usar ${brandName}`,
+                `Precios de ${brandName}`
+            ];
+        } else {
+            suggestions = [
+                `What is ${brandName} and how does it work?`,
+                `Best alternatives to ${brandName}`,
+                `${brandName} vs ${competitor}`,
+                `Is ${brandName} worth it?`,
+                `How to use ${brandName}`,
+                `${brandName} pricing and plans`
+            ];
+        }
         
         this.renderQuickSuggestions(suggestions);
     }
