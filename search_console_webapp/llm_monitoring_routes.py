@@ -1515,24 +1515,33 @@ def suggest_query_variations(project_id):
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
+                import random
+                import time
+                
                 language = project['language'] or 'en'
                 lang_instruction = "Spanish" if language == 'es' else "English" if language == 'en' else language.upper()
                 
-                prompt = f"""Generate {count} unique prompt variations for LLM brand monitoring.
+                # Add randomness to get different results each time
+                random_seed = random.randint(1, 1000)
+                timestamp = int(time.time())
+                
+                prompt = f"""Generate {count} unique and CREATIVE prompt variations for LLM brand monitoring.
 
 Brand: {brand_name}
 Industry: {industry}
 Competitors: {', '.join(competitors[:3]) if competitors else 'N/A'}
-Existing prompts: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
+Existing prompts to avoid repeating: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
 
 CRITICAL: Generate ALL prompts in {lang_instruction} language.
+IMPORTANT: Be creative and generate DIFFERENT prompts than typical suggestions. Seed: {random_seed}-{timestamp}
 
 Requirements:
 - Each prompt should be a question users might ask an AI about this industry/brand
-- Include variations: comparisons, recommendations, reviews, how-to, alternatives
+- Mix different types: comparisons, recommendations, reviews, how-to, alternatives, opinions, experiences
 - Keep prompts concise (under 80 characters)
 - Return ONLY the prompts, one per line, no numbering or explanations
-- ALL prompts MUST be in {lang_instruction}"""
+- ALL prompts MUST be in {lang_instruction}
+- Generate UNIQUE prompts different from the examples above"""
 
                 response = model.generate_content(prompt)
                 suggestions = [
@@ -1550,13 +1559,14 @@ Requirements:
         except Exception as ai_error:
             logger.warning(f"AI generation failed, using fallback: {ai_error}")
         
-        # Fallback: Generate simple variations locally
-        suggestions = []
-        comp_name = competitors[0] if competitors else 'competidores'
+        # Fallback: Generate simple variations locally with randomization
+        import random
+        
+        comp_name = competitors[0] if competitors else ('competidores' if language == 'es' else 'competitors')
         language = project['language'] or 'en'
         
         if language == 'es':
-            variations = [
+            all_variations = [
                 f"¿Qué es {brand_name} y cómo funciona?",
                 f"Mejores herramientas de {industry}",
                 f"{brand_name} vs {comp_name} comparativa",
@@ -1564,10 +1574,22 @@ Requirements:
                 f"Alternativas a {brand_name}",
                 f"Cómo empezar con {brand_name}",
                 f"Precios y planes de {brand_name}",
-                f"Las mejores soluciones de {industry}"
+                f"Las mejores soluciones de {industry}",
+                f"Opiniones sobre {brand_name}",
+                f"¿Qué opinan de {brand_name}?",
+                f"Ventajas y desventajas de {brand_name}",
+                f"¿Recomiendan {brand_name}?",
+                f"Tutorial de {brand_name}",
+                f"Características de {brand_name}",
+                f"¿Es bueno {brand_name}?",
+                f"Empresas que usan {brand_name}",
+                f"Comparativa de {industry}",
+                f"Top {industry} en 2024",
+                f"¿Cuál es mejor {brand_name} o {comp_name}?",
+                f"Experiencias con {brand_name}"
             ]
         else:
-            variations = [
+            all_variations = [
                 f"What is {brand_name} and how does it work?",
                 f"Best {industry} tools and platforms",
                 f"{brand_name} vs {comp_name} comparison",
@@ -1575,8 +1597,24 @@ Requirements:
                 f"Alternatives to {brand_name}",
                 f"How to get started with {brand_name}",
                 f"{brand_name} pricing and plans",
-                f"Top rated {industry} solutions"
+                f"Top rated {industry} solutions",
+                f"{brand_name} reviews and opinions",
+                f"Pros and cons of {brand_name}",
+                f"Would you recommend {brand_name}?",
+                f"{brand_name} tutorial",
+                f"{brand_name} features",
+                f"Is {brand_name} good?",
+                f"Companies using {brand_name}",
+                f"Best {industry} comparison",
+                f"Top {industry} in 2024",
+                f"Which is better {brand_name} or {comp_name}?",
+                f"User experiences with {brand_name}",
+                f"{brand_name} for beginners"
             ]
+        
+        # Shuffle and pick random variations
+        random.shuffle(all_variations)
+        variations = all_variations
         
         # Filter out existing prompts
         existing_lower = [p.lower() for p in existing_prompts]
