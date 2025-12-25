@@ -508,6 +508,19 @@ class LLMMonitoring {
             }
         });
 
+        // ✨ NUEVO: Event listeners para filtros de Mención y Sentimiento (filtrado del lado del cliente)
+        document.getElementById('responsesMentionFilter')?.addEventListener('change', () => {
+            if (this.allResponses && this.allResponses.length > 0) {
+                this.applyClientSideFilters();
+            }
+        });
+
+        document.getElementById('responsesSentimentFilter')?.addEventListener('change', () => {
+            if (this.allResponses && this.allResponses.length > 0) {
+                this.applyClientSideFilters();
+            }
+        });
+
         // ✨ responsesDaysFilter listener removed - now using global time range
 
         // ✨ Global Time Range Selector - controls all data, charts and tables
@@ -4669,7 +4682,14 @@ class LLMMonitoring {
 
             // ✨ NEW: Store all responses and reset pagination
             this.allResponses = data.responses;
+            this.filteredResponses = null; // Reset filtered responses
             this.currentResponsesShown = this.responsesPerPage;
+
+            // ✨ Reset client-side filters when loading new data
+            const mentionFilter = document.getElementById('responsesMentionFilter');
+            const sentimentFilter = document.getElementById('responsesSentimentFilter');
+            if (mentionFilter) mentionFilter.value = '';
+            if (sentimentFilter) sentimentFilter.value = '';
 
             // Populate query filter dropdown with ALL queries from project
             await this.populateQueryFilter();
@@ -4745,18 +4765,85 @@ class LLMMonitoring {
     }
 
     /**
+     * ✨ NEW: Apply client-side filters for Mention and Sentiment
+     */
+    applyClientSideFilters() {
+        const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
+        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
+
+        // Start with all responses
+        let filtered = [...this.allResponses];
+
+        // Apply mention filter
+        if (mentionFilter === 'mentioned') {
+            filtered = filtered.filter(r => r.brand_mentioned === true);
+        } else if (mentionFilter === 'not-mentioned') {
+            filtered = filtered.filter(r => r.brand_mentioned === false);
+        }
+
+        // Apply sentiment filter
+        if (sentimentFilter) {
+            filtered = filtered.filter(r => r.sentiment === sentimentFilter);
+        }
+
+        // Store filtered responses and reset pagination
+        this.filteredResponses = filtered;
+        this.currentResponsesShown = this.responsesPerPage;
+
+        // Re-render with filtered data
+        const container = document.getElementById('responsesContainer');
+        if (container) {
+            this.renderResponsesPaginated(container);
+        }
+
+        console.log(`🔍 Applied filters: mention=${mentionFilter || 'all'}, sentiment=${sentimentFilter || 'all'} -> ${filtered.length} results`);
+    }
+
+    /**
+     * ✨ Get the responses to display (filtered or all)
+     */
+    getDisplayResponses() {
+        const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
+        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
+        
+        // If no client-side filters active, return all responses
+        if (!mentionFilter && !sentimentFilter) {
+            return this.allResponses;
+        }
+        
+        // Return filtered responses if available
+        return this.filteredResponses || this.allResponses;
+    }
+
+    /**
      * ✨ NEW: Render responses with pagination
      */
     renderResponsesPaginated(container) {
         if (!container) return;
 
+        // Get responses to display (considering client-side filters)
+        const displayResponses = this.getDisplayResponses();
+        const totalResponses = displayResponses.length;
+
         // Get subset of responses to show
-        const responsesToShow = this.allResponses.slice(0, this.currentResponsesShown);
-        const hasMore = this.currentResponsesShown < this.allResponses.length;
-        const remaining = this.allResponses.length - this.currentResponsesShown;
+        const responsesToShow = displayResponses.slice(0, this.currentResponsesShown);
+        const hasMore = this.currentResponsesShown < totalResponses;
+        const remaining = totalResponses - this.currentResponsesShown;
 
         // Clear container
         container.innerHTML = '';
+
+        // Show empty state if no results after filtering
+        if (totalResponses === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-filter"></i>
+                    <h4>No responses match the current filters</h4>
+                    <p>Try adjusting the Mention or Sentiment filters to see more results</p>
+                </div>
+            `;
+            return;
+        }
 
         // Create responses wrapper
         const responsesWrapper = document.createElement('div');
@@ -4779,13 +4866,17 @@ class LLMMonitoring {
             container.appendChild(loadMoreSection);
         }
 
-        // Show total count
+        // Show total count (with filter info if applicable)
+        const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
+        const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
+        const isFiltered = mentionFilter || sentimentFilter;
+        
         const countSection = document.createElement('div');
         countSection.className = 'responses-count';
         countSection.innerHTML = `
             <small style="color: #6b7280;">
                 <i class="fas fa-info-circle"></i>
-                Showing ${responsesToShow.length} of ${this.allResponses.length} responses
+                Showing ${responsesToShow.length} of ${totalResponses} responses${isFiltered ? ` (filtered from ${this.allResponses.length} total)` : ''}
             </small>
         `;
         container.insertBefore(countSection, container.firstChild);

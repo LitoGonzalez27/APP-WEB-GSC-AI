@@ -671,6 +671,31 @@
                                 <option value="perplexity">Perplexity</option>
                             </select>
                         </div>
+                        
+                        <div style="flex: 0 0 180px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-check-circle" style="margin-right: 0.5rem;"></i>
+                                Mention
+                            </label>
+                            <select id="responsesMentionFilter" class="form-control" style="width: 100%;">
+                                <option value="">All</option>
+                                <option value="mentioned">Mentioned</option>
+                                <option value="not-mentioned">Not Mentioned</option>
+                            </select>
+                        </div>
+                        
+                        <div style="flex: 0 0 180px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-heart" style="margin-right: 0.5rem;"></i>
+                                Sentiment
+                            </label>
+                            <select id="responsesSentimentFilter" class="form-control" style="width: 100%;">
+                                <option value="">All</option>
+                                <option value="positive">Positive</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="negative">Negative</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <div id="responsesContainer" class="responses-container">
