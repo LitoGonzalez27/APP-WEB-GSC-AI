@@ -521,13 +521,20 @@ class MultiLLMMonitoringService:
         # FASE 1: PATRONES EXPLÍCITOS DE POSICIÓN
         # ============================================
         
+        # ✨ LÍMITE MÁXIMO DE POSICIÓN RAZONABLE
+        # Las listas típicas en respuestas de LLM no superan 20-30 elementos
+        # Posiciones > 30 son casi seguro falsos positivos (ej: años como 2025)
+        MAX_VALID_POSITION = 30
+        
         # Patrón 1: Listas numeradas (alta confianza)
+        # ✨ CORREGIDO: Los patrones ahora requieren que el número esté al inicio de línea
+        # para evitar falsos positivos como "(2025)" o "(25 €/mes)" que se confundían con posiciones
         numbered_patterns = [
-            r'(\d+)\.\s*[*_]*(.+?)(?:\n|$)',           # "1. Item\n"
-            r'(\d+)\)\s*[*_]*(.+?)(?:\n|$)',           # "1) Item\n"
-            r'\*\*(\d+)\.\*\*\s*(.+?)(?:\n|$)',        # "**1.** Item\n"
-            r'\*\*(\d+)\)\*\*\s*(.+?)(?:\n|$)',        # "**1)** Item\n"
-            r'#\s*(\d+)\s*[:\.\-]\s*(.+?)(?:\n|$)',    # "# 1: Item\n"
+            r'(?:^|\n)\s*(\d+)\.\s*[*_]*(.+?)(?:\n|$)',       # "1. Item\n" al inicio de línea
+            r'(?:^|\n)\s*(\d+)\)\s*[*_]*(.+?)(?:\n|$)',       # "1) Item\n" al inicio de línea
+            r'(?:^|\n)\s*\*\*(\d+)\.\*\*\s*(.+?)(?:\n|$)',    # "**1.** Item\n" al inicio de línea
+            r'(?:^|\n)\s*\*\*(\d+)\)\*\*\s*(.+?)(?:\n|$)',    # "**1)** Item\n" al inicio de línea
+            r'(?:^|\n)\s*#\s*(\d+)\s*[:\.\-]\s*(.+?)(?:\n|$)',# "# 1: Item\n" al inicio de línea
         ]
         
         for pattern in numbered_patterns:
@@ -537,11 +544,17 @@ class MultiLLMMonitoringService:
                 position = int(match.group(1))
                 item_text = match.group(2).strip()
                 
+                # ✨ VALIDACIÓN: Ignorar posiciones > MAX_VALID_POSITION (falsos positivos como años)
+                if position > MAX_VALID_POSITION:
+                    logger.debug(f"[POSITION] ⚠️ Ignored position {position} (exceeds max {MAX_VALID_POSITION}, likely false positive)")
+                    continue
+                
                 # Verificar si alguna variación de la marca está en el item
                 for variation in brand_variations:
                     if variation.lower() in item_text.lower():
-                        # Encontrar total de items en la lista
-                        all_matches = list(re.finditer(pattern, text, re.MULTILINE))
+                        # Encontrar total de items en la lista (solo posiciones válidas)
+                        all_matches = [m for m in re.finditer(pattern, text, re.MULTILINE) 
+                                       if int(m.group(1)) <= MAX_VALID_POSITION]
                         total_items = len(all_matches)
                         
                         logger.info(f"[POSITION] ✅ Numbered list detected: Position {position}/{total_items}")
@@ -1597,8 +1610,10 @@ JSON:"""
         mention_rate = (total_mentions / total_queries) * 100
         
         # Posicionamiento
+        # ✨ CORREGIDO: Filtrar posiciones > 30 que son falsos positivos (años, canales, etc.)
+        MAX_VALID_POSITION = 30
         positions = [r['position_in_list'] for r in llm_results 
-                    if r['position_in_list'] is not None]
+                    if r['position_in_list'] is not None and r['position_in_list'] <= MAX_VALID_POSITION]
         avg_position = sum(positions) / len(positions) if positions else None
         
         appeared_in_top3 = sum(1 for p in positions if p <= 3)
