@@ -405,9 +405,12 @@ class MultiLLMMonitoringService:
         brand_in_link = brand_found_in_sources
         
         position_source = None
-        final_position = list_info['position']
+        final_position = None  # ✨ CORREGIDO: Inicializar como None, solo asignar si brand_mentioned
         
         if brand_mentioned:
+            # Solo asignar posición si la marca fue mencionada
+            final_position = list_info['position']
+            
             if brand_in_text and brand_in_link:
                 position_source = 'both'
                 # Mantener la posición detectada en texto (más fiable)
