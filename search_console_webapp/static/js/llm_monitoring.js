@@ -4683,6 +4683,7 @@ class LLMMonitoring {
             // ✨ NEW: Store all responses and reset pagination
             this.allResponses = data.responses;
             this.filteredResponses = null; // Reset filtered responses
+            this.currentDisplayResponses = data.responses; // ✨ NUEVO: Inicializar array de display
             this.currentResponsesShown = this.responsesPerPage;
 
             // ✨ Reset client-side filters when loading new data
@@ -4824,6 +4825,10 @@ class LLMMonitoring {
         // Get responses to display (considering client-side filters)
         const displayResponses = this.getDisplayResponses();
         const totalResponses = displayResponses.length;
+
+        // ✨ CORREGIDO: Guardar referencia al array actual para el modal
+        // Esto asegura que showResponseModal use el mismo array que se muestra
+        this.currentDisplayResponses = displayResponses;
 
         // Get subset of responses to show
         const responsesToShow = displayResponses.slice(0, this.currentResponsesShown);
@@ -5012,12 +5017,14 @@ class LLMMonitoring {
      * Show full response in modal with highlighting
      */
     showResponseModal(index) {
-        // Get the response directly from allResponses using the global index
-        const response = this.allResponses[index];
+        // ✨ CORREGIDO: Usar currentDisplayResponses (array filtrado actual) en lugar de allResponses
+        // Esto asegura que el índice corresponda a la respuesta correcta incluso con filtros activos
+        const responseArray = this.currentDisplayResponses || this.allResponses;
+        const response = responseArray[index];
 
         if (!response) {
             console.error('Response not found for index:', index);
-            console.error('Total responses:', this.allResponses.length);
+            console.error('Total responses in current view:', responseArray.length);
             console.error('Requested index:', index);
             return;
         }
