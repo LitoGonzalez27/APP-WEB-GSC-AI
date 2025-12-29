@@ -4677,6 +4677,9 @@ class LLMMonitoring {
                         <p>Try changing the filters or run an analysis first</p>
                     </div>
                 `;
+                this.showResponsesButtons(false);
+                const statsContainer = document.getElementById('responsesQuickStats');
+                if (statsContainer) statsContainer.style.display = 'none';
                 return;
             }
 
@@ -4707,6 +4710,9 @@ class LLMMonitoring {
                     <p>${error.message}</p>
                 </div>
             `;
+            this.showResponsesButtons(false);
+            const statsContainer = document.getElementById('responsesQuickStats');
+            if (statsContainer) statsContainer.style.display = 'none';
         }
     }
 
@@ -4847,6 +4853,8 @@ class LLMMonitoring {
                     <p>Try adjusting the Mention or Sentiment filters to see more results</p>
                 </div>
             `;
+            // Keep buttons visible but update stats to show 0
+            this.updateQuickStats([]);
             return;
         }
 
@@ -4885,6 +4893,10 @@ class LLMMonitoring {
             </small>
         `;
         container.insertBefore(countSection, container.firstChild);
+
+        // ✨ NUEVO: Actualizar estadísticas rápidas y mostrar botones
+        this.updateQuickStats(displayResponses);
+        this.showResponsesButtons(true);
     }
 
     /**
@@ -4896,6 +4908,313 @@ class LLMMonitoring {
         if (container) {
             this.renderResponsesPaginated(container);
         }
+    }
+
+    /**
+     * ✨ NUEVO: Show/hide action buttons when responses are loaded
+     */
+    showResponsesButtons(show) {
+        const exportBtn = document.getElementById('btnExportResponses');
+        const compareBtn = document.getElementById('btnCompareResponses');
+        if (exportBtn) exportBtn.style.display = show ? 'flex' : 'none';
+        if (compareBtn) compareBtn.style.display = show ? 'flex' : 'none';
+    }
+
+    /**
+     * ✨ NUEVO: Update quick stats bar with current response data
+     */
+    updateQuickStats(responses) {
+        const statsContainer = document.getElementById('responsesQuickStats');
+        if (!statsContainer) return;
+
+        // Show the stats bar
+        statsContainer.style.display = 'flex';
+
+        // Calculate stats
+        const total = responses.length;
+        const mentioned = responses.filter(r => r.brand_mentioned).length;
+        const mentionRate = total > 0 ? ((mentioned / total) * 100).toFixed(0) : 0;
+        
+        // Average position (only for responses with position)
+        const withPosition = responses.filter(r => r.position_in_list !== null && r.position_in_list !== undefined);
+        const avgPosition = withPosition.length > 0 
+            ? (withPosition.reduce((sum, r) => sum + r.position_in_list, 0) / withPosition.length).toFixed(1)
+            : '-';
+
+        // Sentiment distribution (only for mentioned responses)
+        const mentionedResponses = responses.filter(r => r.brand_mentioned);
+        const positive = mentionedResponses.filter(r => r.sentiment === 'positive').length;
+        const positiveRate = mentionedResponses.length > 0 
+            ? ((positive / mentionedResponses.length) * 100).toFixed(0) 
+            : 0;
+
+        // Best LLM (highest mention rate)
+        const llmStats = {};
+        responses.forEach(r => {
+            if (!llmStats[r.llm_provider]) {
+                llmStats[r.llm_provider] = { total: 0, mentioned: 0 };
+            }
+            llmStats[r.llm_provider].total++;
+            if (r.brand_mentioned) llmStats[r.llm_provider].mentioned++;
+        });
+
+        let bestLLM = '-';
+        let bestRate = 0;
+        Object.entries(llmStats).forEach(([llm, stats]) => {
+            const rate = stats.total > 0 ? (stats.mentioned / stats.total) : 0;
+            if (rate > bestRate) {
+                bestRate = rate;
+                bestLLM = this.getLLMDisplayName(llm);
+            }
+        });
+
+        // Update DOM
+        document.getElementById('statTotalResponses').textContent = total;
+        document.getElementById('statMentionRate').textContent = `${mentionRate}%`;
+        document.getElementById('statAvgPosition').textContent = avgPosition !== '-' ? `#${avgPosition}` : '-';
+        document.getElementById('statPositiveRate').textContent = `${positiveRate}%`;
+        document.getElementById('statTopLLM').textContent = bestLLM;
+    }
+
+    /**
+     * ✨ NUEVO: Export filtered responses to CSV
+     */
+    exportResponsesToCSV() {
+        const responses = this.currentDisplayResponses || this.allResponses;
+        
+        if (!responses || responses.length === 0) {
+            this.showError('No responses to export');
+            return;
+        }
+
+        // Define CSV headers
+        const headers = [
+            'Date',
+            'LLM',
+            'Model',
+            'Prompt',
+            'Brand Mentioned',
+            'Position',
+            'Sentiment',
+            'Response Length',
+            'Competitors Mentioned',
+            'Full Response'
+        ];
+
+        // Build CSV rows
+        const rows = responses.map(r => [
+            r.analysis_date,
+            this.getLLMDisplayName(r.llm_provider),
+            r.model_used || 'N/A',
+            `"${(r.query_text || '').replace(/"/g, '""')}"`,
+            r.brand_mentioned ? 'Yes' : 'No',
+            r.position_in_list || 'N/A',
+            r.sentiment || 'N/A',
+            r.response_length || 0,
+            r.competitors_mentioned ? Object.keys(r.competitors_mentioned).join('; ') : '',
+            `"${(r.full_response || '').replace(/"/g, '""').substring(0, 1000)}..."`
+        ]);
+
+        // Create CSV content
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        // Create and trigger download
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        const projectName = this.currentProject?.name || 'llm-responses';
+        const timestamp = new Date().toISOString().split('T')[0];
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${projectName}_responses_${timestamp}.csv`);
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        console.log(`✅ Exported ${responses.length} responses to CSV`);
+    }
+
+    /**
+     * ✨ NUEVO: Show compare LLMs modal
+     */
+    showCompareModal() {
+        const responses = this.allResponses;
+        
+        if (!responses || responses.length === 0) {
+            this.showError('No responses available to compare');
+            return;
+        }
+
+        // Get unique prompts
+        const prompts = [...new Set(responses.map(r => r.query_text))];
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'compare-modal-overlay';
+        modal.id = 'compareModal';
+        
+        modal.innerHTML = `
+            <div class="compare-modal">
+                <div class="compare-modal-header">
+                    <h3><i class="fas fa-columns"></i> Compare LLM Responses</h3>
+                    <button class="compare-modal-close" onclick="document.getElementById('compareModal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="compare-modal-controls">
+                    <label>
+                        <i class="fas fa-search"></i>
+                        Select Prompt:
+                    </label>
+                    <select id="comparePromptSelect" onchange="window.llmMonitoring.updateCompareView()">
+                        ${prompts.map((p, i) => `
+                            <option value="${i}">${p.length > 80 ? p.substring(0, 80) + '...' : p}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                
+                <div class="compare-modal-body">
+                    <div class="compare-grid" id="compareGrid">
+                        <!-- Will be populated by updateCompareView -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // Store prompts for reference
+        this.comparePrompts = prompts;
+        
+        // Initial render
+        this.updateCompareView();
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // Close on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+    }
+
+    /**
+     * ✨ NUEVO: Update the compare view with selected prompt
+     */
+    updateCompareView() {
+        const select = document.getElementById('comparePromptSelect');
+        const grid = document.getElementById('compareGrid');
+        
+        if (!select || !grid || !this.comparePrompts) return;
+
+        const selectedPrompt = this.comparePrompts[parseInt(select.value)];
+        const responses = this.allResponses.filter(r => r.query_text === selectedPrompt);
+
+        // Get responses by LLM (most recent for each)
+        const llms = ['openai', 'anthropic', 'google', 'perplexity'];
+        const responsesByLLM = {};
+        
+        llms.forEach(llm => {
+            const llmResponses = responses.filter(r => r.llm_provider === llm);
+            // Sort by date descending and get most recent
+            llmResponses.sort((a, b) => new Date(b.analysis_date) - new Date(a.analysis_date));
+            responsesByLLM[llm] = llmResponses[0] || null;
+        });
+
+        // Render comparison grid
+        grid.innerHTML = llms.map(llm => {
+            const response = responsesByLLM[llm];
+            const llmName = this.getLLMDisplayName(llm);
+
+            if (!response) {
+                return `
+                    <div class="compare-column">
+                        <div class="compare-column-header ${llm}">
+                            <span class="llm-name">${llmName}</span>
+                        </div>
+                        <div class="compare-column-body no-response">
+                            <span>No response available</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Format response text (simplified markdown)
+            const formattedText = this.formatMarkdownSimple(response.full_response || '');
+
+            return `
+                <div class="compare-column">
+                    <div class="compare-column-header ${llm}">
+                        <span class="llm-name">${llmName}</span>
+                        <div class="llm-badges">
+                            <span class="mini-badge">${response.brand_mentioned ? '✓' : '✗'}</span>
+                            ${response.position_in_list ? `<span class="mini-badge">#${response.position_in_list}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="compare-column-body">
+                        ${formattedText}
+                    </div>
+                    <div class="compare-column-footer">
+                        <span class="mini-stat">
+                            <i class="fas fa-calendar"></i>
+                            ${this.formatDate(response.analysis_date)}
+                        </span>
+                        <span class="mini-stat">
+                            <i class="fas fa-align-left"></i>
+                            ${response.response_length || 0} chars
+                        </span>
+                        ${response.sentiment ? `
+                            <span class="mini-stat">
+                                <i class="fas fa-${response.sentiment === 'positive' ? 'smile' : response.sentiment === 'negative' ? 'frown' : 'meh'}"></i>
+                                ${response.sentiment}
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * ✨ NUEVO: Simple markdown formatter for compare view
+     */
+    formatMarkdownSimple(text) {
+        if (!text) return '<em>No content</em>';
+        
+        let html = this.escapeHtml(text);
+        
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong><br>');
+        html = html.replace(/^## (.+)$/gm, '<strong style="font-size: 1.15em;">$1</strong><br>');
+        html = html.replace(/^# (.+)$/gm, '<strong style="font-size: 1.2em;">$1</strong><br>');
+        
+        // Bold
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        // Lists
+        html = html.replace(/^- (.+)$/gm, '• $1<br>');
+        html = html.replace(/^\d+\. (.+)$/gm, '$&<br>');
+        
+        // Line breaks
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
+        
+        return html;
     }
 
     /**

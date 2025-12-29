@@ -633,16 +633,53 @@
 
                 <!-- ✨ LLM Responses Inspector -->
                 <div class="chart-card" id="responsesInspectorCard">
-                    <!-- Header: Título y Botón -->
+                    <!-- Header: Título y Botones -->
                     <div class="chart-header" style="margin-bottom: 1rem;">
                         <h3>
                             LLM Responses Inspector
                         </h3>
-                        <div class="chart-actions">
+                        <div class="chart-actions" style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary" id="btnExportResponses" onclick="window.llmMonitoring.exportResponsesToCSV()" style="display: none;">
+                                <i class="fas fa-download"></i>
+                                Export CSV
+                            </button>
+                            <button class="btn btn-secondary" id="btnCompareResponses" onclick="window.llmMonitoring.showCompareModal()" style="display: none;">
+                                <i class="fas fa-columns"></i>
+                                Compare LLMs
+                            </button>
                             <button class="btn btn-primary" id="btnLoadResponses" onclick="window.llmMonitoring.loadResponses()">
                                 <i class="fas fa-sync-alt"></i>
                                 Load Responses
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- ✨ NUEVO: Quick Stats Bar -->
+                    <div class="responses-quick-stats" id="responsesQuickStats" style="display: none;">
+                        <div class="quick-stat-item">
+                            <i class="fas fa-file-alt"></i>
+                            <span class="quick-stat-value" id="statTotalResponses">0</span>
+                            <span class="quick-stat-label">responses</span>
+                        </div>
+                        <div class="quick-stat-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span class="quick-stat-value" id="statMentionRate">0%</span>
+                            <span class="quick-stat-label">mentioned</span>
+                        </div>
+                        <div class="quick-stat-item">
+                            <i class="fas fa-trophy"></i>
+                            <span class="quick-stat-value" id="statAvgPosition">-</span>
+                            <span class="quick-stat-label">avg position</span>
+                        </div>
+                        <div class="quick-stat-item sentiment-positive">
+                            <i class="fas fa-smile"></i>
+                            <span class="quick-stat-value" id="statPositiveRate">0%</span>
+                            <span class="quick-stat-label">positive</span>
+                        </div>
+                        <div class="quick-stat-item">
+                            <i class="fas fa-star"></i>
+                            <span class="quick-stat-value" id="statTopLLM">-</span>
+                            <span class="quick-stat-label">best LLM</span>
                         </div>
                     </div>
                     
