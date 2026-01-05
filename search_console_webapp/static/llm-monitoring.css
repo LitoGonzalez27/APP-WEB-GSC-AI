@@ -4219,6 +4219,39 @@ label:not(.search-form label) {
     font-size: 0.6875rem;
     font-weight: 600;
     background: rgba(255, 255, 255, 0.2);
+    cursor: help;
+    transition: transform 0.15s ease;
+}
+
+.compare-column-header .mini-badge:hover {
+    transform: scale(1.1);
+}
+
+/* ✨ Semantic badge colors */
+.compare-column-header .mini-badge.badge-success {
+    background: rgba(34, 197, 94, 0.3);
+    color: #dcfce7;
+}
+
+.compare-column-header .mini-badge.badge-danger {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fecaca;
+}
+
+.compare-column-header .mini-badge.badge-gold {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.4) 100%);
+    color: #fef3c7;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.compare-column-header .mini-badge.badge-silver {
+    background: linear-gradient(135deg, rgba(156, 163, 175, 0.4) 0%, rgba(107, 114, 128, 0.4) 100%);
+    color: #e5e7eb;
+}
+
+.compare-column-header .mini-badge.badge-default {
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .compare-column-body {
@@ -4260,6 +4293,100 @@ label:not(.search-form label) {
     font-size: 0.6875rem;
 }
 
+/* ✨ Compare Legend Styles */
+.compare-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+    padding: 0.5rem 1rem;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.compare-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.compare-legend-separator {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+}
+
+.legend-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+
+.legend-badge.brand-badge {
+    background: #22c55e;
+    color: white;
+}
+
+.legend-badge.position-badge {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+}
+
+.legend-text {
+    color: #64748b;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+/* Brand/Competitor mention highlights in compare modal */
+.compare-column-body mark.brand-mention {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    border-left: 3px solid #3b82f6;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+}
+
+.compare-column-body mark.competitor-mention {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    color: #c2410c;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    border-left: 3px solid #f97316;
+    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.1);
+}
+
+/* Legend brand/competitor samples */
+.compare-legend mark.brand-mention,
+.compare-legend mark.competitor-mention {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.compare-legend mark.brand-mention {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+    border-left: 3px solid #3b82f6;
+}
+
+.compare-legend mark.competitor-mention {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    color: #c2410c;
+    border-left: 3px solid #f97316;
+}
+
 @media (max-width: 1200px) {
     .compare-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -4274,9 +4401,25 @@ label:not(.search-form label) {
     .compare-modal-controls {
         flex-direction: column;
         align-items: stretch;
+        gap: 0.75rem;
     }
     
     .compare-modal-controls select {
         min-width: 100%;
+    }
+    
+    .compare-legend {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.625rem;
+        justify-content: center;
+    }
+    
+    .compare-legend-separator {
+        display: none;
+    }
+    
+    .compare-legend-item {
+        font-size: 0.7rem;
     }
 }

@@ -5059,6 +5059,11 @@ class LLMMonitoring {
         modal.className = 'compare-modal-overlay';
         modal.id = 'compareModal';
         
+        // Get brand and competitor names for legend
+        const brandName = this.currentProject?.brand_name || 'Tu marca';
+        const competitors = this.currentProject?.selected_competitors || [];
+        const competitorNames = competitors.map(c => c.domain || c.name || 'Competidor').slice(0, 3);
+
         modal.innerHTML = `
             <div class="compare-modal">
                 <div class="compare-modal-header">
@@ -5078,6 +5083,29 @@ class LLMMonitoring {
                             <option value="${i}">${p.length > 80 ? p.substring(0, 80) + '...' : p}</option>
                         `).join('')}
                     </select>
+                    
+                    <!-- ✨ Leyenda visual -->
+                    <div class="compare-legend">
+                        <div class="compare-legend-item">
+                            <span class="legend-badge brand-badge">✓</span>
+                            <span class="legend-text">Marca mencionada</span>
+                        </div>
+                        <div class="compare-legend-item">
+                            <span class="legend-badge position-badge">#N</span>
+                            <span class="legend-text">Posición en lista</span>
+                        </div>
+                        <div class="compare-legend-separator"></div>
+                        <div class="compare-legend-item">
+                            <mark class="brand-mention">${this.escapeHtml(brandName)}</mark>
+                            <span class="legend-text">Tu marca</span>
+                        </div>
+                        ${competitorNames.length > 0 ? `
+                            <div class="compare-legend-item">
+                                <mark class="competitor-mention">${this.escapeHtml(competitorNames[0])}</mark>
+                                <span class="legend-text">Competidor</span>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
                 
                 <div class="compare-modal-body">
@@ -5154,16 +5182,21 @@ class LLMMonitoring {
                 `;
             }
 
-            // Format response text (simplified markdown)
-            const formattedText = this.formatMarkdownSimple(response.full_response || '');
+            // Format response text with markdown and highlighting
+            const formattedText = this.formatCompareResponseWithHighlights(response.full_response || '', response);
+
+            // Determine badge styles based on mention and position
+            const mentionClass = response.brand_mentioned ? 'badge-success' : 'badge-danger';
+            const positionClass = response.position_in_list <= 3 ? 'badge-gold' : 
+                                  response.position_in_list <= 10 ? 'badge-silver' : 'badge-default';
 
             return `
                 <div class="compare-column">
                     <div class="compare-column-header ${llm}">
                         <span class="llm-name">${llmName}</span>
                         <div class="llm-badges">
-                            <span class="mini-badge">${response.brand_mentioned ? '✓' : '✗'}</span>
-                            ${response.position_in_list ? `<span class="mini-badge">#${response.position_in_list}</span>` : ''}
+                            <span class="mini-badge ${mentionClass}" title="${response.brand_mentioned ? 'Tu marca fue mencionada' : 'Tu marca NO fue mencionada'}">${response.brand_mentioned ? '✓' : '✗'}</span>
+                            ${response.position_in_list ? `<span class="mini-badge ${positionClass}" title="Posición #${response.position_in_list} en la lista">#${response.position_in_list}</span>` : ''}
                         </div>
                     </div>
                     <div class="compare-column-body">
@@ -5214,6 +5247,91 @@ class LLMMonitoring {
         html = html.replace(/\n\n/g, '<br><br>');
         html = html.replace(/\n/g, '<br>');
         
+        return html;
+    }
+
+    /**
+     * ✨ NUEVO: Format compare response with brand/competitor highlighting
+     * Applies markdown formatting and then highlights brand and competitor mentions
+     */
+    formatCompareResponseWithHighlights(text, response) {
+        if (!text) return '<em>No content</em>';
+
+        // Get brand terms
+        const brandKeywords = this.currentProject?.brand_keywords || [];
+        const brandName = this.currentProject?.brand_name || '';
+        const brandDomain = this.currentProject?.brand_domain || '';
+        
+        const brandTerms = [...brandKeywords];
+        if (brandName) brandTerms.push(brandName);
+        if (brandDomain) brandTerms.push(brandDomain.replace('www.', ''));
+
+        // Get competitor terms
+        const competitors = this.currentProject?.selected_competitors || [];
+        const competitorTerms = [];
+        competitors.forEach(comp => {
+            if (comp.domain) competitorTerms.push(comp.domain.replace('www.', ''));
+            if (comp.keywords) competitorTerms.push(...comp.keywords);
+            if (comp.name) competitorTerms.push(comp.name);
+        });
+
+        // First, apply highlighting to raw text (before HTML escaping)
+        // We'll use placeholder tokens to preserve highlights through HTML escaping
+        let processedText = text;
+        const highlights = [];
+        let highlightIndex = 0;
+
+        // Helper to create unique placeholder
+        const createPlaceholder = (type, matchedText) => {
+            const placeholder = `___HIGHLIGHT_${highlightIndex}_${type}___`;
+            highlights.push({ placeholder, type, text: matchedText });
+            highlightIndex++;
+            return placeholder;
+        };
+
+        // First highlight competitors (to give brand priority in case of overlap)
+        competitorTerms.forEach(term => {
+            if (!term || term.length < 2) return;
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
+            processedText = processedText.replace(regex, (match) => createPlaceholder('competitor', match));
+        });
+
+        // Then highlight brand (will replace competitor highlights if term matches both)
+        brandTerms.forEach(term => {
+            if (!term || term.length < 2) return;
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b(${escapedTerm})\\b`, 'gi');
+            processedText = processedText.replace(regex, (match) => createPlaceholder('brand', match));
+        });
+
+        // Now apply HTML escaping
+        let html = this.escapeHtml(processedText);
+
+        // Restore highlights with proper HTML markup
+        highlights.forEach(({ placeholder, type, text: matchedText }) => {
+            const cssClass = type === 'brand' ? 'brand-mention' : 'competitor-mention';
+            const escapedMatch = this.escapeHtml(matchedText);
+            html = html.replace(placeholder, `<mark class="${cssClass}">${escapedMatch}</mark>`);
+        });
+
+        // Apply markdown formatting
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong><br>');
+        html = html.replace(/^## (.+)$/gm, '<strong style="font-size: 1.15em;">$1</strong><br>');
+        html = html.replace(/^# (.+)$/gm, '<strong style="font-size: 1.2em;">$1</strong><br>');
+        
+        // Bold
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        // Lists
+        html = html.replace(/^- (.+)$/gm, '• $1<br>');
+        html = html.replace(/^\d+\. (.+)$/gm, '$&<br>');
+        
+        // Line breaks
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
+
         return html;
     }
 
