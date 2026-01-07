@@ -231,6 +231,7 @@ async function quotaAwareFetch(url, options = {}) {
 
 /**
  * Chequea el estado de quota del usuario y muestra warnings si es necesario
+ * NOTA: Deshabilitado el aviso preventivo del 80% - Solo muestra cuando se alcanza el 100%
  */
 async function checkUserQuotaStatus() {
     try {
@@ -238,7 +239,9 @@ async function checkUserQuotaStatus() {
         if (response.ok) {
             const quotaStatus = await response.json();
             
-            if (quotaStatus.warning_info) {
+            // Solo mostrar warning si se alcanza el límite completo (100%)
+            // Aviso preventivo del 80% deshabilitado por solicitud del admin
+            if (quotaStatus.warning_info && quotaStatus.warning_info.percentage >= 100) {
                 showQuotaWarning(quotaStatus.warning_info);
             }
         }
@@ -259,8 +262,11 @@ function initQuotaUI() {
     }
 
     // Escuchar eventos de quota desde otros módulos
+    // Solo mostrar cuando se alcance el 100% (aviso preventivo del 80% deshabilitado)
     window.addEventListener('quotaWarning', (event) => {
-        showQuotaWarning(event.detail);
+        if (event.detail && event.detail.percentage >= 100) {
+            showQuotaWarning(event.detail);
+        }
     });
 
     window.addEventListener('quotaBlocked', (event) => {

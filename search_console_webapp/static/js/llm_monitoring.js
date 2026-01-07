@@ -6147,8 +6147,9 @@ class LLMMonitoring {
                 domainBadge = '<span class="domain-badge competitor">Competitor</span>';
             }
 
-            // Get logo URL
-            const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+            // Get logo URL - Logo.dev replaces deprecated Clearbit API (shutdown Dec 2025)
+            const logoUrl = `https://img.logo.dev/${domain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`;
+            const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
             const row = document.createElement('tr');
             row.className = rowClass;
@@ -6158,7 +6159,7 @@ class LLMMonitoring {
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
                         <img src="${logoUrl}" alt="${this.escapeHtml(domain)}" 
                              style="width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0;"
-                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22%23e5e7eb%22/><text x=%2212%22 y=%2216%22 text-anchor=%22middle%22 font-size=%2210%22 fill=%22%23374151%22>${domain.charAt(0).toUpperCase()}</text></svg>'">
+                             onerror="this.onerror=null; this.src='${fallbackUrl}'">
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                 <a href="https://${this.escapeHtml(domain)}" target="_blank" rel="noopener noreferrer" 

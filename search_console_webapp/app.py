@@ -3489,6 +3489,9 @@ except Exception as e:
 def llm_monitoring_page():
     """
     LLM Visibility Monitor - Dashboard para monitorizar menciones de marca en LLMs
+    
+    NOTA: Acceso restringido temporalmente solo a administradores.
+    Eliminar la verificación access_blocked cuando se lance al público.
     """
     # Verificar si es un dispositivo móvil
     if should_block_mobile_access():
@@ -3501,7 +3504,11 @@ def llm_monitoring_page():
     if not user:
         return redirect(url_for('login_page'))
     
-    return render_template('llm_monitoring.html', user=user, authenticated=True)
+    # 🔒 TEMPORAL: Bloquear acceso a usuarios no administradores
+    # TODO: Eliminar este bloqueo cuando se definan los precios y se lance al público
+    access_blocked = user.get('role') != 'admin'
+    
+    return render_template('llm_monitoring.html', user=user, authenticated=True, access_blocked=access_blocked)
 
 # ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
 def register_billing_routes():

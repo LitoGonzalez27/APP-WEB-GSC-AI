@@ -138,14 +138,15 @@ export function getDomainLogoUrl(domain) {
     }
     
     // Multiple fallback services for domain logos/favicons
+    // Logo.dev replaces deprecated Clearbit API (shutdown Dec 2025)
     const logoServices = [
-        `https://logo.clearbit.com/${cleanDomain}`,                       // Clearbit - high quality
-        `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=32`, // Google favicons
-        `https://icon.horse/icon/${cleanDomain}`,                         // Icon Horse
-        `https://${cleanDomain}/favicon.ico`                            // Direct favicon
+        `https://img.logo.dev/${cleanDomain}?token=pk_a4PP_KI7Qj-y6MnQSvu-3A&size=64&format=png`, // Logo.dev - high quality
+        `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=64`, // Google favicons - fallback
+        `https://icon.horse/icon/${cleanDomain}`,                         // Icon Horse - reliable fallback
+        `https://${cleanDomain}/favicon.ico`                              // Direct favicon
     ];
     
-    // Return primary service (Clearbit) - fallback handled in onerror
+    // Return primary service (Logo.dev) - fallback handled in onerror
     return logoServices[0];
 }
 
