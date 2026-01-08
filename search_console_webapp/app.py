@@ -915,7 +915,8 @@ def get_data():
         pages_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_urls_data.items()]
         summary_payload_list = [{'URL': url, 'Metrics': metrics} for url, metrics in combined_summary_data.items()]
 
-        # ✅ ACTUALIZADA: Procesar keywords con soporte para análisis de propiedad completa
+        # ✅ CORREGIDO: Procesar keywords con asociación correcta URL-Keyword
+        # Ahora cada combinación keyword+URL se guarda por separado para no perder información
         def process_keywords_for_period(start_date, end_date):
             keyword_data = {}
             
@@ -971,19 +972,26 @@ def get_data():
 
                     for r_item in rows_data:
                         if len(r_item.get('keys', [])) >= 2:
+                            page_url = r_item['keys'][0]  # La URL real donde posiciona
                             query = r_item['keys'][1]
-                            if query not in keyword_data:
-                                keyword_data[query] = {
+                            
+                            # 🔧 CORREGIDO: Usar combinación keyword+URL como clave única
+                            unique_key = f"{query}|||{page_url}"
+                            
+                            if unique_key not in keyword_data:
+                                keyword_data[unique_key] = {
                                     'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                    'pos_sum': 0.0, 'count': 0, 'url': ''
+                                    'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query
                                 }
-                            kw_entry = keyword_data[query]
+                            
+                            kw_entry = keyword_data[unique_key]
                             kw_entry['clicks'] += r_item['clicks']
                             kw_entry['impressions'] += r_item['impressions']
                             kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                             kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                             kw_entry['count'] += r_item['impressions']
                 else:
+                    # 🔧 CORREGIDO: Procesar cada URL y guardar la URL real donde posiciona cada keyword
                     for val_url_kw in form_urls:
                         url_filter_kw = [{'filters':[{'dimension':'page','operator':match_type,'expression':val_url_kw}]}]
                         combined_filters_kw = get_base_filters(url_filter_kw)
@@ -998,20 +1006,27 @@ def get_data():
                         
                         for r_item in rows_data:
                             if len(r_item.get('keys', [])) >= 2:
+                                page_url = r_item['keys'][0]  # La URL real donde posiciona
                                 query = r_item['keys'][1]
-                                if query not in keyword_data:
-                                    keyword_data[query] = {
+                                
+                                # 🔧 CORREGIDO: Usar combinación keyword+URL como clave única
+                                # Esto evita que se sobrescriban las URLs cuando una keyword aparece en múltiples páginas
+                                unique_key = f"{query}|||{page_url}"
+                                
+                                if unique_key not in keyword_data:
+                                    keyword_data[unique_key] = {
                                         'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                        'pos_sum': 0.0, 'count': 0, 'url': ''
+                                        'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query
                                     }
                                 
-                                kw_entry = keyword_data[query]
-                                kw_entry['url'] = val_url_kw
+                                kw_entry = keyword_data[unique_key]
                                 kw_entry['clicks'] += r_item['clicks']
                                 kw_entry['impressions'] += r_item['impressions']
                                 kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                                 kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                                 kw_entry['count'] += r_item['impressions']
+                    
+                    logger.info(f"[GSC KEYWORDS] Procesadas {len(keyword_data)} combinaciones keyword-URL únicas")
             
             return keyword_data
 
@@ -1023,24 +1038,25 @@ def get_data():
         if has_comparison and comparison_start and comparison_end:
             comparison_keywords = process_keywords_for_period(comparison_start, comparison_end)
 
-        # ✅ ACTUALIZADA: Generar estadísticas de keywords (funciona con o sin comparación)
+        # ✅ CORREGIDO: Generar estadísticas de keywords (funciona con claves compuestas keyword|||url)
         def generate_keyword_stats(current_kw, comparison_kw=None):
             def process_kw_by_position(kw_data):
                 stats = {'total': set(), 'pos1_3': set(), 'pos4_10': set(), 'pos11_20': set(), 'pos20_plus': set()}
                 
-                for query, data in kw_data.items():
+                for unique_key, data in kw_data.items():
                     if data['count'] > 0:
                         avg_pos = data['pos_sum'] / data['count']
-                        stats['total'].add(query)
+                        # Usar la clave completa (keyword|||url) para contabilizar cada combinación única
+                        stats['total'].add(unique_key)
                         
                         if avg_pos <= 3:
-                            stats['pos1_3'].add(query)
+                            stats['pos1_3'].add(unique_key)
                         elif avg_pos <= 10:
-                            stats['pos4_10'].add(query)
+                            stats['pos4_10'].add(unique_key)
                         elif avg_pos <= 20:
-                            stats['pos11_20'].add(query)
+                            stats['pos11_20'].add(unique_key)
                         else:
-                            stats['pos20_plus'].add(query)
+                            stats['pos20_plus'].add(unique_key)
                 
                 return stats
 
@@ -1114,13 +1130,22 @@ def get_data():
 
         kw_stats_data = generate_keyword_stats(current_keywords, comparison_keywords)
 
-        # ✅ ACTUALIZADA: Generar datos de comparación de keywords (funciona con período único)
+        # ✅ CORREGIDO: Generar datos de comparación de keywords con asociación correcta URL-Keyword
         def generate_keyword_comparison(current_kw, comparison_kw=None):
             comparison_data = []
             
+            # 🔧 HELPER: Extraer keyword real de la clave compuesta (keyword|||url o solo keyword)
+            def extract_keyword_from_key(key, data):
+                if '|||' in key:
+                    return data.get('keyword', key.split('|||')[0])
+                return key
+            
             # ✅ NUEVO: Para período único, mostrar datos del período actual
             if not comparison_kw or len(comparison_kw) == 0:
-                for query, current_data in current_kw.items():
+                for unique_key, current_data in current_kw.items():
+                    # Extraer la keyword real (puede estar en la clave compuesta o en el campo 'keyword')
+                    query = extract_keyword_from_key(unique_key, current_data)
+                    
                     # Calcular métricas del período actual
                     current_clicks = current_data['clicks']
                     current_impressions = current_data['impressions']
@@ -1137,19 +1162,22 @@ def get_data():
                         'impressions_m2': 0,
                         'delta_impressions_percent': 'New',
                         'ctr_m1': current_ctr,
-                        'ctr_m2':0 ,
+                        'ctr_m2': 0,
                         'delta_ctr_percent': 'New',
                         'position_m1': current_pos,
                         'position_m2': None,
                         'delta_position_absolute': 'New'
                     })
             else:
-                # ✅ MANTENER: Lógica original para comparación entre períodos
-                all_queries = set(current_kw.keys()) | set(comparison_kw.keys())
+                # ✅ CORREGIDO: Lógica para comparación entre períodos con claves compuestas
+                all_keys = set(current_kw.keys()) | set(comparison_kw.keys())
                 
-                for query in all_queries:
-                    current_data = current_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
-                    comparison_data_kw = comparison_kw.get(query, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': ''})
+                for unique_key in all_keys:
+                    current_data = current_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': ''})
+                    comparison_data_kw = comparison_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': ''})
+                    
+                    # Extraer la keyword real
+                    query = extract_keyword_from_key(unique_key, current_data) or extract_keyword_from_key(unique_key, comparison_data_kw)
                     
                     # Calcular métricas
                     current_clicks = current_data['clicks']
@@ -1183,7 +1211,7 @@ def get_data():
                     
                     comparison_data.append({
                         'keyword': query,
-                        'url': current_data.get('url') or comparison_data_kw.get('url'),
+                        'url': current_data.get('url') or comparison_data_kw.get('url', ''),
                         'clicks_m1': current_clicks,      # ✅ Actual en P1
                         'clicks_m2': comparison_clicks,   # ✅ Comparación en P2
                         'delta_clicks_percent': calculate_percentage_change(current_clicks, comparison_clicks),  # ✅ (P1 / P2 - 1) * 100

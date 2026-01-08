@@ -145,13 +145,13 @@ def filter_keywords_by_position(keyword_data, position_range):
 
 def create_keyword_position_sheets(writer, data, country_info, header_format):
     """
-    Crea hojas separadas para cada rango de posición de keywords
+    Crea hojas separadas para cada rango de posición de keywords.
+    ✅ MEJORADO: Ahora ordena por URL para agrupar claramente las keywords de cada página.
     """
     ranges_config = [
         {'range': 'top3', 'title': 'Keywords Posiciones 1-3', 'description': 'Posiciones 1 a 3'},
         {'range': 'top10', 'title': 'Keywords Posiciones 4-10', 'description': 'Posiciones 4 a 10'},
         {'range': 'top20', 'title': 'Keywords Posiciones 11-20', 'description': 'Posiciones 11 a 20'}
-        # ❌ ELIMINADO: 'top20plus' (Keywords Posiciones 20+) - no se requiere
     ]
     
     all_keywords = data.get('keyword_comparison_data', [])
@@ -169,30 +169,12 @@ def create_keyword_position_sheets(writer, data, country_info, header_format):
         for k in filtered_keywords:
             keyword = k.get('keyword', '')
             
-            # 🚀 MEJORADO: Obtener la URL específica donde posiciona esta keyword
+            # ✅ CORREGIDO: La URL ahora viene directamente del backend
             url = k.get('url', '')
             
-            # Si no hay URL directa, buscar en la estructura de URLs del análisis
+            # Solo como fallback si realmente no hay URL
             if not url:
-                # Intentar obtener de la estructura de páginas si está disponible
-                if 'page_url' in k:
-                    url = k.get('page_url', '')
-                elif 'urls' in k and k['urls']:
-                    # Si hay múltiples URLs, tomar la que posiciona mejor
-                    urls = k.get('urls', [])
-                    if urls:
-                        urls.sort(key=lambda x: x.get('position', float('inf')))
-                        url = urls[0].get('url', '')
-                elif 'landing_page' in k:
-                    url = k.get('landing_page', '')
-                else:
-                    # Como último recurso, usar la keyword para buscar su URL en los datos del análisis
-                    # Esta información debería estar disponible desde el endpoint /api/url-keywords
-                    url = f"[URL específica para: {keyword}]"
-            
-            # Si aún no tenemos URL específica, mostrar que es análisis de propiedad completa
-            if not url or url == '':
-                url = "sc-domain:acertare.com (propiedad completa)"
+                url = "URL no disponible"
             
             if 'clicks_m1' in k and 'clicks_m2' in k:  # Si hay datos de comparación
                 keyword_rows.append({
@@ -232,8 +214,14 @@ def create_keyword_position_sheets(writer, data, country_info, header_format):
                 'Posición Media P1': '', 'Posición Media P2': ''
             }]
         
-        # Crear la hoja
-        df_keywords_range = pd.DataFrame(keyword_rows)
+        # ✅ NUEVO: Ordenar por URL (para agrupar) y luego por Clicks descendente
+        keyword_rows_sorted = sorted(
+            keyword_rows, 
+            key=lambda x: (x.get('URL que Posiciona', ''), -x.get('Clicks P1', 0) if isinstance(x.get('Clicks P1', 0), (int, float)) else 0)
+        )
+        
+        # Crear la hoja con datos ordenados
+        df_keywords_range = pd.DataFrame(keyword_rows_sorted)
         df_keywords_range.to_excel(writer, sheet_name=sheet_name, index=False)
         
         # Ajustar columnas de la hoja
@@ -383,39 +371,22 @@ def generate_excel_from_data(data, ai_overview_data=None):
         worksheet_pages.set_column('A:A', 50)  # URL
         worksheet_pages.set_column('B:I', 15)  # Métricas
 
-        # Hoja 3: Keywords consolidadas (mejores de cada URL)
+        # Hoja 3: Keywords consolidadas - ✅ CORREGIDO: Ahora ordena por URL para agrupar claramente
         keyword_rows = []
         for k in data.get('keyword_comparison_data', []):
             keyword = k.get('keyword', '')
             
-            # 🚀 MEJORADO: Obtener la URL específica donde posiciona esta keyword
+            # ✅ CORREGIDO: La URL ahora viene directamente del backend
             url = k.get('url', '')
             
-            # Si no hay URL directa, buscar en la estructura de URLs del análisis
+            # Solo como fallback si realmente no hay URL
             if not url:
-                # Intentar obtener de la estructura de páginas si está disponible
-                if 'page_url' in k:
-                    url = k.get('page_url', '')
-                elif 'urls' in k and k['urls']:
-                    # Si hay múltiples URLs, tomar la que posiciona mejor
-                    urls = k.get('urls', [])
-                    if urls:
-                        urls.sort(key=lambda x: x.get('position', float('inf')))
-                        url = urls[0].get('url', '')
-                elif 'landing_page' in k:
-                    url = k.get('landing_page', '')
-                else:
-                    # Como último recurso, usar la keyword para buscar su URL en los datos del análisis
-                    url = f"[URL específica para: {keyword}]"
-            
-            # Si aún no tenemos URL específica, mostrar que es análisis de propiedad completa
-            if not url or url == '':
-                url = "sc-domain:acertare.com (propiedad completa)"
+                url = "URL no disponible"
             
             if 'clicks_m1' in k and 'clicks_m2' in k:  # Si hay datos de comparación
                 keyword_rows.append({
                     'Keyword': keyword,
-                    'URL que Posiciona': url,  # Cambiado para claridad
+                    'URL que Posiciona': url,
                     'Clicks P1': k.get('clicks_m1', 0),
                     'Clicks P2': k.get('clicks_m2', 0),
                     'Impresiones P1': k.get('impressions_m1', 0),
@@ -428,7 +399,7 @@ def generate_excel_from_data(data, ai_overview_data=None):
             else:  # Si solo hay un período
                 keyword_rows.append({
                     'Keyword': keyword,
-                    'URL que Posiciona': url,  # Ya mejorado arriba
+                    'URL que Posiciona': url,
                     'Clicks P1': k.get('clicks_m1', 0),
                     'Clicks P2': '',
                     'Impresiones P1': k.get('impressions_m1', 0),
@@ -449,7 +420,13 @@ def generate_excel_from_data(data, ai_overview_data=None):
                 'Posición Media P1': '', 'Posición Media P2': ''
             }]
         
-        df_keywords = pd.DataFrame(keyword_rows)
+        # ✅ NUEVO: Ordenar por URL (para agrupar) y luego por Clicks descendente
+        keyword_rows_sorted = sorted(
+            keyword_rows, 
+            key=lambda x: (x.get('URL que Posiciona', ''), -x.get('Clicks P1', 0) if isinstance(x.get('Clicks P1', 0), (int, float)) else 0)
+        )
+        
+        df_keywords = pd.DataFrame(keyword_rows_sorted)
         df_keywords.to_excel(writer, sheet_name='Keywords', index=False)
         
         # Ajustar columnas de la hoja de keywords
