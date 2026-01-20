@@ -75,6 +75,27 @@ def _get_serp_usage_by_user(cur):
     return {row['user_id']: row for row in rows}
 
 
+def _get_ru_usage_by_user(cur):
+    """Mapa user_id -> RU totales consumidas este mes (todas las fuentes)."""
+    columns = _get_table_columns(cur, 'quota_usage_events')
+    if not columns:
+        return {}
+    time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
+    if not time_col:
+        return {}
+
+    month_start, next_month = _get_month_bounds()
+    cur.execute(f'''
+        SELECT user_id, COALESCE(SUM(ru_consumed), 0) AS ru_month
+        FROM quota_usage_events
+        WHERE {time_col} >= %s
+          AND {time_col} < %s
+        GROUP BY user_id
+    ''', (month_start, next_month))
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
+
 def _get_llm_usage_by_user(cur):
     """Mapa user_id -> unidades y coste LLM del mes."""
     try:
@@ -176,8 +197,9 @@ def get_billing_stats():
         cur = conn.cursor()
         
         # Total de usuarios
-        cur.execute('SELECT COUNT(*) FROM users')
-        total_users = cur.fetchone()[0]
+        cur.execute('SELECT COUNT(*) AS count FROM users')
+        row = cur.fetchone()
+        total_users = row['count'] if isinstance(row, dict) else (row[0] if row else 0)
         
         # Usuarios por plan
         cur.execute('''
@@ -186,7 +208,12 @@ def get_billing_stats():
             GROUP BY plan 
             ORDER BY plan
         ''')
-        users_by_plan = dict(cur.fetchall())
+        users_by_plan = {}
+        for row in cur.fetchall():
+            if isinstance(row, dict):
+                users_by_plan[row.get('plan')] = row.get('count', 0)
+            elif row:
+                users_by_plan[row[0]] = row[1]
         
         # Usuarios por estado de billing
         cur.execute('''
@@ -195,7 +222,12 @@ def get_billing_stats():
             GROUP BY billing_status 
             ORDER BY billing_status
         ''')
-        users_by_billing_status = dict(cur.fetchall())
+        users_by_billing_status = {}
+        for row in cur.fetchall():
+            if isinstance(row, dict):
+                users_by_billing_status[row.get('billing_status')] = row.get('count', 0)
+            elif row:
+                users_by_billing_status[row[0]] = row[1]
         
         # RU consumidas hoy/mes (si existe la tabla)
         total_ru_today = 0
@@ -208,18 +240,20 @@ def get_billing_stats():
                 day_start, next_day = _get_today_bounds()
                 month_start, next_month = _get_month_bounds()
                 cur.execute(f'''
-                    SELECT COALESCE(SUM(ru_consumed), 0) 
+                    SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
                     FROM quota_usage_events 
                     WHERE {time_col} >= %s AND {time_col} < %s
                 ''', (day_start, next_day))
-                total_ru_today = cur.fetchone()[0]
+                row = cur.fetchone()
+                total_ru_today = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
                 
                 cur.execute(f'''
-                    SELECT COALESCE(SUM(ru_consumed), 0) 
+                    SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
                     FROM quota_usage_events 
                     WHERE {time_col} >= %s AND {time_col} < %s
                 ''', (month_start, next_month))
-                total_ru_month = cur.fetchone()[0]
+                row = cur.fetchone()
+                total_ru_month = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
 
                 if 'source' in columns:
                     serp_filter = "source = 'serp_api'"
@@ -229,13 +263,14 @@ def get_billing_stats():
                     serp_filter = None
                 if serp_filter:
                     cur.execute(f'''
-                        SELECT COALESCE(SUM(ru_consumed), 0)
+                        SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
                         FROM quota_usage_events
                         WHERE {time_col} >= %s
                           AND {time_col} < %s
                           AND {serp_filter}
                     ''', (month_start, next_month))
-                    total_serp_ru_month = cur.fetchone()[0]
+                    row = cur.fetchone()
+                    total_serp_ru_month = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
         except:
             # Tabla quota_usage_events no existe aún
             pass
@@ -258,20 +293,28 @@ def get_billing_stats():
                 ''', (month_start.date(), next_month.date()))
                 row = cur.fetchone()
                 if row:
-                    total_llm_units_month = row['total_units']
-                    total_llm_cost_month = row['total_cost']
+                    if isinstance(row, dict):
+                        total_llm_units_month = row.get('total_units', 0)
+                        total_llm_cost_month = row.get('total_cost', 0)
+                    else:
+                        total_llm_units_month = row[0] if len(row) > 0 else 0
+                        total_llm_cost_month = row[1] if len(row) > 1 else 0
         except Exception:
             pass
         
         # Estimación de ingresos mensuales (básico: €29.99, premium: pricing por configurar)
         revenue_estimate = 0
         for plan, count in users_by_plan.items():
+            try:
+                count_val = int(count or 0)
+            except Exception:
+                count_val = 0
             if plan == 'basic':
-                revenue_estimate += count * 29.99
+                revenue_estimate += count_val * 29.99
             elif plan == 'premium':
-                revenue_estimate += count * 49.99  # Estimación, ajustar según tu pricing
+                revenue_estimate += count_val * 49.99  # Estimación, ajustar según tu pricing
             elif plan == 'business':
-                revenue_estimate += count * 139.99
+                revenue_estimate += count_val * 139.99
         
         return {
             'total_users': total_users,
@@ -348,6 +391,7 @@ def get_users_with_billing(limit=200, offset=0):
 
         # Enriquecer con métricas SERP/LLM
         serp_usage = _get_serp_usage_by_user(cur)
+        ru_usage = _get_ru_usage_by_user(cur)
         llm_usage = _get_llm_usage_by_user(cur)
         llm_projects = _get_llm_active_projects_by_user(cur)
         ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
@@ -356,12 +400,14 @@ def get_users_with_billing(limit=200, offset=0):
         for user in users_list:
             user_id = user['id']
             serp_row = serp_usage.get(user_id, {})
+            ru_row = ru_usage.get(user_id, {})
             llm_row = llm_usage.get(user_id, {})
             proj_row = llm_projects.get(user_id, {})
             ai_mode_row = ai_mode_paused.get(user_id, {})
             llm_paused_row = llm_paused.get(user_id, {})
 
             user['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
+            user['ru_month'] = int(ru_row.get('ru_month', 0) or 0)
             user['llm_units_month'] = int(llm_row.get('llm_units_month', 0) or 0)
             user['llm_cost_month'] = float(llm_row.get('llm_cost_month', 0) or 0)
             user['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
@@ -464,17 +510,20 @@ def get_user_billing_details(user_id):
 
         # Enriquecer con métricas SERP/LLM para el modal
         serp_usage = _get_serp_usage_by_user(cur)
+        ru_usage = _get_ru_usage_by_user(cur)
         llm_usage = _get_llm_usage_by_user(cur)
         llm_projects = _get_llm_active_projects_by_user(cur)
         ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
         llm_paused = _get_llm_paused_projects_by_user(cur)
         serp_row = serp_usage.get(user_id, {})
+        ru_row = ru_usage.get(user_id, {})
         llm_row = llm_usage.get(user_id, {})
         proj_row = llm_projects.get(user_id, {})
         ai_mode_row = ai_mode_paused.get(user_id, {})
         llm_paused_row = llm_paused.get(user_id, {})
 
         user_dict['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
+        user_dict['ru_month'] = int(ru_row.get('ru_month', 0) or 0)
         user_dict['llm_units_month'] = int(llm_row.get('llm_units_month', 0) or 0)
         user_dict['llm_cost_month'] = float(llm_row.get('llm_cost_month', 0) or 0)
         user_dict['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)

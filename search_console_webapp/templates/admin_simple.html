@@ -749,8 +749,8 @@
                 <div class="stat-label">Registros Hoy</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ "{:,}".format(stats.total_serp_ru_month or 0) if stats else 0 }}</div>
-                <div class="stat-label">SERP RU Mes</div>
+                <div class="stat-number">{{ "{:,}".format(stats.total_ru_consumed_month or 0) if stats else 0 }}</div>
+                <div class="stat-label">RU Mes</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number">{{ "{:,}".format(stats.total_llm_units_month or 0) if stats else 0 }}</div>
@@ -883,7 +883,7 @@
                                         </div>
                                     {% endif %}
                                     
-                                    <small style="color:#666; font-size:0.7rem;">SERP mes: {{ user.serp_ru_month or 0 }} RU</small>
+                                    <small style="color:#666; font-size:0.7rem;">RU mes: {{ user.ru_month or 0 }} RU</small>
                                     <small style="color:#666; font-size:0.7rem;">
                                         LLM mes: {{ user.llm_units_month or 0 }} u
                                         {% if user.llm_cost_month %}
