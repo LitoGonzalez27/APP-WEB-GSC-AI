@@ -1011,6 +1011,21 @@
         </div>
     </div>
 
+        <!-- Paginación -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 0.75rem 0 1rem 0;">
+            <div style="color:#666; font-size:0.85rem;">
+                Página {{ page }} de {{ total_pages }} · {{ per_page }} usuarios por página
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                {% if page > 1 %}
+                <a class="btn btn-secondary" href="/admin/users?page={{ page - 1 }}&per_page={{ per_page }}">← Anterior</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a class="btn btn-secondary" href="/admin/users?page={{ page + 1 }}&per_page={{ per_page }}">Siguiente →</a>
+                {% endif %}
+            </div>
+        </div>
+
     <!-- Modal de Detalles de Usuario MEJORADO -->
     <div id="userModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">

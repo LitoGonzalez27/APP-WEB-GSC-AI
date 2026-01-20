@@ -302,8 +302,8 @@ def get_billing_stats():
         if conn:
             conn.close()
 
-def get_users_with_billing():
-    """Obtiene todos los usuarios con información de billing para el panel admin"""
+def get_users_with_billing(limit=200, offset=0):
+    """Obtiene usuarios con información de billing para el panel admin (paginado)"""
     try:
         conn = get_db_connection()
         if not conn:
@@ -340,7 +340,8 @@ def get_users_with_billing():
                 custom_quota_assigned_date
             FROM users 
             ORDER BY created_at DESC
-        ''')
+            LIMIT %s OFFSET %s
+        ''', (limit, offset))
         
         users = cur.fetchall()
         users_list = [dict(user) for user in users]
@@ -378,7 +379,8 @@ def get_users_with_billing():
                 SELECT id, email, name, picture, role, is_active, created_at, google_id
                 FROM users 
                 ORDER BY created_at DESC
-            ''')
+                LIMIT %s OFFSET %s
+            ''', (limit, offset))
             users = cur.fetchall()
             # Añadir campos de billing como None para compatibilidad
             enhanced_users = []

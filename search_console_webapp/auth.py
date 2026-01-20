@@ -1432,10 +1432,27 @@ def setup_auth_routes(app):
             # ✅ Asegurar que hay datos de prueba si la base de datos está vacía
             ensure_sample_data()
             
+            # Paginación segura para evitar cargas pesadas
+            try:
+                page = int(request.args.get('page', 1))
+            except Exception:
+                page = 1
+            try:
+                per_page = int(request.args.get('per_page', 200))
+            except Exception:
+                per_page = 200
+            if per_page < 25:
+                per_page = 25
+            if per_page > 200:
+                per_page = 200
+            if page < 1:
+                page = 1
+            offset = (page - 1) * per_page
+
             # 🚀 MEJORA: Usar funciones de billing para datos completos
             try:
                 from admin_billing_panel import get_users_with_billing, get_billing_stats
-                users = get_users_with_billing()
+                users = get_users_with_billing(limit=per_page, offset=offset)
                 # Fusionar stats básicos con stats de billing
                 basic_stats = get_user_stats()
                 billing_stats = get_billing_stats()
@@ -1447,12 +1464,22 @@ def setup_auth_routes(app):
                 stats = get_user_stats()
             
             current_user = get_current_user()
+            total_users = stats.get('total_users', len(users))
+            total_pages = max(1, (total_users + per_page - 1) // per_page)
             
             # Debug logging
             logger.info(f"Admin panel cargado - Usuarios: {len(users)}, Stats: {list(stats.keys())}")
             
             # ✅ TEMPLATE MEJORADO CON DATOS COMPLETOS DE BILLING
-            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+            return render_template(
+                'admin_simple.html',
+                users=users,
+                stats=stats,
+                current_user=current_user,
+                page=page,
+                per_page=per_page,
+                total_pages=total_pages
+            )
             
         except Exception as e:
             logger.error(f"Error en panel admin: {e}")
