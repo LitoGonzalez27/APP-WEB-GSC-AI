@@ -333,15 +333,19 @@
                                 </div>
                                 <div class="info-item">
                                     <label>LLM usage (month)</label>
-                                    <div class="info-value">
-                                        {{ llm_units_month or 0 }} units
-                                    </div>
-                                </div>
-                                <div class="info-item">
-                                    <label>LLM cost (month)</label>
-                                    <div class="info-value">
-                                        ${{ "%.2f"|format(llm_cost_month or 0) }}
-                                    </div>
+                                    {% set llm_limit = llm_monthly_limit %}
+                                    {% set llm_used = llm_units_month or 0 %}
+                                    {% if llm_limit is not none %}
+                                        {% set llm_pct = (llm_used / llm_limit * 100) if llm_limit > 0 else 0 %}
+                                        <div>
+                                            <div class="progress-bar" style="--quota-pct: {{ llm_pct|int }};">
+                                                <div class="progress-fill"></div>
+                                            </div>
+                                            <div class="progress-label">{{ llm_used }}/{{ llm_limit }} units ({{ llm_pct|int }}%)</div>
+                                        </div>
+                                    {% else %}
+                                        <div class="info-value">{{ llm_used }} units · Unlimited</div>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">

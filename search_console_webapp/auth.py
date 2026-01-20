@@ -1756,19 +1756,19 @@ def setup_auth_routes(app):
 
         # Métricas de LLM Monitoring (mes actual)
         try:
-            from llm_monitoring_limits import get_user_monthly_llm_usage
-            from database import get_user_llm_monthly_cost
+            from llm_monitoring_limits import get_user_monthly_llm_usage, get_llm_plan_limits
             llm_units_month = get_user_monthly_llm_usage(user['id'])
-            llm_cost_month = get_user_llm_monthly_cost(user['id'])
+            llm_limits = get_llm_plan_limits(user.get('plan', 'free'))
+            llm_monthly_limit = llm_limits.get('max_monthly_units')
         except Exception:
             llm_units_month = 0
-            llm_cost_month = 0.0
+            llm_monthly_limit = 0
         
         return render_template('user_profile.html', 
                              user=user, 
                              activity_log=activity_log,
                              llm_units_month=llm_units_month,
-                             llm_cost_month=llm_cost_month)
+                             llm_monthly_limit=llm_monthly_limit)
 
     # ================================
     # NUEVO: Gestión de conexiones desde Settings
