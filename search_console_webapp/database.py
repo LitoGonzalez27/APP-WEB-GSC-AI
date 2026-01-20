@@ -1861,6 +1861,47 @@ def get_user_quota_usage(user_id, days=30):
         if conn:
             conn.close()
 
+
+def get_user_llm_monthly_cost(user_id, month_date=None):
+    """
+    Devuelve el coste mensual LLM (USD) para un usuario.
+    Se calcula desde llm_monitoring_results.
+    """
+    try:
+        from datetime import date as _date
+        month_date = month_date or _date.today()
+        month_start = month_date.replace(day=1)
+        if month_start.month == 12:
+            next_month = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            next_month = month_start.replace(month=month_start.month + 1)
+
+        conn = get_db_connection()
+        if not conn:
+            return 0.0
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
+        row = cur.fetchone()
+        if not (row['reg'] if isinstance(row, dict) else row[0]):
+            return 0.0
+
+        cur.execute("""
+            SELECT COALESCE(SUM(r.cost_usd), 0) AS total_cost
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_projects p ON p.id = r.project_id
+            WHERE p.user_id = %s
+              AND r.analysis_date >= %s
+              AND r.analysis_date < %s
+        """, (user_id, month_start, next_month))
+        result = cur.fetchone()
+        return float(result['total_cost']) if result and result['total_cost'] is not None else 0.0
+    except Exception as e:
+        logger.error(f"Error obteniendo coste mensual LLM para usuario {user_id}: {e}")
+        return 0.0
+    finally:
+        if conn:
+            conn.close()
+
 def ensure_quota_table_exists():
     """
     Asegura que la tabla quota_usage_events existe

@@ -321,6 +321,28 @@
                                         <div class="progress-label">{{ quota_used }}/{{ quota_limit }} RU ({{ quota_pct|int }}%)</div>
                                     </div>
                                 </div>
+                                <div class="info-item">
+                                    <label>Next quota reset</label>
+                                    <div class="info-value">
+                                        {% if user.quota_reset_date %}
+                                            {{ user.quota_reset_date.strftime('%B %d, %Y') }}
+                                        {% else %}
+                                            Not available
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>LLM usage (month)</label>
+                                    <div class="info-value">
+                                        {{ llm_units_month or 0 }} units
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>LLM cost (month)</label>
+                                    <div class="info-value">
+                                        ${{ "%.2f"|format(llm_cost_month or 0) }}
+                                    </div>
+                                </div>
                             </div>
                             <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap;">
                                 {% set user_plan = user.get('plan','free') %}

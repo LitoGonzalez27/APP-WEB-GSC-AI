@@ -1753,10 +1753,22 @@ def setup_auth_routes(app):
         
         # Obtener estadísticas del usuario
         activity_log = get_user_activity_log(user['id'])
+
+        # Métricas de LLM Monitoring (mes actual)
+        try:
+            from llm_monitoring_limits import get_user_monthly_llm_usage
+            from database import get_user_llm_monthly_cost
+            llm_units_month = get_user_monthly_llm_usage(user['id'])
+            llm_cost_month = get_user_llm_monthly_cost(user['id'])
+        except Exception:
+            llm_units_month = 0
+            llm_cost_month = 0.0
         
         return render_template('user_profile.html', 
                              user=user, 
-                             activity_log=activity_log)
+                             activity_log=activity_log,
+                             llm_units_month=llm_units_month,
+                             llm_cost_month=llm_cost_month)
 
     # ================================
     # NUEVO: Gestión de conexiones desde Settings
