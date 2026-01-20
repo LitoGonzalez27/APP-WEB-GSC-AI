@@ -50,11 +50,77 @@ class LLMMonitoring {
         // Load projects
         this.loadProjects();
 
+        // Load plan limits/usage
+        this.loadPlanLimits();
+
         // Setup event listeners
         this.setupEventListeners();
 
         // Setup chips functionality
         this.setupChipsInputs();
+    }
+
+    /**
+     * Handle paywall responses (402)
+     */
+    async handlePaywallResponse(response) {
+        if (response.status !== 402) return false;
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = {};
+        }
+        if (window.showPaywall) {
+            window.showPaywall('LLM Monitoring', data.upgrade_options || ['basic', 'premium', 'business']);
+        }
+        throw new Error(data.message || 'LLM Monitoring requires a paid plan.');
+    }
+
+    /**
+     * Load plan limits and usage for banner
+     */
+    async loadPlanLimits() {
+        try {
+            const response = await fetch(`${this.baseUrl}/usage`);
+            await this.handlePaywallResponse(response);
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data || !data.limits) return;
+
+            const limits = data.limits;
+            const banner = document.getElementById('llmPlanLimitsBanner');
+            if (!banner) return;
+
+            const projectsText = limits.max_projects === null
+                ? 'Unlimited projects'
+                : `${limits.active_projects}/${limits.max_projects} projects`;
+            const promptsText = limits.max_prompts_per_project === null
+                ? 'Unlimited prompts per project'
+                : `${limits.max_prompts_per_project} prompts per project`;
+            const usageText = limits.max_monthly_units === null
+                ? 'Unlimited monthly usage'
+                : `${limits.monthly_units_used}/${limits.max_monthly_units} monthly requests`;
+
+            banner.innerHTML = `
+                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                    <strong style="margin-right:6px;">Plan: ${limits.plan.toUpperCase()}</strong>
+                    <span>• ${projectsText}</span>
+                    <span>• ${promptsText}</span>
+                    <span>• ${usageText}</span>
+                </div>
+            `;
+            banner.style.display = 'block';
+
+            // Disable create button if project limit reached
+            const btnCreate = document.getElementById('btnCreateProject');
+            if (btnCreate && limits.max_projects !== null && limits.active_projects >= limits.max_projects) {
+                btnCreate.disabled = true;
+                btnCreate.title = 'Project limit reached for your plan';
+            }
+        } catch (error) {
+            console.warn('Could not load LLM plan limits:', error);
+        }
     }
 
     // ============================================================================
@@ -573,6 +639,8 @@ class LLMMonitoring {
             });
 
             console.log('📡 Load projects response:', response.status, response.statusText);
+
+            await this.handlePaywallResponse(response);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -3037,6 +3105,8 @@ class LLMMonitoring {
                 credentials: 'same-origin'
             });
 
+            await this.handlePaywallResponse(response);
+
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.error || `HTTP ${response.status}`);
@@ -3264,8 +3334,8 @@ class LLMMonitoring {
             return;
         }
 
-        if (queriesPerLlm < 5 || queriesPerLlm > 50) {
-            this.showError('Queries per LLM must be between 5 and 50');
+        if (queriesPerLlm < 5 || queriesPerLlm > 60) {
+            this.showError('Queries per LLM must be between 5 and 60');
             return;
         }
 
@@ -3327,6 +3397,8 @@ class LLMMonitoring {
             });
 
             console.log('📡 Response status:', response.status, response.statusText);
+
+            await this.handlePaywallResponse(response);
 
             if (!response.ok) {
                 let errorMessage = `HTTP ${response.status}`;
@@ -4031,6 +4103,8 @@ class LLMMonitoring {
                 credentials: 'same-origin',
                 body: JSON.stringify(payload)
             });
+
+            await this.handlePaywallResponse(response);
 
             if (!response.ok) {
                 const error = await response.json();

@@ -202,7 +202,8 @@ def setup_billing_routes(app):
             }
 
             if eligible_for_trial:
-                create_params['subscription_data'] = {'trial_period_days': 7}
+                trial_days = int(os.getenv('TRIAL_DAYS', '7'))
+                create_params['subscription_data'] = {'trial_period_days': trial_days}
 
             # Preaplicar descuentos opcionalmente si se pasan por query
             # Soporta: ?promo=<promotion_code_id|human_code> y ?coupon=<coupon_id>

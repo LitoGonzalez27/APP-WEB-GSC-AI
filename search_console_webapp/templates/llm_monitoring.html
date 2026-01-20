@@ -67,15 +67,14 @@
     <!-- End Google Tag Manager (noscript) -->
     
     {% if access_blocked %}
-    <!-- 🔒 BLOQUEO TEMPORAL: Solo administradores tienen acceso -->
+    <!-- 🔒 BLOQUEO POR PLAN -->
     <div class="llm-access-blocked-overlay">
         <div class="llm-access-blocked-modal">
-            <h2>Coming Soon</h2>
+            <h2>Upgrade Required</h2>
             <p class="llm-blocked-subtitle">LLM Visibility Monitor</p>
             <p class="llm-blocked-description">
-                We're putting the finishing touches on this exciting new feature. 
-                LLM Visibility Monitor will help you track how AI models like ChatGPT, 
-                Gemini, Claude, and Perplexity mention your brand.
+                This feature is available on paid plans. Upgrade to start monitoring how LLMs
+                mention your brand across ChatGPT, Gemini, Claude, and Perplexity.
             </p>
             <div class="llm-blocked-features">
                 <div class="llm-blocked-feature">
@@ -91,12 +90,18 @@
                     <span>Competitive analysis</span>
                 </div>
             </div>
+            {% if upgrade_options %}
             <p class="llm-blocked-notify">
-                <i class="fas fa-bell"></i>
-                We'll notify you when it's ready!
+                <i class="fas fa-bolt"></i>
+                Recommended upgrade: {{ upgrade_options[0] | upper }}
             </p>
+            {% endif %}
             <div class="llm-blocked-actions">
-                <a href="/app" class="btn-primary">
+                <a href="/billing" class="btn-primary">
+                    <i class="fas fa-arrow-up"></i>
+                    Upgrade Plan
+                </a>
+                <a href="/app" class="btn-secondary">
                     <i class="fas fa-arrow-left"></i>
                     Back to Dashboard
                 </a>
@@ -396,6 +401,11 @@
                         <i class="fas fa-plus"></i>
                         Create New Project
                     </button>
+                </div>
+
+                <!-- Plan limits banner -->
+                <div id="llmPlanLimitsBanner" style="display: none; margin: 12px 0 20px; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; color: #111827;">
+                    <!-- Filled by JS -->
                 </div>
 
                 <!-- Projects loading state -->
@@ -1153,7 +1163,7 @@
                             <label for="queriesPerLlm" class="enhanced-label">
                                 <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">Queries per LLM</span>*
                             </label>
-                            <input type="number" id="queriesPerLlm" class="enhanced-input" value="15" min="5" max="50">
+                            <input type="number" id="queriesPerLlm" class="enhanced-input" value="15" min="5" max="60">
                             <small class="form-help">Number of test queries (5-50)</small>
                         </div>
                     </div>

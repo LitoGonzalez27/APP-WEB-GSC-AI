@@ -7,9 +7,9 @@ import logging
 import json
 import time
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
-from database import get_db_connection
+from database import get_db_connection, pause_ai_mode_projects_for_quota
 from auth import get_user_by_id, get_current_user
 from quota_manager import get_user_quota_status
 from ai_mode_projects.config import AI_MODE_KEYWORD_ANALYSIS_COST
@@ -69,12 +69,27 @@ class AnalysisService:
         if not project or not keywords:
             return []
 
+        if project.get('is_paused_by_quota'):
+            return {
+                'success': False,
+                'error': 'project_paused_quota',
+                'message': 'Proyecto en pausa por agotamiento de cuota',
+                'paused_until': project.get('paused_until')
+            }
+
         # Validar cuota antes de empezar
         quota_info = get_user_quota_status(current_user['id'])
         if not quota_info.get('can_consume'):
             logger.warning(f"User {current_user['id']} sin cuota para iniciar análisis AI Mode del proyecto {project_id}. "
                           f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
-            return {'success': False, 'error': 'Quota limit exceeded', 'quota_info': quota_info}
+            paused_until = quota_info.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+            pause_ai_mode_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
+            return {
+                'success': False,
+                'error': 'Quota limit exceeded',
+                'quota_info': quota_info,
+                'paused_until': paused_until
+            }
 
         results = []
         failed_keywords = 0
@@ -93,7 +108,21 @@ class AnalysisService:
             if not current_quota.get('can_consume') or current_quota.get('remaining', 0) < AI_MODE_KEYWORD_ANALYSIS_COST:
                 logger.warning(f"Análisis AI Mode del proyecto {project_id} detenido por falta de cuota. "
                               f"Keywords procesadas: {len(results)}. Keywords pendientes: {len(keywords) - len(results)}")
-                break
+                paused_until = current_quota.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+                pause_ai_mode_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
+                conn.commit()
+                cur.close()
+                conn.close()
+                return {
+                    'results': results,
+                    'quota_exceeded': True,
+                    'quota_info': current_quota,
+                    'action_required': 'upgrade',
+                    'keywords_analyzed': len(results),
+                    'keywords_remaining': len(keywords) - len(results),
+                    'error': 'QUOTA_EXCEEDED',
+                    'paused_until': paused_until
+                }
 
             keyword = keyword_data['keyword']
             keyword_id = keyword_data['id']
@@ -201,6 +230,8 @@ class AnalysisService:
                         logger.error(f"🚫 AI Mode analysis stopped due to quota limit. "
                                    f"Plan: {quota_info.get('plan', 'unknown')}, "
                                    f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
+                        paused_until = quota_info.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+                        pause_ai_mode_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
                         
                         conn.commit()
                         cur.close()
@@ -213,7 +244,8 @@ class AnalysisService:
                             'action_required': action_required,
                             'keywords_analyzed': len(results),
                             'keywords_remaining': len(keywords) - len(results),
-                            'error': 'QUOTA_EXCEEDED'
+                            'error': 'QUOTA_EXCEEDED',
+                            'paused_until': paused_until
                         }
                     else:
                         logger.error(f"Error analyzing keyword '{keyword}': {analysis_error}")

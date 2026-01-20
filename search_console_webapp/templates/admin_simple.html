@@ -301,6 +301,11 @@
             color: white;
         }
         
+        .badge.business {
+            background: #fd7e14;
+            color: white;
+        }
+        
         .badge.enterprise {
             background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
             color: white;
@@ -743,6 +748,18 @@
                 <div class="stat-number">{{ stats.today_registrations if stats else 0 }}</div>
                 <div class="stat-label">Registros Hoy</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "{:,}".format(stats.total_serp_ru_month or 0) if stats else 0 }}</div>
+                <div class="stat-label">SERP RU Mes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "{:,}".format(stats.total_llm_units_month or 0) if stats else 0 }}</div>
+                <div class="stat-label">LLM Unidades Mes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${{ "%.2f"|format(stats.total_llm_cost_month or 0) if stats else "0.00" }}</div>
+                <div class="stat-label">LLM Coste Mes</div>
+            </div>
         </div>
 
         <!-- Controles de UX: búsqueda, filtros y ordenación -->
@@ -753,6 +770,7 @@
                 <option value="free">Free</option>
                 <option value="basic">Basic</option>
                 <option value="premium">Premium</option>
+                <option value="business">Business</option>
                 <option value="enterprise">Enterprise</option>
             </select>
             <select id="filterStatus" style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
@@ -837,7 +855,8 @@
                                             <span class="badge {{ user.plan or 'free' }}">
                                                 {% if user.plan == 'free' %}Free
                                                 {% elif user.plan == 'basic' %}Basic
-                                                {% elif user.plan == 'premium' %}Premium  
+                                                {% elif user.plan == 'premium' %}Premium
+                                                {% elif user.plan == 'business' %}Business
                                                 {% else %}{{ user.plan|title }}
                                                 {% endif %}
                                             </span>
@@ -862,6 +881,24 @@
                                                 <span class="quota-percentage" data-percentage="{{ quota_percentage }}">{{ quota_percentage }}%</span>
                                             </div>
                                         </div>
+                                    {% endif %}
+                                    
+                                    <small style="color:#666; font-size:0.7rem;">SERP mes: {{ user.serp_ru_month or 0 }} RU</small>
+                                    <small style="color:#666; font-size:0.7rem;">
+                                        LLM mes: {{ user.llm_units_month or 0 }} u
+                                        {% if user.llm_cost_month %}
+                                            (${{ "%.2f"|format(user.llm_cost_month) }})
+                                        {% endif %}
+                                    </small>
+                                    <small style="color:#666; font-size:0.7rem;">LLM proyectos: {{ user.llm_active_projects or 0 }}</small>
+                                    {% if user.ai_overview_paused_until %}
+                                        <small style="color:#c0392b; font-size:0.7rem;">AI Overview en pausa</small>
+                                    {% endif %}
+                                    {% if user.ai_mode_paused_projects and user.ai_mode_paused_projects > 0 %}
+                                        <small style="color:#c0392b; font-size:0.7rem;">AI Mode pausados: {{ user.ai_mode_paused_projects }}</small>
+                                    {% endif %}
+                                    {% if user.llm_paused_projects and user.llm_paused_projects > 0 %}
+                                        <small style="color:#c0392b; font-size:0.7rem;">LLM pausados: {{ user.llm_paused_projects }}</small>
                                     {% endif %}
                                     
                                     {% if user.custom_quota_assigned_by %}
@@ -1081,6 +1118,60 @@
                     </div>
                 </div>
 
+                <!-- 📊 Sección SERP & LLM -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-chart-line"></i> Uso SERP & LLM (Mes actual)
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">SERP RU:</span>
+                            <span class="detail-value" id="detailSerpRuMonth">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">LLM Unidades:</span>
+                            <span class="detail-value" id="detailLlmUnitsMonth">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">LLM Coste:</span>
+                            <span class="detail-value" id="detailLlmCostMonth">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">LLM Proyectos Activos:</span>
+                            <span class="detail-value" id="detailLlmProjects">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ⏸️ Sección Pausas por cuota -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-pause-circle"></i> Pausas por cuota
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">AI Overview:</span>
+                            <span class="detail-value" id="detailAiOverviewPaused">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">AI Overview hasta:</span>
+                            <span class="detail-value" id="detailAiOverviewPausedUntil">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Motivo AI Overview:</span>
+                            <span class="detail-value" id="detailAiOverviewPausedReason">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">AI Mode pausados:</span>
+                            <span class="detail-value" id="detailAiModePausedProjects">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">LLM pausados:</span>
+                            <span class="detail-value" id="detailLlmPausedProjects">-</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 🚀 NUEVA: Sección Custom Quota (Enterprise) -->
                 <div id="detailCustomQuotaSection" style="margin-bottom: 1.5rem; display: none;">
                     <h4 style="color: #6f42c1; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
@@ -1221,7 +1312,8 @@
                     <select id="planSelect" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px;">
                         <option value="free">Free (0€ - 0 RU/month)</option>
                         <option value="basic">Basic (29,99€ - 1.225 RU/month)</option>
-                        <option value="premium">Premium (59,99€ - 2.950 RU/month)</option>
+                        <option value="premium">Premium (49,99€ - 2.950 RU/month)</option>
+                        <option value="business">Business (139,99€ - 8.000 RU/month)</option>
                     </select>
                 </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
@@ -1356,6 +1448,32 @@
                         document.getElementById('detailQuotaPercentage').textContent = 'N/A';
                         document.getElementById('detailProgressContainer').style.display = 'none';
                     }
+
+                    // Uso SERP & LLM (mes actual)
+                    const serpRuMonth = user.serp_ru_month || 0;
+                    const llmUnitsMonth = user.llm_units_month || 0;
+                    const llmCostMonth = parseFloat(user.llm_cost_month || 0);
+                    const llmProjects = user.llm_active_projects || 0;
+
+                    document.getElementById('detailSerpRuMonth').textContent = `${serpRuMonth} RU`;
+                    document.getElementById('detailLlmUnitsMonth').textContent = `${llmUnitsMonth} u`;
+                    document.getElementById('detailLlmCostMonth').textContent = `$${llmCostMonth.toFixed(2)}`;
+                    document.getElementById('detailLlmProjects').textContent = llmProjects;
+
+                    // Pausas por cuota
+                    const aioPausedUntil = user.ai_overview_paused_until ? new Date(user.ai_overview_paused_until) : null;
+                    const aioPausedActive = aioPausedUntil && aioPausedUntil > new Date();
+                    const aioPausedReason = user.ai_overview_paused_reason || 'N/A';
+                    const aiModePaused = user.ai_mode_paused_projects || 0;
+                    const llmPaused = user.llm_paused_projects || 0;
+
+                    document.getElementById('detailAiOverviewPaused').textContent = aioPausedActive ? 'Sí' : 'No';
+                    document.getElementById('detailAiOverviewPausedUntil').textContent = aioPausedUntil
+                        ? aioPausedUntil.toLocaleString('es-ES')
+                        : 'N/A';
+                    document.getElementById('detailAiOverviewPausedReason').textContent = aioPausedReason;
+                    document.getElementById('detailAiModePausedProjects').textContent = aiModePaused;
+                    document.getElementById('detailLlmPausedProjects').textContent = llmPaused;
                     
                     // Reset de cuota
                     if (user.quota_reset_date) {
@@ -1395,6 +1513,15 @@
                     document.getElementById('detailQuotaUsed').textContent = 'No disponible';
                     document.getElementById('detailQuotaPercentage').textContent = 'No disponible';
                     document.getElementById('detailQuotaReset').textContent = 'No disponible';
+                    document.getElementById('detailSerpRuMonth').textContent = 'No disponible';
+                    document.getElementById('detailLlmUnitsMonth').textContent = 'No disponible';
+                    document.getElementById('detailLlmCostMonth').textContent = 'No disponible';
+                    document.getElementById('detailLlmProjects').textContent = 'No disponible';
+                    document.getElementById('detailAiOverviewPaused').textContent = 'No disponible';
+                    document.getElementById('detailAiOverviewPausedUntil').textContent = 'No disponible';
+                    document.getElementById('detailAiOverviewPausedReason').textContent = 'No disponible';
+                    document.getElementById('detailAiModePausedProjects').textContent = 'No disponible';
+                    document.getElementById('detailLlmPausedProjects').textContent = 'No disponible';
                     document.getElementById('detailProgressContainer').style.display = 'none';
                     document.getElementById('detailCustomQuotaSection').style.display = 'none';
                 }
@@ -1410,7 +1537,8 @@
             const planNames = {
                 'free': 'Free (0€)',
                 'basic': 'Basic (29,99€)', 
-                'premium': 'Premium (59,99€)',
+                'premium': 'Premium (49,99€)',
+                'business': 'Business (139,99€)',
                 'enterprise': 'Enterprise (Custom)',
                 'beta': 'Beta'
             };

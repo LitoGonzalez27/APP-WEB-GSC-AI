@@ -263,8 +263,8 @@ def get_user_access_permissions(user_id):
             'can_use_serp_api': False
         })
     
-    # Basic, Premium, Enterprise: Acceso completo si tienen quota
-    elif plan in ['basic', 'premium', 'enterprise']:
+    # Basic, Premium, Business, Enterprise: Acceso completo si tienen quota
+    elif plan in ['basic', 'premium', 'business', 'enterprise']:
         permissions.update({
             'can_use_ai_overview': has_quota,
             'can_use_manual_ai': has_quota,

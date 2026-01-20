@@ -51,7 +51,15 @@ def analyze_project(project_id):
         # Ejecutar análisis manual con sobreescritura forzada
         analysis_result = analysis_service.run_project_analysis(project_id, force_overwrite=True)
         
-        # Manejar respuesta que puede incluir información de quota
+        # Manejar respuesta que puede incluir información de cuota o pausa
+        if isinstance(analysis_result, dict) and analysis_result.get('error') == 'project_paused_quota':
+            return jsonify({
+                'success': False,
+                'error': 'project_paused_quota',
+                'message': analysis_result.get('message', 'Proyecto en pausa por cuota'),
+                'paused_until': analysis_result.get('paused_until')
+            }), 429
+        
         if isinstance(analysis_result, dict) and analysis_result.get('quota_exceeded'):
             # Análisis interrumpido por quota
             quota_info = analysis_result.get('quota_info', {})

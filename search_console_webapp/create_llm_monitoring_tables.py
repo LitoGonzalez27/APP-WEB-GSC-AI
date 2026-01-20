@@ -86,7 +86,7 @@ def create_llm_monitoring_tables():
                 -- Constraints
                 UNIQUE(user_id, name),
                 CHECK (char_length(brand_name) >= 2),
-                CHECK (queries_per_llm BETWEEN 5 AND 50)
+                CHECK (queries_per_llm BETWEEN 5 AND 60)
             )
         """)
         logger.info("   ✅ Tabla llm_monitoring_projects creada")

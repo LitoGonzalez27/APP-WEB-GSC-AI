@@ -35,6 +35,14 @@ from functools import wraps
 
 # Importar sistema de autenticación
 from auth import login_required, get_current_user, cron_or_auth_required
+from llm_monitoring_limits import (
+    can_access_llm_monitoring,
+    get_llm_plan_limits,
+    count_user_active_projects,
+    count_project_active_queries,
+    get_llm_limits_summary,
+    get_upgrade_options,
+)
 
 # Importar servicios
 from database import get_db_connection
@@ -51,6 +59,30 @@ llm_monitoring_bp = Blueprint('llm_monitoring', __name__, url_prefix='/api/llm-m
 # ============================================================================
 # DECORADORES AUXILIARES
 # ============================================================================
+
+@llm_monitoring_bp.before_request
+def enforce_llm_access():
+    """
+    Bloquea acceso si el usuario no tiene plan válido/billing activo.
+    Excepciones: endpoints de cron y health.
+    """
+    try:
+        path = request.path or ""
+        if "/api/llm-monitoring/cron/" in path or path.endswith("/health"):
+            return None
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Usuario no autenticado'}), 401
+        if not can_access_llm_monitoring(user):
+            return jsonify({
+                'error': 'paywall',
+                'message': 'LLM Monitoring requires a paid plan',
+                'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+                'current_plan': user.get('plan', 'free')
+            }), 402
+    except Exception as e:
+        logger.error(f"Error en enforce_llm_access: {e}", exc_info=True)
+        return jsonify({'error': 'Error validando acceso'}), 500
 
 def validate_project_ownership(f):
     """
@@ -129,6 +161,10 @@ def get_projects():
                 p.language,
                 p.queries_per_llm,
                 p.is_active,
+                p.is_paused_by_quota,
+                p.paused_until,
+                p.paused_at,
+                p.paused_reason,
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
@@ -156,6 +192,10 @@ def get_projects():
                 'language': project['language'],
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
+                'is_paused_by_quota': project.get('is_paused_by_quota', False),
+                'paused_until': project['paused_until'].isoformat() if project.get('paused_until') else None,
+                'paused_at': project['paused_at'].isoformat() if project.get('paused_at') else None,
+                'paused_reason': project.get('paused_reason'),
                 'last_analysis_date': project['last_analysis_date'].isoformat() if project['last_analysis_date'] else None,
                 'created_at': project['created_at'].isoformat() if project['created_at'] else None,
                 'updated_at': project['updated_at'].isoformat() if project['updated_at'] else None,
@@ -163,10 +203,13 @@ def get_projects():
                 'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None
             })
         
+        limits_summary = get_llm_limits_summary(user)
+
         return jsonify({
             'success': True,
             'projects': projects_list,
-            'total': len(projects_list)
+            'total': len(projects_list),
+            'limits': limits_summary
         }), 200
         
     except Exception as e:
@@ -175,6 +218,20 @@ def get_projects():
     finally:
         cur.close()
         conn.close()
+
+
+@llm_monitoring_bp.route('/usage', methods=['GET'])
+@login_required
+def get_usage():
+    """
+    Devuelve límites y consumo del usuario para LLM Monitoring
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
+
+    limits_summary = get_llm_limits_summary(user)
+    return jsonify({'success': True, 'limits': limits_summary}), 200
 
 
 @llm_monitoring_bp.route('/projects', methods=['POST'])
@@ -203,6 +260,19 @@ def create_project():
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
     
+    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    max_projects = plan_limits.get('max_projects')
+    active_projects = count_user_active_projects(user['id'])
+    if max_projects is not None and active_projects >= max_projects:
+        return jsonify({
+            'error': 'project_limit_reached',
+            'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
+            'current_plan': user.get('plan', 'free'),
+            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+            'limit': max_projects,
+            'current': active_projects
+        }), 402
+
     data = request.get_json()
     
     # Validar campos requeridos
@@ -224,8 +294,19 @@ def create_project():
     if not isinstance(brand_keywords, list) or len(brand_keywords) == 0:
         return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
     
-    if queries_per_llm < 5 or queries_per_llm > 50:
-        return jsonify({'error': 'queries_per_llm debe estar entre 5 y 50'}), 400
+    if queries_per_llm < 5 or queries_per_llm > 60:
+        return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
+
+    max_prompts = plan_limits.get('max_prompts_per_project')
+    if max_prompts is not None and queries_per_llm > max_prompts:
+        return jsonify({
+            'error': 'prompt_limit_exceeded',
+            'message': 'Tu plan no permite tantos prompts por proyecto',
+            'current_plan': user.get('plan', 'free'),
+            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+            'limit': max_prompts,
+            'requested': queries_per_llm
+        }), 402
     
     if not isinstance(enabled_llms, list) or len(enabled_llms) == 0:
         return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
@@ -751,6 +832,12 @@ def update_project(project_id):
     
     if not data:
         return jsonify({'error': 'Body vacío'}), 400
+
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
+    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    max_prompts = plan_limits.get('max_prompts_per_project')
     
     conn = get_db_connection()
     if not conn:
@@ -821,8 +908,17 @@ def update_project(project_id):
             params.append(data['enabled_llms'])
         
         if 'queries_per_llm' in data:
-            if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 50:
-                return jsonify({'error': 'queries_per_llm debe estar entre 5 y 50'}), 400
+            if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 60:
+                return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
+            if max_prompts is not None and data['queries_per_llm'] > max_prompts:
+                return jsonify({
+                    'error': 'prompt_limit_exceeded',
+                    'message': 'Tu plan no permite tantos prompts por proyecto',
+                    'current_plan': user.get('plan', 'free'),
+                    'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+                    'limit': max_prompts,
+                    'requested': data['queries_per_llm']
+                }), 402
             updates.append("queries_per_llm = %s")
             params.append(data['queries_per_llm'])
         
@@ -937,6 +1033,22 @@ def activate_project(project_id):
     Returns:
         JSON con confirmación
     """
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
+    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    max_projects = plan_limits.get('max_projects')
+    active_projects = count_user_active_projects(user['id'])
+    if max_projects is not None and active_projects >= max_projects:
+        return jsonify({
+            'error': 'project_limit_reached',
+            'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
+            'current_plan': user.get('plan', 'free'),
+            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+            'limit': max_projects,
+            'current': active_projects
+        }), 402
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
@@ -1094,6 +1206,23 @@ def add_queries_to_project(project_id):
     if not isinstance(queries_list, list):
         return jsonify({'error': 'queries debe ser una lista'}), 400
     
+    # Validar límites por plan (prompts por proyecto)
+    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    max_prompts = plan_limits.get('max_prompts_per_project')
+    if max_prompts is not None:
+        current_count = count_project_active_queries(project_id)
+        incoming_count = len([q for q in queries_list if isinstance(q, str) and q.strip()])
+        if current_count + incoming_count > max_prompts:
+            return jsonify({
+                'error': 'prompt_limit_exceeded',
+                'message': 'Has alcanzado el máximo de prompts permitidos para este proyecto',
+                'current_plan': user.get('plan', 'free'),
+                'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+                'limit': max_prompts,
+                'current': current_count,
+                'requested': incoming_count
+            }), 402
+
     # Obtener configuración del proyecto si no se especificó idioma
     conn = get_db_connection()
     if not conn:

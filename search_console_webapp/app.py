@@ -2022,12 +2022,29 @@ def analyze_ai_overview_route():
             'current_plan': 'free'
         }), 402  # Payment Required
     
+    # Pausa por cuota (AI Overview)
+    try:
+        from datetime import datetime as _dt
+        paused_until = user.get('ai_overview_paused_until')
+        if paused_until and paused_until > _dt.utcnow():
+            return jsonify({
+                'error': 'quota_paused',
+                'message': 'AI Overview en pausa hasta el próximo ciclo de facturación',
+                'paused_until': paused_until.isoformat(),
+                'current_plan': user.get('plan', 'free')
+            }), 429
+    except Exception:
+        pass
+
     # Quota check: Verificar límites de RU
-    quota_used = user.get('quota_used', 0)
-    quota_limit = user.get('quota_limit', 0)
-    
+    from quota_manager import get_user_quota_status
+    from database import pause_ai_overview_for_quota
+    quota_status = get_user_quota_status(user['id'])
+    quota_used = quota_status.get('quota_used', 0)
+    quota_limit = quota_status.get('quota_limit', 0)
     if quota_limit > 0 and quota_used >= quota_limit:
         logger.warning(f"Usuario excedió quota: {user.get('email')} ({quota_used}/{quota_limit} RU)")
+        pause_ai_overview_for_quota(user['id'], quota_status.get('reset_date'), reason='quota_exceeded')
         return jsonify({
             'error': 'quota_exceeded',
             'message': 'You have reached your monthly limit',
@@ -2037,7 +2054,8 @@ def analyze_ai_overview_route():
                 'percentage': round((quota_used / quota_limit) * 100, 1) if quota_limit > 0 else 0
             },
             'action_required': 'upgrade',
-            'current_plan': user.get('plan', 'free')
+            'current_plan': user.get('plan', 'free'),
+            'paused_until': quota_status.get('reset_date').isoformat() if quota_status.get('reset_date') else None
         }), 429  # Too Many Requests
     
     try:
@@ -2160,6 +2178,18 @@ def analyze_ai_overview_route():
             country_req, 
             max_workers
         )
+
+        # Si se alcanzó cuota durante el análisis, pausar AI Overview
+        try:
+            quota_blocked = any(
+                (item.get('error') == 'quota_exceeded') or
+                (item.get('ai_analysis', {}).get('quota_blocked') is True)
+                for item in results_list_overview
+            )
+            if quota_blocked:
+                pause_ai_overview_for_quota(user['id'], quota_status.get('reset_date'), reason='quota_exceeded')
+        except Exception:
+            pass
         
         results_list_overview.sort(key=lambda x_item_sort: x_item_sort.get('delta_clicks_absolute', 0))
 
@@ -3532,11 +3562,22 @@ def llm_monitoring_page():
     if not user:
         return redirect(url_for('login_page'))
     
-    # 🔒 TEMPORAL: Bloquear acceso a usuarios no administradores
-    # TODO: Eliminar este bloqueo cuando se definan los precios y se lance al público
-    access_blocked = user.get('role') != 'admin'
+    # Control de acceso por plan/billing (admin siempre permitido)
+    try:
+        from llm_monitoring_limits import can_access_llm_monitoring, get_upgrade_options
+        access_blocked = not can_access_llm_monitoring(user)
+        upgrade_options = get_upgrade_options(user.get('plan', 'free'))
+    except Exception:
+        access_blocked = user.get('role') != 'admin'
+        upgrade_options = ['basic', 'premium', 'business']
     
-    return render_template('llm_monitoring.html', user=user, authenticated=True, access_blocked=access_blocked)
+    return render_template(
+        'llm_monitoring.html',
+        user=user,
+        authenticated=True,
+        access_blocked=access_blocked,
+        upgrade_options=upgrade_options
+    )
 
 # ✅ NUEVO FASE 4.5: Registrar rutas de billing self-service
 def register_billing_routes():

@@ -22,6 +22,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Semaphore
 
 from database import get_db_connection
+from llm_monitoring_limits import (
+    can_access_llm_monitoring,
+    get_llm_plan_limits,
+    get_user_monthly_llm_usage,
+)
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
 from services.ai_analysis import extract_brand_variations, remove_accents
 
@@ -854,7 +859,8 @@ JSON:"""
                     enabled_llms, competitors, 
                     competitor_domains, competitor_keywords,
                     selected_competitors,
-                    language, queries_per_llm
+                    language, queries_per_llm,
+                    is_paused_by_quota, paused_until, paused_at, paused_reason
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
             """, (project_id,))
@@ -863,6 +869,30 @@ JSON:"""
             
             if not project:
                 raise Exception(f"Proyecto #{project_id} no encontrado o inactivo")
+
+            if project.get('is_paused_by_quota'):
+                return {
+                    'success': False,
+                    'error': 'project_paused_quota',
+                    'message': 'Proyecto en pausa por agotamiento de cuota',
+                    'paused_until': project.get('paused_until')
+                }
+
+            # Obtener usuario y validar acceso por plan/billing
+            cur.execute("""
+                SELECT id, plan, billing_status, role
+                FROM users
+                WHERE id = %s
+            """, (project['user_id'],))
+            user_row = cur.fetchone()
+            if not can_access_llm_monitoring(user_row):
+                return {
+                    'success': False,
+                    'error': 'paywall',
+                    'message': 'LLM Monitoring requires a paid plan',
+                    'current_plan': user_row.get('plan', 'free') if user_row else 'free'
+                }
+            plan_limits = get_llm_plan_limits(user_row.get('plan', 'free'))
             
             logger.info(f"📋 Proyecto: {project['name']}")
             logger.info(f"   Marca: {project['brand_name']}")
@@ -912,6 +942,17 @@ JSON:"""
                 queries = cur.fetchall()
                 logger.info(f"   ✅ {len(queries)} queries creadas")
             
+            max_prompts = plan_limits.get('max_prompts_per_project')
+            if max_prompts is not None and len(queries) > max_prompts:
+                return {
+                    'success': False,
+                    'error': 'prompt_limit_exceeded',
+                    'message': 'Proyecto excede el máximo de prompts permitidos por plan',
+                    'limit': max_prompts,
+                    'current': len(queries),
+                    'plan': user_row.get('plan', 'free')
+                }
+
             logger.info(f"   📊 {len(queries)} queries a ejecutar")
             
             # Filtrar LLMs activos
@@ -927,6 +968,38 @@ JSON:"""
             
             logger.info(f"   🤖 {len(active_providers)} proveedores habilitados")
             logger.info("")
+
+            # Validar consumo mensual antes de ejecutar
+            max_units = plan_limits.get('max_monthly_units')
+            if max_units is not None:
+                used_units = get_user_monthly_llm_usage(user_row['id'], analysis_date)
+                expected_units = len(queries) * len(active_providers)
+                if used_units >= max_units or used_units + expected_units > max_units:
+                    paused_until = None
+                    try:
+                        from quota_manager import get_user_quota_status
+                        quota_status = get_user_quota_status(user_row['id'])
+                        paused_until = quota_status.get('reset_date')
+                    except Exception:
+                        pass
+                    try:
+                        from database import pause_llm_projects_for_quota
+                        pause_llm_projects_for_quota(user_row['id'], paused_until, reason='quota_exceeded')
+                    except Exception:
+                        pass
+                    return {
+                        'success': False,
+                        'error': 'llm_quota_exceeded',
+                        'message': 'Has alcanzado tu límite mensual de peticiones LLM',
+                        'quota_info': {
+                            'monthly_limit': max_units,
+                            'monthly_used': used_units,
+                            'monthly_remaining': max(0, max_units - used_units),
+                            'expected_units': expected_units
+                        },
+                        'plan': user_row.get('plan', 'free'),
+                        'paused_until': paused_until
+                    }
             
             # ✨ NUEVO: Health Check Pre-Análisis
             logger.info("=" * 70)
@@ -1751,9 +1824,19 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
     cur = conn.cursor()
     
     cur.execute("""
-        SELECT id, name FROM llm_monitoring_projects
-        WHERE is_active = TRUE
-        ORDER BY id
+        SELECT 
+            p.id,
+            p.name,
+            p.user_id,
+            p.created_at,
+            u.plan,
+            u.billing_status,
+            u.role
+        FROM llm_monitoring_projects p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.is_active = TRUE
+          AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+        ORDER BY p.user_id, p.created_at
     """)
     
     projects = cur.fetchall()
@@ -1764,8 +1847,34 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
     
     results = []
     
+    user_project_counts = {}
+
     for project in projects:
         try:
+            user_info = {
+                'id': project['user_id'],
+                'plan': project['plan'],
+                'billing_status': project['billing_status'],
+                'role': project.get('role')
+            }
+            if not can_access_llm_monitoring(user_info):
+                logger.info(
+                    f"⏭️ Skipping project {project['id']} due to plan/billing "
+                    f"(plan={project['plan']}, status={project['billing_status']})"
+                )
+                continue
+
+            plan_limits = get_llm_plan_limits(project['plan'])
+            max_projects = plan_limits.get('max_projects')
+            user_count = user_project_counts.get(project['user_id'], 0)
+            if max_projects is not None and user_count >= max_projects:
+                logger.info(
+                    f"⏭️ Skipping project {project['id']} - user reached project limit "
+                    f"({user_count}/{max_projects})"
+                )
+                continue
+            user_project_counts[project['user_id']] = user_count + 1
+
             result = service.analyze_project(
                 project_id=project['id'],
                 max_workers=max_workers

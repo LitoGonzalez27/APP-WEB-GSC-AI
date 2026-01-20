@@ -1702,7 +1702,7 @@ def get_ai_overview_history(site_url=None, keyword=None, days=30, limit=100):
 # 📊 SISTEMA DE TRACKING DE CONSUMO
 # ====================================
 
-def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_code=None, metadata=None):
+def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_code=None, metadata=None, update_user_quota=True):
     """
     Registra el consumo de RU (Recursos Únicos) de un usuario
     
@@ -1750,20 +1750,21 @@ def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_
             json.dumps(metadata) if metadata else None
         ))
         
-        # 2. Actualizar quota_used en users
-        cur.execute('''
-            UPDATE users 
-            SET 
-                quota_used = COALESCE(quota_used, 0) + %s,
-                updated_at = NOW()
-            WHERE id = %s
-        ''', (ru_consumed, user_id))
-        
-        # 3. Verificar que el usuario fue actualizado
-        if cur.rowcount == 0:
-            logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
-            conn.rollback()
-            return False
+        # 2. Actualizar quota_used en users (opcional)
+        if update_user_quota:
+            cur.execute('''
+                UPDATE users 
+                SET 
+                    quota_used = COALESCE(quota_used, 0) + %s,
+                    updated_at = NOW()
+                WHERE id = %s
+            ''', (ru_consumed, user_id))
+            
+            # 3. Verificar que el usuario fue actualizado
+            if cur.rowcount == 0:
+                logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
+                conn.rollback()
+                return False
         
         conn.commit()
         
@@ -1913,3 +1914,141 @@ def ensure_quota_table_exists():
     finally:
         if conn:
             conn.close() 
+
+
+# ====================================
+# ⏸️ PAUSAS POR CUOTA (AI Overview / AI Mode / LLM)
+# ====================================
+
+def pause_ai_overview_for_quota(user_id, paused_until=None, reason="quota_exceeded"):
+    """Pausa AI Overview para un usuario hasta la fecha indicada."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE users
+            SET ai_overview_paused_until = %s,
+                ai_overview_paused_at = NOW(),
+                ai_overview_paused_reason = %s,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (paused_until, reason, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error pausando AI Overview para user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def pause_ai_mode_projects_for_quota(user_id, paused_until=None, reason="quota_exceeded"):
+    """Pausa proyectos AI Mode activos del usuario por cuota."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE ai_mode_projects
+            SET is_paused_by_quota = TRUE,
+                paused_until = %s,
+                paused_at = NOW(),
+                paused_reason = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+              AND is_active = TRUE
+        ''', (paused_until, reason, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error pausando AI Mode para user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def pause_llm_projects_for_quota(user_id, paused_until=None, reason="quota_exceeded"):
+    """Pausa proyectos LLM Monitoring activos del usuario por cuota."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE llm_monitoring_projects
+            SET is_paused_by_quota = TRUE,
+                paused_until = %s,
+                paused_at = NOW(),
+                paused_reason = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+              AND is_active = TRUE
+        ''', (paused_until, reason, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error pausando LLM Monitoring para user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
+def resume_quota_pauses_for_user(user_id):
+    """Rehabilita módulos pausados por cuota tras nuevo ciclo de pago."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+
+        cur.execute('''
+            UPDATE users
+            SET ai_overview_paused_until = NULL,
+                ai_overview_paused_at = NULL,
+                ai_overview_paused_reason = NULL,
+                updated_at = NOW()
+            WHERE id = %s
+        ''', (user_id,))
+
+        cur.execute('''
+            UPDATE ai_mode_projects
+            SET is_paused_by_quota = FALSE,
+                paused_until = NULL,
+                paused_at = NULL,
+                paused_reason = NULL,
+                updated_at = NOW()
+            WHERE user_id = %s
+        ''', (user_id,))
+
+        cur.execute('''
+            UPDATE llm_monitoring_projects
+            SET is_paused_by_quota = FALSE,
+                paused_until = NULL,
+                paused_at = NULL,
+                paused_reason = NULL,
+                updated_at = NOW()
+            WHERE user_id = %s
+        ''', (user_id,))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error rehabilitando pausas por cuota para user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()

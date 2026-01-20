@@ -14,6 +14,133 @@ from database import get_db_connection
 
 logger = logging.getLogger(__name__)
 
+
+def _get_table_columns(cur, table_name):
+    """Devuelve set de columnas de una tabla (si existe)."""
+    try:
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = %s
+        """, (table_name,))
+        return {row[0] if isinstance(row, tuple) else row['column_name'] for row in cur.fetchall()}
+    except Exception:
+        return set()
+
+
+def _get_serp_usage_by_user(cur):
+    """Mapa user_id -> ru SERP consumidas este mes."""
+    columns = _get_table_columns(cur, 'quota_usage_events')
+    if not columns:
+        return {}
+
+    time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
+    if not time_col:
+        return {}
+
+    if 'source' in columns:
+        source_filter = "source = 'serp_api'"
+    elif 'operation_type' in columns:
+        source_filter = "operation_type LIKE 'serp_%'"
+    else:
+        return {}
+
+    cur.execute(f'''
+        SELECT user_id, COALESCE(SUM(ru_consumed), 0) AS serp_ru_month
+        FROM quota_usage_events
+        WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
+          AND {time_col} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+          AND {source_filter}
+        GROUP BY user_id
+    ''')
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
+
+def _get_llm_usage_by_user(cur):
+    """Mapa user_id -> unidades y coste LLM del mes."""
+    try:
+        cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return {}
+    except Exception:
+        return {}
+
+    cur.execute('''
+        SELECT 
+            p.user_id,
+            COUNT(*) AS llm_units_month,
+            COALESCE(SUM(r.cost_usd), 0) AS llm_cost_month
+        FROM llm_monitoring_results r
+        JOIN llm_monitoring_projects p ON p.id = r.project_id
+        WHERE r.analysis_date >= DATE_TRUNC('month', CURRENT_DATE)
+          AND r.analysis_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+        GROUP BY p.user_id
+    ''')
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
+
+def _get_llm_active_projects_by_user(cur):
+    """Mapa user_id -> proyectos LLM activos."""
+    try:
+        cur.execute("SELECT to_regclass('public.llm_monitoring_projects') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return {}
+    except Exception:
+        return {}
+
+    cur.execute('''
+        SELECT user_id, COUNT(*) AS active_projects
+        FROM llm_monitoring_projects
+        WHERE is_active = TRUE
+        GROUP BY user_id
+    ''')
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
+
+def _get_ai_mode_paused_projects_by_user(cur):
+    """Mapa user_id -> proyectos AI Mode pausados por cuota."""
+    try:
+        cur.execute("SELECT to_regclass('public.ai_mode_projects') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return {}
+    except Exception:
+        return {}
+
+    cur.execute('''
+        SELECT user_id, COUNT(*) AS paused_projects
+        FROM ai_mode_projects
+        WHERE COALESCE(is_paused_by_quota, FALSE) = TRUE
+        GROUP BY user_id
+    ''')
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
+
+def _get_llm_paused_projects_by_user(cur):
+    """Mapa user_id -> proyectos LLM pausados por cuota."""
+    try:
+        cur.execute("SELECT to_regclass('public.llm_monitoring_projects') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return {}
+    except Exception:
+        return {}
+
+    cur.execute('''
+        SELECT user_id, COUNT(*) AS paused_projects
+        FROM llm_monitoring_projects
+        WHERE COALESCE(is_paused_by_quota, FALSE) = TRUE
+        GROUP BY user_id
+    ''')
+    rows = cur.fetchall()
+    return {row['user_id']: row for row in rows}
+
 def get_billing_stats():
     """Obtiene estadísticas de billing para el dashboard admin"""
     try:
@@ -52,25 +179,67 @@ def get_billing_stats():
         ''')
         users_by_billing_status = dict(cur.fetchall())
         
-        # RU consumidas hoy (si existe la tabla)
+        # RU consumidas hoy/mes (si existe la tabla)
         total_ru_today = 0
         total_ru_month = 0
+        total_serp_ru_month = 0
         try:
-            cur.execute('''
-                SELECT COALESCE(SUM(ru_consumed), 0) 
-                FROM quota_usage_events 
-                WHERE timestamp::date = CURRENT_DATE
-            ''')
-            total_ru_today = cur.fetchone()[0]
-            
-            cur.execute('''
-                SELECT COALESCE(SUM(ru_consumed), 0) 
-                FROM quota_usage_events 
-                WHERE timestamp >= DATE_TRUNC('month', CURRENT_DATE)
-            ''')
-            total_ru_month = cur.fetchone()[0]
+            columns = _get_table_columns(cur, 'quota_usage_events')
+            time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
+            if time_col:
+                cur.execute(f'''
+                    SELECT COALESCE(SUM(ru_consumed), 0) 
+                    FROM quota_usage_events 
+                    WHERE {time_col}::date = CURRENT_DATE
+                ''')
+                total_ru_today = cur.fetchone()[0]
+                
+                cur.execute(f'''
+                    SELECT COALESCE(SUM(ru_consumed), 0) 
+                    FROM quota_usage_events 
+                    WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
+                ''')
+                total_ru_month = cur.fetchone()[0]
+
+                if 'source' in columns:
+                    serp_filter = "source = 'serp_api'"
+                elif 'operation_type' in columns:
+                    serp_filter = "operation_type LIKE 'serp_%'"
+                else:
+                    serp_filter = None
+                if serp_filter:
+                    cur.execute(f'''
+                        SELECT COALESCE(SUM(ru_consumed), 0)
+                        FROM quota_usage_events
+                        WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
+                          AND {time_col} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+                          AND {serp_filter}
+                    ''')
+                    total_serp_ru_month = cur.fetchone()[0]
         except:
             # Tabla quota_usage_events no existe aún
+            pass
+
+        # LLM usage (si existen tablas)
+        total_llm_units_month = 0
+        total_llm_cost_month = 0
+        try:
+            cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
+            reg = cur.fetchone()
+            if reg and (reg['reg'] if isinstance(reg, dict) else reg[0]):
+                cur.execute('''
+                    SELECT 
+                        COUNT(*) AS total_units,
+                        COALESCE(SUM(cost_usd), 0) AS total_cost
+                    FROM llm_monitoring_results
+                    WHERE analysis_date >= DATE_TRUNC('month', CURRENT_DATE)
+                      AND analysis_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+                ''')
+                row = cur.fetchone()
+                if row:
+                    total_llm_units_month = row['total_units']
+                    total_llm_cost_month = row['total_cost']
+        except Exception:
             pass
         
         # Estimación de ingresos mensuales (básico: €29.99, premium: pricing por configurar)
@@ -80,6 +249,8 @@ def get_billing_stats():
                 revenue_estimate += count * 29.99
             elif plan == 'premium':
                 revenue_estimate += count * 49.99  # Estimación, ajustar según tu pricing
+            elif plan == 'business':
+                revenue_estimate += count * 139.99
         
         return {
             'total_users': total_users,
@@ -87,6 +258,9 @@ def get_billing_stats():
             'users_by_billing_status': users_by_billing_status,
             'total_ru_consumed_today': total_ru_today,
             'total_ru_consumed_month': total_ru_month,
+            'total_serp_ru_month': total_serp_ru_month,
+            'total_llm_units_month': total_llm_units_month,
+            'total_llm_cost_month': total_llm_cost_month,
             'revenue_estimate_month': revenue_estimate
         }
         
@@ -98,6 +272,9 @@ def get_billing_stats():
             'users_by_billing_status': {},
             'total_ru_consumed_today': 0,
             'total_ru_consumed_month': 0,
+            'total_serp_ru_month': 0,
+            'total_llm_units_month': 0,
+            'total_llm_cost_month': 0,
             'revenue_estimate_month': 0
         }
     finally:
@@ -132,6 +309,9 @@ def get_users_with_billing():
                 current_period_end,
                 pending_plan,
                 pending_plan_date,
+                ai_overview_paused_until,
+                ai_overview_paused_at,
+                ai_overview_paused_reason,
                 -- Custom quota fields
                 custom_quota_limit,
                 custom_quota_notes,
@@ -142,7 +322,31 @@ def get_users_with_billing():
         ''')
         
         users = cur.fetchall()
-        return [dict(user) for user in users]
+        users_list = [dict(user) for user in users]
+
+        # Enriquecer con métricas SERP/LLM
+        serp_usage = _get_serp_usage_by_user(cur)
+        llm_usage = _get_llm_usage_by_user(cur)
+        llm_projects = _get_llm_active_projects_by_user(cur)
+        ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
+        llm_paused = _get_llm_paused_projects_by_user(cur)
+
+        for user in users_list:
+            user_id = user['id']
+            serp_row = serp_usage.get(user_id, {})
+            llm_row = llm_usage.get(user_id, {})
+            proj_row = llm_projects.get(user_id, {})
+            ai_mode_row = ai_mode_paused.get(user_id, {})
+            llm_paused_row = llm_paused.get(user_id, {})
+
+            user['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
+            user['llm_units_month'] = int(llm_row.get('llm_units_month', 0) or 0)
+            user['llm_cost_month'] = float(llm_row.get('llm_cost_month', 0) or 0)
+            user['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
+            user['ai_mode_paused_projects'] = int(ai_mode_row.get('paused_projects', 0) or 0)
+            user['llm_paused_projects'] = int(llm_paused_row.get('paused_projects', 0) or 0)
+
+        return users_list
         
     except Exception as e:
         logger.error(f"Error obteniendo usuarios con billing: {e}")
@@ -197,6 +401,7 @@ def get_user_billing_details(user_id):
                 plan, current_plan, billing_status, quota_limit, quota_used,
                 quota_reset_date, stripe_customer_id, subscription_id,
                 current_period_start, current_period_end, pending_plan, pending_plan_date,
+                ai_overview_paused_until, ai_overview_paused_at, ai_overview_paused_reason,
                 custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date
             FROM users 
             WHERE id = %s
@@ -233,6 +438,25 @@ def get_user_billing_details(user_id):
             user_dict['quota_percentage'] = round((user_dict['quota_used'] / user_dict['quota_limit']) * 100, 1)
         else:
             user_dict['quota_percentage'] = 0
+
+        # Enriquecer con métricas SERP/LLM para el modal
+        serp_usage = _get_serp_usage_by_user(cur)
+        llm_usage = _get_llm_usage_by_user(cur)
+        llm_projects = _get_llm_active_projects_by_user(cur)
+        ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
+        llm_paused = _get_llm_paused_projects_by_user(cur)
+        serp_row = serp_usage.get(user_id, {})
+        llm_row = llm_usage.get(user_id, {})
+        proj_row = llm_projects.get(user_id, {})
+        ai_mode_row = ai_mode_paused.get(user_id, {})
+        llm_paused_row = llm_paused.get(user_id, {})
+
+        user_dict['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
+        user_dict['llm_units_month'] = int(llm_row.get('llm_units_month', 0) or 0)
+        user_dict['llm_cost_month'] = float(llm_row.get('llm_cost_month', 0) or 0)
+        user_dict['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
+        user_dict['ai_mode_paused_projects'] = int(ai_mode_row.get('paused_projects', 0) or 0)
+        user_dict['llm_paused_projects'] = int(llm_paused_row.get('paused_projects', 0) or 0)
         
         return user_dict
         
@@ -253,7 +477,7 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         cur = conn.cursor()
         
         # Validar plan
-        valid_plans = ['free', 'basic', 'premium', 'enterprise']
+        valid_plans = ['free', 'basic', 'premium', 'business', 'enterprise']
         if new_plan not in valid_plans:
             return {'success': False, 'error': f'Plan inválido. Debe ser: {", ".join(valid_plans)}'}
         
@@ -262,6 +486,7 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
             'free': 0,
             'basic': 1225,
             'premium': 2950,
+            'business': 8000,
             'enterprise': 0  # Enterprise usa custom_quota_limit
         }
         
@@ -361,8 +586,15 @@ def get_plan_display_info(plan):
             'name': 'Premium',
             'badge_class': 'badge-premium',
             'ru_limit': 2950, 
-            'price': '€59.99',
+            'price': '€49.99',
             'color': '#28a745'
+        },
+        'business': {
+            'name': 'Business',
+            'badge_class': 'badge-business',
+            'ru_limit': 8000,
+            'price': '€139.99',
+            'color': '#17a2b8'
         },
         'enterprise': {
             'name': 'Enterprise',

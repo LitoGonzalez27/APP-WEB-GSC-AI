@@ -14,7 +14,7 @@ import stripe
 from datetime import datetime
 from flask import request, jsonify
 from stripe_config import get_stripe_config
-from database import get_db_connection
+from database import get_db_connection, resume_quota_pauses_for_user
 from email_service import send_email, send_trial_started_email
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,10 @@ class StripeWebhookHandler:
                 return {'success': False, 'error': 'Database connection failed'}
             
             cur = conn.cursor()
+            try:
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_used BOOLEAN DEFAULT FALSE")
+            except Exception as _e_addcol:
+                logger.warning(f"No se pudo asegurar columna trial_used: {_e_addcol}")
             cur.execute('''
                 UPDATE users 
                 SET 
@@ -206,6 +210,7 @@ class StripeWebhookHandler:
                 billing_status = 'active' if status == 'active' else status
                 
                 # Si es trialing, marcar explícitamente plan y estado
+                is_trialing = status == 'trialing'
                 cur.execute('''
                     UPDATE users 
                     SET 
@@ -216,10 +221,11 @@ class StripeWebhookHandler:
                         subscription_id = %s,
                         current_period_start = %s,
                         current_period_end = %s,
+                        trial_used = CASE WHEN %s THEN true ELSE trial_used END,
                         updated_at = NOW()
                     WHERE stripe_customer_id = %s
                 ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                      period_start, period_end, customer_id))
+                      period_start, period_end, is_trialing, customer_id))
             
             if cur.rowcount == 0:
                 logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}. Trying fallbacks...")
@@ -250,10 +256,11 @@ class StripeWebhookHandler:
                                 subscription_id = %s,
                                 current_period_start = %s,
                                 current_period_end = %s,
+                                trial_used = CASE WHEN %s THEN true ELSE trial_used END,
                                 updated_at = NOW()
                             WHERE subscription_id = %s
                         ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                              period_start, period_end, subscription_id))
+                              period_start, period_end, is_trialing, subscription_id))
                 except Exception as _e_fb1:
                     logger.warning(f"Fallback by subscription_id failed: {_e_fb1}")
 
@@ -293,11 +300,12 @@ class StripeWebhookHandler:
                                         subscription_id = %s,
                                         current_period_start = %s,
                                         current_period_end = %s,
+                                        trial_used = CASE WHEN %s THEN true ELSE trial_used END,
                                         stripe_customer_id = %s,
                                         updated_at = NOW()
                                     WHERE lower(email) = lower(%s)
                                 ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                                      period_start, period_end, customer_id, cust_email))
+                                      period_start, period_end, is_trialing, customer_id, cust_email))
                         except Exception as _e_fb3:
                             logger.warning(f"Fallback by customer email failed: {_e_fb3}")
 
@@ -371,12 +379,16 @@ class StripeWebhookHandler:
                         current_period_end = %s,
                         updated_at = NOW()
                     WHERE stripe_customer_id = %s
+                    RETURNING id
                 ''', (datetime.fromtimestamp(period_end), 
                       datetime.fromtimestamp(period_start),
                       datetime.fromtimestamp(period_end), 
                       customer_id))
+                row = cur.fetchone()
                 
                 conn.commit()
+                if row and row.get('id'):
+                    resume_quota_pauses_for_user(row['id'])
                 conn.close()
                 
                 logger.info(f"✅ Quota reset for customer {customer_id} - new period")

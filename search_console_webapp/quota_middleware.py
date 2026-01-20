@@ -24,9 +24,9 @@ from serpapi import GoogleSearch
 from quota_manager import (
     get_user_quota_status, 
     can_user_consume_ru, 
-    record_quota_usage,
     get_user_access_permissions
 )
+from database import track_quota_consumption
 
 logger = logging.getLogger(__name__)
 
@@ -234,22 +234,24 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
     # 🔍 PASO 5: Registrar consumo si fue exitosa
     if success:
         try:
-            # No registrar consumo para plan Free (permitido sin RU)
             status = get_user_quota_status(user_id)
-            if status.get('plan') != 'free':
-                record_quota_usage(
-                    user_id=user_id,
-                    ru_consumed=1,
-                    operation_type=f"serp_{call_type}",
-                    metadata={
-                        'keyword': params.get('q', 'unknown'),
-                        'country': params.get('gl', 'unknown'),
-                        'call_type': call_type
-                    }
-                )
+            update_user_quota = enforce_quotas and status.get('plan') != 'free'
+            track_quota_consumption(
+                user_id=user_id,
+                ru_consumed=1,
+                source='serp_api',
+                keyword=params.get('q', 'unknown'),
+                country_code=params.get('gl', 'unknown'),
+                metadata={
+                    'call_type': call_type,
+                    'cached': False
+                },
+                update_user_quota=update_user_quota
+            )
+            if update_user_quota:
                 logger.info(f"📊 RU registrado: user {user_id} consumió 1 RU ({call_type})")
             else:
-                logger.info("🆓 Plan Free - SERP permitido sin consumo de RU")
+                logger.info("🧾 SERP registrado sin afectar RU (tracking-only)")
 
             # Marcar en caché para futuras llamadas
             _mark_call_cached(params)

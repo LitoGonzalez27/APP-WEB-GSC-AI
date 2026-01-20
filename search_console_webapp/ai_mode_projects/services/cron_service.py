@@ -169,6 +169,7 @@ class CronService:
             JOIN users u ON u.id = p.user_id
             LEFT JOIN ai_mode_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
+              AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
               AND COALESCE(u.plan, 'free') <> 'free'
               AND COALESCE(u.billing_status, '') NOT IN ('canceled')
             GROUP BY p.id, p.name, p.brand_name, p.country_code, p.user_id
@@ -261,6 +262,11 @@ class CronService:
                     force_overwrite=False,
                     user_id=project_dict['user_id']
                 )
+                
+                if isinstance(results, dict) and results.get('error') in ('QUOTA_EXCEEDED', 'project_paused_quota'):
+                    logger.info(f"⏭️ Project {project_dict['id']} skipped due to quota pause")
+                    skipped_analyses += 1
+                    continue
                 
                 total_keywords_processed += len(results)
                 
