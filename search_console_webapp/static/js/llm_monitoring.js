@@ -2649,7 +2649,16 @@ class LLMMonitoring {
             );
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const errorPayload = await response.json().catch(() => null);
+                const message = errorPayload?.error || `HTTP ${response.status}`;
+                throw new Error(message);
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const errorPayload = await response.json().catch(() => null);
+                const message = errorPayload?.error || 'Export failed';
+                throw new Error(message);
             }
 
             // Get the blob and download
@@ -2696,6 +2705,8 @@ class LLMMonitoring {
         const btn = document.getElementById('llmDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
+        const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"], .section-header, .section-actions'));
+        const prevDisplay = new Map();
 
         try {
             // Show loading state
@@ -2706,8 +2717,6 @@ class LLMMonitoring {
             console.log(`📥 Generating PDF with screenshots for project ${this.currentProject.id}...`);
 
             // Hide elements that shouldn't appear in PDF
-            const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"], .section-header, .section-actions'));
-            const prevDisplay = new Map();
             excluded.forEach(el => {
                 prevDisplay.set(el, el.style.display);
                 el.style.display = 'none';
@@ -2804,13 +2813,18 @@ class LLMMonitoring {
                         clonedElement.style.animation = 'none';
                         clonedElement.style.opacity = '1';
                         
-                        // Fix KPI values - gradient text doesn't render in html2canvas
-                        clonedElement.querySelectorAll('.kpi-value').forEach(val => {
+                        // Fix KPI values - gradient/transparent text doesn't render in html2canvas
+                        clonedElement.querySelectorAll('.kpi-value, .kpi-main-value, .kpi-label').forEach(val => {
                             val.style.background = 'none';
                             val.style.webkitBackgroundClip = 'unset';
                             val.style.webkitTextFillColor = '#1a1a1a';
                             val.style.backgroundClip = 'unset';
                             val.style.color = '#1a1a1a';
+                            val.style.textShadow = 'none';
+                        });
+                        clonedElement.querySelectorAll('.kpi-trend').forEach(trend => {
+                            trend.style.webkitTextFillColor = 'inherit';
+                            trend.style.backgroundClip = 'padding-box';
                         });
                         
                         // Ensure cards have solid white background
@@ -3063,9 +3077,6 @@ class LLMMonitoring {
             const fileName = `llm-monitoring-${projectName.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
             
-            // Restore hidden elements
-            excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
-
             // Success state
             if (btn) btn.classList.add('success');
             if (btnText) btnText.textContent = 'Downloaded!';
@@ -3083,6 +3094,10 @@ class LLMMonitoring {
             this.showError('Failed to generate PDF. Please try again.');
             if (btnText) btnText.textContent = 'Download PDF';
         } finally {
+            // Restore hidden elements (even on error)
+            if (excluded.length > 0) {
+                excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
+            }
             if (spinner) spinner.style.display = 'none';
             if (btn) btn.disabled = false;
         }
