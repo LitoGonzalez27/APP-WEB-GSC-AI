@@ -9,7 +9,7 @@ Estas funciones extienden las existentes para incluir datos de Stripe y facturac
 
 import os
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from database import get_db_connection
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,23 @@ def _get_table_columns(cur, table_name):
         return {row[0] if isinstance(row, tuple) else row['column_name'] for row in cur.fetchall()}
     except Exception:
         return set()
+
+
+def _get_month_bounds(now=None):
+    now = now or datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        next_month = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        next_month = month_start.replace(month=month_start.month + 1)
+    return month_start, next_month
+
+
+def _get_today_bounds(now=None):
+    now = now or datetime.utcnow()
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    next_day = day_start + timedelta(days=1)
+    return day_start, next_day
 
 
 def _get_serp_usage_by_user(cur):
@@ -45,14 +62,15 @@ def _get_serp_usage_by_user(cur):
     else:
         return {}
 
+    month_start, next_month = _get_month_bounds()
     cur.execute(f'''
         SELECT user_id, COALESCE(SUM(ru_consumed), 0) AS serp_ru_month
         FROM quota_usage_events
-        WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
-          AND {time_col} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+        WHERE {time_col} >= %s
+          AND {time_col} < %s
           AND {source_filter}
         GROUP BY user_id
-    ''')
+    ''', (month_start, next_month))
     rows = cur.fetchall()
     return {row['user_id']: row for row in rows}
 
@@ -187,18 +205,20 @@ def get_billing_stats():
             columns = _get_table_columns(cur, 'quota_usage_events')
             time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
             if time_col:
+                day_start, next_day = _get_today_bounds()
+                month_start, next_month = _get_month_bounds()
                 cur.execute(f'''
                     SELECT COALESCE(SUM(ru_consumed), 0) 
                     FROM quota_usage_events 
-                    WHERE {time_col}::date = CURRENT_DATE
-                ''')
+                    WHERE {time_col} >= %s AND {time_col} < %s
+                ''', (day_start, next_day))
                 total_ru_today = cur.fetchone()[0]
                 
                 cur.execute(f'''
                     SELECT COALESCE(SUM(ru_consumed), 0) 
                     FROM quota_usage_events 
-                    WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
-                ''')
+                    WHERE {time_col} >= %s AND {time_col} < %s
+                ''', (month_start, next_month))
                 total_ru_month = cur.fetchone()[0]
 
                 if 'source' in columns:
@@ -211,10 +231,10 @@ def get_billing_stats():
                     cur.execute(f'''
                         SELECT COALESCE(SUM(ru_consumed), 0)
                         FROM quota_usage_events
-                        WHERE {time_col} >= DATE_TRUNC('month', CURRENT_DATE)
-                          AND {time_col} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+                        WHERE {time_col} >= %s
+                          AND {time_col} < %s
                           AND {serp_filter}
-                    ''')
+                    ''', (month_start, next_month))
                     total_serp_ru_month = cur.fetchone()[0]
         except:
             # Tabla quota_usage_events no existe aún
@@ -227,14 +247,15 @@ def get_billing_stats():
             cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
             reg = cur.fetchone()
             if reg and (reg['reg'] if isinstance(reg, dict) else reg[0]):
+                month_start, next_month = _get_month_bounds()
                 cur.execute('''
                     SELECT 
                         COUNT(*) AS total_units,
                         COALESCE(SUM(cost_usd), 0) AS total_cost
                     FROM llm_monitoring_results
-                    WHERE analysis_date >= DATE_TRUNC('month', CURRENT_DATE)
-                      AND analysis_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
-                ''')
+                    WHERE analysis_date >= %s
+                      AND analysis_date < %s
+                ''', (month_start.date(), next_month.date()))
                 row = cur.fetchone()
                 if row:
                     total_llm_units_month = row['total_units']
