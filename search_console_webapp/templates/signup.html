@@ -26,6 +26,9 @@
     <!-- Estilos -->
     <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    {% if recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+    {% endif %}
 </head>
 <body data-authenticated="false">
     <!-- Google Tag Manager (noscript) -->
@@ -237,7 +240,15 @@
         });
 
         // Manejar registro con email/contraseña
-        document.getElementById('emailSignupBtn').addEventListener('click', function() {
+        async function getRecaptchaToken(action) {
+            const siteKey = "{{ recaptcha_site_key }}";
+            if (!siteKey || typeof grecaptcha === 'undefined') {
+                return null;
+            }
+            return grecaptcha.execute(siteKey, { action });
+        }
+
+        document.getElementById('emailSignupBtn').addEventListener('click', async function() {
             const email = document.getElementById('signupEmail').value.trim();
             const name = document.getElementById('signupName').value.trim();
             const password = document.getElementById('signupPassword').value;
@@ -245,6 +256,7 @@
                 showNotification('Email and password are required', 'warning');
                 return;
             }
+            const recaptchaToken = await getRecaptchaToken('signup');
             const params = new URLSearchParams(window.location.search);
             const plan = sessionStorage.getItem('signup_plan') || params.get('plan');
             const source = sessionStorage.getItem('signup_source') || params.get('source');
@@ -253,7 +265,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ email, name, password, plan, source })
+                body: JSON.stringify({ email, name, password, plan, source, recaptcha_token: recaptchaToken })
             })
             .then(r => r.json())
             .then(data => {

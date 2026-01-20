@@ -2,6 +2,9 @@
 
 import os
 import json
+import urllib.request
+import urllib.parse
+import json
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
@@ -68,6 +71,44 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 logger = logging.getLogger(__name__)
+
+
+def verify_recaptcha(token: str, action: str) -> bool:
+    """Verifica reCAPTCHA v3 si está configurado. Si no está, permite."""
+    secret = os.getenv('RECAPTCHA_SECRET_KEY', '').strip()
+    if not secret:
+        logger.warning("reCAPTCHA no configurado (RECAPTCHA_SECRET_KEY vacío).")
+        return True
+    if not token:
+        logger.warning("reCAPTCHA token faltante.")
+        return False
+    min_score = float(os.getenv('RECAPTCHA_MIN_SCORE', '0.5'))
+    try:
+        data = urllib.parse.urlencode({
+            'secret': secret,
+            'response': token
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            url='https://www.google.com/recaptcha/api/siteverify',
+            data=data,
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+        if not payload.get('success'):
+            logger.warning(f"reCAPTCHA failed: {payload}")
+            return False
+        if action and payload.get('action') and payload.get('action') != action:
+            logger.warning(f"reCAPTCHA action mismatch: expected {action}, got {payload.get('action')}")
+            return False
+        score = payload.get('score', 0)
+        if score < min_score:
+            logger.warning(f"reCAPTCHA score too low: {score} < {min_score}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Error verificando reCAPTCHA: {e}")
+        return False
 
 # Configuración OAuth2
 SCOPES = [
@@ -696,7 +737,7 @@ def setup_auth_routes(app):
                 # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
-        return render_template('login.html')
+        return render_template('login.html', recaptcha_site_key=os.getenv('RECAPTCHA_SITE_KEY', ''))
 
     @app.route('/signup')
     def signup_page():
@@ -740,7 +781,7 @@ def setup_auth_routes(app):
                 # Sino, redirigir a next o dashboard
                 return redirect(session.pop('auth_next', url_for('dashboard')))
         
-        return render_template('signup.html')
+        return render_template('signup.html', recaptcha_site_key=os.getenv('RECAPTCHA_SITE_KEY', ''))
 
     # ================================
     # NUEVO: Email/Password signup & login
@@ -753,8 +794,13 @@ def setup_auth_routes(app):
             email = (data.get('email') or '').strip().lower()
             name = (data.get('name') or '').strip() or email.split('@')[0]
             password = data.get('password')
+            recaptcha_token = data.get('recaptcha_token')
             if not email or not password:
                 return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            # ✅ reCAPTCHA v3 (si está configurado)
+            if not verify_recaptcha(recaptcha_token, action='signup'):
+                return jsonify({'error': 'reCAPTCHA verification failed'}), 403
 
             # ✅ Si el usuario ya existe, indicar que debe iniciar sesión y preservar plan/source
             if get_user_by_email(email):
@@ -856,8 +902,13 @@ def setup_auth_routes(app):
             data = request.get_json() or {}
             email = (data.get('email') or '').strip().lower()
             password = data.get('password')
+            recaptcha_token = data.get('recaptcha_token')
             if not email or not password:
                 return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+
+            # ✅ reCAPTCHA v3 (si está configurado)
+            if not verify_recaptcha(recaptcha_token, action='login'):
+                return jsonify({'error': 'reCAPTCHA verification failed'}), 403
 
             user = authenticate_user(email, password)
             if not user:

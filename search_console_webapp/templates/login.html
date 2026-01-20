@@ -26,6 +26,9 @@
     <!-- Estilos del login -->
     <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    {% if recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+    {% endif %}
 </head>
 <body data-authenticated="false">
     <!-- Google Tag Manager (noscript) -->
@@ -355,17 +358,26 @@
         });
 
         // Manejar login con email/contraseña
-        document.getElementById('emailLoginBtn').addEventListener('click', function() {
+        async function getRecaptchaToken(action) {
+            const siteKey = "{{ recaptcha_site_key }}";
+            if (!siteKey || typeof grecaptcha === 'undefined') {
+                return null;
+            }
+            return grecaptcha.execute(siteKey, { action });
+        }
+
+        document.getElementById('emailLoginBtn').addEventListener('click', async function() {
             const email = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value;
             if (!email || !password) {
                 showNotification('Enter email and password', 'warning');
                 return;
             }
+            const recaptchaToken = await getRecaptchaToken('login');
             fetch('/auth/email/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email, password, recaptcha_token: recaptchaToken })
             })
             .then(r => r.json())
             .then(data => {
