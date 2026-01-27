@@ -1,7 +1,9 @@
 # database.py - Gestión de base de datos PostgreSQL
 
 import os
+import time
 import psycopg2
+from psycopg2 import errorcodes
 from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta
 import logging
@@ -1717,74 +1719,88 @@ def track_quota_consumption(user_id, ru_consumed, source, keyword=None, country_
     Returns:
         bool: True si se registró correctamente, False si hubo error
     """
-    try:
-        conn = get_db_connection()
-        if not conn:
-            logger.error("No se pudo conectar a la base de datos para tracking")
-            return False
-            
-        cur = conn.cursor()
-        # Asegurar existencia de tabla quota_usage_events antes de insertar
+    max_attempts = int(os.getenv('DB_RETRY_ATTEMPTS', '3'))
+    base_delay = float(os.getenv('DB_RETRY_BACKOFF_SECONDS', '0.5'))
+    
+    for attempt in range(1, max_attempts + 1):
+        conn = None
         try:
-            cur.execute("SELECT to_regclass('public.quota_usage_events') AS reg")
-            row = cur.fetchone()
-            if not (row['reg'] if isinstance(row, dict) else row[0]):
-                ensure_quota_table_exists()
-        except Exception:
-            try:
-                ensure_quota_table_exists()
-            except Exception:
-                pass
-        
-        # 1. Registrar evento en quota_usage_events
-        cur.execute('''
-            INSERT INTO quota_usage_events (
-                user_id, ru_consumed, source, keyword, country_code, metadata, timestamp
-            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
-        ''', (
-            user_id,
-            ru_consumed,
-            source,
-            keyword,
-            country_code,
-            json.dumps(metadata) if metadata else None
-        ))
-        
-        # 2. Actualizar quota_used en users (opcional)
-        if update_user_quota:
-            cur.execute('''
-                UPDATE users 
-                SET 
-                    quota_used = COALESCE(quota_used, 0) + %s,
-                    updated_at = NOW()
-                WHERE id = %s
-            ''', (ru_consumed, user_id))
-            
-            # 3. Verificar que el usuario fue actualizado
-            if cur.rowcount == 0:
-                logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
-                conn.rollback()
+            conn = get_db_connection()
+            if not conn:
+                logger.error("No se pudo conectar a la base de datos para tracking")
                 return False
-        
-        conn.commit()
-        
-        # Log de éxito
-        logger.info(f"✅ Quota tracking - Usuario {user_id}: +{ru_consumed} RU ({source})")
-        if keyword:
-            logger.info(f"   📝 Keyword: {keyword}")
-        if country_code:
-            logger.info(f"   🌍 País: {country_code}")
+                
+            cur = conn.cursor()
+            # Asegurar existencia de tabla quota_usage_events antes de insertar
+            try:
+                cur.execute("SELECT to_regclass('public.quota_usage_events') AS reg")
+                row = cur.fetchone()
+                if not (row['reg'] if isinstance(row, dict) else row[0]):
+                    ensure_quota_table_exists()
+            except Exception:
+                try:
+                    ensure_quota_table_exists()
+                except Exception:
+                    pass
             
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Error en track_quota_consumption: {e}")
-        if conn:
-            conn.rollback()
-        return False
-    finally:
-        if conn:
-            conn.close()
+            # 1. Registrar evento en quota_usage_events
+            cur.execute('''
+                INSERT INTO quota_usage_events (
+                    user_id, ru_consumed, source, keyword, country_code, metadata, timestamp
+                ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            ''', (
+                user_id,
+                ru_consumed,
+                source,
+                keyword,
+                country_code,
+                json.dumps(metadata) if metadata else None
+            ))
+            
+            # 2. Actualizar quota_used en users (opcional)
+            if update_user_quota:
+                cur.execute('''
+                    UPDATE users 
+                    SET 
+                        quota_used = COALESCE(quota_used, 0) + %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                ''', (ru_consumed, user_id))
+                
+                # 3. Verificar que el usuario fue actualizado
+                if cur.rowcount == 0:
+                    logger.warning(f"Usuario {user_id} no encontrado para actualizar quota")
+                    conn.rollback()
+                    return False
+            
+            conn.commit()
+            
+            # Log de éxito
+            logger.info(f"✅ Quota tracking - Usuario {user_id}: +{ru_consumed} RU ({source})")
+            if keyword:
+                logger.info(f"   📝 Keyword: {keyword}")
+            if country_code:
+                logger.info(f"   🌍 País: {country_code}")
+                
+            return True
+            
+        except Exception as e:
+            retryable = getattr(e, 'pgcode', None) in (
+                errorcodes.DEADLOCK_DETECTED,
+                errorcodes.SERIALIZATION_FAILURE,
+            )
+            logger.error(f"❌ Error en track_quota_consumption: {e}")
+            if conn:
+                conn.rollback()
+            if retryable and attempt < max_attempts:
+                delay = base_delay * (2 ** (attempt - 1))
+                logger.warning(f"🔁 Reintentando operación DB en {delay:.1f}s (intento {attempt}/{max_attempts})")
+                time.sleep(delay)
+                continue
+            return False
+        finally:
+            if conn:
+                conn.close()
 
 def get_user_quota_usage(user_id, days=30):
     """

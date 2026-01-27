@@ -3,6 +3,7 @@ import time
 import hashlib
 import logging
 import os
+from collections import OrderedDict
 from serpapi import GoogleSearch
 from playwright.sync_api import sync_playwright
 from flask import Response
@@ -15,9 +16,29 @@ from quota_middleware import quota_protected_serp_call
 
 logger = logging.getLogger(__name__)
 
-# Caché en memoria para capturas de pantalla
-SCREENSHOT_CACHE = {}
-CACHE_DURATION = 3600  # segundos
+# Caché en memoria para capturas de pantalla (LRU + TTL)
+SCREENSHOT_CACHE = OrderedDict()
+CACHE_DURATION = int(os.getenv("SCREENSHOT_CACHE_TTL_SECONDS", "3600"))
+SCREENSHOT_CACHE_MAX = int(os.getenv("SCREENSHOT_CACHE_MAX", "200"))
+
+def _get_cached_screenshot(cache_key: str, now: float):
+    cached = SCREENSHOT_CACHE.get(cache_key)
+    if not cached:
+        return None
+    response, created_at = cached
+    if now - created_at >= CACHE_DURATION:
+        SCREENSHOT_CACHE.pop(cache_key, None)
+        return None
+    # LRU: mover a la derecha en hit
+    SCREENSHOT_CACHE.move_to_end(cache_key)
+    return response
+
+def _set_cached_screenshot(cache_key: str, response: Response, now: float):
+    SCREENSHOT_CACHE[cache_key] = (response, now)
+    SCREENSHOT_CACHE.move_to_end(cache_key)
+    # Evict LRU si excede el máximo
+    while SCREENSHOT_CACHE_MAX > 0 and len(SCREENSHOT_CACHE) > SCREENSHOT_CACHE_MAX:
+        SCREENSHOT_CACHE.popitem(last=False)
 
 def get_serp_json(params: dict) -> dict:
     """
@@ -147,10 +168,10 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
     cache_key_hash = hashlib.md5(f"screenshot:{keyword}:{domain_norm}:{country or 'default'}:{site_key}".encode()).hexdigest()
     now = time.time()
 
-    if cache_key_hash in SCREENSHOT_CACHE and now - SCREENSHOT_CACHE[cache_key_hash][1] < CACHE_DURATION:
+    cached_response = _get_cached_screenshot(cache_key_hash, now)
+    if cached_response:
         logger.info(f"📥 Screenshot desde caché para keyword '{keyword}', domain '{domain_norm}' (país: {country or 'España'})")
-        # La lógica original de cacheo ya devuelve un Response de Flask
-        return SCREENSHOT_CACHE[cache_key_hash][0]
+        return cached_response
 
     logger.info(f"🛠️  Generando nuevo screenshot para keyword '{keyword}', domain '{domain_norm}' (país: {country or 'España'})")
     
@@ -259,7 +280,7 @@ def get_page_screenshot(keyword: str, site_url_to_highlight: str, api_key: str, 
 
     # 5. Devolver la imagen y cachear
     resp = Response(img_bytes, mimetype='image/png')
-    SCREENSHOT_CACHE[cache_key_hash] = (resp, now)
+    _set_cached_screenshot(cache_key_hash, resp, now)
     logger.info(f"✅ Screenshot generado y cacheado para keyword '{keyword}', domain '{domain_norm}' (país: {country or 'España'})")
     return resp
 

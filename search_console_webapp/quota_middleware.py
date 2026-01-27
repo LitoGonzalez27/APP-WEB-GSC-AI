@@ -17,6 +17,7 @@ import os
 import logging
 import time
 import hashlib
+from collections import OrderedDict
 from typing import Dict, Any, Tuple, Optional
 from datetime import datetime, timezone
 from flask import g, session
@@ -30,9 +31,10 @@ from database import track_quota_consumption
 
 logger = logging.getLogger(__name__)
 
-# Cache para detectar si una llamada es repetida (mismos parámetros)
-CALL_CACHE = {}
-CACHE_DURATION = 3600  # 1 hora
+# Cache para detectar si una llamada es repetida (mismos parámetros) - LRU + TTL
+CALL_CACHE = OrderedDict()
+CACHE_DURATION = int(os.getenv('SERP_CALL_CACHE_TTL_SECONDS', '3600'))  # 1 hora
+CALL_CACHE_MAX = int(os.getenv('SERP_CALL_CACHE_MAX', '5000'))
 
 def _get_cache_key(params: dict) -> str:
     """Genera una clave de caché única para los parámetros SERP"""
@@ -50,10 +52,10 @@ def _is_cached_call(params: dict) -> bool:
         cached_time = CALL_CACHE[cache_key]
         if now - cached_time < CACHE_DURATION:
             logger.info(f"🔄 CACHE HIT: Llamada SerpAPI en caché (0 RU)")
+            CALL_CACHE.move_to_end(cache_key)
             return True
-        else:
-            # Cache expirado, eliminar entrada
-            del CALL_CACHE[cache_key]
+        # Cache expirado, eliminar entrada
+        CALL_CACHE.pop(cache_key, None)
     
     return False
 
@@ -61,6 +63,31 @@ def _mark_call_cached(params: dict):
     """Marca una llamada como cacheada"""
     cache_key = _get_cache_key(params)
     CALL_CACHE[cache_key] = time.time()
+    CALL_CACHE.move_to_end(cache_key)
+    while CALL_CACHE_MAX > 0 and len(CALL_CACHE) > CALL_CACHE_MAX:
+        CALL_CACHE.popitem(last=False)
+
+def _should_retry_serp_error(error_message: str) -> bool:
+    if not error_message:
+        return False
+    msg = error_message.lower()
+    if "invalid api key" in msg or "invalid api_key" in msg:
+        return False
+    transient_markers = [
+        "timeout",
+        "temporarily",
+        "rate limit",
+        "too many requests",
+        "429",
+        "502",
+        "503",
+        "504",
+        "connection",
+        "network",
+        "reset",
+        "unavailable",
+    ]
+    return any(marker in msg for marker in transient_markers)
 
 def get_current_user_id() -> Optional[int]:
     """Obtiene el ID del usuario actual desde la sesión Flask"""
@@ -263,28 +290,55 @@ def quota_protected_serp_call(params: dict, call_type: str = "json") -> Tuple[bo
 
 def _execute_serp_call(params: dict, call_type: str) -> Tuple[bool, Dict[str, Any]]:
     """Ejecuta la llamada real a SerpAPI"""
-    try:
-        if call_type == "json":
-            data = GoogleSearch(params).get_dict()
-            if "error" in data:
-                logger.warning(f"SerpAPI error: {data['error']}")
-                return False, data
-            return True, data
-            
-        elif call_type == "html":
-            html_content = GoogleSearch({**params, 'output': 'html'}).get_html()
-            if not html_content:
-                return False, {"error": "No HTML content returned"}
-            if isinstance(html_content, dict) and "error" in html_content:
-                return False, html_content
-            return True, {"html": html_content}
-            
-        else:
+    max_attempts = int(os.getenv('SERPAPI_RETRY_ATTEMPTS', '3'))
+    base_delay = float(os.getenv('SERPAPI_RETRY_BACKOFF_SECONDS', '1.0'))
+    
+    for attempt in range(1, max_attempts + 1):
+        try:
+            if call_type == "json":
+                data = GoogleSearch(params).get_dict()
+                if "error" in data:
+                    error_msg = str(data.get("error", ""))
+                    logger.warning(f"SerpAPI error: {error_msg}")
+                    if attempt < max_attempts and _should_retry_serp_error(error_msg):
+                        delay = base_delay * (2 ** (attempt - 1))
+                        logger.info(f"⏳ Reintentando SerpAPI JSON en {delay:.1f}s (intento {attempt}/{max_attempts})")
+                        time.sleep(delay)
+                        continue
+                    return False, data
+                return True, data
+                
+            if call_type == "html":
+                html_content = GoogleSearch({**params, 'output': 'html'}).get_html()
+                if not html_content:
+                    error_msg = "No HTML content returned"
+                    if attempt < max_attempts and _should_retry_serp_error(error_msg):
+                        delay = base_delay * (2 ** (attempt - 1))
+                        logger.info(f"⏳ Reintentando SerpAPI HTML en {delay:.1f}s (intento {attempt}/{max_attempts})")
+                        time.sleep(delay)
+                        continue
+                    return False, {"error": error_msg}
+                if isinstance(html_content, dict) and "error" in html_content:
+                    error_msg = str(html_content.get("error", ""))
+                    if attempt < max_attempts and _should_retry_serp_error(error_msg):
+                        delay = base_delay * (2 ** (attempt - 1))
+                        logger.info(f"⏳ Reintentando SerpAPI HTML en {delay:.1f}s (intento {attempt}/{max_attempts})")
+                        time.sleep(delay)
+                        continue
+                    return False, html_content
+                return True, {"html": html_content}
+                
             return False, {"error": f"Unsupported call type: {call_type}"}
             
-    except Exception as e:
-        logger.error(f"Error en llamada SerpAPI ({call_type}): {e}")
-        return False, {"error": str(e)}
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error en llamada SerpAPI ({call_type}): {error_msg}")
+            if attempt < max_attempts and _should_retry_serp_error(error_msg):
+                delay = base_delay * (2 ** (attempt - 1))
+                logger.info(f"⏳ Reintentando SerpAPI ({call_type}) en {delay:.1f}s (intento {attempt}/{max_attempts})")
+                time.sleep(delay)
+                continue
+            return False, {"error": error_msg}
 
 def get_quota_warning_info(user_id: int) -> Optional[Dict[str, Any]]:
     """

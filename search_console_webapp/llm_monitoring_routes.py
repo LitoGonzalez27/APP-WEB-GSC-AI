@@ -4085,5 +4085,108 @@ def cron_model_discovery():
         conn.close()
 
 
+@llm_monitoring_bp.route('/cron/alert', methods=['POST'])
+@cron_or_auth_required
+def cron_alert():
+    """
+    Endpoint para alertas de cron (fallos o warnings).
+    Reutiliza el sistema de email existente.
+    
+    Payload JSON opcional:
+        - notify_email
+        - job_name
+        - status (failed|warning|ok)
+        - message
+        - endpoint
+        - response_status
+        - response_body
+        - run_at
+    """
+    data = request.get_json(silent=True) or {}
+    
+    notify_email = (
+        data.get('notify_email')
+        or request.args.get('notify_email')
+        or os.getenv('CRON_ALERT_EMAIL')
+        or os.getenv('MODEL_DISCOVERY_EMAIL')
+        or 'info@soycarlosgonzalez.com'
+    )
+    
+    job_name = data.get('job_name') or 'Cron'
+    status = (data.get('status') or 'failed').lower()
+    message = data.get('message') or 'Fallo no especificado'
+    endpoint = data.get('endpoint') or ''
+    response_status = data.get('response_status')
+    response_body = data.get('response_body') or ''
+    run_at = data.get('run_at') or datetime.utcnow().isoformat()
+    
+    def _truncate(value: str, max_len: int = 2000) -> str:
+        if value is None:
+            return ''
+        text = str(value)
+        if len(text) <= max_len:
+            return text
+        return text[:max_len] + "…"
+    
+    status_icon = "🚨" if status == "failed" else "⚠️" if status == "warning" else "✅"
+    subject = f"{status_icon} Cron {status.upper()}: {job_name}"
+    
+    html_body = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #161616; border-bottom: 3px solid #D8F9B8; padding-bottom: 10px;">
+            {status_icon} Alerta de Cron
+        </h1>
+        <p style="color: #666;">Fecha: {run_at} UTC</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+            <tr style="background: #161616; color: #D8F9B8;">
+                <th style="padding: 10px; text-align: left;">Campo</th>
+                <th style="padding: 10px; text-align: left;">Valor</th>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">Job</td>
+                <td style="padding: 10px;">{job_name}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">Estado</td>
+                <td style="padding: 10px;">{status.upper()}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">Endpoint</td>
+                <td style="padding: 10px;">{_truncate(endpoint, 300)}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">HTTP Status</td>
+                <td style="padding: 10px;">{response_status}</td>
+            </tr>
+        </table>
+        <h3 style="color: #161616;">Mensaje</h3>
+        <pre style="background: #f9fafb; padding: 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-word;">{_truncate(message)}</pre>
+        <h3 style="color: #161616;">Respuesta</h3>
+        <pre style="background: #f9fafb; padding: 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-word;">{_truncate(response_body)}</pre>
+        <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #999; font-size: 12px; text-align: center;">
+            ClicAndSEO - Alerta automática de cron
+        </p>
+    </div>
+    """
+    
+    email_sent = False
+    if notify_email:
+        try:
+            from email_service import send_email
+            email_sent = send_email(notify_email, subject, html_body)
+            logger.info(f"📧 Alerta de cron enviada a {notify_email}")
+        except Exception as e:
+            logger.error(f"❌ Error enviando alerta de cron: {e}")
+    
+    return jsonify({
+        'success': True,
+        'email_sent': email_sent,
+        'notify_email': notify_email,
+        'job_name': job_name,
+        'status': status
+    }), 200
+
+
 logger.info("✅ LLM Monitoring Blueprint loaded successfully")
 

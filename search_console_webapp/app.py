@@ -1930,6 +1930,9 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
     errors_list = []
     successful_analyses = 0
     
+    max_duration_seconds = int(os.getenv('AI_OVERVIEW_MAX_DURATION_SECONDS', '1800'))
+    start_time = time.time()
+    
     # Usar ThreadPoolExecutor para procesamiento paralelo
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Crear un mapeo de futuros a datos de keyword
@@ -1940,6 +1943,24 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
         
         # Procesar resultados conforme van completándose
         for i, future in enumerate(as_completed(future_to_keyword), 1):
+            if max_duration_seconds > 0 and (time.time() - start_time) > max_duration_seconds:
+                logger.error(f"⏱️ Timeout global de análisis AI Overview ({max_duration_seconds}s) alcanzado")
+                # Cancelar futuros pendientes y registrar error
+                for pending_future, pending_kw in future_to_keyword.items():
+                    if not pending_future.done():
+                        pending_future.cancel()
+                        keyword_str = pending_kw.get('keyword', '')
+                        error_msg = f"Timeout global de análisis para keyword '{keyword_str}'"
+                        errors_list.append(error_msg)
+                        results_list.append({
+                            **pending_kw,
+                            'error': 'analysis_timeout',
+                            'ai_analysis': {},
+                            'analysis_successful': False,
+                            'country_analyzed': country_req
+                        })
+                break
+            
             kw_data_item = future_to_keyword[future]
             keyword_str = kw_data_item.get('keyword', '')
             

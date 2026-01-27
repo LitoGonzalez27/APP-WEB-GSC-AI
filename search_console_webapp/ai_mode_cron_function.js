@@ -3,10 +3,38 @@
 
 const appUrl = process.env.APP_URL ?? "https://clicandseo.up.railway.app";
 const endpoint = `${appUrl}/ai-mode-projects/api/cron/daily-analysis?async=1`;
+const alertEndpoint = `${appUrl}/api/llm-monitoring/cron/alert`;
+const notifyEmail =
+  process.env.CRON_ALERT_EMAIL ??
+  process.env.MODEL_DISCOVERY_EMAIL ??
+  "info@soycarlosgonzalez.com";
+
+async function sendCronAlert(payload) {
+  try {
+    await fetch(alertEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(process.env.CRON_TOKEN
+          ? { Authorization: `Bearer ${process.env.CRON_TOKEN}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        notify_email: notifyEmail,
+        ...payload,
+      }),
+    });
+  } catch (alertError) {
+    console.error("⚠️ No se pudo enviar alerta por email:", alertError?.message);
+  }
+}
 
 async function run() {
   console.log("🚀 AI Mode: Launching daily analysis:", endpoint);
   
+  let responseStatus = null;
+  let responseBody = "";
   try {
     const res = await fetch(endpoint, {
       method: "POST",
@@ -21,17 +49,27 @@ async function run() {
       signal: AbortSignal.timeout(60000),
     });
 
-    const body = await res.text().catch(() => "");
+    responseStatus = res.status;
+    responseBody = await res.text().catch(() => "");
     
     if (!res.ok) {
-      throw new Error(`AI Mode Cron failed ${res.status}: ${body}`);
+      throw new Error(`AI Mode Cron failed ${res.status}: ${responseBody}`);
     }
     
-    console.log("✅ AI Mode Cron OK:", body || "Accepted (async)");
+    console.log("✅ AI Mode Cron OK:", responseBody || "Accepted (async)");
     console.log(`📊 AI Mode analysis triggered successfully at ${new Date().toISOString()}`);
     
   } catch (error) {
     console.error("❌ AI Mode Cron Error:", error.message);
+    await sendCronAlert({
+      job_name: "AI Mode Daily Analysis",
+      status: "failed",
+      message: error.message,
+      endpoint,
+      response_status: responseStatus,
+      response_body: responseBody,
+      run_at: new Date().toISOString(),
+    });
     throw error;
   }
 }

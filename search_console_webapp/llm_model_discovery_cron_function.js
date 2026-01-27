@@ -6,9 +6,14 @@
 
 const appUrl = process.env.APP_URL ?? "https://clicandseo.up.railway.app";
 const endpoint = `${appUrl}/api/llm-monitoring/cron/model-discovery`;
+const alertEndpoint = `${appUrl}/api/llm-monitoring/cron/alert`;
 
 // Email de notificación
 const notifyEmail = process.env.MODEL_DISCOVERY_EMAIL ?? "info@soycarlosgonzalez.com";
+const alertEmail =
+  process.env.CRON_ALERT_EMAIL ??
+  process.env.MODEL_DISCOVERY_EMAIL ??
+  "info@soycarlosgonzalez.com";
 
 // Si true, activa automáticamente los nuevos modelos
 const autoUpdate = process.env.AUTO_UPDATE_MODELS ?? "false";
@@ -19,6 +24,8 @@ async function run() {
     console.log("   Notify email:", notifyEmail);
     console.log("   Auto-update:", autoUpdate);
 
+    let responseStatus = null;
+    let responseBody = "";
     try {
         const url = `${endpoint}?notify_email=${encodeURIComponent(notifyEmail)}&auto_update=${autoUpdate}`;
         
@@ -33,19 +40,20 @@ async function run() {
             },
         });
 
-        const text = await res.text();
+        responseStatus = res.status;
+        responseBody = await res.text();
         console.log("📡 Response status:", res.status);
 
         if (!res.ok) {
-            console.error("❌ Error response:", text);
-            throw new Error(`HTTP ${res.status}: ${text}`);
+            console.error("❌ Error response:", responseBody);
+            throw new Error(`HTTP ${res.status}: ${responseBody}`);
         }
 
         let data;
         try {
-            data = JSON.parse(text);
+            data = JSON.parse(responseBody);
         } catch {
-            data = { raw: text };
+            data = { raw: responseBody };
         }
 
         console.log("✅ Model Discovery completed!");
@@ -77,6 +85,30 @@ async function run() {
 
     } catch (error) {
         console.error("❌ Model Discovery failed:", error.message);
+        try {
+            await fetch(alertEndpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    ...(process.env.CRON_TOKEN
+                        ? { Authorization: `Bearer ${process.env.CRON_TOKEN}` }
+                        : {}),
+                },
+                body: JSON.stringify({
+                    notify_email: alertEmail,
+                    job_name: "LLM Model Discovery",
+                    status: "failed",
+                    message: error.message,
+                    endpoint,
+                    response_status: responseStatus,
+                    response_body: responseBody,
+                    run_at: new Date().toISOString(),
+                }),
+            });
+        } catch (alertError) {
+            console.error("⚠️ No se pudo enviar alerta por email:", alertError?.message);
+        }
         throw error;
     }
 }
