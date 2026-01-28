@@ -721,9 +721,8 @@ def get_project(project_id):
         llms_expected = len(enabled_llms)
         
         # Completeness (0-100): promedio de completitud por LLM (queries analizadas / esperadas)
-        expected_queries = project.get('queries_per_llm') or project.get('total_queries') or 0
+        expected_queries = project.get('total_queries') or project.get('queries_per_llm') or 0
         llm_completeness = {}
-        completeness_scores = []
         
         total_analyzed_queries = 0
         total_expected_queries = expected_queries * llms_expected if expected_queries else 0
@@ -747,9 +746,10 @@ def get_project(project_id):
                 'expected': expected_queries,
                 'completeness_pct': round(pct, 1)
             }
-            completeness_scores.append(pct)
-        
-        completeness = (sum(completeness_scores) / len(completeness_scores)) if completeness_scores else 0
+        if total_expected_queries > 0:
+            completeness = min(100.0, (total_analyzed_queries / total_expected_queries) * 100)
+        else:
+            completeness = 0
         
         # Coverage (0-100): % de LLMs con al menos un snapshot
         llms_with_data = sum(1 for llm in enabled_llms if llm in snapshots_by_llm)
