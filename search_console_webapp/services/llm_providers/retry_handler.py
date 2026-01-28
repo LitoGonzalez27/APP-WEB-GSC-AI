@@ -25,10 +25,10 @@ class RetryConfig:
     # Errores que vale la pena reintentar
     RETRYABLE_ERRORS = {
         'rate_limit': {
-            'max_retries': 3,
-            'initial_delay': 2,  # segundos
+            'max_retries': 4,
+            'initial_delay': 3,  # segundos
             'backoff_multiplier': 2,
-            'max_delay': 30
+            'max_delay': 60
         },
         'timeout': {
             'max_retries': 2,
@@ -65,7 +65,7 @@ class RetryConfig:
     # Timeouts específicos por provider (pueden ajustarse)
     PROVIDER_TIMEOUTS = {
         'openai': 60,      # GPT-5.1 puede tardar en respuestas largas
-        'google': 30,      # Gemini es muy rápido
+        'google': 45,      # Gemini puede tener picos de latencia
         'anthropic': 90,   # Claude puede hacer reasoning extenso
         'perplexity': 45   # Búsqueda en tiempo real
     }
@@ -86,6 +86,12 @@ def classify_error(error: Exception) -> str:
     if '429' in error_str:
         return 'rate_limit'
     if 'quota' in error_str and 'exceeded' in error_str:
+        return 'rate_limit'
+    if 'resource_exhausted' in error_str:
+        return 'rate_limit'
+    if 'too many requests' in error_str:
+        return 'rate_limit'
+    if 'quota' in error_str:
         return 'rate_limit'
     
     # Timeout

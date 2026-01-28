@@ -83,7 +83,7 @@ class MultiLLMMonitoringService:
         # Valores MUY conservadores por defecto para asegurar 100% de completitud
         self.provider_concurrency = {
             'openai': int(os.getenv('OPENAI_CONCURRENCY', '2')),      # 2 (GPT-5.1 es lento, evitar rate limits)
-            'google': int(os.getenv('GOOGLE_CONCURRENCY', '5')),      # 5 (Gemini tiene límites estrictos)
+            'google': int(os.getenv('GOOGLE_CONCURRENCY', '3')),      # 3 (Gemini tiene límites estrictos)
             'anthropic': int(os.getenv('ANTHROPIC_CONCURRENCY', '3')), # 3 (Claude es estable)
             'perplexity': int(os.getenv('PERPLEXITY_CONCURRENCY', '4')) # 4 (Perplexity es rápido)
         }
@@ -1010,25 +1010,42 @@ JSON:"""
             healthy_providers = {}
             unhealthy_providers = []
             
+            health_max_attempts = int(os.getenv('LLM_HEALTHCHECK_RETRIES', '3'))
+            health_delay_seconds = float(os.getenv('LLM_HEALTHCHECK_DELAY_SECONDS', '2'))
+            
             for name, provider in active_providers.items():
                 logger.info(f"🔍 Testeando {name}...")
+                health_ok = False
                 
-                try:
-                    # Test rápido con query simple
-                    test_result = provider.execute_query("Hi")
-                    
-                    if test_result.get('success'):
-                        healthy_providers[name] = provider
-                        logger.info(f"   ✅ {name} respondió OK en {test_result.get('response_time_ms', 0)}ms")
-                    else:
-                        unhealthy_providers.append(name)
-                        error = test_result.get('error', 'Unknown error')
-                        logger.error(f"   ❌ {name} falló: {error}")
-                        logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
+                for attempt in range(1, health_max_attempts + 1):
+                    try:
+                        # Test rápido con query simple
+                        test_result = provider.execute_query("Hi")
                         
-                except Exception as e:
+                        if test_result.get('success'):
+                            healthy_providers[name] = provider
+                            health_ok = True
+                            logger.info(f"   ✅ {name} respondió OK en {test_result.get('response_time_ms', 0)}ms")
+                            break
+                        
+                        error = test_result.get('error', 'Unknown error')
+                        if attempt < health_max_attempts:
+                            logger.warning(f"   ⚠️ {name} falló (intento {attempt}/{health_max_attempts}): {error}")
+                            logger.warning(f"   🔄 Reintentando en {health_delay_seconds:.0f}s...")
+                            time.sleep(health_delay_seconds)
+                        else:
+                            logger.error(f"   ❌ {name} falló: {error}")
+                    
+                    except Exception as e:
+                        if attempt < health_max_attempts:
+                            logger.warning(f"   ⚠️ {name} excepción (intento {attempt}/{health_max_attempts}): {e}")
+                            logger.warning(f"   🔄 Reintentando en {health_delay_seconds:.0f}s...")
+                            time.sleep(health_delay_seconds)
+                        else:
+                            logger.error(f"   ❌ {name} excepción: {e}")
+                
+                if not health_ok:
                     unhealthy_providers.append(name)
-                    logger.error(f"   ❌ {name} excepción: {e}")
                     logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
             
             # Usar solo providers saludables

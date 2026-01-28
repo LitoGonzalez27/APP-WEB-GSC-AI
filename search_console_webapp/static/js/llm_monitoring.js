@@ -1062,9 +1062,11 @@ class LLMMonitoring {
         }
         
         // Actualizar componentes
-        this.updateQualityComponent('completeness', components.completeness, details.llms_with_data, details.llms_expected);
+        const analyzedQueries = details.total_analyzed_queries;
+        const expectedQueries = details.total_expected_queries;
+        this.updateQualityComponent('completeness', components.completeness, analyzedQueries, expectedQueries);
         this.updateQualityComponent('freshness', components.freshness, details.days_since_update);
-        this.updateQualityComponent('coverage', 100 - components.error_rate, details.total_snapshots_in_period);
+        this.updateQualityComponent('coverage', components.coverage, details.llms_with_data, details.llms_expected);
     }
     
     /**
@@ -1094,7 +1096,7 @@ class LLMMonitoring {
         
         if (detailEl) {
             if (type === 'completeness' && detail1 !== null && detail2 !== null) {
-                detailEl.textContent = `${detail1}/${detail2} LLMs`;
+                detailEl.textContent = `${detail1}/${detail2} prompts`;
             } else if (type === 'freshness' && detail1 !== null) {
                 if (detail1 === 0) {
                     detailEl.textContent = 'Updated today';
@@ -1103,8 +1105,8 @@ class LLMMonitoring {
                 } else {
                     detailEl.textContent = `${detail1} days ago`;
                 }
-            } else if (type === 'coverage' && detail1 !== null) {
-                detailEl.textContent = `${detail1} snapshots`;
+            } else if (type === 'coverage' && detail1 !== null && detail2 !== null) {
+                detailEl.textContent = `${detail1}/${detail2} LLMs`;
             }
         }
     }

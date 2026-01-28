@@ -714,15 +714,46 @@ def get_project(project_id):
         
         # ✨ NUEVO: Calcular Quality Score
         # Componentes del Quality Score:
-        # 1. Completeness: ¿Tenemos datos de todos los LLMs habilitados?
+        # 1. Completeness: ¿Cada LLM analizó todas las queries esperadas?
         # 2. Freshness: ¿Cuánto hace del último análisis?
-        # 3. Coverage: ¿Qué % de queries se analizaron?
+        # 3. Coverage: ¿Qué % de LLMs tienen datos?
         enabled_llms = project['enabled_llms'] or []
-        llms_with_data = len(snapshots_by_llm)
         llms_expected = len(enabled_llms)
         
-        # Completeness (0-100): % de LLMs con datos
-        completeness = (llms_with_data / llms_expected * 100) if llms_expected > 0 else 0
+        # Completeness (0-100): promedio de completitud por LLM (queries analizadas / esperadas)
+        expected_queries = project.get('queries_per_llm') or project.get('total_queries') or 0
+        llm_completeness = {}
+        completeness_scores = []
+        
+        total_analyzed_queries = 0
+        total_expected_queries = expected_queries * llms_expected if expected_queries else 0
+        
+        for llm_name in enabled_llms:
+            snapshots = snapshots_by_llm.get(llm_name, [])
+            latest_snapshot = None
+            if snapshots:
+                latest_snapshot = max(
+                    snapshots,
+                    key=lambda s: s.get('snapshot_date') or datetime.min
+                )
+            analyzed = (latest_snapshot or {}).get('total_queries') or 0
+            total_analyzed_queries += analyzed
+            if expected_queries and expected_queries > 0:
+                pct = min(100.0, (analyzed / expected_queries) * 100)
+            else:
+                pct = 0.0
+            llm_completeness[llm_name] = {
+                'analyzed': analyzed,
+                'expected': expected_queries,
+                'completeness_pct': round(pct, 1)
+            }
+            completeness_scores.append(pct)
+        
+        completeness = (sum(completeness_scores) / len(completeness_scores)) if completeness_scores else 0
+        
+        # Coverage (0-100): % de LLMs con al menos un snapshot
+        llms_with_data = sum(1 for llm in enabled_llms if llm in snapshots_by_llm)
+        coverage = (llms_with_data / llms_expected * 100) if llms_expected > 0 else 0
         
         # Freshness (0-100): 100 si datos de hoy, decrece con el tiempo
         from datetime import date as date_type
@@ -733,22 +764,22 @@ def get_project(project_id):
         else:
             freshness = 0
         
-        # Error rate: % de snapshots sin errores (asumimos 100% si hay datos)
-        error_rate = 0 if len(all_snapshots) > 0 else 100
-        
         # Quality Score final (promedio ponderado)
-        quality_score = round((completeness * 0.4 + freshness * 0.4 + (100 - error_rate) * 0.2), 1)
+        quality_score = round((completeness * 0.5 + freshness * 0.3 + coverage * 0.2), 1)
         
         quality_data = {
             'score': quality_score,
             'components': {
                 'completeness': round(completeness, 1),
                 'freshness': round(freshness, 1),
-                'error_rate': round(error_rate, 1)
+                'coverage': round(coverage, 1)
             },
             'details': {
                 'llms_with_data': llms_with_data,
                 'llms_expected': llms_expected,
+                'total_analyzed_queries': total_analyzed_queries,
+                'total_expected_queries': total_expected_queries,
+                'queries_by_llm': llm_completeness,
                 'days_since_update': (date_type.today() - last_snapshot).days if last_snapshot else None,
                 'total_snapshots_in_period': len(all_snapshots)
             }
