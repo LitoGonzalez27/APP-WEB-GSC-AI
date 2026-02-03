@@ -85,9 +85,9 @@ function showQuotaWarning(quotaInfo) {
                     .replace('{remaining}', remaining)
                     .replace('{limit}', quotaInfo.quota_limit)}
             </p>
-            <p class="quota-warning-action">${config.action}</p>
+            <p class="quota-warning-action">Upgrade your plan to continue using ClicandSEO Premium features.</p>
             <div class="quota-warning-buttons">
-                <button class="btn btn-primary quota-upgrade-btn" onclick="handleQuotaUpgrade('${plan}')">
+                <button class="btn btn-primary quota-upgrade-btn quota-upgrade-dark" onclick="handleQuotaUpgrade('${plan}')">
                     ${percentage >= 100 ? 'Upgrade Now' : 'Upgrade Plan'}
                 </button>
                 <a class="btn btn-secondary" href="mailto:info@clicandseo.com">
@@ -150,7 +150,7 @@ function showQuotaBlockModal(errorData) {
             <div class="quota-block-buttons">
                 ${actionRequired === 'contact_support'
                     ? `<a class="btn btn-primary" href="mailto:info@clicandseo.com">Contact Support</a>`
-                    : `<button class="btn btn-primary" onclick="handleQuotaUpgrade('${plan}')">Upgrade Plan</button>`
+                    : `<button class="btn btn-primary quota-upgrade-dark" onclick="handleQuotaUpgrade('${plan}')">Upgrade Now</button>`
                 }
                 <button class="btn btn-secondary" onclick="closeQuotaBlockModal()">
                     Close
@@ -271,6 +271,14 @@ function ensureQuotaModalStyles() {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+        }
+        .quota-upgrade-dark {
+            background: #111827 !important;
+            color: #D8F9B8 !important;
+            border: 1px solid #111827 !important;
+        }
+        .quota-upgrade-dark:hover {
+            filter: brightness(1.05);
         }
     `;
     document.head.appendChild(style);
