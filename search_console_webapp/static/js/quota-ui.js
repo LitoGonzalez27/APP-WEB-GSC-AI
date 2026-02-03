@@ -46,8 +46,14 @@ const UPGRADE_URLS = {
  * Muestra un banner de warning de quota
  */
 function showQuotaWarning(quotaInfo) {
+    if (!shouldShowQuotaUI(quotaInfo)) {
+        return;
+    }
+    if (isQuotaWarningDismissed(quotaInfo)) {
+        return;
+    }
     // Evitar warnings duplicados
-    if (document.querySelector('.quota-warning-banner')) {
+    if (document.querySelector('.quota-warning-modal-overlay')) {
         return;
     }
 
@@ -62,13 +68,16 @@ function showQuotaWarning(quotaInfo) {
         config = QUOTA_MESSAGES.softLimit;
     }
 
-    const banner = document.createElement('div');
-    banner.className = `quota-warning-banner ${percentage >= 100 ? 'danger' : 'warning'}`;
-    banner.innerHTML = `
-        <div class="quota-warning-content">
+    ensureQuotaModalStyles();
+
+    const modal = document.createElement('div');
+    modal.className = 'quota-warning-modal-overlay';
+    modal._quotaInfo = quotaInfo;
+    modal.innerHTML = `
+        <div class="quota-warning-modal">
             <div class="quota-warning-header">
                 <h4>${config.title}</h4>
-                <button class="quota-warning-close" onclick="dismissQuotaWarning()">&times;</button>
+                <button class="quota-warning-close" aria-label="Close" onclick="dismissQuotaWarning()">&times;</button>
             </div>
             <p class="quota-warning-message">
                 ${config.message
@@ -81,21 +90,15 @@ function showQuotaWarning(quotaInfo) {
                 <button class="btn btn-primary quota-upgrade-btn" onclick="handleQuotaUpgrade('${plan}')">
                     ${percentage >= 100 ? 'Upgrade Now' : 'Upgrade Plan'}
                 </button>
-                <button class="btn btn-secondary" onclick="dismissQuotaWarning()">
-                    ${percentage >= 100 ? 'Contact Support' : 'Maybe Later'}
-                </button>
+                <a class="btn btn-secondary" href="mailto:info@clicandseo.com">
+                    Contact Support
+                </a>
             </div>
         </div>
     `;
 
-    // Insertar al inicio del contenido principal
-    const mainContent = document.querySelector('.container-fluid') || document.body;
-    mainContent.insertBefore(banner, mainContent.firstChild);
-
-    // Auto-dismiss warning (no bloqueo) después de 10 segundos
-    if (percentage < 100) {
-        setTimeout(() => dismissQuotaWarning(), 10000);
-    }
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('active'));
 }
 
 /**
@@ -106,6 +109,10 @@ function showQuotaBlockModal(errorData) {
     const actionRequired = errorData.action_required || 'upgrade';
     const plan = quotaInfo.plan || 'free';
 
+    if (!shouldShowQuotaUI({ ...quotaInfo, plan })) {
+        return;
+    }
+
     let config;
     if (plan === 'free') {
         config = QUOTA_MESSAGES.freeBlocked;
@@ -115,6 +122,7 @@ function showQuotaBlockModal(errorData) {
         config = QUOTA_MESSAGES.hardLimit;
     }
 
+    ensureQuotaModalStyles();
     const modal = document.createElement('div');
     modal.className = 'quota-block-modal-overlay';
     modal.innerHTML = `
@@ -140,9 +148,10 @@ function showQuotaBlockModal(errorData) {
                 ` : ''}
             </div>
             <div class="quota-block-buttons">
-                <button class="btn btn-primary" onclick="handleQuotaUpgrade('${plan}')">
-                    ${actionRequired === 'contact_support' ? 'Contact Support' : 'Upgrade Plan'}
-                </button>
+                ${actionRequired === 'contact_support'
+                    ? `<a class="btn btn-primary" href="mailto:info@clicandseo.com">Contact Support</a>`
+                    : `<button class="btn btn-primary" onclick="handleQuotaUpgrade('${plan}')">Upgrade Plan</button>`
+                }
                 <button class="btn btn-secondary" onclick="closeQuotaBlockModal()">
                     Close
                 </button>
@@ -151,6 +160,7 @@ function showQuotaBlockModal(errorData) {
     `;
 
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('active'));
 
     // Focus en el modal para accesibilidad
     modal.querySelector('.btn').focus();
@@ -177,7 +187,8 @@ function handleQuotaUpgrade(currentPlan) {
 function closeQuotaBlockModal() {
     const modal = document.querySelector('.quota-block-modal-overlay');
     if (modal) {
-        modal.remove();
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 200);
     }
 }
 
@@ -185,11 +196,115 @@ function closeQuotaBlockModal() {
  * Dismisses el banner de warning
  */
 function dismissQuotaWarning() {
-    const banner = document.querySelector('.quota-warning-banner');
-    if (banner) {
-        banner.style.animation = 'slideUp 0.3s ease-out';
-        setTimeout(() => banner.remove(), 300);
+    const modal = document.querySelector('.quota-warning-modal-overlay');
+    if (modal) {
+        const quotaInfo = modal._quotaInfo || {};
+        const key = getQuotaDismissKey(quotaInfo);
+        sessionStorage.setItem(key, '1');
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 200);
     }
+}
+
+function ensureQuotaModalStyles() {
+    if (document.getElementById('quota-modal-styles')) {
+        return;
+    }
+    const style = document.createElement('style');
+    style.id = 'quota-modal-styles';
+    style.textContent = `
+        .quota-warning-modal-overlay,
+        .quota-block-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .quota-warning-modal-overlay.active,
+        .quota-block-modal-overlay.active {
+            opacity: 1;
+        }
+        .quota-warning-modal,
+        .quota-block-modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px 22px;
+            width: min(560px, 92vw);
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+            transform: translateY(8px);
+            transition: transform 0.2s ease;
+        }
+        .quota-warning-modal-overlay.active .quota-warning-modal,
+        .quota-block-modal-overlay.active .quota-block-modal {
+            transform: translateY(0);
+        }
+        .quota-warning-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .quota-warning-close {
+            background: transparent;
+            border: none;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .quota-warning-message {
+            margin: 8px 0;
+            color: #111827;
+            font-size: 14.5px;
+        }
+        .quota-warning-action {
+            margin: 0 0 14px 0;
+            color: #6b7280;
+            font-size: 13.5px;
+        }
+        .quota-warning-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function isPaidFeatureSection() {
+    const path = window.location.pathname || '';
+    const allowed = [
+        'manual-ai',
+        'ai-mode',
+        'ai-mode-projects',
+        'llm-monitoring'
+    ];
+    return allowed.some(segment => path.includes(segment));
+}
+
+function shouldShowQuotaUI(quotaInfo = {}) {
+    const plan = quotaInfo.plan || 'free';
+    if (plan === 'free') {
+        return false;
+    }
+    return isPaidFeatureSection();
+}
+
+function getQuotaDismissKey(quotaInfo = {}) {
+    const plan = quotaInfo.plan || 'unknown';
+    const used = quotaInfo.quota_used || 0;
+    const limit = quotaInfo.quota_limit || 0;
+    return `quotaWarningDismissed:${plan}:${used}:${limit}`;
+}
+
+function isQuotaWarningDismissed(quotaInfo = {}) {
+    const key = getQuotaDismissKey(quotaInfo);
+    return sessionStorage.getItem(key) === '1';
 }
 
 /**

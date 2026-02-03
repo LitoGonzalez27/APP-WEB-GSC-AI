@@ -61,11 +61,13 @@ class StatisticsService:
         """, (start_date, end_date, project_id))
         
         main_stats = dict(cur.fetchone() or {})
+        active_keywords = int(main_stats.get('active_keywords') or 0)
         
         # Datos para gráfico de visibilidad por día
         cur.execute("""
             SELECT 
                 r.analysis_date,
+                COUNT(DISTINCT r.keyword_id) as total_keywords_analyzed,
                 COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN r.keyword_id END) as ai_keywords,
                 COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END) as mentions,
                 (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN r.keyword_id END)::float / 
@@ -77,6 +79,13 @@ class StatisticsService:
         """, (project_id, start_date, end_date))
         
         visibility_data = [dict(row) for row in cur.fetchall()]
+        # Filtrar días incompletos (evitar caídas por análisis parcial)
+        if active_keywords > 0:
+            visibility_data = [
+                row for row in visibility_data
+                if int(row.get('total_keywords_analyzed') or 0) >= active_keywords
+            ]
+        allowed_dates = {row['analysis_date'] for row in visibility_data if row.get('analysis_date')}
         
         # Datos para gráfico de posiciones
         cur.execute("""
@@ -94,6 +103,8 @@ class StatisticsService:
         """, (project_id, start_date, end_date))
         
         positions_data = [dict(row) for row in cur.fetchall()]
+        if allowed_dates:
+            positions_data = [row for row in positions_data if row.get('analysis_date') in allowed_dates]
         
         # Eventos para anotaciones
         cur.execute("""
