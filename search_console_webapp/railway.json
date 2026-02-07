@@ -19,6 +19,10 @@
     {
       "command": "python3 weekly_model_check_cron.py",
       "schedule": "0 0 * * 0"
+    },
+    {
+      "command": "python3 daily_quota_reset_cron.py",
+      "schedule": "30 1 * * *"
     }
   ],
   "functions": [

@@ -35,6 +35,36 @@ PLAN_PRICES = {
     'enterprise': 0  # Custom pricing
 }
 
+def compute_next_quota_reset_date(period_start=None, period_end=None, last_reset=None, now=None):
+    """
+    Calcula la próxima fecha de reset de quota.
+    Usa intervalo mensual fijo (30 días) para respetar cuotas "por mes",
+    incluso en planes anuales.
+    """
+    interval_days = int(os.getenv('QUOTA_RESET_INTERVAL_DAYS', '30'))
+    now = now or datetime.utcnow()
+    base = last_reset or period_start or now
+    if isinstance(base, str):
+        try:
+            base = datetime.fromisoformat(base)
+        except Exception:
+            base = now
+    next_reset = base + timedelta(days=interval_days)
+
+    # Si hay periodo Stripe, no pasar el fin del periodo actual
+    if period_end and next_reset > period_end:
+        next_reset = period_end
+
+    # Si quedó en el pasado, avanzar hasta futuro (sin pasar el periodo)
+    while next_reset <= now:
+        candidate = next_reset + timedelta(days=interval_days)
+        if period_end and candidate > period_end:
+            next_reset = period_end
+            break
+        next_reset = candidate
+
+    return next_reset
+
 def get_user_effective_quota_limit(user_id):
     """
     Obtiene el límite de quota efectivo para un usuario
@@ -284,15 +314,27 @@ def reset_user_quota(user_id, admin_id=None):
         
         cur = conn.cursor()
         
+        # Obtener periodo actual para alinear reset
+        cur.execute('''
+            SELECT current_period_start, current_period_end, quota_reset_date
+            FROM users WHERE id = %s
+        ''', (user_id,))
+        row = cur.fetchone() or {}
+        next_reset = compute_next_quota_reset_date(
+            period_start=row.get('current_period_start'),
+            period_end=row.get('current_period_end'),
+            last_reset=row.get('quota_reset_date')
+        )
+
         # Resetear quota
         cur.execute('''
             UPDATE users 
             SET 
                 quota_used = 0,
-                quota_reset_date = NOW() + INTERVAL '30 days',
+                quota_reset_date = %s,
                 updated_at = NOW()
             WHERE id = %s
-        ''', (user_id,))
+        ''', (next_reset, user_id))
         
         if cur.rowcount == 0:
             return {'success': False, 'error': 'Usuario no encontrado'}
@@ -491,13 +533,26 @@ def reset_user_quota(user_id, admin_id=None):
         result = cur.fetchone()
         previous_usage = result['quota_used'] if result else 0
         
+        # Obtener periodo actual para alinear reset
+        cur.execute('''
+            SELECT current_period_start, current_period_end, quota_reset_date
+            FROM users WHERE id = %s
+        ''', (user_id,))
+        row = cur.fetchone() or {}
+        next_reset = compute_next_quota_reset_date(
+            period_start=row.get('current_period_start'),
+            period_end=row.get('current_period_end'),
+            last_reset=row.get('quota_reset_date')
+        )
+
         # Resetear quota_used a 0
         cur.execute('''
             UPDATE users 
             SET quota_used = 0,
+                quota_reset_date = %s,
                 updated_at = NOW()
             WHERE id = %s
-        ''', (user_id,))
+        ''', (next_reset, user_id))
         
         # Registrar evento de reset
         try:

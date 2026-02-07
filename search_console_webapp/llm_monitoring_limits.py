@@ -5,7 +5,8 @@ LLM Monitoring - Límites y políticas por plan
 Centraliza límites de proyectos, prompts y consumo mensual.
 """
 
-from datetime import date
+import os
+from datetime import date, timedelta
 from typing import Dict, Optional
 from database import get_db_connection
 
@@ -102,19 +103,44 @@ def count_project_active_queries(project_id: int) -> int:
 
 def get_user_monthly_llm_usage(user_id: int, month_date: Optional[date] = None) -> int:
     """
-    Devuelve unidades consumidas en el mes (1 prompt x 1 LLM = 1 unidad).
+    Devuelve unidades consumidas en el período de quota (1 prompt x 1 LLM = 1 unidad).
     Se calcula desde llm_monitoring_results.
     """
-    month_date = month_date or date.today()
-    month_start = month_date.replace(day=1)
-    if month_start.month == 12:
-        next_month = month_start.replace(year=month_start.year + 1, month=1)
-    else:
-        next_month = month_start.replace(month=month_start.month + 1)
-
     conn = get_db_connection()
     if not conn:
         return 0
+
+    # Intentar usar ventana de quota (quota_reset_date si existe)
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT quota_reset_date, current_period_start, current_period_end
+            FROM users
+            WHERE id = %s
+        """, (user_id,))
+        user = cur.fetchone() or {}
+    finally:
+        cur.close()
+
+    interval_days = int(os.getenv('QUOTA_RESET_INTERVAL_DAYS', '30'))
+    quota_reset_date = user.get('quota_reset_date')
+    current_period_start = user.get('current_period_start')
+    current_period_end = user.get('current_period_end')
+
+    if quota_reset_date:
+        window_end = quota_reset_date.date()
+        window_start = (quota_reset_date - timedelta(days=interval_days)).date()
+    elif current_period_start and current_period_end:
+        window_start = current_period_start.date()
+        window_end = current_period_end.date()
+    else:
+        month_date = month_date or date.today()
+        window_start = month_date.replace(day=1)
+        if window_start.month == 12:
+            window_end = window_start.replace(year=window_start.year + 1, month=1)
+        else:
+            window_end = window_start.replace(month=window_start.month + 1)
+
     try:
         cur = conn.cursor()
         cur.execute("""
@@ -124,7 +150,7 @@ def get_user_monthly_llm_usage(user_id: int, month_date: Optional[date] = None) 
             WHERE p.user_id = %s
               AND r.analysis_date >= %s
               AND r.analysis_date < %s
-        """, (user_id, month_start, next_month))
+        """, (user_id, window_start, window_end))
         row = cur.fetchone()
         return int(row['count']) if row else 0
     finally:

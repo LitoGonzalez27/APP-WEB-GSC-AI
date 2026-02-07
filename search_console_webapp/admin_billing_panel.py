@@ -609,16 +609,28 @@ def reset_user_quota_manual(user_id, admin_id):
             return {'success': False, 'error': 'Database connection failed'}
         
         cur = conn.cursor()
-        
+        # Obtener periodo actual para alinear reset
+        cur.execute('''
+            SELECT current_period_start, current_period_end, quota_reset_date
+            FROM users WHERE id = %s
+        ''', (user_id,))
+        row = cur.fetchone() or {}
+        from quota_manager import compute_next_quota_reset_date
+        next_reset = compute_next_quota_reset_date(
+            period_start=row.get('current_period_start'),
+            period_end=row.get('current_period_end'),
+            last_reset=row.get('quota_reset_date')
+        )
+
         # Resetear cuota
         cur.execute('''
             UPDATE users 
             SET 
                 quota_used = 0,
-                quota_reset_date = NOW() + INTERVAL '30 days',
+                quota_reset_date = %s,
                 updated_at = NOW()
             WHERE id = %s
-        ''', (user_id,))
+        ''', (next_reset, user_id))
         
         if cur.rowcount == 0:
             return {'success': False, 'error': 'Usuario no encontrado'}

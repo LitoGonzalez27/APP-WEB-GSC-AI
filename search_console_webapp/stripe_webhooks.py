@@ -211,6 +211,12 @@ class StripeWebhookHandler:
                 
                 # Si es trialing, marcar explícitamente plan y estado
                 is_trialing = status == 'trialing'
+                from quota_manager import compute_next_quota_reset_date
+                next_reset = compute_next_quota_reset_date(
+                    period_start=period_start,
+                    period_end=period_end,
+                    last_reset=None
+                )
                 cur.execute('''
                     UPDATE users 
                     SET 
@@ -221,11 +227,12 @@ class StripeWebhookHandler:
                         subscription_id = %s,
                         current_period_start = %s,
                         current_period_end = %s,
+                        quota_reset_date = COALESCE(quota_reset_date, %s),
                         trial_used = CASE WHEN %s THEN true ELSE trial_used END,
                         updated_at = NOW()
                     WHERE stripe_customer_id = %s
                 ''', (plan, plan, billing_status, quota_limit, subscription_id, 
-                      period_start, period_end, is_trialing, customer_id))
+                      period_start, period_end, next_reset, is_trialing, customer_id))
             
             if cur.rowcount == 0:
                 logger.warning(f"⚠️ Customer {customer_id} not found for subscription {action}. Trying fallbacks...")
@@ -369,6 +376,16 @@ class StripeWebhookHandler:
                     return {'success': False, 'error': 'Database connection failed'}
                 
                 cur = conn.cursor()
+                period_start_dt = datetime.fromtimestamp(period_start)
+                period_end_dt = datetime.fromtimestamp(period_end)
+                from quota_manager import compute_next_quota_reset_date
+                next_reset = compute_next_quota_reset_date(
+                    period_start=period_start_dt,
+                    period_end=period_end_dt,
+                    last_reset=None,
+                    now=period_start_dt
+                )
+
                 cur.execute('''
                     UPDATE users 
                     SET 
@@ -380,9 +397,9 @@ class StripeWebhookHandler:
                         updated_at = NOW()
                     WHERE stripe_customer_id = %s
                     RETURNING id
-                ''', (datetime.fromtimestamp(period_end), 
-                      datetime.fromtimestamp(period_start),
-                      datetime.fromtimestamp(period_end), 
+                ''', (next_reset, 
+                      period_start_dt,
+                      period_end_dt, 
                       customer_id))
                 row = cur.fetchone()
                 
