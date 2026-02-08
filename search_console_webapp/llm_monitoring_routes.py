@@ -484,6 +484,9 @@ def get_project(project_id):
         # Esto refleja el volumen REAL de menciones en el mercado
         # ✨ NUEVO: Soporte para rango de fechas global
         days = request.args.get('days', 30, type=int)
+        metric_type = request.args.get('metric', 'normal')
+        if metric_type not in ['normal', 'weighted']:
+            metric_type = 'normal'
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
         
         # Obtener todos los snapshots del rango seleccionado
@@ -553,6 +556,10 @@ def get_project(project_id):
         total_negative = 0
         all_positions = []
         
+        # ✨ NUEVO: Totales ponderados para Share of Voice
+        total_brand_mentions_weighted = 0.0
+        total_competitor_mentions_weighted = 0.0
+        
         # ✨ NUEVO: Métricas de posición granulares
         total_top3 = 0
         total_top5 = 0
@@ -560,6 +567,48 @@ def get_project(project_id):
         
         # Agrupar por LLM para cálculos individuales
         snapshots_by_llm = {}
+        def _parse_weighted_breakdown(raw_value):
+            if isinstance(raw_value, dict):
+                return raw_value
+            if isinstance(raw_value, str):
+                try:
+                    parsed = json.loads(raw_value)
+                    return parsed if isinstance(parsed, dict) else {}
+                except Exception:
+                    return {}
+            return {}
+        
+        def _accumulate_weighted_totals(snapshot):
+            nonlocal total_brand_mentions_weighted, total_competitor_mentions_weighted
+            
+            weighted_sov_raw = snapshot.get('weighted_share_of_voice')
+            try:
+                weighted_sov = float(weighted_sov_raw) if weighted_sov_raw is not None else None
+            except Exception:
+                weighted_sov = None
+            
+            weighted_breakdown = _parse_weighted_breakdown(snapshot.get('weighted_competitor_breakdown'))
+            
+            if weighted_sov is not None and weighted_breakdown:
+                try:
+                    total_weighted_comp = sum(float(v) for v in weighted_breakdown.values() if v is not None)
+                except Exception:
+                    total_weighted_comp = 0.0
+                
+                if weighted_sov >= 100:
+                    weighted_brand = total_weighted_comp if total_weighted_comp > 0 else 1.0
+                elif weighted_sov > 0:
+                    weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp
+                else:
+                    weighted_brand = 0.0
+                
+                total_brand_mentions_weighted += weighted_brand
+                total_competitor_mentions_weighted += total_weighted_comp
+            else:
+                # Fallback a métricas normales si no hay datos ponderados
+                total_brand_mentions_weighted += (snapshot.get('total_mentions') or 0)
+                total_competitor_mentions_weighted += (snapshot.get('total_competitor_mentions') or 0)
+        
         for snapshot in all_snapshots:
             llm = snapshot['llm_provider']
             if llm not in snapshots_by_llm:
@@ -582,6 +631,9 @@ def get_project(project_id):
             # Acumular posiciones
             if snapshot.get('avg_position') is not None:
                 all_positions.append(float(snapshot['avg_position']))
+            
+            # ✨ NUEVO: Acumular métricas ponderadas para SoV
+            _accumulate_weighted_totals(snapshot)
         
         # ✨ NUEVO: Calcular métricas del PERÍODO ANTERIOR para tendencias
         prev_brand_mentions = 0
@@ -592,6 +644,41 @@ def get_project(project_id):
         prev_negative = 0
         prev_positions = []
         
+        # ✨ NUEVO: Totales ponderados del período anterior
+        prev_brand_mentions_weighted = 0.0
+        prev_competitor_mentions_weighted = 0.0
+        
+        def _accumulate_prev_weighted_totals(snapshot):
+            nonlocal prev_brand_mentions_weighted, prev_competitor_mentions_weighted
+            
+            weighted_sov_raw = snapshot.get('weighted_share_of_voice')
+            try:
+                weighted_sov = float(weighted_sov_raw) if weighted_sov_raw is not None else None
+            except Exception:
+                weighted_sov = None
+            
+            weighted_breakdown = _parse_weighted_breakdown(snapshot.get('weighted_competitor_breakdown'))
+            
+            if weighted_sov is not None and weighted_breakdown:
+                try:
+                    total_weighted_comp = sum(float(v) for v in weighted_breakdown.values() if v is not None)
+                except Exception:
+                    total_weighted_comp = 0.0
+                
+                if weighted_sov >= 100:
+                    weighted_brand = total_weighted_comp if total_weighted_comp > 0 else 1.0
+                elif weighted_sov > 0:
+                    weighted_brand = (weighted_sov / (100 - weighted_sov)) * total_weighted_comp
+                else:
+                    weighted_brand = 0.0
+                
+                prev_brand_mentions_weighted += weighted_brand
+                prev_competitor_mentions_weighted += total_weighted_comp
+            else:
+                # Fallback a métricas normales si no hay datos ponderados
+                prev_brand_mentions_weighted += (snapshot.get('total_mentions') or 0)
+                prev_competitor_mentions_weighted += (snapshot.get('total_competitor_mentions') or 0)
+        
         for snapshot in previous_snapshots:
             prev_brand_mentions += (snapshot.get('total_mentions') or 0)
             prev_competitor_mentions += (snapshot.get('total_competitor_mentions') or 0)
@@ -601,20 +688,95 @@ def get_project(project_id):
             prev_negative += (snapshot.get('negative_mentions') or 0)
             if snapshot.get('avg_position') is not None:
                 prev_positions.append(float(snapshot['avg_position']))
+            
+            # ✨ NUEVO: Acumular métricas ponderadas para SoV (periodo anterior)
+            _accumulate_prev_weighted_totals(snapshot)
         
         # Métricas del período anterior
         prev_mention_rate = (prev_brand_mentions / prev_queries_all * 100) if prev_queries_all > 0 else 0
-        prev_sov = (prev_brand_mentions / (prev_brand_mentions + prev_competitor_mentions) * 100) if (prev_brand_mentions + prev_competitor_mentions) > 0 else 0
+        if metric_type == 'weighted':
+            prev_sov = (
+                (prev_brand_mentions_weighted / (prev_brand_mentions_weighted + prev_competitor_mentions_weighted) * 100)
+                if (prev_brand_mentions_weighted + prev_competitor_mentions_weighted) > 0 else 0
+            )
+        else:
+            prev_sov = (
+                (prev_brand_mentions / (prev_brand_mentions + prev_competitor_mentions) * 100)
+                if (prev_brand_mentions + prev_competitor_mentions) > 0 else 0
+            )
         prev_positive_pct = (prev_positive / prev_queries_all * 100) if prev_queries_all > 0 else 0
         
         # 📊 Calcular métricas agregadas globales
         aggregated_mention_rate = (total_brand_mentions / total_queries_all * 100) if total_queries_all > 0 else 0
-        aggregated_sov = (total_brand_mentions / (total_brand_mentions + total_competitor_mentions) * 100) if (total_brand_mentions + total_competitor_mentions) > 0 else 0
+        if metric_type == 'weighted':
+            aggregated_sov = (
+                (total_brand_mentions_weighted / (total_brand_mentions_weighted + total_competitor_mentions_weighted) * 100)
+                if (total_brand_mentions_weighted + total_competitor_mentions_weighted) > 0 else 0
+            )
+        else:
+            aggregated_sov = (
+                (total_brand_mentions / (total_brand_mentions + total_competitor_mentions) * 100)
+                if (total_brand_mentions + total_competitor_mentions) > 0 else 0
+            )
         aggregated_avg_position = sum(all_positions) / len(all_positions) if all_positions else None
+        
+        # ✨ NUEVO: Métricas de posición desde resultados (consistencia con Responses Inspector)
+        results_total_appearances = None
+        results_avg_position = None
+        results_top3 = 0
+        results_top5 = 0
+        results_top10 = 0
+        
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        cur.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE brand_mentioned) as total_mentions,
+                AVG(position_in_list) FILTER (
+                    WHERE brand_mentioned 
+                      AND position_in_list IS NOT NULL 
+                      AND position_in_list <= 30
+                ) as avg_position,
+                COUNT(*) FILTER (
+                    WHERE brand_mentioned 
+                      AND position_in_list IS NOT NULL 
+                      AND position_in_list <= 3
+                ) as top3,
+                COUNT(*) FILTER (
+                    WHERE brand_mentioned 
+                      AND position_in_list IS NOT NULL 
+                      AND position_in_list <= 5
+                ) as top5,
+                COUNT(*) FILTER (
+                    WHERE brand_mentioned 
+                      AND position_in_list IS NOT NULL 
+                      AND position_in_list <= 10
+                ) as top10
+            FROM llm_monitoring_results
+            WHERE project_id = %s
+              AND analysis_date >= %s
+              AND analysis_date <= %s
+        """, (project_id, start_date, end_date))
+        
+        position_row = cur.fetchone()
+        if position_row:
+            results_total_appearances = position_row.get('total_mentions') or 0
+            results_avg_position = position_row.get('avg_position')
+            results_top3 = position_row.get('top3') or 0
+            results_top5 = position_row.get('top5') or 0
+            results_top10 = position_row.get('top10') or 0
         
         # ✨ NUEVO: Calcular tasas de posición (% sobre total de menciones donde aparecimos)
         # Nota: Top3 incluye Top1, Top5 incluye Top3, etc.
-        total_appearances = total_brand_mentions  # Usar menciones como base
+        if results_total_appearances is not None:
+            total_appearances = results_total_appearances
+            total_top3 = results_top3
+            total_top5 = results_top5
+            total_top10 = results_top10
+            if results_avg_position is not None:
+                aggregated_avg_position = float(results_avg_position)
+        else:
+            total_appearances = total_brand_mentions  # Usar menciones como base
         top3_rate = (total_top3 / total_appearances * 100) if total_appearances > 0 else 0
         top5_rate = (total_top5 / total_appearances * 100) if total_appearances > 0 else 0
         top10_rate = (total_top10 / total_appearances * 100) if total_appearances > 0 else 0
@@ -710,7 +872,10 @@ def get_project(project_id):
                 'snapshots_count': len(llm_snapshots)
             }
         
-        logger.info(f"✅ Métricas agregadas calculadas: SoV={aggregated_sov:.2f}%, Mention Rate={aggregated_mention_rate:.2f}%")
+        logger.info(
+            f"✅ Métricas agregadas calculadas ({metric_type}): "
+            f"SoV={aggregated_sov:.2f}%, Mention Rate={aggregated_mention_rate:.2f}%"
+        )
         
         # ✨ NUEVO: Calcular Quality Score
         # Componentes del Quality Score:

@@ -426,6 +426,7 @@ class LLMMonitoring {
                     this.renderShareOfVoiceDonutChart();  // Gráfico de rosco/distribución
                     this.renderMentionsTimelineChart();  // Timeline de menciones (usa los mismos datos)
                     this.loadComparison(this.currentProject.id);  // ✨ NUEVO: Tabla LLM Comparison
+                    this.refreshProjectKPIs();  // ✨ NUEVO: KPIs alineados con la métrica
 
                     console.log(`✅ All charts and tables updated to ${metricType} metric`);
                 }
@@ -790,7 +791,10 @@ class LLMMonitoring {
 
         try {
             // Load project details with time range
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}`);
+            const metricType = this.getSelectedSovMetric();
+            const response = await fetch(
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`
+            );
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -827,6 +831,37 @@ class LLMMonitoring {
             console.error('❌ Error loading project:', error);
             this.showError('Failed to load project details.');
             this.showProjectsList();
+        }
+    }
+
+    /**
+     * ✨ NUEVO: Obtener métrica SoV seleccionada (weighted/normal)
+     */
+    getSelectedSovMetric() {
+        return document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+    }
+
+    /**
+     * ✨ NUEVO: Actualiza KPIs con la métrica SoV seleccionada
+     */
+    async refreshProjectKPIs() {
+        const projectId = this.currentProject?.id;
+        if (!projectId) return;
+        
+        try {
+            const metricType = this.getSelectedSovMetric();
+            const response = await fetch(
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`
+            );
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.currentTrends = data.trends || null;
+            this.updateKPIs(data.latest_metrics, data.trends);
+        } catch (error) {
+            console.error('❌ Error refreshing KPIs:', error);
         }
     }
 
@@ -5024,10 +5059,16 @@ class LLMMonitoring {
         // Calculate stats
         const total = responses.length;
         const mentioned = responses.filter(r => r.brand_mentioned).length;
-        const mentionRate = total > 0 ? ((mentioned / total) * 100).toFixed(0) : 0;
+        const mentionRate = total > 0 ? ((mentioned / total) * 100).toFixed(1) : 0;
         
         // Average position (only for responses with position)
-        const withPosition = responses.filter(r => r.position_in_list !== null && r.position_in_list !== undefined);
+        const withPosition = responses.filter(
+            r =>
+                r.brand_mentioned &&
+                r.position_in_list !== null &&
+                r.position_in_list !== undefined &&
+                r.position_in_list <= 30
+        );
         const avgPosition = withPosition.length > 0 
             ? (withPosition.reduce((sum, r) => sum + r.position_in_list, 0) / withPosition.length).toFixed(1)
             : '-';
