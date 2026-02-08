@@ -3258,7 +3258,8 @@ label:not(.search-form label) {
     border-radius: 6px;
     font-size: 0.72rem;
     line-height: 1.2;
-    white-space: nowrap;
+    white-space: pre-line;
+    max-width: 260px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
