@@ -3236,10 +3236,53 @@ label:not(.search-form label) {
     color: #9ca3af;
     cursor: help;
     font-size: 0.75rem;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
 }
 
 .kpi-tooltip:hover {
     color: #6b7280;
+}
+
+/* Tooltip custom para iconos KPI */
+.kpi-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    top: 140%;
+    transform: translateX(-50%);
+    background: rgba(17, 24, 39, 0.95);
+    color: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 50;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.kpi-tooltip::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 122%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent transparent rgba(17, 24, 39, 0.95) transparent;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 50;
+}
+
+.kpi-tooltip:hover::after,
+.kpi-tooltip:hover::before {
+    opacity: 1;
 }
 
 
