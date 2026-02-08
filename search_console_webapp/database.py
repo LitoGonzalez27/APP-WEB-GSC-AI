@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Configuración de la base de datos
 # Railway proporciona DATABASE_URL automáticamente en producción
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:XCkoyokCzfRlyPCFNGpfIhqteibfbojQ@caboose.proxy.rlwy.net:13631/railway')
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL no está configurada en el entorno")
 
 # Detectar si estamos en producción
 # Detección de entorno mejorada
@@ -478,6 +480,47 @@ def get_connection_for_site(user_id: int, site_url: str) -> Optional[Dict[str, A
     except Exception as e:
         logger.error(f"Error obteniendo conexión para site_url: {e}")
         return None
+    finally:
+        if conn:
+            conn.close()
+
+def user_owns_site_url(user_id: int, site_url: str) -> bool:
+    """Valida si el usuario es dueño del site_url (GSC o análisis previo)."""
+    if not site_url:
+        return False
+    try:
+        from services.utils import normalize_search_console_url
+        normalized = normalize_search_console_url(site_url)
+    except Exception:
+        normalized = site_url
+
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT 1
+            FROM gsc_properties
+            WHERE user_id = %s
+              AND (site_url = %s OR site_url = %s)
+            LIMIT 1
+        ''', (user_id, site_url, normalized))
+        row = cur.fetchone()
+        if row:
+            return True
+
+        cur.execute('''
+            SELECT 1
+            FROM ai_overview_analysis
+            WHERE user_id = %s
+              AND (site_url = %s OR site_url = %s)
+            LIMIT 1
+        ''', (user_id, site_url, normalized))
+        return cur.fetchone() is not None
+    except Exception as e:
+        logger.error(f"Error validando ownership de site_url: {e}")
+        return False
     finally:
         if conn:
             conn.close()

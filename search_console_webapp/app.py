@@ -8,6 +8,8 @@ import zipfile
 from io import BytesIO
 from datetime import datetime, timedelta # Importación añadida
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import pandas as pd
 from excel_generator import generate_excel_from_data
 from dotenv import load_dotenv
@@ -39,7 +41,7 @@ from auth import (
     get_user_credentials,
     get_current_user
 )
-from database import get_connection_for_site, list_gsc_properties_for_user
+from database import get_connection_for_site, list_gsc_properties_for_user, user_owns_site_url
 
 # --- NUEVO: Detector de dispositivos móviles ---
 from mobile_detector import (
@@ -73,6 +75,20 @@ else:
 
 
 app = Flask(__name__)
+
+# --- Rate limiting (global) ---
+def _rate_limit_key():
+    user_id = session.get('user_id')
+    return f"user:{user_id}" if user_id else get_remote_address()
+
+default_limits_env = os.getenv('RATE_LIMIT_DEFAULT', '200 per hour;50 per minute')
+default_limits = [item.strip() for item in default_limits_env.split(';') if item.strip()]
+limiter = Limiter(
+    key_func=_rate_limit_key,
+    app=app,
+    default_limits=default_limits,
+    storage_uri=os.getenv('RATE_LIMIT_STORAGE_URL', 'memory://')
+)
 
 # --- NUEVO: Configuración de sesión para autenticación ---
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -2022,6 +2038,7 @@ def analyze_keywords_parallel(keywords_data_list, site_url_req, country_req, max
 
 @app.route('/api/analyze-ai-overview', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
+@limiter.limit("20 per minute")
 def analyze_ai_overview_route():
     # ✅ NUEVO FASE 4.5: PAYWALL CHECK
     user = get_current_user()
@@ -2152,6 +2169,8 @@ def analyze_ai_overview_route():
             return jsonify({'error': 'No se proporcionaron keywords para analizar'}), 400
         if not site_url_req:
             return jsonify({'error': 'site_url es requerido'}), 400
+        if not user_owns_site_url(user['id'], site_url_req) and user.get('role') != 'admin':
+            return jsonify({'error': 'No tienes acceso a este site_url'}), 403
         
         serpapi_key = os.getenv('SERPAPI_KEY')
         if not serpapi_key:
@@ -2414,10 +2433,14 @@ def test_url_matching_route():
 
 @app.route('/get-available-countries', methods=['POST'])
 @auth_required  # NUEVO: Requiere autenticación
+@limiter.limit("30 per minute")
 def get_available_countries():
     site_url = request.json.get('site_url', '')
     if not site_url:
         return jsonify({'error': 'site_url es requerido'}), 400
+    user = get_current_user()
+    if not user_owns_site_url(user['id'], site_url) and user.get('role') != 'admin':
+        return jsonify({'error': 'No tienes acceso a este site_url'}), 403
     
     # Resolver servicio: preferir conexión asociada a la propiedad
     gsc_service = None
@@ -2986,6 +3009,7 @@ def get_ai_overview_typology_route():
 
 @app.route('/api/ai-overview-history', methods=['GET'])
 @auth_required
+@limiter.limit("60 per minute")
 def get_ai_overview_history_route():
     """Obtiene historial de análisis de AI Overview"""
     try:
@@ -2994,6 +3018,10 @@ def get_ai_overview_history_route():
         keyword = request.args.get('keyword')
         days = int(request.args.get('days', 30))
         limit = int(request.args.get('limit', 100))
+        if site_url:
+            user = get_current_user()
+            if not user_owns_site_url(user['id'], site_url) and user.get('role') != 'admin':
+                return jsonify({'error': 'No tienes acceso a este site_url'}), 403
         
         history = get_ai_overview_history(site_url, keyword, days, limit)
         

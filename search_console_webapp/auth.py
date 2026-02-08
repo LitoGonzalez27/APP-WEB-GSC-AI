@@ -96,7 +96,8 @@ def verify_recaptcha(token: str, action: str) -> bool:
         with urllib.request.urlopen(req, timeout=5) as resp:
             payload = json.loads(resp.read().decode('utf-8'))
         if not payload.get('success'):
-            logger.warning(f"reCAPTCHA failed: {payload}")
+            error_codes = payload.get('error-codes', [])
+            logger.warning(f"reCAPTCHA failed: error_codes={error_codes}")
             return False
         if action and payload.get('action') and payload.get('action') != action:
             logger.warning(f"reCAPTCHA action mismatch: expected {action}, got {payload.get('action')}")
@@ -639,9 +640,8 @@ def setup_auth_routes(app):
                 logger.info(f"✅ Password reset email enviado a {email}")
                 return jsonify({'success': True, 'message': 'Reset link sent'})
             else:
-                # Fallback: loggear el token si todo falla
-                logger.warning(f"⚠️ Error enviando email, usando fallback log para {email}")
-                logger.info(f"🔑 Password reset token para {email}: {reset_url}")
+                # Fallback: no loggear el token por seguridad
+                logger.warning(f"⚠️ Error enviando email. Fallback seguro para {email}")
                 return jsonify({'success': True, 'message': 'Reset link sent'})
             
         except Exception as e:
