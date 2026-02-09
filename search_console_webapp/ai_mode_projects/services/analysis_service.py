@@ -70,12 +70,56 @@ class AnalysisService:
             return []
 
         if project.get('is_paused_by_quota'):
-            return {
-                'success': False,
-                'error': 'project_paused_quota',
-                'message': 'Proyecto en pausa por agotamiento de cuota',
-                'paused_until': project.get('paused_until')
-            }
+            paused_until = project.get('paused_until')
+            if paused_until:
+                try:
+                    now_cmp = datetime.now(paused_until.tzinfo) if paused_until.tzinfo else datetime.utcnow()
+                except Exception:
+                    now_cmp = datetime.utcnow()
+                if paused_until <= now_cmp:
+                    try:
+                        resume_conn = get_db_connection()
+                        if not resume_conn:
+                            raise Exception("No DB connection available for resume")
+                        resume_cur = resume_conn.cursor()
+                        resume_cur.execute('''
+                            UPDATE ai_mode_projects
+                            SET is_paused_by_quota = FALSE,
+                                paused_until = NULL,
+                                paused_at = NULL,
+                                paused_reason = NULL,
+                                updated_at = NOW()
+                            WHERE id = %s
+                        ''', (project_id,))
+                        resume_conn.commit()
+                        project['is_paused_by_quota'] = False
+                        project['paused_until'] = None
+                        project['paused_reason'] = None
+                    except Exception as resume_error:
+                        logger.warning(f"Error reanudando proyecto AI Mode {project_id}: {resume_error}")
+                    finally:
+                        try:
+                            resume_cur.close()
+                        except Exception:
+                            pass
+                        try:
+                            resume_conn.close()
+                        except Exception:
+                            pass
+                else:
+                    return {
+                        'success': False,
+                        'error': 'project_paused_quota',
+                        'message': 'Proyecto en pausa por agotamiento de cuota',
+                        'paused_until': paused_until
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'project_paused_quota',
+                    'message': 'Proyecto en pausa por agotamiento de cuota',
+                    'paused_until': paused_until
+                }
 
         # Validar cuota antes de empezar
         quota_info = get_user_quota_status(current_user['id'])
