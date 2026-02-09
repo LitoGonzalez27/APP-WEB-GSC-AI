@@ -150,7 +150,12 @@ import {
     loadProjectIntoModal,
     loadModalKeywords,
     renderModalKeywords,
-    loadModalSettings
+    loadModalSettings,
+    confirmDeleteProjectFromModal,
+    confirmDeleteProject,
+    cancelDeleteProject,
+    executeDeleteProject,
+    hideDeleteProjectModal
 } from '/static/js/ai-mode-projects/ai-mode-modals.js';
 
 // ================================
@@ -279,7 +284,12 @@ Object.assign(AIModeSystem.prototype, {
     loadProjectIntoModal,
     loadModalKeywords,
     renderModalKeywords,
-    loadModalSettings
+    loadModalSettings,
+    confirmDeleteProjectFromModal,
+    confirmDeleteProject,
+    cancelDeleteProject,
+    executeDeleteProject,
+    hideDeleteProjectModal
 });
 
 // ================================
