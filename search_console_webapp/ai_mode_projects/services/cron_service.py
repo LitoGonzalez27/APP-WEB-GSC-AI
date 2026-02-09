@@ -169,7 +169,10 @@ class CronService:
             JOIN users u ON u.id = p.user_id
             LEFT JOIN ai_mode_keywords k ON p.id = k.project_id AND k.is_active = true
             WHERE p.is_active = true
-              AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+              AND (
+                  COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+                  OR (p.paused_until IS NOT NULL AND p.paused_until <= NOW())
+              )
               AND COALESCE(u.plan, 'free') <> 'free'
               AND COALESCE(u.billing_status, '') NOT IN ('canceled')
             GROUP BY p.id, p.name, p.brand_name, p.country_code, p.user_id

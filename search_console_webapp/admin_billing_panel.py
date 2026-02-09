@@ -8,9 +8,10 @@ Estas funciones extienden las existentes para incluir datos de Stripe y facturac
 """
 
 import os
+import json
 import logging
 from datetime import datetime, date, timedelta
-from database import get_db_connection
+from database import get_db_connection, resume_quota_pauses_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -601,54 +602,6 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         if conn:
             conn.close()
 
-def reset_user_quota_manual(user_id, admin_id):
-    """Permite al admin resetear la cuota de un usuario manualmente"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return {'success': False, 'error': 'Database connection failed'}
-        
-        cur = conn.cursor()
-        # Obtener periodo actual para alinear reset
-        cur.execute('''
-            SELECT current_period_start, current_period_end, quota_reset_date
-            FROM users WHERE id = %s
-        ''', (user_id,))
-        row = cur.fetchone() or {}
-        from quota_manager import compute_next_quota_reset_date
-        next_reset = compute_next_quota_reset_date(
-            period_start=row.get('current_period_start'),
-            period_end=row.get('current_period_end'),
-            last_reset=row.get('quota_reset_date')
-        )
-
-        # Resetear cuota
-        cur.execute('''
-            UPDATE users 
-            SET 
-                quota_used = 0,
-                quota_reset_date = %s,
-                updated_at = NOW()
-            WHERE id = %s
-        ''', (next_reset, user_id))
-        
-        if cur.rowcount == 0:
-            return {'success': False, 'error': 'Usuario no encontrado'}
-        
-        # Log de la acción
-        logger.info(f"Admin {admin_id} reseteo cuota de usuario {user_id}")
-        
-        conn.commit()
-        
-        return {'success': True, 'message': 'Cuota reseteada exitosamente'}
-        
-    except Exception as e:
-        logger.error(f"Error reseteando cuota: {e}")
-        return {'success': False, 'error': 'Error interno del servidor'}
-    finally:
-        if conn:
-            conn.close()
-
 def get_plan_display_info(plan):
     """Retorna información visual para mostrar planes en el panel admin"""
     plan_info = {
@@ -941,32 +894,46 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
             return {'success': False, 'error': 'Admin not found or insufficient permissions'}
         
         # Verificar que el usuario existe y obtener quota actual
-        cur.execute('SELECT email, quota_used, plan FROM users WHERE id = %s', (user_id,))
+        cur.execute('''
+            SELECT email, quota_used, plan, current_period_start, current_period_end, quota_reset_date
+            FROM users
+            WHERE id = %s
+        ''', (user_id,))
         user_info = cur.fetchone()
         
         if not user_info:
             return {'success': False, 'error': 'User not found'}
         
         previous_quota_used = user_info['quota_used'] or 0
-        
-        # Resetear quota_used a 0
+
+        from quota_manager import compute_next_quota_reset_date
+        next_reset = compute_next_quota_reset_date(
+            period_start=user_info.get('current_period_start'),
+            period_end=user_info.get('current_period_end'),
+            last_reset=user_info.get('quota_reset_date')
+        )
+
+        # Resetear quota_used a 0 y alinear próximo reset
         cur.execute('''
             UPDATE users 
-            SET quota_used = 0, 
+            SET quota_used = 0,
+                quota_reset_date = %s,
                 updated_at = NOW()
             WHERE id = %s
-        ''', (user_id,))
+        ''', (next_reset, user_id))
         
         # Registrar evento de reset en quota_usage_events (si la tabla existe)
         try:
             cur.execute('''
-                INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, operation_type, metadata, created_at) 
-                VALUES (%s, %s, %s, %s, NOW())
+                INSERT INTO quota_usage_events
+                (user_id, ru_consumed, source, keyword, country_code, timestamp, metadata)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             ''', (
                 user_id, 
                 0,  # No consume RU, es un reset
                 'admin_quota_reset',
+                'admin_quota_reset',
+                '',
                 json.dumps({
                     'reset_by_admin_id': admin_id,
                     'reset_by_admin_email': admin_info['email'],
@@ -977,6 +944,11 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
         except Exception as event_error:
             # Si falla el registro de evento, continuar (no crítico)
             logger.warning(f"Could not log quota reset event: {event_error}")
+
+        try:
+            resume_quota_pauses_for_user(user_id)
+        except Exception as resume_error:
+            logger.warning(f"Could not resume paused modules for user {user_id}: {resume_error}")
         
         conn.commit()
         
@@ -987,7 +959,8 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
             'success': True,
             'message': f'Quota reset successfully. Previous usage: {previous_quota_used} RU',
             'previous_usage': previous_quota_used,
-            'new_usage': 0
+            'new_usage': 0,
+            'next_reset': next_reset.isoformat() if next_reset else None
         }
         
     except Exception as e:

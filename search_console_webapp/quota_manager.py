@@ -13,7 +13,7 @@ Maneja toda la lógica de quotas incluyendo:
 import os
 import logging
 from datetime import datetime, timedelta
-from database import get_db_connection
+from database import get_db_connection, resume_quota_pauses_for_user
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,9 @@ def consume_user_quota(user_id, ru_amount, operation_type="api_call", metadata=N
             quota_status = get_user_quota_status(user_id)
             return {
                 'success': False,
-                'message': f'Quota limit exceeded. Used: {quota_status["used"]}/{quota_status["limit"]} RU',
+                'message': (
+                    f'Quota limit exceeded. Used: {quota_status["quota_used"]}/{quota_status["quota_limit"]} RU'
+                ),
                 'remaining': quota_status['remaining'],
                 'error_code': 'QUOTA_EXCEEDED'
             }
@@ -254,8 +256,8 @@ def consume_user_quota(user_id, ru_amount, operation_type="api_call", metadata=N
             'success': True,
             'message': f'Consumed {ru_amount} RU successfully',
             'remaining': updated_status['remaining'],
-            'used': updated_status['used'],
-            'limit': updated_status['limit']
+            'used': updated_status['quota_used'],
+            'limit': updated_status['quota_limit']
         }
         
     except Exception as e:
@@ -302,56 +304,6 @@ def get_user_access_permissions(user_id):
         })
     
     return permissions
-
-def reset_user_quota(user_id, admin_id=None):
-    """
-    Resetea la quota usada de un usuario (para admins o billing cycle)
-    """
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return {'success': False, 'error': 'Database connection failed'}
-        
-        cur = conn.cursor()
-        
-        # Obtener periodo actual para alinear reset
-        cur.execute('''
-            SELECT current_period_start, current_period_end, quota_reset_date
-            FROM users WHERE id = %s
-        ''', (user_id,))
-        row = cur.fetchone() or {}
-        next_reset = compute_next_quota_reset_date(
-            period_start=row.get('current_period_start'),
-            period_end=row.get('current_period_end'),
-            last_reset=row.get('quota_reset_date')
-        )
-
-        # Resetear quota
-        cur.execute('''
-            UPDATE users 
-            SET 
-                quota_used = 0,
-                quota_reset_date = %s,
-                updated_at = NOW()
-            WHERE id = %s
-        ''', (next_reset, user_id))
-        
-        if cur.rowcount == 0:
-            return {'success': False, 'error': 'Usuario no encontrado'}
-        
-        conn.commit()
-        
-        action_by = f"admin {admin_id}" if admin_id else "billing cycle"
-        logger.info(f"Quota reset for user {user_id} by {action_by}")
-        
-        return {'success': True, 'message': 'Quota reset successfully'}
-        
-    except Exception as e:
-        logger.error(f"Error resetting quota for user {user_id}: {e}")
-        return {'success': False, 'error': 'Internal server error'}
-    finally:
-        if conn:
-            conn.close()
 
 def get_quota_statistics():
     """
@@ -426,7 +378,7 @@ def test_quota_manager():
             
             # Test estado de quota
             status = get_user_quota_status(user_id)
-            print(f"Estado quota: Limit={status['limit']}, Used={status['used']}, Can_consume={status['can_consume']}")
+            print(f"Estado quota: Limit={status['quota_limit']}, Used={status['quota_used']}, Can_consume={status['can_consume']}")
             
             # Test permisos
             permissions = get_user_access_permissions(user_id)
@@ -484,13 +436,15 @@ def record_quota_usage(user_id, ru_consumed, operation_type="unknown", metadata=
         try:
             import json
             cur.execute('''
-                INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, operation_type, metadata, created_at) 
-                VALUES (%s, %s, %s, %s, NOW())
+                INSERT INTO quota_usage_events
+                (user_id, ru_consumed, source, keyword, country_code, timestamp, metadata)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             ''', (
-                user_id, 
-                ru_consumed, 
+                user_id,
+                ru_consumed,
                 operation_type,
+                '',
+                '',
                 json.dumps(metadata) if metadata else None
             ))
         except Exception as e:
@@ -558,13 +512,15 @@ def reset_user_quota(user_id, admin_id=None):
         try:
             import json
             cur.execute('''
-                INSERT INTO quota_usage_events 
-                (user_id, ru_consumed, operation_type, metadata, created_at) 
-                VALUES (%s, %s, %s, %s, NOW())
+                INSERT INTO quota_usage_events
+                (user_id, ru_consumed, source, keyword, country_code, timestamp, metadata)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             ''', (
                 user_id, 
                 0,  # No consume RU, es un reset
                 'quota_reset',
+                'quota_reset',
+                '',
                 json.dumps({
                     'previous_usage': previous_usage,
                     'reset_by_admin': admin_id,
@@ -573,6 +529,11 @@ def reset_user_quota(user_id, admin_id=None):
             ))
         except Exception as e:
             logger.warning(f"Could not log quota reset event: {e}")
+
+        try:
+            resume_quota_pauses_for_user(user_id)
+        except Exception as resume_error:
+            logger.warning(f"Could not resume paused modules for user {user_id}: {resume_error}")
         
         conn.commit()
         
