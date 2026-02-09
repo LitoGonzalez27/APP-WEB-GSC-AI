@@ -208,6 +208,140 @@ export function loadProjectIntoModal(project) {
     this.loadCompetitors(project.id);
 }
 
+// ================================
+// PROJECT DELETION
+// ================================
+
+export function confirmDeleteProjectFromModal() {
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    // Set project name in delete modal
+    document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
+    document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
+
+    // Store project reference for deletion
+    this.projectToDelete = this.currentModalProject;
+
+    // Hide project modal and show delete confirmation
+    this.hideProjectModal();
+    this.showElement(document.getElementById('deleteProjectModal'));
+
+    // Reset confirmation input
+    const confirmInput = document.getElementById('deleteConfirmInput');
+    confirmInput.value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+
+    // Remove any existing event listener to prevent duplicates
+    confirmInput.oninput = null;
+
+    // Add input listener for enabling delete button
+    confirmInput.oninput = (e) => {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        const inputValue = e.target.value.trim();
+
+        if (!this.projectToDelete || !this.projectToDelete.name) {
+            deleteBtn.disabled = true;
+            return;
+        }
+
+        const projectName = this.projectToDelete.name.trim();
+        deleteBtn.disabled = inputValue !== projectName;
+    };
+}
+
+export function confirmDeleteProject(projectId) {
+    const currentProject = this.projects.find(p => p.id === projectId);
+    if (!currentProject) {
+        this.showError('Project not found');
+        return;
+    }
+
+    document.getElementById('deleteProjectName').textContent = currentProject.name;
+    document.getElementById('deleteProjectNamePrompt').textContent = currentProject.name;
+
+    const confirmInput = document.getElementById('deleteConfirmInput');
+    confirmInput.value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+
+    this.projectToDelete = currentProject;
+
+    confirmInput.oninput = null;
+    confirmInput.oninput = (e) => {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        const inputValue = e.target.value.trim();
+
+        if (!this.projectToDelete || !this.projectToDelete.name) {
+            deleteBtn.disabled = true;
+            return;
+        }
+
+        const projectName = this.projectToDelete.name.trim();
+        deleteBtn.disabled = inputValue !== projectName;
+    };
+
+    this.showElement(document.getElementById('deleteProjectModal'));
+}
+
+export function cancelDeleteProject() {
+    this.hideElement(document.getElementById('deleteProjectModal'));
+    this.projectToDelete = null;
+    document.getElementById('deleteConfirmInput').value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+}
+
+export function hideDeleteProjectModal() {
+    this.cancelDeleteProject();
+}
+
+export async function executeDeleteProject() {
+    const projectToDelete = this.projectToDelete;
+    const confirmText = document.getElementById('deleteConfirmInput').value;
+
+    if (!projectToDelete) {
+        this.showError('No project selected for deletion');
+        return;
+    }
+
+    if (confirmText.trim() !== projectToDelete.name.trim()) {
+        this.showError('Please type the project name exactly to confirm');
+        return;
+    }
+
+    try {
+        this.showProgress('Deleting project...', 'Removing project and all associated data...');
+
+        const response = await fetch(`/ai-mode-projects/api/projects/${encodeURIComponent(projectToDelete.id)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            this.showSuccess('Project deleted successfully');
+            this.cancelDeleteProject();
+
+            await this.loadProjects();
+            this.populateAnalyticsProjectSelect();
+
+            if (this.elements.analyticsProjectSelect?.value == projectToDelete.id) {
+                this.elements.analyticsProjectSelect.value = '';
+                this.elements.analyticsContent.innerHTML = '<div class="empty-analytics"><i class="fas fa-chart-line"></i><p>Select a project to view analytics</p></div>';
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete project');
+        }
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        this.showError(error.message || 'Failed to delete project');
+    } finally {
+        this.hideProgress();
+    }
+}
+
 export async function loadModalKeywords(projectId) {
     try {
         const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/keywords`);
