@@ -107,7 +107,7 @@ def create_llm_monitoring_tables():
                 added_at TIMESTAMP DEFAULT NOW(),
                 
                 UNIQUE(project_id, query_text),
-                CHECK (char_length(query_text) >= 10)
+                CHECK (char_length(query_text) >= 1)
             )
         """)
         logger.info("   ✅ Tabla llm_monitoring_queries creada")

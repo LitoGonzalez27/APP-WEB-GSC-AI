@@ -1446,7 +1446,7 @@ def add_queries_to_project(project_id):
         
         for query_text in queries_list:
             query_text = query_text.strip()
-            if not query_text or len(query_text) < 10:
+            if not query_text:
                 error_count += 1
                 continue
             

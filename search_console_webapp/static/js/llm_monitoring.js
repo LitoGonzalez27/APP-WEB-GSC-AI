@@ -4023,8 +4023,9 @@ class LLMMonitoring {
         if (!textarea) return;
         
         const text = textarea.value.trim();
-        const prompts = text ? text.split('\n').filter(line => line.trim().length > 0) : [];
+        const prompts = text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
         const promptCount = prompts.length;
+        const hasShortPrompts = prompts.some(line => line.length > 0 && line.length < 10);
         
         // Update counter
         if (counterNumber) {
@@ -4041,6 +4042,11 @@ class LLMMonitoring {
             submitText.textContent = promptCount > 0 
                 ? `Add ${promptCount} Prompt${promptCount !== 1 ? 's' : ''}`
                 : 'Add Prompts';
+        }
+
+        const lengthWarning = document.getElementById('promptLengthWarning');
+        if (lengthWarning) {
+            lengthWarning.style.display = hasShortPrompts ? 'block' : 'none';
         }
     }
     
@@ -4118,7 +4124,7 @@ class LLMMonitoring {
         const queries = promptsText
             .split('\n')
             .map(q => q.trim())
-            .filter(q => q.length >= 10);
+            .filter(q => q.length > 0);
 
         if (queries.length === 0) {
             this.showError('All prompts must be at least 10 characters long');
@@ -4166,6 +4172,19 @@ class LLMMonitoring {
             const data = await response.json();
 
             console.log(`✅ Added ${data.added_count} prompts`);
+
+            if (data.added_count === 0) {
+                let message = 'No prompts were added.';
+                if (data.duplicate_count > 0 && data.error_count === 0) {
+                    message = 'All prompts already exist in this project.';
+                } else if (data.error_count > 0 && data.duplicate_count === 0) {
+                    message = 'All prompts are invalid. Make sure each prompt is not empty.';
+                } else if (data.error_count > 0 && data.duplicate_count > 0) {
+                    message = `No prompts added (${data.duplicate_count} duplicates, ${data.error_count} invalid).`;
+                }
+                this.showError(message);
+                return;
+            }
 
             // Hide modal
             this.hidePromptsModal();
