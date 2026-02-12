@@ -692,6 +692,7 @@ class LLMMonitoring {
     renderProjectCard(project, container) {
         const card = document.createElement('div');
         card.className = 'project-card';
+        const safeProjectName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
         card.innerHTML = `
             <div class="project-card-header">
                 <h3>${this.escapeHtml(project.name)}</h3>
@@ -732,21 +733,25 @@ class LLMMonitoring {
                     <i class="fas fa-eye"></i>
                     View Metrics
                 </button>
+                <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                    <i class="fas fa-list"></i>
+                    View/Edit Prompts
+                </button>
                 <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.showProjectModal(${JSON.stringify(project).replace(/"/g, '&quot;')})">
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
                 ${project.is_active ? `
-                    <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, '${this.escapeHtml(project.name)}')">
+                    <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
                         Deactivate
                     </button>
                 ` : `
-                    <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, '${this.escapeHtml(project.name)}')">
+                    <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-play"></i>
                         Activate
                     </button>
-                    <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, '${this.escapeHtml(project.name)}', true)">
+                    <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, ${safeProjectName}, true)">
                         <i class="fas fa-trash"></i>
                         Delete
                     </button>
@@ -4081,6 +4086,19 @@ class LLMMonitoring {
         setTimeout(() => {
             modal.classList.add('active');
         }, 10);
+    }
+
+    /**
+     * Open prompts management directly from project card
+     */
+    openPromptsManagementForProject(project) {
+        if (!project || !project.id) {
+            this.showError('No project selected');
+            return;
+        }
+
+        this.currentProject = project;
+        this.showPromptsManagementModal();
     }
 
     /**

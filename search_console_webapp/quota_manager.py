@@ -382,7 +382,7 @@ def test_quota_manager():
             
             # Test permisos
             permissions = get_user_access_permissions(user_id)
-            print(f"Permisos: AI Overview: {permissions['ai_overview_access']}, Manual AI: {permissions['manual_ai_access']}")
+            print(f"Permisos: AI Overview: {permissions['can_use_ai_overview']}, Manual AI: {permissions['can_use_manual_ai']}")
             
             # Test de consumo (simulado)
             print(f"¿Puede consumir 1 RU? {can_user_consume_ru(user_id, 1)}")

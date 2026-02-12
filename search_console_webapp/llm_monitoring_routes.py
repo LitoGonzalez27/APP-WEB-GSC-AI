@@ -262,16 +262,6 @@ def create_project():
     
     plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
     max_projects = plan_limits.get('max_projects')
-    active_projects = count_user_active_projects(user['id'])
-    if max_projects is not None and active_projects >= max_projects:
-        return jsonify({
-            'error': 'project_limit_reached',
-            'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
-            'current_plan': user.get('plan', 'free'),
-            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-            'limit': max_projects,
-            'current': active_projects
-        }), 402
 
     data = request.get_json()
     
@@ -321,6 +311,27 @@ def create_project():
     
     try:
         cur = conn.cursor()
+
+        # Lock del usuario para evitar carreras en creación de proyectos
+        cur.execute("SELECT id FROM users WHERE id = %s FOR UPDATE", (user['id'],))
+
+        if max_projects is not None:
+            cur.execute("""
+                SELECT COUNT(*) AS count
+                FROM llm_monitoring_projects
+                WHERE user_id = %s AND is_active = TRUE
+            """, (user['id'],))
+            row = cur.fetchone()
+            active_projects = int(row['count']) if row else 0
+            if active_projects >= max_projects:
+                return jsonify({
+                    'error': 'project_limit_reached',
+                    'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
+                    'current_plan': user.get('plan', 'free'),
+                    'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+                    'limit': max_projects,
+                    'current': active_projects
+                }), 402
         
         # Verificar que no exista proyecto con ese nombre para el usuario
         cur.execute("""
@@ -1409,19 +1420,6 @@ def add_queries_to_project(project_id):
     # Validar límites por plan (prompts por proyecto)
     plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
     max_prompts = plan_limits.get('max_prompts_per_project')
-    if max_prompts is not None:
-        current_count = count_project_active_queries(project_id)
-        incoming_count = len([q for q in queries_list if isinstance(q, str) and q.strip()])
-        if current_count + incoming_count > max_prompts:
-            return jsonify({
-                'error': 'prompt_limit_exceeded',
-                'message': 'Has alcanzado el máximo de prompts permitidos para este proyecto',
-                'current_plan': user.get('plan', 'free'),
-                'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-                'limit': max_prompts,
-                'current': current_count,
-                'requested': incoming_count
-            }), 402
 
     # Obtener configuración del proyecto si no se especificó idioma
     conn = get_db_connection()
@@ -1430,6 +1428,29 @@ def add_queries_to_project(project_id):
     
     try:
         cur = conn.cursor()
+
+        # Lock del proyecto para evitar carreras al añadir prompts
+        cur.execute("SELECT id FROM llm_monitoring_projects WHERE id = %s FOR UPDATE", (project_id,))
+
+        if max_prompts is not None:
+            cur.execute("""
+                SELECT COUNT(*) AS count
+                FROM llm_monitoring_queries
+                WHERE project_id = %s AND is_active = TRUE
+            """, (project_id,))
+            row = cur.fetchone()
+            current_count = int(row['count']) if row else 0
+            incoming_count = len([q for q in queries_list if isinstance(q, str) and q.strip()])
+            if current_count + incoming_count > max_prompts:
+                return jsonify({
+                    'error': 'prompt_limit_exceeded',
+                    'message': 'Has alcanzado el máximo de prompts permitidos para este proyecto',
+                    'current_plan': user.get('plan', 'free'),
+                    'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
+                    'limit': max_prompts,
+                    'current': current_count,
+                    'requested': incoming_count
+                }), 402
         
         # Si no se especificó idioma, usar el del proyecto
         if not language:
