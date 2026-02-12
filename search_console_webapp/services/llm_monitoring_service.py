@@ -1571,6 +1571,10 @@ JSON:"""
                     DO UPDATE SET
                         has_error = TRUE,
                         error_message = EXCLUDED.error_message,
+                        full_response = EXCLUDED.full_response,
+                        response_length = EXCLUDED.response_length,
+                        tokens_used = EXCLUDED.tokens_used,
+                        cost_usd = EXCLUDED.cost_usd,
                         updated_at = NOW()
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
