@@ -51,6 +51,9 @@ class Navbar {
         
         // Sidebar navigation
         this.navSectionGlobal = document.getElementById('navSectionGlobal');
+        this.navbarBrand = this.navbar ? this.navbar.querySelector('.navbar-brand') : null;
+        this.mobileBrand = this.navbarMenu ? this.navbarMenu.querySelector('.mobile-brand') : null;
+        this.dashboardUrl = 'https://app.clicandseo.com/dashboard';
         
         // Estado de la aplicación
         this.isLoggedIn = false;
@@ -77,6 +80,22 @@ class Navbar {
     }
 
     setupEventListeners() {
+        // Navegación rápida al dashboard al hacer click en el logo de marca
+        if (this.navbarBrand) {
+            this.navbarBrand.addEventListener('click', (e) => {
+                const interactiveEl = e.target.closest('a, button');
+                if (interactiveEl) return;
+                window.location.href = this.dashboardUrl;
+            });
+        }
+        if (this.mobileBrand) {
+            this.mobileBrand.addEventListener('click', (e) => {
+                const interactiveEl = e.target.closest('a, button');
+                if (interactiveEl) return;
+                window.location.href = this.dashboardUrl;
+            });
+        }
+
         // Toggle del menú móvil
         if (this.navbarToggle) {
             this.navbarToggle.addEventListener('click', (e) => {
