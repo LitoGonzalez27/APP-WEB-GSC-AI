@@ -1473,12 +1473,25 @@ JSON:"""
                     )
                     ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
                     DO UPDATE SET
+                        model_used = EXCLUDED.model_used,
+                        query_text = EXCLUDED.query_text,
+                        brand_name = EXCLUDED.brand_name,
                         brand_mentioned = EXCLUDED.brand_mentioned,
                         mention_count = EXCLUDED.mention_count,
+                        mention_contexts = EXCLUDED.mention_contexts,
+                        appears_in_numbered_list = EXCLUDED.appears_in_numbered_list,
                         position_in_list = EXCLUDED.position_in_list,
+                        total_items_in_list = EXCLUDED.total_items_in_list,
                         position_source = EXCLUDED.position_source,
                         sentiment = EXCLUDED.sentiment,
+                        sentiment_score = EXCLUDED.sentiment_score,
+                        competitors_mentioned = EXCLUDED.competitors_mentioned,
+                        full_response = EXCLUDED.full_response,
+                        response_length = EXCLUDED.response_length,
                         sources = EXCLUDED.sources,
+                        tokens_used = EXCLUDED.tokens_used,
+                        input_tokens = EXCLUDED.input_tokens,
+                        output_tokens = EXCLUDED.output_tokens,
                         cost_usd = EXCLUDED.cost_usd
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
@@ -2066,4 +2079,3 @@ GENERA {count} PREGUNTAS:"""
     except Exception as e:
         logger.error(f"❌ Error generando sugerencias con IA: {e}", exc_info=True)
         return []
-

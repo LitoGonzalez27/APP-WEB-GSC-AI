@@ -22,6 +22,9 @@ class LLMMonitoring {
 
         // ✨ NEW: Responses pagination
         this.allResponses = [];
+        this.filteredResponses = null;
+        this.currentDisplayResponses = [];
+        this.responsesLoaded = false;
         this.responsesPerPage = 5;
         this.currentResponsesShown = 5;
 
@@ -591,13 +594,18 @@ class LLMMonitoring {
         // ✨ responsesDaysFilter listener removed - now using global time range
 
         // ✨ Global Time Range Selector - controls all data, charts and tables
-        document.getElementById('globalTimeRange')?.addEventListener('change', (e) => {
+        document.getElementById('globalTimeRange')?.addEventListener('change', async (e) => {
             if (this.currentProject) {
                 this.globalTimeRange = parseInt(e.target.value);
                 console.log(`📅 Global time range changed to: ${this.globalTimeRange} days`);
 
                 // Reload all project data with new time range
-                this.viewProject(this.currentProject.id);
+                await this.viewProject(this.currentProject.id);
+
+                // Mantener Responses Inspector alineado solo si el usuario ya lo había cargado.
+                if (this.responsesLoaded) {
+                    await this.loadResponses();
+                }
             }
         });
 
@@ -767,6 +775,14 @@ class LLMMonitoring {
      */
     async viewProject(projectId) {
         console.log(`📊 Loading metrics for project ${projectId}...`);
+
+        const previousProjectId = this.currentProject?.id;
+        if (previousProjectId && previousProjectId !== projectId) {
+            this.responsesLoaded = false;
+            this.allResponses = [];
+            this.filteredResponses = null;
+            this.currentDisplayResponses = [];
+        }
 
         this.currentProject = { id: projectId };
 
@@ -1756,7 +1772,10 @@ class LLMMonitoring {
             }
 
             // Obtener datos de snapshots (comparación) que incluyen sentimiento
-            const response = await fetch(`${this.baseUrl}/projects/${projectId}/comparison`);
+            const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+            const response = await fetch(
+                `${this.baseUrl}/projects/${projectId}/comparison?metric=${metricType}&days=${this.globalTimeRange}`
+            );
             if (!response.ok) {
                 console.warn('Could not load sentiment data');
                 return;
@@ -2065,8 +2084,8 @@ class LLMMonitoring {
                 { id: 'prompt', name: 'Prompt', width: '45%' },
                 { id: 'country', name: 'Country', width: '80px' },
                 { id: 'language', name: 'Language', width: '80px' },
-                { id: 'mentions', name: 'Total Mentions (30d)', width: '130px', sort: true },
-                { id: 'visibility', name: 'Avg Visibility % (30d)', width: '150px', sort: true }
+                { id: 'mentions', name: `Total Mentions (${this.globalTimeRange}d)`, width: '130px', sort: true },
+                { id: 'visibility', name: `Avg Visibility % (${this.globalTimeRange}d)`, width: '150px', sort: true }
             ],
             data: rows,
             sort: true,
@@ -2638,6 +2657,11 @@ class LLMMonitoring {
         
         // ✨ Hide download buttons in sidebar
         this.showDownloadButtons(false);
+
+        this.responsesLoaded = false;
+        this.allResponses = [];
+        this.filteredResponses = null;
+        this.currentDisplayResponses = [];
         
         this.currentProject = null;
     }
@@ -4831,6 +4855,7 @@ class LLMMonitoring {
 
             const data = await response.json();
             console.log(`✅ Loaded ${data.responses.length} responses`);
+            this.responsesLoaded = true;
 
             if (data.responses.length === 0) {
                 container.innerHTML = `
@@ -4866,6 +4891,7 @@ class LLMMonitoring {
 
         } catch (error) {
             console.error('❌ Error loading responses:', error);
+            this.responsesLoaded = false;
             container.innerHTML = `
                 <div class="empty-state" style="color: #ef4444;">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -6477,4 +6503,3 @@ class LLMMonitoring {
 if (typeof window !== 'undefined') {
     window.LLMMonitoring = LLMMonitoring;
 }
-

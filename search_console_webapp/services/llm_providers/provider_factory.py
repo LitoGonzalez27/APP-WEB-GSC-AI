@@ -136,8 +136,9 @@ class LLMProviderFactory:
                 api_keys['openai'] = os.getenv('OPENAI_API_KEY')
             if os.getenv('ANTHROPIC_API_KEY'):
                 api_keys['anthropic'] = os.getenv('ANTHROPIC_API_KEY')
-            if os.getenv('GOOGLE_API_KEY'):
-                api_keys['google'] = os.getenv('GOOGLE_API_KEY')
+            google_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GOOGLE_AI_API_KEY')
+            if google_key:
+                api_keys['google'] = google_key
             if os.getenv('PERPLEXITY_API_KEY'):
                 api_keys['perplexity'] = os.getenv('PERPLEXITY_API_KEY')
         
@@ -265,4 +266,3 @@ class LLMProviderFactory:
                 'pricing_note': 'Precio competitivo, info actualizada'
             }
         }
-

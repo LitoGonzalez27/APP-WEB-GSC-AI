@@ -29,12 +29,13 @@ import logging
 import os
 import json
 import threading
+import secrets
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from functools import wraps
 
 # Importar sistema de autenticación
-from auth import login_required, get_current_user, cron_or_auth_required
+from auth import login_required, admin_required, get_current_user, cron_or_auth_required
 from llm_monitoring_limits import (
     can_access_llm_monitoring,
     get_llm_plan_limits,
@@ -123,6 +124,53 @@ def validate_project_ownership(f):
             conn.close()
     
     return decorated_function
+
+
+def _ensure_cron_token_or_admin():
+    """
+    Endurece endpoints sensibles de cron:
+    - Permite CRON token válido
+    - O usuario autenticado con rol admin
+    - Bloquea usuarios autenticados no-admin
+    """
+    try:
+        auth_header = request.headers.get('Authorization', '') or ''
+        token = auth_header[7:].strip() if auth_header.lower().startswith('bearer ') else ''
+        cron_secret = os.environ.get('CRON_TOKEN') or os.environ.get('CRON_SECRET')
+
+        if cron_secret and token and secrets.compare_digest(token, cron_secret):
+            return None
+
+        user = get_current_user()
+        if user and user.get('role') == 'admin':
+            return None
+
+        return jsonify({
+            'success': False,
+            'error': 'forbidden',
+            'message': 'Se requiere token de cron o rol admin'
+        }), 403
+    except Exception as e:
+        logger.error(f"Error validando acceso cron/admin: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error validando permisos'}), 500
+
+
+def _normalize_days_param(raw_days, default: int = 30, min_days: int = 1, max_days: int = 365) -> int:
+    """
+    Normaliza el parámetro days para evitar rangos no válidos o excesivos.
+    """
+    try:
+        if raw_days is None or raw_days == '':
+            return default
+        days = int(raw_days)
+    except (TypeError, ValueError):
+        return default
+
+    if days < min_days:
+        return min_days
+    if days > max_days:
+        return max_days
+    return days
 
 
 # ============================================================================
@@ -263,7 +311,9 @@ def create_project():
     plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
     max_projects = plan_limits.get('max_projects')
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Body JSON inválido'}), 400
     
     # Validar campos requeridos
     required_fields = ['name', 'industry', 'brand_keywords']
@@ -494,7 +544,7 @@ def get_project(project_id):
         # Método 2: SoV Agregado - Suma TODAS las menciones de TODOS los LLMs
         # Esto refleja el volumen REAL de menciones en el mercado
         # ✨ NUEVO: Soporte para rango de fechas global
-        days = request.args.get('days', 30, type=int)
+        days = _normalize_days_param(request.args.get('days'), default=30)
         metric_type = request.args.get('metric', 'normal')
         if metric_type not in ['normal', 'weighted']:
             metric_type = 'normal'
@@ -502,7 +552,7 @@ def get_project(project_id):
         
         # Obtener todos los snapshots del rango seleccionado
         # ✨ NUEVO: Incluir campos Top3/5/10 para métricas de posición granulares
-        cur.execute(f"""
+        cur.execute("""
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -522,16 +572,16 @@ def get_project(project_id):
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
-                AND snapshot_date >= CURRENT_DATE - INTERVAL '{days} days'
+                AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
             ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id,))
+        """, (project_id, days))
         
         all_snapshots = cur.fetchall()
         logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos {days} días)")
         
         # ✨ NUEVO: Obtener snapshots del período ANTERIOR para calcular tendencias
         # Si el período actual es "últimos 30 días", el anterior es "hace 60-31 días"
-        cur.execute(f"""
+        cur.execute("""
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -551,10 +601,10 @@ def get_project(project_id):
                 snapshot_date
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
-                AND snapshot_date >= CURRENT_DATE - INTERVAL '{days * 2} days'
-                AND snapshot_date < CURRENT_DATE - INTERVAL '{days} days'
+                AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
+                AND snapshot_date < CURRENT_DATE - (%s * INTERVAL '1 day')
             ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id,))
+        """, (project_id, days * 2, days))
         
         previous_snapshots = cur.fetchall()
         logger.info(f"📊 Snapshots período anterior: {len(previous_snapshots)} (para calcular tendencias)")
@@ -2021,9 +2071,10 @@ def get_project_metrics(project_id):
         JSON con snapshots y métricas agregadas
     """
     # Parámetros de fecha
-    days = request.args.get('days', type=int)
+    raw_days = request.args.get('days')
+    days = _normalize_days_param(raw_days, default=30)
     
-    if days:
+    if raw_days is not None and raw_days != '':
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     else:
@@ -2156,7 +2207,7 @@ def get_urls_ranking(project_id):
     Returns:
         JSON con ranking de URLs citadas por los LLMs
     """
-    days = request.args.get('days', 30, type=int)
+    days = _normalize_days_param(request.args.get('days'), default=30)
     llm_provider = request.args.get('llm_provider')
     limit = request.args.get('limit', 50, type=int)
     
@@ -2202,7 +2253,7 @@ def get_llm_comparison(project_id):
     metric_type = request.args.get('metric', 'weighted')
     
     # ✨ NUEVO: Parámetro de días
-    days = request.args.get('days', 30, type=int)
+    days = _normalize_days_param(request.args.get('days'), default=30)
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     
     conn = get_db_connection()
@@ -2394,7 +2445,7 @@ def get_project_queries(project_id):
         JSON con lista de queries y sus métricas
     """
     user = get_current_user()
-    days = int(request.args.get('days', 30))
+    days = _normalize_days_param(request.args.get('days'), default=30)
     
     conn = get_db_connection()
     if not conn:
@@ -2629,7 +2680,7 @@ def get_share_of_voice_history(project_id):
         }
     """
     user = get_current_user()
-    days = int(request.args.get('days', 30))
+    days = _normalize_days_param(request.args.get('days'), default=30)
     metric_type = request.args.get('metric', 'weighted')  # 'normal' o 'weighted'
     
     # Validar metric_type
@@ -3197,7 +3248,7 @@ def get_current_models():
 
 
 @llm_monitoring_bp.route('/models/<int:model_id>', methods=['PUT'])
-@login_required
+@admin_required
 def update_model(model_id):
     """
     Actualiza un modelo LLM (solo admin)
@@ -3213,8 +3264,6 @@ def update_model(model_id):
     Returns:
         JSON con el modelo actualizado
     """
-    # TODO: Agregar decorador @admin_required
-    
     data = request.get_json()
     
     if not data:
@@ -3307,6 +3356,10 @@ def trigger_daily_analysis():
     Returns:
         JSON con resultado de la ejecución del cron
     """
+    auth_error = _ensure_cron_token_or_admin()
+    if auth_error:
+        return auth_error
+
     try:
         # Verificar si se solicita ejecución asíncrona
         is_async = request.args.get('async', '0') == '1'
@@ -3441,7 +3494,7 @@ def get_project_responses(project_id):
     """
     query_id = request.args.get('query_id', type=int)
     llm_provider = request.args.get('llm_provider')
-    days = int(request.args.get('days', 7))
+    days = _normalize_days_param(request.args.get('days'), default=7)
     
     conn = get_db_connection()
     if not conn:
@@ -3563,7 +3616,7 @@ def export_project_excel(project_id):
         logger.error(f"openpyxl no está instalado: {e}")
         return jsonify({'error': 'Excel export not available. Missing openpyxl library.'}), 500
     
-    days = request.args.get('days', 30, type=int)
+    days = _normalize_days_param(request.args.get('days'), default=30)
     
     conn = get_db_connection()
     if not conn:
@@ -3602,10 +3655,11 @@ def export_project_excel(project_id):
         metrics = cur.fetchall()
         
         # Obtener queries con resultados
+        export_country = project['country_code'] or 'Global'
         cur.execute("""
             SELECT 
-                q.prompt,
-                q.country,
+                q.query_text AS prompt,
+                %s::text AS country,
                 q.language,
                 COUNT(DISTINCT r.llm_provider) as llms_analyzed,
                 SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as times_mentioned,
@@ -3613,9 +3667,9 @@ def export_project_excel(project_id):
             FROM llm_monitoring_queries q
             LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s
             WHERE q.project_id = %s AND q.is_active = TRUE
-            GROUP BY q.id, q.prompt, q.country, q.language
+            GROUP BY q.id, q.query_text, q.language
             ORDER BY times_mentioned DESC
-        """, (start_date, project_id))
+        """, (export_country, start_date, project_id))
         queries = cur.fetchall()
         
         cur.close()
@@ -3752,7 +3806,7 @@ def export_project_pdf(project_id):
         logger.error(f"reportlab no está instalado: {e}")
         return jsonify({'error': 'PDF export not available. Missing reportlab library.'}), 500
     
-    days = request.args.get('days', 30, type=int)
+    days = _normalize_days_param(request.args.get('days'), default=30)
     
     conn = get_db_connection()
     if not conn:
@@ -4014,6 +4068,10 @@ def cron_model_discovery():
     Returns:
         JSON con resultados del descubrimiento
     """
+    auth_error = _ensure_cron_token_or_admin()
+    if auth_error:
+        return auth_error
+
     import openai
     import google.generativeai as genai
     
@@ -4089,7 +4147,7 @@ def cron_model_discovery():
         
         # Google
         try:
-            google_key = os.getenv('GOOGLE_AI_API_KEY')
+            google_key = os.getenv('GOOGLE_AI_API_KEY') or os.getenv('GOOGLE_API_KEY')
             if google_key:
                 genai.configure(api_key=google_key)
                 models = genai.list_models()
@@ -4323,6 +4381,10 @@ def cron_alert():
         - response_body
         - run_at
     """
+    auth_error = _ensure_cron_token_or_admin()
+    if auth_error:
+        return auth_error
+
     data = request.get_json(silent=True) or {}
     
     notify_email = (
@@ -4410,4 +4472,3 @@ def cron_alert():
 
 
 logger.info("✅ LLM Monitoring Blueprint loaded successfully")
-
