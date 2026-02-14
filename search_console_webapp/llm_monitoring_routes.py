@@ -2017,73 +2017,41 @@ def suggest_query_variations(project_id):
         industry = project['industry'] or 'general'
         competitors = project['competitors'] or []
         
-        # Intentar generar con Gemini
+        language = (project['language'] or 'en').lower()
+
+        # Intentar generar con IA usando el provider configurado en BD (sin modelo hardcodeado)
         try:
-            import google.generativeai as genai
-            import os
-            
-            api_key = os.getenv('GOOGLE_API_KEY')
-            if api_key:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                import random
-                import time
-                
-                language = (project['language'] or 'en').lower()
-                language_map = {
-                    'es': 'Spanish',
-                    'en': 'English',
-                    'it': 'Italian',
-                    'fr': 'French',
-                    'de': 'German',
-                    'pt': 'Portuguese',
-                }
-                lang_instruction = language_map.get(language, language.upper())
-                
-                # Add randomness to get different results each time
-                random_seed = random.randint(1, 1000)
-                timestamp = int(time.time())
-                
-                prompt = f"""Generate {count} unique and CREATIVE prompt variations for LLM brand monitoring.
+            from services.llm_monitoring_service import generate_query_suggestions_with_ai
 
-Brand: {brand_name}
-Industry: {industry}
-Competitors: {', '.join(competitors[:3]) if competitors else 'N/A'}
-Existing prompts to avoid repeating: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
-
-CRITICAL: Generate ALL prompts in {lang_instruction} language.
-IMPORTANT: Be creative and generate DIFFERENT prompts than typical suggestions. Seed: {random_seed}-{timestamp}
-
-Requirements:
-- Each prompt should be a question users might ask an AI about this industry/brand
-- Mix different types: comparisons, recommendations, reviews, how-to, alternatives, opinions, experiences
-- Keep prompts concise (under 80 characters)
-- Return ONLY the prompts, one per line, no numbering or explanations
-- ALL prompts MUST be in {lang_instruction}
-- Generate UNIQUE prompts different from the examples above"""
-
-                response = model.generate_content(prompt)
-                suggestions = [
-                    line.strip() 
-                    for line in response.text.strip().split('\n') 
-                    if line.strip() and len(line.strip()) > 5
-                ][:count]
-                
+            suggestions = generate_query_suggestions_with_ai(
+                brand_name=brand_name,
+                industry=industry,
+                language=language,
+                existing_queries=existing_prompts,
+                competitors=competitors,
+                count=count
+            )
+            if suggestions:
                 return jsonify({
                     'success': True,
                     'suggestions': suggestions,
                     'source': 'ai'
                 }), 200
-        
+
         except Exception as ai_error:
             logger.warning(f"AI generation failed, using fallback: {ai_error}")
         
         # Fallback: Generate simple variations locally with randomization
         import random
         
-        language = project['language'] or 'en'
-        comp_name = competitors[0] if competitors else ('competidores' if language == 'es' else 'competitors')
+        competitor_fallback = {
+            'es': 'competidores',
+            'it': 'concorrenti',
+            'fr': 'concurrents',
+            'de': 'Wettbewerber',
+            'pt': 'concorrentes',
+        }
+        comp_name = competitors[0] if competitors else competitor_fallback.get(language, 'competitors')
         
         if language == 'es':
             all_variations = [
@@ -2120,6 +2088,45 @@ Requirements:
                 f"Opinioni su {brand_name}",
                 f"Pro e contro di {brand_name}",
                 f"{brand_name} per principianti"
+            ]
+        elif language == 'fr':
+            all_variations = [
+                f"Qu'est-ce que {brand_name} et comment ça marche ?",
+                f"Meilleurs outils de {industry}",
+                f"Comparatif {brand_name} vs {comp_name}",
+                f"{brand_name} vaut-il le coup ? Avis",
+                f"Alternatives à {brand_name}",
+                f"Comment démarrer avec {brand_name}",
+                f"Tarifs et offres de {brand_name}",
+                f"Avis sur {brand_name}",
+                f"Avantages et inconvénients de {brand_name}",
+                f"{brand_name} pour débutants"
+            ]
+        elif language == 'de':
+            all_variations = [
+                f"Was ist {brand_name} und wie funktioniert es?",
+                f"Beste {industry}-Tools",
+                f"{brand_name} vs {comp_name} Vergleich",
+                f"Lohnt sich {brand_name}? Erfahrungen",
+                f"Alternativen zu {brand_name}",
+                f"Wie startet man mit {brand_name}?",
+                f"Preise und Pakete von {brand_name}",
+                f"Bewertungen zu {brand_name}",
+                f"Vor- und Nachteile von {brand_name}",
+                f"{brand_name} für Einsteiger"
+            ]
+        elif language == 'pt':
+            all_variations = [
+                f"O que é {brand_name} e como funciona?",
+                f"Melhores ferramentas de {industry}",
+                f"Comparativo {brand_name} vs {comp_name}",
+                f"{brand_name} vale a pena? Avaliações",
+                f"Alternativas ao {brand_name}",
+                f"Como começar com {brand_name}",
+                f"Preços e planos do {brand_name}",
+                f"Opiniões sobre {brand_name}",
+                f"Prós e contras do {brand_name}",
+                f"{brand_name} para iniciantes"
             ]
         else:
             all_variations = [

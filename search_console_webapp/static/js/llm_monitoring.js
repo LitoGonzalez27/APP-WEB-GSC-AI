@@ -19,6 +19,7 @@ class LLMMonitoring {
         this.allPrompts = [];
         this.promptsSectionCollapsed = false;
         this.isRenderingInModal = false; // Track if we're rendering prompts in modal
+        this.quickSuggestionsCache = new Map();
 
         // ✨ NEW: Responses pagination
         this.allResponses = [];
@@ -4009,6 +4010,24 @@ class LLMMonitoring {
     }
 
     /**
+     * Reload prompts in the currently active view and keep the page section in sync
+     */
+    async refreshPromptViews() {
+        if (!this.currentProject || !this.currentProject.id) {
+            return;
+        }
+
+        const projectId = this.currentProject.id;
+        if (this.isRenderingInModal) {
+            await this.loadPrompts(projectId, true);
+            await this.loadPrompts(projectId, false);
+            return;
+        }
+
+        await this.loadPrompts(projectId, false);
+    }
+
+    /**
      * Render prompts with pagination
      */
     renderPrompts(renderInModal = false) {
@@ -4026,7 +4045,7 @@ class LLMMonitoring {
                     </div>
                     <h4>No prompts yet</h4>
                     <p>Add prompts to start analyzing brand visibility in LLMs</p>
-                    <button class="btn btn-primary btn-sm mt-2" onclick="window.llmMonitoring.showPromptsModal()">
+                    <button class="btn btn-primary btn-sm mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
                         <i class="fas fa-plus"></i>
                         Add Your First Prompt
                     </button>
@@ -4185,11 +4204,161 @@ class LLMMonitoring {
         // Load quick suggestions
         this.loadQuickSuggestions();
     }
+
+    getProjectLanguageCode() {
+        return (this.currentProject?.language || 'en').toLowerCase();
+    }
+
+    getCompetitorFallbackLabel(languageCode) {
+        const labels = {
+            es: 'competidores',
+            it: 'concorrenti',
+            fr: 'concurrents',
+            de: 'Wettbewerber',
+            pt: 'concorrentes'
+        };
+        return labels[languageCode] || 'competitors';
+    }
+
+    getPrimaryCompetitorName(languageCode) {
+        const selectedCompetitors = Array.isArray(this.currentProject?.selected_competitors)
+            ? this.currentProject.selected_competitors
+            : [];
+        const competitorFromSelection = selectedCompetitors.find(comp => comp && comp.domain)?.domain;
+        if (competitorFromSelection) {
+            return competitorFromSelection;
+        }
+
+        const legacyCompetitor = Array.isArray(this.currentProject?.competitors)
+            ? this.currentProject.competitors.find(comp => comp && String(comp).trim())
+            : null;
+        if (legacyCompetitor) {
+            return legacyCompetitor;
+        }
+
+        return this.getCompetitorFallbackLabel(languageCode);
+    }
+
+    buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode = 'default') {
+        const catalog = {
+            es: {
+                default: [
+                    `¿Qué es ${brandName}?`,
+                    `Mejores herramientas de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Opiniones de ${brandName}`,
+                    `¿Cómo funciona ${brandName}?`,
+                    `Alternativas a ${brandName}`
+                ],
+                variation: [
+                    `¿Qué es ${brandName} y cómo funciona?`,
+                    `Mejores alternativas a ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `¿Vale la pena ${brandName}?`,
+                    `Cómo usar ${brandName}`,
+                    `Precios de ${brandName}`
+                ]
+            },
+            it: {
+                default: [
+                    `Cos'è ${brandName}?`,
+                    `I migliori strumenti di ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Recensioni su ${brandName}`,
+                    `Come funziona ${brandName}?`,
+                    `Alternative a ${brandName}`
+                ],
+                variation: [
+                    `Cos'è ${brandName} e come funziona?`,
+                    `Migliori alternative a ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vale la pena?`,
+                    `Come usare ${brandName}`,
+                    `Prezzi di ${brandName}`
+                ]
+            },
+            fr: {
+                default: [
+                    `Qu'est-ce que ${brandName} ?`,
+                    `Meilleurs outils de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Avis sur ${brandName}`,
+                    `Comment fonctionne ${brandName} ?`,
+                    `Alternatives à ${brandName}`
+                ],
+                variation: [
+                    `Qu'est-ce que ${brandName} et comment ça marche ?`,
+                    `Meilleures alternatives à ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vaut-il le coup ?`,
+                    `Comment utiliser ${brandName}`,
+                    `Tarifs de ${brandName}`
+                ]
+            },
+            de: {
+                default: [
+                    `Was ist ${brandName}?`,
+                    `Beste ${industry}-Tools`,
+                    `${brandName} vs ${competitorName}`,
+                    `Bewertungen zu ${brandName}`,
+                    `Wie funktioniert ${brandName}?`,
+                    `Alternativen zu ${brandName}`
+                ],
+                variation: [
+                    `Was ist ${brandName} und wie funktioniert es?`,
+                    `Beste Alternativen zu ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Lohnt sich ${brandName}?`,
+                    `Wie nutzt man ${brandName}?`,
+                    `${brandName} Preise`
+                ]
+            },
+            pt: {
+                default: [
+                    `O que é ${brandName}?`,
+                    `Melhores ferramentas de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Avaliações de ${brandName}`,
+                    `Como funciona ${brandName}?`,
+                    `Alternativas ao ${brandName}`
+                ],
+                variation: [
+                    `O que é ${brandName} e como funciona?`,
+                    `Melhores alternativas ao ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vale a pena?`,
+                    `Como usar ${brandName}`,
+                    `Preços do ${brandName}`
+                ]
+            },
+            en: {
+                default: [
+                    `What is ${brandName}?`,
+                    `Best ${industry} tools`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} reviews`,
+                    `How does ${brandName} work?`,
+                    `Alternatives to ${brandName}`
+                ],
+                variation: [
+                    `What is ${brandName} and how does it work?`,
+                    `Best alternatives to ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Is ${brandName} worth it?`,
+                    `How to use ${brandName}`,
+                    `${brandName} pricing and plans`
+                ]
+            }
+        };
+
+        const locale = catalog[languageCode] || catalog.en;
+        return mode === 'variation' ? locale.variation : locale.default;
+    }
     
     /**
      * ✨ Load quick suggestions based on existing prompts
      */
-    async loadQuickSuggestions() {
+    async loadQuickSuggestions(forceRefresh = false) {
         const listEl = document.getElementById('quickSuggestionsList');
         const emptyEl = document.getElementById('quickSuggestionsEmpty');
         const sectionEl = document.getElementById('quickSuggestionsSection');
@@ -4209,35 +4378,42 @@ class LLMMonitoring {
         try {
             // Get existing prompts
             const existingPrompts = this.allPrompts || [];
+            const languageCode = this.getProjectLanguageCode();
+            const brandName = this.currentProject.brand_name || 'your brand';
+            const industry = this.currentProject.industry || 'your industry';
+            const competitorName = this.getPrimaryCompetitorName(languageCode);
             
             if (existingPrompts.length === 0) {
-                // No existing prompts - show default suggestions based on brand and language
-                const brandName = this.currentProject.brand_name || 'your brand';
-                const industry = this.currentProject.industry || 'your industry';
-                const language = this.currentProject.language || 'en';
-                
-                let defaultSuggestions;
-                if (language === 'es') {
-                    defaultSuggestions = [
-                        `¿Qué es ${brandName}?`,
-                        `Mejores herramientas de ${industry}`,
-                        `${brandName} vs competidores`,
-                        `Opiniones de ${brandName}`,
-                        `¿Cómo funciona ${brandName}?`,
-                        `Alternativas a ${brandName}`
-                    ];
-                } else {
-                    defaultSuggestions = [
-                        `What is ${brandName}?`,
-                        `Best ${industry} tools`,
-                        `${brandName} vs competitors`,
-                        `${brandName} reviews`,
-                        `How does ${brandName} work?`,
-                        `Alternatives to ${brandName}`
-                    ];
+                const cacheKey = `bootstrap:${this.currentProject.id}:${languageCode}`;
+
+                if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
+                    this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
+                    return;
                 }
-                
-                this.renderQuickSuggestions(defaultSuggestions);
+
+                // For new projects with zero prompts, use AI first to honor project language/country.
+                const bootstrapResponse = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        existing_prompts: [],
+                        count: 6
+                    })
+                });
+
+                if (bootstrapResponse.ok) {
+                    const bootstrapData = await bootstrapResponse.json();
+                    if (bootstrapData.success && bootstrapData.suggestions && bootstrapData.suggestions.length > 0) {
+                        this.quickSuggestionsCache.set(cacheKey, bootstrapData.suggestions);
+                        this.renderQuickSuggestions(bootstrapData.suggestions);
+                        return;
+                    }
+                }
+
+                // Fallback if AI is unavailable
+                this.renderQuickSuggestions(
+                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+                );
                 return;
             }
             
@@ -4271,8 +4447,13 @@ class LLMMonitoring {
             if (this.allPrompts && this.allPrompts.length > 0) {
                 this.generateLocalSuggestions(this.allPrompts);
             } else {
-                if (emptyEl) emptyEl.style.display = 'block';
-                listEl.innerHTML = '';
+                const languageCode = this.getProjectLanguageCode();
+                const brandName = this.currentProject?.brand_name || 'your brand';
+                const industry = this.currentProject?.industry || 'your industry';
+                const competitorName = this.getPrimaryCompetitorName(languageCode);
+                this.renderQuickSuggestions(
+                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+                );
             }
         }
     }
@@ -4282,32 +4463,13 @@ class LLMMonitoring {
      */
     generateLocalSuggestions(existingPrompts) {
         const brandName = this.currentProject?.brand_name || 'the brand';
-        const language = this.currentProject?.language || 'en';
-        const competitor = this.currentProject?.competitors?.[0] || (language === 'es' ? 'competidores' : 'competitors');
-        
-        let suggestions;
-        
-        if (language === 'es') {
-            suggestions = [
-                `¿Qué es ${brandName} y cómo funciona?`,
-                `Mejores alternativas a ${brandName}`,
-                `${brandName} vs ${competitor}`,
-                `¿Vale la pena ${brandName}?`,
-                `Cómo usar ${brandName}`,
-                `Precios de ${brandName}`
-            ];
-        } else {
-            suggestions = [
-                `What is ${brandName} and how does it work?`,
-                `Best alternatives to ${brandName}`,
-                `${brandName} vs ${competitor}`,
-                `Is ${brandName} worth it?`,
-                `How to use ${brandName}`,
-                `${brandName} pricing and plans`
-            ];
-        }
-        
-        this.renderQuickSuggestions(suggestions);
+        const industry = this.currentProject?.industry || 'your industry';
+        const languageCode = this.getProjectLanguageCode();
+        const competitorName = this.getPrimaryCompetitorName(languageCode);
+
+        this.renderQuickSuggestions(
+            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'variation')
+        );
     }
     
     /**
@@ -4378,7 +4540,7 @@ class LLMMonitoring {
             btn.classList.add('loading');
             setTimeout(() => btn.classList.remove('loading'), 1000);
         }
-        this.loadQuickSuggestions();
+        this.loadQuickSuggestions(true);
     }
 
     /**
@@ -4598,7 +4760,7 @@ class LLMMonitoring {
             this.hidePromptsModal();
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
@@ -4657,7 +4819,7 @@ class LLMMonitoring {
             console.log(`✅ Prompt ${queryId} deleted`);
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
@@ -4929,7 +5091,10 @@ class LLMMonitoring {
             this.hideSuggestionsModal();
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
+
+            // Keep query filter synced after adding suggestions
+            await this.populateQueryFilter();
 
             // Show success
             let message = `${data.added_count} AI suggestions added successfully!`;

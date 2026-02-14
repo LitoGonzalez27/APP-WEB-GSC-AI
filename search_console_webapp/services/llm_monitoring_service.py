@@ -33,6 +33,85 @@ from services.ai_analysis import extract_brand_variations, remove_accents
 
 logger = logging.getLogger(__name__)
 
+LANGUAGE_NAMES = {
+    'es': 'Spanish',
+    'en': 'English',
+    'it': 'Italian',
+    'fr': 'French',
+    'de': 'German',
+    'pt': 'Portuguese',
+    'nl': 'Dutch',
+    'sv': 'Swedish',
+    'no': 'Norwegian',
+    'da': 'Danish',
+    'fi': 'Finnish',
+    'pl': 'Polish',
+    'cs': 'Czech',
+    'el': 'Greek',
+    'ro': 'Romanian',
+    'hu': 'Hungarian',
+    'tr': 'Turkish',
+    'he': 'Hebrew',
+    'ar': 'Arabic',
+    'af': 'Afrikaans',
+    'hi': 'Hindi',
+    'ja': 'Japanese',
+    'zh': 'Chinese',
+    'ko': 'Korean',
+    'id': 'Indonesian',
+    'th': 'Thai',
+    'vi': 'Vietnamese',
+    'tl': 'Filipino',
+    'ms': 'Malay',
+}
+
+COUNTRY_NAMES = {
+    'ES': 'Spain',
+    'US': 'United States',
+    'GB': 'United Kingdom',
+    'FR': 'France',
+    'DE': 'Germany',
+    'IT': 'Italy',
+    'PT': 'Portugal',
+    'MX': 'Mexico',
+    'AR': 'Argentina',
+    'CO': 'Colombia',
+    'CL': 'Chile',
+    'PE': 'Peru',
+    'BR': 'Brazil',
+    'CA': 'Canada',
+    'AU': 'Australia',
+    'NZ': 'New Zealand',
+    'IN': 'India',
+    'JP': 'Japan',
+    'CN': 'China',
+    'KR': 'South Korea',
+    'NL': 'Netherlands',
+    'BE': 'Belgium',
+    'CH': 'Switzerland',
+    'AT': 'Austria',
+    'SE': 'Sweden',
+    'NO': 'Norway',
+    'DK': 'Denmark',
+    'FI': 'Finland',
+    'PL': 'Poland',
+    'CZ': 'Czech Republic',
+    'IE': 'Ireland',
+    'GR': 'Greece',
+    'RO': 'Romania',
+    'HU': 'Hungary',
+    'TR': 'Turkey',
+    'IL': 'Israel',
+    'AE': 'United Arab Emirates',
+    'SA': 'Saudi Arabia',
+    'ZA': 'South Africa',
+    'SG': 'Singapore',
+    'ID': 'Indonesia',
+    'TH': 'Thailand',
+    'VN': 'Vietnam',
+    'PH': 'Philippines',
+}
+
 
 class MultiLLMMonitoringService:
     """
@@ -162,35 +241,8 @@ class MultiLLMMonitoringService:
         language_code = (language or 'en').strip().lower()
         country = (country_code or 'US').strip().upper()
 
-        language_names = {
-            'es': 'Spanish',
-            'en': 'English',
-            'it': 'Italian',
-            'fr': 'French',
-            'de': 'German',
-            'pt': 'Portuguese',
-        }
-        country_names = {
-            'ES': 'Spain',
-            'US': 'United States',
-            'GB': 'United Kingdom',
-            'IT': 'Italy',
-            'FR': 'France',
-            'DE': 'Germany',
-            'PT': 'Portugal',
-            'MX': 'Mexico',
-            'AR': 'Argentina',
-            'CO': 'Colombia',
-            'CL': 'Chile',
-            'PE': 'Peru',
-            'BR': 'Brazil',
-            'CA': 'Canada',
-            'AU': 'Australia',
-            'IN': 'India',
-            'JP': 'Japan',
-        }
-        language_name = language_names.get(language_code, language_code.upper())
-        country_name = country_names.get(country, country)
+        language_name = LANGUAGE_NAMES.get(language_code, language_code.upper())
+        country_name = COUNTRY_NAMES.get(country, country)
 
         return (
             f"[Locale context]\n"
@@ -2108,10 +2160,12 @@ def generate_query_suggestions_with_ai(
         ... )
     """
     import os
-    
+
     existing_queries = existing_queries or []
     competitors = competitors or []
     count = min(count, 20)  # Máximo 20
+    language_code = (language or 'en').strip().lower()
+    language_name = LANGUAGE_NAMES.get(language_code, language_code.upper())
     
     logger.info(f"🤖 Generando {count} sugerencias de queries con IA para {brand_name}...")
     
@@ -2138,41 +2192,30 @@ def generate_query_suggestions_with_ai(
         
         logger.info("✅ Proveedor de Gemini creado correctamente")
         
-        # Construir prompt contextual
-        lang_name = 'español' if language == 'es' else 'inglés'
-        
-        prompt = f"""Eres un experto en marketing digital y brand visibility en LLMs.
+        # Prompt en inglés para máxima robustez, con output forzado al idioma objetivo.
+        prompt = f"""You are an expert in digital marketing and LLM brand visibility.
 
-CONTEXTO:
-- Marca: {brand_name}
-- Industria: {industry}
-- Idioma: {lang_name}
-- Competidores: {', '.join(competitors) if competitors else 'ninguno especificado'}
+PROJECT CONTEXT:
+- Brand: {brand_name}
+- Industry: {industry}
+- Target language: {language_name} ({language_code})
+- Competitors: {', '.join(competitors) if competitors else 'none specified'}
 
-QUERIES EXISTENTES ({len(existing_queries)}):
-{chr(10).join('- ' + q for q in existing_queries[:10]) if existing_queries else '(ninguna todavía)'}
+EXISTING PROMPTS ({len(existing_queries)}):
+{chr(10).join('- ' + q for q in existing_queries[:10]) if existing_queries else '(none yet)'}
 
-TAREA:
-Genera {count} preguntas/prompts adicionales en {lang_name} que un usuario haría a un LLM (ChatGPT, Claude, Gemini, Perplexity) para buscar información sobre {industry}.
+TASK:
+Generate {count} additional prompts a user would ask an LLM (ChatGPT, Claude, Gemini, Perplexity) when researching {industry}.
 
-REQUISITOS:
-1. Las preguntas deben ser diferentes a las existentes
-2. Deben ser naturales y realistas
-3. Algunas deben mencionar la marca directamente
-4. Algunas deben ser generales sobre la industria
-5. Algunas deben comparar con competidores
-6. Mínimo 15 caracteres por pregunta
-7. Variedad: preguntas básicas, técnicas, comparativas
+REQUIREMENTS:
+1. ALL prompts must be written in {language_name}
+2. Do not repeat existing prompts
+3. Make them natural and realistic
+4. Include a mix of: brand-focused, industry-generic, and competitor-comparison prompts
+5. Minimum 15 characters per prompt
+6. Return ONLY prompts, one per line, without numbering or bullets
 
-FORMATO:
-Responde SOLO con las preguntas, una por línea, sin numeración ni viñetas.
-
-Ejemplo:
-¿Cuál es la mejor herramienta de {industry}?
-¿Cómo funciona {brand_name}?
-{brand_name} vs {competitors[0] if competitors else 'alternativas'}
-
-GENERA {count} PREGUNTAS:"""
+GENERATE {count} PROMPTS:"""
 
         # Ejecutar query en Gemini
         logger.info("📤 Enviando prompt a Gemini Flash...")
@@ -2195,13 +2238,15 @@ GENERA {count} PREGUNTAS:"""
         
         # Dividir por líneas y limpiar
         suggestions = []
+        existing_lower = {q.lower().strip() for q in existing_queries}
+        seen = set()
         for line in response_text.split('\n'):
             line = line.strip()
             
             # Ignorar líneas vacías, numeraciones, viñetas
             if not line:
                 continue
-            if line[0].isdigit() and (line[1] == '.' or line[1] == ')'):
+            if len(line) > 1 and line[0].isdigit() and (line[1] == '.' or line[1] == ')'):
                 line = line[2:].strip()
             if line.startswith('-') or line.startswith('•'):
                 line = line[1:].strip()
@@ -2209,8 +2254,10 @@ GENERA {count} PREGUNTAS:"""
             # Validar longitud
             if len(line) >= 15 and len(line) <= 500:
                 # Evitar duplicados con existentes
-                if line.lower() not in [q.lower() for q in existing_queries]:
+                normalized = line.lower().strip()
+                if normalized not in existing_lower and normalized not in seen:
                     suggestions.append(line)
+                    seen.add(normalized)
         
         # Limitar a count
         suggestions = suggestions[:count]

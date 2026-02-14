@@ -477,6 +477,27 @@
     color: #161616 !important;
 }
 
+/* Keep "Add Your First Prompt" visual style aligned with "Create New Project" */
+.btn-first-prompt {
+    background-color: #161616 !important;
+    color: #D8F9B8 !important;
+    border: 1px solid #161616 !important;
+}
+
+.btn-first-prompt i {
+    color: #D8F9B8 !important;
+}
+
+.btn-first-prompt:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+.btn-first-prompt:hover:not(:disabled) i {
+    color: #161616 !important;
+}
+
 .btn-success {
     background-color: #10b981;
     color: white;
@@ -615,6 +636,10 @@
 }
 
 /* Custom confirm modal */
+#actionConfirmModal {
+    z-index: 12000;
+}
+
 .action-confirm-modal {
     max-width: 540px;
 }
