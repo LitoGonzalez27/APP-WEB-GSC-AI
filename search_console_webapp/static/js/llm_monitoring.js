@@ -19,6 +19,7 @@ class LLMMonitoring {
         this.allPrompts = [];
         this.promptsSectionCollapsed = false;
         this.isRenderingInModal = false; // Track if we're rendering prompts in modal
+        this.quickSuggestionsCache = new Map();
 
         // ✨ NEW: Responses pagination
         this.allResponses = [];
@@ -42,6 +43,13 @@ class LLMMonitoring {
 
         // ✨ NEW: Global Time Range
         this.globalTimeRange = 30; // Default to 30 days
+
+        // Plan limits snapshot loaded from /usage
+        this.planLimits = null;
+
+        // Custom confirm modal state
+        this.confirmResolver = null;
+        this.isConfirmModalOpen = false;
     }
 
     /**
@@ -92,6 +100,7 @@ class LLMMonitoring {
             if (!data || !data.limits) return;
 
             const limits = data.limits;
+            this.planLimits = limits;
             const banner = document.getElementById('llmPlanLimitsBanner');
             if (!banner) return;
 
@@ -114,13 +123,6 @@ class LLMMonitoring {
                 </div>
             `;
             banner.style.display = 'block';
-
-            // Disable create button if project limit reached
-            const btnCreate = document.getElementById('btnCreateProject');
-            if (btnCreate && limits.max_projects !== null && limits.active_projects >= limits.max_projects) {
-                btnCreate.disabled = true;
-                btnCreate.title = 'Project limit reached for your plan';
-            }
         } catch (error) {
             console.warn('Could not load LLM plan limits:', error);
         }
@@ -314,6 +316,10 @@ class LLMMonitoring {
         for (let i = 1; i <= 4; i++) {
             const container = document.getElementById(`competitor${i}KeywordsChips`);
             if (container) container.innerHTML = '';
+
+            // Clear competitor domain inputs as well to avoid stale values in edit mode
+            const domainInput = document.getElementById(`competitor${i}Domain`);
+            if (domainInput) domainInput.value = '';
         }
     }
 
@@ -338,8 +344,8 @@ class LLMMonitoring {
 
                 // Set domain field
                 const domainInput = document.getElementById(`competitor${competitorNum}Domain`);
-                if (domainInput && comp.domain) {
-                    domainInput.value = comp.domain;
+                if (domainInput) {
+                    domainInput.value = comp.domain || '';
                 }
 
                 // Set keywords chips
@@ -357,12 +363,27 @@ class LLMMonitoring {
     setupEventListeners() {
         console.log('🎯 Setting up event listeners...');
 
+        // Custom confirmation modal handlers
+        this.setupConfirmModalListeners();
+
         // Create project button
         const btnCreateProject = document.getElementById('btnCreateProject');
         console.log('📦 btnCreateProject element:', btnCreateProject);
 
         if (btnCreateProject) {
             btnCreateProject.addEventListener('click', () => {
+                const limits = this.planLimits;
+                const hasProjectLimit = limits && limits.max_projects !== null;
+                const isLimitReached = hasProjectLimit && limits.active_projects >= limits.max_projects;
+
+                if (isLimitReached) {
+                    if (window.showPaywall) {
+                        window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
+                    }
+                    this.showError('Project limit reached for your current plan.');
+                    return;
+                }
+
                 console.log('🖱️ btnCreateProject clicked!');
                 this.showProjectModal();
             });
@@ -511,7 +532,7 @@ class LLMMonitoring {
 
         // Edit project
         document.getElementById('btnEditProject')?.addEventListener('click', () => {
-            this.showProjectModal(this.currentProject);
+            this.editProject(this.currentProject?.id, this.currentProject);
         });
 
         // Show models info
@@ -701,6 +722,13 @@ class LLMMonitoring {
         const card = document.createElement('div');
         card.className = 'project-card';
         const safeProjectName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const competitorCount = Array.isArray(project.selected_competitors)
+            ? project.selected_competitors.length
+            : (project.competitors?.length || 0);
+        const configuredQueries = Number(project.total_queries || 0);
+        const hasConfiguredPrompts = configuredQueries > 0;
+        const shouldShowInitialAnalysisButton = !!project.is_active && !project.last_analysis_date;
+        const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
         card.innerHTML = `
             <div class="project-card-header">
                 <h3>${this.escapeHtml(project.name)}</h3>
@@ -724,7 +752,7 @@ class LLMMonitoring {
                     </div>
                     <div class="info-item">
                         <i class="fas fa-users"></i>
-                        <span>${project.competitors?.length || 0} Competitors</span>
+                        <span>${competitorCount} Competitors</span>
                     </div>
                 </div>
                 ${project.last_analysis_date ? `
@@ -734,7 +762,14 @@ class LLMMonitoring {
                             Last analysis: ${this.formatDate(project.last_analysis_date)}
                         </small>
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="project-meta">
+                        <small>
+                            <i class="fas fa-hourglass-half"></i>
+                            No analysis yet
+                        </small>
+                    </div>
+                `}
             </div>
             <div class="project-card-footer">
                 <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.viewProject(${project.id})">
@@ -745,10 +780,21 @@ class LLMMonitoring {
                     <i class="fas fa-list"></i>
                     View/Edit Prompts
                 </button>
-                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.showProjectModal(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
+                ${shouldShowInitialAnalysisButton ? `
+                    <button
+                        class="btn btn-success btn-sm"
+                        id="btnInitialAnalysis-${project.id}"
+                        onclick="window.llmMonitoring.runInitialAnalysis(${project.id}, ${safeProjectName}, ${configuredQueries})"
+                        ${(isInitialAnalysisRunning || !hasConfiguredPrompts) ? 'disabled' : ''}
+                    >
+                        <i class="fas ${isInitialAnalysisRunning ? 'fa-spinner fa-spin' : (hasConfiguredPrompts ? 'fa-play-circle' : 'fa-list')}"></i>
+                        ${isInitialAnalysisRunning ? 'First analysis running...' : (hasConfiguredPrompts ? 'Run First Analysis' : 'Add Prompts First')}
+                    </button>
+                ` : ''}
                 ${project.is_active ? `
                     <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
@@ -768,6 +814,193 @@ class LLMMonitoring {
         `;
 
         container.appendChild(card);
+    }
+
+    /**
+     * Trigger first analysis for newly created projects.
+     * Available only while project has no previous analysis.
+     */
+    async runInitialAnalysis(projectId, projectName = 'Project', configuredQueries = 0) {
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+
+        if (Number(configuredQueries || 0) <= 0) {
+            this.showInfo('Add at least one prompt before running the first analysis.');
+            return;
+        }
+
+        const button = document.getElementById(`btnInitialAnalysis-${projectId}`);
+        const originalHtml = button ? button.innerHTML : '';
+
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/run-initial-analysis`, {
+                method: 'POST',
+                credentials: 'same-origin'
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
+
+            if (!response.ok) {
+                const errorCode = data.error || `HTTP ${response.status}`;
+
+                if (errorCode === 'initial_analysis_already_completed') {
+                    this.showInfo('This project already has data from a previous analysis.');
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (errorCode === 'initial_analysis_in_progress') {
+                    this.showInfo('First analysis is already running for this project.');
+                    await this.loadProjects();
+                    this.pollInitialAnalysisStatus(projectId, projectName);
+                    return;
+                }
+
+                if (errorCode === 'no_active_queries') {
+                    this.showInfo('Add prompts to the project before running the first analysis.');
+                    await this.loadProjects();
+                    return;
+                }
+
+                throw new Error(data.message || errorCode);
+            }
+
+            const minMinutes = data.estimated_minutes_min || 2;
+            const maxMinutes = data.estimated_minutes_max || 8;
+
+            this.showInfo(
+                `First analysis started for "${projectName}". ` +
+                `Estimated time: ${minMinutes}-${maxMinutes} minutes. ` +
+                'You can keep using the app while it runs in background.'
+            );
+
+            // Refresh cards to show "running" state and start polling until completion.
+            await this.loadProjects();
+            this.pollInitialAnalysisStatus(projectId, projectName, maxMinutes + 5);
+
+        } catch (error) {
+            console.error('❌ Error starting initial analysis:', error);
+            this.showError(error.message || 'Could not start first analysis');
+
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        }
+    }
+
+    /**
+     * Poll project list until first analysis is completed (or timeout).
+     */
+    pollInitialAnalysisStatus(projectId, projectName = 'Project', maxMinutes = 15) {
+        const intervalMs = 15000; // 15s
+        const maxAttempts = Math.max(8, Math.ceil((maxMinutes * 60 * 1000) / intervalMs));
+        let attempts = 0;
+
+        const timer = setInterval(async () => {
+            attempts += 1;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/projects`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(timer);
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const projects = data.projects || [];
+                const project = projects.find(p => p.id === projectId);
+
+                if (!project) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                if (project.last_analysis_date) {
+                    clearInterval(timer);
+                    this.showSuccess(`First analysis for "${projectName}" is complete.`);
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (!project.initial_analysis_in_progress && attempts >= 2) {
+                    clearInterval(timer);
+                    this.showInfo(
+                        `First analysis for "${projectName}" has finished without new data yet. ` +
+                        'It may have hit quota/provider limits; you can retry or wait for scheduled cron.'
+                    );
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                    this.showInfo(
+                        `First analysis for "${projectName}" is still running. ` +
+                        'Please check again in a few minutes.'
+                    );
+                    await this.loadProjects();
+                }
+            } catch (error) {
+                console.warn('Could not poll initial analysis status:', error);
+                if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                }
+            }
+        }, intervalMs);
+    }
+
+    /**
+     * Open edit modal with full project payload from backend to avoid partial-data overwrites
+     */
+    async editProject(projectId, fallbackProject = null) {
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const metricType = this.getSelectedSovMetric();
+            const response = await fetch(
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`,
+                { credentials: 'same-origin' }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success || !data?.project) {
+                throw new Error('Could not load full project details');
+            }
+
+            this.showProjectModal(data.project);
+        } catch (error) {
+            console.error('❌ Error loading full project for edit:', error);
+            if (fallbackProject) {
+                this.showProjectModal(fallbackProject);
+            } else {
+                this.showError('Failed to load project details');
+            }
+        }
     }
 
     /**
@@ -968,6 +1201,13 @@ class LLMMonitoring {
                 <div class="kpi-trend ${trendClass}" title="Previous period: ${prevSentiment}">
                     <i class="fas ${trendIcon}"></i>
                     <span>${trendLabel}</span>
+                </div>
+            `;
+        } else {
+            sentimentHTML += `
+                <div class="kpi-trend trend-nodata" title="Not enough historical data to calculate trend">
+                    <i class="fas fa-clock"></i>
+                    <span>new</span>
                 </div>
             `;
         }
@@ -3170,13 +3410,132 @@ class LLMMonitoring {
     }
 
     /**
+     * Wire custom confirm modal events once
+     */
+    setupConfirmModalListeners() {
+        const modal = document.getElementById('actionConfirmModal');
+        if (!modal || modal.dataset.listenersAttached === 'true') return;
+
+        const closeBtn = document.getElementById('actionConfirmClose');
+        const cancelBtn = document.getElementById('actionConfirmCancel');
+        const acceptBtn = document.getElementById('actionConfirmAccept');
+
+        const cancelHandler = () => this.resolveConfirmDialog(false);
+        const acceptHandler = () => this.resolveConfirmDialog(true);
+
+        closeBtn?.addEventListener('click', cancelHandler);
+        cancelBtn?.addEventListener('click', cancelHandler);
+        acceptBtn?.addEventListener('click', acceptHandler);
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                this.resolveConfirmDialog(false);
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.isConfirmModalOpen) {
+                this.resolveConfirmDialog(false);
+            }
+        });
+
+        modal.dataset.listenersAttached = 'true';
+    }
+
+    /**
+     * Open custom confirmation dialog
+     */
+    showConfirmDialog({
+        title = 'Confirm action',
+        message = 'Are you sure?',
+        confirmText = 'Confirm',
+        cancelText = 'Cancel',
+        variant = 'warning'
+    } = {}) {
+        const modal = document.getElementById('actionConfirmModal');
+        const titleEl = document.getElementById('actionConfirmTitle');
+        const messageEl = document.getElementById('actionConfirmMessage');
+        const iconEl = document.getElementById('actionConfirmIcon');
+        const cancelBtn = document.getElementById('actionConfirmCancel');
+        const acceptBtn = document.getElementById('actionConfirmAccept');
+
+        if (!modal || !titleEl || !messageEl || !cancelBtn || !acceptBtn) {
+            console.error('Custom confirm modal is not available in DOM');
+            return Promise.resolve(false);
+        }
+
+        // If there is a pending dialog, resolve it as cancelled first.
+        if (this.confirmResolver) {
+            this.confirmResolver(false);
+            this.confirmResolver = null;
+        }
+
+        this.setupConfirmModalListeners();
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        cancelBtn.textContent = cancelText;
+        acceptBtn.textContent = confirmText;
+
+        modal.dataset.variant = variant;
+        acceptBtn.classList.remove('confirm-warning', 'confirm-danger');
+        iconEl?.classList.remove('variant-warning', 'variant-danger');
+
+        if (variant === 'danger') {
+            acceptBtn.classList.add('confirm-danger');
+            iconEl?.classList.add('variant-danger');
+            if (iconEl) iconEl.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        } else {
+            acceptBtn.classList.add('confirm-warning');
+            iconEl?.classList.add('variant-warning');
+            if (iconEl) iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        }
+
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        this.isConfirmModalOpen = true;
+
+        return new Promise((resolve) => {
+            this.confirmResolver = resolve;
+        });
+    }
+
+    /**
+     * Resolve custom confirm dialog and close modal
+     */
+    resolveConfirmDialog(confirmed) {
+        const modal = document.getElementById('actionConfirmModal');
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 120);
+        }
+        this.isConfirmModalOpen = false;
+
+        if (this.confirmResolver) {
+            const resolve = this.confirmResolver;
+            this.confirmResolver = null;
+            resolve(confirmed);
+        }
+    }
+
+    /**
      * ✨ NUEVO: Desactivar un proyecto (deja de ejecutarse en CRON)
      */
     async deactivateProject(projectId, projectName) {
         console.log(`⏸️ Deactivating project ${projectId}...`);
 
-        // Confirm deactivation
-        if (!confirm(`Are you sure you want to deactivate the project "${projectName}"?\n\nThe project will stop running in automatic analysis, but all data will be preserved.`)) {
+        const confirmed = await this.showConfirmDialog({
+            title: 'Deactivate Project?',
+            message: `The project "${projectName}" will stop running in automatic analysis, but all data will be preserved.`,
+            confirmText: 'Deactivate',
+            cancelText: 'Keep Active',
+            variant: 'warning'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -3252,12 +3611,17 @@ class LLMMonitoring {
     async deleteProject(projectId, projectName, isPermanent = false) {
         console.log(`🗑️ Deleting project ${projectId}... (permanent: ${isPermanent})`);
 
-        // Confirm deletion
         const message = isPermanent
-            ? `⚠️ PERMANENT DELETION\n\nAre you sure you want to permanently delete the project "${projectName}"?\n\nThis will delete:\n- The project\n- All queries\n- All analysis results\n- All snapshots\n\nThis action CANNOT be undone!`
-            : `Are you sure you want to delete the project "${projectName}"?\n\nThis action cannot be undone.`;
-
-        if (!confirm(message)) {
+            ? `The project "${projectName}" and all its data (queries, results and snapshots) will be deleted permanently.\n\nThis action cannot be undone.`
+            : `The project "${projectName}" will be deleted.\n\nThis action cannot be undone.`;
+        const confirmed = await this.showConfirmDialog({
+            title: isPermanent ? 'Delete Project Permanently?' : 'Delete Project?',
+            message,
+            confirmText: isPermanent ? 'Delete Permanently' : 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -3328,7 +3692,6 @@ class LLMMonitoring {
             document.getElementById('industry').value = project.industry || '';
             document.getElementById('language').value = project.language || 'es';
             document.getElementById('countryCode').value = project.country_code || 'ES';
-            document.getElementById('queriesPerLlm').value = project.queries_per_llm || 15;
 
             // Fill brand domain
             document.getElementById('brandDomain').value = project.brand_domain || '';
@@ -3392,7 +3755,6 @@ class LLMMonitoring {
         const brandDomain = document.getElementById('brandDomain').value.trim();
         const language = document.getElementById('language').value;
         const countryCode = document.getElementById('countryCode').value;
-        const queriesPerLlm = parseInt(document.getElementById('queriesPerLlm').value);
 
         // Get checked LLMs
         const llmCheckboxes = document.querySelectorAll('input[name="llm"]:checked');
@@ -3412,11 +3774,6 @@ class LLMMonitoring {
 
         if (enabledLlms.length === 0) {
             this.showError('Please select at least one LLM');
-            return;
-        }
-
-        if (queriesPerLlm < 5 || queriesPerLlm > 60) {
-            this.showError('Queries per LLM must be between 5 and 60');
             return;
         }
 
@@ -3445,8 +3802,7 @@ class LLMMonitoring {
             selected_competitors: selectedCompetitors, // ✨ NEW: Use new structure
             language,
             country_code: countryCode,
-            enabled_llms: enabledLlms,
-            queries_per_llm: queriesPerLlm
+            enabled_llms: enabledLlms
         };
 
         // Show loading
@@ -3505,6 +3861,9 @@ class LLMMonitoring {
 
             // Show success message
             this.showSuccess(`Project ${isEdit ? 'updated' : 'created'} successfully!`);
+            if (!isEdit) {
+                this.showInfo('You can now click "Run First Analysis" on the new project card.');
+            }
 
         } catch (error) {
             console.error('❌ Error saving project:', error);
@@ -3643,6 +4002,41 @@ class LLMMonitoring {
     }
 
     /**
+     * Reload prompts in the currently active view and keep the page section in sync
+     */
+    async refreshPromptViews() {
+        if (!this.currentProject || !this.currentProject.id) {
+            return;
+        }
+
+        const projectId = this.currentProject.id;
+        if (this.isRenderingInModal) {
+            await this.loadPrompts(projectId, true);
+            await this.loadPrompts(projectId, false);
+            return;
+        }
+
+        await this.loadPrompts(projectId, false);
+    }
+
+    /**
+     * Refresh project cards when projects tab is visible (for CTA state updates)
+     */
+    async refreshProjectsListIfVisible() {
+        const projectsTab = document.getElementById('projectsTab');
+        if (!projectsTab) {
+            return;
+        }
+
+        const isVisible = window.getComputedStyle(projectsTab).display !== 'none';
+        if (!isVisible) {
+            return;
+        }
+
+        await this.loadProjects();
+    }
+
+    /**
      * Render prompts with pagination
      */
     renderPrompts(renderInModal = false) {
@@ -3660,7 +4054,7 @@ class LLMMonitoring {
                     </div>
                     <h4>No prompts yet</h4>
                     <p>Add prompts to start analyzing brand visibility in LLMs</p>
-                    <button class="btn btn-primary btn-sm mt-2" onclick="window.llmMonitoring.showPromptsModal()">
+                    <button class="btn btn-primary mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
                         <i class="fas fa-plus"></i>
                         Add Your First Prompt
                     </button>
@@ -3819,11 +4213,161 @@ class LLMMonitoring {
         // Load quick suggestions
         this.loadQuickSuggestions();
     }
+
+    getProjectLanguageCode() {
+        return (this.currentProject?.language || 'en').toLowerCase();
+    }
+
+    getCompetitorFallbackLabel(languageCode) {
+        const labels = {
+            es: 'competidores',
+            it: 'concorrenti',
+            fr: 'concurrents',
+            de: 'Wettbewerber',
+            pt: 'concorrentes'
+        };
+        return labels[languageCode] || 'competitors';
+    }
+
+    getPrimaryCompetitorName(languageCode) {
+        const selectedCompetitors = Array.isArray(this.currentProject?.selected_competitors)
+            ? this.currentProject.selected_competitors
+            : [];
+        const competitorFromSelection = selectedCompetitors.find(comp => comp && comp.domain)?.domain;
+        if (competitorFromSelection) {
+            return competitorFromSelection;
+        }
+
+        const legacyCompetitor = Array.isArray(this.currentProject?.competitors)
+            ? this.currentProject.competitors.find(comp => comp && String(comp).trim())
+            : null;
+        if (legacyCompetitor) {
+            return legacyCompetitor;
+        }
+
+        return this.getCompetitorFallbackLabel(languageCode);
+    }
+
+    buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode = 'default') {
+        const catalog = {
+            es: {
+                default: [
+                    `¿Qué es ${brandName}?`,
+                    `Mejores herramientas de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Opiniones de ${brandName}`,
+                    `¿Cómo funciona ${brandName}?`,
+                    `Alternativas a ${brandName}`
+                ],
+                variation: [
+                    `¿Qué es ${brandName} y cómo funciona?`,
+                    `Mejores alternativas a ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `¿Vale la pena ${brandName}?`,
+                    `Cómo usar ${brandName}`,
+                    `Precios de ${brandName}`
+                ]
+            },
+            it: {
+                default: [
+                    `Cos'è ${brandName}?`,
+                    `I migliori strumenti di ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Recensioni su ${brandName}`,
+                    `Come funziona ${brandName}?`,
+                    `Alternative a ${brandName}`
+                ],
+                variation: [
+                    `Cos'è ${brandName} e come funziona?`,
+                    `Migliori alternative a ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vale la pena?`,
+                    `Come usare ${brandName}`,
+                    `Prezzi di ${brandName}`
+                ]
+            },
+            fr: {
+                default: [
+                    `Qu'est-ce que ${brandName} ?`,
+                    `Meilleurs outils de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Avis sur ${brandName}`,
+                    `Comment fonctionne ${brandName} ?`,
+                    `Alternatives à ${brandName}`
+                ],
+                variation: [
+                    `Qu'est-ce que ${brandName} et comment ça marche ?`,
+                    `Meilleures alternatives à ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vaut-il le coup ?`,
+                    `Comment utiliser ${brandName}`,
+                    `Tarifs de ${brandName}`
+                ]
+            },
+            de: {
+                default: [
+                    `Was ist ${brandName}?`,
+                    `Beste ${industry}-Tools`,
+                    `${brandName} vs ${competitorName}`,
+                    `Bewertungen zu ${brandName}`,
+                    `Wie funktioniert ${brandName}?`,
+                    `Alternativen zu ${brandName}`
+                ],
+                variation: [
+                    `Was ist ${brandName} und wie funktioniert es?`,
+                    `Beste Alternativen zu ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Lohnt sich ${brandName}?`,
+                    `Wie nutzt man ${brandName}?`,
+                    `${brandName} Preise`
+                ]
+            },
+            pt: {
+                default: [
+                    `O que é ${brandName}?`,
+                    `Melhores ferramentas de ${industry}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Avaliações de ${brandName}`,
+                    `Como funciona ${brandName}?`,
+                    `Alternativas ao ${brandName}`
+                ],
+                variation: [
+                    `O que é ${brandName} e como funciona?`,
+                    `Melhores alternativas ao ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} vale a pena?`,
+                    `Como usar ${brandName}`,
+                    `Preços do ${brandName}`
+                ]
+            },
+            en: {
+                default: [
+                    `What is ${brandName}?`,
+                    `Best ${industry} tools`,
+                    `${brandName} vs ${competitorName}`,
+                    `${brandName} reviews`,
+                    `How does ${brandName} work?`,
+                    `Alternatives to ${brandName}`
+                ],
+                variation: [
+                    `What is ${brandName} and how does it work?`,
+                    `Best alternatives to ${brandName}`,
+                    `${brandName} vs ${competitorName}`,
+                    `Is ${brandName} worth it?`,
+                    `How to use ${brandName}`,
+                    `${brandName} pricing and plans`
+                ]
+            }
+        };
+
+        const locale = catalog[languageCode] || catalog.en;
+        return mode === 'variation' ? locale.variation : locale.default;
+    }
     
     /**
      * ✨ Load quick suggestions based on existing prompts
      */
-    async loadQuickSuggestions() {
+    async loadQuickSuggestions(forceRefresh = false) {
         const listEl = document.getElementById('quickSuggestionsList');
         const emptyEl = document.getElementById('quickSuggestionsEmpty');
         const sectionEl = document.getElementById('quickSuggestionsSection');
@@ -3843,35 +4387,42 @@ class LLMMonitoring {
         try {
             // Get existing prompts
             const existingPrompts = this.allPrompts || [];
+            const languageCode = this.getProjectLanguageCode();
+            const brandName = this.currentProject.brand_name || 'your brand';
+            const industry = this.currentProject.industry || 'your industry';
+            const competitorName = this.getPrimaryCompetitorName(languageCode);
             
             if (existingPrompts.length === 0) {
-                // No existing prompts - show default suggestions based on brand and language
-                const brandName = this.currentProject.brand_name || 'your brand';
-                const industry = this.currentProject.industry || 'your industry';
-                const language = this.currentProject.language || 'en';
-                
-                let defaultSuggestions;
-                if (language === 'es') {
-                    defaultSuggestions = [
-                        `¿Qué es ${brandName}?`,
-                        `Mejores herramientas de ${industry}`,
-                        `${brandName} vs competidores`,
-                        `Opiniones de ${brandName}`,
-                        `¿Cómo funciona ${brandName}?`,
-                        `Alternativas a ${brandName}`
-                    ];
-                } else {
-                    defaultSuggestions = [
-                        `What is ${brandName}?`,
-                        `Best ${industry} tools`,
-                        `${brandName} vs competitors`,
-                        `${brandName} reviews`,
-                        `How does ${brandName} work?`,
-                        `Alternatives to ${brandName}`
-                    ];
+                const cacheKey = `bootstrap:${this.currentProject.id}:${languageCode}`;
+
+                if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
+                    this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
+                    return;
                 }
-                
-                this.renderQuickSuggestions(defaultSuggestions);
+
+                // For new projects with zero prompts, use AI first to honor project language/country.
+                const bootstrapResponse = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        existing_prompts: [],
+                        count: 6
+                    })
+                });
+
+                if (bootstrapResponse.ok) {
+                    const bootstrapData = await bootstrapResponse.json();
+                    if (bootstrapData.success && bootstrapData.suggestions && bootstrapData.suggestions.length > 0) {
+                        this.quickSuggestionsCache.set(cacheKey, bootstrapData.suggestions);
+                        this.renderQuickSuggestions(bootstrapData.suggestions);
+                        return;
+                    }
+                }
+
+                // Fallback if AI is unavailable
+                this.renderQuickSuggestions(
+                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+                );
                 return;
             }
             
@@ -3905,8 +4456,13 @@ class LLMMonitoring {
             if (this.allPrompts && this.allPrompts.length > 0) {
                 this.generateLocalSuggestions(this.allPrompts);
             } else {
-                if (emptyEl) emptyEl.style.display = 'block';
-                listEl.innerHTML = '';
+                const languageCode = this.getProjectLanguageCode();
+                const brandName = this.currentProject?.brand_name || 'your brand';
+                const industry = this.currentProject?.industry || 'your industry';
+                const competitorName = this.getPrimaryCompetitorName(languageCode);
+                this.renderQuickSuggestions(
+                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+                );
             }
         }
     }
@@ -3916,32 +4472,13 @@ class LLMMonitoring {
      */
     generateLocalSuggestions(existingPrompts) {
         const brandName = this.currentProject?.brand_name || 'the brand';
-        const language = this.currentProject?.language || 'en';
-        const competitor = this.currentProject?.competitors?.[0] || (language === 'es' ? 'competidores' : 'competitors');
-        
-        let suggestions;
-        
-        if (language === 'es') {
-            suggestions = [
-                `¿Qué es ${brandName} y cómo funciona?`,
-                `Mejores alternativas a ${brandName}`,
-                `${brandName} vs ${competitor}`,
-                `¿Vale la pena ${brandName}?`,
-                `Cómo usar ${brandName}`,
-                `Precios de ${brandName}`
-            ];
-        } else {
-            suggestions = [
-                `What is ${brandName} and how does it work?`,
-                `Best alternatives to ${brandName}`,
-                `${brandName} vs ${competitor}`,
-                `Is ${brandName} worth it?`,
-                `How to use ${brandName}`,
-                `${brandName} pricing and plans`
-            ];
-        }
-        
-        this.renderQuickSuggestions(suggestions);
+        const industry = this.currentProject?.industry || 'your industry';
+        const languageCode = this.getProjectLanguageCode();
+        const competitorName = this.getPrimaryCompetitorName(languageCode);
+
+        this.renderQuickSuggestions(
+            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'variation')
+        );
     }
     
     /**
@@ -4012,7 +4549,7 @@ class LLMMonitoring {
             btn.classList.add('loading');
             setTimeout(() => btn.classList.remove('loading'), 1000);
         }
-        this.loadQuickSuggestions();
+        this.loadQuickSuggestions(true);
     }
 
     /**
@@ -4232,10 +4769,13 @@ class LLMMonitoring {
             this.hidePromptsModal();
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
+
+            // Refresh project cards so "Run First Analysis" CTA updates immediately
+            await this.refreshProjectsListIfVisible();
 
             // Show success message
             let message = `${data.added_count} prompts added successfully!`;
@@ -4264,7 +4804,14 @@ class LLMMonitoring {
             return;
         }
 
-        if (!confirm('Are you sure you want to delete this prompt?')) {
+        const confirmed = await this.showConfirmDialog({
+            title: 'Delete Prompt?',
+            message: 'This prompt will be removed from the project.',
+            confirmText: 'Delete Prompt',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -4284,10 +4831,13 @@ class LLMMonitoring {
             console.log(`✅ Prompt ${queryId} deleted`);
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
+
+            // Refresh project cards so CTA state stays in sync
+            await this.refreshProjectsListIfVisible();
 
             this.showSuccess('Prompt deleted successfully');
 
@@ -4556,7 +5106,13 @@ class LLMMonitoring {
             this.hideSuggestionsModal();
 
             // Reload prompts
-            await this.loadPrompts(this.currentProject.id);
+            await this.refreshPromptViews();
+
+            // Keep query filter synced after adding suggestions
+            await this.populateQueryFilter();
+
+            // Refresh project cards so CTA state stays in sync
+            await this.refreshProjectsListIfVisible();
 
             // Show success
             let message = `${data.added_count} AI suggestions added successfully!`;
@@ -4710,26 +5266,70 @@ class LLMMonitoring {
     }
 
     /**
+     * Utility: Show custom toast notification
+     */
+    showToast(message, type = 'info', durationMs = 3800) {
+        const container = document.getElementById('llmToastContainer');
+        if (!container) {
+            console.log(`[${type}] ${message}`);
+            return;
+        }
+
+        const iconByType = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `llm-toast llm-toast-${type}`;
+        toast.innerHTML = `
+            <div class="llm-toast-icon">
+                <i class="fas ${iconByType[type] || iconByType.info}"></i>
+            </div>
+            <div class="llm-toast-message">${this.escapeHtml(String(message || ''))}</div>
+            <button type="button" class="llm-toast-close" aria-label="Close notification">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        const removeToast = () => {
+            if (!toast.parentNode) return;
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 180);
+        };
+
+        toast.querySelector('.llm-toast-close')?.addEventListener('click', removeToast);
+
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        setTimeout(removeToast, durationMs);
+    }
+
+    /**
      * Utility: Show error message
      */
     showError(message) {
-        // You can implement a toast notification system here
-        alert(`Error: ${message}`);
+        this.showToast(message, 'error', 4600);
     }
 
     /**
      * Utility: Show success message
      */
     showSuccess(message) {
-        // You can implement a toast notification system here
-        alert(`Success: ${message}`);
+        this.showToast(message, 'success', 3400);
     }
 
     /**
      * Utility: Show info message
      */
     showInfo(message) {
-        alert(message);
+        this.showToast(message, 'info', 3800);
     }
 
     /**

@@ -12,6 +12,7 @@ MODELO DE NEGOCIO:
 Endpoints:
     GET    /api/llm-monitoring/projects               - Listar proyectos
     POST   /api/llm-monitoring/projects               - Crear proyecto
+    POST   /api/llm-monitoring/projects/:id/run-initial-analysis - Ejecutar primer análisis (una vez)
     GET    /api/llm-monitoring/projects/:id           - Obtener proyecto
     PUT    /api/llm-monitoring/projects/:id           - Actualizar proyecto
     DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
@@ -55,6 +56,34 @@ logger = logging.getLogger(__name__)
 
 # Crear Blueprint
 llm_monitoring_bp = Blueprint('llm_monitoring', __name__, url_prefix='/api/llm-monitoring')
+
+# Estado en memoria para evitar dobles disparos del primer análisis
+# (misma instancia de app). La fuente de verdad para "ya analizado" sigue en BD.
+_INITIAL_ANALYSIS_RUNNING = set()
+_INITIAL_ANALYSIS_RUNNING_LOCK = threading.Lock()
+
+
+def _is_initial_analysis_running(project_id: int) -> bool:
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        return int(project_id) in _INITIAL_ANALYSIS_RUNNING
+
+
+def _mark_initial_analysis_running(project_id: int) -> bool:
+    """
+    Marca un proyecto como "primer análisis en curso".
+    Returns False si ya estaba en curso.
+    """
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        normalized_id = int(project_id)
+        if normalized_id in _INITIAL_ANALYSIS_RUNNING:
+            return False
+        _INITIAL_ANALYSIS_RUNNING.add(normalized_id)
+        return True
+
+
+def _clear_initial_analysis_running(project_id: int):
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        _INITIAL_ANALYSIS_RUNNING.discard(int(project_id))
 
 
 # ============================================================================
@@ -173,6 +202,20 @@ def _normalize_days_param(raw_days, default: int = 30, min_days: int = 1, max_da
     return days
 
 
+def _get_effective_plan_limits(user: dict) -> dict:
+    """
+    Devuelve límites efectivos por usuario.
+    Admin opera sin límites para soporte y validación interna.
+    """
+    limits = get_llm_plan_limits((user or {}).get('plan', 'free'))
+    if user and user.get('role') == 'admin':
+        limits = dict(limits)
+        limits['max_projects'] = None
+        limits['max_prompts_per_project'] = None
+        limits['max_monthly_units'] = None
+    return limits
+
+
 # ============================================================================
 # ENDPOINTS: PROYECTOS
 # ============================================================================
@@ -203,10 +246,16 @@ def get_projects():
                 p.id,
                 p.name,
                 p.brand_name,
+                p.brand_domain,
+                p.brand_keywords,
                 p.industry,
                 p.enabled_llms,
                 p.competitors,
+                p.competitor_domains,
+                p.competitor_keywords,
+                p.selected_competitors,
                 p.language,
+                p.country_code,
                 p.queries_per_llm,
                 p.is_active,
                 p.is_paused_by_quota,
@@ -216,6 +265,11 @@ def get_projects():
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
+                (
+                    SELECT COUNT(*)
+                    FROM llm_monitoring_queries q
+                    WHERE q.project_id = p.id AND q.is_active = TRUE
+                ) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
             FROM llm_monitoring_projects p
@@ -234,12 +288,20 @@ def get_projects():
                 'id': project['id'],
                 'name': project['name'],
                 'brand_name': project['brand_name'],
+                'brand_domain': project.get('brand_domain'),
+                'brand_keywords': project.get('brand_keywords') or [],
                 'industry': project['industry'],
                 'enabled_llms': project['enabled_llms'],
                 'competitors': project['competitors'],
+                'competitor_domains': project.get('competitor_domains') or [],
+                'competitor_keywords': project.get('competitor_keywords') or [],
+                'selected_competitors': project.get('selected_competitors') or [],
                 'language': project['language'],
+                'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
+                'total_queries': project.get('total_queries') or 0,
                 'is_active': project['is_active'],
+                'initial_analysis_in_progress': _is_initial_analysis_running(project['id']),
                 'is_paused_by_quota': project.get('is_paused_by_quota', False),
                 'paused_until': project['paused_until'].isoformat() if project.get('paused_until') else None,
                 'paused_at': project['paused_at'].isoformat() if project.get('paused_at') else None,
@@ -297,8 +359,7 @@ def create_project():
         "competitor_domains": ["competitor1.com"],
         "competitor_keywords": ["semrush", "ahrefs"],
         "language": "es",
-        "enabled_llms": ["openai", "anthropic", "google", "perplexity"],
-        "queries_per_llm": 15
+        "enabled_llms": ["openai", "anthropic", "google", "perplexity"]
     }
     
     Returns:
@@ -308,7 +369,7 @@ def create_project():
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
     
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
 
     data = request.get_json(silent=True) or {}
@@ -325,28 +386,21 @@ def create_project():
     brand_domain = data.get('brand_domain')
     brand_keywords = data.get('brand_keywords', [])
     selected_competitors = data.get('selected_competitors', [])  # ✨ NEW
-    language = data.get('language', 'es')
-    country_code = data.get('country_code', 'ES')
+    language = str(data.get('language', 'es') or 'es').strip().lower() or 'es'
+    country_code = str(data.get('country_code', 'ES') or 'ES').strip().upper()
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
-    queries_per_llm = data.get('queries_per_llm', 15)
     
     # Validaciones
     if not isinstance(brand_keywords, list) or len(brand_keywords) == 0:
         return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
     
-    if queries_per_llm < 5 or queries_per_llm > 60:
-        return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
-
     max_prompts = plan_limits.get('max_prompts_per_project')
-    if max_prompts is not None and queries_per_llm > max_prompts:
-        return jsonify({
-            'error': 'prompt_limit_exceeded',
-            'message': 'Tu plan no permite tantos prompts por proyecto',
-            'current_plan': user.get('plan', 'free'),
-            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-            'limit': max_prompts,
-            'requested': queries_per_llm
-        }), 402
+    # queries_per_llm deja de ser configurable por usuario.
+    # Se guarda internamente una capacidad derivada del plan para compatibilidad.
+    if isinstance(max_prompts, int):
+        configured_prompt_capacity = max(5, min(60, max_prompts))
+    else:
+        configured_prompt_capacity = 60
     
     if not isinstance(enabled_llms, list) or len(enabled_llms) == 0:
         return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
@@ -354,6 +408,9 @@ def create_project():
     valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
     if not all(llm in valid_llms for llm in enabled_llms):
         return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
+
+    if not country_code or len(country_code) != 2 or not country_code.isalpha():
+        return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
     
     conn = get_db_connection()
     if not conn:
@@ -434,7 +491,7 @@ def create_project():
             enabled_llms,
             language,
             country_code,
-            queries_per_llm,
+            configured_prompt_capacity,
             # Campos legacy por compatibilidad
             brand_keywords[0] if brand_keywords else 'Brand',
             json.dumps(competitor_keywords)  # Usar keywords como legacy competitors
@@ -462,7 +519,7 @@ def create_project():
                 'enabled_llms': enabled_llms,
                 'language': language,
                 'country_code': country_code,
-                'queries_per_llm': queries_per_llm,
+                'queries_per_llm': configured_prompt_capacity,
                 'is_active': True,
                 'created_at': created_at.isoformat(),
                 'total_queries': 0
@@ -515,12 +572,13 @@ def get_project(project_id):
                 p.competitor_keywords,
                 p.selected_competitors,
                 p.language,
+                p.country_code,
                 p.queries_per_llm,
                 p.is_active,
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
-                COUNT(DISTINCT q.id) as total_queries,
+                COUNT(DISTINCT q.id) FILTER (WHERE q.is_active = TRUE) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
             FROM llm_monitoring_projects p
@@ -529,7 +587,7 @@ def get_project(project_id):
             WHERE p.id = %s
             GROUP BY p.id, p.user_id, p.name, p.brand_name, p.brand_domain, p.brand_keywords,
                      p.industry, p.enabled_llms, p.competitors, p.competitor_domains, 
-                     p.competitor_keywords, p.selected_competitors, p.language, p.queries_per_llm,
+                     p.competitor_keywords, p.selected_competitors, p.language, p.country_code, p.queries_per_llm,
                      p.is_active, p.last_analysis_date, p.created_at, p.updated_at
         """, (project_id,))
         
@@ -548,11 +606,12 @@ def get_project(project_id):
         metric_type = request.args.get('metric', 'normal')
         if metric_type not in ['normal', 'weighted']:
             metric_type = 'normal'
+        enabled_llms_filter = project.get('enabled_llms') or []
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
         
         # Obtener todos los snapshots del rango seleccionado
         # ✨ NUEVO: Incluir campos Top3/5/10 para métricas de posición granulares
-        cur.execute("""
+        snapshots_query = """
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -573,15 +632,20 @@ def get_project(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
                 AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, days))
+        """
+        snapshots_params = [project_id, days]
+        if enabled_llms_filter:
+            snapshots_query += " AND llm_provider = ANY(%s)"
+            snapshots_params.append(enabled_llms_filter)
+        snapshots_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(snapshots_query, snapshots_params)
         
         all_snapshots = cur.fetchall()
         logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos {days} días)")
         
         # ✨ NUEVO: Obtener snapshots del período ANTERIOR para calcular tendencias
         # Si el período actual es "últimos 30 días", el anterior es "hace 60-31 días"
-        cur.execute("""
+        previous_snapshots_query = """
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -603,8 +667,13 @@ def get_project(project_id):
             WHERE project_id = %s
                 AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
                 AND snapshot_date < CURRENT_DATE - (%s * INTERVAL '1 day')
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, days * 2, days))
+        """
+        previous_snapshots_params = [project_id, days * 2, days]
+        if enabled_llms_filter:
+            previous_snapshots_query += " AND llm_provider = ANY(%s)"
+            previous_snapshots_params.append(enabled_llms_filter)
+        previous_snapshots_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(previous_snapshots_query, previous_snapshots_params)
         
         previous_snapshots = cur.fetchall()
         logger.info(f"📊 Snapshots período anterior: {len(previous_snapshots)} (para calcular tendencias)")
@@ -794,7 +863,7 @@ def get_project(project_id):
         
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
-        cur.execute("""
+        position_query = """
             SELECT 
                 COUNT(*) FILTER (WHERE brand_mentioned) as total_mentions,
                 AVG(position_in_list) FILTER (
@@ -821,7 +890,12 @@ def get_project(project_id):
             WHERE project_id = %s
               AND analysis_date >= %s
               AND analysis_date <= %s
-        """, (project_id, start_date, end_date))
+        """
+        position_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            position_query += " AND llm_provider = ANY(%s)"
+            position_params.append(enabled_llms_filter)
+        cur.execute(position_query, position_params)
         
         position_row = cur.fetchone()
         if position_row:
@@ -851,22 +925,30 @@ def get_project(project_id):
         aggregated_neutral_pct = (total_neutral / total_queries_all * 100) if total_queries_all > 0 else 0
         aggregated_negative_pct = (total_negative / total_queries_all * 100) if total_queries_all > 0 else 0
         
+        has_previous_period_data = len(previous_snapshots) > 0 and prev_queries_all > 0
+
         # ✨ NUEVO: Calcular TENDENCIAS (cambio vs período anterior)
-        def calculate_trend(current, previous):
-            """Calcula tendencia: direction (up/down/stable) y change (%)"""
+        def calculate_trend(current, previous, has_previous_data):
+            """
+            Calcula tendencia: direction (up/down/stable) y change (%).
+            Si no hay histórico suficiente en el período anterior, devuelve None.
+            """
+            if not has_previous_data:
+                return None
+
             if previous == 0:
                 if current > 0:
                     return {'direction': 'up', 'change': 100, 'previous': 0}
                 return {'direction': 'stable', 'change': 0, 'previous': 0}
-            
+
             change = ((current - previous) / previous) * 100
-            
+
             # Considerar "stable" si el cambio es menor al 2%
             if abs(change) < 2:
                 direction = 'stable'
             else:
                 direction = 'up' if change > 0 else 'down'
-            
+
             return {
                 'direction': direction,
                 'change': round(abs(change), 1),
@@ -897,16 +979,18 @@ def get_project(project_id):
         )
         
         # Determinar la tendencia categórica del sentimiento
-        if current_sentiment_value > prev_sentiment_value:
+        if not has_previous_period_data:
+            sentiment_trend = None
+        elif current_sentiment_value > prev_sentiment_value:
             sentiment_trend = {'direction': 'better', 'previous': prev_sentiment}
         elif current_sentiment_value < prev_sentiment_value:
             sentiment_trend = {'direction': 'worse', 'previous': prev_sentiment}
         else:
             sentiment_trend = {'direction': 'same', 'previous': prev_sentiment}
-        
+
         trends = {
-            'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate),
-            'share_of_voice': calculate_trend(aggregated_sov, prev_sov),
+            'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate, has_previous_period_data),
+            'share_of_voice': calculate_trend(aggregated_sov, prev_sov, has_previous_period_data),
             'sentiment': sentiment_trend  # ✨ Ahora es categórico: better/worse/same
         }
         
@@ -951,7 +1035,8 @@ def get_project(project_id):
         llms_expected = len(enabled_llms)
         
         # Completeness (0-100): promedio de completitud por LLM (queries analizadas / esperadas)
-        expected_queries = project.get('total_queries') or project.get('queries_per_llm') or 0
+        # La completitud se calcula contra prompts realmente configurados en el proyecto.
+        expected_queries = project.get('total_queries') or 0
         llm_completeness = {}
         
         total_analyzed_queries = 0
@@ -1031,6 +1116,7 @@ def get_project(project_id):
                 'competitor_keywords': project.get('competitor_keywords', []),  # Legacy
                 'selected_competitors': project.get('selected_competitors', []),  # ✨ NUEVO
                 'language': project['language'],
+                'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'last_analysis_date': project['last_analysis_date'].isoformat() if project['last_analysis_date'] else None,
@@ -1082,8 +1168,7 @@ def update_project(project_id):
         "competitor_domains": ["comp1.com"],
         "competitor_keywords": ["comp_kw1", "comp_kw2"],
         "is_active": false,
-        "enabled_llms": ["openai", "google"],
-        "queries_per_llm": 20
+        "enabled_llms": ["openai", "google"]
     }
     
     Returns:
@@ -1097,8 +1182,6 @@ def update_project(project_id):
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
-    max_prompts = plan_limits.get('max_prompts_per_project')
     
     conn = get_db_connection()
     if not conn:
@@ -1118,6 +1201,13 @@ def update_project(project_id):
         if 'industry' in data:
             updates.append("industry = %s")
             params.append(data['industry'])
+
+        if 'language' in data:
+            language = str(data.get('language') or '').strip().lower()
+            if not language:
+                return jsonify({'error': 'language no puede estar vacío'}), 400
+            updates.append("language = %s")
+            params.append(language)
         
         if 'brand_domain' in data:
             updates.append("brand_domain = %s")
@@ -1163,29 +1253,19 @@ def update_project(project_id):
         if 'enabled_llms' in data:
             # Validar LLMs
             valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
+            if not isinstance(data['enabled_llms'], list) or len(data['enabled_llms']) == 0:
+                return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
             if not all(llm in valid_llms for llm in data['enabled_llms']):
                 return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
             updates.append("enabled_llms = %s")
             params.append(data['enabled_llms'])
         
-        if 'queries_per_llm' in data:
-            if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 60:
-                return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
-            if max_prompts is not None and data['queries_per_llm'] > max_prompts:
-                return jsonify({
-                    'error': 'prompt_limit_exceeded',
-                    'message': 'Tu plan no permite tantos prompts por proyecto',
-                    'current_plan': user.get('plan', 'free'),
-                    'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-                    'limit': max_prompts,
-                    'requested': data['queries_per_llm']
-                }), 402
-            updates.append("queries_per_llm = %s")
-            params.append(data['queries_per_llm'])
-        
         if 'country_code' in data:
+            country_code = str(data.get('country_code') or '').strip().upper()
+            if not country_code or len(country_code) != 2 or not country_code.isalpha():
+                return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
             updates.append("country_code = %s")
-            params.append(data['country_code'])
+            params.append(country_code)
         
         if not updates:
             return jsonify({'error': 'No hay campos para actualizar'}), 400
@@ -1297,7 +1377,7 @@ def activate_project(project_id):
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
     active_projects = count_user_active_projects(user['id'])
     if max_projects is not None and active_projects >= max_projects:
@@ -1468,7 +1548,7 @@ def add_queries_to_project(project_id):
         return jsonify({'error': 'queries debe ser una lista'}), 400
     
     # Validar límites por plan (prompts por proyecto)
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_prompts = plan_limits.get('max_prompts_per_project')
 
     # Obtener configuración del proyecto si no se especificó idioma
@@ -1577,7 +1657,7 @@ def delete_query(project_id, query_id):
         
         # Verificar que la query pertenece al proyecto
         cur.execute("""
-            SELECT id, query_text 
+            SELECT id, query_text
             FROM llm_monitoring_queries
             WHERE id = %s AND project_id = %s
         """, (query_id, project_id))
@@ -1641,9 +1721,10 @@ def get_query_history(project_id, query_id):
         
         # Verificar que la query pertenece al proyecto
         cur.execute("""
-            SELECT id, query_text 
-            FROM llm_monitoring_queries
-            WHERE id = %s AND project_id = %s
+            SELECT q.id, q.query_text, p.enabled_llms
+            FROM llm_monitoring_queries q
+            JOIN llm_monitoring_projects p ON q.project_id = p.id
+            WHERE q.id = %s AND q.project_id = %s
         """, (query_id, project_id))
         
         query = cur.fetchone()
@@ -1654,7 +1735,8 @@ def get_query_history(project_id, query_id):
         logger.info(f"📊 Fetching history for query {query_id} ('{query['query_text'][:30]}...') - last {days} days")
         
         # Obtener historial de resultados para esta query
-        cur.execute(f"""
+        enabled_llms_filter = query.get('enabled_llms') or []
+        history_query = f"""
             SELECT 
                 analysis_date,
                 llm_provider,
@@ -1664,8 +1746,13 @@ def get_query_history(project_id, query_id):
             FROM llm_monitoring_results
             WHERE query_id = %s AND project_id = %s
                 AND analysis_date >= CURRENT_DATE - INTERVAL '{days} days'
-            ORDER BY analysis_date ASC, llm_provider
-        """, (query_id, project_id))
+        """
+        history_params = [query_id, project_id]
+        if enabled_llms_filter:
+            history_query += " AND llm_provider = ANY(%s)"
+            history_params.append(enabled_llms_filter)
+        history_query += " ORDER BY analysis_date ASC, llm_provider"
+        cur.execute(history_query, history_params)
         
         results = cur.fetchall()
         
@@ -1905,65 +1992,41 @@ def suggest_query_variations(project_id):
         industry = project['industry'] or 'general'
         competitors = project['competitors'] or []
         
-        # Intentar generar con Gemini
+        language = (project['language'] or 'en').lower()
+
+        # Intentar generar con IA usando el provider configurado en BD (sin modelo hardcodeado)
         try:
-            import google.generativeai as genai
-            import os
-            
-            api_key = os.getenv('GOOGLE_API_KEY')
-            if api_key:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                import random
-                import time
-                
-                language = project['language'] or 'en'
-                lang_instruction = "Spanish" if language == 'es' else "English" if language == 'en' else language.upper()
-                
-                # Add randomness to get different results each time
-                random_seed = random.randint(1, 1000)
-                timestamp = int(time.time())
-                
-                prompt = f"""Generate {count} unique and CREATIVE prompt variations for LLM brand monitoring.
+            from services.llm_monitoring_service import generate_query_suggestions_with_ai
 
-Brand: {brand_name}
-Industry: {industry}
-Competitors: {', '.join(competitors[:3]) if competitors else 'N/A'}
-Existing prompts to avoid repeating: {', '.join(existing_prompts[:5]) if existing_prompts else 'None yet'}
-
-CRITICAL: Generate ALL prompts in {lang_instruction} language.
-IMPORTANT: Be creative and generate DIFFERENT prompts than typical suggestions. Seed: {random_seed}-{timestamp}
-
-Requirements:
-- Each prompt should be a question users might ask an AI about this industry/brand
-- Mix different types: comparisons, recommendations, reviews, how-to, alternatives, opinions, experiences
-- Keep prompts concise (under 80 characters)
-- Return ONLY the prompts, one per line, no numbering or explanations
-- ALL prompts MUST be in {lang_instruction}
-- Generate UNIQUE prompts different from the examples above"""
-
-                response = model.generate_content(prompt)
-                suggestions = [
-                    line.strip() 
-                    for line in response.text.strip().split('\n') 
-                    if line.strip() and len(line.strip()) > 5
-                ][:count]
-                
+            suggestions = generate_query_suggestions_with_ai(
+                brand_name=brand_name,
+                industry=industry,
+                language=language,
+                existing_queries=existing_prompts,
+                competitors=competitors,
+                count=count
+            )
+            if suggestions:
                 return jsonify({
                     'success': True,
                     'suggestions': suggestions,
                     'source': 'ai'
                 }), 200
-        
+
         except Exception as ai_error:
             logger.warning(f"AI generation failed, using fallback: {ai_error}")
         
         # Fallback: Generate simple variations locally with randomization
         import random
         
-        comp_name = competitors[0] if competitors else ('competidores' if language == 'es' else 'competitors')
-        language = project['language'] or 'en'
+        competitor_fallback = {
+            'es': 'competidores',
+            'it': 'concorrenti',
+            'fr': 'concurrents',
+            'de': 'Wettbewerber',
+            'pt': 'concorrentes',
+        }
+        comp_name = competitors[0] if competitors else competitor_fallback.get(language, 'competitors')
         
         if language == 'es':
             all_variations = [
@@ -1987,6 +2050,58 @@ Requirements:
                 f"Top {industry} en 2024",
                 f"¿Cuál es mejor {brand_name} o {comp_name}?",
                 f"Experiencias con {brand_name}"
+            ]
+        elif language == 'it':
+            all_variations = [
+                f"Cos'è {brand_name} e come funziona?",
+                f"Migliori strumenti di {industry}",
+                f"Confronto {brand_name} vs {comp_name}",
+                f"{brand_name} vale la pena? Recensioni",
+                f"Alternative a {brand_name}",
+                f"Come iniziare con {brand_name}",
+                f"Prezzi e piani di {brand_name}",
+                f"Opinioni su {brand_name}",
+                f"Pro e contro di {brand_name}",
+                f"{brand_name} per principianti"
+            ]
+        elif language == 'fr':
+            all_variations = [
+                f"Qu'est-ce que {brand_name} et comment ça marche ?",
+                f"Meilleurs outils de {industry}",
+                f"Comparatif {brand_name} vs {comp_name}",
+                f"{brand_name} vaut-il le coup ? Avis",
+                f"Alternatives à {brand_name}",
+                f"Comment démarrer avec {brand_name}",
+                f"Tarifs et offres de {brand_name}",
+                f"Avis sur {brand_name}",
+                f"Avantages et inconvénients de {brand_name}",
+                f"{brand_name} pour débutants"
+            ]
+        elif language == 'de':
+            all_variations = [
+                f"Was ist {brand_name} und wie funktioniert es?",
+                f"Beste {industry}-Tools",
+                f"{brand_name} vs {comp_name} Vergleich",
+                f"Lohnt sich {brand_name}? Erfahrungen",
+                f"Alternativen zu {brand_name}",
+                f"Wie startet man mit {brand_name}?",
+                f"Preise und Pakete von {brand_name}",
+                f"Bewertungen zu {brand_name}",
+                f"Vor- und Nachteile von {brand_name}",
+                f"{brand_name} für Einsteiger"
+            ]
+        elif language == 'pt':
+            all_variations = [
+                f"O que é {brand_name} e como funciona?",
+                f"Melhores ferramentas de {industry}",
+                f"Comparativo {brand_name} vs {comp_name}",
+                f"{brand_name} vale a pena? Avaliações",
+                f"Alternativas ao {brand_name}",
+                f"Como começar com {brand_name}",
+                f"Preços e planos do {brand_name}",
+                f"Opiniões sobre {brand_name}",
+                f"Prós e contras do {brand_name}",
+                f"{brand_name} para iniciantes"
             ]
         else:
             all_variations = [
@@ -2048,11 +2163,139 @@ Requirements:
 # - El cron diario garantiza 100% de completitud
 #
 # El endpoint /projects/<int:project_id>/analyze ya NO está disponible.
-# Los usuarios ven los resultados del último análisis automático en el dashboard.
+# Solo se permite /projects/<id>/run-initial-analysis (una vez) para evitar
+# que un proyecto nuevo quede vacío hasta el siguiente cron diario.
 #
 # Para ejecutar análisis manual (admin/debugging):
 # - Usar: python3 fix_openai_incomplete_analysis.py
 # - O ejecutar manualmente: python3 daily_llm_monitoring_cron.py
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/run-initial-analysis', methods=['POST'])
+@login_required
+@validate_project_ownership
+def run_initial_analysis(project_id):
+    """
+    Ejecuta el PRIMER análisis de un proyecto en background.
+    Solo disponible para proyectos sin análisis previo.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                p.id,
+                p.name,
+                p.is_active,
+                p.last_analysis_date,
+                p.enabled_llms,
+                p.queries_per_llm,
+                (
+                    SELECT COUNT(*)
+                    FROM llm_monitoring_queries q
+                    WHERE q.project_id = p.id AND q.is_active = TRUE
+                ) as total_queries
+            FROM llm_monitoring_projects p
+            WHERE p.id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+
+        if not project.get('is_active'):
+            return jsonify({
+                'error': 'project_inactive',
+                'message': 'Activa el proyecto antes de ejecutar el primer análisis'
+            }), 400
+
+        # "Solo primera vez": si ya hay snapshot o fecha de análisis, no permitir.
+        cur.execute("""
+            SELECT COUNT(*) AS count
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s
+        """, (project_id,))
+        row = cur.fetchone()
+        has_snapshots = int(row['count']) > 0 if row else False
+
+        if project.get('last_analysis_date') or has_snapshots:
+            return jsonify({
+                'error': 'initial_analysis_already_completed',
+                'message': 'Este proyecto ya tiene su primer análisis completado'
+            }), 409
+
+        configured_queries = int(project.get('total_queries') or 0)
+        if configured_queries <= 0:
+            return jsonify({
+                'error': 'no_active_queries',
+                'message': 'Añade al menos un prompt activo antes de ejecutar el primer análisis'
+            }), 400
+
+        # Evitar doble click / doble thread del mismo proyecto.
+        if not _mark_initial_analysis_running(project_id):
+            return jsonify({
+                'error': 'initial_analysis_in_progress',
+                'message': 'El primer análisis ya está en curso para este proyecto'
+            }), 409
+
+        enabled_llms = project.get('enabled_llms') or []
+        llm_count = max(1, len(enabled_llms))
+        estimated_units = llm_count * configured_queries
+        estimated_min_minutes = max(2, min(12, int(round(estimated_units / 24.0))))
+        estimated_max_minutes = max(5, min(35, int(round(estimated_units / 8.0))))
+
+        project_name = project.get('name') or f'Project #{project_id}'
+
+        def run_first_analysis_in_background():
+            try:
+                logger.info(
+                    f"🚀 Initial analysis started for project {project_id} ({project_name}) by user {user.get('id')}"
+                )
+                service = MultiLLMMonitoringService(api_keys=None)
+                result = service.analyze_project(project_id=project_id, max_workers=8)
+
+                if result.get('success'):
+                    logger.info(
+                        f"✅ Initial analysis finished for project {project_id}: "
+                        f"{result.get('total_queries_executed', 0)} queries"
+                    )
+                else:
+                    logger.warning(
+                        f"⚠️ Initial analysis ended with warning for project {project_id}: "
+                        f"{result.get('error', 'unknown_error')}"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error running initial analysis for project {project_id}: {e}", exc_info=True)
+            finally:
+                _clear_initial_analysis_running(project_id)
+
+        thread = threading.Thread(target=run_first_analysis_in_background, daemon=True)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'project_id': project_id,
+            'message': 'Initial analysis started in background',
+            'estimated_minutes_min': estimated_min_minutes,
+            'estimated_minutes_max': estimated_max_minutes
+        }), 202
+
+    except Exception as e:
+        # Limpieza defensiva si algo falló antes de lanzar correctamente.
+        _clear_initial_analysis_running(project_id)
+        logger.error(f"Error triggering initial analysis for project {project_id}: {e}", exc_info=True)
+        return jsonify({'error': f'Error iniciando análisis inicial: {str(e)}'}), 500
+    finally:
+        if cur:
+            cur.close()
+        conn.close()
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/metrics', methods=['GET'])
@@ -2089,6 +2332,16 @@ def get_project_metrics(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Query base
         query = """
@@ -2109,6 +2362,9 @@ def get_project_metrics(project_id):
         if llm_provider:
             query += " AND s.llm_provider = %s"
             params.append(llm_provider)
+        elif enabled_llms_filter:
+            query += " AND s.llm_provider = ANY(%s)"
+            params.append(enabled_llms_filter)
         
         query += " ORDER BY s.snapshot_date DESC, s.llm_provider"
         
@@ -2212,10 +2468,27 @@ def get_urls_ranking(project_id):
     limit = request.args.get('limit', 50, type=int)
     
     try:
+        enabled_llms_filter = None
+        if not llm_provider:
+            conn = get_db_connection()
+            if conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT enabled_llms
+                    FROM llm_monitoring_projects
+                    WHERE id = %s
+                """, (project_id,))
+                project = cur.fetchone()
+                if project:
+                    enabled_llms_filter = project.get('enabled_llms') or None
+                cur.close()
+                conn.close()
+
         urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
             project_id=project_id,
             days=days,
             llm_provider=llm_provider,
+            enabled_llms=enabled_llms_filter,
             limit=limit
         )
         
@@ -2262,10 +2535,20 @@ def get_llm_comparison(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Traer filas por LLM directamente desde snapshots
         # ✨ NUEVO: Incluir weighted_share_of_voice
-        cur.execute("""
+        comparison_query = """
             SELECT 
                 llm_provider,
                 snapshot_date,
@@ -2282,14 +2565,19 @@ def get_llm_comparison(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
             AND snapshot_date >= %s
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, start_date))
+        """
+        comparison_params = [project_id, start_date]
+        if enabled_llms_filter:
+            comparison_query += " AND llm_provider = ANY(%s)"
+            comparison_params.append(enabled_llms_filter)
+        comparison_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(comparison_query, comparison_params)
         
         rows = cur.fetchall()
         
         # ✨ NUEVO: Obtener distribución de position_source para cada snapshot
         # Esto nos permite mostrar badges 📝/🔗/📝🔗 en UI
-        cur.execute("""
+        position_source_query = """
             SELECT 
                 s.llm_provider,
                 s.snapshot_date,
@@ -2305,9 +2593,16 @@ def get_llm_comparison(project_id):
                 AND r.position_source IS NOT NULL
             WHERE s.project_id = %s
             AND s.snapshot_date >= %s
+        """
+        position_source_params = [project_id, start_date]
+        if enabled_llms_filter:
+            position_source_query += " AND s.llm_provider = ANY(%s)"
+            position_source_params.append(enabled_llms_filter)
+        position_source_query += """
             GROUP BY s.llm_provider, s.snapshot_date
             ORDER BY s.snapshot_date DESC, s.llm_provider
-        """, (project_id, start_date))
+        """
+        cur.execute(position_source_query, position_source_params)
         
         position_sources = cur.fetchall()
         
@@ -2456,13 +2751,15 @@ def get_project_queries(project_id):
         
         # Obtener información del proyecto (para country)
         cur.execute("""
-            SELECT name, language FROM llm_monitoring_projects
+            SELECT name, language, country_code, enabled_llms
+            FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         
         project = cur.fetchone()
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project.get('enabled_llms') or []
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -2478,7 +2775,7 @@ def get_project_queries(project_id):
         
         # Obtener queries con métricas agregadas
         # ✨ MEJORADO: Contar menciones en texto + menciones en URLs
-        cur.execute("""
+        query_metrics_sql = """
             WITH query_metrics AS (
                 SELECT 
                     q.id,
@@ -2510,6 +2807,7 @@ def get_project_queries(project_id):
                 LEFT JOIN llm_monitoring_results r ON q.id = r.query_id 
                     AND r.analysis_date >= %s 
                     AND r.analysis_date <= %s
+                    {llm_filter}
                 WHERE q.project_id = %s AND q.is_active = TRUE
                 GROUP BY q.id, q.query_text, q.language, q.query_type, q.added_at
             )
@@ -2531,7 +2829,14 @@ def get_project_queries(project_id):
                 last_update
             FROM query_metrics
             ORDER BY last_update DESC NULLS LAST, created_at DESC
-        """, (f'%{brand_domain}%' if brand_domain else '%', start_date, end_date, project_id))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        query_metrics_params = [f'%{brand_domain}%' if brand_domain else '%', start_date, end_date]
+        if enabled_llms_filter:
+            query_metrics_params.append(enabled_llms_filter)
+        query_metrics_params.append(project_id)
+        cur.execute(query_metrics_sql, query_metrics_params)
         
         queries_raw = cur.fetchall()
         
@@ -2539,7 +2844,7 @@ def get_project_queries(project_id):
         # Esto nos permite mostrar qué LLMs mencionaron la marca y los competidores
         # Usamos DISTINCT ON para obtener solo el resultado más reciente por (query_id, llm_provider)
         # 🔧 FIX: Incluir información sobre menciones en URLs también
-        cur.execute("""
+        mentions_query_sql = """
             SELECT DISTINCT ON (r.query_id, r.llm_provider)
                 r.query_id,
                 r.llm_provider,
@@ -2552,8 +2857,15 @@ def get_project_queries(project_id):
             WHERE r.query_id = ANY(%s)
                 AND r.analysis_date >= %s
                 AND r.analysis_date <= %s
+                {llm_filter}
             ORDER BY r.query_id, r.llm_provider, r.analysis_date DESC
-        """, ([q['id'] for q in queries_raw], start_date, end_date))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        mentions_query_params = [[q['id'] for q in queries_raw], start_date, end_date]
+        if enabled_llms_filter:
+            mentions_query_params.append(enabled_llms_filter)
+        cur.execute(mentions_query_sql, mentions_query_params)
         
         mentions_by_query = {}
         for row in cur.fetchall():
@@ -2717,9 +3029,10 @@ def get_share_of_voice_history(project_id):
         # Calcular fechas de inicio y fin
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        enabled_llms_filter = project.get('enabled_llms') or []
         
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
-        cur.execute("""
+        sov_history_query = """
             SELECT 
                 snapshot_date,
                 llm_provider,
@@ -2732,8 +3045,13 @@ def get_share_of_voice_history(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s 
                 AND snapshot_date >= %s 
-            ORDER BY snapshot_date, llm_provider
-        """, (project_id, start_date))
+        """
+        sov_history_params = [project_id, start_date]
+        if enabled_llms_filter:
+            sov_history_query += " AND llm_provider = ANY(%s)"
+            sov_history_params.append(enabled_llms_filter)
+        sov_history_query += " ORDER BY snapshot_date, llm_provider"
+        cur.execute(sov_history_query, sov_history_params)
         
         snapshots = cur.fetchall()
         
@@ -3502,6 +3820,16 @@ def get_project_responses(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -3542,6 +3870,9 @@ def get_project_responses(project_id):
         if llm_provider:
             query += " AND r.llm_provider = %s"
             params.append(llm_provider)
+        elif enabled_llms_filter:
+            query += " AND r.llm_provider = ANY(%s)"
+            params.append(enabled_llms_filter)
         
         query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
         
@@ -3627,7 +3958,7 @@ def export_project_excel(project_id):
         
         # Obtener datos del proyecto
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -3639,8 +3970,9 @@ def export_project_excel(project_id):
         # Obtener métricas por LLM
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
+        enabled_llms_filter = project.get('enabled_llms') or []
         
-        cur.execute("""
+        metrics_query = """
             SELECT 
                 llm_provider,
                 COUNT(DISTINCT query_id) as total_queries,
@@ -3648,15 +3980,22 @@ def export_project_excel(project_id):
                 ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct,
                 AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment
             FROM llm_monitoring_results
-            WHERE project_id = %s AND analysis_date >= %s
+            WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
+        """
+        metrics_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            metrics_query += " AND llm_provider = ANY(%s)"
+            metrics_params.append(enabled_llms_filter)
+        metrics_query += """
             GROUP BY llm_provider
             ORDER BY llm_provider
-        """, (project_id, start_date))
+        """
+        cur.execute(metrics_query, metrics_params)
         metrics = cur.fetchall()
         
         # Obtener queries con resultados
         export_country = project['country_code'] or 'Global'
-        cur.execute("""
+        queries_export_query = """
             SELECT 
                 q.query_text AS prompt,
                 %s::text AS country,
@@ -3665,11 +4004,19 @@ def export_project_excel(project_id):
                 SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as times_mentioned,
                 AVG(r.position_in_list) as avg_position
             FROM llm_monitoring_queries q
-            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s
+            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s AND r.analysis_date <= %s
+                {llm_filter}
             WHERE q.project_id = %s AND q.is_active = TRUE
             GROUP BY q.id, q.query_text, q.language
             ORDER BY times_mentioned DESC
-        """, (export_country, start_date, project_id))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        queries_export_params = [export_country, start_date, end_date]
+        if enabled_llms_filter:
+            queries_export_params.append(enabled_llms_filter)
+        queries_export_params.append(project_id)
+        cur.execute(queries_export_query, queries_export_params)
         queries = cur.fetchall()
         
         cur.close()
@@ -3817,7 +4164,7 @@ def export_project_pdf(project_id):
         
         # Obtener datos del proyecto
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -3829,18 +4176,26 @@ def export_project_pdf(project_id):
         # Obtener métricas por LLM
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
+        enabled_llms_filter = project.get('enabled_llms') or []
         
-        cur.execute("""
+        pdf_metrics_query = """
             SELECT 
                 llm_provider,
                 COUNT(DISTINCT query_id) as total_queries,
                 SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
                 ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
             FROM llm_monitoring_results
-            WHERE project_id = %s AND analysis_date >= %s
+            WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
+        """
+        pdf_metrics_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            pdf_metrics_query += " AND llm_provider = ANY(%s)"
+            pdf_metrics_params.append(enabled_llms_filter)
+        pdf_metrics_query += """
             GROUP BY llm_provider
             ORDER BY mention_rate_pct DESC
-        """, (project_id, start_date))
+        """
+        cur.execute(pdf_metrics_query, pdf_metrics_params)
         metrics = cur.fetchall()
         
         cur.close()

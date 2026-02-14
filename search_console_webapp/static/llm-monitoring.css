@@ -254,6 +254,11 @@
     margin-bottom: 1rem;
 }
 
+.empty-state .btn i {
+    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+}
+
 .empty-state h3 {
     font-size: 1.25rem;
     font-weight: 600;
@@ -466,6 +471,66 @@
     background-color: #2563eb;
 }
 
+/* Keep Create New Project hover aligned with project action CTA */
+#btnCreateFirstProject {
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#btnCreateFirstProject i {
+    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+}
+
+#btnCreateProject:hover:not(:disabled),
+#btnCreateFirstProject:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+#btnCreateProject:hover:not(:disabled) i,
+#btnCreateFirstProject:hover:not(:disabled) i {
+    color: #161616 !important;
+}
+
+/* Keep "Add Your First Prompt" visual style aligned with "Create New Project" */
+.btn-first-prompt {
+    background-color: #161616 !important;
+    color: #D8F9B8 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    gap: 0.5rem;
+    box-shadow: var(--llm-shadow, 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06));
+}
+
+.btn-first-prompt i {
+    color: #D8F9B8 !important;
+    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+}
+
+.btn-first-prompt:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+.btn-first-prompt:hover:not(:disabled) i {
+    color: #161616 !important;
+}
+
 .btn-success {
     background-color: #10b981;
     color: white;
@@ -488,7 +553,8 @@
 
 /* ✨ Estilo especial para botón Back to Projects y Edit */
 #btnBackToProjects,
-#btnEditProject {
+#btnEditProject,
+#btnShowModels {
     background-color: #f9fafb;
     color: #161616;
     border: 1px solid #e5e7eb;
@@ -496,15 +562,39 @@
 }
 
 #btnBackToProjects:hover,
-#btnEditProject:hover {
+#btnEditProject:hover,
+#btnShowModels:hover {
     background-color: #161616;
     color: white;
     border-color: #161616;
 }
 
 #btnBackToProjects:hover i,
-#btnEditProject:hover i {
+#btnEditProject:hover i,
+#btnShowModels:hover i {
     color: white;
+}
+
+/* Keep Manage Prompts hover aligned with Create New Project */
+#btnManagePrompts:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+#btnManagePrompts:hover:not(:disabled) i {
+    color: #161616 !important;
+}
+
+/* Keep Add Prompts (modal action) hover aligned with Add Your First Prompt */
+#btnAddPromptsModal:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+#btnAddPromptsModal:hover:not(:disabled) i {
+    color: #161616 !important;
 }
 
 .btn-danger {
@@ -601,6 +691,168 @@
     gap: 0.75rem;
     padding: 1.5rem;
     border-top: 1px solid #e5e7eb;
+}
+
+/* Custom confirm modal */
+#actionConfirmModal {
+    z-index: 12000;
+}
+
+.action-confirm-modal {
+    max-width: 540px;
+}
+
+.action-confirm-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+}
+
+.action-confirm-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.action-confirm-icon i {
+    font-size: 1rem;
+}
+
+.action-confirm-icon.variant-warning {
+    background: #161616;
+    color: #D8F9B8;
+}
+
+.action-confirm-icon.variant-danger {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.action-confirm-message {
+    margin: 0;
+    color: #374151;
+    line-height: 1.55;
+    white-space: pre-line;
+}
+
+.action-confirm-modal .btn-confirm {
+    min-width: 150px;
+    font-weight: 600;
+}
+
+.action-confirm-modal .btn-confirm.confirm-warning {
+    background: #161616;
+    color: #D8F9B8;
+    border: 1px solid #161616;
+}
+
+.action-confirm-modal .btn-confirm.confirm-warning:hover:not(:disabled) {
+    background: #D8F9B8;
+    color: #161616;
+    border-color: #D8F9B8;
+}
+
+.action-confirm-modal .btn-confirm.confirm-danger {
+    background: #dc2626;
+    color: white;
+    border: 1px solid #dc2626;
+}
+
+.action-confirm-modal .btn-confirm.confirm-danger:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* Toast notifications */
+.llm-toast-container {
+    position: fixed;
+    top: 88px;
+    right: 18px;
+    z-index: 1400;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: min(420px, calc(100vw - 24px));
+}
+
+.llm-toast {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 10px;
+    padding: 12px 12px 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #111827;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    transform: translateY(-8px);
+    opacity: 0;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+    pointer-events: auto;
+}
+
+.llm-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.llm-toast-icon {
+    width: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+
+.llm-toast-message {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: inherit;
+}
+
+.llm-toast-close {
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 6px;
+}
+
+.llm-toast-close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.llm-toast-success {
+    border-left: 4px solid #16a34a;
+}
+
+.llm-toast-success .llm-toast-icon {
+    color: #15803d;
+}
+
+.llm-toast-error {
+    border-left: 4px solid #dc2626;
+}
+
+.llm-toast-error .llm-toast-icon {
+    color: #b91c1c;
+}
+
+.llm-toast-info {
+    border-left: 4px solid #161616;
+}
+
+.llm-toast-info .llm-toast-icon {
+    color: #111827;
 }
 
 /* Form */
@@ -1920,7 +2172,11 @@ label:not(.search-form label) {
     padding: 1.5rem 2rem;
     border-radius: 12px 12px 0 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
 }
 
 .create-project-modal .create-header::before {
@@ -1941,6 +2197,13 @@ label:not(.search-form label) {
     margin: 0 0 0.35rem 0;
 }
 
+.create-project-modal .create-header .header-text {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
 .create-project-modal .create-header .header-text p {
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
@@ -1951,6 +2214,9 @@ label:not(.search-form label) {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .create-project-modal .create-header .modal-close:hover {
