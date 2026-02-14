@@ -717,6 +717,8 @@ class LLMMonitoring {
         const competitorCount = Array.isArray(project.selected_competitors)
             ? project.selected_competitors.length
             : (project.competitors?.length || 0);
+        const canRunInitialAnalysis = !!project.is_active && !project.last_analysis_date;
+        const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
         card.innerHTML = `
             <div class="project-card-header">
                 <h3>${this.escapeHtml(project.name)}</h3>
@@ -750,7 +752,14 @@ class LLMMonitoring {
                             Last analysis: ${this.formatDate(project.last_analysis_date)}
                         </small>
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="project-meta">
+                        <small>
+                            <i class="fas fa-hourglass-half"></i>
+                            No analysis yet
+                        </small>
+                    </div>
+                `}
             </div>
             <div class="project-card-footer">
                 <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.viewProject(${project.id})">
@@ -765,6 +774,17 @@ class LLMMonitoring {
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
+                ${canRunInitialAnalysis ? `
+                    <button
+                        class="btn btn-success btn-sm"
+                        id="btnInitialAnalysis-${project.id}"
+                        onclick="window.llmMonitoring.runInitialAnalysis(${project.id}, ${safeProjectName})"
+                        ${isInitialAnalysisRunning ? 'disabled' : ''}
+                    >
+                        <i class="fas ${isInitialAnalysisRunning ? 'fa-spinner fa-spin' : 'fa-play-circle'}"></i>
+                        ${isInitialAnalysisRunning ? 'First analysis running...' : 'Run First Analysis'}
+                    </button>
+                ` : ''}
                 ${project.is_active ? `
                     <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
@@ -784,6 +804,146 @@ class LLMMonitoring {
         `;
 
         container.appendChild(card);
+    }
+
+    /**
+     * Trigger first analysis for newly created projects.
+     * Available only while project has no previous analysis.
+     */
+    async runInitialAnalysis(projectId, projectName = 'Project') {
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+
+        const button = document.getElementById(`btnInitialAnalysis-${projectId}`);
+        const originalHtml = button ? button.innerHTML : '';
+
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/projects/${projectId}/run-initial-analysis`, {
+                method: 'POST',
+                credentials: 'same-origin'
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
+
+            if (!response.ok) {
+                const errorCode = data.error || `HTTP ${response.status}`;
+
+                if (errorCode === 'initial_analysis_already_completed') {
+                    this.showInfo('This project already has data from a previous analysis.');
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (errorCode === 'initial_analysis_in_progress') {
+                    this.showInfo('First analysis is already running for this project.');
+                    await this.loadProjects();
+                    this.pollInitialAnalysisStatus(projectId, projectName);
+                    return;
+                }
+
+                throw new Error(data.message || errorCode);
+            }
+
+            const minMinutes = data.estimated_minutes_min || 2;
+            const maxMinutes = data.estimated_minutes_max || 8;
+
+            this.showInfo(
+                `First analysis started for "${projectName}". ` +
+                `Estimated time: ${minMinutes}-${maxMinutes} minutes. ` +
+                'You can keep using the app while it runs in background.'
+            );
+
+            // Refresh cards to show "running" state and start polling until completion.
+            await this.loadProjects();
+            this.pollInitialAnalysisStatus(projectId, projectName, maxMinutes + 5);
+
+        } catch (error) {
+            console.error('❌ Error starting initial analysis:', error);
+            this.showError(error.message || 'Could not start first analysis');
+
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        }
+    }
+
+    /**
+     * Poll project list until first analysis is completed (or timeout).
+     */
+    pollInitialAnalysisStatus(projectId, projectName = 'Project', maxMinutes = 15) {
+        const intervalMs = 15000; // 15s
+        const maxAttempts = Math.max(8, Math.ceil((maxMinutes * 60 * 1000) / intervalMs));
+        let attempts = 0;
+
+        const timer = setInterval(async () => {
+            attempts += 1;
+
+            try {
+                const response = await fetch(`${this.baseUrl}/projects`, {
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(timer);
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const projects = data.projects || [];
+                const project = projects.find(p => p.id === projectId);
+
+                if (!project) {
+                    clearInterval(timer);
+                    return;
+                }
+
+                if (project.last_analysis_date) {
+                    clearInterval(timer);
+                    this.showSuccess(`First analysis for "${projectName}" is complete.`);
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (!project.initial_analysis_in_progress && attempts >= 2) {
+                    clearInterval(timer);
+                    this.showInfo(
+                        `First analysis for "${projectName}" has finished without new data yet. ` +
+                        'It may have hit quota/provider limits; you can retry or wait for scheduled cron.'
+                    );
+                    await this.loadProjects();
+                    return;
+                }
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                    this.showInfo(
+                        `First analysis for "${projectName}" is still running. ` +
+                        'Please check again in a few minutes.'
+                    );
+                    await this.loadProjects();
+                }
+            } catch (error) {
+                console.warn('Could not poll initial analysis status:', error);
+                if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                }
+            }
+        }, intervalMs);
     }
 
     /**
@@ -3557,6 +3717,9 @@ class LLMMonitoring {
 
             // Show success message
             this.showSuccess(`Project ${isEdit ? 'updated' : 'created'} successfully!`);
+            if (!isEdit) {
+                this.showInfo('You can now click "Run First Analysis" on the new project card.');
+            }
 
         } catch (error) {
             console.error('❌ Error saving project:', error);

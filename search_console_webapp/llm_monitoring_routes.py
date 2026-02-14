@@ -12,6 +12,7 @@ MODELO DE NEGOCIO:
 Endpoints:
     GET    /api/llm-monitoring/projects               - Listar proyectos
     POST   /api/llm-monitoring/projects               - Crear proyecto
+    POST   /api/llm-monitoring/projects/:id/run-initial-analysis - Ejecutar primer análisis (una vez)
     GET    /api/llm-monitoring/projects/:id           - Obtener proyecto
     PUT    /api/llm-monitoring/projects/:id           - Actualizar proyecto
     DELETE /api/llm-monitoring/projects/:id           - Eliminar proyecto (soft delete)
@@ -55,6 +56,34 @@ logger = logging.getLogger(__name__)
 
 # Crear Blueprint
 llm_monitoring_bp = Blueprint('llm_monitoring', __name__, url_prefix='/api/llm-monitoring')
+
+# Estado en memoria para evitar dobles disparos del primer análisis
+# (misma instancia de app). La fuente de verdad para "ya analizado" sigue en BD.
+_INITIAL_ANALYSIS_RUNNING = set()
+_INITIAL_ANALYSIS_RUNNING_LOCK = threading.Lock()
+
+
+def _is_initial_analysis_running(project_id: int) -> bool:
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        return int(project_id) in _INITIAL_ANALYSIS_RUNNING
+
+
+def _mark_initial_analysis_running(project_id: int) -> bool:
+    """
+    Marca un proyecto como "primer análisis en curso".
+    Returns False si ya estaba en curso.
+    """
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        normalized_id = int(project_id)
+        if normalized_id in _INITIAL_ANALYSIS_RUNNING:
+            return False
+        _INITIAL_ANALYSIS_RUNNING.add(normalized_id)
+        return True
+
+
+def _clear_initial_analysis_running(project_id: int):
+    with _INITIAL_ANALYSIS_RUNNING_LOCK:
+        _INITIAL_ANALYSIS_RUNNING.discard(int(project_id))
 
 
 # ============================================================================
@@ -266,6 +295,7 @@ def get_projects():
                 'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
+                'initial_analysis_in_progress': _is_initial_analysis_running(project['id']),
                 'is_paused_by_quota': project.get('is_paused_by_quota', False),
                 'paused_until': project['paused_until'].isoformat() if project.get('paused_until') else None,
                 'paused_at': project['paused_at'].isoformat() if project.get('paused_at') else None,
@@ -2135,11 +2165,122 @@ Requirements:
 # - El cron diario garantiza 100% de completitud
 #
 # El endpoint /projects/<int:project_id>/analyze ya NO está disponible.
-# Los usuarios ven los resultados del último análisis automático en el dashboard.
+# Solo se permite /projects/<id>/run-initial-analysis (una vez) para evitar
+# que un proyecto nuevo quede vacío hasta el siguiente cron diario.
 #
 # Para ejecutar análisis manual (admin/debugging):
 # - Usar: python3 fix_openai_incomplete_analysis.py
 # - O ejecutar manualmente: python3 daily_llm_monitoring_cron.py
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/run-initial-analysis', methods=['POST'])
+@login_required
+@validate_project_ownership
+def run_initial_analysis(project_id):
+    """
+    Ejecuta el PRIMER análisis de un proyecto en background.
+    Solo disponible para proyectos sin análisis previo.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, name, is_active, last_analysis_date, enabled_llms, queries_per_llm
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+
+        if not project.get('is_active'):
+            return jsonify({
+                'error': 'project_inactive',
+                'message': 'Activa el proyecto antes de ejecutar el primer análisis'
+            }), 400
+
+        # "Solo primera vez": si ya hay snapshot o fecha de análisis, no permitir.
+        cur.execute("""
+            SELECT COUNT(*) AS count
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s
+        """, (project_id,))
+        row = cur.fetchone()
+        has_snapshots = int(row['count']) > 0 if row else False
+
+        if project.get('last_analysis_date') or has_snapshots:
+            return jsonify({
+                'error': 'initial_analysis_already_completed',
+                'message': 'Este proyecto ya tiene su primer análisis completado'
+            }), 409
+
+        # Evitar doble click / doble thread del mismo proyecto.
+        if not _mark_initial_analysis_running(project_id):
+            return jsonify({
+                'error': 'initial_analysis_in_progress',
+                'message': 'El primer análisis ya está en curso para este proyecto'
+            }), 409
+
+        enabled_llms = project.get('enabled_llms') or []
+        llm_count = max(1, len(enabled_llms))
+        queries_per_llm = int(project.get('queries_per_llm') or 15)
+        estimated_units = llm_count * queries_per_llm
+        estimated_min_minutes = max(2, min(12, int(round(estimated_units / 24.0))))
+        estimated_max_minutes = max(5, min(35, int(round(estimated_units / 8.0))))
+
+        project_name = project.get('name') or f'Project #{project_id}'
+
+        def run_first_analysis_in_background():
+            try:
+                logger.info(
+                    f"🚀 Initial analysis started for project {project_id} ({project_name}) by user {user.get('id')}"
+                )
+                service = MultiLLMMonitoringService(api_keys=None)
+                result = service.analyze_project(project_id=project_id, max_workers=8)
+
+                if result.get('success'):
+                    logger.info(
+                        f"✅ Initial analysis finished for project {project_id}: "
+                        f"{result.get('total_queries_executed', 0)} queries"
+                    )
+                else:
+                    logger.warning(
+                        f"⚠️ Initial analysis ended with warning for project {project_id}: "
+                        f"{result.get('error', 'unknown_error')}"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error running initial analysis for project {project_id}: {e}", exc_info=True)
+            finally:
+                _clear_initial_analysis_running(project_id)
+
+        thread = threading.Thread(target=run_first_analysis_in_background, daemon=True)
+        thread.start()
+
+        return jsonify({
+            'success': True,
+            'project_id': project_id,
+            'message': 'Initial analysis started in background',
+            'estimated_minutes_min': estimated_min_minutes,
+            'estimated_minutes_max': estimated_max_minutes
+        }), 202
+
+    except Exception as e:
+        # Limpieza defensiva si algo falló antes de lanzar correctamente.
+        _clear_initial_analysis_running(project_id)
+        logger.error(f"Error triggering initial analysis for project {project_id}: {e}", exc_info=True)
+        return jsonify({'error': f'Error iniciando análisis inicial: {str(e)}'}), 500
+    finally:
+        if cur:
+            cur.close()
+        conn.close()
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/metrics', methods=['GET'])
