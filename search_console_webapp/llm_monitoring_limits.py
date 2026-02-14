@@ -158,6 +158,7 @@ def get_llm_limits_summary(user: dict) -> dict:
     if not user:
         return {
             'plan': 'free',
+            'is_admin': False,
             'max_projects': 0,
             'max_prompts_per_project': 0,
             'max_monthly_units': 0,
@@ -166,7 +167,26 @@ def get_llm_limits_summary(user: dict) -> dict:
             'active_projects': 0,
             'allowed_llms': LLM_PROVIDERS,
         }
+
     plan = user.get('plan', 'free')
+    is_admin = user.get('role') == 'admin'
+
+    # Los admin deben poder operar sin límites de plan para pruebas/soporte.
+    if is_admin:
+        used_units = get_user_monthly_llm_usage(user['id'])
+        projects_count = count_user_active_projects(user['id'])
+        return {
+            'plan': plan,
+            'is_admin': True,
+            'max_projects': None,
+            'max_prompts_per_project': None,
+            'max_monthly_units': None,
+            'monthly_units_used': used_units,
+            'monthly_units_remaining': None,
+            'active_projects': projects_count,
+            'allowed_llms': LLM_PROVIDERS,
+        }
+
     limits = get_llm_plan_limits(plan)
     used_units = get_user_monthly_llm_usage(user['id'])
     max_units = limits.get('max_monthly_units')
@@ -175,6 +195,7 @@ def get_llm_limits_summary(user: dict) -> dict:
 
     return {
         'plan': plan,
+        'is_admin': False,
         'max_projects': limits.get('max_projects'),
         'max_prompts_per_project': limits.get('max_prompts_per_project'),
         'max_monthly_units': max_units,
@@ -183,4 +204,3 @@ def get_llm_limits_summary(user: dict) -> dict:
         'active_projects': projects_count,
         'allowed_llms': LLM_PROVIDERS,
     }
-

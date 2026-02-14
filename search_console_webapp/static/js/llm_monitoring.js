@@ -42,6 +42,9 @@ class LLMMonitoring {
 
         // ✨ NEW: Global Time Range
         this.globalTimeRange = 30; // Default to 30 days
+
+        // Plan limits snapshot loaded from /usage
+        this.planLimits = null;
     }
 
     /**
@@ -92,6 +95,7 @@ class LLMMonitoring {
             if (!data || !data.limits) return;
 
             const limits = data.limits;
+            this.planLimits = limits;
             const banner = document.getElementById('llmPlanLimitsBanner');
             if (!banner) return;
 
@@ -114,13 +118,6 @@ class LLMMonitoring {
                 </div>
             `;
             banner.style.display = 'block';
-
-            // Disable create button if project limit reached
-            const btnCreate = document.getElementById('btnCreateProject');
-            if (btnCreate && limits.max_projects !== null && limits.active_projects >= limits.max_projects) {
-                btnCreate.disabled = true;
-                btnCreate.title = 'Project limit reached for your plan';
-            }
         } catch (error) {
             console.warn('Could not load LLM plan limits:', error);
         }
@@ -367,6 +364,18 @@ class LLMMonitoring {
 
         if (btnCreateProject) {
             btnCreateProject.addEventListener('click', () => {
+                const limits = this.planLimits;
+                const hasProjectLimit = limits && limits.max_projects !== null;
+                const isLimitReached = hasProjectLimit && limits.active_projects >= limits.max_projects;
+
+                if (isLimitReached) {
+                    if (window.showPaywall) {
+                        window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
+                    }
+                    this.showError('Project limit reached for your current plan.');
+                    return;
+                }
+
                 console.log('🖱️ btnCreateProject clicked!');
                 this.showProjectModal();
             });

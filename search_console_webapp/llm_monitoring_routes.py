@@ -173,6 +173,20 @@ def _normalize_days_param(raw_days, default: int = 30, min_days: int = 1, max_da
     return days
 
 
+def _get_effective_plan_limits(user: dict) -> dict:
+    """
+    Devuelve límites efectivos por usuario.
+    Admin opera sin límites para soporte y validación interna.
+    """
+    limits = get_llm_plan_limits((user or {}).get('plan', 'free'))
+    if user and user.get('role') == 'admin':
+        limits = dict(limits)
+        limits['max_projects'] = None
+        limits['max_prompts_per_project'] = None
+        limits['max_monthly_units'] = None
+    return limits
+
+
 # ============================================================================
 # ENDPOINTS: PROYECTOS
 # ============================================================================
@@ -320,7 +334,7 @@ def create_project():
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
     
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
 
     data = request.get_json(silent=True) or {}
@@ -1130,7 +1144,7 @@ def update_project(project_id):
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_prompts = plan_limits.get('max_prompts_per_project')
     
     conn = get_db_connection()
@@ -1342,7 +1356,7 @@ def activate_project(project_id):
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
     active_projects = count_user_active_projects(user['id'])
     if max_projects is not None and active_projects >= max_projects:
@@ -1513,7 +1527,7 @@ def add_queries_to_project(project_id):
         return jsonify({'error': 'queries debe ser una lista'}), 400
     
     # Validar límites por plan (prompts por proyecto)
-    plan_limits = get_llm_plan_limits(user.get('plan', 'free'))
+    plan_limits = _get_effective_plan_limits(user)
     max_prompts = plan_limits.get('max_prompts_per_project')
 
     # Obtener configuración del proyecto si no se especificó idioma
