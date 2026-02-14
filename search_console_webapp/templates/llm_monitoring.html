@@ -32,7 +32,7 @@
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=4" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=5" rel="stylesheet">
     <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=1" rel="stylesheet">
     
     <!-- ✨ NEW: Share of Voice Metrics UI -->
@@ -1211,6 +1211,33 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Modal -->
+    <div class="modal-overlay" id="actionConfirmModal" style="display: none;" data-pdf-exclude="true">
+        <div class="modal-content modal-small action-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="actionConfirmTitle" tabindex="-1">
+            <div class="modal-header action-confirm-header">
+                <h3 id="actionConfirmTitle">Confirm action</h3>
+                <button type="button" class="modal-close" id="actionConfirmClose" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="action-confirm-copy">
+                    <div class="action-confirm-icon variant-warning" id="actionConfirmIcon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <p id="actionConfirmMessage" class="action-confirm-message"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary btn-enhanced" id="actionConfirmCancel">Cancel</button>
+                <button type="button" class="btn btn-confirm confirm-warning" id="actionConfirmAccept">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="llmToastContainer" class="llm-toast-container" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Analysis Progress Modal: REMOVED - Analysis now runs via daily cron, not manual triggers -->
 
     <!-- Prompts Management Modal -->
@@ -1465,7 +1492,7 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=5"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=6"></script>
     
     <script>
         // Usuario actual

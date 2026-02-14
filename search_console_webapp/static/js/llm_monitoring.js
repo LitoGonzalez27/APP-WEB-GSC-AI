@@ -45,6 +45,10 @@ class LLMMonitoring {
 
         // Plan limits snapshot loaded from /usage
         this.planLimits = null;
+
+        // Custom confirm modal state
+        this.confirmResolver = null;
+        this.isConfirmModalOpen = false;
     }
 
     /**
@@ -357,6 +361,9 @@ class LLMMonitoring {
      */
     setupEventListeners() {
         console.log('🎯 Setting up event listeners...');
+
+        // Custom confirmation modal handlers
+        this.setupConfirmModalListeners();
 
         // Create project button
         const btnCreateProject = document.getElementById('btnCreateProject');
@@ -3402,13 +3409,132 @@ class LLMMonitoring {
     }
 
     /**
+     * Wire custom confirm modal events once
+     */
+    setupConfirmModalListeners() {
+        const modal = document.getElementById('actionConfirmModal');
+        if (!modal || modal.dataset.listenersAttached === 'true') return;
+
+        const closeBtn = document.getElementById('actionConfirmClose');
+        const cancelBtn = document.getElementById('actionConfirmCancel');
+        const acceptBtn = document.getElementById('actionConfirmAccept');
+
+        const cancelHandler = () => this.resolveConfirmDialog(false);
+        const acceptHandler = () => this.resolveConfirmDialog(true);
+
+        closeBtn?.addEventListener('click', cancelHandler);
+        cancelBtn?.addEventListener('click', cancelHandler);
+        acceptBtn?.addEventListener('click', acceptHandler);
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                this.resolveConfirmDialog(false);
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.isConfirmModalOpen) {
+                this.resolveConfirmDialog(false);
+            }
+        });
+
+        modal.dataset.listenersAttached = 'true';
+    }
+
+    /**
+     * Open custom confirmation dialog
+     */
+    showConfirmDialog({
+        title = 'Confirm action',
+        message = 'Are you sure?',
+        confirmText = 'Confirm',
+        cancelText = 'Cancel',
+        variant = 'warning'
+    } = {}) {
+        const modal = document.getElementById('actionConfirmModal');
+        const titleEl = document.getElementById('actionConfirmTitle');
+        const messageEl = document.getElementById('actionConfirmMessage');
+        const iconEl = document.getElementById('actionConfirmIcon');
+        const cancelBtn = document.getElementById('actionConfirmCancel');
+        const acceptBtn = document.getElementById('actionConfirmAccept');
+
+        if (!modal || !titleEl || !messageEl || !cancelBtn || !acceptBtn) {
+            console.error('Custom confirm modal is not available in DOM');
+            return Promise.resolve(false);
+        }
+
+        // If there is a pending dialog, resolve it as cancelled first.
+        if (this.confirmResolver) {
+            this.confirmResolver(false);
+            this.confirmResolver = null;
+        }
+
+        this.setupConfirmModalListeners();
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        cancelBtn.textContent = cancelText;
+        acceptBtn.textContent = confirmText;
+
+        modal.dataset.variant = variant;
+        acceptBtn.classList.remove('confirm-warning', 'confirm-danger');
+        iconEl?.classList.remove('variant-warning', 'variant-danger');
+
+        if (variant === 'danger') {
+            acceptBtn.classList.add('confirm-danger');
+            iconEl?.classList.add('variant-danger');
+            if (iconEl) iconEl.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        } else {
+            acceptBtn.classList.add('confirm-warning');
+            iconEl?.classList.add('variant-warning');
+            if (iconEl) iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        }
+
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        this.isConfirmModalOpen = true;
+
+        return new Promise((resolve) => {
+            this.confirmResolver = resolve;
+        });
+    }
+
+    /**
+     * Resolve custom confirm dialog and close modal
+     */
+    resolveConfirmDialog(confirmed) {
+        const modal = document.getElementById('actionConfirmModal');
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 120);
+        }
+        this.isConfirmModalOpen = false;
+
+        if (this.confirmResolver) {
+            const resolve = this.confirmResolver;
+            this.confirmResolver = null;
+            resolve(confirmed);
+        }
+    }
+
+    /**
      * ✨ NUEVO: Desactivar un proyecto (deja de ejecutarse en CRON)
      */
     async deactivateProject(projectId, projectName) {
         console.log(`⏸️ Deactivating project ${projectId}...`);
 
-        // Confirm deactivation
-        if (!confirm(`Are you sure you want to deactivate the project "${projectName}"?\n\nThe project will stop running in automatic analysis, but all data will be preserved.`)) {
+        const confirmed = await this.showConfirmDialog({
+            title: 'Deactivate Project?',
+            message: `The project "${projectName}" will stop running in automatic analysis, but all data will be preserved.`,
+            confirmText: 'Deactivate',
+            cancelText: 'Keep Active',
+            variant: 'warning'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -3484,12 +3610,17 @@ class LLMMonitoring {
     async deleteProject(projectId, projectName, isPermanent = false) {
         console.log(`🗑️ Deleting project ${projectId}... (permanent: ${isPermanent})`);
 
-        // Confirm deletion
         const message = isPermanent
-            ? `⚠️ PERMANENT DELETION\n\nAre you sure you want to permanently delete the project "${projectName}"?\n\nThis will delete:\n- The project\n- All queries\n- All analysis results\n- All snapshots\n\nThis action CANNOT be undone!`
-            : `Are you sure you want to delete the project "${projectName}"?\n\nThis action cannot be undone.`;
-
-        if (!confirm(message)) {
+            ? `The project "${projectName}" and all its data (queries, results and snapshots) will be deleted permanently.\n\nThis action cannot be undone.`
+            : `The project "${projectName}" will be deleted.\n\nThis action cannot be undone.`;
+        const confirmed = await this.showConfirmDialog({
+            title: isPermanent ? 'Delete Project Permanently?' : 'Delete Project?',
+            message,
+            confirmText: isPermanent ? 'Delete Permanently' : 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -4499,7 +4630,14 @@ class LLMMonitoring {
             return;
         }
 
-        if (!confirm('Are you sure you want to delete this prompt?')) {
+        const confirmed = await this.showConfirmDialog({
+            title: 'Delete Prompt?',
+            message: 'This prompt will be removed from the project.',
+            confirmText: 'Delete Prompt',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -4945,26 +5083,70 @@ class LLMMonitoring {
     }
 
     /**
+     * Utility: Show custom toast notification
+     */
+    showToast(message, type = 'info', durationMs = 3800) {
+        const container = document.getElementById('llmToastContainer');
+        if (!container) {
+            console.log(`[${type}] ${message}`);
+            return;
+        }
+
+        const iconByType = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `llm-toast llm-toast-${type}`;
+        toast.innerHTML = `
+            <div class="llm-toast-icon">
+                <i class="fas ${iconByType[type] || iconByType.info}"></i>
+            </div>
+            <div class="llm-toast-message">${this.escapeHtml(String(message || ''))}</div>
+            <button type="button" class="llm-toast-close" aria-label="Close notification">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        const removeToast = () => {
+            if (!toast.parentNode) return;
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 180);
+        };
+
+        toast.querySelector('.llm-toast-close')?.addEventListener('click', removeToast);
+
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        setTimeout(removeToast, durationMs);
+    }
+
+    /**
      * Utility: Show error message
      */
     showError(message) {
-        // You can implement a toast notification system here
-        alert(`Error: ${message}`);
+        this.showToast(message, 'error', 4600);
     }
 
     /**
      * Utility: Show success message
      */
     showSuccess(message) {
-        // You can implement a toast notification system here
-        alert(`Success: ${message}`);
+        this.showToast(message, 'success', 3400);
     }
 
     /**
      * Utility: Show info message
      */
     showInfo(message) {
-        alert(message);
+        this.showToast(message, 'info', 3800);
     }
 
     /**
