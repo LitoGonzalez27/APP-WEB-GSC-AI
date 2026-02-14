@@ -472,6 +472,24 @@
 }
 
 /* Keep Create New Project hover aligned with project action CTA */
+#btnCreateFirstProject {
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#btnCreateFirstProject i {
+    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+}
+
 #btnCreateProject:hover:not(:disabled),
 #btnCreateFirstProject:hover:not(:disabled) {
     background-color: #D8F9B8 !important;
