@@ -4045,7 +4045,7 @@ class LLMMonitoring {
                     </div>
                     <h4>No prompts yet</h4>
                     <p>Add prompts to start analyzing brand visibility in LLMs</p>
-                    <button class="btn btn-primary btn-sm mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
+                    <button class="btn btn-primary mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
                         <i class="fas fa-plus"></i>
                         Add Your First Prompt
                     </button>
