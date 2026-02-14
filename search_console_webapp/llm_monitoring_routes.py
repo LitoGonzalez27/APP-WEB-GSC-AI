@@ -203,10 +203,16 @@ def get_projects():
                 p.id,
                 p.name,
                 p.brand_name,
+                p.brand_domain,
+                p.brand_keywords,
                 p.industry,
                 p.enabled_llms,
                 p.competitors,
+                p.competitor_domains,
+                p.competitor_keywords,
+                p.selected_competitors,
                 p.language,
+                p.country_code,
                 p.queries_per_llm,
                 p.is_active,
                 p.is_paused_by_quota,
@@ -234,10 +240,16 @@ def get_projects():
                 'id': project['id'],
                 'name': project['name'],
                 'brand_name': project['brand_name'],
+                'brand_domain': project.get('brand_domain'),
+                'brand_keywords': project.get('brand_keywords') or [],
                 'industry': project['industry'],
                 'enabled_llms': project['enabled_llms'],
                 'competitors': project['competitors'],
+                'competitor_domains': project.get('competitor_domains') or [],
+                'competitor_keywords': project.get('competitor_keywords') or [],
+                'selected_competitors': project.get('selected_competitors') or [],
                 'language': project['language'],
+                'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'is_paused_by_quota': project.get('is_paused_by_quota', False),
@@ -325,8 +337,8 @@ def create_project():
     brand_domain = data.get('brand_domain')
     brand_keywords = data.get('brand_keywords', [])
     selected_competitors = data.get('selected_competitors', [])  # ✨ NEW
-    language = data.get('language', 'es')
-    country_code = data.get('country_code', 'ES')
+    language = str(data.get('language', 'es') or 'es').strip().lower() or 'es'
+    country_code = str(data.get('country_code', 'ES') or 'ES').strip().upper()
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
     queries_per_llm = data.get('queries_per_llm', 15)
     
@@ -354,6 +366,9 @@ def create_project():
     valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
     if not all(llm in valid_llms for llm in enabled_llms):
         return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
+
+    if not country_code or len(country_code) != 2 or not country_code.isalpha():
+        return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
     
     conn = get_db_connection()
     if not conn:
@@ -515,6 +530,7 @@ def get_project(project_id):
                 p.competitor_keywords,
                 p.selected_competitors,
                 p.language,
+                p.country_code,
                 p.queries_per_llm,
                 p.is_active,
                 p.last_analysis_date,
@@ -529,7 +545,7 @@ def get_project(project_id):
             WHERE p.id = %s
             GROUP BY p.id, p.user_id, p.name, p.brand_name, p.brand_domain, p.brand_keywords,
                      p.industry, p.enabled_llms, p.competitors, p.competitor_domains, 
-                     p.competitor_keywords, p.selected_competitors, p.language, p.queries_per_llm,
+                     p.competitor_keywords, p.selected_competitors, p.language, p.country_code, p.queries_per_llm,
                      p.is_active, p.last_analysis_date, p.created_at, p.updated_at
         """, (project_id,))
         
@@ -548,11 +564,12 @@ def get_project(project_id):
         metric_type = request.args.get('metric', 'normal')
         if metric_type not in ['normal', 'weighted']:
             metric_type = 'normal'
+        enabled_llms_filter = project.get('enabled_llms') or []
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
         
         # Obtener todos los snapshots del rango seleccionado
         # ✨ NUEVO: Incluir campos Top3/5/10 para métricas de posición granulares
-        cur.execute("""
+        snapshots_query = """
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -573,15 +590,20 @@ def get_project(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
                 AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, days))
+        """
+        snapshots_params = [project_id, days]
+        if enabled_llms_filter:
+            snapshots_query += " AND llm_provider = ANY(%s)"
+            snapshots_params.append(enabled_llms_filter)
+        snapshots_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(snapshots_query, snapshots_params)
         
         all_snapshots = cur.fetchall()
         logger.info(f"📊 Métricas encontradas: {len(all_snapshots)} snapshots (últimos {days} días)")
         
         # ✨ NUEVO: Obtener snapshots del período ANTERIOR para calcular tendencias
         # Si el período actual es "últimos 30 días", el anterior es "hace 60-31 días"
-        cur.execute("""
+        previous_snapshots_query = """
             SELECT 
                 llm_provider,
                 mention_rate,
@@ -603,8 +625,13 @@ def get_project(project_id):
             WHERE project_id = %s
                 AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
                 AND snapshot_date < CURRENT_DATE - (%s * INTERVAL '1 day')
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, days * 2, days))
+        """
+        previous_snapshots_params = [project_id, days * 2, days]
+        if enabled_llms_filter:
+            previous_snapshots_query += " AND llm_provider = ANY(%s)"
+            previous_snapshots_params.append(enabled_llms_filter)
+        previous_snapshots_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(previous_snapshots_query, previous_snapshots_params)
         
         previous_snapshots = cur.fetchall()
         logger.info(f"📊 Snapshots período anterior: {len(previous_snapshots)} (para calcular tendencias)")
@@ -794,7 +821,7 @@ def get_project(project_id):
         
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
-        cur.execute("""
+        position_query = """
             SELECT 
                 COUNT(*) FILTER (WHERE brand_mentioned) as total_mentions,
                 AVG(position_in_list) FILTER (
@@ -821,7 +848,12 @@ def get_project(project_id):
             WHERE project_id = %s
               AND analysis_date >= %s
               AND analysis_date <= %s
-        """, (project_id, start_date, end_date))
+        """
+        position_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            position_query += " AND llm_provider = ANY(%s)"
+            position_params.append(enabled_llms_filter)
+        cur.execute(position_query, position_params)
         
         position_row = cur.fetchone()
         if position_row:
@@ -1031,6 +1063,7 @@ def get_project(project_id):
                 'competitor_keywords': project.get('competitor_keywords', []),  # Legacy
                 'selected_competitors': project.get('selected_competitors', []),  # ✨ NUEVO
                 'language': project['language'],
+                'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
                 'is_active': project['is_active'],
                 'last_analysis_date': project['last_analysis_date'].isoformat() if project['last_analysis_date'] else None,
@@ -1118,6 +1151,13 @@ def update_project(project_id):
         if 'industry' in data:
             updates.append("industry = %s")
             params.append(data['industry'])
+
+        if 'language' in data:
+            language = str(data.get('language') or '').strip().lower()
+            if not language:
+                return jsonify({'error': 'language no puede estar vacío'}), 400
+            updates.append("language = %s")
+            params.append(language)
         
         if 'brand_domain' in data:
             updates.append("brand_domain = %s")
@@ -1163,6 +1203,8 @@ def update_project(project_id):
         if 'enabled_llms' in data:
             # Validar LLMs
             valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
+            if not isinstance(data['enabled_llms'], list) or len(data['enabled_llms']) == 0:
+                return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
             if not all(llm in valid_llms for llm in data['enabled_llms']):
                 return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
             updates.append("enabled_llms = %s")
@@ -1184,8 +1226,11 @@ def update_project(project_id):
             params.append(data['queries_per_llm'])
         
         if 'country_code' in data:
+            country_code = str(data.get('country_code') or '').strip().upper()
+            if not country_code or len(country_code) != 2 or not country_code.isalpha():
+                return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
             updates.append("country_code = %s")
-            params.append(data['country_code'])
+            params.append(country_code)
         
         if not updates:
             return jsonify({'error': 'No hay campos para actualizar'}), 400
@@ -1577,7 +1622,7 @@ def delete_query(project_id, query_id):
         
         # Verificar que la query pertenece al proyecto
         cur.execute("""
-            SELECT id, query_text 
+            SELECT id, query_text
             FROM llm_monitoring_queries
             WHERE id = %s AND project_id = %s
         """, (query_id, project_id))
@@ -1641,9 +1686,10 @@ def get_query_history(project_id, query_id):
         
         # Verificar que la query pertenece al proyecto
         cur.execute("""
-            SELECT id, query_text 
-            FROM llm_monitoring_queries
-            WHERE id = %s AND project_id = %s
+            SELECT q.id, q.query_text, p.enabled_llms
+            FROM llm_monitoring_queries q
+            JOIN llm_monitoring_projects p ON q.project_id = p.id
+            WHERE q.id = %s AND q.project_id = %s
         """, (query_id, project_id))
         
         query = cur.fetchone()
@@ -1654,7 +1700,8 @@ def get_query_history(project_id, query_id):
         logger.info(f"📊 Fetching history for query {query_id} ('{query['query_text'][:30]}...') - last {days} days")
         
         # Obtener historial de resultados para esta query
-        cur.execute(f"""
+        enabled_llms_filter = query.get('enabled_llms') or []
+        history_query = f"""
             SELECT 
                 analysis_date,
                 llm_provider,
@@ -1664,8 +1711,13 @@ def get_query_history(project_id, query_id):
             FROM llm_monitoring_results
             WHERE query_id = %s AND project_id = %s
                 AND analysis_date >= CURRENT_DATE - INTERVAL '{days} days'
-            ORDER BY analysis_date ASC, llm_provider
-        """, (query_id, project_id))
+        """
+        history_params = [query_id, project_id]
+        if enabled_llms_filter:
+            history_query += " AND llm_provider = ANY(%s)"
+            history_params.append(enabled_llms_filter)
+        history_query += " ORDER BY analysis_date ASC, llm_provider"
+        cur.execute(history_query, history_params)
         
         results = cur.fetchall()
         
@@ -1918,8 +1970,16 @@ def suggest_query_variations(project_id):
                 import random
                 import time
                 
-                language = project['language'] or 'en'
-                lang_instruction = "Spanish" if language == 'es' else "English" if language == 'en' else language.upper()
+                language = (project['language'] or 'en').lower()
+                language_map = {
+                    'es': 'Spanish',
+                    'en': 'English',
+                    'it': 'Italian',
+                    'fr': 'French',
+                    'de': 'German',
+                    'pt': 'Portuguese',
+                }
+                lang_instruction = language_map.get(language, language.upper())
                 
                 # Add randomness to get different results each time
                 random_seed = random.randint(1, 1000)
@@ -1962,8 +2022,8 @@ Requirements:
         # Fallback: Generate simple variations locally with randomization
         import random
         
-        comp_name = competitors[0] if competitors else ('competidores' if language == 'es' else 'competitors')
         language = project['language'] or 'en'
+        comp_name = competitors[0] if competitors else ('competidores' if language == 'es' else 'competitors')
         
         if language == 'es':
             all_variations = [
@@ -1987,6 +2047,19 @@ Requirements:
                 f"Top {industry} en 2024",
                 f"¿Cuál es mejor {brand_name} o {comp_name}?",
                 f"Experiencias con {brand_name}"
+            ]
+        elif language == 'it':
+            all_variations = [
+                f"Cos'è {brand_name} e come funziona?",
+                f"Migliori strumenti di {industry}",
+                f"Confronto {brand_name} vs {comp_name}",
+                f"{brand_name} vale la pena? Recensioni",
+                f"Alternative a {brand_name}",
+                f"Come iniziare con {brand_name}",
+                f"Prezzi e piani di {brand_name}",
+                f"Opinioni su {brand_name}",
+                f"Pro e contro di {brand_name}",
+                f"{brand_name} per principianti"
             ]
         else:
             all_variations = [
@@ -2089,6 +2162,16 @@ def get_project_metrics(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Query base
         query = """
@@ -2109,6 +2192,9 @@ def get_project_metrics(project_id):
         if llm_provider:
             query += " AND s.llm_provider = %s"
             params.append(llm_provider)
+        elif enabled_llms_filter:
+            query += " AND s.llm_provider = ANY(%s)"
+            params.append(enabled_llms_filter)
         
         query += " ORDER BY s.snapshot_date DESC, s.llm_provider"
         
@@ -2212,10 +2298,27 @@ def get_urls_ranking(project_id):
     limit = request.args.get('limit', 50, type=int)
     
     try:
+        enabled_llms_filter = None
+        if not llm_provider:
+            conn = get_db_connection()
+            if conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT enabled_llms
+                    FROM llm_monitoring_projects
+                    WHERE id = %s
+                """, (project_id,))
+                project = cur.fetchone()
+                if project:
+                    enabled_llms_filter = project.get('enabled_llms') or None
+                cur.close()
+                conn.close()
+
         urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
             project_id=project_id,
             days=days,
             llm_provider=llm_provider,
+            enabled_llms=enabled_llms_filter,
             limit=limit
         )
         
@@ -2262,10 +2365,20 @@ def get_llm_comparison(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Traer filas por LLM directamente desde snapshots
         # ✨ NUEVO: Incluir weighted_share_of_voice
-        cur.execute("""
+        comparison_query = """
             SELECT 
                 llm_provider,
                 snapshot_date,
@@ -2282,14 +2395,19 @@ def get_llm_comparison(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s
             AND snapshot_date >= %s
-            ORDER BY snapshot_date DESC, llm_provider
-        """, (project_id, start_date))
+        """
+        comparison_params = [project_id, start_date]
+        if enabled_llms_filter:
+            comparison_query += " AND llm_provider = ANY(%s)"
+            comparison_params.append(enabled_llms_filter)
+        comparison_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(comparison_query, comparison_params)
         
         rows = cur.fetchall()
         
         # ✨ NUEVO: Obtener distribución de position_source para cada snapshot
         # Esto nos permite mostrar badges 📝/🔗/📝🔗 en UI
-        cur.execute("""
+        position_source_query = """
             SELECT 
                 s.llm_provider,
                 s.snapshot_date,
@@ -2305,9 +2423,16 @@ def get_llm_comparison(project_id):
                 AND r.position_source IS NOT NULL
             WHERE s.project_id = %s
             AND s.snapshot_date >= %s
+        """
+        position_source_params = [project_id, start_date]
+        if enabled_llms_filter:
+            position_source_query += " AND s.llm_provider = ANY(%s)"
+            position_source_params.append(enabled_llms_filter)
+        position_source_query += """
             GROUP BY s.llm_provider, s.snapshot_date
             ORDER BY s.snapshot_date DESC, s.llm_provider
-        """, (project_id, start_date))
+        """
+        cur.execute(position_source_query, position_source_params)
         
         position_sources = cur.fetchall()
         
@@ -2456,13 +2581,15 @@ def get_project_queries(project_id):
         
         # Obtener información del proyecto (para country)
         cur.execute("""
-            SELECT name, language FROM llm_monitoring_projects
+            SELECT name, language, country_code, enabled_llms
+            FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         
         project = cur.fetchone()
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project.get('enabled_llms') or []
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -2478,7 +2605,7 @@ def get_project_queries(project_id):
         
         # Obtener queries con métricas agregadas
         # ✨ MEJORADO: Contar menciones en texto + menciones en URLs
-        cur.execute("""
+        query_metrics_sql = """
             WITH query_metrics AS (
                 SELECT 
                     q.id,
@@ -2510,6 +2637,7 @@ def get_project_queries(project_id):
                 LEFT JOIN llm_monitoring_results r ON q.id = r.query_id 
                     AND r.analysis_date >= %s 
                     AND r.analysis_date <= %s
+                    {llm_filter}
                 WHERE q.project_id = %s AND q.is_active = TRUE
                 GROUP BY q.id, q.query_text, q.language, q.query_type, q.added_at
             )
@@ -2531,7 +2659,14 @@ def get_project_queries(project_id):
                 last_update
             FROM query_metrics
             ORDER BY last_update DESC NULLS LAST, created_at DESC
-        """, (f'%{brand_domain}%' if brand_domain else '%', start_date, end_date, project_id))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        query_metrics_params = [f'%{brand_domain}%' if brand_domain else '%', start_date, end_date]
+        if enabled_llms_filter:
+            query_metrics_params.append(enabled_llms_filter)
+        query_metrics_params.append(project_id)
+        cur.execute(query_metrics_sql, query_metrics_params)
         
         queries_raw = cur.fetchall()
         
@@ -2539,7 +2674,7 @@ def get_project_queries(project_id):
         # Esto nos permite mostrar qué LLMs mencionaron la marca y los competidores
         # Usamos DISTINCT ON para obtener solo el resultado más reciente por (query_id, llm_provider)
         # 🔧 FIX: Incluir información sobre menciones en URLs también
-        cur.execute("""
+        mentions_query_sql = """
             SELECT DISTINCT ON (r.query_id, r.llm_provider)
                 r.query_id,
                 r.llm_provider,
@@ -2552,8 +2687,15 @@ def get_project_queries(project_id):
             WHERE r.query_id = ANY(%s)
                 AND r.analysis_date >= %s
                 AND r.analysis_date <= %s
+                {llm_filter}
             ORDER BY r.query_id, r.llm_provider, r.analysis_date DESC
-        """, ([q['id'] for q in queries_raw], start_date, end_date))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        mentions_query_params = [[q['id'] for q in queries_raw], start_date, end_date]
+        if enabled_llms_filter:
+            mentions_query_params.append(enabled_llms_filter)
+        cur.execute(mentions_query_sql, mentions_query_params)
         
         mentions_by_query = {}
         for row in cur.fetchall():
@@ -2717,9 +2859,10 @@ def get_share_of_voice_history(project_id):
         # Calcular fechas de inicio y fin
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        enabled_llms_filter = project.get('enabled_llms') or []
         
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
-        cur.execute("""
+        sov_history_query = """
             SELECT 
                 snapshot_date,
                 llm_provider,
@@ -2732,8 +2875,13 @@ def get_share_of_voice_history(project_id):
             FROM llm_monitoring_snapshots
             WHERE project_id = %s 
                 AND snapshot_date >= %s 
-            ORDER BY snapshot_date, llm_provider
-        """, (project_id, start_date))
+        """
+        sov_history_params = [project_id, start_date]
+        if enabled_llms_filter:
+            sov_history_query += " AND llm_provider = ANY(%s)"
+            sov_history_params.append(enabled_llms_filter)
+        sov_history_query += " ORDER BY snapshot_date, llm_provider"
+        cur.execute(sov_history_query, sov_history_params)
         
         snapshots = cur.fetchall()
         
@@ -3502,6 +3650,16 @@ def get_project_responses(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        enabled_llms_filter = project_row.get('enabled_llms') or []
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
@@ -3542,6 +3700,9 @@ def get_project_responses(project_id):
         if llm_provider:
             query += " AND r.llm_provider = %s"
             params.append(llm_provider)
+        elif enabled_llms_filter:
+            query += " AND r.llm_provider = ANY(%s)"
+            params.append(enabled_llms_filter)
         
         query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
         
@@ -3627,7 +3788,7 @@ def export_project_excel(project_id):
         
         # Obtener datos del proyecto
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -3639,8 +3800,9 @@ def export_project_excel(project_id):
         # Obtener métricas por LLM
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
+        enabled_llms_filter = project.get('enabled_llms') or []
         
-        cur.execute("""
+        metrics_query = """
             SELECT 
                 llm_provider,
                 COUNT(DISTINCT query_id) as total_queries,
@@ -3648,15 +3810,22 @@ def export_project_excel(project_id):
                 ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct,
                 AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment
             FROM llm_monitoring_results
-            WHERE project_id = %s AND analysis_date >= %s
+            WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
+        """
+        metrics_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            metrics_query += " AND llm_provider = ANY(%s)"
+            metrics_params.append(enabled_llms_filter)
+        metrics_query += """
             GROUP BY llm_provider
             ORDER BY llm_provider
-        """, (project_id, start_date))
+        """
+        cur.execute(metrics_query, metrics_params)
         metrics = cur.fetchall()
         
         # Obtener queries con resultados
         export_country = project['country_code'] or 'Global'
-        cur.execute("""
+        queries_export_query = """
             SELECT 
                 q.query_text AS prompt,
                 %s::text AS country,
@@ -3665,11 +3834,19 @@ def export_project_excel(project_id):
                 SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as times_mentioned,
                 AVG(r.position_in_list) as avg_position
             FROM llm_monitoring_queries q
-            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s
+            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s AND r.analysis_date <= %s
+                {llm_filter}
             WHERE q.project_id = %s AND q.is_active = TRUE
             GROUP BY q.id, q.query_text, q.language
             ORDER BY times_mentioned DESC
-        """, (export_country, start_date, project_id))
+        """.format(
+            llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+        )
+        queries_export_params = [export_country, start_date, end_date]
+        if enabled_llms_filter:
+            queries_export_params.append(enabled_llms_filter)
+        queries_export_params.append(project_id)
+        cur.execute(queries_export_query, queries_export_params)
         queries = cur.fetchall()
         
         cur.close()
@@ -3817,7 +3994,7 @@ def export_project_pdf(project_id):
         
         # Obtener datos del proyecto
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code
+            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -3829,18 +4006,26 @@ def export_project_pdf(project_id):
         # Obtener métricas por LLM
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
+        enabled_llms_filter = project.get('enabled_llms') or []
         
-        cur.execute("""
+        pdf_metrics_query = """
             SELECT 
                 llm_provider,
                 COUNT(DISTINCT query_id) as total_queries,
                 SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
                 ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
             FROM llm_monitoring_results
-            WHERE project_id = %s AND analysis_date >= %s
+            WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
+        """
+        pdf_metrics_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            pdf_metrics_query += " AND llm_provider = ANY(%s)"
+            pdf_metrics_params.append(enabled_llms_filter)
+        pdf_metrics_query += """
             GROUP BY llm_provider
             ORDER BY mention_rate_pct DESC
-        """, (project_id, start_date))
+        """
+        cur.execute(pdf_metrics_query, pdf_metrics_params)
         metrics = cur.fetchall()
         
         cur.close()

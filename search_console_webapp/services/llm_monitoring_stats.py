@@ -22,6 +22,7 @@ class LLMMonitoringStatsService:
         project_id: int,
         days: int = 30,
         llm_provider: Optional[str] = None,
+        enabled_llms: Optional[List[str]] = None,
         limit: int = 50
     ) -> List[Dict]:
         """
@@ -90,6 +91,9 @@ class LLMMonitoringStatsService:
             if llm_provider:
                 query += " AND llm_provider = %s"
                 params.append(llm_provider)
+            elif enabled_llms:
+                query += " AND llm_provider = ANY(%s)"
+                params.append(enabled_llms)
             
             cur.execute(query, params)
             results = cur.fetchall()
@@ -174,4 +178,3 @@ class LLMMonitoringStatsService:
         except Exception as e:
             logger.error(f"❌ Error calculando ranking de URLs: {e}", exc_info=True)
             return []
-

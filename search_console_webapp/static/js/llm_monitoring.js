@@ -314,6 +314,10 @@ class LLMMonitoring {
         for (let i = 1; i <= 4; i++) {
             const container = document.getElementById(`competitor${i}KeywordsChips`);
             if (container) container.innerHTML = '';
+
+            // Clear competitor domain inputs as well to avoid stale values in edit mode
+            const domainInput = document.getElementById(`competitor${i}Domain`);
+            if (domainInput) domainInput.value = '';
         }
     }
 
@@ -338,8 +342,8 @@ class LLMMonitoring {
 
                 // Set domain field
                 const domainInput = document.getElementById(`competitor${competitorNum}Domain`);
-                if (domainInput && comp.domain) {
-                    domainInput.value = comp.domain;
+                if (domainInput) {
+                    domainInput.value = comp.domain || '';
                 }
 
                 // Set keywords chips
@@ -511,7 +515,7 @@ class LLMMonitoring {
 
         // Edit project
         document.getElementById('btnEditProject')?.addEventListener('click', () => {
-            this.showProjectModal(this.currentProject);
+            this.editProject(this.currentProject?.id, this.currentProject);
         });
 
         // Show models info
@@ -701,6 +705,9 @@ class LLMMonitoring {
         const card = document.createElement('div');
         card.className = 'project-card';
         const safeProjectName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const competitorCount = Array.isArray(project.selected_competitors)
+            ? project.selected_competitors.length
+            : (project.competitors?.length || 0);
         card.innerHTML = `
             <div class="project-card-header">
                 <h3>${this.escapeHtml(project.name)}</h3>
@@ -724,7 +731,7 @@ class LLMMonitoring {
                     </div>
                     <div class="info-item">
                         <i class="fas fa-users"></i>
-                        <span>${project.competitors?.length || 0} Competitors</span>
+                        <span>${competitorCount} Competitors</span>
                     </div>
                 </div>
                 ${project.last_analysis_date ? `
@@ -745,7 +752,7 @@ class LLMMonitoring {
                     <i class="fas fa-list"></i>
                     View/Edit Prompts
                 </button>
-                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.showProjectModal(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
@@ -768,6 +775,42 @@ class LLMMonitoring {
         `;
 
         container.appendChild(card);
+    }
+
+    /**
+     * Open edit modal with full project payload from backend to avoid partial-data overwrites
+     */
+    async editProject(projectId, fallbackProject = null) {
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const metricType = this.getSelectedSovMetric();
+            const response = await fetch(
+                `${this.baseUrl}/projects/${projectId}?days=${this.globalTimeRange}&metric=${metricType}`,
+                { credentials: 'same-origin' }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success || !data?.project) {
+                throw new Error('Could not load full project details');
+            }
+
+            this.showProjectModal(data.project);
+        } catch (error) {
+            console.error('❌ Error loading full project for edit:', error);
+            if (fallbackProject) {
+                this.showProjectModal(fallbackProject);
+            } else {
+                this.showError('Failed to load project details');
+            }
+        }
     }
 
     /**

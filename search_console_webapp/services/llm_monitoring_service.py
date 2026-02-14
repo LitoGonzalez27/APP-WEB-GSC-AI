@@ -3,7 +3,7 @@ Servicio Principal Multi-LLM Brand Monitoring
 
 IMPORTANTE:
 - Usa ThreadPoolExecutor para paralelización (10x más rápido)
-- Sentimiento analizado con LLM (Gemini Flash), no keywords
+- Sentimiento analizado con provider activo del proyecto (fallback a keywords)
 - Reutiliza funciones de ai_analysis.py para detección de marca
 """
 
@@ -13,6 +13,7 @@ import json
 import time
 from datetime import date, datetime
 import os
+from urllib.parse import urlparse
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
 except Exception:  # pragma: no cover
@@ -97,6 +98,120 @@ class MultiLLMMonitoringService:
                 logger.info(f"   • {pname}: {limit} concurrente(s)")
         
         logger.info(f"✅ Servicio inicializado con {len(self.providers)} proveedores")
+
+    def _normalize_domain(self, raw_domain: Optional[str]) -> str:
+        """Normaliza un dominio (sin protocolo, path, puerto ni www)."""
+        if not raw_domain:
+            return ''
+
+        value = str(raw_domain).strip().lower()
+        if not value:
+            return ''
+
+        if not value.startswith(('http://', 'https://')):
+            value = f"https://{value}"
+
+        parsed = urlparse(value)
+        host = parsed.netloc or parsed.path
+        host = host.split('/')[0].split(':')[0].strip().lower()
+        if host.startswith('www.'):
+            host = host[4:]
+        return host
+
+    def _extract_source_host(self, raw_url: Optional[str]) -> str:
+        """Extrae host normalizado desde una URL citada por el provider."""
+        if not raw_url:
+            return ''
+
+        url = str(raw_url).strip()
+        if not url:
+            return ''
+
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}"
+
+        parsed = urlparse(url)
+        host = parsed.netloc or parsed.path
+        host = host.split('/')[0].split(':')[0].strip().lower()
+        if host.startswith('www.'):
+            host = host[4:]
+        return host
+
+    def _domain_matches_host(self, expected_domain: str, host: str) -> bool:
+        """True si host coincide exactamente o es subdominio del dominio esperado."""
+        if not expected_domain or not host:
+            return False
+        return host == expected_domain or host.endswith(f".{expected_domain}")
+
+    def _competitor_display_name(self, raw_value: Optional[str]) -> str:
+        """Genera un nombre legible para agrupar competidores."""
+        value = str(raw_value or '').strip()
+        if not value:
+            return 'Unknown'
+
+        normalized_domain = self._normalize_domain(value)
+        if normalized_domain and '.' in normalized_domain:
+            root = normalized_domain.split('.')[0]
+            return root.title() if root else value.title()
+        return value.title()
+
+    def _build_localized_query(self, base_query: str, language: str, country_code: str) -> str:
+        """
+        Añade contexto regional/idioma al prompt para alinear resultados al mercado objetivo.
+        """
+        language_code = (language or 'en').strip().lower()
+        country = (country_code or 'US').strip().upper()
+
+        language_names = {
+            'es': 'Spanish',
+            'en': 'English',
+            'it': 'Italian',
+            'fr': 'French',
+            'de': 'German',
+            'pt': 'Portuguese',
+        }
+        country_names = {
+            'ES': 'Spain',
+            'US': 'United States',
+            'GB': 'United Kingdom',
+            'IT': 'Italy',
+            'FR': 'France',
+            'DE': 'Germany',
+            'PT': 'Portugal',
+            'MX': 'Mexico',
+            'AR': 'Argentina',
+            'CO': 'Colombia',
+            'CL': 'Chile',
+            'PE': 'Peru',
+            'BR': 'Brazil',
+            'CA': 'Canada',
+            'AU': 'Australia',
+            'IN': 'India',
+            'JP': 'Japan',
+        }
+        language_name = language_names.get(language_code, language_code.upper())
+        country_name = country_names.get(country, country)
+
+        return (
+            f"[Locale context]\n"
+            f"- Answer language: {language_name}\n"
+            f"- Target market/country: {country_name} ({country})\n"
+            f"- Prioritize local providers, pricing, regulations, and examples from that country.\n\n"
+            f"[User query]\n{base_query}"
+        )
+
+    def _select_sentiment_analyzer(self, active_providers: Dict[str, BaseLLMProvider]) -> Optional[BaseLLMProvider]:
+        """
+        Selecciona provider para sentimiento solo entre los LLMs activos del proyecto.
+        """
+        if not active_providers:
+            return None
+
+        provider_priority = ['google', 'openai', 'anthropic', 'perplexity']
+        for provider_name in provider_priority:
+            if provider_name in active_providers:
+                return active_providers[provider_name]
+        return next(iter(active_providers.values()), None)
     
     # =====================================================
     # GENERACIÓN DE QUERIES
@@ -187,10 +302,36 @@ class MultiLLMMonitoringService:
                     f"{{competitor}} or better options?",
                     f"Compare {{competitor}} with other {industry}",
                 ]
+            },
+            'it': {
+                'general': [
+                    f"Quali sono i migliori strumenti di {industry}?",
+                    f"Top 10 aziende di {industry}",
+                    f"Quale software di {industry} consigli?",
+                    f"Confronto di {industry}",
+                    f"Migliori soluzioni per {industry}",
+                    f"Come scegliere {industry}?",
+                    f"Pro e contro di {industry}",
+                    f"Opinioni su {industry}",
+                    f"Alternative per {industry}",
+                    f"Prezzo di {industry}",
+                ],
+                'with_brand': [
+                    f"Cos'è {brand_name}?",
+                    f"Recensioni su {brand_name}",
+                    f"{brand_name} è valido?",
+                    f"Vantaggi di {brand_name}",
+                    f"Alternative a {brand_name}",
+                ],
+                'with_competitors': [
+                    f"{{competitor}} vs alternative di {industry}",
+                    f"{{competitor}} o ci sono opzioni migliori?",
+                    f"Confronta {{competitor}} con altri di {industry}",
+                ]
             }
         }
         
-        lang_templates = templates.get(language, templates['es'])
+        lang_templates = templates.get(language, templates['en'])
         
         # Queries generales (60%)
         general_count = int(count * 0.6)
@@ -348,43 +489,31 @@ class MultiLLMMonitoringService:
         # ✨ MEJORADO: Buscar marca en sources/URLs (CRÍTICO para Perplexity, etc.)
         # Si no encontramos la marca en el texto, verificar si está en las fuentes citadas
         brand_found_in_sources = False
+        normalized_brand_domain = self._normalize_domain(brand_domain)
         if sources and len(sources) > 0:
             for source in sources:
-                source_url = source.get('url', '').lower()
+                source_url = source.get('url', '')
+                source_url_lower = source_url.lower()
+                source_host = self._extract_source_host(source_url)
                 
                 # PRIORIDAD 1: Buscar dominio COMPLETO como dominio válido (más restrictivo y preciso)
-                if brand_domain:
-                    domain_clean = brand_domain.lower().replace('www.', '').replace('.com', '').replace('.es', '').replace('.net', '').replace('.org', '')
-                    
-                    # Patrón para buscar como dominio real (entre :// y / o final)
-                    # Ejemplos que coinciden: "https://getkipu.com/", "http://www.getkipu.com", "getkipu.com/page"
-                    # Ejemplos que NO coinciden: "https://wikipedia.org/wiki/Kipuka" (kipuka ≠ kipu)
-                    domain_patterns = [
-                        r'://(?:www\.)?{}\.(?:com|es|net|org|io|co)(?:/|$)'.format(re.escape(domain_clean)),  # Con protocolo
-                        r'^(?:www\.)?{}\.(?:com|es|net|org|io|co)(?:/|$)'.format(re.escape(domain_clean)),  # Sin protocolo al inicio
-                    ]
-                    
-                    for pattern in domain_patterns:
-                        if re.search(pattern, source_url):
-                            brand_found_in_sources = True
-                            source_context = f"🔗 Brand domain {brand_domain} found in cited source: {source.get('url', 'N/A')}"
-                            if source_context not in mention_contexts:
-                                mention_contexts.append(source_context)
-                            logger.debug(f"[BRAND DETECTION] ✅ Domain match in source URL via pattern: {pattern}")
-                            break
-                    
-                    if brand_found_in_sources:
-                        break
+                if normalized_brand_domain and self._domain_matches_host(normalized_brand_domain, source_host):
+                    brand_found_in_sources = True
+                    source_context = f"🔗 Brand domain {brand_domain} found in cited source: {source.get('url', 'N/A')}"
+                    if source_context not in mention_contexts:
+                        mention_contexts.append(source_context)
+                    logger.debug(f"[BRAND DETECTION] ✅ Domain match in source host: {source_host}")
+                    break
                 
                 # PRIORIDAD 2: Buscar variaciones de marca en la URL (solo si no encontramos dominio completo)
                 # Esto es más permisivo pero puede tener falsos positivos
                 # Solo buscar variaciones largas (>=5 chars) para minimizar falsos positivos
                 for variation in brand_variations:
-                    if len(variation) >= 5 and variation.lower() in source_url:
+                    if len(variation) >= 4 and variation.lower() in source_url_lower:
                         # Verificación adicional: asegurarse de que no es parte de otra palabra
                         # Por ejemplo, evitar detectar "kipu" en "kipuka"
-                        var_pattern = r'\b{}\b'.format(re.escape(variation.lower()))
-                        if re.search(var_pattern, source_url):
+                        var_pattern = r'(?<![a-z0-9]){}(?![a-z0-9])'.format(re.escape(variation.lower()))
+                        if re.search(var_pattern, source_url_lower):
                             brand_found_in_sources = True
                             source_context = f"🔗 Brand '{variation}' found in cited source: {source.get('url', 'N/A')}"
                             if source_context not in mention_contexts:
@@ -453,8 +582,8 @@ class MultiLLMMonitoringService:
         if not competitor_term_to_name:
             competitor_term_to_name = {}
             for term in all_competitors:
-                # En modo legacy, usar el término limpio como nombre
-                term_name = term.lower().replace('.es', '').replace('.com', '').replace('.net', '').replace('.org', '').title()
+                # En modo legacy, usar nombre legible derivado del dominio o keyword
+                term_name = self._competitor_display_name(term)
                 competitor_term_to_name[term.lower()] = term_name
         
         # Buscar cada competidor y agrupar por nombre
@@ -477,14 +606,24 @@ class MultiLLMMonitoringService:
             
             # B) ✨ NUEVO: Buscar también en sources/enlaces (importante para Perplexity)
             if not found_in_this_response and sources:
+                competitor_domain = self._normalize_domain(competitor)
                 for source in sources:
                     source_url = source.get('url', '').lower()
+                    source_host = self._extract_source_host(source.get('url', ''))
                     # Verificar si alguna variación del competidor está en la URL
+                    if competitor_domain and self._domain_matches_host(competitor_domain, source_host):
+                        found_in_this_response = True
+                        logger.debug(f"[COMPETITOR] Found domain '{competitor}' in source URL host: {source_host}")
+                        break
+
                     for variation in comp_variations:
-                        if variation.lower() in source_url:
-                            found_in_this_response = True
-                            logger.debug(f"[COMPETITOR] Found '{competitor}' in source URL: {source_url}")
-                            break
+                        variation_lower = variation.lower()
+                        if variation_lower in source_url:
+                            variation_pattern = r'(?<![a-z0-9]){}(?![a-z0-9])'.format(re.escape(variation_lower))
+                            if re.search(variation_pattern, source_url):
+                                found_in_this_response = True
+                                logger.debug(f"[COMPETITOR] Found '{competitor}' in source URL: {source_url}")
+                                break
                     if found_in_this_response:
                         break
             
@@ -743,7 +882,10 @@ JSON:"""
                 return self._analyze_sentiment_keywords(contexts)
             
             # Parsear JSON de la respuesta
-            response_text = result['content'].strip()
+            response_text = (result.get('content') or result.get('response_text') or '').strip()
+            if not response_text:
+                logger.warning("⚠️ Respuesta vacía en análisis de sentimiento, usando keywords")
+                return self._analyze_sentiment_keywords(contexts)
             
             # Extraer JSON (puede venir con texto adicional)
             json_match = re.search(r'\{[^}]+\}', response_text)
@@ -859,7 +1001,7 @@ JSON:"""
                     enabled_llms, competitors, 
                     competitor_domains, competitor_keywords,
                     selected_competitors,
-                    language, queries_per_llm,
+                    language, country_code, queries_per_llm,
                     is_paused_by_quota, paused_until, paused_at, paused_reason
                 FROM llm_monitoring_projects
                 WHERE id = %s AND is_active = TRUE
@@ -897,6 +1039,7 @@ JSON:"""
             logger.info(f"📋 Proyecto: {project['name']}")
             logger.info(f"   Marca: {project['brand_name']}")
             logger.info(f"   Industria: {project['industry']}")
+            logger.info(f"   Idioma/País: {project.get('language', 'en')} / {project.get('country_code', 'US')}")
             logger.info(f"   LLMs habilitados: {project['enabled_llms']}")
             
             # Obtener o generar queries
@@ -908,6 +1051,20 @@ JSON:"""
             
             queries = cur.fetchall()
             
+            selected_competitors_for_queries = project.get('selected_competitors') or []
+            competitors_for_query_generation = project.get('competitors') or []
+            if selected_competitors_for_queries:
+                derived_competitors = []
+                for comp in selected_competitors_for_queries:
+                    comp_domain = self._normalize_domain(comp.get('domain'))
+                    comp_keywords = comp.get('keywords') or []
+                    if comp_domain:
+                        derived_competitors.append(comp_domain)
+                    elif comp_keywords:
+                        derived_competitors.append(str(comp_keywords[0]))
+                if derived_competitors:
+                    competitors_for_query_generation = derived_competitors
+
             # Si no hay queries, generarlas
             if len(queries) == 0:
                 logger.info("📝 No hay queries, generando automáticamente...")
@@ -916,7 +1073,7 @@ JSON:"""
                     brand_name=project['brand_name'],
                     industry=project['industry'],
                     language=project['language'],
-                    competitors=project['competitors'] or [],
+                    competitors=competitors_for_query_generation,
                     count=project['queries_per_llm']
                 )
                 
@@ -1072,6 +1229,14 @@ JSON:"""
                     'analysis_date': str(analysis_date),
                     'unhealthy_providers': unhealthy_providers
                 }
+
+            # Usar solo providers activos del proyecto para el análisis de sentimiento.
+            # Esto evita dependencia/coste en modelos no seleccionados por el usuario.
+            self.sentiment_analyzer = self._select_sentiment_analyzer(active_providers)
+            if self.sentiment_analyzer:
+                logger.info(f"   😊 Sentiment analyzer: {self.sentiment_analyzer.get_provider_name()}")
+            else:
+                logger.info("   😊 Sentiment analyzer: keyword fallback")
             
             cur.close()
             conn.close()
@@ -1097,7 +1262,9 @@ JSON:"""
                 domain = comp.get('domain', '').strip()
                 keywords = comp.get('keywords', [])
                 # El nombre es el dominio sin extensión o el primer keyword
-                comp_name = domain.replace('.es', '').replace('.com', '').replace('.net', '').replace('.org', '').title() if domain else (keywords[0].title() if keywords else 'Unknown')
+                comp_name = self._competitor_display_name(domain) if domain else (
+                    self._competitor_display_name(keywords[0]) if keywords else 'Unknown'
+                )
                 
                 if domain:
                     competitor_domains_flat.append(domain)
@@ -1124,7 +1291,7 @@ JSON:"""
                 logger.info(f"   ⚠️  Usando competitor fields legacy (migrar a selected_competitors)")
                 # En modo legacy, cada término es su propio nombre
                 for term in competitor_domains_flat + competitor_keywords_flat:
-                    term_name = term.replace('.es', '').replace('.com', '').title()
+                    term_name = self._competitor_display_name(term)
                     competitor_term_to_name[term.lower()] = term_name
                     if term_name not in competitor_names:
                         competitor_names.append(term_name)
@@ -1133,10 +1300,16 @@ JSON:"""
         tasks = []
         for llm_name, provider in active_providers.items():
             for query in queries:
+                localized_query = self._build_localized_query(
+                    base_query=query['query_text'],
+                    language=project.get('language'),
+                    country_code=project.get('country_code')
+                )
                 tasks.append({
                     'project_id': project_id,
                     'query_id': query['id'],
                     'query_text': query['query_text'],
+                    'execution_query': localized_query,
                     'llm_name': llm_name,
                     'provider': provider,
                     'brand_name': project['brand_name'],  # Legacy
@@ -1146,6 +1319,8 @@ JSON:"""
                     'competitor_domains': competitor_domains_flat,
                     'competitor_keywords': competitor_keywords_flat,
                     'competitor_term_to_name': competitor_term_to_name,  # ✨ NUEVO: Mapeo para agrupación
+                    'language': project.get('language'),
+                    'country_code': project.get('country_code'),
                     'analysis_date': analysis_date
                 })
         
@@ -1402,13 +1577,15 @@ JSON:"""
             Dict con resultado analizado
         """
         try:
+            execution_query = task.get('execution_query') or task['query_text']
+
             # Ejecutar query en el LLM con control de concurrencia por proveedor
             semaphore = self.provider_semaphores.get(task['llm_name'])
             if semaphore is not None:
                 with semaphore:
-                    llm_result = task['provider'].execute_query(task['query_text'])
+                    llm_result = task['provider'].execute_query(execution_query)
             else:
-                llm_result = task['provider'].execute_query(task['query_text'])
+                llm_result = task['provider'].execute_query(execution_query)
             
             if not llm_result['success']:
                 # ✨ NUEVO: Guardar el error en BD para que sea visible

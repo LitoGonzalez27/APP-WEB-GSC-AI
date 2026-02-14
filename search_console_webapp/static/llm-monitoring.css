@@ -1920,7 +1920,11 @@ label:not(.search-form label) {
     padding: 1.5rem 2rem;
     border-radius: 12px 12px 0 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
 }
 
 .create-project-modal .create-header::before {
@@ -1941,6 +1945,13 @@ label:not(.search-form label) {
     margin: 0 0 0.35rem 0;
 }
 
+.create-project-modal .create-header .header-text {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
 .create-project-modal .create-header .header-text p {
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
@@ -1951,6 +1962,9 @@ label:not(.search-form label) {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .create-project-modal .create-header .modal-close:hover {
