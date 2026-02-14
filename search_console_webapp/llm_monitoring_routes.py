@@ -265,6 +265,11 @@ def get_projects():
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
+                (
+                    SELECT COUNT(*)
+                    FROM llm_monitoring_queries q
+                    WHERE q.project_id = p.id AND q.is_active = TRUE
+                ) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
             FROM llm_monitoring_projects p
@@ -294,6 +299,7 @@ def get_projects():
                 'language': project['language'],
                 'country_code': project.get('country_code'),
                 'queries_per_llm': project['queries_per_llm'],
+                'total_queries': project.get('total_queries') or 0,
                 'is_active': project['is_active'],
                 'initial_analysis_in_progress': _is_initial_analysis_running(project['id']),
                 'is_paused_by_quota': project.get('is_paused_by_quota', False),
@@ -580,7 +586,7 @@ def get_project(project_id):
                 p.last_analysis_date,
                 p.created_at,
                 p.updated_at,
-                COUNT(DISTINCT q.id) as total_queries,
+                COUNT(DISTINCT q.id) FILTER (WHERE q.is_active = TRUE) as total_queries,
                 COUNT(DISTINCT s.id) as total_snapshots,
                 MAX(s.snapshot_date) as last_snapshot_date
             FROM llm_monitoring_projects p
@@ -927,22 +933,30 @@ def get_project(project_id):
         aggregated_neutral_pct = (total_neutral / total_queries_all * 100) if total_queries_all > 0 else 0
         aggregated_negative_pct = (total_negative / total_queries_all * 100) if total_queries_all > 0 else 0
         
+        has_previous_period_data = len(previous_snapshots) > 0 and prev_queries_all > 0
+
         # ✨ NUEVO: Calcular TENDENCIAS (cambio vs período anterior)
-        def calculate_trend(current, previous):
-            """Calcula tendencia: direction (up/down/stable) y change (%)"""
+        def calculate_trend(current, previous, has_previous_data):
+            """
+            Calcula tendencia: direction (up/down/stable) y change (%).
+            Si no hay histórico suficiente en el período anterior, devuelve None.
+            """
+            if not has_previous_data:
+                return None
+
             if previous == 0:
                 if current > 0:
                     return {'direction': 'up', 'change': 100, 'previous': 0}
                 return {'direction': 'stable', 'change': 0, 'previous': 0}
-            
+
             change = ((current - previous) / previous) * 100
-            
+
             # Considerar "stable" si el cambio es menor al 2%
             if abs(change) < 2:
                 direction = 'stable'
             else:
                 direction = 'up' if change > 0 else 'down'
-            
+
             return {
                 'direction': direction,
                 'change': round(abs(change), 1),
@@ -973,16 +987,18 @@ def get_project(project_id):
         )
         
         # Determinar la tendencia categórica del sentimiento
-        if current_sentiment_value > prev_sentiment_value:
+        if not has_previous_period_data:
+            sentiment_trend = None
+        elif current_sentiment_value > prev_sentiment_value:
             sentiment_trend = {'direction': 'better', 'previous': prev_sentiment}
         elif current_sentiment_value < prev_sentiment_value:
             sentiment_trend = {'direction': 'worse', 'previous': prev_sentiment}
         else:
             sentiment_trend = {'direction': 'same', 'previous': prev_sentiment}
-        
+
         trends = {
-            'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate),
-            'share_of_voice': calculate_trend(aggregated_sov, prev_sov),
+            'mention_rate': calculate_trend(aggregated_mention_rate, prev_mention_rate, has_previous_period_data),
+            'share_of_voice': calculate_trend(aggregated_sov, prev_sov, has_previous_period_data),
             'sentiment': sentiment_trend  # ✨ Ahora es categórico: better/worse/same
         }
         
@@ -2193,9 +2209,20 @@ def run_initial_analysis(project_id):
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, name, is_active, last_analysis_date, enabled_llms, queries_per_llm
-            FROM llm_monitoring_projects
-            WHERE id = %s
+            SELECT
+                p.id,
+                p.name,
+                p.is_active,
+                p.last_analysis_date,
+                p.enabled_llms,
+                p.queries_per_llm,
+                (
+                    SELECT COUNT(*)
+                    FROM llm_monitoring_queries q
+                    WHERE q.project_id = p.id AND q.is_active = TRUE
+                ) as total_queries
+            FROM llm_monitoring_projects p
+            WHERE p.id = %s
         """, (project_id,))
         project = cur.fetchone()
         if not project:
@@ -2222,6 +2249,13 @@ def run_initial_analysis(project_id):
                 'message': 'Este proyecto ya tiene su primer análisis completado'
             }), 409
 
+        configured_queries = int(project.get('total_queries') or 0)
+        if configured_queries <= 0:
+            return jsonify({
+                'error': 'no_active_queries',
+                'message': 'Añade al menos un prompt activo antes de ejecutar el primer análisis'
+            }), 400
+
         # Evitar doble click / doble thread del mismo proyecto.
         if not _mark_initial_analysis_running(project_id):
             return jsonify({
@@ -2231,8 +2265,7 @@ def run_initial_analysis(project_id):
 
         enabled_llms = project.get('enabled_llms') or []
         llm_count = max(1, len(enabled_llms))
-        queries_per_llm = int(project.get('queries_per_llm') or 15)
-        estimated_units = llm_count * queries_per_llm
+        estimated_units = llm_count * configured_queries
         estimated_min_minutes = max(2, min(12, int(round(estimated_units / 24.0))))
         estimated_max_minutes = max(5, min(35, int(round(estimated_units / 8.0))))
 

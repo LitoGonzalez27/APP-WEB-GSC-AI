@@ -717,7 +717,9 @@ class LLMMonitoring {
         const competitorCount = Array.isArray(project.selected_competitors)
             ? project.selected_competitors.length
             : (project.competitors?.length || 0);
-        const canRunInitialAnalysis = !!project.is_active && !project.last_analysis_date;
+        const configuredQueries = Number(project.total_queries || 0);
+        const hasConfiguredPrompts = configuredQueries > 0;
+        const shouldShowInitialAnalysisButton = !!project.is_active && !project.last_analysis_date;
         const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
         card.innerHTML = `
             <div class="project-card-header">
@@ -774,15 +776,15 @@ class LLMMonitoring {
                     <i class="fas fa-edit"></i>
                     Edit
                 </button>
-                ${canRunInitialAnalysis ? `
+                ${shouldShowInitialAnalysisButton ? `
                     <button
                         class="btn btn-success btn-sm"
                         id="btnInitialAnalysis-${project.id}"
-                        onclick="window.llmMonitoring.runInitialAnalysis(${project.id}, ${safeProjectName})"
-                        ${isInitialAnalysisRunning ? 'disabled' : ''}
+                        onclick="window.llmMonitoring.runInitialAnalysis(${project.id}, ${safeProjectName}, ${configuredQueries})"
+                        ${(isInitialAnalysisRunning || !hasConfiguredPrompts) ? 'disabled' : ''}
                     >
-                        <i class="fas ${isInitialAnalysisRunning ? 'fa-spinner fa-spin' : 'fa-play-circle'}"></i>
-                        ${isInitialAnalysisRunning ? 'First analysis running...' : 'Run First Analysis'}
+                        <i class="fas ${isInitialAnalysisRunning ? 'fa-spinner fa-spin' : (hasConfiguredPrompts ? 'fa-play-circle' : 'fa-list')}"></i>
+                        ${isInitialAnalysisRunning ? 'First analysis running...' : (hasConfiguredPrompts ? 'Run First Analysis' : 'Add Prompts First')}
                     </button>
                 ` : ''}
                 ${project.is_active ? `
@@ -810,9 +812,14 @@ class LLMMonitoring {
      * Trigger first analysis for newly created projects.
      * Available only while project has no previous analysis.
      */
-    async runInitialAnalysis(projectId, projectName = 'Project') {
+    async runInitialAnalysis(projectId, projectName = 'Project', configuredQueries = 0) {
         if (!projectId) {
             this.showError('No project selected');
+            return;
+        }
+
+        if (Number(configuredQueries || 0) <= 0) {
+            this.showInfo('Add at least one prompt before running the first analysis.');
             return;
         }
 
@@ -850,6 +857,12 @@ class LLMMonitoring {
                     this.showInfo('First analysis is already running for this project.');
                     await this.loadProjects();
                     this.pollInitialAnalysisStatus(projectId, projectName);
+                    return;
+                }
+
+                if (errorCode === 'no_active_queries') {
+                    this.showInfo('Add prompts to the project before running the first analysis.');
+                    await this.loadProjects();
                     return;
                 }
 
@@ -1180,6 +1193,13 @@ class LLMMonitoring {
                 <div class="kpi-trend ${trendClass}" title="Previous period: ${prevSentiment}">
                     <i class="fas ${trendIcon}"></i>
                     <span>${trendLabel}</span>
+                </div>
+            `;
+        } else {
+            sentimentHTML += `
+                <div class="kpi-trend trend-nodata" title="Not enough historical data to calculate trend">
+                    <i class="fas fa-clock"></i>
+                    <span>new</span>
                 </div>
             `;
         }

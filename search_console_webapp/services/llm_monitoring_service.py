@@ -39,7 +39,7 @@ class MultiLLMMonitoringService:
     Servicio principal para monitorización de marca en múltiples LLMs
     
     Características:
-    - Genera queries automáticamente
+    - Ejecuta queries configuradas manualmente por el usuario
     - Ejecuta en paralelo (ThreadPoolExecutor)
     - Analiza menciones de marca
     - Calcula métricas (mention rate, share of voice, sentimiento)
@@ -1051,53 +1051,20 @@ JSON:"""
             
             queries = cur.fetchall()
             
-            selected_competitors_for_queries = project.get('selected_competitors') or []
-            competitors_for_query_generation = project.get('competitors') or []
-            if selected_competitors_for_queries:
-                derived_competitors = []
-                for comp in selected_competitors_for_queries:
-                    comp_domain = self._normalize_domain(comp.get('domain'))
-                    comp_keywords = comp.get('keywords') or []
-                    if comp_domain:
-                        derived_competitors.append(comp_domain)
-                    elif comp_keywords:
-                        derived_competitors.append(str(comp_keywords[0]))
-                if derived_competitors:
-                    competitors_for_query_generation = derived_competitors
-
-            # Si no hay queries, generarlas
+            # No autogenerar prompts: solo se analizan queries configuradas explícitamente por el usuario.
             if len(queries) == 0:
-                logger.info("📝 No hay queries, generando automáticamente...")
-                
-                generated_queries = self.generate_queries_for_project(
-                    brand_name=project['brand_name'],
-                    industry=project['industry'],
-                    language=project['language'],
-                    competitors=competitors_for_query_generation,
-                    count=project['queries_per_llm']
+                logger.info(
+                    f"⏭️ Proyecto {project_id} sin prompts activos. "
+                    "Se omite análisis hasta que el usuario configure prompts."
                 )
-                
-                # Insertar en BD
-                for q in generated_queries:
-                    cur.execute("""
-                        INSERT INTO llm_monitoring_queries 
-                        (project_id, query_text, language, query_type)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (project_id, query_text) DO NOTHING
-                        RETURNING id
-                    """, (project_id, q['query_text'], q['language'], q['query_type']))
-                    
-                conn.commit()
-                
-                # Recargar queries
-                cur.execute("""
-                    SELECT id, query_text, language, query_type
-                    FROM llm_monitoring_queries
-                    WHERE project_id = %s AND is_active = TRUE
-                """, (project_id,))
-                
-                queries = cur.fetchall()
-                logger.info(f"   ✅ {len(queries)} queries creadas")
+                return {
+                    'success': False,
+                    'error': 'no_active_queries',
+                    'message': 'El proyecto no tiene prompts activos para analizar',
+                    'project_id': project_id,
+                    'project_name': project['name'],
+                    'total_queries_executed': 0
+                }
             
             max_prompts = plan_limits.get('max_prompts_per_project')
             if max_prompts is not None and len(queries) > max_prompts:
