@@ -472,13 +472,15 @@
 }
 
 /* Keep Create New Project hover aligned with project action CTA */
-#btnCreateProject:hover:not(:disabled) {
+#btnCreateProject:hover:not(:disabled),
+#btnCreateFirstProject:hover:not(:disabled) {
     background-color: #D8F9B8 !important;
     color: #161616 !important;
     border-color: #D8F9B8 !important;
 }
 
-#btnCreateProject:hover:not(:disabled) i {
+#btnCreateProject:hover:not(:disabled) i,
+#btnCreateFirstProject:hover:not(:disabled) i {
     color: #161616 !important;
 }
 
