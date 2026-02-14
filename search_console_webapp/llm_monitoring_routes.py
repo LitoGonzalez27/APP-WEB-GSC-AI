@@ -359,8 +359,7 @@ def create_project():
         "competitor_domains": ["competitor1.com"],
         "competitor_keywords": ["semrush", "ahrefs"],
         "language": "es",
-        "enabled_llms": ["openai", "anthropic", "google", "perplexity"],
-        "queries_per_llm": 15
+        "enabled_llms": ["openai", "anthropic", "google", "perplexity"]
     }
     
     Returns:
@@ -390,25 +389,18 @@ def create_project():
     language = str(data.get('language', 'es') or 'es').strip().lower() or 'es'
     country_code = str(data.get('country_code', 'ES') or 'ES').strip().upper()
     enabled_llms = data.get('enabled_llms', ['openai', 'anthropic', 'google', 'perplexity'])
-    queries_per_llm = data.get('queries_per_llm', 15)
     
     # Validaciones
     if not isinstance(brand_keywords, list) or len(brand_keywords) == 0:
         return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
     
-    if queries_per_llm < 5 or queries_per_llm > 60:
-        return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
-
     max_prompts = plan_limits.get('max_prompts_per_project')
-    if max_prompts is not None and queries_per_llm > max_prompts:
-        return jsonify({
-            'error': 'prompt_limit_exceeded',
-            'message': 'Tu plan no permite tantos prompts por proyecto',
-            'current_plan': user.get('plan', 'free'),
-            'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-            'limit': max_prompts,
-            'requested': queries_per_llm
-        }), 402
+    # queries_per_llm deja de ser configurable por usuario.
+    # Se guarda internamente una capacidad derivada del plan para compatibilidad.
+    if isinstance(max_prompts, int):
+        configured_prompt_capacity = max(5, min(60, max_prompts))
+    else:
+        configured_prompt_capacity = 60
     
     if not isinstance(enabled_llms, list) or len(enabled_llms) == 0:
         return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
@@ -499,7 +491,7 @@ def create_project():
             enabled_llms,
             language,
             country_code,
-            queries_per_llm,
+            configured_prompt_capacity,
             # Campos legacy por compatibilidad
             brand_keywords[0] if brand_keywords else 'Brand',
             json.dumps(competitor_keywords)  # Usar keywords como legacy competitors
@@ -527,7 +519,7 @@ def create_project():
                 'enabled_llms': enabled_llms,
                 'language': language,
                 'country_code': country_code,
-                'queries_per_llm': queries_per_llm,
+                'queries_per_llm': configured_prompt_capacity,
                 'is_active': True,
                 'created_at': created_at.isoformat(),
                 'total_queries': 0
@@ -1043,7 +1035,8 @@ def get_project(project_id):
         llms_expected = len(enabled_llms)
         
         # Completeness (0-100): promedio de completitud por LLM (queries analizadas / esperadas)
-        expected_queries = project.get('total_queries') or project.get('queries_per_llm') or 0
+        # La completitud se calcula contra prompts realmente configurados en el proyecto.
+        expected_queries = project.get('total_queries') or 0
         llm_completeness = {}
         
         total_analyzed_queries = 0
@@ -1175,8 +1168,7 @@ def update_project(project_id):
         "competitor_domains": ["comp1.com"],
         "competitor_keywords": ["comp_kw1", "comp_kw2"],
         "is_active": false,
-        "enabled_llms": ["openai", "google"],
-        "queries_per_llm": 20
+        "enabled_llms": ["openai", "google"]
     }
     
     Returns:
@@ -1190,8 +1182,6 @@ def update_project(project_id):
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no autenticado'}), 401
-    plan_limits = _get_effective_plan_limits(user)
-    max_prompts = plan_limits.get('max_prompts_per_project')
     
     conn = get_db_connection()
     if not conn:
@@ -1269,21 +1259,6 @@ def update_project(project_id):
                 return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
             updates.append("enabled_llms = %s")
             params.append(data['enabled_llms'])
-        
-        if 'queries_per_llm' in data:
-            if data['queries_per_llm'] < 5 or data['queries_per_llm'] > 60:
-                return jsonify({'error': 'queries_per_llm debe estar entre 5 y 60'}), 400
-            if max_prompts is not None and data['queries_per_llm'] > max_prompts:
-                return jsonify({
-                    'error': 'prompt_limit_exceeded',
-                    'message': 'Tu plan no permite tantos prompts por proyecto',
-                    'current_plan': user.get('plan', 'free'),
-                    'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
-                    'limit': max_prompts,
-                    'requested': data['queries_per_llm']
-                }), 402
-            updates.append("queries_per_llm = %s")
-            params.append(data['queries_per_llm'])
         
         if 'country_code' in data:
             country_code = str(data.get('country_code') or '').strip().upper()

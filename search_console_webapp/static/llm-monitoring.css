@@ -566,6 +566,17 @@
     color: #161616 !important;
 }
 
+/* Keep Add Prompts (modal action) hover aligned with Add Your First Prompt */
+#btnAddPromptsModal:hover:not(:disabled) {
+    background-color: #D8F9B8 !important;
+    color: #161616 !important;
+    border-color: #D8F9B8 !important;
+}
+
+#btnAddPromptsModal:hover:not(:disabled) i {
+    color: #161616 !important;
+}
+
 .btn-danger {
     color: #dc2626;
     border-color: #fecaca;

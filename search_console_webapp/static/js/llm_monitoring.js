@@ -3692,7 +3692,6 @@ class LLMMonitoring {
             document.getElementById('industry').value = project.industry || '';
             document.getElementById('language').value = project.language || 'es';
             document.getElementById('countryCode').value = project.country_code || 'ES';
-            document.getElementById('queriesPerLlm').value = project.queries_per_llm || 15;
 
             // Fill brand domain
             document.getElementById('brandDomain').value = project.brand_domain || '';
@@ -3756,7 +3755,6 @@ class LLMMonitoring {
         const brandDomain = document.getElementById('brandDomain').value.trim();
         const language = document.getElementById('language').value;
         const countryCode = document.getElementById('countryCode').value;
-        const queriesPerLlm = parseInt(document.getElementById('queriesPerLlm').value);
 
         // Get checked LLMs
         const llmCheckboxes = document.querySelectorAll('input[name="llm"]:checked');
@@ -3776,11 +3774,6 @@ class LLMMonitoring {
 
         if (enabledLlms.length === 0) {
             this.showError('Please select at least one LLM');
-            return;
-        }
-
-        if (queriesPerLlm < 5 || queriesPerLlm > 60) {
-            this.showError('Queries per LLM must be between 5 and 60');
             return;
         }
 
@@ -3809,8 +3802,7 @@ class LLMMonitoring {
             selected_competitors: selectedCompetitors, // ✨ NEW: Use new structure
             language,
             country_code: countryCode,
-            enabled_llms: enabledLlms,
-            queries_per_llm: queriesPerLlm
+            enabled_llms: enabledLlms
         };
 
         // Show loading
@@ -4025,6 +4017,23 @@ class LLMMonitoring {
         }
 
         await this.loadPrompts(projectId, false);
+    }
+
+    /**
+     * Refresh project cards when projects tab is visible (for CTA state updates)
+     */
+    async refreshProjectsListIfVisible() {
+        const projectsTab = document.getElementById('projectsTab');
+        if (!projectsTab) {
+            return;
+        }
+
+        const isVisible = window.getComputedStyle(projectsTab).display !== 'none';
+        if (!isVisible) {
+            return;
+        }
+
+        await this.loadProjects();
     }
 
     /**
@@ -4765,6 +4774,9 @@ class LLMMonitoring {
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
 
+            // Refresh project cards so "Run First Analysis" CTA updates immediately
+            await this.refreshProjectsListIfVisible();
+
             // Show success message
             let message = `${data.added_count} prompts added successfully!`;
             if (data.duplicate_count > 0) {
@@ -4823,6 +4835,9 @@ class LLMMonitoring {
 
             // ✨ NUEVO: Actualizar dropdown de prompts en Responses Inspector
             await this.populateQueryFilter();
+
+            // Refresh project cards so CTA state stays in sync
+            await this.refreshProjectsListIfVisible();
 
             this.showSuccess('Prompt deleted successfully');
 
@@ -5095,6 +5110,9 @@ class LLMMonitoring {
 
             // Keep query filter synced after adding suggestions
             await this.populateQueryFilter();
+
+            // Refresh project cards so CTA state stays in sync
+            await this.refreshProjectsListIfVisible();
 
             // Show success
             let message = `${data.added_count} AI suggestions added successfully!`;
