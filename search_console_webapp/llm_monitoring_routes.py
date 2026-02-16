@@ -609,6 +609,30 @@ def get_project(project_id):
             metric_type = 'normal'
         enabled_llms_filter = project.get('enabled_llms') or []
         logger.info(f"📈 Consultando métricas para proyecto {project_id} (últimos {days} días)...")
+
+        # Banner UX: mostrar aviso solo cuando hay histórico en el rango
+        # de LLMs actualmente desactivados.
+        cur.execute("""
+            SELECT DISTINCT llm_provider
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s
+              AND snapshot_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
+        """, (project_id, days))
+        historical_llms_in_range = sorted([
+            row['llm_provider']
+            for row in cur.fetchall()
+            if row.get('llm_provider')
+        ])
+        active_llms_set = set(enabled_llms_filter)
+        historical_llms_set = set(historical_llms_in_range)
+        excluded_llms_with_data = sorted(list(historical_llms_set - active_llms_set))
+        model_scope_notice = {
+            'show': len(excluded_llms_with_data) > 0,
+            'range_days': days,
+            'active_llms': enabled_llms_filter,
+            'excluded_llms_with_data': excluded_llms_with_data,
+            'historical_llms_in_range': historical_llms_in_range
+        }
         
         # Obtener todos los snapshots del rango seleccionado
         # ✨ NUEVO: Incluir campos Top3/5/10 para métricas de posición granulares
@@ -1142,7 +1166,8 @@ def get_project(project_id):
                 'total_appearances': total_appearances
             },
             # ✨ NUEVO: Quality Score del análisis
-            'quality_score': quality_data
+            'quality_score': quality_data,
+            'model_scope_notice': model_scope_notice
         }), 200
         
     except Exception as e:
@@ -1190,6 +1215,16 @@ def update_project(project_id):
     
     try:
         cur = conn.cursor()
+
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        current_project_row = cur.fetchone()
+        if not current_project_row:
+            return jsonify({'error': 'Proyecto no encontrado'}), 404
+        previous_enabled_llms = current_project_row.get('enabled_llms') or []
         
         # Campos actualizables
         updates = []
@@ -1286,9 +1321,23 @@ def update_project(project_id):
         project = cur.fetchone()
         
         conn.commit()
+
+        updated_enabled_llms = project.get('enabled_llms') or []
+        llm_changes = {
+            'previous_enabled_llms': previous_enabled_llms,
+            'current_enabled_llms': updated_enabled_llms,
+            'added_llms': sorted(list(set(updated_enabled_llms) - set(previous_enabled_llms))),
+            'removed_llms': sorted(list(set(previous_enabled_llms) - set(updated_enabled_llms)))
+        }
+        model_selection_changed = (
+            'enabled_llms' in data and
+            (len(llm_changes['added_llms']) > 0 or len(llm_changes['removed_llms']) > 0)
+        )
         
         return jsonify({
             'success': True,
+            'model_selection_changed': model_selection_changed,
+            'llm_changes': llm_changes if model_selection_changed else None,
             'project': {
                 'id': project['id'],
                 'name': project['name'],

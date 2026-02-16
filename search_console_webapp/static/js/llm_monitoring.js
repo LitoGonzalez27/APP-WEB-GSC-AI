@@ -50,6 +50,10 @@ class LLMMonitoring {
         // Custom confirm modal state
         this.confirmResolver = null;
         this.isConfirmModalOpen = false;
+
+        // LLM selection UX state
+        this.modalOriginalEnabledLlms = null;
+        this.pendingModelScopeNotice = null;
     }
 
     /**
@@ -358,6 +362,125 @@ class LLMMonitoring {
     }
 
     /**
+     * Normalize LLM list for comparisons
+     */
+    normalizeLlmSelection(llms) {
+        if (!Array.isArray(llms)) return [];
+        return [...new Set(llms.map(llm => String(llm || '').trim()).filter(Boolean))].sort();
+    }
+
+    /**
+     * Get selected LLMs from project modal
+     */
+    getSelectedLlmsFromModal() {
+        const llmCheckboxes = document.querySelectorAll('input[name="llm"]:checked');
+        return this.normalizeLlmSelection(Array.from(llmCheckboxes).map(cb => cb.value));
+    }
+
+    /**
+     * Compute changes between two LLM selections
+     */
+    getLlmSelectionChanges(previousLlms, currentLlms) {
+        const previous = this.normalizeLlmSelection(previousLlms);
+        const current = this.normalizeLlmSelection(currentLlms);
+        const previousSet = new Set(previous);
+        const currentSet = new Set(current);
+        const added = current.filter(llm => !previousSet.has(llm));
+        const removed = previous.filter(llm => !currentSet.has(llm));
+
+        return {
+            previous,
+            current,
+            added,
+            removed,
+            changed: added.length > 0 || removed.length > 0
+        };
+    }
+
+    /**
+     * Format LLM labels for user-facing messages
+     */
+    formatLlmNames(llms) {
+        return this.normalizeLlmSelection(llms).map(llm => this.getLLMDisplayName(llm));
+    }
+
+    /**
+     * Show/hide model-change warning inside project modal
+     */
+    updateLlmSelectionImpactNotice() {
+        const notice = document.getElementById('llmSelectionImpactNotice');
+        const noticeText = document.getElementById('llmSelectionImpactNoticeText');
+        if (!notice || !noticeText) return;
+
+        if (!this.currentProject?.id || !Array.isArray(this.modalOriginalEnabledLlms)) {
+            notice.style.display = 'none';
+            noticeText.textContent = '';
+            return;
+        }
+
+        const change = this.getLlmSelectionChanges(
+            this.modalOriginalEnabledLlms,
+            this.getSelectedLlmsFromModal()
+        );
+
+        if (!change.changed) {
+            notice.style.display = 'none';
+            noticeText.textContent = '';
+            return;
+        }
+
+        const details = [];
+        if (change.added.length > 0) {
+            details.push(`Added: ${this.formatLlmNames(change.added).join(', ')}`);
+        }
+        if (change.removed.length > 0) {
+            details.push(`Removed: ${this.formatLlmNames(change.removed).join(', ')}`);
+        }
+
+        noticeText.textContent =
+            `Changing active models affects charts and exports for the selected date range after save. ${details.join(' · ')}`;
+        notice.style.display = 'flex';
+    }
+
+    /**
+     * Show/hide one-time model scope banner in project metrics view.
+     * The banner appears only after the user changes enabled LLMs and saves.
+     */
+    updateModelScopeBanner() {
+        const banner = document.getElementById('llmModelScopeBanner');
+        const bannerText = document.getElementById('llmModelScopeBannerText');
+        if (!banner || !bannerText) return;
+
+        const projectId = this.currentProject?.id;
+        let message = '';
+
+        if (this.pendingModelScopeNotice && this.pendingModelScopeNotice.project_id === projectId) {
+            const change = this.pendingModelScopeNotice;
+            const activeNames = this.formatLlmNames(change.current_enabled_llms || this.currentProject?.enabled_llms || []);
+            const changeParts = [];
+            if (Array.isArray(change.added_llms) && change.added_llms.length > 0) {
+                changeParts.push(`added ${this.formatLlmNames(change.added_llms).join(', ')}`);
+            }
+            if (Array.isArray(change.removed_llms) && change.removed_llms.length > 0) {
+                changeParts.push(`removed ${this.formatLlmNames(change.removed_llms).join(', ')}`);
+            }
+            message =
+                `Model selection updated: now using ${activeNames.join(', ') || 'selected LLMs'} for metrics and exports.` +
+                `${changeParts.length > 0 ? ` You ${changeParts.join(' and ')}.` : ''}`;
+            this.pendingModelScopeNotice = null;
+        }
+
+        if (!message) {
+            banner.style.display = 'none';
+            bannerText.textContent = '';
+            return;
+        }
+
+        bannerText.textContent = message;
+        banner.style.display = 'flex';
+    }
+
+    /**
      * Setup all event listeners
      */
     setupEventListeners() {
@@ -416,6 +539,13 @@ class LLMMonitoring {
             e.preventDefault();
             console.log('📝 Form submitted!');
             this.saveProject();
+        });
+
+        // Show model-impact warning only when LLM selection changes in edit mode.
+        document.querySelectorAll('input[name="llm"]').forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+                this.updateLlmSelectionImpactNotice();
+            });
         });
 
         // Analyze project: REMOVED - Analysis now runs via daily cron, not manual triggers
@@ -1056,6 +1186,7 @@ class LLMMonitoring {
 
             const data = await response.json();
             this.currentProject = data.project;
+            this.updateModelScopeBanner();
 
             // ✨ NUEVO: Guardar datos adicionales para uso posterior
             this.currentTrends = data.trends || null;
@@ -2907,6 +3038,7 @@ class LLMMonitoring {
         this.currentDisplayResponses = [];
         
         this.currentProject = null;
+        this.updateModelScopeBanner();
     }
 
     /**
@@ -3689,6 +3821,7 @@ class LLMMonitoring {
             title.textContent = 'Edit LLM Monitoring Project';
             if (modalDesc) modalDesc.textContent = 'Update your project settings and configuration';
             btnText.textContent = 'Update Project';
+            this.modalOriginalEnabledLlms = this.normalizeLlmSelection(project.enabled_llms || []);
 
             // Fill form
             document.getElementById('projectName').value = project.name || '';
@@ -3715,6 +3848,7 @@ class LLMMonitoring {
             title.textContent = 'Create New LLM Monitoring Project';
             if (modalDesc) modalDesc.textContent = 'Set up a new project to track brand visibility in LLMs';
             btnText.textContent = 'Create Project';
+            this.modalOriginalEnabledLlms = null;
 
             // Reset form
             document.getElementById('projectForm').reset();
@@ -3723,6 +3857,8 @@ class LLMMonitoring {
             const llmCheckboxes = document.querySelectorAll('input[name="llm"]');
             llmCheckboxes.forEach(cb => cb.checked = true);
         }
+
+        this.updateLlmSelectionImpactNotice();
 
         console.log('👁️ Setting modal display to flex...');
         modal.style.display = 'flex';
@@ -3741,6 +3877,8 @@ class LLMMonitoring {
     hideProjectModal() {
         const modal = document.getElementById('projectModal');
         modal.classList.remove('active');
+        this.modalOriginalEnabledLlms = null;
+        this.updateLlmSelectionImpactNotice();
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300); // Match transition duration
@@ -3814,6 +3952,32 @@ class LLMMonitoring {
         const originalText = btnText.textContent;
 
         const isEdit = this.currentProject && this.currentProject.id;
+        const editingProjectId = isEdit ? this.currentProject.id : null;
+        const isMetricsViewActive = !!document.getElementById('metricsSection')?.classList.contains('active');
+        const llmSelectionChange = isEdit
+            ? this.getLlmSelectionChanges(this.modalOriginalEnabledLlms || this.currentProject.enabled_llms || [], enabledLlms)
+            : { changed: false, added: [], removed: [], current: enabledLlms, previous: [] };
+
+        if (isEdit && llmSelectionChange.changed) {
+            const lines = [];
+            if (llmSelectionChange.added.length > 0) {
+                lines.push(`Added: ${this.formatLlmNames(llmSelectionChange.added).join(', ')}`);
+            }
+            if (llmSelectionChange.removed.length > 0) {
+                lines.push(`Removed: ${this.formatLlmNames(llmSelectionChange.removed).join(', ')}`);
+            }
+
+            const confirmed = await this.showConfirmDialog({
+                title: 'Apply LLM model changes?',
+                message: `This will affect charts and exports for the selected date range.\n\n${lines.join('\n')}`,
+                confirmText: 'Save Changes',
+                cancelText: 'Review Again',
+                variant: 'warning'
+            });
+            if (!confirmed) {
+                return;
+            }
+        }
 
         console.log('🔄 Disabling button and showing loading...');
         btnText.textContent = isEdit ? 'Updating...' : 'Creating...';
@@ -3856,11 +4020,40 @@ class LLMMonitoring {
 
             console.log(`✅ Project ${isEdit ? 'updated' : 'created'} successfully:`, data);
 
+            if (isEdit && editingProjectId) {
+                const serverChanged = Boolean(data?.model_selection_changed);
+                const serverChanges = data?.llm_changes || null;
+
+                if (serverChanged && serverChanges) {
+                    this.pendingModelScopeNotice = {
+                        project_id: editingProjectId,
+                        previous_enabled_llms: serverChanges.previous_enabled_llms || llmSelectionChange.previous,
+                        current_enabled_llms: serverChanges.current_enabled_llms || llmSelectionChange.current,
+                        added_llms: serverChanges.added_llms || llmSelectionChange.added,
+                        removed_llms: serverChanges.removed_llms || llmSelectionChange.removed
+                    };
+                } else if (llmSelectionChange.changed) {
+                    // Fallback defensive: keep UX notice even if backend response omits flags.
+                    this.pendingModelScopeNotice = {
+                        project_id: editingProjectId,
+                        previous_enabled_llms: llmSelectionChange.previous,
+                        current_enabled_llms: llmSelectionChange.current,
+                        added_llms: llmSelectionChange.added,
+                        removed_llms: llmSelectionChange.removed
+                    };
+                }
+            }
+
             // Hide modal
             this.hideProjectModal();
 
             // Reload projects
-            this.loadProjects();
+            await this.loadProjects();
+
+            // Refresh current metrics view if user edited from inside the project page.
+            if (isEdit && isMetricsViewActive && editingProjectId) {
+                await this.viewProject(editingProjectId);
+            }
 
             // Show success message
             this.showSuccess(`Project ${isEdit ? 'updated' : 'created'} successfully!`);

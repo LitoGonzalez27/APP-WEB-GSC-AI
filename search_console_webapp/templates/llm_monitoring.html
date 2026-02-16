@@ -473,6 +473,11 @@
                         </button>
                     </div>
                 </div>
+
+                <div id="llmModelScopeBanner" class="llm-model-scope-banner" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="llmModelScopeBannerText"></span>
+                </div>
                 
                 <!-- Prompts Management Section - Hidden, now in modal -->
                 <div class="chart-card" id="promptsCard" style="display: none;">
@@ -1207,6 +1212,10 @@
                                     <input type="checkbox" name="llm" value="perplexity" checked>
                                     <span><i class="fas fa-search"></i> Perplexity</span>
                                 </label>
+                            </div>
+                            <div id="llmSelectionImpactNotice" class="llm-selection-impact-notice" style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="llmSelectionImpactNoticeText"></span>
                             </div>
                             <small class="form-help">Select at least one LLM to monitor</small>
                         </div>

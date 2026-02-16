@@ -211,6 +211,44 @@
     font-size: 0.8rem;
 }
 
+.llm-model-scope-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0 0 1rem 0;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.llm-model-scope-banner i {
+    margin-top: 2px;
+    color: #b45309;
+}
+
+.llm-selection-impact-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid #fdba74;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.llm-selection-impact-notice i {
+    margin-top: 2px;
+    color: #c2410c;
+}
+
 /* ============================================================================
    EMPTY STATE CENTRADO
    ============================================================================ */
