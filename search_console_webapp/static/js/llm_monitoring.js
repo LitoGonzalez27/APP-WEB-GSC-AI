@@ -2355,37 +2355,40 @@ class LLMMonitoring {
             }
         }).render(container);
 
-        // ✨ NUEVO: Añadir event listeners para abrir modal
-        const attachWithRetry = (attempts = 0) => {
-            const detailBtns = document.querySelectorAll('.view-details-btn');
-            if (detailBtns.length > 0) {
-                console.log(`✅ Found ${detailBtns.length} detail buttons, attaching listeners...`);
-                this.attachDetailListeners();
-            } else if (attempts < 5) {
-                console.log(`⏳ Detail buttons not ready, retrying... (attempt ${attempts + 1})`);
-                setTimeout(() => attachWithRetry(attempts + 1), 200);
-            } else {
-                console.warn('⚠️ Could not find detail buttons after 5 attempts');
-            }
-        };
-
-        setTimeout(() => attachWithRetry(), 100);
+        // Use delegated click handling so "Details" keeps working after pagination/sort/search re-renders.
+        this.bindDetailButtonsDelegation(container);
     }
 
     /**
-     * ✨ NUEVO: Attach event listeners to detail buttons
+     * Bind delegated click listener for Details buttons inside Grid.js table
      */
-    attachDetailListeners() {
-        const detailBtns = document.querySelectorAll('.view-details-btn');
-        console.log(`🔗 Attaching listeners to ${detailBtns.length} detail buttons`);
-        detailBtns.forEach((btn, idx) => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const rowIdx = parseInt(btn.dataset.rowIdx);
-                console.log(`📊 Opening brand mentions modal for row ${rowIdx}`);
-                this.showBrandMentionsModal(rowIdx);
-            });
-        });
+    bindDetailButtonsDelegation(container) {
+        if (!container) return;
+
+        // Avoid duplicate listeners when grid gets re-rendered.
+        if (this._onQueryDetailsClick) {
+            container.removeEventListener('click', this._onQueryDetailsClick);
+        }
+
+        this._onQueryDetailsClick = (event) => {
+            const detailBtn = event.target.closest('.view-details-btn');
+            if (!detailBtn || !container.contains(detailBtn)) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const rowIdx = Number.parseInt(detailBtn.dataset.rowIdx, 10);
+            if (Number.isNaN(rowIdx)) {
+                return;
+            }
+
+            console.log(`📊 Opening brand mentions modal for row ${rowIdx}`);
+            this.showBrandMentionsModal(rowIdx);
+        };
+
+        container.addEventListener('click', this._onQueryDetailsClick);
     }
 
     /**
@@ -6351,16 +6354,18 @@ class LLMMonitoring {
                             <h4><i class="fas fa-link"></i> Sources & Links (${response.sources.length})</h4>
                             <div class="sources-list-modal">
                                 ${response.sources.map((source, idx) => {
-            const domain = new URL(source.url).hostname.replace('www.', '');
-            const isBrand = this.isUrlFromBrand(source.url);
-            const isCompetitor = this.isUrlFromCompetitor(source.url);
+            const rawUrl = source?.url || '';
+            const navigableUrl = this.toNavigableUrl(rawUrl);
+            const domain = this.extractNormalizedHost(rawUrl) || 'unknown';
+            const isBrand = this.isUrlFromBrand(rawUrl);
+            const isCompetitor = this.isUrlFromCompetitor(rawUrl);
 
             return `
-                                        <a href="${this.escapeHtml(source.url)}" 
+                                        <a href="${this.escapeHtml(navigableUrl)}"
                                            target="_blank" 
                                            rel="noopener noreferrer" 
                                            class="source-link-modal ${isBrand ? 'brand-source' : ''} ${isCompetitor ? 'competitor-source' : ''}"
-                                           title="${this.escapeHtml(source.url)}">
+                                           title="${this.escapeHtml(rawUrl)}">
                                             <i class="fas fa-external-link-alt"></i>
                                             <span class="source-domain">${this.escapeHtml(domain)}</span>
                                             ${isBrand ? '<span class="source-label brand-label">Your Brand</span>' : ''}
@@ -6484,20 +6489,113 @@ class LLMMonitoring {
     }
 
     /**
-     * Check if URL is from brand
+     * Build a navigable URL (adds protocol when missing)
      */
-    isUrlFromBrand(url) {
-        if (!this.currentProject?.brand_domain || !url) return false;
+    toNavigableUrl(rawUrl) {
+        const value = String(rawUrl || '').trim();
+        if (!value) return '#';
+        if (/^https?:\/\//i.test(value)) return value;
+        return `https://${value}`;
+    }
+
+    /**
+     * Normalize domain input from project settings
+     */
+    normalizeDomainInput(rawDomain) {
+        const value = String(rawDomain || '').trim().toLowerCase();
+        if (!value) return '';
 
         try {
-            const urlObj = new URL(url);
-            const urlDomain = urlObj.hostname.toLowerCase().replace('www.', '');
-            const brandDomain = this.currentProject.brand_domain.toLowerCase().replace('www.', '');
-
-            return urlDomain === brandDomain || urlDomain.endsWith('.' + brandDomain);
+            const normalizedUrl = this.toNavigableUrl(value);
+            const parsed = new URL(normalizedUrl);
+            return (parsed.hostname || '')
+                .toLowerCase()
+                .replace(/^www\./, '')
+                .split(':')[0]
+                .trim();
         } catch (e) {
-            return false;
+            return value
+                .replace(/^https?:\/\//, '')
+                .split('/')[0]
+                .split(':')[0]
+                .replace(/^www\./, '')
+                .trim();
         }
+    }
+
+    /**
+     * Extract normalized host from URL
+     */
+    extractNormalizedHost(rawUrl) {
+        const urlValue = String(rawUrl || '').trim();
+        if (!urlValue) return '';
+
+        try {
+            const normalizedUrl = this.toNavigableUrl(urlValue);
+            const urlObj = new URL(normalizedUrl);
+            return (urlObj.hostname || '')
+                .toLowerCase()
+                .replace(/^www\./, '')
+                .split(':')[0]
+                .trim();
+        } catch (e) {
+            return '';
+        }
+    }
+
+    /**
+     * Terms used to detect brand references inside URLs (path/query included)
+     */
+    getBrandUrlTerms() {
+        if (!this.currentProject) return [];
+
+        const rawTerms = [];
+        if (Array.isArray(this.currentProject.brand_keywords)) {
+            rawTerms.push(...this.currentProject.brand_keywords);
+        }
+        if (this.currentProject.brand_name) {
+            rawTerms.push(this.currentProject.brand_name);
+        }
+
+        return [...new Set(
+            rawTerms
+                .map(term => String(term || '').trim().toLowerCase())
+                .filter(term => term.length >= 4)
+        )];
+    }
+
+    /**
+     * Check if URL text contains one of configured brand terms
+     */
+    hasBrandTermInUrl(rawUrl) {
+        const urlText = String(rawUrl || '').trim().toLowerCase();
+        if (!urlText) return false;
+
+        const brandTerms = this.getBrandUrlTerms();
+        if (brandTerms.length === 0) return false;
+
+        return brandTerms.some(term => {
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+            return regex.test(urlText);
+        });
+    }
+
+    /**
+     * Check if URL matches brand config (domain or brand terms)
+     */
+    isUrlFromBrand(url) {
+        if (!url || !this.currentProject) return false;
+
+        const brandDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
+        const urlDomain = this.extractNormalizedHost(url);
+
+        if (brandDomain && urlDomain && (urlDomain === brandDomain || urlDomain.endsWith(`.${brandDomain}`))) {
+            return true;
+        }
+
+        // Keep UI filtering consistent with backend link-based mention detection.
+        return this.hasBrandTermInUrl(url);
     }
 
     /**
@@ -6506,18 +6604,17 @@ class LLMMonitoring {
     isUrlFromCompetitor(url) {
         if (!this.currentProject?.selected_competitors || !url) return false;
 
-        try {
-            const urlObj = new URL(url);
-            const urlDomain = urlObj.hostname.toLowerCase().replace('www.', '');
+        const urlDomain = this.extractNormalizedHost(url);
+        if (!urlDomain) return false;
 
-            return this.currentProject.selected_competitors.some(comp => {
-                if (!comp.domain) return false;
-                const compDomain = comp.domain.toLowerCase().replace('www.', '');
-                return urlDomain === compDomain || urlDomain.endsWith('.' + compDomain);
-            });
-        } catch (e) {
-            return false;
-        }
+        return this.currentProject.selected_competitors.some(comp => {
+            const compRaw = typeof comp === 'object'
+                ? (comp.domain || comp.competitor_domain || '')
+                : String(comp || '');
+            const compDomain = this.normalizeDomainInput(compRaw);
+            if (!compDomain) return false;
+            return urlDomain === compDomain || urlDomain.endsWith(`.${compDomain}`);
+        });
     }
 
     /**
@@ -6541,10 +6638,19 @@ class LLMMonitoring {
 
             const data = await response.json();
 
-            console.log(`✅ Loaded ${data.urls.length} URLs`);
+            const loadedUrls = Array.isArray(data.urls) ? data.urls : [];
+            console.log(`✅ Loaded ${loadedUrls.length} URLs`);
 
             // Store for filtering
-            this.allLLMUrls = data.urls;
+            this.allLLMUrls = loadedUrls;
+
+            // Reset to empty state when API returns no URLs and keep paginator in sync.
+            if (loadedUrls.length === 0) {
+                this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
+                this.showNoUrlsLLMMessage();
+                this.renderTopUrlsLLMPaginator();
+                return;
+            }
 
             // Apply brand filter if active
             const filterBtn = document.getElementById('filterMyBrandUrlsLLM');
@@ -6556,12 +6662,12 @@ class LLMMonitoring {
                 // Apply pagination for all URLs
                 const pageSize = 10;
                 const state = this._topUrlsLLMState || { page: 1 };
-                const totalPages = Math.max(1, Math.ceil(data.urls.length / pageSize));
+                const totalPages = Math.max(1, Math.ceil(loadedUrls.length / pageSize));
                 state.page = Math.min(state.page, totalPages);
                 const start = (state.page - 1) * pageSize;
-                const paged = data.urls.slice(start, start + pageSize);
+                const paged = loadedUrls.slice(start, start + pageSize);
 
-                this._topUrlsLLMState = { page: state.page, totalPages, fullList: data.urls, isDomainView: false };
+                this._topUrlsLLMState = { page: state.page, totalPages, fullList: loadedUrls, isDomainView: false };
 
                 // Ensure we're in URLs view (not domains)
                 this.updateTableHeaderForUrls();
@@ -6572,7 +6678,9 @@ class LLMMonitoring {
 
         } catch (error) {
             console.error('❌ Error loading URLs ranking:', error);
+            this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
             this.showNoUrlsLLMMessage();
+            this.renderTopUrlsLLMPaginator();
         }
     }
 
@@ -6582,25 +6690,21 @@ class LLMMonitoring {
     filterLLMUrlsByBrand(showOnlyMyBrand) {
         if (!this.allLLMUrls || this.allLLMUrls.length === 0) {
             console.warn('⚠️ No URLs data available for filtering');
+            this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
             this.showNoUrlsLLMMessage();
+            this.renderTopUrlsLLMPaginator();
             return;
         }
 
         let filtered = this.allLLMUrls;
 
         if (showOnlyMyBrand && this.currentProject) {
-            const projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
+            const projectDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
+            const brandTerms = this.getBrandUrlTerms();
+            const hasBrandFilters = Boolean(projectDomain) || brandTerms.length > 0;
 
-            if (projectDomain) {
-                filtered = this.allLLMUrls.filter(urlData => {
-                    try {
-                        const urlObj = new URL(urlData.url);
-                        const urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
-                        return urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain);
-                    } catch (e) {
-                        return false;
-                    }
-                });
+            if (hasBrandFilters) {
+                filtered = this.allLLMUrls.filter(urlData => this.isUrlFromBrand(urlData.url));
 
                 console.log(`🔍 Filtered: ${filtered.length} URLs from ${this.allLLMUrls.length} total`);
             }
@@ -6608,7 +6712,14 @@ class LLMMonitoring {
             // If no URLs match, show message
             if (filtered.length === 0) {
                 console.warn('⚠️ No URLs found for your brand');
-                this.showNoUrlsLLMMessage();
+                this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
+                this.updateTableHeaderForUrls();
+                this.showNoUrlsLLMMessage({
+                    title: 'No Brand URLs in This Range',
+                    description: 'No cited URLs match your brand domain or keywords with current filters.',
+                    helper: 'Disable "My Brand URLs Only" to view all cited URLs.'
+                });
+                this.renderTopUrlsLLMPaginator();
                 return;
             }
 
@@ -6619,13 +6730,15 @@ class LLMMonitoring {
             }));
         }
 
-        // Apply pagination
+        // Apply pagination (preserve current page when navigating with filter active)
         const pageSize = 10;
-        const state = { page: 1 };
+        const currentPage = this._topUrlsLLMState?.page || 1;
         const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-        const paged = filtered.slice(0, pageSize);
+        const page = Math.min(currentPage, totalPages);
+        const start = (page - 1) * pageSize;
+        const paged = filtered.slice(start, start + pageSize);
 
-        this._topUrlsLLMState = { page: state.page, totalPages, fullList: filtered, isDomainView: false };
+        this._topUrlsLLMState = { page, totalPages, fullList: filtered, isDomainView: false };
 
         // Make sure we're in URLs view, not domains view
         this.updateTableHeaderForUrls();
@@ -6659,13 +6772,13 @@ class LLMMonitoring {
         let competitorDomains = [];
 
         if (this.currentProject) {
-            projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
+            projectDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
 
             // Normalize competitor domains
             const competitors = this.currentProject.selected_competitors || [];
             competitorDomains = competitors.map(c => {
                 const domain = typeof c === 'object' ? (c.domain || c.competitor_domain || c) : c;
-                return String(domain).toLowerCase().replace(/^www\./, '').trim();
+                return this.normalizeDomainInput(domain);
             }).filter(d => d && d.length > 0);
 
             console.log('🎯 URL Highlighting Config (LLM Monitoring):', {
@@ -6682,27 +6795,23 @@ class LLMMonitoring {
             // Extract domain from URL
             let urlDomain = '';
             let domainType = 'other';
-            try {
-                const urlObj = new URL(url);
-                urlDomain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
+            urlDomain = this.extractNormalizedHost(url);
 
-                // Check if it's project or competitor domain
-                if (projectDomain && (urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain))) {
-                    domainType = 'project';
-                } else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
-                    domainType = 'competitor';
-                }
+            // Check if it's project or competitor domain
+            if (projectDomain && (urlDomain === projectDomain || urlDomain.endsWith('.' + projectDomain))) {
+                domainType = 'project';
+            } else if (competitorDomains.some(comp => urlDomain === comp || urlDomain.endsWith('.' + comp))) {
+                domainType = 'competitor';
+            }
 
-                if (index < 5) { // Log first 5 for debugging
-                    console.log(`  URL ${index + 1}: ${urlDomain} → ${domainType}`);
-                }
-            } catch (e) {
-                // Invalid URL, keep as 'other'
+            if (index < 5) { // Log first 5 for debugging
+                console.log(`  URL ${index + 1}: ${urlDomain || 'invalid'} → ${domainType}`);
             }
 
             // Use 'table' prefix for project domain to avoid conflicts with other CSS
             const domainTypeClass = domainType === 'project' ? 'table' : domainType;
             const rowClass = `url-row ${domainTypeClass}-domain`;
+            const safeUrl = this.toNavigableUrl(url);
 
             // Create domain badge if needed
             let domainBadge = '';
@@ -6718,7 +6827,7 @@ class LLMMonitoring {
                 <td class="rank-cell">${urlData.rank}</td>
                 <td class="url-cell">
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                        <a href="${this.escapeHtml(url)}" target="_blank" rel="noopener noreferrer" 
+                        <a href="${this.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
                            class="url-link" title="${this.escapeHtml(url)}">
                             ${this.truncateUrl(url, 80)}
                             <i class="fas fa-external-link-alt"></i>
@@ -6739,14 +6848,29 @@ class LLMMonitoring {
     /**
      * Show no URLs message
      */
-    showNoUrlsLLMMessage() {
+    showNoUrlsLLMMessage(customCopy = {}) {
         const tableBody = document.getElementById('topUrlsLLMBody');
         const noUrlsMessage = document.getElementById('noUrlsLLMMessage');
         const topUrlsTable = document.getElementById('topUrlsLLMTable');
+        const paginator = document.getElementById('topUrlsLLMPaginator');
+
+        const titleEl = noUrlsMessage?.querySelector('h4');
+        const descriptionEl = noUrlsMessage?.querySelector('p');
+        const helperEl = noUrlsMessage?.querySelector('small');
+        if (titleEl) {
+            titleEl.textContent = customCopy.title || 'No URL Data Available';
+        }
+        if (descriptionEl) {
+            descriptionEl.textContent = customCopy.description || 'LLMs haven\'t cited any URLs yet in their responses';
+        }
+        if (helperEl) {
+            helperEl.textContent = customCopy.helper || 'This is normal if analysis just started or LLMs don\'t include sources';
+        }
 
         if (tableBody) tableBody.innerHTML = '';
         if (topUrlsTable) topUrlsTable.style.display = 'none';
         if (noUrlsMessage) noUrlsMessage.style.display = 'flex';
+        if (paginator) paginator.style.display = 'none';
     }
 
     /**
@@ -6755,7 +6879,9 @@ class LLMMonitoring {
     toggleDomainsView(showDomains) {
         if (!this.allLLMUrls || this.allLLMUrls.length === 0) {
             console.warn('⚠️ No URLs data available');
+            this._topUrlsLLMState = { page: 1, totalPages: 1, fullList: [], isDomainView: false };
             this.showNoUrlsLLMMessage();
+            this.renderTopUrlsLLMPaginator();
             return;
         }
 
@@ -6806,26 +6932,24 @@ class LLMMonitoring {
         const domainStats = {};
 
         urlsData.forEach(urlData => {
-            try {
-                const urlObj = new URL(urlData.url);
-                const domain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
-
-                if (!domainStats[domain]) {
-                    domainStats[domain] = {
-                        domain: domain,
-                        urlCount: 0,
-                        totalMentions: 0,
-                        urls: []
-                    };
-                }
-
-                domainStats[domain].urlCount++;
-                domainStats[domain].totalMentions += urlData.mentions || 0;
-                domainStats[domain].urls.push(urlData.url);
-
-            } catch (e) {
+            const domain = this.extractNormalizedHost(urlData.url);
+            if (!domain) {
                 console.warn('Invalid URL:', urlData.url);
+                return;
             }
+
+            if (!domainStats[domain]) {
+                domainStats[domain] = {
+                    domain: domain,
+                    urlCount: 0,
+                    totalMentions: 0,
+                    urls: []
+                };
+            }
+
+            domainStats[domain].urlCount++;
+            domainStats[domain].totalMentions += urlData.mentions || 0;
+            domainStats[domain].urls.push(urlData.url);
         });
 
         // Convert to array and calculate percentages
@@ -6909,13 +7033,13 @@ class LLMMonitoring {
         let competitorDomains = [];
 
         if (this.currentProject) {
-            projectDomain = (this.currentProject.brand_domain || '').toLowerCase().replace(/^www\./, '').trim();
+            projectDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
 
             // Normalize competitor domains
             const competitors = this.currentProject.selected_competitors || [];
             competitorDomains = competitors.map(c => {
                 const domain = typeof c === 'object' ? (c.domain || c.competitor_domain || c) : c;
-                return String(domain).toLowerCase().replace(/^www\./, '').trim();
+                return this.normalizeDomainInput(domain);
             }).filter(d => d && d.length > 0);
         }
 
@@ -6994,6 +7118,12 @@ class LLMMonitoring {
         }
 
         const { page, totalPages, fullList } = this._topUrlsLLMState;
+
+        if (!Array.isArray(fullList) || fullList.length === 0) {
+            paginator.style.display = 'none';
+            return;
+        }
+        paginator.style.display = 'flex';
         paginator.innerHTML = '';
 
         // Previous button

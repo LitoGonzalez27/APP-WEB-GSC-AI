@@ -146,12 +146,28 @@
     font-size: 0.85rem;
     border-radius: 8px;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
 /* Botones del toolbar */
 .section-actions-toolbar .btn.toolbar-item {
     padding: 0 0.875rem;
     gap: 0.4rem;
+    margin: 0;
+}
+
+/* Keep time-range selector vertically aligned with action buttons */
+.section-actions-toolbar .global-time-filter.toolbar-item {
+    padding: 0;
+    margin: 0;
+    align-self: center;
+}
+
+.section-actions-toolbar .global-time-filter .toolbar-select {
+    height: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    line-height: 1.2;
 }
 
 .section-actions-toolbar .btn.toolbar-item i {
