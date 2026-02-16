@@ -32,6 +32,7 @@ import json
 import threading
 import secrets
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify
 from functools import wraps
 
@@ -2537,7 +2538,7 @@ def get_llm_comparison(project_id):
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT enabled_llms
+            SELECT enabled_llms, brand_domain
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -2545,6 +2546,48 @@ def get_llm_comparison(project_id):
         if not project_row:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
+        brand_domain_raw = project_row.get('brand_domain') or ''
+
+        def _normalize_domain(value):
+            raw_value = str(value or '').strip().lower()
+            if not raw_value:
+                return ''
+            if not raw_value.startswith(('http://', 'https://')):
+                raw_value = f"https://{raw_value}"
+            try:
+                parsed = urlparse(raw_value)
+            except Exception:
+                return ''
+            host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
+            if host.startswith('www.'):
+                host = host[4:]
+            return host
+
+        def _extract_source_host(raw_url):
+            raw_value = str(raw_url or '').strip()
+            if not raw_value:
+                return ''
+            if not raw_value.startswith(('http://', 'https://')):
+                raw_value = f"https://{raw_value}"
+            try:
+                parsed = urlparse(raw_value)
+            except Exception:
+                return ''
+            host = (parsed.netloc or parsed.path or '').split('/')[0].split(':')[0].strip().lower()
+            if host.startswith('www.'):
+                host = host[4:]
+            return host
+
+        normalized_brand_domain = _normalize_domain(brand_domain_raw)
+
+        def _to_date_key(value):
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                return value.date().isoformat()
+            if hasattr(value, 'isoformat'):
+                return value.isoformat()
+            return str(value)
         
         # Traer filas por LLM directamente desde snapshots
         # ✨ NUEVO: Incluir weighted_share_of_voice
@@ -2575,44 +2618,99 @@ def get_llm_comparison(project_id):
         
         rows = cur.fetchall()
         
-        # ✨ NUEVO: Obtener distribución de position_source para cada snapshot
-        # Esto nos permite mostrar badges 📝/🔗/📝🔗 en UI
-        position_source_query = """
-            SELECT 
-                s.llm_provider,
-                s.snapshot_date,
-                COUNT(*) FILTER (WHERE r.position_source = 'text') as text_count,
-                COUNT(*) FILTER (WHERE r.position_source = 'link') as link_count,
-                COUNT(*) FILTER (WHERE r.position_source = 'both') as both_count,
-                COUNT(*) as total_with_position
-            FROM llm_monitoring_snapshots s
-            LEFT JOIN llm_monitoring_results r ON 
-                s.project_id = r.project_id 
-                AND s.llm_provider = r.llm_provider 
-                AND s.snapshot_date = r.analysis_date
-                AND r.position_source IS NOT NULL
-            WHERE s.project_id = %s
-            AND s.snapshot_date >= %s
+        # Recalcular position_source con criterio estricto de dominio/subdominio para enlaces.
+        position_source_rows_query = """
+            SELECT
+                llm_provider,
+                analysis_date,
+                brand_mentioned,
+                mention_contexts,
+                sources
+            FROM llm_monitoring_results
+            WHERE project_id = %s
+            AND analysis_date >= %s
         """
-        position_source_params = [project_id, start_date]
+        position_source_rows_params = [project_id, start_date]
         if enabled_llms_filter:
-            position_source_query += " AND s.llm_provider = ANY(%s)"
-            position_source_params.append(enabled_llms_filter)
-        position_source_query += """
-            GROUP BY s.llm_provider, s.snapshot_date
-            ORDER BY s.snapshot_date DESC, s.llm_provider
-        """
-        cur.execute(position_source_query, position_source_params)
-        
-        position_sources = cur.fetchall()
-        
+            position_source_rows_query += " AND llm_provider = ANY(%s)"
+            position_source_rows_params.append(enabled_llms_filter)
+        cur.execute(position_source_rows_query, position_source_rows_params)
+
+        position_rows = cur.fetchall()
+
         # Crear lookup dict para position_source por (llm_provider, date)
         position_source_map = {}
-        for ps in position_sources:
-            key = (ps['llm_provider'], ps['snapshot_date'].isoformat() if ps['snapshot_date'] else None)
-            text_count = ps['text_count'] or 0
-            link_count = ps['link_count'] or 0
-            both_count = ps['both_count'] or 0
+        for row in position_rows:
+            key = (row['llm_provider'], _to_date_key(row.get('analysis_date')))
+            bucket = position_source_map.setdefault(key, {'text_count': 0, 'link_count': 0, 'both_count': 0})
+
+            raw_contexts = row.get('mention_contexts') or []
+            if isinstance(raw_contexts, str):
+                try:
+                    raw_contexts = json.loads(raw_contexts)
+                except Exception:
+                    raw_contexts = []
+            if not isinstance(raw_contexts, list):
+                raw_contexts = []
+
+            raw_sources = row.get('sources') or []
+            if isinstance(raw_sources, str):
+                try:
+                    raw_sources = json.loads(raw_sources)
+                except Exception:
+                    raw_sources = []
+            if not isinstance(raw_sources, list):
+                raw_sources = []
+
+            has_text_context = False
+            has_link_context = False
+            for context in raw_contexts:
+                ctx = str(context or '').strip()
+                if not ctx:
+                    continue
+                if ctx.startswith('🔗'):
+                    has_link_context = True
+                else:
+                    has_text_context = True
+
+            brand_in_link = False
+            if normalized_brand_domain:
+                for source in raw_sources:
+                    if not isinstance(source, dict):
+                        continue
+                    source_host = _extract_source_host(source.get('url'))
+                    if source_host and (
+                        source_host == normalized_brand_domain or
+                        source_host.endswith(f".{normalized_brand_domain}")
+                    ):
+                        brand_in_link = True
+                        break
+
+            # Fallback defensivo para registros antiguos sin contextos.
+            brand_mentioned = bool(row.get('brand_mentioned'))
+            if has_text_context:
+                brand_in_text = True
+            elif brand_in_link:
+                brand_in_text = False
+            elif brand_mentioned and not has_link_context:
+                brand_in_text = True
+            else:
+                brand_in_text = False
+
+            if not brand_in_text and not brand_in_link:
+                continue
+
+            if brand_in_text and brand_in_link:
+                bucket['both_count'] += 1
+            elif brand_in_text:
+                bucket['text_count'] += 1
+            else:
+                bucket['link_count'] += 1
+
+        for key, counts in position_source_map.items():
+            text_count = counts['text_count']
+            link_count = counts['link_count']
+            both_count = counts['both_count']
             
             # Determinar badge predominante
             if both_count > 0 or (text_count > 0 and link_count > 0):
@@ -2649,7 +2747,7 @@ def get_llm_comparison(project_id):
                 sov = c.get('share_of_voice') or 0
             
             # ✨ NUEVO: Obtener position_source info para este snapshot
-            snapshot_key = (c['llm_provider'], c['snapshot_date'].isoformat() if c['snapshot_date'] else None)
+            snapshot_key = (c['llm_provider'], _to_date_key(c.get('snapshot_date')))
             position_source_info = position_source_map.get(snapshot_key, {
                 'dominant': None,
                 'text_count': 0,

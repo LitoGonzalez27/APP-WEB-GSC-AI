@@ -545,35 +545,15 @@ class MultiLLMMonitoringService:
         if sources and len(sources) > 0:
             for source in sources:
                 source_url = source.get('url', '')
-                source_url_lower = source_url.lower()
                 source_host = self._extract_source_host(source_url)
                 
-                # PRIORIDAD 1: Buscar dominio COMPLETO como dominio válido (más restrictivo y preciso)
+                # Match estricto: SOLO dominio/subdominio de marca
                 if normalized_brand_domain and self._domain_matches_host(normalized_brand_domain, source_host):
                     brand_found_in_sources = True
                     source_context = f"🔗 Brand domain {brand_domain} found in cited source: {source.get('url', 'N/A')}"
                     if source_context not in mention_contexts:
                         mention_contexts.append(source_context)
                     logger.debug(f"[BRAND DETECTION] ✅ Domain match in source host: {source_host}")
-                    break
-                
-                # PRIORIDAD 2: Buscar variaciones de marca en la URL (solo si no encontramos dominio completo)
-                # Esto es más permisivo pero puede tener falsos positivos
-                # Solo buscar variaciones largas (>=5 chars) para minimizar falsos positivos
-                for variation in brand_variations:
-                    if len(variation) >= 4 and variation.lower() in source_url_lower:
-                        # Verificación adicional: asegurarse de que no es parte de otra palabra
-                        # Por ejemplo, evitar detectar "kipu" en "kipuka"
-                        var_pattern = r'(?<![a-z0-9]){}(?![a-z0-9])'.format(re.escape(variation.lower()))
-                        if re.search(var_pattern, source_url_lower):
-                            brand_found_in_sources = True
-                            source_context = f"🔗 Brand '{variation}' found in cited source: {source.get('url', 'N/A')}"
-                            if source_context not in mention_contexts:
-                                mention_contexts.append(source_context)
-                            logger.debug(f"[BRAND DETECTION] ✅ Variation match in source URL: {variation}")
-                            break
-                
-                if brand_found_in_sources:
                     break
         
         # Si se encontró en sources, marcar como mencionado incluso si no está en el texto

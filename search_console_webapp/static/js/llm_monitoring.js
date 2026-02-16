@@ -6544,45 +6544,7 @@ class LLMMonitoring {
     }
 
     /**
-     * Terms used to detect brand references inside URLs (path/query included)
-     */
-    getBrandUrlTerms() {
-        if (!this.currentProject) return [];
-
-        const rawTerms = [];
-        if (Array.isArray(this.currentProject.brand_keywords)) {
-            rawTerms.push(...this.currentProject.brand_keywords);
-        }
-        if (this.currentProject.brand_name) {
-            rawTerms.push(this.currentProject.brand_name);
-        }
-
-        return [...new Set(
-            rawTerms
-                .map(term => String(term || '').trim().toLowerCase())
-                .filter(term => term.length >= 4)
-        )];
-    }
-
-    /**
-     * Check if URL text contains one of configured brand terms
-     */
-    hasBrandTermInUrl(rawUrl) {
-        const urlText = String(rawUrl || '').trim().toLowerCase();
-        if (!urlText) return false;
-
-        const brandTerms = this.getBrandUrlTerms();
-        if (brandTerms.length === 0) return false;
-
-        return brandTerms.some(term => {
-            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
-            return regex.test(urlText);
-        });
-    }
-
-    /**
-     * Check if URL matches brand config (domain or brand terms)
+     * Check if URL belongs to brand domain (domain/subdomain only)
      */
     isUrlFromBrand(url) {
         if (!url || !this.currentProject) return false;
@@ -6590,12 +6552,11 @@ class LLMMonitoring {
         const brandDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
         const urlDomain = this.extractNormalizedHost(url);
 
-        if (brandDomain && urlDomain && (urlDomain === brandDomain || urlDomain.endsWith(`.${brandDomain}`))) {
-            return true;
-        }
-
-        // Keep UI filtering consistent with backend link-based mention detection.
-        return this.hasBrandTermInUrl(url);
+        return Boolean(
+            brandDomain &&
+            urlDomain &&
+            (urlDomain === brandDomain || urlDomain.endsWith(`.${brandDomain}`))
+        );
     }
 
     /**
@@ -6700,8 +6661,7 @@ class LLMMonitoring {
 
         if (showOnlyMyBrand && this.currentProject) {
             const projectDomain = this.normalizeDomainInput(this.currentProject.brand_domain);
-            const brandTerms = this.getBrandUrlTerms();
-            const hasBrandFilters = Boolean(projectDomain) || brandTerms.length > 0;
+            const hasBrandFilters = Boolean(projectDomain);
 
             if (hasBrandFilters) {
                 filtered = this.allLLMUrls.filter(urlData => this.isUrlFromBrand(urlData.url));
@@ -6716,7 +6676,7 @@ class LLMMonitoring {
                 this.updateTableHeaderForUrls();
                 this.showNoUrlsLLMMessage({
                     title: 'No Brand URLs in This Range',
-                    description: 'No cited URLs match your brand domain or keywords with current filters.',
+                    description: 'No cited URLs match your brand domain with current filters.',
                     helper: 'Disable "My Brand URLs Only" to view all cited URLs.'
                 });
                 this.renderTopUrlsLLMPaginator();
