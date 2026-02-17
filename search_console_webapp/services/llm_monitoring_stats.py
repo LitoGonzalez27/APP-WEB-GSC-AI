@@ -23,7 +23,7 @@ class LLMMonitoringStatsService:
         days: int = 30,
         llm_provider: Optional[str] = None,
         enabled_llms: Optional[List[str]] = None,
-        limit: int = 50
+        limit: Optional[int] = 50
     ) -> List[Dict]:
         """
         Obtiene el ranking de URLs más mencionadas por los LLMs
@@ -36,7 +36,8 @@ class LLMMonitoringStatsService:
             days: Número de días hacia atrás
             llm_provider: Filtrar por LLM específico ('openai', 'anthropic', 'google', 'perplexity')
                          Si es None, agrega de todos los LLMs
-            limit: Número máximo de URLs a retornar
+            limit: Número máximo de URLs a retornar.
+                   Si es None o <= 0, devuelve todas.
             
         Returns:
             Lista de dicts con:
@@ -164,7 +165,10 @@ class LLMMonitoringStatsService:
             urls_data.sort(key=lambda x: x['mentions'], reverse=True)
             
             # Limitar resultados y añadir ranking
-            top_urls = urls_data[:limit]
+            if limit is None or limit <= 0:
+                top_urls = urls_data
+            else:
+                top_urls = urls_data[:limit]
             for index, url_data in enumerate(top_urls, start=1):
                 url_data['rank'] = index
             

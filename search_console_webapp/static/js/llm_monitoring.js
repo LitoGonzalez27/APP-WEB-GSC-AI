@@ -6783,6 +6783,10 @@ class LLMMonitoring {
         try {
             const params = new URLSearchParams({ days });
             if (llmFilter) params.append('llm_provider', llmFilter);
+            if (!llmFilter) {
+                // In "All LLMs (Combined)" we need the full union of URLs, not a top-N subset.
+                params.append('limit', '0');
+            }
 
             const response = await fetch(`${this.baseUrl}/projects/${projectId}/urls-ranking?${params}`);
 

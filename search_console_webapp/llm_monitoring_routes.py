@@ -2508,14 +2508,20 @@ def get_urls_ranking(project_id):
     Query params opcionales:
         days: Número de días (default: 30)
         llm_provider: Filtrar por LLM específico ('openai', 'anthropic', 'google', 'perplexity')
-        limit: Número máximo de URLs (default: 50)
+        limit: Número máximo de URLs (default: 50). Usa 0 para "sin límite"
     
     Returns:
         JSON con ranking de URLs citadas por los LLMs
     """
     days = _normalize_days_param(request.args.get('days'), default=30)
     llm_provider = request.args.get('llm_provider')
-    limit = request.args.get('limit', 50, type=int)
+    raw_limit = request.args.get('limit')
+    limit = 50
+    if raw_limit is not None and str(raw_limit).strip() != '':
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'limit debe ser un número entero'}), 400
     
     try:
         enabled_llms_filter = None
