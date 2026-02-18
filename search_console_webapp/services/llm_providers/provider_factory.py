@@ -253,7 +253,7 @@ class LLMProviderFactory:
             },
             'google': {
                 'display_name': 'Google (Gemini)',
-                'models': ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro'],
+                'models': ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-1.5-flash'],
                 'description': 'Muy rápido y económico, multimodal',
                 'website': 'https://aistudio.google.com',
                 'pricing_note': 'El más económico del mercado'

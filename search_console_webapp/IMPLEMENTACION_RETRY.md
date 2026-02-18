@@ -114,7 +114,7 @@ def get_retry_metrics():
 - **Timeout**: 60s (respuestas largas)
 - **Priority**: ALTA (más caro)
 
-### **Google (Gemini 2.0 Flash)**
+### **Google (Gemini)**
 - **Max Retries**: 2 (muy estable)
 - **Timeout**: 30s (muy rápido)
 - **Priority**: BAJA (muy barato)
@@ -256,4 +256,3 @@ Solución:
 **Próximo Review:** 1 semana después de implementación  
 **Responsable:** Equipo de Desarrollo  
 **Priority:** Alta
-

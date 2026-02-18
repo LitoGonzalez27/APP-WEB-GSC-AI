@@ -213,12 +213,12 @@ class TestGoogleProvider:
     @patch('services.llm_providers.google_provider.get_current_model_for_provider')
     def test_provider_initialization(self, mock_get_model, mock_get_pricing, mock_gen_model, mock_configure):
         """Test de inicialización del provider"""
-        mock_get_model.return_value = 'gemini-2.0-flash'
-        mock_get_pricing.return_value = {'input': 0.000000075, 'output': 0.0000003}
+        mock_get_model.return_value = 'gemini-3-pro-preview'
+        mock_get_pricing.return_value = {'input': 0.000002, 'output': 0.000012}
         
         provider = GoogleProvider(api_key='test-key')
         
-        assert provider.model_name == 'gemini-2.0-flash'
+        assert provider.model_name == 'gemini-3-pro-preview'
         assert provider.pricing is not None
         assert provider.get_provider_name() == 'google'
         
@@ -430,4 +430,3 @@ def test_api_keys():
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short'])
-

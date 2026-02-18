@@ -26,9 +26,9 @@ def update_current_models():
     Actualiza los modelos actuales en la BD.
     
     Modelos a configurar como actuales:
-    - OpenAI: gpt-4o (GPT-5 no está disponible aún en la API real)
-    - Google: gemini-2.0-flash (Gemini 3 no está disponible aún)  
-    - Anthropic: claude-sonnet-4-5-20241022 (Claude Sonnet 4.5)
+    - OpenAI: gpt-5.2
+    - Google: gemini-3-pro-preview
+    - Anthropic: claude-sonnet-4-5-20250929
     - Perplexity: sonar
     
     NOTA: Actualiza estos valores cuando los modelos realmente estén disponibles.
@@ -205,4 +205,3 @@ if __name__ == '__main__':
         check_available_models()
     else:
         update_current_models()
-
