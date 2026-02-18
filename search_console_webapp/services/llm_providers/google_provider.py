@@ -144,7 +144,6 @@ class GoogleProvider(BaseLLMProvider):
         display_names = {
             'gemini-3-pro-preview': 'Gemini 3 Pro',
             'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
-            'gemini-2.0-flash': 'Gemini 2.0 Flash',
             'gemini-1.5-flash': 'Gemini 1.5 Flash',
             'gemini-pro': 'Gemini Pro'
         }

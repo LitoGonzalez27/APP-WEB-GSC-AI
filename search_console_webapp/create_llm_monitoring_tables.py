@@ -8,7 +8,7 @@ IMPORTANTE:
 - Usa CREATE TABLE IF NOT EXISTS
 - No modifica datos existentes
 
-Soporta: ChatGPT (GPT-5), Claude Sonnet 4.5, Gemini 2.0 Flash, Perplexity
+Soporta: ChatGPT (GPT-5), Claude Sonnet 4.5, Gemini 3 Pro Preview, Perplexity
 """
 
 import sys
@@ -318,9 +318,9 @@ def create_llm_monitoring_tables():
                 ('anthropic', 'claude-sonnet-4-5-20250929', 'Claude Sonnet 4.5',
                  3.00, 15.00, 200000, TRUE),
                 
-                -- Google Gemini 2.0 Flash
-                ('google', 'gemini-2.0-flash', 'Gemini 2.0 Flash',
-                 0.075, 0.30, 1000000, TRUE),
+                -- Google Gemini 3 Pro Preview
+                ('google', 'gemini-3-pro-preview', 'Gemini 3 Pro Preview',
+                 2.00, 12.00, 1000000, TRUE),
                 
                 -- Perplexity Sonar Large
                 ('perplexity', 'llama-3.1-sonar-large-128k-online', 'Perplexity Sonar Large',
@@ -332,7 +332,7 @@ def create_llm_monitoring_tables():
                 cost_per_1m_output_tokens = EXCLUDED.cost_per_1m_output_tokens,
                 updated_at = NOW()
         """)
-        logger.info("   ✅ 4 modelos insertados (GPT-5, Claude 4.5, Gemini Flash, Perplexity)")
+        logger.info("   ✅ 4 modelos insertados (GPT-5, Claude 4.5, Gemini 3 Pro, Perplexity)")
         
         # ===================================
         # CREAR ÍNDICES
@@ -466,7 +466,7 @@ def main():
     logger.info("Modelos soportados:")
     logger.info("  • GPT-5 (OpenAI) - $15/$45 per 1M tokens")
     logger.info("  • Claude Sonnet 4.5 (Anthropic) - $3/$15 per 1M tokens")
-    logger.info("  • Gemini 2.0 Flash (Google) - $0.075/$0.30 per 1M tokens")
+    logger.info("  • Gemini 3 Pro Preview (Google) - $2/$12 per 1M tokens")
     logger.info("  • Perplexity Sonar Large - $1/$1 per 1M tokens")
     logger.info("")
     
@@ -481,4 +481,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
