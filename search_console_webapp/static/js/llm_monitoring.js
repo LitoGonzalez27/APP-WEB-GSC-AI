@@ -54,6 +54,7 @@ class LLMMonitoring {
         // LLM selection UX state
         this.modalOriginalEnabledLlms = null;
         this.pendingModelScopeNotice = null;
+        this.serverModelScopeNotice = null;
     }
 
     /**
@@ -405,6 +406,74 @@ class LLMMonitoring {
     }
 
     /**
+     * Keep LLM lists in a stable provider order for UI elements.
+     */
+    orderLlms(llms) {
+        const providerOrder = ['openai', 'anthropic', 'google', 'perplexity'];
+        const indexOf = (llm) => {
+            const idx = providerOrder.indexOf(llm);
+            return idx === -1 ? 999 : idx;
+        };
+
+        return this.normalizeLlmSelection(llms).sort((a, b) => {
+            const diff = indexOf(a) - indexOf(b);
+            return diff !== 0 ? diff : a.localeCompare(b);
+        });
+    }
+
+    /**
+     * Return enabled LLMs for the current project (or all known providers as fallback).
+     */
+    getProjectEnabledLlms() {
+        const configured = this.orderLlms(this.currentProject?.enabled_llms || []);
+        if (configured.length > 0) return configured;
+        return ['openai', 'anthropic', 'google', 'perplexity'];
+    }
+
+    /**
+     * Sync all LLM filter dropdowns to the active LLMs of the current project.
+     */
+    syncProjectLlmFilterOptions() {
+        const enabledLlms = this.getProjectEnabledLlms();
+        const configs = [
+            {
+                id: 'responsesLLMFilter',
+                allLabel: 'All Active LLMs',
+                formatLabel: (llm) => this.getLLMDisplayName(llm)
+            },
+            {
+                id: 'urlsLLMFilter',
+                allLabel: 'All Active LLMs (Combined)',
+                formatLabel: (llm) => `${this.getLLMDisplayName(llm)} Only`
+            }
+        ];
+
+        configs.forEach(({ id, allLabel, formatLabel }) => {
+            const select = document.getElementById(id);
+            if (!select) return;
+
+            const previousValue = String(select.value || '').trim();
+            select.innerHTML = '';
+
+            const allOption = document.createElement('option');
+            allOption.value = '';
+            allOption.textContent = allLabel;
+            select.appendChild(allOption);
+
+            enabledLlms.forEach((llm) => {
+                const option = document.createElement('option');
+                option.value = llm;
+                option.textContent = formatLabel(llm);
+                select.appendChild(option);
+            });
+
+            select.value = previousValue && enabledLlms.includes(previousValue)
+                ? previousValue
+                : '';
+        });
+    }
+
+    /**
      * Show/hide model-change warning inside project modal
      */
     updateLlmSelectionImpactNotice() {
@@ -468,6 +537,19 @@ class LLMMonitoring {
                 `Model selection updated: now using ${activeNames.join(', ') || 'selected LLMs'} for metrics and exports.` +
                 `${changeParts.length > 0 ? ` You ${changeParts.join(' and ')}.` : ''}`;
             this.pendingModelScopeNotice = null;
+        }
+
+        if (!message && this.serverModelScopeNotice && this.serverModelScopeNotice.project_id === projectId) {
+            const scope = this.serverModelScopeNotice;
+            if (scope.show) {
+                const activeNames = this.formatLlmNames(scope.active_llms || this.currentProject?.enabled_llms || []);
+                const excludedNames = this.formatLlmNames(scope.excluded_llms_with_data || []);
+                const rangeDays = Number(scope.range_days) || this.globalTimeRange;
+                message =
+                    `Showing only active models (${activeNames.join(', ') || 'selected LLMs'}). ` +
+                    `Historical data from disabled models exists in the last ${rangeDays} days: ` +
+                    `${excludedNames.join(', ')}.`;
+            }
         }
 
         if (!message) {
@@ -1186,6 +1268,10 @@ class LLMMonitoring {
 
             const data = await response.json();
             this.currentProject = data.project;
+            this.serverModelScopeNotice = data.model_scope_notice
+                ? { ...data.model_scope_notice, project_id: projectId }
+                : null;
+            this.syncProjectLlmFilterOptions();
             this.updateModelScopeBanner();
 
             // ✨ NUEVO: Guardar datos adicionales para uso posterior
@@ -2159,13 +2245,33 @@ class LLMMonitoring {
                 return;
             }
 
-            // Agregar contadores de sentimiento de todos los LLMs (último snapshot)
+            // Agregar contadores de sentimiento de todos los LLMs (último snapshot real)
             let totalPositive = 0;
             let totalNeutral = 0;
             let totalNegative = 0;
 
-            // Usar solo los datos más recientes (primeros resultados)
-            const recentSnapshots = result.comparison.slice(0, 4); // Último análisis de cada LLM
+            // Usar solo filas del snapshot_date más reciente para evitar mezclar fechas.
+            const toDateKey = (value) => {
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) return String(value || '');
+                return parsed.toISOString().slice(0, 10);
+            };
+            const datedSnapshots = Array.isArray(result.comparison)
+                ? result.comparison.filter((row) => row?.snapshot_date)
+                : [];
+            if (datedSnapshots.length === 0) {
+                console.warn('⚠️ No dated snapshots available for sentiment analysis');
+                return;
+            }
+            datedSnapshots.sort((a, b) => new Date(b.snapshot_date) - new Date(a.snapshot_date));
+            const latestDateKey = toDateKey(datedSnapshots[0].snapshot_date);
+            const recentSnapshots = datedSnapshots.filter(
+                (snapshot) => toDateKey(snapshot.snapshot_date) === latestDateKey
+            );
+            if (recentSnapshots.length === 0) {
+                console.warn('⚠️ No recent snapshots available for sentiment analysis');
+                return;
+            }
 
             recentSnapshots.forEach(snapshot => {
                 if (snapshot.sentiment) {
@@ -3038,6 +3144,7 @@ class LLMMonitoring {
         this.currentDisplayResponses = [];
         
         this.currentProject = null;
+        this.serverModelScopeNotice = null;
         this.updateModelScopeBanner();
     }
 
@@ -5625,7 +5732,13 @@ class LLMMonitoring {
         }
 
         const queryFilter = document.getElementById('responsesQueryFilter')?.value || '';
-        const llmFilter = document.getElementById('responsesLLMFilter')?.value || '';
+        const enabledLlms = this.getProjectEnabledLlms();
+        const llmFilterSelect = document.getElementById('responsesLLMFilter');
+        let llmFilter = llmFilterSelect?.value || '';
+        if (llmFilter && !enabledLlms.includes(llmFilter)) {
+            llmFilter = '';
+            if (llmFilterSelect) llmFilterSelect.value = '';
+        }
         const daysFilter = this.globalTimeRange; // ✨ Use global time range
         const container = document.getElementById('responsesContainer');
 
@@ -6111,6 +6224,7 @@ class LLMMonitoring {
         
         // Store prompts for reference
         this.comparePrompts = prompts;
+        this.compareLlms = this.getProjectEnabledLlms();
         
         // Initial render
         this.updateCompareView();
@@ -6141,11 +6255,34 @@ class LLMMonitoring {
         
         if (!select || !grid || !this.comparePrompts) return;
 
-        const selectedPrompt = this.comparePrompts[parseInt(select.value)];
+        const selectedIndex = Number.parseInt(select.value, 10);
+        const selectedPrompt = this.comparePrompts[selectedIndex];
+        if (!selectedPrompt) {
+            grid.innerHTML = `
+                <div class="empty-state" style="padding: 40px; text-align: center;">
+                    <i class="fas fa-inbox"></i>
+                    <h4>No prompt selected</h4>
+                </div>
+            `;
+            return;
+        }
         const responses = this.allResponses.filter(r => r.query_text === selectedPrompt);
 
         // Get responses by LLM (most recent for each)
-        const llms = ['openai', 'anthropic', 'google', 'perplexity'];
+        const configuredLlms = this.orderLlms(this.compareLlms || []);
+        const llmsFromData = this.orderLlms(
+            [...new Set(responses.map((r) => r.llm_provider).filter(Boolean))]
+        );
+        const llms = configuredLlms.length > 0 ? configuredLlms : llmsFromData;
+        if (llms.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state" style="padding: 40px; text-align: center;">
+                    <i class="fas fa-inbox"></i>
+                    <h4>No LLM responses found</h4>
+                </div>
+            `;
+            return;
+        }
         const responsesByLLM = {};
         
         llms.forEach(llm => {
@@ -6777,7 +6914,13 @@ class LLMMonitoring {
     async loadTopUrlsRanking(projectId) {
         console.log(`🔗 Loading top URLs ranking for project ${projectId}...`);
 
-        const llmFilter = document.getElementById('urlsLLMFilter')?.value || '';
+        const enabledLlms = this.getProjectEnabledLlms();
+        const llmFilterSelect = document.getElementById('urlsLLMFilter');
+        let llmFilter = llmFilterSelect?.value || '';
+        if (llmFilter && !enabledLlms.includes(llmFilter)) {
+            llmFilter = '';
+            if (llmFilterSelect) llmFilterSelect.value = '';
+        }
         const days = this.globalTimeRange; // ✨ Use global time range
 
         try {

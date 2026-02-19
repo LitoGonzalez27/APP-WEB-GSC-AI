@@ -2524,21 +2524,28 @@ def get_urls_ranking(project_id):
             return jsonify({'error': 'limit debe ser un número entero'}), 400
     
     try:
-        enabled_llms_filter = None
-        if not llm_provider:
-            conn = get_db_connection()
-            if conn:
-                cur = conn.cursor()
-                cur.execute("""
-                    SELECT enabled_llms
-                    FROM llm_monitoring_projects
-                    WHERE id = %s
-                """, (project_id,))
-                project = cur.fetchone()
-                if project:
-                    enabled_llms_filter = project.get('enabled_llms') or None
-                cur.close()
-                conn.close()
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Error de conexión a BD'}), 500
+
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        enabled_llms_filter = (project or {}).get('enabled_llms') or []
+        if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
+            return jsonify({
+                'error': 'llm_provider no habilitado para este proyecto'
+            }), 400
+
+        if not llm_provider and not enabled_llms_filter:
+            enabled_llms_filter = None
 
         urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
             project_id=project_id,
@@ -3983,6 +3990,12 @@ def get_project_responses(project_id):
         if not project_row:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
+        if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
+            cur.close()
+            conn.close()
+            return jsonify({
+                'error': 'llm_provider no habilitado para este proyecto'
+            }), 400
         
         # Calcular rango de fechas
         end_date = datetime.now().date()
