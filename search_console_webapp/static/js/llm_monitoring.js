@@ -939,6 +939,7 @@ class LLMMonitoring {
             : (project.competitors?.length || 0);
         const configuredQueries = Number(project.total_queries || 0);
         const hasConfiguredPrompts = configuredQueries > 0;
+        const canEdit = project.can_edit !== false;
         const shouldShowInitialAnalysisButton = !!project.is_active && !project.last_analysis_date;
         const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
         card.innerHTML = `
@@ -947,6 +948,7 @@ class LLMMonitoring {
                 <div class="project-status ${project.is_active ? 'active' : 'inactive'}">
                     ${project.is_active ? 'Active' : 'Inactive'}
                 </div>
+                ${!canEdit ? '<span class="badge badge-language" style="margin-left: 8px;">Shared (view only)</span>' : ''}
             </div>
             <div class="project-card-body">
                 <div class="project-info">
@@ -988,15 +990,17 @@ class LLMMonitoring {
                     <i class="fas fa-eye"></i>
                     View Metrics
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
-                    <i class="fas fa-list"></i>
-                    View/Edit Prompts
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
-                    <i class="fas fa-edit"></i>
-                    Edit
-                </button>
-                ${shouldShowInitialAnalysisButton ? `
+                ${canEdit ? `
+                    <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-list"></i>
+                        View/Edit Prompts
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-edit"></i>
+                        Edit
+                    </button>
+                ` : ''}
+                ${(canEdit && shouldShowInitialAnalysisButton) ? `
                     <button
                         class="btn btn-success btn-sm"
                         id="btnInitialAnalysis-${project.id}"
@@ -1007,12 +1011,13 @@ class LLMMonitoring {
                         ${isInitialAnalysisRunning ? 'First analysis running...' : (hasConfiguredPrompts ? 'Run First Analysis' : 'Add Prompts First')}
                     </button>
                 ` : ''}
-                ${project.is_active ? `
+                ${(canEdit && project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
                         Deactivate
                     </button>
-                ` : `
+                ` : ''}
+                ${(canEdit && !project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-play"></i>
                         Activate
@@ -1021,7 +1026,7 @@ class LLMMonitoring {
                         <i class="fas fa-trash"></i>
                         Delete
                     </button>
-                `}
+                ` : ''}
             </div>
         `;
 
@@ -1271,6 +1276,7 @@ class LLMMonitoring {
             this.serverModelScopeNotice = data.model_scope_notice
                 ? { ...data.model_scope_notice, project_id: projectId }
                 : null;
+            this.updateProjectEditControls();
             this.syncProjectLlmFilterOptions();
             this.updateModelScopeBanner();
 
@@ -1310,6 +1316,19 @@ class LLMMonitoring {
      */
     getSelectedSovMetric() {
         return document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+    }
+
+    updateProjectEditControls() {
+        const canEdit = this.currentProject?.can_edit !== false;
+        const setVisible = (id, visible) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = visible ? '' : 'none';
+        };
+
+        setVisible('btnEditProject', canEdit);
+        setVisible('btnDeleteProject', canEdit);
+        setVisible('btnManagePrompts', canEdit);
     }
 
     /**

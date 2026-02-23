@@ -31,6 +31,7 @@ export async function loadCompetitors(projectId = null) {
 
 export function renderCompetitors(competitors) {
     console.log('🎨 renderCompetitors called with:', competitors);
+    const isReadOnly = this.isProjectReadOnly(this.currentModalProject || this.currentProject);
     
     const competitorsList = document.getElementById('competitorsList');
     const competitorEmptyState = document.getElementById('competitorEmptyState');
@@ -93,6 +94,7 @@ export function renderCompetitors(competitors) {
         removeBtn.className = 'competitor-remove-btn';
         removeBtn.innerHTML = '<i class="fas fa-times"></i>';
         removeBtn.onclick = () => this.removeCompetitor(domain);
+        removeBtn.style.display = isReadOnly ? 'none' : '';
         
         competitorInfo.appendChild(logoImg);
         competitorInfo.appendChild(domainSpan);
@@ -106,16 +108,23 @@ export function renderCompetitors(competitors) {
     const addBtn = document.getElementById('addCompetitorBtn');
     const newCompetitorInput = document.getElementById('newCompetitorInput');
     
-    if (competitors.length >= 4) {
-        addBtn.disabled = true;
-        addBtn.textContent = 'Max 4 competitors';
-        newCompetitorInput.disabled = true;
-        newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
-    } else {
-        addBtn.disabled = false;
-        addBtn.textContent = 'Add Competitor';
-        newCompetitorInput.disabled = false;
-        newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
+    if (addBtn && newCompetitorInput) {
+        if (isReadOnly) {
+            addBtn.disabled = true;
+            addBtn.textContent = 'View only';
+            newCompetitorInput.disabled = true;
+            newCompetitorInput.placeholder = 'Shared project (view only)';
+        } else if (competitors.length >= 4) {
+            addBtn.disabled = true;
+            addBtn.textContent = 'Max 4 competitors';
+            newCompetitorInput.disabled = true;
+            newCompetitorInput.placeholder = 'Maximum 4 competitors allowed';
+        } else {
+            addBtn.disabled = false;
+            addBtn.textContent = 'Add Competitor';
+            newCompetitorInput.disabled = false;
+            newCompetitorInput.placeholder = 'Enter competitor domain (e.g., example.com)';
+        }
     }
 }
 
@@ -124,6 +133,10 @@ export function renderCompetitors(competitors) {
 // ================================
 
 export async function addCompetitor() {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const newCompetitorInput = document.getElementById('newCompetitorInput');
     const domain = newCompetitorInput.value.trim();
 
@@ -175,6 +188,10 @@ export async function addCompetitor() {
 }
 
 export async function removeCompetitor(domain) {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const currentProject = this.currentModalProject;
     if (!currentProject) return;
 
@@ -195,6 +212,10 @@ export async function removeCompetitor(domain) {
 }
 
 export async function updateCompetitors(competitors) {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const currentProject = this.currentModalProject;
     if (!currentProject) return;
 
@@ -316,4 +337,3 @@ export function initCompetitorsManager() {
     // Ensure competitors are loaded when modal Settings is opened
     // (actual load is triggered contextually in showProjectModal/switchModalTab)
 }
-

@@ -15,6 +15,10 @@ export async function analyzeProject(projectId) {
         return;
     }
 
+    if (!this.assertProjectEditable(project)) {
+        return;
+    }
+
     this.showProgress('Running analysis...', 
         `Analyzing ${project.keyword_count} keywords for AI Mode visibility. This may take several minutes.`);
 
@@ -189,7 +193,9 @@ export function runAnalysis() {
     // Usar currentModalProject cuando estamos en el modal
     const project = this.currentModalProject || this.currentProject;
     if (project) {
+        if (!this.assertProjectEditable(project)) {
+            return;
+        }
         this.analyzeProject(project.id);
     }
 }
-

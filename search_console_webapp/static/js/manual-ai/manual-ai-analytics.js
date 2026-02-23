@@ -15,7 +15,7 @@ export function populateAnalyticsProjectSelect() {
     this.elements.analyticsProjectSelect.innerHTML = `
         <option value="">Select a project...</option>
         ${this.projects.map(project => `
-            <option value="${project.id}">${escapeHtml(project.name)}</option>
+            <option value="${project.id}">${escapeHtml(project.name)}${project.can_edit === false ? ' (shared)' : ''}</option>
         `).join('')}
     `;
 }
@@ -25,6 +25,7 @@ export async function loadAnalytics() {
     const days = this.elements.analyticsTimeRange?.value || 30;
 
     if (!projectId) {
+        this.currentProject = null;
         this.elements.analyticsContent.innerHTML = `
             <div class="analytics-empty">
                 <i class="fas fa-chart-line"></i>
@@ -34,6 +35,11 @@ export async function loadAnalytics() {
         this.hideElement(this.elements.chartsContainer);
         this.showDownloadButton(false); // Hide download button when no project selected
         return;
+    }
+
+    const selectedProject = this.projects.find(p => String(p.id) === String(projectId));
+    if (selectedProject) {
+        this.currentProject = selectedProject;
     }
 
     this.elements.analyticsContent.innerHTML = `
@@ -1374,4 +1380,3 @@ export function truncateDomain(domain, maxLength = 20) {
     if (!domain || domain.length <= maxLength) return domain;
     return domain.substring(0, maxLength - 3) + '...';
 }
-

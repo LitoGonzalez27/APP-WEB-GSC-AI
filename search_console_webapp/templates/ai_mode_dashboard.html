@@ -1641,7 +1641,8 @@ keyword 3"></textarea>
         window.currentUser = {
             email: '{{ user.email }}',
             plan: '{{ user.plan }}',
-            role: '{{ user.role }}'
+            role: '{{ user.role }}',
+            has_shared_access: {{ 'true' if has_shared_access else 'false' }}
         };
         console.log('👤 Usuario AI Mode:', window.currentUser);
         

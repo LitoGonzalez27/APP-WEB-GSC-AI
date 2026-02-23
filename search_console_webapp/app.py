@@ -7,6 +7,7 @@ import traceback
 import zipfile
 from io import BytesIO
 from datetime import datetime, timedelta # Importación añadida
+from urllib.parse import quote
 from flask import Flask, render_template, request, jsonify, send_file, Response, session, redirect, url_for
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -59,6 +60,7 @@ from database import (
     get_ai_overview_history
 )
 from services.ai_cache import ai_cache
+from services.project_access_service import accept_project_invitation
 
 # Configurar logging mejorado
 logging.basicConfig(
@@ -487,6 +489,38 @@ def landing():
     
     return render_template('landing.html')
 
+
+@app.route('/project-invitations/accept')
+def accept_project_invitation_page():
+    """
+    Accept project invitation from email link.
+    If user is not authenticated, redirect to login preserving the invitation URL in `next`.
+    """
+    token = (request.args.get('token') or '').strip()
+    if not token:
+        return redirect('/dashboard?invitation_error=missing_token')
+
+    if not is_user_authenticated():
+        next_url = f"/project-invitations/accept?token={quote(token)}"
+        return redirect(f"/login?next={quote(next_url, safe='/%?=&')}")
+
+    user = get_current_user()
+    if not user:
+        return redirect('/login')
+
+    ok, payload = accept_project_invitation(token=token, user_id=user['id'])
+    if not ok:
+        error = quote(payload.get('error', 'invalid_invitation'))
+        return redirect(f"/dashboard?invitation_error={error}")
+
+    redirect_path = payload.get('redirect_path') or '/dashboard'
+    project_id = payload.get('project_id')
+    project_name = quote(payload.get('project_name', 'Project'))
+    join_query = '&' if '?' in redirect_path else '?'
+    return redirect(
+        f"{redirect_path}{join_query}invitation=accepted&project_id={project_id}&project_name={project_name}"
+    )
+
 @app.route('/dashboard')
 @auth_required
 def dashboard():
@@ -512,6 +546,18 @@ def dashboard():
         return redirect(url_for('login_page'))
     
     return render_template('dashboard.html', user=user, authenticated=True)
+
+
+@app.route('/project-access')
+@auth_required
+def project_access_page():
+    """
+    Project sharing and invitations management page.
+    """
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login_page'))
+    return render_template('project_access.html', user=user, authenticated=True)
 
 @app.route('/app')
 @auth_required
@@ -3574,6 +3620,14 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register diagnostic endpoint: {e}")
 
+# ✅ NUEVO: Registrar API de acceso por proyecto e invitaciones
+try:
+    from project_access_routes import project_access_bp
+    app.register_blueprint(project_access_bp)
+    logger.info("✅ Project access API registered at /api/project-access")
+except Exception as e:
+    logger.warning(f"⚠️ Could not register project access API: {e}")
+
 # ✅ NUEVO: Registrar sistema Multi-LLM Brand Monitoring
 try:
     from llm_monitoring_routes import llm_monitoring_bp
@@ -3614,7 +3668,10 @@ def llm_monitoring_page():
     # Control de acceso por plan/billing (admin siempre permitido)
     try:
         from llm_monitoring_limits import can_access_llm_monitoring, get_upgrade_options
+        from services.project_access_service import user_has_any_module_access
         access_blocked = not can_access_llm_monitoring(user)
+        if access_blocked and user_has_any_module_access(user['id'], 'llm_monitoring'):
+            access_blocked = False
         upgrade_options = get_upgrade_options(user.get('plan', 'free'))
     except Exception:
         access_blocked = user.get('role') != 'admin'

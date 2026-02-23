@@ -8,6 +8,7 @@ from auth import auth_required, get_current_user
 from ai_mode_projects import ai_mode_bp
 from ai_mode_projects.services.project_service import ProjectService
 from ai_mode_projects.utils.validators import check_ai_mode_access
+from services.project_access_service import user_has_any_module_access
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,12 @@ def ai_mode_dashboard():
     """
     user = get_current_user()
     logger.info(f"Usuario accediendo AI Mode dashboard: {user.get('email')} (plan: {user.get('plan')})")
-    return render_template('ai_mode_dashboard.html', user=user)
+    has_shared_access = False
+    try:
+        has_shared_access = user_has_any_module_access(user.get('id'), 'ai_mode')
+    except Exception:
+        has_shared_access = False
+    return render_template('ai_mode_dashboard.html', user=user, has_shared_access=has_shared_access)
 
 
 @ai_mode_bp.route('/api/projects', methods=['GET'])
@@ -194,4 +200,3 @@ def delete_project(project_id):
     else:
         status_code = 404 if 'not found' in result.get('error', '').lower() else 500
         return jsonify(result), status_code
-

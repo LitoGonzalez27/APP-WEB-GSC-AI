@@ -155,7 +155,8 @@ import {
     confirmDeleteProject,
     cancelDeleteProject,
     executeDeleteProject,
-    hideDeleteProjectModal
+    hideDeleteProjectModal,
+    updateProjectFromModal
 } from '/static/js/ai-mode-projects/ai-mode-modals.js';
 
 // ================================
@@ -289,7 +290,8 @@ Object.assign(AIModeSystem.prototype, {
     confirmDeleteProject,
     cancelDeleteProject,
     executeDeleteProject,
-    hideDeleteProjectModal
+    hideDeleteProjectModal,
+    updateProjectFromModal
 });
 
 // ================================
@@ -328,4 +330,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Exportar para acceso global
 export { AIModeSystem };
-

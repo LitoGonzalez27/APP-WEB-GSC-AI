@@ -30,16 +30,19 @@ export async function loadProjectResults(projectId) {
 
 export function renderResults(results) {
     const resultsContent = document.getElementById('resultsContent');
+    const isReadOnly = this.isProjectReadOnly();
     
     if (results.length === 0) {
         resultsContent.innerHTML = `
             <div class="empty-keywords">
                 <i class="fas fa-chart-bar"></i>
                 <p>No analysis results yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.runAnalysis()">
-                    <i class="fas fa-play"></i>
-                    Run First Analysis
-                </button>
+                ${isReadOnly ? '<p class="small" style="margin-top:8px;">Shared project (view only)</p>' : `
+                    <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.runAnalysis()">
+                        <i class="fas fa-play"></i>
+                        Run First Analysis
+                    </button>
+                `}
             </div>
         `;
         return;
@@ -162,6 +165,7 @@ export function showProjectModal(projectId) {
 
     // Set current modal project
     this.currentModalProject = project;
+    this.currentProject = project;
 
     // Update modal title
     document.getElementById('projectModalTitle').textContent = `${project.name} - Settings`;
@@ -218,6 +222,10 @@ export function confirmDeleteProjectFromModal() {
         return;
     }
 
+    if (!this.assertProjectEditable(this.currentModalProject)) {
+        return;
+    }
+
     // Set project name in delete modal
     document.getElementById('deleteProjectName').textContent = this.currentModalProject.name;
     document.getElementById('deleteProjectNamePrompt').textContent = this.currentModalProject.name;
@@ -259,6 +267,10 @@ export function confirmDeleteProject(projectId) {
         return;
     }
 
+    if (!this.assertProjectEditable(currentProject)) {
+        return;
+    }
+
     document.getElementById('deleteProjectName').textContent = currentProject.name;
     document.getElementById('deleteProjectNamePrompt').textContent = currentProject.name;
 
@@ -297,6 +309,10 @@ export function hideDeleteProjectModal() {
 }
 
 export async function executeDeleteProject() {
+    if (!this.assertProjectEditable(this.projectToDelete || this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const projectToDelete = this.projectToDelete;
     const confirmText = document.getElementById('deleteConfirmInput').value;
 
@@ -412,6 +428,8 @@ export function loadModalSettings(project) {
     const projectDescriptionEdit = document.getElementById('projectDescriptionEdit');
     const projectDomainEdit = document.getElementById('projectDomainEdit');
     const projectCountryEdit = document.getElementById('projectCountryEdit');
+    const modalProjectName = document.getElementById('modalProjectName');
+    const modalProjectDescription = document.getElementById('modalProjectDescription');
     
     // Only set values for elements that exist
     if (projectNameEdit) {
@@ -421,6 +439,14 @@ export function loadModalSettings(project) {
     if (projectDescriptionEdit) {
         projectDescriptionEdit.value = project.description || '';
     }
+
+    if (modalProjectName) {
+        modalProjectName.value = project.name || '';
+    }
+
+    if (modalProjectDescription) {
+        modalProjectDescription.value = project.description || '';
+    }
     
     if (projectDomainEdit) {
         projectDomainEdit.value = project.domain || '';
@@ -429,6 +455,40 @@ export function loadModalSettings(project) {
     if (projectCountryEdit) {
         projectCountryEdit.value = project.country_code || '';
     }
+
+    const isReadOnly = project?.can_edit === false;
+    const toggleDisabled = (el, disabled) => {
+        if (!el) return;
+        el.disabled = disabled;
+        if (disabled) {
+            el.setAttribute('aria-disabled', 'true');
+        } else {
+            el.removeAttribute('aria-disabled');
+        }
+    };
+    const toggleActionButton = (selector, visible) => {
+        const button = document.querySelector(selector);
+        if (!button) return;
+        button.style.display = visible ? '' : 'none';
+        button.disabled = !visible;
+    };
+
+    toggleDisabled(projectNameEdit, isReadOnly);
+    toggleDisabled(projectDescriptionEdit, isReadOnly);
+    toggleDisabled(modalProjectName, isReadOnly);
+    toggleDisabled(modalProjectDescription, isReadOnly);
+    toggleDisabled(document.getElementById('modalKeywordsInput'), isReadOnly);
+    toggleDisabled(document.getElementById('newCompetitorInput'), isReadOnly);
+    toggleDisabled(document.getElementById('projectClustersEnabled'), isReadOnly);
+    toggleDisabled(document.getElementById('modalNotesInput'), isReadOnly);
+
+    toggleActionButton('button[onclick="aiModeSystem.addKeywordsFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="aiModeSystem.addCompetitor()"]', !isReadOnly);
+    toggleActionButton('button[onclick="aiModeSystem.saveClustersConfiguration()"]', !isReadOnly);
+    toggleActionButton("button[onclick=\"aiModeSystem.addClusterRow('clustersList')\"]", !isReadOnly);
+    toggleActionButton('button[onclick="aiModeSystem.addNoteFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="aiModeSystem.updateProjectFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="aiModeSystem.confirmDeleteProjectFromModal()"]', !isReadOnly);
     
     // Load clusters configuration if function exists
     if (typeof this.loadProjectClustersForSettings === 'function') {
@@ -436,3 +496,69 @@ export function loadModalSettings(project) {
     }
 }
 
+export async function updateProjectFromModal() {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
+    const newName = (
+        document.getElementById('projectNameEdit')?.value ??
+        document.getElementById('modalProjectName')?.value ??
+        ''
+    ).trim();
+    const newDescription = (
+        document.getElementById('projectDescriptionEdit')?.value ??
+        document.getElementById('modalProjectDescription')?.value ??
+        ''
+    ).trim();
+
+    if (!newName) {
+        this.showError('Project name cannot be empty');
+        return;
+    }
+
+    if (!this.currentModalProject) {
+        this.showError('No project selected');
+        return;
+    }
+
+    try {
+        this.showProgress('Updating project...', 'Saving changes...');
+
+        const response = await fetch(`/ai-mode-projects/api/projects/${this.currentModalProject.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: newName,
+                description: newDescription
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            this.showSuccess('Project updated successfully');
+
+            const projectIndex = this.projects.findIndex(p => p.id === this.currentModalProject.id);
+            if (projectIndex !== -1) {
+                this.projects[projectIndex].name = newName;
+                this.projects[projectIndex].description = newDescription;
+            }
+
+            this.currentModalProject.name = newName;
+            this.currentModalProject.description = newDescription;
+
+            document.getElementById('projectModalTitle').textContent = `${newName} - Settings`;
+
+            await this.loadProjects();
+            this.populateAnalyticsProjectSelect();
+        } else {
+            throw new Error(data.error || 'Failed to update project');
+        }
+    } catch (error) {
+        console.error('Error updating project:', error);
+        this.showError(error.message || 'Failed to update project');
+    } finally {
+        this.hideProgress();
+    }
+}

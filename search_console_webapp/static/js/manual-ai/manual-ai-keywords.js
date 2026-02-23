@@ -30,16 +30,19 @@ export async function loadProjectKeywords(projectId) {
 
 export function renderKeywords(keywords) {
     const keywordsList = document.getElementById('keywordsList');
+    const isReadOnly = this.isProjectReadOnly();
     
     if (keywords.length === 0) {
         keywordsList.innerHTML = `
             <div class="empty-keywords">
                 <i class="fas fa-key"></i>
                 <p>No keywords added yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="manualAI.showAddKeywords()">
-                    <i class="fas fa-plus"></i>
-                    Add First Keywords
-                </button>
+                ${isReadOnly ? '<p class="small" style="margin-top:8px;">Shared project (view only)</p>' : `
+                    <button type="button" class="btn-primary btn-sm" onclick="manualAI.showAddKeywords()">
+                        <i class="fas fa-plus"></i>
+                        Add First Keywords
+                    </button>
+                `}
             </div>
         `;
         return;
@@ -56,7 +59,7 @@ export function renderKeywords(keywords) {
                 <div class="col-analyses">Analyses</div>
                 <div class="col-frequency">AI Frequency</div>
                 <div class="col-last">Last Analysis</div>
-                <div class="col-actions">Actions</div>
+                ${isReadOnly ? '' : '<div class="col-actions">Actions</div>'}
             </div>
             <div class="keywords-table-body">
                 ${keywords.map(keyword => `
@@ -73,13 +76,15 @@ export function renderKeywords(keywords) {
                                 new Date(keyword.last_analysis_date).toLocaleDateString() : 
                                 'Never'}
                         </div>
-                        <div class="col-actions">
-                            <button type="button" class="btn-icon btn-sm" 
-                                    onclick="manualAI.toggleKeyword(${keyword.id})"
-                                    title="${keyword.is_active ? 'Disable' : 'Enable'} keyword">
-                                <i class="fas fa-${keyword.is_active ? 'pause' : 'play'}"></i>
-                            </button>
-                        </div>
+                        ${isReadOnly ? '' : `
+                            <div class="col-actions">
+                                <button type="button" class="btn-icon btn-sm" 
+                                        onclick="manualAI.toggleKeyword(${keyword.id})"
+                                        title="${keyword.is_active ? 'Disable' : 'Enable'} keyword">
+                                    <i class="fas fa-${keyword.is_active ? 'pause' : 'play'}"></i>
+                                </button>
+                            </div>
+                        `}
                     </div>
                 `).join('')}
             </div>
@@ -92,6 +97,9 @@ export function renderKeywords(keywords) {
 // ================================
 
 export function showAddKeywords() {
+    if (!this.assertProjectEditable()) {
+        return;
+    }
     this.elements.addKeywordsForm.reset();
     this.updateKeywordsCounter();
     this.showElement(this.elements.addKeywordsModal);
@@ -116,6 +124,10 @@ export async function handleAddKeywords(e) {
 
     if (!this.currentProject) {
         this.showError('No project selected');
+        return;
+    }
+
+    if (!this.assertProjectEditable(this.currentProject)) {
         return;
     }
 
@@ -159,6 +171,9 @@ export async function handleAddKeywords(e) {
 }
 
 export function toggleKeyword(keywordId) {
+    if (!this.assertProjectEditable()) {
+        return;
+    }
     // TODO: Implement keyword toggle functionality
     console.log('Toggle keyword:', keywordId);
 }
@@ -168,6 +183,10 @@ export function toggleKeyword(keywordId) {
 // ================================
 
 export async function addKeywordsFromModal() {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const keywordsInput = document.getElementById('modalKeywordsInput');
     const keywordsText = keywordsInput.value.trim();
     
@@ -225,6 +244,10 @@ export async function addKeywordsFromModal() {
 }
 
 export async function removeKeywordFromModal(keywordId) {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     if (!this.currentModalProject) {
         this.showError('No project selected');
         return;
@@ -260,4 +283,3 @@ export async function removeKeywordFromModal(keywordId) {
         this.hideProgress();
     }
 }
-

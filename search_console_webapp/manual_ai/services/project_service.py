@@ -4,6 +4,7 @@ Servicio de lógica de negocio para proyectos
 
 import logging
 from typing import List, Dict, Optional
+from flask import has_request_context, request
 from manual_ai.models.project_repository import ProjectRepository
 from manual_ai.models.event_repository import EventRepository
 from manual_ai.config import EVENT_TYPES, MAX_KEYWORDS_PER_PROJECT
@@ -42,12 +43,19 @@ class ProjectService:
         Returns:
             Dict con detalles del proyecto o None
         """
-        # Validar pertenencia
-        if not self.project_repo.user_owns_project(user_id, project_id):
+        # Validar acceso de lectura (owner o colaborador)
+        if not self.project_repo.user_has_project_access(user_id, project_id):
             logger.warning(f"User {user_id} attempted to access project {project_id} without permission")
             return None
-        
-        return self.project_repo.get_project_with_details(project_id)
+
+        project = self.project_repo.get_project_with_details(project_id)
+        if project:
+            is_owner = project.get('user_id') == user_id
+            project['access_role'] = 'owner' if is_owner else 'viewer'
+            project['is_owner'] = is_owner
+            project['can_edit'] = is_owner
+            project['can_manage_access'] = is_owner
+        return project
     
     def create_project(self, user_id: int, name: str, description: str, 
                       domain: str, country_code: str, competitors: List[str] = None) -> Dict:
@@ -155,14 +163,20 @@ class ProjectService:
     
     def user_owns_project(self, user_id: int, project_id: int) -> bool:
         """
-        Verificar si un usuario es propietario de un proyecto
+        Verificar acceso al proyecto.
+        - En peticiones GET: owner o colaborador viewer
+        - En peticiones no-GET: solo owner
         
         Args:
             user_id: ID del usuario
             project_id: ID del proyecto
             
         Returns:
-            True si es propietario
+            True si tiene acceso según el contexto
         """
+        if has_request_context() and request.method == 'GET':
+            return self.project_repo.user_has_project_access(user_id, project_id)
         return self.project_repo.user_owns_project(user_id, project_id)
 
+    def user_can_view_project(self, user_id: int, project_id: int) -> bool:
+        return self.project_repo.user_has_project_access(user_id, project_id)

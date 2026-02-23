@@ -46,6 +46,11 @@ from llm_monitoring_limits import (
     get_llm_limits_summary,
     get_upgrade_options,
 )
+from services.project_access_service import (
+    get_project_permissions,
+    user_can_view_project,
+    user_has_any_module_access,
+)
 
 # Importar servicios
 from database import get_db_connection
@@ -105,6 +110,9 @@ def enforce_llm_access():
         if not user:
             return jsonify({'error': 'Usuario no autenticado'}), 401
         if not can_access_llm_monitoring(user):
+            # ✅ Permitir invitados con acceso explícito a proyectos compartidos
+            if user_has_any_module_access(user['id'], 'llm_monitoring'):
+                return None
             return jsonify({
                 'error': 'paywall',
                 'message': 'LLM Monitoring requires a paid plan',
@@ -117,7 +125,9 @@ def enforce_llm_access():
 
 def validate_project_ownership(f):
     """
-    Decorador para verificar que el usuario es dueño del proyecto
+    Decorador de acceso al proyecto.
+    - Owner: acceso total (GET/POST/PUT/DELETE)
+    - Colaborador viewer: solo acceso GET
     """
     @wraps(f)
     def decorated_function(project_id, *args, **kwargs):
@@ -140,9 +150,16 @@ def validate_project_ownership(f):
             
             if not project:
                 return jsonify({'error': 'Proyecto no encontrado'}), 404
-            
-            if project['user_id'] != user['id']:
-                return jsonify({'error': 'No tienes permiso para acceder a este proyecto'}), 403
+
+            is_owner = project['user_id'] == user['id']
+            if not is_owner:
+                can_view_shared = request.method == 'GET' and user_can_view_project(
+                    user['id'],
+                    'llm_monitoring',
+                    project_id
+                )
+                if not can_view_shared:
+                    return jsonify({'error': 'No tienes permiso para acceder a este proyecto'}), 403
             
             return f(project_id, *args, **kwargs)
             
@@ -240,51 +257,125 @@ def get_projects():
     
     try:
         cur = conn.cursor()
-        
-        # Obtener proyectos del usuario con última fecha de análisis
-        cur.execute("""
-            SELECT 
-                p.id,
-                p.name,
-                p.brand_name,
-                p.brand_domain,
-                p.brand_keywords,
-                p.industry,
-                p.enabled_llms,
-                p.competitors,
-                p.competitor_domains,
-                p.competitor_keywords,
-                p.selected_competitors,
-                p.language,
-                p.country_code,
-                p.queries_per_llm,
-                p.is_active,
-                p.is_paused_by_quota,
-                p.paused_until,
-                p.paused_at,
-                p.paused_reason,
-                p.last_analysis_date,
-                p.created_at,
-                p.updated_at,
-                (
-                    SELECT COUNT(*)
-                    FROM llm_monitoring_queries q
-                    WHERE q.project_id = p.id AND q.is_active = TRUE
-                ) as total_queries,
-                COUNT(DISTINCT s.id) as total_snapshots,
-                MAX(s.snapshot_date) as last_snapshot_date
-            FROM llm_monitoring_projects p
-            LEFT JOIN llm_monitoring_snapshots s ON p.id = s.project_id
-            WHERE p.user_id = %s
-            GROUP BY p.id
-            ORDER BY p.created_at DESC
-        """, (user['id'],))
-        
+
+        try:
+            # Owner projects + shared projects (viewer) when collaboration tables exist.
+            cur.execute("""
+                SELECT 
+                    p.id,
+                    p.user_id,
+                    p.name,
+                    p.brand_name,
+                    p.brand_domain,
+                    p.brand_keywords,
+                    p.industry,
+                    p.enabled_llms,
+                    p.competitors,
+                    p.competitor_domains,
+                    p.competitor_keywords,
+                    p.selected_competitors,
+                    p.language,
+                    p.country_code,
+                    p.queries_per_llm,
+                    p.is_active,
+                    p.is_paused_by_quota,
+                    p.paused_until,
+                    p.paused_at,
+                    p.paused_reason,
+                    p.last_analysis_date,
+                    p.created_at,
+                    p.updated_at,
+                    CASE WHEN p.user_id = %s THEN 'owner' ELSE 'viewer' END AS access_role,
+                    (p.user_id = %s) AS is_owner,
+                    (p.user_id = %s) AS can_edit,
+                    (p.user_id = %s) AS can_manage_access,
+                    (
+                        SELECT COUNT(*)
+                        FROM llm_monitoring_queries q
+                        WHERE q.project_id = p.id AND q.is_active = TRUE
+                    ) as total_queries,
+                    COUNT(DISTINCT s.id) as total_snapshots,
+                    MAX(s.snapshot_date) as last_snapshot_date
+                FROM llm_monitoring_projects p
+                LEFT JOIN llm_monitoring_snapshots s ON p.id = s.project_id
+                WHERE (
+                    p.user_id = %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM project_collaborators c
+                        WHERE c.module_name = 'llm_monitoring'
+                          AND c.project_id = p.id
+                          AND c.user_id = %s
+                    )
+                )
+                GROUP BY p.id
+                ORDER BY p.created_at DESC
+            """, (
+                user['id'],
+                user['id'],
+                user['id'],
+                user['id'],
+                user['id'],
+                user['id'],
+            ))
+        except Exception as query_error:
+            if "project_collaborators" not in str(query_error).lower():
+                raise
+            logger.warning(
+                "project_collaborators table not available yet. Falling back to owner-only projects list."
+            )
+            conn.rollback()
+            cur.execute("""
+                SELECT 
+                    p.id,
+                    p.user_id,
+                    p.name,
+                    p.brand_name,
+                    p.brand_domain,
+                    p.brand_keywords,
+                    p.industry,
+                    p.enabled_llms,
+                    p.competitors,
+                    p.competitor_domains,
+                    p.competitor_keywords,
+                    p.selected_competitors,
+                    p.language,
+                    p.country_code,
+                    p.queries_per_llm,
+                    p.is_active,
+                    p.is_paused_by_quota,
+                    p.paused_until,
+                    p.paused_at,
+                    p.paused_reason,
+                    p.last_analysis_date,
+                    p.created_at,
+                    p.updated_at,
+                    'owner' AS access_role,
+                    TRUE AS is_owner,
+                    TRUE AS can_edit,
+                    TRUE AS can_manage_access,
+                    (
+                        SELECT COUNT(*)
+                        FROM llm_monitoring_queries q
+                        WHERE q.project_id = p.id AND q.is_active = TRUE
+                    ) as total_queries,
+                    COUNT(DISTINCT s.id) as total_snapshots,
+                    MAX(s.snapshot_date) as last_snapshot_date
+                FROM llm_monitoring_projects p
+                LEFT JOIN llm_monitoring_snapshots s ON p.id = s.project_id
+                WHERE p.user_id = %s
+                GROUP BY p.id
+                ORDER BY p.created_at DESC
+            """, (user['id'],))
+
         projects = cur.fetchall()
         
         # Formatear respuesta
         projects_list = []
         for project in projects:
+            is_owner = bool(project.get('is_owner')) if project.get('is_owner') is not None else project.get('user_id') == user['id']
+            can_edit = bool(project.get('can_edit')) if project.get('can_edit') is not None else is_owner
+            can_manage_access = bool(project.get('can_manage_access')) if project.get('can_manage_access') is not None else is_owner
             projects_list.append({
                 'id': project['id'],
                 'name': project['name'],
@@ -311,7 +402,11 @@ def get_projects():
                 'created_at': project['created_at'].isoformat() if project['created_at'] else None,
                 'updated_at': project['updated_at'].isoformat() if project['updated_at'] else None,
                 'total_snapshots': project['total_snapshots'],
-                'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None
+                'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None,
+                'access_role': project.get('access_role') or ('owner' if is_owner else 'viewer'),
+                'is_owner': is_owner,
+                'can_edit': can_edit,
+                'can_manage_access': can_manage_access
             })
         
         limits_summary = get_llm_limits_summary(user)
@@ -547,6 +642,10 @@ def get_project(project_id):
         JSON con detalles del proyecto y estadísticas
     """
     logger.info(f"📊 GET /projects/{project_id} - Iniciando...")
+
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'Usuario no autenticado'}), 401
     
     conn = get_db_connection()
     if not conn:
@@ -1125,6 +1224,7 @@ def get_project(project_id):
             }
         }
         
+        permissions = get_project_permissions(user['id'], 'llm_monitoring', project_id)
         logger.info(f"✅ Preparando respuesta para proyecto {project_id}")
         return jsonify({
             'success': True,
@@ -1149,7 +1249,11 @@ def get_project(project_id):
                 'updated_at': project['updated_at'].isoformat() if project['updated_at'] else None,
                 'total_queries': project['total_queries'],
                 'total_snapshots': project['total_snapshots'],
-                'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None
+                'last_snapshot_date': project['last_snapshot_date'].isoformat() if project['last_snapshot_date'] else None,
+                'access_role': permissions.get('access_role'),
+                'is_owner': permissions.get('is_owner', False),
+                'can_edit': permissions.get('can_edit', False),
+                'can_manage_access': permissions.get('can_manage_access', False),
             },
             'latest_metrics': metrics_by_llm,
             # ✨ NUEVO: Tendencias (comparación con período anterior)

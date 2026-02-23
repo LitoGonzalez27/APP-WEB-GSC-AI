@@ -15,6 +15,10 @@ export async function analyzeProject(projectId) {
         return;
     }
 
+    if (!this.assertProjectEditable(project)) {
+        return;
+    }
+
     this.showProgress('Running analysis...', 
         `Analyzing ${project.keyword_count} keywords for AI Overview visibility. This may take several minutes.`);
 
@@ -187,7 +191,9 @@ export async function analyzeProject(projectId) {
 
 export function runAnalysis() {
     if (this.currentProject) {
+        if (!this.assertProjectEditable(this.currentProject)) {
+            return;
+        }
         this.analyzeProject(this.currentProject.id);
     }
 }
-

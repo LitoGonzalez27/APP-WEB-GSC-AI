@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Access - ClicandSEO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --text: #161616;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #d8f9b8;
+            --danger: #dc2626;
+            --success: #059669;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .topbar {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .topbar a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .container {
+            max-width: 980px;
+            margin: 24px auto;
+            padding: 0 16px 40px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        h1 {
+            margin: 0 0 6px;
+            font-size: 28px;
+        }
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+        }
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .input, .select {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            min-height: 40px;
+            width: 100%;
+        }
+        .field {
+            flex: 1 1 220px;
+        }
+        .btn {
+            border: 1px solid #161616;
+            background: #161616;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 600;
+            min-height: 40px;
+        }
+        .btn-secondary {
+            background: white;
+            color: #161616;
+            border-color: var(--border);
+        }
+        .btn-danger {
+            border-color: #fecaca;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            padding: 4px 10px;
+            font-size: 12px;
+            color: #374151;
+            background: #f9fafb;
+        }
+        .badge-owner {
+            background: var(--accent);
+            border-color: #c4e8a5;
+            color: #1f2937;
+        }
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+        .list-item {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .small {
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+        }
+        .status.success {
+            display: block;
+            background: #ecfdf5;
+            color: var(--success);
+            border: 1px solid #a7f3d0;
+        }
+        .status.error {
+            display: block;
+            background: #fef2f2;
+            color: var(--danger);
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="/dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        <span class="small">{{ user.email }}</span>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h1>Project Access</h1>
+            <p class="subtitle">Invite users to specific projects with view-only permissions.</p>
+        </div>
+
+        <div class="card">
+            <div class="row">
+                <div class="field" style="flex: 2 1 380px;">
+                    <label class="small" for="projectSelect">Project</label>
+                    <select id="projectSelect" class="select">
+                        <option value="">Loading projects...</option>
+                    </select>
+                </div>
+                <div class="field" style="flex: 0 1 180px; align-self: end;">
+                    <button id="refreshProjectsBtn" class="btn btn-secondary" type="button">Refresh</button>
+                </div>
+            </div>
+            <div id="statusBox" class="status"></div>
+        </div>
+
+        <div class="card" id="inviteCard" style="display:none;">
+            <h3 style="margin-top:0;">Invite User</h3>
+            <div class="row">
+                <div class="field">
+                    <label class="small" for="inviteName">Name (optional)</label>
+                    <input id="inviteName" class="input" type="text" placeholder="Client name" />
+                </div>
+                <div class="field" style="flex:2 1 320px;">
+                    <label class="small" for="inviteEmail">Email</label>
+                    <input id="inviteEmail" class="input" type="email" placeholder="client@example.com" />
+                </div>
+                <div class="field" style="flex: 0 1 170px; align-self:end;">
+                    <button id="sendInviteBtn" class="btn" type="button">Send Invitation</button>
+                </div>
+            </div>
+            <p class="small" style="margin:10px 0 0;">Invited users receive view-only access to this project.</p>
+        </div>
+
+        <div class="card" id="membersCard" style="display:none;">
+            <h3 style="margin-top:0;">Members</h3>
+            <div id="membersList" class="list"></div>
+        </div>
+
+        <div class="card" id="invitationsCard" style="display:none;">
+            <h3 style="margin-top:0;">Invitations</h3>
+            <div id="invitationsList" class="list"></div>
+        </div>
+    </div>
+
+    <script>
+        const MODULES = [
+            { key: 'llm_monitoring', label: 'LLM Monitoring', listUrl: '/api/llm-monitoring/projects' },
+            { key: 'manual_ai', label: 'AI Overview Monitoring', listUrl: '/manual-ai/api/projects' },
+            { key: 'ai_mode', label: 'AI Mode Monitoring', listUrl: '/ai-mode-projects/api/projects' }
+        ];
+
+        const state = {
+            projects: [],
+            selected: null,
+            permissions: null,
+        };
+
+        const projectSelect = document.getElementById('projectSelect');
+        const statusBox = document.getElementById('statusBox');
+        const inviteCard = document.getElementById('inviteCard');
+        const membersCard = document.getElementById('membersCard');
+        const invitationsCard = document.getElementById('invitationsCard');
+        const membersList = document.getElementById('membersList');
+        const invitationsList = document.getElementById('invitationsList');
+
+        function showStatus(message, type = 'success') {
+            statusBox.className = `status ${type}`;
+            statusBox.textContent = message;
+        }
+
+        function clearStatus() {
+            statusBox.className = 'status';
+            statusBox.textContent = '';
+        }
+
+        async function loadManageableProjects() {
+            clearStatus();
+            const projects = [];
+
+            for (const moduleCfg of MODULES) {
+                try {
+                    const response = await fetch(moduleCfg.listUrl, { credentials: 'same-origin' });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    const list = Array.isArray(data.projects) ? data.projects : [];
+                    list
+                        .filter(p => p && (p.can_manage_access === true || p.is_owner === true || p.access_role === 'owner'))
+                        .forEach(p => {
+                            projects.push({
+                                module: moduleCfg.key,
+                                moduleLabel: moduleCfg.label,
+                                id: p.id,
+                                name: p.name,
+                            });
+                        });
+                } catch (error) {
+                    console.error('Error loading projects for module', moduleCfg.key, error);
+                }
+            }
+
+            state.projects = projects.sort((a, b) => `${a.moduleLabel}-${a.name}`.localeCompare(`${b.moduleLabel}-${b.name}`));
+            renderProjectSelect();
+        }
+
+        function renderProjectSelect() {
+            if (state.projects.length === 0) {
+                projectSelect.innerHTML = '<option value="">No manageable projects found</option>';
+                inviteCard.style.display = 'none';
+                membersCard.style.display = 'none';
+                invitationsCard.style.display = 'none';
+                return;
+            }
+
+            projectSelect.innerHTML = '<option value="">Select a project...</option>' + state.projects
+                .map(p => `<option value="${p.module}:${p.id}">${p.moduleLabel} · ${escapeHtml(p.name)}</option>`)
+                .join('');
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function loadProjectAccess() {
+            const value = projectSelect.value;
+            if (!value) {
+                state.selected = null;
+                inviteCard.style.display = 'none';
+                membersCard.style.display = 'none';
+                invitationsCard.style.display = 'none';
+                return;
+            }
+
+            const [moduleName, projectIdRaw] = value.split(':');
+            const projectId = Number(projectIdRaw);
+            state.selected = { moduleName, projectId };
+
+            try {
+                const response = await fetch(`/api/project-access/projects/${moduleName}/${projectId}/members`, {
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+
+                state.permissions = data.permissions || {};
+                renderMembers(data.members || []);
+                renderInvitations(data.invitations || []);
+
+                const canManage = state.permissions.can_manage_access === true;
+                inviteCard.style.display = canManage ? '' : 'none';
+                invitationsCard.style.display = '';
+                membersCard.style.display = '';
+
+            } catch (error) {
+                showStatus(error.message || 'Could not load project access data', 'error');
+                inviteCard.style.display = 'none';
+                membersCard.style.display = 'none';
+                invitationsCard.style.display = 'none';
+            }
+        }
+
+        function renderMembers(members) {
+            if (!members.length) {
+                membersList.innerHTML = '<div class="small">No members yet.</div>';
+                return;
+            }
+
+            const canManage = state.permissions && state.permissions.can_manage_access === true;
+            membersList.innerHTML = members.map(member => {
+                const ownerBadge = member.is_owner
+                    ? '<span class="badge badge-owner"><i class="fas fa-crown"></i> Owner</span>'
+                    : '<span class="badge">Viewer</span>';
+                const removeBtn = (!member.is_owner && canManage)
+                    ? `<button class="btn btn-danger" onclick="removeMember(${member.user_id})">Remove</button>`
+                    : '';
+
+                return `
+                    <div class="list-item">
+                        <div>
+                            <div><strong>${escapeHtml(member.name || member.email)}</strong> ${ownerBadge}</div>
+                            <div class="small">${escapeHtml(member.email || '')}</div>
+                        </div>
+                        <div>${removeBtn}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderInvitations(invitations) {
+            if (!invitations.length) {
+                invitationsList.innerHTML = '<div class="small">No invitations for this project.</div>';
+                return;
+            }
+
+            const canManage = state.permissions && state.permissions.can_manage_access === true;
+            invitationsList.innerHTML = invitations.map(inv => {
+                const status = escapeHtml(inv.status || 'pending');
+                const revokeBtn = (canManage && inv.status === 'pending')
+                    ? `<button class="btn btn-danger" onclick="revokeInvitation(${inv.id})">Revoke</button>`
+                    : '';
+
+                return `
+                    <div class="list-item">
+                        <div>
+                            <div><strong>${escapeHtml(inv.invitee_name || inv.invitee_email)}</strong> <span class="badge">${status}</span></div>
+                            <div class="small">${escapeHtml(inv.invitee_email || '')}</div>
+                            <div class="small">Expires: ${inv.expires_at ? new Date(inv.expires_at).toLocaleString() : '-'}</div>
+                        </div>
+                        <div>${revokeBtn}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function sendInvitation() {
+            if (!state.selected) return;
+
+            const email = (document.getElementById('inviteEmail').value || '').trim().toLowerCase();
+            const name = (document.getElementById('inviteName').value || '').trim();
+
+            if (!email) {
+                showStatus('Invitee email is required', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/project-access/projects/${state.selected.moduleName}/${state.selected.projectId}/invitations`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, name, role: 'viewer' })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+
+                document.getElementById('inviteEmail').value = '';
+                document.getElementById('inviteName').value = '';
+                showStatus(data.email_sent ? 'Invitation sent successfully.' : 'Invitation created, but email sending failed.', data.email_sent ? 'success' : 'error');
+                await loadProjectAccess();
+            } catch (error) {
+                showStatus(error.message || 'Failed to send invitation', 'error');
+            }
+        }
+
+        async function revokeInvitation(invitationId) {
+            try {
+                const response = await fetch(`/api/project-access/invitations/${invitationId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+                showStatus('Invitation revoked.', 'success');
+                await loadProjectAccess();
+            } catch (error) {
+                showStatus(error.message || 'Failed to revoke invitation', 'error');
+            }
+        }
+
+        async function removeMember(memberUserId) {
+            if (!state.selected) return;
+            try {
+                const response = await fetch(`/api/project-access/projects/${state.selected.moduleName}/${state.selected.projectId}/members/${memberUserId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+                showStatus('Member removed.', 'success');
+                await loadProjectAccess();
+            } catch (error) {
+                showStatus(error.message || 'Failed to remove member', 'error');
+            }
+        }
+
+        projectSelect.addEventListener('change', loadProjectAccess);
+        document.getElementById('refreshProjectsBtn').addEventListener('click', loadManageableProjects);
+        document.getElementById('sendInviteBtn').addEventListener('click', sendInvitation);
+
+        window.revokeInvitation = revokeInvitation;
+        window.removeMember = removeMember;
+
+        loadManageableProjects();
+    </script>
+</body>
+</html>
