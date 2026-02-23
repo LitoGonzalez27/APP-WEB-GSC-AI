@@ -527,6 +527,17 @@ def _decrypt_token(enc: str) -> str:
     except Exception:
         return enc
 
+def _is_invitation_next_url(value: str) -> bool:
+    """True when URL points to the invitation accept flow."""
+    return isinstance(value, str) and '/project-invitations/accept' in value
+
+def _clear_signup_intent():
+    """Clear pricing/signup intent values to avoid stale checkout redirects."""
+    session.pop('signup_plan', None)
+    session.pop('signup_source', None)
+    session.pop('signup_interval', None)
+    session.pop('signup_tracking', None)
+
 def setup_auth_routes(app):
     """Configura todas las rutas de autenticación"""
     
@@ -699,8 +710,16 @@ def setup_auth_routes(app):
     def login_page():
         """Página de inicio de sesión - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
-        next_url = request.args.get('next', '/')
-        session['auth_next'] = next_url
+        next_url = request.args.get('next')
+        existing_next = session.get('auth_next')
+        if next_url:
+            session['auth_next'] = next_url
+        elif not _is_invitation_next_url(existing_next):
+            session['auth_next'] = '/'
+
+        # Si estamos en flujo de invitación, limpiar cualquier intención de checkout previa.
+        if _is_invitation_next_url(session.get('auth_next')):
+            _clear_signup_intent()
         
         # ✅ NUEVO: Manejar parámetros de plan que vienen del registro
         plan_param = request.args.get('plan')
@@ -743,8 +762,16 @@ def setup_auth_routes(app):
     def signup_page():
         """Página de registro - FASE 4.5: Soporte parámetros next y plan"""
         # ✅ NUEVO: Guardar parámetro next en sesión
-        next_url = request.args.get('next', '/')
-        session['auth_next'] = next_url
+        next_url = request.args.get('next')
+        existing_next = session.get('auth_next')
+        if next_url:
+            session['auth_next'] = next_url
+        elif not _is_invitation_next_url(existing_next):
+            session['auth_next'] = '/'
+
+        # Si estamos en flujo de invitación, limpiar cualquier intención de checkout previa.
+        if _is_invitation_next_url(session.get('auth_next')):
+            _clear_signup_intent()
         
         # ✅ NUEVO: Guardar parámetro plan para checkout automático
         plan_param = request.args.get('plan')
@@ -808,6 +835,8 @@ def setup_auth_routes(app):
                 signup_source = session.get('signup_source') or 'registration'
                 signup_interval = session.get('signup_interval') or 'monthly'
                 login_url = '/login?auth_error=user_already_exists'
+                if _is_invitation_next_url(session.get('auth_next')):
+                    signup_plan = None
                 if signup_plan in ['basic', 'premium', 'business']:
                     # Añadir tracking si existe
                     extra_qs = ''
@@ -856,6 +885,9 @@ def setup_auth_routes(app):
             signup_plan = session.get('signup_plan')
             signup_source = session.get('signup_source') or 'registration'
             signup_interval = session.get('signup_interval') or 'monthly'
+            if _is_invitation_next_url(session.get('auth_next')):
+                _clear_signup_intent()
+                signup_plan = None
 
             if signup_plan in ['basic', 'premium', 'business']:
                 # Iniciar sesión del usuario recién creado
@@ -932,6 +964,12 @@ def setup_auth_routes(app):
             except Exception as _e_last_login_email:
                 logger.warning(f"No se pudo actualizar last_login_at (email login): {_e_last_login_email}")
 
+            # Flujo de invitación tiene prioridad total sobre checkout.
+            invitation_next = session.get('auth_next')
+            if _is_invitation_next_url(invitation_next):
+                _clear_signup_intent()
+                return jsonify({'success': True, 'next': session.pop('auth_next', '/dashboard?auth_success=true&action=login')})
+
             # ✅ Soportar redirect directo a checkout si venía con plan desde pricing/login
             signup_plan = session.pop('signup_plan', None)
             signup_source = session.pop('signup_source', None)
@@ -961,6 +999,12 @@ def setup_auth_routes(app):
     def auth_login():
         """Inicio de sesión con Google OAuth - Solo para usuarios existentes"""
         try:
+            next_url = request.args.get('next')
+            if next_url:
+                session['auth_next'] = next_url
+            if _is_invitation_next_url(session.get('auth_next')):
+                _clear_signup_intent()
+
             flow = create_flow()
             if not flow:
                 return jsonify({'error': 'OAuth configuration error'}), 500
@@ -984,12 +1028,19 @@ def setup_auth_routes(app):
     def auth_signup():
         """Registro con Google OAuth - Para usuarios nuevos"""
         try:
-            # ✅ NUEVO: Capturar parámetros también en /auth/signup
             plan_param = request.args.get('plan')
             source_param = request.args.get('source')
             interval_param = (request.args.get('interval') or 'monthly').lower()
-            
-            if plan_param and plan_param in ['basic', 'premium', 'business']:
+            explicit_pricing_flow = plan_param in ['basic', 'premium', 'business', 'enterprise']
+
+            next_url = request.args.get('next')
+            if next_url:
+                session['auth_next'] = next_url
+            invitation_context = _is_invitation_next_url(session.get('auth_next')) and not explicit_pricing_flow
+            if invitation_context:
+                _clear_signup_intent()
+
+            if (not invitation_context) and plan_param and plan_param in ['basic', 'premium', 'business']:
                 session['signup_plan'] = plan_param
                 session['signup_source'] = source_param or 'direct'
                 session['signup_interval'] = interval_param
@@ -1077,6 +1128,8 @@ def setup_auth_routes(app):
                         preserved_interval = session.get('signup_interval') or 'monthly'
                         preserved_tracking = session.get('signup_tracking') or {}
                         login_url = '/login?auth_error=user_already_exists'
+                        if _is_invitation_next_url(session.get('auth_next')):
+                            preserved_plan = None
                         if preserved_plan in ['basic', 'premium', 'business']:
                             try:
                                 extra_qs = ''
@@ -1138,6 +1191,12 @@ def setup_auth_routes(app):
                     signup_source = session.get('signup_source')
                     signup_interval = session.get('signup_interval') or 'monthly'
                     signup_tracking = session.get('signup_tracking') or {}
+                    if _is_invitation_next_url(session.get('auth_next')):
+                        _clear_signup_intent()
+                        signup_plan = None
+                        signup_source = None
+                        signup_interval = 'monthly'
+                        signup_tracking = {}
                     
                     # ✅ DEBUG: Log detallado para debugging
                     logger.info(f"🔍 DEBUG - Callback registro - signup_plan: {signup_plan}, signup_source: {signup_source}")
@@ -1286,6 +1345,11 @@ def setup_auth_routes(app):
                     logger.warning(f"No se pudo crear conexión persistida en login: {e}")
                 
                 # ✅ NUEVO: Verificar si hay plan para checkout automático
+                if _is_invitation_next_url(session.get('auth_next')):
+                    _clear_signup_intent()
+                    next_url = session.pop('auth_next', '/dashboard?auth_success=true&action=login')
+                    return redirect(next_url)
+
                 signup_plan = session.pop('signup_plan', None)
                 signup_source = session.pop('signup_source', None)
                 signup_interval = session.pop('signup_interval', None) or 'monthly'
@@ -2146,4 +2210,3 @@ def get_authenticated_service_for_connection(connection, service_name, version):
     except Exception as e:
         logger.error(f"Error construyendo servicio por conexión: {e}")
         return None
-

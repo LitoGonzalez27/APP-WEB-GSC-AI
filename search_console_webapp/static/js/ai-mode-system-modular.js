@@ -156,7 +156,12 @@ import {
     cancelDeleteProject,
     executeDeleteProject,
     hideDeleteProjectModal,
-    updateProjectFromModal
+    updateProjectFromModal,
+    showProjectAccessStatus,
+    loadProjectAccessSection,
+    sendProjectInvitationFromModal,
+    revokeProjectInvitationFromModal,
+    removeProjectMemberFromModal
 } from '/static/js/ai-mode-projects/ai-mode-modals.js';
 
 // ================================
@@ -291,7 +296,12 @@ Object.assign(AIModeSystem.prototype, {
     cancelDeleteProject,
     executeDeleteProject,
     hideDeleteProjectModal,
-    updateProjectFromModal
+    updateProjectFromModal,
+    showProjectAccessStatus,
+    loadProjectAccessSection,
+    sendProjectInvitationFromModal,
+    revokeProjectInvitationFromModal,
+    removeProjectMemberFromModal
 });
 
 // ================================

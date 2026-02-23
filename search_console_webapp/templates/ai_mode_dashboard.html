@@ -1411,6 +1411,35 @@ keyword 3"></textarea>
                             </div>
                         </div>
 
+                        <div class="setting-group project-access-card" id="projectAccessSection">
+                            <label class="manual-ai-underline">Project Access</label>
+                            <p class="section-description" style="margin-bottom: 10px; font-size: 14px; color: #6b7280;">
+                                Invite collaborators by email with view-only access to this project.
+                            </p>
+                            <div id="projectAccessStatus" class="project-access-status" style="display: none;"></div>
+                            <div class="project-access-invite-form" id="projectAccessInviteForm">
+                                <div class="project-access-invite-row">
+                                    <input type="text" id="projectAccessInviteName" class="form-input" placeholder="Client name (optional)" maxlength="120">
+                                    <input type="email" id="projectAccessInviteEmail" class="form-input" placeholder="client@example.com">
+                                    <button type="button" class="btn-primary-inverted btn-compact" id="projectAccessInviteBtn" onclick="aiModeSystem.sendProjectInvitationFromModal()">
+                                        <i class="fas fa-paper-plane"></i>
+                                        Send invitation
+                                    </button>
+                                </div>
+                                <small class="form-help">The invited user will only be able to view this project.</small>
+                            </div>
+                            <div class="project-access-lists">
+                                <div class="project-access-list-block">
+                                    <h6>Members</h6>
+                                    <div id="projectAccessMembersList" class="project-access-list"></div>
+                                </div>
+                                <div class="project-access-list-block">
+                                    <h6>Invitations</h6>
+                                    <div id="projectAccessInvitationsList" class="project-access-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="save-section">
                             <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
                                 <i class="fas fa-save"></i>

@@ -381,8 +381,41 @@
             }
         }
 
+        function handleInvitationFeedback() {
+            const params = new URLSearchParams(window.location.search);
+            const invitationStatus = params.get('invitation');
+            const invitationError = params.get('invitation_error');
+            const projectName = params.get('project_name');
+
+            if (invitationStatus === 'accepted') {
+                const displayName = projectName || 'project';
+                alert(`✅ Invitation accepted. You now have access to "${displayName}".`);
+            } else if (invitationError) {
+                const errorMap = {
+                    missing_token: 'Invitation link is missing a token.',
+                    'Invitation not found': 'Invitation link is invalid or no longer available.',
+                    'Invitation has expired': 'Invitation has expired. Ask the owner to send a new one.',
+                    'Invitation is revoked': 'Invitation was revoked by the project owner.',
+                    'Invitation is accepted': 'This invitation was already accepted.',
+                    'Invitation email does not match your current account': 'This invitation was sent to a different email address.'
+                };
+                alert(`❌ ${errorMap[invitationError] || invitationError}`);
+            }
+
+            if (invitationStatus || invitationError || params.has('project_id') || params.has('project_name')) {
+                params.delete('invitation');
+                params.delete('invitation_error');
+                params.delete('project_id');
+                params.delete('project_name');
+                const newQuery = params.toString();
+                const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+
         // Manejar dropdown de usuario
         document.addEventListener('DOMContentLoaded', function() {
+            handleInvitationFeedback();
             const userBtn = document.querySelector('.user-btn');
             const userDropdown = document.querySelector('.user-dropdown-menu');
             const logoutBtn = document.querySelector('.logout-btn');

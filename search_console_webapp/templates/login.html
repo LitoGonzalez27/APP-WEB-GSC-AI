@@ -165,10 +165,55 @@
 
     <!-- Scripts -->
     <script>
+        const AUTH_CONTEXT_KEYS = [
+            'next', 'plan', 'source', 'interval',
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+            'ref', 'gclid', 'fbclid', 'cid', 'campaign', 'loc', 'rid'
+        ];
+
+        function persistAuthContext(urlParams) {
+            try {
+                AUTH_CONTEXT_KEYS.forEach((key) => {
+                    const value = urlParams.get(key);
+                    if (value) {
+                        sessionStorage.setItem(`auth_ctx_${key}`, value);
+                    }
+                });
+            } catch (e) {
+                console.warn('Could not persist auth context', e);
+            }
+        }
+
+        function getAuthContextParams() {
+            const params = new URLSearchParams();
+            const current = new URLSearchParams(window.location.search);
+            const hasCurrentContext = AUTH_CONTEXT_KEYS.some((key) => !!current.get(key));
+            AUTH_CONTEXT_KEYS.forEach((key) => {
+                const value = current.get(key) || (hasCurrentContext ? sessionStorage.getItem(`auth_ctx_${key}`) : null);
+                if (value) params.set(key, value);
+            });
+            return params;
+        }
+
+        function withAuthContext(path) {
+            const params = getAuthContextParams();
+            const query = params.toString();
+            if (!query) return path;
+            return `${path}${path.includes('?') ? '&' : '?'}${query}`;
+        }
+
+        function syncAuthContextLinks() {
+            document.querySelectorAll('a.signup-link-header, a.signup-link').forEach((link) => {
+                link.href = withAuthContext('/signup');
+            });
+        }
+
         // Manejar notificaciones de la URL
         function handleUrlNotifications() {
             const urlParams = new URLSearchParams(window.location.search);
             const notifications = document.getElementById('loginNotifications');
+            persistAuthContext(urlParams);
+            syncAuthContextLinks();
             
             if (urlParams.get('auth_success') === 'true') {
                 const action = urlParams.get('action');
@@ -208,7 +253,8 @@
                 showSuccessMessage(successMessage);
                 
                 // Limpiar URL después de mostrar el mensaje
-                const newUrl = window.location.origin + window.location.pathname;
+                const preserved = getAuthContextParams().toString();
+                const newUrl = `${window.location.origin}${window.location.pathname}${preserved ? `?${preserved}` : ''}`;
                 window.history.replaceState({}, document.title, newUrl);
             }
             
@@ -236,21 +282,14 @@
                         errorMessage = 'Access denied. You need to allow access to continue.';
                         break;
                     case 'user_not_found':
-                        errorMessage = 'User not registered. <a href="/signup" style="color: #667eea; text-decoration: underline;">Create account</a>';
+                        errorMessage = 'User not registered. <a href="' + withAuthContext('/signup') + '" style="color: #667eea; text-decoration: underline;">Create account</a>';
                         break;
                     case 'user_not_registered':
-                        errorMessage = 'You don\'t have a registered account. <a href="/signup" style="color: #667eea; text-decoration: underline;">Create account first</a>';
+                        errorMessage = 'You don\'t have a registered account. <a href="' + withAuthContext('/signup') + '" style="color: #667eea; text-decoration: underline;">Create account first</a>';
                         break;
                     case 'user_already_exists':
-                        // Adaptar mensaje y preservar plan/source para seguir con checkout tras login
-                        const p = new URLSearchParams(window.location.search);
-                        const plan = p.get('plan');
-                        const source = p.get('source');
-                        let nextLoginUrl = '/login';
-                        const extra = new URLSearchParams();
-                        if (plan) extra.set('plan', plan);
-                        if (source) extra.set('source', source);
-                        if ([...extra.keys()].length) nextLoginUrl += '?' + extra.toString();
+                        // Adaptar mensaje preservando contexto (next/plan/tracking)
+                        const nextLoginUrl = withAuthContext('/login');
                         errorMessage = 'Ya tienes una cuenta activa. En lugar de registrarte, <a href="' + nextLoginUrl + '" style="color: #667eea; text-decoration: underline;">haz login</a>.';
                         break;
                 }
@@ -283,9 +322,10 @@
                 }
             }
             
-            // Limpiar URL
+            // Limpiar URL (preservando contexto de autenticación)
             if (urlParams.toString()) {
-                const newUrl = window.location.pathname;
+                const preserved = getAuthContextParams().toString();
+                const newUrl = preserved ? `${window.location.pathname}?${preserved}` : window.location.pathname;
                 window.history.replaceState({}, '', newUrl);
             }
         }
@@ -342,7 +382,7 @@
             
             // Redirigir después de un breve delay
             setTimeout(() => {
-                window.location.href = '/auth/login';
+                window.location.href = withAuthContext('/auth/login');
             }, 1000);
             
             // Timeout de seguridad

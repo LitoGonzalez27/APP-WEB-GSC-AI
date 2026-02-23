@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -42,6 +43,7 @@ MODULE_CONFIG = {
 ALLOWED_ROLES = {"viewer"}
 ALLOWED_INVITATION_STATUSES = {"pending", "accepted", "revoked", "expired"}
 INVITATION_EXPIRY_DAYS = int(os.getenv("PROJECT_INVITATION_EXPIRY_DAYS", "7"))
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _is_supported_module(module_name: str) -> bool:
@@ -436,6 +438,8 @@ def create_project_invitation(
     normalized_email = (invitee_email or "").strip().lower()
     if not normalized_email:
         return False, {"error": "Invitee email is required"}
+    if not EMAIL_PATTERN.match(normalized_email):
+        return False, {"error": "Invitee email is invalid"}
 
     if role not in ALLOWED_ROLES:
         return False, {"error": "Unsupported role"}

@@ -63,6 +63,8 @@ class LLMMonitoring {
     init() {
         console.log('🎯 Initializing LLM Monitoring System...');
 
+        this.handleInvitationFeedbackFromUrl();
+
         // Load projects
         this.loadProjects();
 
@@ -614,6 +616,10 @@ class LLMMonitoring {
 
         document.getElementById('btnCancelModal')?.addEventListener('click', () => {
             this.hideProjectModal();
+        });
+
+        document.getElementById('llmProjectInviteBtn')?.addEventListener('click', () => {
+            this.sendProjectInvitationFromModal();
         });
 
         // Form submit handler
@@ -3969,6 +3975,9 @@ class LLMMonitoring {
             llmCheckboxes.forEach(cb => {
                 cb.checked = project.enabled_llms?.includes(cb.value) || false;
             });
+
+            this.toggleProjectAccessSection(true);
+            this.loadProjectAccessSection(project);
         } else {
             // Create mode
             title.textContent = 'Create New LLM Monitoring Project';
@@ -3982,6 +3991,9 @@ class LLMMonitoring {
             // Check all LLMs by default
             const llmCheckboxes = document.querySelectorAll('input[name="llm"]');
             llmCheckboxes.forEach(cb => cb.checked = true);
+
+            this.toggleProjectAccessSection(false);
+            this.clearProjectAccessSection();
         }
 
         this.updateLlmSelectionImpactNotice();
@@ -4005,9 +4017,268 @@ class LLMMonitoring {
         modal.classList.remove('active');
         this.modalOriginalEnabledLlms = null;
         this.updateLlmSelectionImpactNotice();
+        this.showProjectAccessStatus('');
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300); // Match transition duration
+    }
+
+    handleInvitationFeedbackFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const invitationStatus = params.get('invitation');
+        const invitationError = params.get('invitation_error');
+        const projectName = params.get('project_name');
+
+        if (invitationStatus === 'accepted') {
+            const displayName = projectName || 'project';
+            this.showSuccess(`Invitation accepted. You now have access to "${displayName}".`);
+        } else if (invitationError) {
+            const errorMap = {
+                missing_token: 'Invitation link is missing a token.',
+                'Invitation not found': 'Invitation link is invalid or no longer available.',
+                'Invitation has expired': 'Invitation has expired. Ask the owner to send a new one.',
+                'Invitation is revoked': 'Invitation was revoked by the project owner.',
+                'Invitation is accepted': 'This invitation was already accepted.',
+                'Invitation email does not match your current account': 'This invitation was sent to a different email address.'
+            };
+            this.showError(errorMap[invitationError] || invitationError);
+        }
+
+        if (invitationStatus || invitationError || params.has('project_id') || params.has('project_name')) {
+            params.delete('invitation');
+            params.delete('invitation_error');
+            params.delete('project_id');
+            params.delete('project_name');
+            const nextQuery = params.toString();
+            const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
+            window.history.replaceState({}, '', nextUrl);
+        }
+    }
+
+    toggleProjectAccessSection(show) {
+        const section = document.getElementById('llmProjectAccessSection');
+        if (!section) return;
+        section.style.display = show ? '' : 'none';
+    }
+
+    clearProjectAccessSection() {
+        const members = document.getElementById('llmProjectAccessMembers');
+        const invitations = document.getElementById('llmProjectAccessInvitations');
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        if (members) members.innerHTML = '';
+        if (invitations) invitations.innerHTML = '';
+        if (inviteName) inviteName.value = '';
+        if (inviteEmail) inviteEmail.value = '';
+    }
+
+    showProjectAccessStatus(message, type = 'info') {
+        const statusEl = document.getElementById('llmProjectAccessStatus');
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        statusEl.className = `llm-project-access-status ${type}`;
+        statusEl.style.display = message ? 'block' : 'none';
+    }
+
+    async loadProjectAccessSection(project) {
+        const section = document.getElementById('llmProjectAccessSection');
+        const inviteForm = document.getElementById('llmProjectAccessInviteForm');
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        const inviteBtn = document.getElementById('llmProjectInviteBtn');
+        const membersList = document.getElementById('llmProjectAccessMembers');
+        const invitationsList = document.getElementById('llmProjectAccessInvitations');
+
+        if (!section || !project?.id) return;
+
+        this.showProjectAccessStatus('');
+        if (membersList) {
+            membersList.innerHTML = '<div class="llm-project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading members...</div>';
+        }
+        if (invitationsList) {
+            invitationsList.innerHTML = '<div class="llm-project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading invitations...</div>';
+        }
+
+        try {
+            const response = await fetch(`/api/project-access/projects/llm_monitoring/${project.id}/members`, {
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            const permissions = data.permissions || {};
+            const canManage = permissions.can_manage_access === true;
+            project.can_manage_access = canManage;
+            if (typeof permissions.can_edit === 'boolean') {
+                project.can_edit = permissions.can_edit;
+            }
+
+            if (inviteForm) {
+                inviteForm.style.display = canManage ? '' : 'none';
+            }
+            if (inviteName) inviteName.disabled = !canManage;
+            if (inviteEmail) inviteEmail.disabled = !canManage;
+            if (inviteBtn) inviteBtn.disabled = !canManage;
+
+            const members = Array.isArray(data.members) ? data.members : [];
+            if (membersList) {
+                if (!members.length) {
+                    membersList.innerHTML = '<div class="llm-project-access-empty">No members yet.</div>';
+                } else {
+                    membersList.innerHTML = members.map((member) => {
+                        const roleBadge = member.is_owner
+                            ? '<span class="llm-project-access-badge owner"><i class="fas fa-crown"></i> Owner</span>'
+                            : '<span class="llm-project-access-badge">Viewer</span>';
+                        const removeBtn = (!member.is_owner && canManage)
+                            ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.removeProjectMemberFromModal(${Number(member.user_id)})"><i class="fas fa-user-minus"></i> Remove</button>`
+                            : '';
+
+                        return `
+                            <div class="llm-project-access-item">
+                                <div class="llm-project-access-main">
+                                    <div><strong>${this.escapeHtml(member.name || member.email || 'Member')}</strong> ${roleBadge}</div>
+                                    <div class="llm-project-access-meta">${this.escapeHtml(member.email || '')}</div>
+                                </div>
+                                ${removeBtn}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const invitations = Array.isArray(data.invitations) ? data.invitations : [];
+            if (invitationsList) {
+                if (!canManage) {
+                    invitationsList.innerHTML = '<div class="llm-project-access-empty">Only the project owner can manage invitations.</div>';
+                } else if (!invitations.length) {
+                    invitationsList.innerHTML = '<div class="llm-project-access-empty">No invitations yet.</div>';
+                } else {
+                    invitationsList.innerHTML = invitations.map((invitation) => {
+                        const status = this.escapeHtml(invitation.status || 'pending');
+                        const expires = invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '-';
+                        const revokeBtn = invitation.status === 'pending'
+                            ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
+                            : '';
+
+                        return `
+                            <div class="llm-project-access-item">
+                                <div class="llm-project-access-main">
+                                    <div><strong>${this.escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="llm-project-access-badge">${status}</span></div>
+                                    <div class="llm-project-access-meta">${this.escapeHtml(invitation.invitee_email || '')}</div>
+                                    <div class="llm-project-access-meta">Expires: ${expires}</div>
+                                </div>
+                                ${revokeBtn}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading project access section:', error);
+            if (membersList) {
+                membersList.innerHTML = '<div class="llm-project-access-empty">Could not load members.</div>';
+            }
+            if (invitationsList) {
+                invitationsList.innerHTML = '<div class="llm-project-access-empty">Could not load invitations.</div>';
+            }
+            this.showProjectAccessStatus(error.message || 'Could not load project access data', 'error');
+        }
+    }
+
+    async sendProjectInvitationFromModal() {
+        if (!this.currentProject?.id) {
+            this.showError('No project selected');
+            return;
+        }
+        if (this.currentProject.can_manage_access === false) {
+            this.showError('Only the project owner can invite collaborators.');
+            return;
+        }
+
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        const email = (inviteEmail?.value || '').trim().toLowerCase();
+        const name = (inviteName?.value || '').trim();
+        if (!email) {
+            this.showProjectAccessStatus('Invitee email is required.', 'error');
+            return;
+        }
+        const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (!emailPattern.test(email)) {
+            this.showProjectAccessStatus('Please enter a valid email address.', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/project-access/projects/llm_monitoring/${this.currentProject.id}/invitations`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name, role: 'viewer' })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            if (inviteName) inviteName.value = '';
+            if (inviteEmail) inviteEmail.value = '';
+
+            const message = data.email_sent
+                ? 'Invitation sent successfully.'
+                : 'Invitation created, but email delivery failed. Check email settings and resend.';
+            this.showProjectAccessStatus(message, data.email_sent ? 'success' : 'error');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error sending invitation from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to send invitation.', 'error');
+        }
+    }
+
+    async revokeProjectInvitationFromModal(invitationId) {
+        try {
+            const response = await fetch(`/api/project-access/invitations/${invitationId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+            this.showProjectAccessStatus('Invitation revoked.', 'success');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error revoking invitation from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to revoke invitation.', 'error');
+        }
+    }
+
+    async removeProjectMemberFromModal(memberUserId) {
+        if (!this.currentProject?.id) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/project-access/projects/llm_monitoring/${this.currentProject.id}/members/${memberUserId}`,
+                {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                }
+            );
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+            this.showProjectAccessStatus('Member removed.', 'success');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error removing member from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to remove member.', 'error');
+        }
     }
 
     /**

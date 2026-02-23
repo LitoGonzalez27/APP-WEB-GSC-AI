@@ -3455,6 +3455,126 @@
     opacity: 0.7;
 }
 
+/* Project access (in project settings modal) */
+.project-access-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.project-access-status {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.project-access-status.info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+}
+
+.project-access-status.success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+}
+
+.project-access-status.error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.project-access-invite-form {
+    margin-bottom: 14px;
+}
+
+.project-access-invite-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.project-access-lists {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.project-access-list-block h6 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.project-access-list {
+    display: grid;
+    gap: 8px;
+}
+
+.project-access-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+}
+
+.project-access-item-main {
+    min-width: 0;
+}
+
+.project-access-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.project-access-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    margin-left: 6px;
+}
+
+.project-access-badge.owner {
+    background: #D8F9B8;
+    border-color: #c4e8a5;
+    color: #1f2937;
+}
+
+.project-access-btn {
+    white-space: nowrap;
+}
+
+.project-access-empty {
+    padding: 10px 12px;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+    .project-access-invite-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* CSS Variables for consistency */
 :root {
     --text-danger: #dc3545;

@@ -49,7 +49,7 @@ def get_projects():
     logger.info(f"🔍 [AI MODE] Usuario solicitando proyectos: ID={user.get('id')}, Email={user.get('email')}, Plan={user.get('plan')}")
     
     # Control por plan
-    has_access, error_response = check_ai_mode_access(user)
+    has_access, error_response = check_ai_mode_access(user, allow_shared=True)
     if not has_access:
         logger.warning(f"⚠️ [AI MODE] Usuario {user.get('id')} sin acceso: {error_response}")
         return jsonify(error_response), 402
@@ -123,7 +123,7 @@ def get_project_details(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_ai_mode_access(user)
+    has_access, error_response = check_ai_mode_access(user, allow_shared=True)
     if not has_access:
         return jsonify(error_response), 402
     

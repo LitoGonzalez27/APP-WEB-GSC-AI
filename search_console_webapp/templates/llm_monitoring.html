@@ -1212,6 +1212,36 @@
                             <small class="form-help">Select at least one LLM to monitor</small>
                         </div>
                     </div>
+
+                    <div class="form-section" id="llmProjectAccessSection" style="display: none;">
+                        <h4 class="form-section-title">
+                            <i class="fas fa-user-shield"></i>
+                            Project Access
+                        </h4>
+                        <p class="form-section-desc">Invite collaborators by email with view-only access to this project.</p>
+                        <div id="llmProjectAccessStatus" class="llm-project-access-status" style="display: none;"></div>
+                        <div id="llmProjectAccessInviteForm" class="llm-project-access-invite">
+                            <div class="llm-project-access-row">
+                                <input type="text" id="llmProjectInviteName" class="enhanced-input" placeholder="Client name (optional)" maxlength="120">
+                                <input type="email" id="llmProjectInviteEmail" class="enhanced-input" placeholder="client@example.com">
+                                <button type="button" id="llmProjectInviteBtn" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-paper-plane"></i>
+                                    Send invitation
+                                </button>
+                            </div>
+                            <small class="form-help">The invited user will only be able to view this project.</small>
+                        </div>
+                        <div class="llm-project-access-lists">
+                            <div class="llm-project-access-block">
+                                <h6>Members</h6>
+                                <div id="llmProjectAccessMembers" class="llm-project-access-list"></div>
+                            </div>
+                            <div class="llm-project-access-block">
+                                <h6>Invitations</h6>
+                                <div id="llmProjectAccessInvitations" class="llm-project-access-list"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer create-footer">
                     <button type="button" class="btn-secondary btn-enhanced" id="btnCancelModal" onclick="window.llmMonitoring.hideProjectModal()">

@@ -35,7 +35,7 @@ def get_project_keywords(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_ai_mode_access(user)
+    has_access, error_response = check_ai_mode_access(user, allow_shared=True)
     if not has_access:
         return jsonify(error_response), 402
     
@@ -214,4 +214,3 @@ def update_project_keyword(project_id, keyword_id):
     except Exception as e:
         logger.error(f"Error updating keyword: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-

@@ -2627,6 +2627,108 @@ label:not(.search-form label) {
     background: #ef4444;
 }
 
+/* Project access section inside LLM project modal */
+.create-project-modal .llm-project-access-status {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.create-project-modal .llm-project-access-status.info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+}
+
+.create-project-modal .llm-project-access-status.success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+}
+
+.create-project-modal .llm-project-access-status.error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.create-project-modal .llm-project-access-invite {
+    margin-bottom: 12px;
+}
+
+.create-project-modal .llm-project-access-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.create-project-modal .llm-project-access-lists {
+    display: grid;
+    gap: 10px;
+}
+
+.create-project-modal .llm-project-access-block h6 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.create-project-modal .llm-project-access-list {
+    display: grid;
+    gap: 8px;
+}
+
+.create-project-modal .llm-project-access-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.create-project-modal .llm-project-access-main {
+    min-width: 0;
+}
+
+.create-project-modal .llm-project-access-meta {
+    font-size: 12px;
+    color: #6b7280;
+    overflow-wrap: anywhere;
+}
+
+.create-project-modal .llm-project-access-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    margin-left: 6px;
+}
+
+.create-project-modal .llm-project-access-badge.owner {
+    background: #D8F9B8;
+    border-color: #c4e8a5;
+    color: #1f2937;
+}
+
+.create-project-modal .llm-project-access-empty {
+    padding: 10px 12px;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .create-project-modal {
@@ -2649,6 +2751,10 @@ label:not(.search-form label) {
     }
     
     .create-project-modal .checkbox-group {
+        grid-template-columns: 1fr;
+    }
+
+    .create-project-modal .llm-project-access-row {
         grid-template-columns: 1fr;
     }
     
