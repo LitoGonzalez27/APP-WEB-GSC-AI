@@ -1,6 +1,6 @@
 """
-Proveedor Perplexity - Sonar
-Versión: sonar (modelo actualizado Oct 2025)
+Proveedor Perplexity - Sonar Pro
+Versión: sonar-pro (actualización 23 Febrero 2026)
 
 IMPORTANTE:
 - NO hardcodees precios aquí (se leen de BD)
@@ -21,15 +21,14 @@ logger = logging.getLogger(__name__)
 
 class PerplexityProvider(BaseLLMProvider):
     """
-    Proveedor para Perplexity Sonar Large
+    Proveedor para Perplexity Sonar Pro
     
     Características:
     - Búsqueda en tiempo real (acceso a internet en cada query)
-    - Basado en Llama 3.1
-    - 128K tokens de contexto
+    - Modelo normal recomendado (sin variante reasoning)
     - Excelente para información actualizada
     - Cita fuentes automáticamente
-    - Precio muy competitivo ($1/$1 por 1M tokens)
+    - Precio competitivo
     """
     
     def __init__(self, api_key: str, model: str = None):
@@ -57,9 +56,9 @@ class PerplexityProvider(BaseLLMProvider):
         else:
             self.model = get_current_model_for_provider('perplexity')
             if not self.model:
-                # ✅ CORRECCIÓN: Usar 'sonar' como fallback (modelo correcto)
-                self.model = 'sonar'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'sonar' por defecto")
+                # ✅ CORRECCIÓN: Usar 'sonar-pro' como fallback (modelo normal más reciente)
+                self.model = 'sonar-pro'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'sonar-pro' por defecto")
         
         # ✅ NORMALIZACIÓN: Mapear IDs legacy a modelos actuales de Perplexity
         legacy_to_current_map = {
@@ -208,4 +207,3 @@ class PerplexityProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"❌ Perplexity connection test failed: {e}")
             return False
-

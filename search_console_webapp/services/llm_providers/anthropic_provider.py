@@ -1,6 +1,6 @@
 """
-Proveedor Anthropic - Claude Sonnet 4.5
-Lanzado: 29 Septiembre 2025
+Proveedor Anthropic - Claude Sonnet 4.6
+Última actualización: 23 Febrero 2026
 
 IMPORTANTE:
 - NO hardcodees precios aquí (se leen de BD)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class AnthropicProvider(BaseLLMProvider):
     """
-    Proveedor para Claude Sonnet 4.5 (Anthropic)
+    Proveedor para Claude Sonnet 4.6 (Anthropic)
     
     Características:
     - Excelente para análisis de texto
@@ -50,9 +50,9 @@ class AnthropicProvider(BaseLLMProvider):
         else:
             self.model = get_current_model_for_provider('anthropic')
             if not self.model:
-                # Model ID correcto según docs: claude-sonnet-4-5-20250929
-                self.model = 'claude-sonnet-4-5-20250929'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando Claude Sonnet 4.5 por defecto")
+                # Model ID correcto según docs: claude-sonnet-4-6
+                self.model = 'claude-sonnet-4-6'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando Claude Sonnet 4.6 por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD
         self.pricing = get_model_pricing_from_db('anthropic', self.model)
@@ -64,7 +64,7 @@ class AnthropicProvider(BaseLLMProvider):
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra Claude Sonnet 4.5
+        Ejecuta una query contra Claude Sonnet 4.6
         """
         start_time = time.time()
         
@@ -129,6 +129,8 @@ class AnthropicProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
+            'claude-sonnet-4-6': 'Claude Sonnet 4.6',
+            'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
             'claude-sonnet-4-5': 'Claude Sonnet 4.5',
             'claude-3-5-sonnet-20241022': 'Claude Sonnet 3.5',
             'claude-3-5-sonnet-latest': 'Claude Sonnet 3.5 Latest'
@@ -151,4 +153,3 @@ class AnthropicProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"❌ Anthropic connection test failed: {e}")
             return False
-

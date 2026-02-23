@@ -246,21 +246,21 @@ class LLMProviderFactory:
             },
             'anthropic': {
                 'display_name': 'Anthropic (Claude)',
-                'models': ['claude-sonnet-4-5-20250929', 'claude-3-5-sonnet-20241022'],
+                'models': ['claude-sonnet-4-6', 'claude-sonnet-4-5-20250929', 'claude-3-5-sonnet-20241022'],
                 'description': 'Excelente análisis de texto, razonamiento largo',
                 'website': 'https://console.anthropic.com',
                 'pricing_note': 'Mejor balance precio/calidad'
             },
             'google': {
                 'display_name': 'Google (Gemini)',
-                'models': ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-1.5-flash'],
+                'models': ['gemini-3.1-pro-preview', 'gemini-3-pro-preview', 'gemini-3-flash-preview'],
                 'description': 'Muy rápido y económico, multimodal',
                 'website': 'https://aistudio.google.com',
                 'pricing_note': 'El más económico del mercado'
             },
             'perplexity': {
                 'display_name': 'Perplexity (Sonar)',
-                'models': ['llama-3.1-sonar-large-128k-online'],
+                'models': ['sonar-pro', 'sonar'],
                 'description': 'Búsqueda en tiempo real, cita fuentes',
                 'website': 'https://www.perplexity.ai',
                 'pricing_note': 'Precio competitivo, info actualizada'

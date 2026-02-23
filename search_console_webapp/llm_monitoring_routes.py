@@ -3658,18 +3658,18 @@ def get_current_models():
             "success": true,
             "models": {
                 "openai": {"model_id": "gpt-5.2", "display_name": "GPT-5.2"},
-                "anthropic": {"model_id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5"},
-                "google": {"model_id": "gemini-3", "display_name": "Gemini 3"},
-                "perplexity": {"model_id": "sonar", "display_name": "Perplexity Sonar"}
+                "anthropic": {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6"},
+                "google": {"model_id": "gemini-3.1-pro-preview", "display_name": "Gemini 3.1 Pro Preview"},
+                "perplexity": {"model_id": "sonar-pro", "display_name": "Perplexity Sonar Pro"}
             }
         }
     """
     # Fallbacks por defecto (Model IDs correctos según docs oficiales)
     fallbacks = {
-        'openai': {'model_id': 'gpt-5.1', 'display_name': 'GPT-5.1'},
-        'anthropic': {'model_id': 'claude-sonnet-4-5-20250929', 'display_name': 'Claude Sonnet 4.5'},
-        'google': {'model_id': 'gemini-3-pro-preview', 'display_name': 'Gemini 3 Pro'},
-        'perplexity': {'model_id': 'sonar', 'display_name': 'Perplexity Sonar'}
+        'openai': {'model_id': 'gpt-5.2', 'display_name': 'GPT-5.2'},
+        'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
+        'google': {'model_id': 'gemini-3.1-pro-preview', 'display_name': 'Gemini 3.1 Pro Preview'},
+        'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
     }
     
     conn = get_db_connection()
@@ -4500,10 +4500,10 @@ def get_model_version_score(model_id: str) -> tuple:
     Retorna una tupla (major_version, date_score, model_id) para ordenar.
     
     Ejemplos:
-        gpt-5.1 -> (5, 1, 99999999, 'gpt-5.1')
+        gpt-5.2 -> (5, 2, 99999999, 'gpt-5.2')
         gpt-5-2025-08-07 -> (5, 0, 20250807, 'gpt-5-2025-08-07')
         gpt-4o-2024-05-13 -> (4, 0, 20240513, 'gpt-4o-2024-05-13')
-        gemini-3-pro-preview -> (3, 0, 99999999, 'gemini-3-pro-preview')
+        gemini-3.1-pro-preview -> (3, 1, 99999999, 'gemini-3.1-pro-preview')
     """
     import re
     
@@ -4540,7 +4540,10 @@ def get_model_version_score(model_id: str) -> tuple:
     
     # Extraer sub-versión (.1, .5, etc.)
     sub_version = 0
-    sub_match = re.search(r'gpt-(\d+)\.(\d+)', model_lower)
+    sub_match = re.search(r'(?:gpt|gemini)-(\d+)\.(\d+)', model_lower)
+    if not sub_match:
+        # Claude usa formato con guiones: claude-sonnet-4-6
+        sub_match = re.search(r'claude-(?:sonnet|opus|haiku)-(\d+)-(\d+)', model_lower)
     if sub_match:
         sub_version = int(sub_match.group(2))
     
@@ -4636,17 +4639,17 @@ def cron_model_discovery():
         same_or_known = []     # Modelos ya conocidos
         errors = []
         
-        # OpenAI - Solo buscar modelos de la familia GPT-5 y O-series (más recientes)
+        # OpenAI - Solo familia GPT estándar (sin variantes thinking tipo o1/o3)
         try:
             openai_key = os.getenv('OPENAI_API_KEY')
             if openai_key:
                 client = openai.OpenAI(api_key=openai_key)
                 models = client.models.list()
-                current_openai = current_models.get('openai', 'gpt-5.1')
+                current_openai = current_models.get('openai', 'gpt-5.2')
                 
                 for m in models.data:
                     # Solo modelos GPT relevantes
-                    if any(p in m.id.lower() for p in ['gpt-5', 'gpt-4', 'o1', 'o3']):
+                    if any(p in m.id.lower() for p in ['gpt-5', 'gpt-4o', 'gpt-4.1']):
                         discovered_models.append({'provider': 'openai', 'model_id': m.id})
                         
                         if m.id not in known_model_ids:
@@ -4672,7 +4675,7 @@ def cron_model_discovery():
             if google_key:
                 genai.configure(api_key=google_key)
                 models = genai.list_models()
-                current_google = current_models.get('google', 'gemini-3-pro-preview')
+                current_google = current_models.get('google', 'gemini-3.1-pro-preview')
                 
                 for m in models:
                     if 'gemini' in m.name.lower():
@@ -4696,8 +4699,9 @@ def cron_model_discovery():
             logger.error(f"❌ Google error: {e}")
         
         # Perplexity (lista estática)
-        perplexity_models = ['sonar', 'sonar-pro', 'sonar-reasoning']
-        current_perplexity = current_models.get('perplexity', 'sonar')
+        # Solo modelos estándar (no reasoning/deep-research)
+        perplexity_models = ['sonar', 'sonar-pro']
+        current_perplexity = current_models.get('perplexity', 'sonar-pro')
         for model_id in perplexity_models:
             discovered_models.append({'provider': 'perplexity', 'model_id': model_id})
             if model_id not in known_model_ids:
