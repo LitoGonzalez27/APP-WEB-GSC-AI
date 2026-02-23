@@ -1,15 +1,15 @@
 """
-Proveedor OpenAI - GPT-5.1
-Última actualización: 12 Diciembre 2025
+Proveedor OpenAI - GPT-5.2
+Última actualización: 23 Febrero 2026
 
 IMPORTANTE:
-- Modelo: gpt-5.1 (flagship estable, lanzado Nov 2025)
+- Modelo: gpt-5.2 (flagship estable, non-thinking)
 - NO hardcodees precios aquí (se leen de BD)
 - El modelo actual se obtiene de BD (is_current=TRUE)
 
 MODEL IDs disponibles:
-- gpt-5.1 (flagship estable)
-- gpt-5.1-2025-11-13 (versión con fecha)
+- gpt-5.2 (flagship estable)
+- gpt-5.2-chat-latest (alias dinámico)
 - gpt-5-mini (versión económica y rápida)
 
 Docs: https://platform.openai.com/docs/models/gpt-5
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class OpenAIProvider(BaseLLMProvider):
     """
-    Proveedor para ChatGPT (OpenAI GPT-5.1)
+    Proveedor para ChatGPT (OpenAI GPT-5.2)
     
     Características:
     - Modelo flagship estable
@@ -54,8 +54,8 @@ class OpenAIProvider(BaseLLMProvider):
             >>> provider = OpenAIProvider(api_key='sk-proj-...')
             >>> # Usará el modelo marcado como 'current' en BD
             
-            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.1')
-            >>> # Usará específicamente gpt-5.1
+            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.2')
+            >>> # Usará específicamente gpt-5.2
         """
         self.client = openai.OpenAI(api_key=api_key)
         
@@ -70,9 +70,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a GPT-5.1 (flagship estable)
-                self.model = 'gpt-5.1'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.1' por defecto")
+                # Fallback a GPT-5.2 (flagship estable)
+                self.model = 'gpt-5.2'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.2' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -235,10 +235,10 @@ class OpenAIProvider(BaseLLMProvider):
     def get_model_display_name(self) -> str:
         # Mapeo de IDs a nombres legibles
         display_names = {
-            'gpt-5.1': 'GPT-5.1',
-            'gpt-5.1-2025-11-13': 'GPT-5.1',
             'gpt-5.2': 'GPT-5.2',
+            'gpt-5.2-chat-latest': 'GPT-5.2 Chat Latest',
             'gpt-5.2-pro': 'GPT-5.2 Pro',
+            'gpt-5.2-codex': 'GPT-5.2 Codex',
             'gpt-5-mini': 'GPT-5 Mini',
             'gpt-5-2025-08-07': 'GPT-5',
             'gpt-5': 'GPT-5',
@@ -261,4 +261,3 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"❌ OpenAI connection test failed: {e}")
             return False
-

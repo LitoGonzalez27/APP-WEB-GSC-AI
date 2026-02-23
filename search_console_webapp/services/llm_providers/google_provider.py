@@ -1,18 +1,17 @@
 """
-Proveedor Google - Gemini 3 Pro Preview
-Versión: gemini-3-pro-preview (Diciembre 2025)
+Proveedor Google - Gemini 3.1 Pro Preview
+Versión: gemini-3.1-pro-preview (Febrero 2026)
 
 IMPORTANTE:
-- Modelo más inteligente de Google hasta la fecha
-- 1M tokens de contexto, 64K de salida
+- Modelo más reciente no-thinking para uso general
 - Ideal para tareas complejas multimodales
-- Knowledge Cutoff: ~Marzo 2025
+- Knowledge Cutoff: Enero 2025
 
 MODEL IDs disponibles:
-- gemini-3-pro-preview (principal)
-- gemini-3-pro-image-preview (para imágenes)
+- gemini-3.1-pro-preview (principal)
+- gemini-3-flash-preview (rápido/económico)
 
-Docs: https://ai.google.dev/gemini-api/docs/gemini-3
+Docs: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview
 """
 
 import logging
@@ -32,14 +31,13 @@ logger = logging.getLogger(__name__)
 
 class GoogleProvider(BaseLLMProvider):
     """
-    Proveedor para Gemini 3 (Google)
+    Proveedor para Gemini 3.1 (Google)
     
     Características:
-    - Modelo más inteligente de Google (Dic 2025)
-    - 1M tokens de contexto, 64K de salida
+    - Modelo pro más reciente disponible para análisis general
     - Multimodal (texto, imágenes, audio, video)
     
-    Knowledge Cutoff: ~Marzo 2025
+    Knowledge Cutoff: Enero 2025
     """
     
     def __init__(self, api_key: str, model: str = None):
@@ -57,8 +55,8 @@ class GoogleProvider(BaseLLMProvider):
         else:
             self.model_name = get_current_model_for_provider('google')
             if not self.model_name:
-                self.model_name = 'gemini-3-pro-preview'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3-pro-preview por defecto")
+                self.model_name = 'gemini-3.1-pro-preview'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3.1-pro-preview por defecto")
         
         generation_config = {
             'max_output_tokens': 65536,
@@ -74,13 +72,13 @@ class GoogleProvider(BaseLLMProvider):
         
         logger.info(f"🤖 Google Provider inicializado")
         logger.info(f"   Modelo: {self.model_name}")
-        logger.info(f"   Knowledge Cutoff: ~Marzo 2025")
+        logger.info(f"   Knowledge Cutoff: Enero 2025")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra Gemini 3
+        Ejecuta una query contra Gemini 3.1
         """
         start_time = time.time()
         
@@ -142,8 +140,10 @@ class GoogleProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
+            'gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
             'gemini-3-pro-preview': 'Gemini 3 Pro',
             'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
+            'gemini-3-flash-preview': 'Gemini 3 Flash Preview',
             'gemini-1.5-flash': 'Gemini 1.5 Flash',
             'gemini-pro': 'Gemini Pro'
         }
