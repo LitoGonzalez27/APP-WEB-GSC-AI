@@ -9,6 +9,7 @@ from manual_ai import manual_ai_bp
 from manual_ai.services.project_service import ProjectService
 from manual_ai.utils.validators import check_manual_ai_access
 from services.project_access_service import user_has_any_module_access
+from llm_monitoring_limits import get_upgrade_options
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,21 @@ def manual_ai_dashboard():
         has_shared_access = user_has_any_module_access(user.get('id'), 'manual_ai')
     except Exception:
         has_shared_access = False
-    return render_template('manual_ai_dashboard.html', user=user, has_shared_access=has_shared_access)
+
+    access_blocked = user.get('plan') == 'free' and not has_shared_access
+
+    try:
+        upgrade_options = get_upgrade_options(user.get('plan', 'free'))
+    except Exception:
+        upgrade_options = ['basic', 'premium', 'business']
+
+    return render_template(
+        'manual_ai_dashboard.html',
+        user=user,
+        has_shared_access=has_shared_access,
+        access_blocked=access_blocked,
+        upgrade_options=upgrade_options
+    )
 
 
 @manual_ai_bp.route('/api/projects', methods=['GET'])

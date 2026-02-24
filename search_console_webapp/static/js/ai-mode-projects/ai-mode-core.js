@@ -415,7 +415,7 @@ export class AIModeSystem {
         hideElement(this.elements.projectsLoading);
         this.projects = [];
         this.renderProjects();
-        console.log('🆓 Estado gratuito mostrado - botón "Crear proyecto" disponible para paywall');
+        console.log('🆓 Estado gratuito mostrado - acceso bloqueado por plan hasta upgrade');
     }
 
     // ================================

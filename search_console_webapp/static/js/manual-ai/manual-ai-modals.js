@@ -705,8 +705,10 @@ export async function loadProjectAccessSection(project) {
                 invitationsList.innerHTML = '<div class="project-access-empty">No invitations yet.</div>';
             } else {
                 invitationsList.innerHTML = invitations.map((invitation) => {
-                    const status = escapeHtml(invitation.status || 'pending');
-                    const canRevoke = invitation.status === 'pending';
+                    const rawStatus = String(invitation.status || 'pending').toLowerCase();
+                    const normalizedStatus = ['pending', 'accepted', 'expired'].includes(rawStatus) ? rawStatus : 'default';
+                    const statusText = escapeHtml(rawStatus.replace(/_/g, ' '));
+                    const canRevoke = rawStatus === 'pending';
                     const revokeBtn = canRevoke
                         ? `<button type="button" class="btn-danger project-access-btn" onclick="manualAI.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
                         : '';
@@ -714,7 +716,7 @@ export async function loadProjectAccessSection(project) {
                     return `
                         <div class="project-access-item">
                             <div class="project-access-item-main">
-                                <div><strong>${escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="project-access-badge">${status}</span></div>
+                                <div><strong>${escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="project-access-badge status-${normalizedStatus}">${statusText}</span></div>
                                 <div class="project-access-meta">${escapeHtml(invitation.invitee_email || '')}</div>
                                 <div class="project-access-meta">Expires: ${formatAccessDate(invitation.expires_at)}</div>
                             </div>
@@ -800,7 +802,7 @@ export async function revokeProjectInvitationFromModal(invitationId) {
         if (!response.ok || !data.success) {
             throw new Error(data.error || `HTTP ${response.status}`);
         }
-        this.showProjectAccessStatus('Invitation revoked.', 'success');
+        this.showProjectAccessStatus('Invitation removed.', 'success');
         await this.loadProjectAccessSection(this.currentModalProject);
     } catch (error) {
         console.error('Error revoking invitation from modal:', error);

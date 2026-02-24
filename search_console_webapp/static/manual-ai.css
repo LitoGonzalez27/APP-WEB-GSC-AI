@@ -3459,12 +3459,22 @@
 .project-access-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+}
+
+.project-access-card .section-description {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    max-width: 68ch;
 }
 
 .project-access-status {
-    margin-bottom: 10px;
+    margin: 0;
     padding: 10px 12px;
     border-radius: 8px;
     font-size: 13px;
@@ -3490,52 +3500,104 @@
 }
 
 .project-access-invite-form {
-    margin-bottom: 14px;
+    margin: 0;
+    display: grid;
+    gap: 10px;
 }
 
 .project-access-invite-row {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 8px;
-    align-items: baseline;
+    grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.project-access-invite-row .form-input {
+    width: 100%;
+    margin: 0;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-primary);
+    color: var(--text-color, #161616);
+    font-size: 15px;
+    line-height: 1.3;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.project-access-invite-row .form-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.95;
+    font-size: 15px;
+}
+
+.project-access-invite-row .form-input:focus {
+    outline: none;
+    border-color: #c5e5a3;
+    box-shadow: 0 0 0 3px rgba(197, 229, 163, 0.25);
+}
+
+.project-access-invite-row .btn-compact {
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 10px;
 }
 
 .project-access-lists {
     display: grid;
-    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.project-access-list-block {
+    display: grid;
     gap: 10px;
 }
 
 .project-access-list-block h6 {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 12px;
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
+    font-weight: 700;
 }
 
 .project-access-list {
     display: grid;
-    gap: 8px;
+    gap: 12px;
 }
 
 .project-access-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
-    padding: 10px 12px;
+    padding: 14px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--bg-primary);
 }
 
 .project-access-item-main {
     min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.project-access-item-main > div:first-child {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .project-access-meta {
     font-size: 12px;
+    line-height: 1.4;
     color: var(--text-secondary);
     overflow-wrap: anywhere;
 }
@@ -3546,9 +3608,13 @@
     gap: 4px;
     border: 1px solid var(--border-color);
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 4px 10px;
     font-size: 11px;
+    font-weight: 600;
     margin-left: 6px;
+    line-height: 1.2;
+    text-transform: capitalize;
+    white-space: nowrap;
 }
 
 .project-access-badge.owner {
@@ -3557,16 +3623,44 @@
     color: #1f2937;
 }
 
+.project-access-badge.status-pending {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.project-access-badge.status-accepted {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
+.project-access-badge.status-expired {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.project-access-badge.status-default {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #334155;
+}
+
 .project-access-btn {
     white-space: nowrap;
+    align-self: center;
+    min-height: 38px;
 }
 
 .project-access-empty {
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px dashed var(--border-color);
     border-radius: 8px;
     font-size: 13px;
     color: var(--text-secondary);
+    background: var(--bg-primary);
+    line-height: 1.4;
 }
 
 @media (max-width: 900px) {

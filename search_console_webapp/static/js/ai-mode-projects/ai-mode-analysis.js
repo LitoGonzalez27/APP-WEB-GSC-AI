@@ -70,19 +70,23 @@ export async function analyzeProject(projectId) {
 
         const data = await response.json();
 
-        // ✅ NUEVO FASE 4.5: Manejar paywalls (402)
+        // Manejo unificado de bloqueo por plan (sin modal legacy de paywall)
         if (response.status === 402) {
             clearInterval(backupPolling);
             this.hideProgress();
             
-            console.warn(`🚫 Manual AI analysis blocked by paywall: ${data.error}`);
-            
-            // Mostrar paywall si está disponible
-            if (window.showPaywall) {
-                window.showPaywall('Manual AI Analysis', data.upgrade_options || ['basic','premium','business']);
+            console.warn(`🚫 AI Mode analysis blocked by paywall: ${data.error}`);
+
+            const hasSharedAccess = !!window.currentUser?.has_shared_access;
+            if (!hasSharedAccess) {
+                this.showError('AI Mode Analysis requires a paid plan. Redirecting to billing...');
+                setTimeout(() => {
+                    window.location.href = '/billing';
+                }, 1200);
+                return;
             }
-            
-            this.showToast('Manual AI Analysis requires a paid plan. Please upgrade to continue.', 'error', 8000);
+
+            this.showError(data.error || 'This action is not available for your current access level.');
             return;
         }
 

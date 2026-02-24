@@ -281,10 +281,15 @@ export function goToProjectAnalytics(projectId) {
 // ================================
 
 export function showCreateProject() {
-    // Verificar plan antes de mostrar formulario
+    // Bloqueo por plan para mantener consistencia con el overlay del dashboard
     if (window.currentUser && window.currentUser.plan === 'free') {
-        console.log('🆓 Usuario gratuito intentó crear proyecto - mostrando paywall');
-        window.showPaywall('Manual AI Analysis', ['basic','premium','business']);
+        if (window.currentUser.has_shared_access) {
+            this.showError('You have view-only access to shared projects. Creating new projects requires a paid owner plan.');
+            return;
+        }
+
+        console.log('🆓 Usuario gratuito bloqueado al crear proyecto - redirigiendo a billing');
+        window.location.href = '/billing';
         return;
     }
     

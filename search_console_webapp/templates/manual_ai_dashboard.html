@@ -58,6 +58,161 @@
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+
+    {% if access_blocked %}
+    <div class="llm-access-blocked-overlay">
+        <div class="llm-access-blocked-modal">
+            <h2>Upgrade Required</h2>
+            <p class="llm-blocked-subtitle">AI Overview Monitoring</p>
+            <p class="llm-blocked-description">
+                This feature is available on paid plans. Upgrade to track and improve
+                your visibility in Google AI Overview results.
+            </p>
+            <div class="llm-blocked-features">
+                <div class="llm-blocked-feature">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Track your AI Overview visibility</span>
+                </div>
+                <div class="llm-blocked-feature">
+                    <i class="fas fa-users"></i>
+                    <span>Benchmark against competitors</span>
+                </div>
+                <div class="llm-blocked-feature">
+                    <i class="fas fa-history"></i>
+                    <span>Monitor trend changes over time</span>
+                </div>
+            </div>
+            {% if upgrade_options %}
+            <p class="llm-blocked-notify">
+                <i class="fas fa-bolt"></i>
+                Recommended upgrade: {{ upgrade_options[0] | upper }}
+            </p>
+            {% endif %}
+            <div class="llm-blocked-actions">
+                <a href="/billing" class="btn-primary">
+                    <i class="fas fa-arrow-up"></i>
+                    Upgrade Plan
+                </a>
+                <a href="/app" class="btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    <style>
+        .llm-access-blocked-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 26, 0.92);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            padding: 20px;
+        }
+        .llm-access-blocked-modal {
+            background: #F8F9FA;
+            border-radius: 16px;
+            padding: 48px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: modalSlideIn 0.4s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .llm-access-blocked-modal h2 {
+            color: #1A1A1A;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 8px;
+            letter-spacing: -0.5px;
+        }
+        .llm-blocked-subtitle {
+            color: #6b7280;
+            font-size: 15px;
+            margin: 0 0 20px;
+            font-weight: 500;
+        }
+        .llm-blocked-description {
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.7;
+            margin: 0 0 28px;
+        }
+        .llm-blocked-features {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+        .llm-blocked-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        .llm-blocked-feature i {
+            color: #1A1A1A;
+            font-size: 15px;
+            width: 20px;
+        }
+        .llm-blocked-feature span {
+            color: #1A1A1A;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .llm-blocked-notify {
+            color: #6b7280;
+            font-size: 13px;
+            margin: 0 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .llm-blocked-notify i {
+            color: #f59e0b;
+        }
+        .llm-blocked-actions .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: #C5E5A3;
+            color: #1A1A1A;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .llm-blocked-actions .btn-primary:hover {
+            background: #b8db91;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(197, 229, 163, 0.4);
+        }
+    </style>
+    {% endif %}
     
     <!-- Navbar principal del SaaS -->
     <nav class="navbar" id="navbar">
@@ -1427,7 +1582,7 @@ keyword 3"></textarea>
 
                         <div class="setting-group project-access-card" id="projectAccessSection">
                             <label class="manual-ai-underline">Project Access</label>
-                            <p class="section-description" style="margin-bottom: 10px; font-size: 14px; color: #6b7280;">
+                            <p class="section-description">
                                 Invite collaborators by email with view-only access to this project.
                             </p>
                             <div id="projectAccessStatus" class="project-access-status" style="display: none;"></div>
@@ -1541,9 +1696,6 @@ keyword 3"></textarea>
     
     <!-- ✅ FASE 4: Quota UI para Manual AI -->
     <script src="{{ url_for('static', filename='js/quota-ui.js') }}"></script>
-    
-    <!-- ✅ NUEVO FASE 4.5: Paywall Scripts -->
-    <script src="{{ url_for('static', filename='js/paywall.js') }}"></script>
     
     <!-- ✅ Video Tutorial Onboarding para Manual AI -->
     <script src="{{ url_for('static', filename='js/onboarding-popups.js') }}"></script>

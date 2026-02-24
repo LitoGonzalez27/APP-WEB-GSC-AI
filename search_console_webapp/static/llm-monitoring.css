@@ -2660,9 +2660,26 @@ label:not(.search-form label) {
 
 .create-project-modal .llm-project-access-row {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 8px;
-    align-items: baseline;
+    grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.create-project-modal .llm-project-access-row .enhanced-input {
+    margin: 0;
+    min-height: 44px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.create-project-modal .llm-project-access-row .enhanced-input::placeholder {
+    color: #6b7280;
+    opacity: 0.95;
+}
+
+.create-project-modal .llm-project-access-row .btn {
+    min-height: 44px;
 }
 
 .create-project-modal .llm-project-access-lists {
@@ -2686,9 +2703,9 @@ label:not(.search-form label) {
 .create-project-modal .llm-project-access-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     background: #fff;
@@ -2698,8 +2715,16 @@ label:not(.search-form label) {
     min-width: 0;
 }
 
+.create-project-modal .llm-project-access-main > div:first-child {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
 .create-project-modal .llm-project-access-meta {
     font-size: 12px;
+    line-height: 1.4;
     color: #6b7280;
     overflow-wrap: anywhere;
 }
@@ -2710,15 +2735,43 @@ label:not(.search-form label) {
     gap: 4px;
     border: 1px solid #e5e7eb;
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 3px 9px;
     font-size: 11px;
+    line-height: 1.2;
+    font-weight: 600;
     margin-left: 6px;
+    text-transform: capitalize;
+    white-space: nowrap;
 }
 
 .create-project-modal .llm-project-access-badge.owner {
     background: #D8F9B8;
     border-color: #c4e8a5;
     color: #1f2937;
+}
+
+.create-project-modal .llm-project-access-badge.status-pending {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+}
+
+.create-project-modal .llm-project-access-badge.status-accepted {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
+.create-project-modal .llm-project-access-badge.status-expired {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.create-project-modal .llm-project-access-badge.status-default {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #334155;
 }
 
 .create-project-modal .llm-project-access-empty {

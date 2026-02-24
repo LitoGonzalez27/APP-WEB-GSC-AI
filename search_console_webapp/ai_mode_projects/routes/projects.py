@@ -9,6 +9,7 @@ from ai_mode_projects import ai_mode_bp
 from ai_mode_projects.services.project_service import ProjectService
 from ai_mode_projects.utils.validators import check_ai_mode_access
 from services.project_access_service import user_has_any_module_access
+from llm_monitoring_limits import get_upgrade_options
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,21 @@ def ai_mode_dashboard():
         has_shared_access = user_has_any_module_access(user.get('id'), 'ai_mode')
     except Exception:
         has_shared_access = False
-    return render_template('ai_mode_dashboard.html', user=user, has_shared_access=has_shared_access)
+
+    access_blocked = user.get('plan') == 'free' and not has_shared_access
+
+    try:
+        upgrade_options = get_upgrade_options(user.get('plan', 'free'))
+    except Exception:
+        upgrade_options = ['basic', 'premium', 'business']
+
+    return render_template(
+        'ai_mode_dashboard.html',
+        user=user,
+        has_shared_access=has_shared_access,
+        access_blocked=access_blocked,
+        upgrade_options=upgrade_options
+    )
 
 
 @ai_mode_bp.route('/api/projects', methods=['GET'])

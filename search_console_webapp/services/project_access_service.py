@@ -331,6 +331,7 @@ def list_project_invitations(module_name: str, project_id: int) -> List[Dict]:
             FROM project_invitations
             WHERE module_name = %s
               AND project_id = %s
+              AND status <> 'revoked'
             ORDER BY created_at DESC
             """,
             (module_name, project_id),
@@ -502,11 +503,10 @@ def create_project_invitation(
     try:
         cur = conn.cursor()
 
-        # Revoke any pending invitation for the same email/project before creating a new one.
+        # Remove any pending invitation for the same email/project before creating a new one.
         cur.execute(
             """
-            UPDATE project_invitations
-            SET status = 'revoked', updated_at = NOW()
+            DELETE FROM project_invitations
             WHERE module_name = %s
               AND project_id = %s
               AND lower(invitee_email) = lower(%s)
@@ -754,14 +754,13 @@ def revoke_project_invitation(invitation_id: int, requester_user_id: int) -> Tup
 
         cur.execute(
             """
-            UPDATE project_invitations
-            SET status = 'revoked', updated_at = NOW()
+            DELETE FROM project_invitations
             WHERE id = %s
             """,
             (invitation_id,),
         )
         conn.commit()
-        return True, {"message": "Invitation revoked"}
+        return True, {"message": "Invitation removed"}
 
     except Exception as exc:
         conn.rollback()

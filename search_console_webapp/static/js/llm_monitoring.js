@@ -4156,16 +4156,18 @@ class LLMMonitoring {
                     invitationsList.innerHTML = '<div class="llm-project-access-empty">No invitations yet.</div>';
                 } else {
                     invitationsList.innerHTML = invitations.map((invitation) => {
-                        const status = this.escapeHtml(invitation.status || 'pending');
+                        const rawStatus = String(invitation.status || 'pending').toLowerCase();
+                        const normalizedStatus = ['pending', 'accepted', 'expired'].includes(rawStatus) ? rawStatus : 'default';
+                        const statusText = this.escapeHtml(rawStatus.replace(/_/g, ' '));
                         const expires = invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '-';
-                        const revokeBtn = invitation.status === 'pending'
+                        const revokeBtn = rawStatus === 'pending'
                             ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
                             : '';
 
                         return `
                             <div class="llm-project-access-item">
                                 <div class="llm-project-access-main">
-                                    <div><strong>${this.escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="llm-project-access-badge">${status}</span></div>
+                                    <div><strong>${this.escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="llm-project-access-badge status-${normalizedStatus}">${statusText}</span></div>
                                     <div class="llm-project-access-meta">${this.escapeHtml(invitation.invitee_email || '')}</div>
                                     <div class="llm-project-access-meta">Expires: ${expires}</div>
                                 </div>
@@ -4247,7 +4249,7 @@ class LLMMonitoring {
             if (!response.ok || !data.success) {
                 throw new Error(data.error || `HTTP ${response.status}`);
             }
-            this.showProjectAccessStatus('Invitation revoked.', 'success');
+            this.showProjectAccessStatus('Invitation removed.', 'success');
             await this.loadProjectAccessSection(this.currentProject);
         } catch (error) {
             console.error('Error revoking invitation from modal:', error);
