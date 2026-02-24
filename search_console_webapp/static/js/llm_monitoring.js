@@ -96,7 +96,7 @@ class LLMMonitoring {
     }
 
     /**
-     * Load plan limits and usage for banner
+     * Load plan limits and usage
      */
     async loadPlanLimits() {
         try {
@@ -108,9 +108,91 @@ class LLMMonitoring {
 
             const limits = data.limits;
             this.planLimits = limits;
-            // Plan limits stored for internal use (banner removed from UI)
+            // Update UI elements that show plan usage
+            this.updatePlanLimitsUI();
         } catch (error) {
             console.warn('Could not load LLM plan limits:', error);
+        }
+    }
+
+    /**
+     * Update all UI elements that reflect plan limits
+     */
+    updatePlanLimitsUI() {
+        const limits = this.planLimits;
+        if (!limits) return;
+
+        // --- Projects counter badge ---
+        const projectsBadge = document.getElementById('projectsLimitBadge');
+        if (projectsBadge) {
+            if (limits.max_projects !== null) {
+                const used = limits.active_projects || 0;
+                const max = limits.max_projects;
+                projectsBadge.textContent = `${used} / ${max}`;
+                projectsBadge.style.display = 'inline-flex';
+                // Color states
+                projectsBadge.classList.remove('limit-warning', 'limit-reached');
+                if (used >= max) {
+                    projectsBadge.classList.add('limit-reached');
+                } else if (used >= max * 0.8) {
+                    projectsBadge.classList.add('limit-warning');
+                }
+            } else {
+                // Unlimited (admin or enterprise)
+                projectsBadge.style.display = 'none';
+            }
+        }
+
+        // --- Create project button state ---
+        const btnCreate = document.getElementById('btnCreateProject');
+        if (btnCreate) {
+            const hasLimit = limits.max_projects !== null;
+            const atLimit = hasLimit && limits.active_projects >= limits.max_projects;
+            if (atLimit) {
+                btnCreate.classList.add('btn-limit-reached');
+                btnCreate.setAttribute('title', `Project limit reached (${limits.active_projects}/${limits.max_projects}). Upgrade your plan to create more.`);
+            } else {
+                btnCreate.classList.remove('btn-limit-reached');
+                btnCreate.removeAttribute('title');
+            }
+        }
+    }
+
+    /**
+     * Update prompts limit UI inside prompts management modal
+     */
+    updatePromptsLimitUI() {
+        const limits = this.planLimits;
+        const badge = document.getElementById('promptsLimitBadge');
+        if (!badge || !limits) return;
+
+        const maxPrompts = limits.max_prompts_per_project;
+        if (maxPrompts === null) {
+            badge.style.display = 'none';
+            return;
+        }
+
+        const currentCount = this.allPrompts ? this.allPrompts.length : 0;
+        badge.textContent = `${currentCount} / ${maxPrompts}`;
+        badge.style.display = 'inline-flex';
+        badge.classList.remove('limit-warning', 'limit-reached');
+        if (currentCount >= maxPrompts) {
+            badge.classList.add('limit-reached');
+        } else if (currentCount >= maxPrompts * 0.8) {
+            badge.classList.add('limit-warning');
+        }
+
+        // Also update Add Prompts button in modal
+        const btnAddModal = document.getElementById('btnAddPromptsModal');
+        if (btnAddModal) {
+            if (currentCount >= maxPrompts) {
+                btnAddModal.classList.add('btn-limit-reached');
+                btnAddModal.setAttribute('title', `Prompt limit reached (${currentCount}/${maxPrompts}). Upgrade to add more.`);
+            } else {
+                btnAddModal.classList.remove('btn-limit-reached');
+                const remaining = maxPrompts - currentCount;
+                btnAddModal.setAttribute('title', `${remaining} prompt${remaining !== 1 ? 's' : ''} remaining`);
+            }
         }
     }
 
@@ -566,7 +648,7 @@ class LLMMonitoring {
                     if (window.showPaywall) {
                         window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
                     }
-                    this.showError('Project limit reached for your current plan.');
+                    this.showError(`You've reached the project limit for your plan (${limits.active_projects}/${limits.max_projects}). Upgrade to create more projects.`);
                     return;
                 }
 
@@ -904,6 +986,12 @@ class LLMMonitoring {
             });
 
             console.log(`✅ Successfully rendered ${data.projects.length} projects`);
+
+            // Refresh plan limits after projects load (count may have changed)
+            if (this.planLimits) {
+                this.planLimits.active_projects = data.projects.filter(p => p.is_active).length;
+                this.updatePlanLimitsUI();
+            }
 
         } catch (error) {
             console.error('❌ Error loading projects:', error);
@@ -4388,7 +4476,20 @@ class LLMMonitoring {
 
             console.log('📡 Response status:', response.status, response.statusText);
 
-            await this.handlePaywallResponse(response);
+            if (response.status === 402) {
+                const errorData = await response.json().catch(() => ({}));
+                if (errorData.error === 'project_limit_reached') {
+                    const current = errorData.current || '?';
+                    const limit = errorData.limit || '?';
+                    this.showError(`Project limit reached: you have ${current}/${limit} projects on your current plan. Upgrade to create more.`);
+                } else {
+                    this.showError(errorData.message || 'LLM Monitoring requires a paid plan.');
+                }
+                if (window.showPaywall) {
+                    window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['premium', 'business', 'enterprise']);
+                }
+                return;
+            }
 
             if (!response.ok) {
                 let errorMessage = `HTTP ${response.status}`;
@@ -4571,6 +4672,9 @@ class LLMMonitoring {
 
             // Render prompts list with pagination
             this.renderPrompts(renderInModal);
+
+            // Update prompts limit UI (badge in management modal)
+            this.updatePromptsLimitUI();
 
         } catch (error) {
             console.error('❌ Error loading prompts:', error);
@@ -4765,15 +4869,30 @@ class LLMMonitoring {
     showPromptsModal() {
         console.log('🎬 Showing prompts modal...');
 
+        // Pre-check: block if prompt limit already reached
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        const currentCount = this.allPrompts ? this.allPrompts.length : 0;
+        if (maxPrompts !== null && currentCount >= maxPrompts) {
+            if (window.showPaywall) {
+                window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
+            }
+            this.showError(`You've reached the prompt limit for your plan (${currentCount}/${maxPrompts}). Upgrade to add more prompts.`);
+            return;
+        }
+
         const modal = document.getElementById('promptsModal');
         if (!modal) return;
 
         // Reset form
         document.getElementById('promptsForm').reset();
-        
+
         // Reset counter
         this.updatePromptsCounter();
-        
+
+        // Show remaining prompts hint
+        this.updatePromptsRemainingHint();
+
         // Add input listener for real-time updates
         const textarea = document.getElementById('promptsInput');
         if (textarea) {
@@ -5160,42 +5279,92 @@ class LLMMonitoring {
     }
     
     /**
-     * ✨ Update prompts counter in real-time
+     * ✨ Update prompts counter in real-time (limit-aware)
      */
     updatePromptsCounter() {
         const textarea = document.getElementById('promptsInput');
         const counterNumber = document.getElementById('promptsCountNumber');
         const submitBtn = document.getElementById('btnSavePrompts');
         const submitText = document.getElementById('btnSavePromptsText');
-        
+
         if (!textarea) return;
-        
+
         const text = textarea.value.trim();
         const prompts = text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
         const promptCount = prompts.length;
         const hasShortPrompts = prompts.some(line => line.length > 0 && line.length < 10);
-        
+
+        // Check against plan limits
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        const existingCount = this.allPrompts ? this.allPrompts.length : 0;
+        const wouldExceed = maxPrompts !== null && (existingCount + promptCount) > maxPrompts;
+        const remaining = maxPrompts !== null ? Math.max(0, maxPrompts - existingCount) : null;
+
         // Update counter
         if (counterNumber) {
             counterNumber.textContent = promptCount;
+            counterNumber.classList.toggle('counter-over-limit', wouldExceed);
         }
-        
+
         // Enable/disable submit button
         if (submitBtn) {
-            submitBtn.disabled = promptCount === 0;
+            submitBtn.disabled = promptCount === 0 || wouldExceed;
         }
-        
+
         // Update button text
         if (submitText) {
-            submitText.textContent = promptCount > 0 
-                ? `Add ${promptCount} Prompt${promptCount !== 1 ? 's' : ''}`
-                : 'Add Prompts';
+            if (wouldExceed) {
+                submitText.textContent = `Limit exceeded (max ${remaining} more)`;
+            } else if (promptCount > 0) {
+                submitText.textContent = `Add ${promptCount} Prompt${promptCount !== 1 ? 's' : ''}`;
+            } else {
+                submitText.textContent = 'Add Prompts';
+            }
+        }
+
+        // Update limit warning inside modal
+        const limitWarning = document.getElementById('promptsLimitWarning');
+        if (limitWarning) {
+            if (wouldExceed) {
+                limitWarning.innerHTML = `<i class="fas fa-exclamation-triangle"></i> You can only add ${remaining} more prompt${remaining !== 1 ? 's' : ''} on your current plan.`;
+                limitWarning.style.display = 'flex';
+                limitWarning.className = 'prompts-limit-warning limit-exceeded';
+            } else if (remaining !== null && remaining <= 5 && promptCount > 0) {
+                limitWarning.innerHTML = `<i class="fas fa-info-circle"></i> ${remaining - promptCount} prompt${(remaining - promptCount) !== 1 ? 's' : ''} remaining after adding these.`;
+                limitWarning.style.display = 'flex';
+                limitWarning.className = 'prompts-limit-warning limit-approaching';
+            } else {
+                limitWarning.style.display = 'none';
+            }
         }
 
         const lengthWarning = document.getElementById('promptLengthWarning');
         if (lengthWarning) {
             lengthWarning.style.display = hasShortPrompts ? 'block' : 'none';
         }
+    }
+
+    /**
+     * Show remaining prompts hint in Add Prompts modal
+     */
+    updatePromptsRemainingHint() {
+        const hint = document.getElementById('promptsRemainingHint');
+        if (!hint) return;
+
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        if (maxPrompts === null) {
+            hint.style.display = 'none';
+            return;
+        }
+
+        const existingCount = this.allPrompts ? this.allPrompts.length : 0;
+        const remaining = Math.max(0, maxPrompts - existingCount);
+        hint.innerHTML = `<i class="fas fa-layer-group"></i> <strong>${remaining}</strong> of ${maxPrompts} prompts available`;
+        hint.style.display = 'flex';
+        hint.classList.toggle('hint-low', remaining <= 5 && remaining > 0);
+        hint.classList.toggle('hint-zero', remaining === 0);
     }
     
     /**
@@ -5323,7 +5492,25 @@ class LLMMonitoring {
                 body: JSON.stringify(payload)
             });
 
-            await this.handlePaywallResponse(response);
+            if (response.status === 402) {
+                const errorData = await response.json().catch(() => ({}));
+                // Detailed limit error for prompts
+                if (errorData.error === 'prompt_limit_exceeded') {
+                    const current = errorData.current || '?';
+                    const limit = errorData.limit || '?';
+                    const requested = errorData.requested || '?';
+                    this.showError(`Prompt limit reached: you have ${current}/${limit} prompts and tried to add ${requested}. Upgrade your plan to add more.`);
+                    if (window.showPaywall) {
+                        window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['premium', 'business', 'enterprise']);
+                    }
+                    return;
+                }
+                // Generic paywall
+                if (window.showPaywall) {
+                    window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['basic', 'premium', 'business']);
+                }
+                throw new Error(errorData.message || 'LLM Monitoring requires a paid plan.');
+            }
 
             if (!response.ok) {
                 const error = await response.json();

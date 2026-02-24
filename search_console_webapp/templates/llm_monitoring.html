@@ -420,7 +420,10 @@
                 <!-- Projects Tab -->
                 <section class="tab-content active" id="projectsTab">
                     <div class="projects-header">
-                        <h2>Your LLM Monitoring Projects</h2>
+                        <div class="projects-header-left">
+                            <h2>Your LLM Monitoring Projects</h2>
+                            <span class="plan-limit-badge" id="projectsLimitBadge" style="display: none;">0 / 0</span>
+                        </div>
                         <button type="button" class="btn-primary" id="btnCreateProject">
                             <i class="fas fa-plus"></i>
                             Create New Project
@@ -1315,6 +1318,7 @@
                     <h3 id="promptsManagementModalTitle">
                         Prompts Management
                         <span class="badge" id="promptsCountModal">0</span>
+                        <span class="plan-limit-badge" id="promptsLimitBadge" style="display: none;">0 / 0</span>
                     </h3>
                     <p>Manage your test prompts and questions for LLM monitoring</p>
                 </div>
@@ -1437,7 +1441,12 @@
                         <div id="promptLengthWarning" style="display: none; margin-top: 0.5rem; color: #b45309; font-size: 0.85rem;">
                             We recommend longer prompts for better results.
                         </div>
-                        
+
+                        <!-- Plan limit warning (dynamic) -->
+                        <div class="prompts-limit-warning" id="promptsLimitWarning" style="display: none;"></div>
+
+                        <div class="prompts-remaining-hint" id="promptsRemainingHint" style="display: none;"></div>
+
                         <div class="input-hint">
                             <i class="fas fa-info-circle"></i>
                             <span>One prompt per line</span>
