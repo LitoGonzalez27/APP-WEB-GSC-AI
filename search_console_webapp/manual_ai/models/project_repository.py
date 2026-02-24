@@ -5,6 +5,7 @@ Repositorio para operaciones de base de datos relacionadas con proyectos
 import logging
 import json
 from typing import List, Dict, Optional
+import psycopg2
 from database import get_db_connection
 from services.utils import normalize_search_console_url
 
@@ -35,56 +36,132 @@ class ProjectRepository:
         
         try:
             # Usar la misma lógica que get_project_statistics (último análisis por keyword)
-            cur.execute("""
-                SELECT 
-                    p.id,
-                    p.name,
-                    p.description,
-                    p.domain,
-                    p.country_code,
-                    p.created_at,
-                    p.updated_at,
-                    p.selected_competitors,
-                    p.topic_clusters,
-                    COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
-                    COALESCE(project_stats.total_keywords, 0) as total_keywords,
-                    COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
-                    COALESCE(project_stats.total_mentions, 0) as total_mentions,
-                    COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
-                    project_stats.avg_position,
-                    COALESCE(project_stats.aio_weight_percentage, 0) as aio_weight_percentage,
-                    project_stats.last_analysis_date
-                FROM manual_ai_projects p
-                LEFT JOIN LATERAL (
-                    WITH latest_results AS (
-                        SELECT DISTINCT ON (k.id) 
-                            k.id as keyword_id,
-                            k.is_active,
-                            r.has_ai_overview,
-                            r.domain_mentioned,
-                            r.domain_position,
-                            r.analysis_date
-                        FROM manual_ai_keywords k
-                        LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
-                        WHERE k.project_id = p.id
-                        ORDER BY k.id, r.analysis_date DESC
-                    )
+            try:
+                cur.execute("""
                     SELECT 
-                        COUNT(*) as total_keywords,
-                        COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
-                        COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
-                        COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                        AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
-                        (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
-                         NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
-                        (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
-                         NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
-                        MAX(analysis_date) as last_analysis_date
-                    FROM latest_results
-                ) project_stats ON true
-                WHERE p.user_id = %s AND p.is_active = true
-                ORDER BY p.created_at DESC
-            """, (user_id,))
+                        p.id,
+                        p.user_id,
+                        p.name,
+                        p.description,
+                        p.domain,
+                        p.country_code,
+                        p.created_at,
+                        p.updated_at,
+                        p.selected_competitors,
+                        p.topic_clusters,
+                        CASE WHEN p.user_id = %s THEN 'owner' ELSE 'viewer' END AS access_role,
+                        (p.user_id = %s) AS is_owner,
+                        (p.user_id = %s) AS can_edit,
+                        (p.user_id = %s) AS can_manage_access,
+                        COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
+                        COALESCE(project_stats.total_keywords, 0) as total_keywords,
+                        COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
+                        COALESCE(project_stats.total_mentions, 0) as total_mentions,
+                        COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
+                        project_stats.avg_position,
+                        COALESCE(project_stats.aio_weight_percentage, 0) as aio_weight_percentage,
+                        project_stats.last_analysis_date
+                    FROM manual_ai_projects p
+                    LEFT JOIN LATERAL (
+                        WITH latest_results AS (
+                            SELECT DISTINCT ON (k.id) 
+                                k.id as keyword_id,
+                                k.is_active,
+                                r.has_ai_overview,
+                                r.domain_mentioned,
+                                r.domain_position,
+                                r.analysis_date
+                            FROM manual_ai_keywords k
+                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                            WHERE k.project_id = p.id
+                            ORDER BY k.id, r.analysis_date DESC
+                        )
+                        SELECT 
+                            COUNT(*) as total_keywords,
+                            COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
+                            COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                            COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                            AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
+                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+                             NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
+                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                             NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
+                            MAX(analysis_date) as last_analysis_date
+                        FROM latest_results
+                    ) project_stats ON true
+                    WHERE p.is_active = true
+                      AND (
+                        p.user_id = %s
+                        OR EXISTS (
+                            SELECT 1
+                            FROM project_collaborators c
+                            WHERE c.module_name = 'manual_ai'
+                              AND c.project_id = p.id
+                              AND c.user_id = %s
+                        )
+                      )
+                    ORDER BY p.created_at DESC
+                """, (user_id, user_id, user_id, user_id, user_id, user_id))
+            except Exception as access_exc:
+                # Safe fallback before collaboration tables are migrated.
+                if not isinstance(access_exc, psycopg2.errors.UndefinedTable):
+                    raise
+                conn.rollback()
+                cur.execute("""
+                    SELECT 
+                        p.id,
+                        p.user_id,
+                        p.name,
+                        p.description,
+                        p.domain,
+                        p.country_code,
+                        p.created_at,
+                        p.updated_at,
+                        p.selected_competitors,
+                        p.topic_clusters,
+                        'owner' AS access_role,
+                        TRUE AS is_owner,
+                        TRUE AS can_edit,
+                        TRUE AS can_manage_access,
+                        COALESCE(jsonb_array_length(p.selected_competitors), 0) AS competitors_count,
+                        COALESCE(project_stats.total_keywords, 0) as total_keywords,
+                        COALESCE(project_stats.total_ai_keywords, 0) as total_ai_keywords,
+                        COALESCE(project_stats.total_mentions, 0) as total_mentions,
+                        COALESCE(project_stats.visibility_percentage, 0) as visibility_percentage,
+                        project_stats.avg_position,
+                        COALESCE(project_stats.aio_weight_percentage, 0) as aio_weight_percentage,
+                        project_stats.last_analysis_date
+                    FROM manual_ai_projects p
+                    LEFT JOIN LATERAL (
+                        WITH latest_results AS (
+                            SELECT DISTINCT ON (k.id) 
+                                k.id as keyword_id,
+                                k.is_active,
+                                r.has_ai_overview,
+                                r.domain_mentioned,
+                                r.domain_position,
+                                r.analysis_date
+                            FROM manual_ai_keywords k
+                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                            WHERE k.project_id = p.id
+                            ORDER BY k.id, r.analysis_date DESC
+                        )
+                        SELECT 
+                            COUNT(*) as total_keywords,
+                            COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
+                            COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                            COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                            AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
+                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+                             NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
+                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                             NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
+                            MAX(analysis_date) as last_analysis_date
+                        FROM latest_results
+                    ) project_stats ON true
+                    WHERE p.user_id = %s AND p.is_active = true
+                    ORDER BY p.created_at DESC
+                """, (user_id,))
             
             projects = cur.fetchall()
             logger.info(f"✅ [REPOSITORY] Query ejecutado. Proyectos encontrados: {len(projects)}")
@@ -180,6 +257,48 @@ class ProjectRepository:
         cur.close()
         conn.close()
         
+        return result is not None
+
+    @staticmethod
+    def user_has_project_access(user_id: int, project_id: int) -> bool:
+        """
+        Verificar si un usuario puede ver un proyecto (owner o colaborador viewer).
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT 1
+                FROM manual_ai_projects p
+                WHERE p.id = %s
+                  AND p.is_active = true
+                  AND (
+                    p.user_id = %s
+                    OR EXISTS (
+                        SELECT 1
+                        FROM project_collaborators c
+                        WHERE c.module_name = 'manual_ai'
+                          AND c.project_id = p.id
+                          AND c.user_id = %s
+                    )
+                  )
+            """, (project_id, user_id, user_id))
+        except Exception as exc:
+            if isinstance(exc, psycopg2.errors.UndefinedTable):
+                conn.rollback()
+                cur.execute("""
+                    SELECT 1
+                    FROM manual_ai_projects
+                    WHERE id = %s AND user_id = %s AND is_active = true
+                """, (project_id, user_id))
+            else:
+                cur.close()
+                conn.close()
+                raise
+
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
         return result is not None
     
     @staticmethod
@@ -459,4 +578,3 @@ class ProjectRepository:
         finally:
             cur.close()
             conn.close()
-

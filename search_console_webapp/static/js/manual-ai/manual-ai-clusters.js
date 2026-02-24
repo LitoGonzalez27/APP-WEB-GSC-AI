@@ -666,6 +666,10 @@ export async function loadProjectClustersForSettings(projectId) {
 }
 
 export async function saveClustersConfiguration(projectId = null) {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     // If no projectId provided, try to get from current modal project
     if (!projectId) {
         projectId = this.currentModalProject?.id;

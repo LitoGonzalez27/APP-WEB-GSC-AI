@@ -140,7 +140,12 @@ import {
     confirmDeleteProject,
     cancelDeleteProject,
     executeDeleteProject,
-    updateProjectFromModal
+    updateProjectFromModal,
+    showProjectAccessStatus,
+    loadProjectAccessSection,
+    sendProjectInvitationFromModal,
+    revokeProjectInvitationFromModal,
+    removeProjectMemberFromModal
 } from './manual-ai/manual-ai-modals.js';
 
 // Clusters
@@ -278,6 +283,11 @@ Object.assign(ManualAISystem.prototype, {
     updateProjectFromModal,
     renderModalKeywords,
     loadModalSettings,
+    showProjectAccessStatus,
+    loadProjectAccessSection,
+    sendProjectInvitationFromModal,
+    revokeProjectInvitationFromModal,
+    removeProjectMemberFromModal,
     
     // Clusters
     initializeClustersConfiguration,
@@ -330,4 +340,3 @@ if (document.readyState === 'loading') {
 
 // Exportar para uso si es necesario
 export default ManualAISystem;
-

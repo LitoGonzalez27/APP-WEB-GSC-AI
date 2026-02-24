@@ -36,7 +36,7 @@ def get_project_results(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_manual_ai_access(user)
+    has_access, error_response = check_manual_ai_access(user, allow_shared=True)
     if not has_access:
         return jsonify(error_response), 402
     
@@ -73,7 +73,7 @@ def get_project_stats(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_manual_ai_access(user)
+    has_access, error_response = check_manual_ai_access(user, allow_shared=True)
     if not has_access:
         return jsonify(error_response), 402
     
@@ -271,4 +271,3 @@ def get_urls_ranking(project_id):
     except Exception as e:
         logger.error(f"Error getting URLs ranking for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-

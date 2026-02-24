@@ -30,16 +30,19 @@ export async function loadProjectKeywords(projectId) {
 
 export function renderKeywords(keywords) {
     const keywordsList = document.getElementById('keywordsList');
+    const isReadOnly = this.isProjectReadOnly();
     
     if (keywords.length === 0) {
         keywordsList.innerHTML = `
             <div class="empty-keywords">
                 <i class="fas fa-key"></i>
                 <p>No keywords added yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.showAddKeywords()">
-                    <i class="fas fa-plus"></i>
-                    Add First Keywords
-                </button>
+                ${isReadOnly ? '<p class="small" style="margin-top:8px;">Shared project (view only)</p>' : `
+                    <button type="button" class="btn-primary btn-sm" onclick="aiModeSystem.showAddKeywords()">
+                        <i class="fas fa-plus"></i>
+                        Add First Keywords
+                    </button>
+                `}
             </div>
         `;
         return;
@@ -56,7 +59,7 @@ export function renderKeywords(keywords) {
                 <div class="col-analyses">Analyses</div>
                 <div class="col-frequency">AI Frequency</div>
                 <div class="col-last">Last Analysis</div>
-                <div class="col-actions">Actions</div>
+                ${isReadOnly ? '' : '<div class="col-actions">Actions</div>'}
             </div>
             <div class="keywords-table-body">
                 ${keywords.map(keyword => `
@@ -73,13 +76,15 @@ export function renderKeywords(keywords) {
                                 new Date(keyword.last_analysis_date).toLocaleDateString() : 
                                 'Never'}
                         </div>
-                        <div class="col-actions">
-                            <button type="button" class="btn-icon btn-sm" 
-                                    onclick="aiModeSystem.toggleKeyword(${keyword.id})"
-                                    title="${keyword.is_active ? 'Disable' : 'Enable'} keyword">
-                                <i class="fas fa-${keyword.is_active ? 'pause' : 'play'}"></i>
-                            </button>
-                        </div>
+                        ${isReadOnly ? '' : `
+                            <div class="col-actions">
+                                <button type="button" class="btn-icon btn-sm" 
+                                        onclick="aiModeSystem.toggleKeyword(${keyword.id})"
+                                        title="${keyword.is_active ? 'Disable' : 'Enable'} keyword">
+                                    <i class="fas fa-${keyword.is_active ? 'pause' : 'play'}"></i>
+                                </button>
+                            </div>
+                        `}
                     </div>
                 `).join('')}
             </div>
@@ -92,6 +97,9 @@ export function renderKeywords(keywords) {
 // ================================
 
 export function showAddKeywords() {
+    if (!this.assertProjectEditable()) {
+        return;
+    }
     this.elements.addKeywordsForm.reset();
     this.updateKeywordsCounter();
     this.showElement(this.elements.addKeywordsModal);
@@ -130,6 +138,10 @@ export async function handleAddKeywords(e) {
     
     if (!project) {
         this.showError('No project selected');
+        return;
+    }
+
+    if (!this.assertProjectEditable(project)) {
         return;
     }
 
@@ -185,12 +197,19 @@ export async function handleAddKeywords(e) {
 }
 
 export function toggleKeyword(keywordId) {
+    if (!this.assertProjectEditable()) {
+        return;
+    }
     // TODO: Implement keyword toggle functionality
     console.log('Toggle keyword:', keywordId);
 }
 
 // Alias para usar en onclick del HTML (desde el modal del proyecto)
 export async function addKeywordsFromModal() {
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     // Este método se llama desde el modal de configuración del proyecto
     // Usa un textarea diferente: modalKeywordsInput
     
@@ -253,4 +272,3 @@ export async function addKeywordsFromModal() {
         this.hideProgress();
     }
 }
-

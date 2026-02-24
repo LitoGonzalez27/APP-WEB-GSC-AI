@@ -5,6 +5,17 @@
 
 import { escapeHtml } from './manual-ai-utils.js';
 
+const PROJECT_ACCESS_MODULE = 'manual_ai';
+
+function formatAccessDate(value) {
+    if (!value) return '-';
+    try {
+        return new Date(value).toLocaleString();
+    } catch (error) {
+        return '-';
+    }
+}
+
 // ================================
 // PROJECT RESULTS MODAL
 // ================================
@@ -30,16 +41,19 @@ export async function loadProjectResults(projectId) {
 
 export function renderResults(results) {
     const resultsContent = document.getElementById('resultsContent');
+    const isReadOnly = this.isProjectReadOnly();
     
     if (results.length === 0) {
         resultsContent.innerHTML = `
             <div class="empty-keywords">
                 <i class="fas fa-chart-bar"></i>
                 <p>No analysis results yet</p>
-                <button type="button" class="btn-primary btn-sm" onclick="manualAI.runAnalysis()">
-                    <i class="fas fa-play"></i>
-                    Run First Analysis
-                </button>
+                ${isReadOnly ? '<p class="small" style="margin-top:8px;">Shared project (view only)</p>' : `
+                    <button type="button" class="btn-primary btn-sm" onclick="manualAI.runAnalysis()">
+                        <i class="fas fa-play"></i>
+                        Run First Analysis
+                    </button>
+                `}
             </div>
         `;
         return;
@@ -162,6 +176,7 @@ export function showProjectModal(projectId) {
 
     // Set current modal project
     this.currentModalProject = project;
+    this.currentProject = project;
 
     // Update modal title
     document.getElementById('projectModalTitle').textContent = `${project.name} - Settings`;
@@ -278,6 +293,8 @@ export function loadModalSettings(project) {
     const projectDescriptionEdit = document.getElementById('projectDescriptionEdit');
     const projectDomainEdit = document.getElementById('projectDomainEdit');
     const projectCountryEdit = document.getElementById('projectCountryEdit');
+    const modalProjectName = document.getElementById('modalProjectName');
+    const modalProjectDescription = document.getElementById('modalProjectDescription');
     
     // Only set values for elements that exist
     if (projectNameEdit) {
@@ -287,6 +304,14 @@ export function loadModalSettings(project) {
     if (projectDescriptionEdit) {
         projectDescriptionEdit.value = project.description || '';
     }
+
+    if (modalProjectName) {
+        modalProjectName.value = project.name || '';
+    }
+
+    if (modalProjectDescription) {
+        modalProjectDescription.value = project.description || '';
+    }
     
     if (projectDomainEdit) {
         projectDomainEdit.value = project.domain || '';
@@ -294,6 +319,44 @@ export function loadModalSettings(project) {
     
     if (projectCountryEdit) {
         projectCountryEdit.value = project.country_code || '';
+    }
+
+    const isReadOnly = project?.can_edit === false;
+    const toggleDisabled = (el, disabled) => {
+        if (!el) return;
+        el.disabled = disabled;
+        if (disabled) {
+            el.setAttribute('aria-disabled', 'true');
+        } else {
+            el.removeAttribute('aria-disabled');
+        }
+    };
+    const toggleActionButton = (selector, visible) => {
+        const button = document.querySelector(selector);
+        if (!button) return;
+        button.style.display = visible ? '' : 'none';
+        button.disabled = !visible;
+    };
+
+    toggleDisabled(projectNameEdit, isReadOnly);
+    toggleDisabled(projectDescriptionEdit, isReadOnly);
+    toggleDisabled(modalProjectName, isReadOnly);
+    toggleDisabled(modalProjectDescription, isReadOnly);
+    toggleDisabled(document.getElementById('modalKeywordsInput'), isReadOnly);
+    toggleDisabled(document.getElementById('newCompetitorInput'), isReadOnly);
+    toggleDisabled(document.getElementById('projectClustersEnabled'), isReadOnly);
+    toggleDisabled(document.getElementById('modalNotesInput'), isReadOnly);
+
+    toggleActionButton('button[onclick="manualAI.addKeywordsFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="manualAI.addCompetitor()"]', !isReadOnly);
+    toggleActionButton('button[onclick="manualAI.saveClustersConfiguration()"]', !isReadOnly);
+    toggleActionButton("button[onclick=\"manualAI.addClusterRow('clustersList')\"]", !isReadOnly);
+    toggleActionButton('button[onclick="manualAI.addNoteFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="manualAI.updateProjectFromModal()"]', !isReadOnly);
+    toggleActionButton('button[onclick="manualAI.confirmDeleteProjectFromModal()"]', !isReadOnly);
+
+    if (typeof this.loadProjectAccessSection === 'function') {
+        this.loadProjectAccessSection(project);
     }
     
     // Load clusters configuration if function exists
@@ -309,6 +372,10 @@ export function loadModalSettings(project) {
 export function confirmDeleteProjectFromModal() {
     if (!this.currentModalProject) {
         this.showError('No project selected');
+        return;
+    }
+
+    if (!this.assertProjectEditable(this.currentModalProject)) {
         return;
     }
 
@@ -365,6 +432,10 @@ export function confirmDeleteProject(projectId) {
     const currentProject = this.projects.find(p => p.id === projectId);
     if (!currentProject) {
         this.showError('Project not found');
+        return;
+    }
+
+    if (!this.assertProjectEditable(currentProject)) {
         return;
     }
 
@@ -425,6 +496,10 @@ export function cancelDeleteProject() {
 }
 
 export async function executeDeleteProject() {
+    if (!this.assertProjectEditable(this.projectToDelete || this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
     const projectToDelete = this.projectToDelete;
     const confirmText = document.getElementById('deleteConfirmInput').value;
     
@@ -475,8 +550,20 @@ export async function executeDeleteProject() {
 }
 
 export async function updateProjectFromModal() {
-    const newName = document.getElementById('projectNameEdit')?.value.trim();
-    const newDescription = document.getElementById('projectDescriptionEdit')?.value.trim();
+    if (!this.assertProjectEditable(this.currentModalProject || this.currentProject)) {
+        return;
+    }
+
+    const newName = (
+        document.getElementById('projectNameEdit')?.value ??
+        document.getElementById('modalProjectName')?.value ??
+        ''
+    ).trim();
+    const newDescription = (
+        document.getElementById('projectDescriptionEdit')?.value ??
+        document.getElementById('modalProjectDescription')?.value ??
+        ''
+    ).trim();
     
     if (!newName) {
         this.showError('Project name cannot be empty');
@@ -533,3 +620,218 @@ export async function updateProjectFromModal() {
     }
 }
 
+export function showProjectAccessStatus(message, type = 'info') {
+    const statusEl = document.getElementById('projectAccessStatus');
+    if (!statusEl) return;
+    statusEl.textContent = message || '';
+    statusEl.className = `project-access-status ${type}`;
+    statusEl.style.display = message ? 'block' : 'none';
+}
+
+export async function loadProjectAccessSection(project) {
+    const section = document.getElementById('projectAccessSection');
+    const inviteForm = document.getElementById('projectAccessInviteForm');
+    const inviteName = document.getElementById('projectAccessInviteName');
+    const inviteEmail = document.getElementById('projectAccessInviteEmail');
+    const inviteBtn = document.getElementById('projectAccessInviteBtn');
+    const membersList = document.getElementById('projectAccessMembersList');
+    const invitationsList = document.getElementById('projectAccessInvitationsList');
+
+    if (!section || !project?.id) return;
+
+    this.showProjectAccessStatus('');
+    if (membersList) {
+        membersList.innerHTML = '<div class="project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading members...</div>';
+    }
+    if (invitationsList) {
+        invitationsList.innerHTML = '<div class="project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading invitations...</div>';
+    }
+
+    try {
+        const response = await fetch(
+            `/api/project-access/projects/${PROJECT_ACCESS_MODULE}/${project.id}/members`,
+            { credentials: 'same-origin' }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const permissions = data.permissions || {};
+        const canManage = permissions.can_manage_access === true;
+        project.can_manage_access = canManage;
+        if (typeof permissions.can_edit === 'boolean') {
+            project.can_edit = permissions.can_edit;
+        }
+
+        if (inviteForm) {
+            inviteForm.style.display = canManage ? '' : 'none';
+        }
+        if (inviteName) inviteName.disabled = !canManage;
+        if (inviteEmail) inviteEmail.disabled = !canManage;
+        if (inviteBtn) inviteBtn.disabled = !canManage;
+
+        const members = Array.isArray(data.members) ? data.members : [];
+        if (membersList) {
+            if (!members.length) {
+                membersList.innerHTML = '<div class="project-access-empty">No members yet.</div>';
+            } else {
+                membersList.innerHTML = members.map((member) => {
+                    const roleBadge = member.is_owner
+                        ? '<span class="project-access-badge owner"><i class="fas fa-crown"></i> Owner</span>'
+                        : '<span class="project-access-badge">Viewer</span>';
+                    const removeBtn = (!member.is_owner && canManage)
+                        ? `<button type="button" class="btn-danger project-access-btn" onclick="manualAI.removeProjectMemberFromModal(${Number(member.user_id)})"><i class="fas fa-user-minus"></i> Remove</button>`
+                        : '';
+
+                    return `
+                        <div class="project-access-item">
+                            <div class="project-access-item-main">
+                                <div><strong>${escapeHtml(member.name || member.email || 'Member')}</strong> ${roleBadge}</div>
+                                <div class="project-access-meta">${escapeHtml(member.email || '')}</div>
+                            </div>
+                            ${removeBtn}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        const invitations = Array.isArray(data.invitations) ? data.invitations : [];
+        if (invitationsList) {
+            if (!canManage) {
+                invitationsList.innerHTML = '<div class="project-access-empty">Only the project owner can manage invitations.</div>';
+            } else if (!invitations.length) {
+                invitationsList.innerHTML = '<div class="project-access-empty">No invitations yet.</div>';
+            } else {
+                invitationsList.innerHTML = invitations.map((invitation) => {
+                    const rawStatus = String(invitation.status || 'pending').toLowerCase();
+                    const normalizedStatus = ['pending', 'accepted', 'expired'].includes(rawStatus) ? rawStatus : 'default';
+                    const statusText = escapeHtml(rawStatus.replace(/_/g, ' '));
+                    const canRevoke = rawStatus === 'pending';
+                    const revokeBtn = canRevoke
+                        ? `<button type="button" class="btn-danger project-access-btn" onclick="manualAI.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
+                        : '';
+
+                    return `
+                        <div class="project-access-item">
+                            <div class="project-access-item-main">
+                                <div><strong>${escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="project-access-badge status-${normalizedStatus}">${statusText}</span></div>
+                                <div class="project-access-meta">${escapeHtml(invitation.invitee_email || '')}</div>
+                                <div class="project-access-meta">Expires: ${formatAccessDate(invitation.expires_at)}</div>
+                            </div>
+                            ${revokeBtn}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading project access section:', error);
+        if (membersList) {
+            membersList.innerHTML = '<div class="project-access-empty">Could not load members.</div>';
+        }
+        if (invitationsList) {
+            invitationsList.innerHTML = '<div class="project-access-empty">Could not load invitations.</div>';
+        }
+        this.showProjectAccessStatus(error.message || 'Could not load project access data', 'error');
+    }
+}
+
+export async function sendProjectInvitationFromModal() {
+    if (!this.currentModalProject?.id) {
+        this.showError('No project selected');
+        return;
+    }
+    if (this.currentModalProject.can_manage_access === false) {
+        this.showError('Only the project owner can invite collaborators.');
+        return;
+    }
+
+    const inviteName = document.getElementById('projectAccessInviteName');
+    const inviteEmail = document.getElementById('projectAccessInviteEmail');
+    const email = (inviteEmail?.value || '').trim().toLowerCase();
+    const name = (inviteName?.value || '').trim();
+
+    if (!email) {
+        this.showProjectAccessStatus('Invitee email is required.', 'error');
+        return;
+    }
+    const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (!emailPattern.test(email)) {
+        this.showProjectAccessStatus('Please enter a valid email address.', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/project-access/projects/${PROJECT_ACCESS_MODULE}/${this.currentModalProject.id}/invitations`,
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name, role: 'viewer' })
+            }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        if (inviteName) inviteName.value = '';
+        if (inviteEmail) inviteEmail.value = '';
+
+        const message = data.email_sent
+            ? 'Invitation sent successfully.'
+            : 'Invitation created, but email delivery failed. Check email settings and resend.';
+        this.showProjectAccessStatus(message, data.email_sent ? 'success' : 'error');
+        await this.loadProjectAccessSection(this.currentModalProject);
+    } catch (error) {
+        console.error('Error sending invitation from modal:', error);
+        this.showProjectAccessStatus(error.message || 'Failed to send invitation.', 'error');
+    }
+}
+
+export async function revokeProjectInvitationFromModal(invitationId) {
+    try {
+        const response = await fetch(`/api/project-access/invitations/${invitationId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        this.showProjectAccessStatus('Invitation removed.', 'success');
+        await this.loadProjectAccessSection(this.currentModalProject);
+    } catch (error) {
+        console.error('Error revoking invitation from modal:', error);
+        this.showProjectAccessStatus(error.message || 'Failed to revoke invitation.', 'error');
+    }
+}
+
+export async function removeProjectMemberFromModal(memberUserId) {
+    if (!this.currentModalProject?.id) {
+        this.showError('No project selected');
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/project-access/projects/${PROJECT_ACCESS_MODULE}/${this.currentModalProject.id}/members/${memberUserId}`,
+            {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        this.showProjectAccessStatus('Member removed.', 'success');
+        await this.loadProjectAccessSection(this.currentModalProject);
+    } catch (error) {
+        console.error('Error removing member from modal:', error);
+        this.showProjectAccessStatus(error.message || 'Failed to remove member.', 'error');
+    }
+}

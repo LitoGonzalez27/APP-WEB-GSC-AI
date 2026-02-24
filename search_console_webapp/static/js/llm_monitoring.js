@@ -63,6 +63,8 @@ class LLMMonitoring {
     init() {
         console.log('🎯 Initializing LLM Monitoring System...');
 
+        this.handleInvitationFeedbackFromUrl();
+
         // Load projects
         this.loadProjects();
 
@@ -94,7 +96,7 @@ class LLMMonitoring {
     }
 
     /**
-     * Load plan limits and usage for banner
+     * Load plan limits and usage
      */
     async loadPlanLimits() {
         try {
@@ -106,30 +108,91 @@ class LLMMonitoring {
 
             const limits = data.limits;
             this.planLimits = limits;
-            const banner = document.getElementById('llmPlanLimitsBanner');
-            if (!banner) return;
-
-            const projectsText = limits.max_projects === null
-                ? 'Unlimited projects'
-                : `${limits.active_projects}/${limits.max_projects} projects`;
-            const promptsText = limits.max_prompts_per_project === null
-                ? 'Unlimited prompts per project'
-                : `${limits.max_prompts_per_project} prompts per project`;
-            const usageText = limits.max_monthly_units === null
-                ? 'Unlimited monthly usage'
-                : `${limits.monthly_units_used}/${limits.max_monthly_units} monthly requests`;
-
-            banner.innerHTML = `
-                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                    <strong style="margin-right:6px;">Plan: ${limits.plan.toUpperCase()}</strong>
-                    <span>• ${projectsText}</span>
-                    <span>• ${promptsText}</span>
-                    <span>• ${usageText}</span>
-                </div>
-            `;
-            banner.style.display = 'block';
+            // Update UI elements that show plan usage
+            this.updatePlanLimitsUI();
         } catch (error) {
             console.warn('Could not load LLM plan limits:', error);
+        }
+    }
+
+    /**
+     * Update all UI elements that reflect plan limits
+     */
+    updatePlanLimitsUI() {
+        const limits = this.planLimits;
+        if (!limits) return;
+
+        // --- Projects counter badge ---
+        const projectsBadge = document.getElementById('projectsLimitBadge');
+        if (projectsBadge) {
+            if (limits.max_projects !== null) {
+                const used = limits.active_projects || 0;
+                const max = limits.max_projects;
+                projectsBadge.textContent = `${used} / ${max}`;
+                projectsBadge.style.display = 'inline-flex';
+                // Color states
+                projectsBadge.classList.remove('limit-warning', 'limit-reached');
+                if (used >= max) {
+                    projectsBadge.classList.add('limit-reached');
+                } else if (used >= max * 0.8) {
+                    projectsBadge.classList.add('limit-warning');
+                }
+            } else {
+                // Unlimited (admin or enterprise)
+                projectsBadge.style.display = 'none';
+            }
+        }
+
+        // --- Create project button state ---
+        const btnCreate = document.getElementById('btnCreateProject');
+        if (btnCreate) {
+            const hasLimit = limits.max_projects !== null;
+            const atLimit = hasLimit && limits.active_projects >= limits.max_projects;
+            if (atLimit) {
+                btnCreate.classList.add('btn-limit-reached');
+                btnCreate.setAttribute('title', `Project limit reached (${limits.active_projects}/${limits.max_projects}). Upgrade your plan to create more.`);
+            } else {
+                btnCreate.classList.remove('btn-limit-reached');
+                btnCreate.removeAttribute('title');
+            }
+        }
+    }
+
+    /**
+     * Update prompts limit UI inside prompts management modal
+     */
+    updatePromptsLimitUI() {
+        const limits = this.planLimits;
+        const badge = document.getElementById('promptsLimitBadge');
+        if (!badge || !limits) return;
+
+        const maxPrompts = limits.max_prompts_per_project;
+        if (maxPrompts === null) {
+            badge.style.display = 'none';
+            return;
+        }
+
+        const currentCount = this.allPrompts ? this.allPrompts.length : 0;
+        badge.textContent = `${currentCount} / ${maxPrompts}`;
+        badge.style.display = 'inline-flex';
+        badge.classList.remove('limit-warning', 'limit-reached');
+        if (currentCount >= maxPrompts) {
+            badge.classList.add('limit-reached');
+        } else if (currentCount >= maxPrompts * 0.8) {
+            badge.classList.add('limit-warning');
+        }
+
+        // Also update Add Prompts button in modal
+        const btnAddModal = document.getElementById('btnAddPromptsModal');
+        if (btnAddModal) {
+            if (currentCount >= maxPrompts) {
+                btnAddModal.classList.add('btn-limit-reached');
+                btnAddModal.setAttribute('title', `Prompt limit reached (${currentCount}/${maxPrompts}). Upgrade to add more.`);
+            } else {
+                btnAddModal.classList.remove('btn-limit-reached');
+                const remaining = maxPrompts - currentCount;
+                btnAddModal.setAttribute('title', `${remaining} prompt${remaining !== 1 ? 's' : ''} remaining`);
+            }
         }
     }
 
@@ -585,7 +648,7 @@ class LLMMonitoring {
                     if (window.showPaywall) {
                         window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
                     }
-                    this.showError('Project limit reached for your current plan.');
+                    this.showError(`You've reached the project limit for your plan (${limits.active_projects}/${limits.max_projects}). Upgrade to create more projects.`);
                     return;
                 }
 
@@ -614,6 +677,10 @@ class LLMMonitoring {
 
         document.getElementById('btnCancelModal')?.addEventListener('click', () => {
             this.hideProjectModal();
+        });
+
+        document.getElementById('llmProjectInviteBtn')?.addEventListener('click', () => {
+            this.sendProjectInvitationFromModal();
         });
 
         // Form submit handler
@@ -920,6 +987,12 @@ class LLMMonitoring {
 
             console.log(`✅ Successfully rendered ${data.projects.length} projects`);
 
+            // Refresh plan limits after projects load (count may have changed)
+            if (this.planLimits) {
+                this.planLimits.active_projects = data.projects.filter(p => p.is_active).length;
+                this.updatePlanLimitsUI();
+            }
+
         } catch (error) {
             console.error('❌ Error loading projects:', error);
             loading.style.display = 'none';
@@ -939,6 +1012,7 @@ class LLMMonitoring {
             : (project.competitors?.length || 0);
         const configuredQueries = Number(project.total_queries || 0);
         const hasConfiguredPrompts = configuredQueries > 0;
+        const canEdit = project.can_edit !== false;
         const shouldShowInitialAnalysisButton = !!project.is_active && !project.last_analysis_date;
         const isInitialAnalysisRunning = !!project.initial_analysis_in_progress;
         card.innerHTML = `
@@ -947,6 +1021,7 @@ class LLMMonitoring {
                 <div class="project-status ${project.is_active ? 'active' : 'inactive'}">
                     ${project.is_active ? 'Active' : 'Inactive'}
                 </div>
+                ${!canEdit ? '<span class="badge badge-language" style="margin-left: 8px;">Shared (view only)</span>' : ''}
             </div>
             <div class="project-card-body">
                 <div class="project-info">
@@ -988,15 +1063,17 @@ class LLMMonitoring {
                     <i class="fas fa-eye"></i>
                     View Metrics
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
-                    <i class="fas fa-list"></i>
-                    View/Edit Prompts
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
-                    <i class="fas fa-edit"></i>
-                    Edit
-                </button>
-                ${shouldShowInitialAnalysisButton ? `
+                ${canEdit ? `
+                    <button class="btn btn-primary btn-sm" onclick="window.llmMonitoring.openPromptsManagementForProject(${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-list"></i>
+                        View/Edit Prompts
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="window.llmMonitoring.editProject(${project.id}, ${JSON.stringify(project).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-edit"></i>
+                        Edit
+                    </button>
+                ` : ''}
+                ${(canEdit && shouldShowInitialAnalysisButton) ? `
                     <button
                         class="btn btn-success btn-sm"
                         id="btnInitialAnalysis-${project.id}"
@@ -1007,12 +1084,13 @@ class LLMMonitoring {
                         ${isInitialAnalysisRunning ? 'First analysis running...' : (hasConfiguredPrompts ? 'Run First Analysis' : 'Add Prompts First')}
                     </button>
                 ` : ''}
-                ${project.is_active ? `
+                ${(canEdit && project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
                         Deactivate
                     </button>
-                ` : `
+                ` : ''}
+                ${(canEdit && !project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-play"></i>
                         Activate
@@ -1021,7 +1099,7 @@ class LLMMonitoring {
                         <i class="fas fa-trash"></i>
                         Delete
                     </button>
-                `}
+                ` : ''}
             </div>
         `;
 
@@ -1231,7 +1309,8 @@ class LLMMonitoring {
 
         this.currentProject = { id: projectId };
 
-        // Hide projects, show metrics
+        // Hide projects wrapper, show metrics
+        const llmProjectsView = document.getElementById('llmProjectsView');
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
         const fab = document.getElementById('globalMetricFab');
@@ -1239,6 +1318,9 @@ class LLMMonitoring {
         console.log('📦 Projects tab element:', projectsTab);
         console.log('📦 Metrics section element:', metricsSection);
 
+        if (llmProjectsView) {
+            llmProjectsView.style.display = 'none';
+        }
         if (projectsTab) {
             projectsTab.style.display = 'none';
             projectsTab.classList.remove('active');
@@ -1271,6 +1353,7 @@ class LLMMonitoring {
             this.serverModelScopeNotice = data.model_scope_notice
                 ? { ...data.model_scope_notice, project_id: projectId }
                 : null;
+            this.updateProjectEditControls();
             this.syncProjectLlmFilterOptions();
             this.updateModelScopeBanner();
 
@@ -1310,6 +1393,19 @@ class LLMMonitoring {
      */
     getSelectedSovMetric() {
         return document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+    }
+
+    updateProjectEditControls() {
+        const canEdit = this.currentProject?.can_edit !== false;
+        const setVisible = (id, visible) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = visible ? '' : 'none';
+        };
+
+        setVisible('btnEditProject', canEdit);
+        setVisible('btnDeleteProject', canEdit);
+        setVisible('btnManagePrompts', canEdit);
     }
 
     /**
@@ -3118,10 +3214,14 @@ class LLMMonitoring {
      * Show projects list
      */
     showProjectsList() {
+        const llmProjectsView = document.getElementById('llmProjectsView');
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
         const fab = document.getElementById('globalMetricFab');
 
+        if (llmProjectsView) {
+            llmProjectsView.style.display = '';
+        }
         if (projectsTab) {
             projectsTab.style.display = 'block';
             projectsTab.classList.add('active');
@@ -3950,6 +4050,9 @@ class LLMMonitoring {
             llmCheckboxes.forEach(cb => {
                 cb.checked = project.enabled_llms?.includes(cb.value) || false;
             });
+
+            this.toggleProjectAccessSection(true);
+            this.loadProjectAccessSection(project);
         } else {
             // Create mode
             title.textContent = 'Create New LLM Monitoring Project';
@@ -3963,6 +4066,9 @@ class LLMMonitoring {
             // Check all LLMs by default
             const llmCheckboxes = document.querySelectorAll('input[name="llm"]');
             llmCheckboxes.forEach(cb => cb.checked = true);
+
+            this.toggleProjectAccessSection(false);
+            this.clearProjectAccessSection();
         }
 
         this.updateLlmSelectionImpactNotice();
@@ -3986,9 +4092,270 @@ class LLMMonitoring {
         modal.classList.remove('active');
         this.modalOriginalEnabledLlms = null;
         this.updateLlmSelectionImpactNotice();
+        this.showProjectAccessStatus('');
         setTimeout(() => {
             modal.style.display = 'none';
         }, 300); // Match transition duration
+    }
+
+    handleInvitationFeedbackFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const invitationStatus = params.get('invitation');
+        const invitationError = params.get('invitation_error');
+        const projectName = params.get('project_name');
+
+        if (invitationStatus === 'accepted') {
+            const displayName = projectName || 'project';
+            this.showSuccess(`Invitation accepted. You now have access to "${displayName}".`);
+        } else if (invitationError) {
+            const errorMap = {
+                missing_token: 'Invitation link is missing a token.',
+                'Invitation not found': 'Invitation link is invalid or no longer available.',
+                'Invitation has expired': 'Invitation has expired. Ask the owner to send a new one.',
+                'Invitation is revoked': 'Invitation was revoked by the project owner.',
+                'Invitation is accepted': 'This invitation was already accepted.',
+                'Invitation email does not match your current account': 'This invitation was sent to a different email address.'
+            };
+            this.showError(errorMap[invitationError] || invitationError);
+        }
+
+        if (invitationStatus || invitationError || params.has('project_id') || params.has('project_name')) {
+            params.delete('invitation');
+            params.delete('invitation_error');
+            params.delete('project_id');
+            params.delete('project_name');
+            const nextQuery = params.toString();
+            const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
+            window.history.replaceState({}, '', nextUrl);
+        }
+    }
+
+    toggleProjectAccessSection(show) {
+        const section = document.getElementById('llmProjectAccessSection');
+        if (!section) return;
+        section.style.display = show ? '' : 'none';
+    }
+
+    clearProjectAccessSection() {
+        const members = document.getElementById('llmProjectAccessMembers');
+        const invitations = document.getElementById('llmProjectAccessInvitations');
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        if (members) members.innerHTML = '';
+        if (invitations) invitations.innerHTML = '';
+        if (inviteName) inviteName.value = '';
+        if (inviteEmail) inviteEmail.value = '';
+    }
+
+    showProjectAccessStatus(message, type = 'info') {
+        const statusEl = document.getElementById('llmProjectAccessStatus');
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        statusEl.className = `llm-project-access-status ${type}`;
+        statusEl.style.display = message ? 'block' : 'none';
+    }
+
+    async loadProjectAccessSection(project) {
+        const section = document.getElementById('llmProjectAccessSection');
+        const inviteForm = document.getElementById('llmProjectAccessInviteForm');
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        const inviteBtn = document.getElementById('llmProjectInviteBtn');
+        const membersList = document.getElementById('llmProjectAccessMembers');
+        const invitationsList = document.getElementById('llmProjectAccessInvitations');
+
+        if (!section || !project?.id) return;
+
+        this.showProjectAccessStatus('');
+        if (membersList) {
+            membersList.innerHTML = '<div class="llm-project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading members...</div>';
+        }
+        if (invitationsList) {
+            invitationsList.innerHTML = '<div class="llm-project-access-empty"><i class="fas fa-spinner fa-spin"></i> Loading invitations...</div>';
+        }
+
+        try {
+            const response = await fetch(`/api/project-access/projects/llm_monitoring/${project.id}/members`, {
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            const permissions = data.permissions || {};
+            const canManage = permissions.can_manage_access === true;
+            project.can_manage_access = canManage;
+            if (typeof permissions.can_edit === 'boolean') {
+                project.can_edit = permissions.can_edit;
+            }
+
+            if (inviteForm) {
+                inviteForm.style.display = canManage ? '' : 'none';
+            }
+            if (inviteName) inviteName.disabled = !canManage;
+            if (inviteEmail) inviteEmail.disabled = !canManage;
+            if (inviteBtn) inviteBtn.disabled = !canManage;
+
+            const members = Array.isArray(data.members) ? data.members : [];
+            if (membersList) {
+                if (!members.length) {
+                    membersList.innerHTML = '<div class="llm-project-access-empty">No members yet.</div>';
+                } else {
+                    membersList.innerHTML = members.map((member) => {
+                        const roleBadge = member.is_owner
+                            ? '<span class="llm-project-access-badge owner"><i class="fas fa-crown"></i> Owner</span>'
+                            : '<span class="llm-project-access-badge">Viewer</span>';
+                        const removeBtn = (!member.is_owner && canManage)
+                            ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.removeProjectMemberFromModal(${Number(member.user_id)})"><i class="fas fa-user-minus"></i> Remove</button>`
+                            : '';
+
+                        return `
+                            <div class="llm-project-access-item">
+                                <div class="llm-project-access-main">
+                                    <div><strong>${this.escapeHtml(member.name || member.email || 'Member')}</strong> ${roleBadge}</div>
+                                    <div class="llm-project-access-meta">${this.escapeHtml(member.email || '')}</div>
+                                </div>
+                                ${removeBtn}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const invitations = Array.isArray(data.invitations) ? data.invitations : [];
+            if (invitationsList) {
+                if (!canManage) {
+                    invitationsList.innerHTML = '<div class="llm-project-access-empty">Only the project owner can manage invitations.</div>';
+                } else if (!invitations.length) {
+                    invitationsList.innerHTML = '<div class="llm-project-access-empty">No invitations yet.</div>';
+                } else {
+                    invitationsList.innerHTML = invitations.map((invitation) => {
+                        const rawStatus = String(invitation.status || 'pending').toLowerCase();
+                        const normalizedStatus = ['pending', 'accepted', 'expired'].includes(rawStatus) ? rawStatus : 'default';
+                        const statusText = this.escapeHtml(rawStatus.replace(/_/g, ' '));
+                        const expires = invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '-';
+                        const revokeBtn = rawStatus === 'pending'
+                            ? `<button type="button" class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.revokeProjectInvitationFromModal(${Number(invitation.id)})"><i class="fas fa-ban"></i> Revoke</button>`
+                            : '';
+
+                        return `
+                            <div class="llm-project-access-item">
+                                <div class="llm-project-access-main">
+                                    <div><strong>${this.escapeHtml(invitation.invitee_name || invitation.invitee_email || 'Invitee')}</strong> <span class="llm-project-access-badge status-${normalizedStatus}">${statusText}</span></div>
+                                    <div class="llm-project-access-meta">${this.escapeHtml(invitation.invitee_email || '')}</div>
+                                    <div class="llm-project-access-meta">Expires: ${expires}</div>
+                                </div>
+                                ${revokeBtn}
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading project access section:', error);
+            if (membersList) {
+                membersList.innerHTML = '<div class="llm-project-access-empty">Could not load members.</div>';
+            }
+            if (invitationsList) {
+                invitationsList.innerHTML = '<div class="llm-project-access-empty">Could not load invitations.</div>';
+            }
+            this.showProjectAccessStatus(error.message || 'Could not load project access data', 'error');
+        }
+    }
+
+    async sendProjectInvitationFromModal() {
+        if (!this.currentProject?.id) {
+            this.showError('No project selected');
+            return;
+        }
+        if (this.currentProject.can_manage_access === false) {
+            this.showError('Only the project owner can invite collaborators.');
+            return;
+        }
+
+        const inviteName = document.getElementById('llmProjectInviteName');
+        const inviteEmail = document.getElementById('llmProjectInviteEmail');
+        const email = (inviteEmail?.value || '').trim().toLowerCase();
+        const name = (inviteName?.value || '').trim();
+        if (!email) {
+            this.showProjectAccessStatus('Invitee email is required.', 'error');
+            return;
+        }
+        const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (!emailPattern.test(email)) {
+            this.showProjectAccessStatus('Please enter a valid email address.', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/project-access/projects/llm_monitoring/${this.currentProject.id}/invitations`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, name, role: 'viewer' })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            if (inviteName) inviteName.value = '';
+            if (inviteEmail) inviteEmail.value = '';
+
+            const message = data.email_sent
+                ? 'Invitation sent successfully.'
+                : 'Invitation created, but email delivery failed. Check email settings and resend.';
+            this.showProjectAccessStatus(message, data.email_sent ? 'success' : 'error');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error sending invitation from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to send invitation.', 'error');
+        }
+    }
+
+    async revokeProjectInvitationFromModal(invitationId) {
+        try {
+            const response = await fetch(`/api/project-access/invitations/${invitationId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+            this.showProjectAccessStatus('Invitation removed.', 'success');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error revoking invitation from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to revoke invitation.', 'error');
+        }
+    }
+
+    async removeProjectMemberFromModal(memberUserId) {
+        if (!this.currentProject?.id) {
+            this.showError('No project selected');
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/api/project-access/projects/llm_monitoring/${this.currentProject.id}/members/${memberUserId}`,
+                {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                }
+            );
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+            this.showProjectAccessStatus('Member removed.', 'success');
+            await this.loadProjectAccessSection(this.currentProject);
+        } catch (error) {
+            console.error('Error removing member from modal:', error);
+            this.showProjectAccessStatus(error.message || 'Failed to remove member.', 'error');
+        }
     }
 
     /**
@@ -4109,7 +4476,20 @@ class LLMMonitoring {
 
             console.log('📡 Response status:', response.status, response.statusText);
 
-            await this.handlePaywallResponse(response);
+            if (response.status === 402) {
+                const errorData = await response.json().catch(() => ({}));
+                if (errorData.error === 'project_limit_reached') {
+                    const current = errorData.current || '?';
+                    const limit = errorData.limit || '?';
+                    this.showError(`Project limit reached: you have ${current}/${limit} projects on your current plan. Upgrade to create more.`);
+                } else {
+                    this.showError(errorData.message || 'LLM Monitoring requires a paid plan.');
+                }
+                if (window.showPaywall) {
+                    window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['premium', 'business', 'enterprise']);
+                }
+                return;
+            }
 
             if (!response.ok) {
                 let errorMessage = `HTTP ${response.status}`;
@@ -4292,6 +4672,9 @@ class LLMMonitoring {
 
             // Render prompts list with pagination
             this.renderPrompts(renderInModal);
+
+            // Update prompts limit UI (badge in management modal)
+            this.updatePromptsLimitUI();
 
         } catch (error) {
             console.error('❌ Error loading prompts:', error);
@@ -4486,15 +4869,30 @@ class LLMMonitoring {
     showPromptsModal() {
         console.log('🎬 Showing prompts modal...');
 
+        // Pre-check: block if prompt limit already reached
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        const currentCount = this.allPrompts ? this.allPrompts.length : 0;
+        if (maxPrompts !== null && currentCount >= maxPrompts) {
+            if (window.showPaywall) {
+                window.showPaywall('LLM Monitoring', ['premium', 'business', 'enterprise']);
+            }
+            this.showError(`You've reached the prompt limit for your plan (${currentCount}/${maxPrompts}). Upgrade to add more prompts.`);
+            return;
+        }
+
         const modal = document.getElementById('promptsModal');
         if (!modal) return;
 
         // Reset form
         document.getElementById('promptsForm').reset();
-        
+
         // Reset counter
         this.updatePromptsCounter();
-        
+
+        // Show remaining prompts hint
+        this.updatePromptsRemainingHint();
+
         // Add input listener for real-time updates
         const textarea = document.getElementById('promptsInput');
         if (textarea) {
@@ -4674,9 +5072,13 @@ class LLMMonitoring {
         const listEl = document.getElementById('quickSuggestionsList');
         const emptyEl = document.getElementById('quickSuggestionsEmpty');
         const sectionEl = document.getElementById('quickSuggestionsSection');
-        
-        if (!listEl || !this.currentProject) return;
-        
+
+        if (!listEl || !this.currentProject) {
+            console.warn('[Suggestions] Missing listEl or currentProject, rendering local fallback');
+            this._renderLocalFallbackSuggestions();
+            return;
+        }
+
         // Show loading
         listEl.innerHTML = `
             <div class="suggestions-loading-inline">
@@ -4686,88 +5088,76 @@ class LLMMonitoring {
         `;
         if (emptyEl) emptyEl.style.display = 'none';
         if (sectionEl) sectionEl.style.display = 'block';
-        
+
+        // Prepare project context
+        const existingPrompts = this.allPrompts || [];
+        const languageCode = this.getProjectLanguageCode();
+        const brandName = this.currentProject.brand_name || 'your brand';
+        const industry = this.currentProject.industry || 'your industry';
+        const competitorName = this.getPrimaryCompetitorName(languageCode);
+        const mode = existingPrompts.length > 0 ? 'variation' : 'default';
+        const cacheKey = existingPrompts.length === 0
+            ? `bootstrap:${this.currentProject.id}:${languageCode}`
+            : `variation:${this.currentProject.id}:${languageCode}:${existingPrompts.length}`;
+
+        // Check cache first
+        if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
+            this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
+            return;
+        }
+
+        // Attempt to fetch AI-generated suggestions with a timeout
         try {
-            // Get existing prompts
-            const existingPrompts = this.allPrompts || [];
-            const languageCode = this.getProjectLanguageCode();
-            const brandName = this.currentProject.brand_name || 'your brand';
-            const industry = this.currentProject.industry || 'your industry';
-            const competitorName = this.getPrimaryCompetitorName(languageCode);
-            
-            if (existingPrompts.length === 0) {
-                const cacheKey = `bootstrap:${this.currentProject.id}:${languageCode}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
-                if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
-                    this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
-                    return;
-                }
+            const body = existingPrompts.length === 0
+                ? { existing_prompts: [], count: 6 }
+                : { existing_prompts: existingPrompts.slice(0, 5).map(p => p.prompt), count: 6 };
 
-                // For new projects with zero prompts, use AI first to honor project language/country.
-                const bootstrapResponse = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`,
+                {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        existing_prompts: [],
-                        count: 6
-                    })
-                });
-
-                if (bootstrapResponse.ok) {
-                    const bootstrapData = await bootstrapResponse.json();
-                    if (bootstrapData.success && bootstrapData.suggestions && bootstrapData.suggestions.length > 0) {
-                        this.quickSuggestionsCache.set(cacheKey, bootstrapData.suggestions);
-                        this.renderQuickSuggestions(bootstrapData.suggestions);
-                        return;
-                    }
+                    body: JSON.stringify(body),
+                    signal: controller.signal
                 }
+            );
+            clearTimeout(timeoutId);
 
-                // Fallback if AI is unavailable
-                this.renderQuickSuggestions(
-                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
-                );
-                return;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+                    this.quickSuggestionsCache.set(cacheKey, data.suggestions);
+                    this.renderQuickSuggestions(data.suggestions);
+                    return;
+                }
             }
-            
-            // Generate variations using existing prompts
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    existing_prompts: existingPrompts.slice(0, 5).map(p => p.prompt),
-                    count: 6
-                })
-            });
-            
-            if (!response.ok) {
-                // Fallback to simple variations
-                this.generateLocalSuggestions(existingPrompts);
-                return;
-            }
-            
-            const data = await response.json();
-            
-            if (data.success && data.suggestions && data.suggestions.length > 0) {
-                this.renderQuickSuggestions(data.suggestions);
-            } else {
-                this.generateLocalSuggestions(existingPrompts);
-            }
-            
-        } catch (error) {
-            console.error('Error loading quick suggestions:', error);
-            // Fallback to local generation
-            if (this.allPrompts && this.allPrompts.length > 0) {
-                this.generateLocalSuggestions(this.allPrompts);
-            } else {
-                const languageCode = this.getProjectLanguageCode();
-                const brandName = this.currentProject?.brand_name || 'your brand';
-                const industry = this.currentProject?.industry || 'your industry';
-                const competitorName = this.getPrimaryCompetitorName(languageCode);
-                this.renderQuickSuggestions(
-                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
-                );
-            }
+        } catch (err) {
+            // AbortError = timeout, any other = network / parse error
+            console.warn('[Suggestions] API fetch failed, using local fallback:', err.name === 'AbortError' ? 'timeout' : err.message);
         }
+
+        // Fallback: always render local suggestions so the spinner never hangs
+        const localSuggestions = this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode);
+        this.quickSuggestionsCache.set(cacheKey, localSuggestions);
+        this.renderQuickSuggestions(localSuggestions);
+    }
+
+    /**
+     * Emergency fallback: render local suggestions when even basic data is missing
+     */
+    _renderLocalFallbackSuggestions() {
+        const listEl = document.getElementById('quickSuggestionsList');
+        if (!listEl) return;
+        const brandName = this.currentProject?.brand_name || 'your brand';
+        const industry = this.currentProject?.industry || 'your industry';
+        const languageCode = this.getProjectLanguageCode ? this.getProjectLanguageCode() : 'en';
+        const competitorName = this.getPrimaryCompetitorName ? this.getPrimaryCompetitorName(languageCode) : 'competitors';
+        this.renderQuickSuggestions(
+            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+        );
     }
     
     /**
@@ -4881,42 +5271,92 @@ class LLMMonitoring {
     }
     
     /**
-     * ✨ Update prompts counter in real-time
+     * ✨ Update prompts counter in real-time (limit-aware)
      */
     updatePromptsCounter() {
         const textarea = document.getElementById('promptsInput');
         const counterNumber = document.getElementById('promptsCountNumber');
         const submitBtn = document.getElementById('btnSavePrompts');
         const submitText = document.getElementById('btnSavePromptsText');
-        
+
         if (!textarea) return;
-        
+
         const text = textarea.value.trim();
         const prompts = text ? text.split('\n').map(line => line.trim()).filter(line => line.length > 0) : [];
         const promptCount = prompts.length;
         const hasShortPrompts = prompts.some(line => line.length > 0 && line.length < 10);
-        
+
+        // Check against plan limits
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        const existingCount = this.allPrompts ? this.allPrompts.length : 0;
+        const wouldExceed = maxPrompts !== null && (existingCount + promptCount) > maxPrompts;
+        const remaining = maxPrompts !== null ? Math.max(0, maxPrompts - existingCount) : null;
+
         // Update counter
         if (counterNumber) {
             counterNumber.textContent = promptCount;
+            counterNumber.classList.toggle('counter-over-limit', wouldExceed);
         }
-        
+
         // Enable/disable submit button
         if (submitBtn) {
-            submitBtn.disabled = promptCount === 0;
+            submitBtn.disabled = promptCount === 0 || wouldExceed;
         }
-        
+
         // Update button text
         if (submitText) {
-            submitText.textContent = promptCount > 0 
-                ? `Add ${promptCount} Prompt${promptCount !== 1 ? 's' : ''}`
-                : 'Add Prompts';
+            if (wouldExceed) {
+                submitText.textContent = `Limit exceeded (max ${remaining} more)`;
+            } else if (promptCount > 0) {
+                submitText.textContent = `Add ${promptCount} Prompt${promptCount !== 1 ? 's' : ''}`;
+            } else {
+                submitText.textContent = 'Add Prompts';
+            }
+        }
+
+        // Update limit warning inside modal
+        const limitWarning = document.getElementById('promptsLimitWarning');
+        if (limitWarning) {
+            if (wouldExceed) {
+                limitWarning.innerHTML = `<i class="fas fa-exclamation-triangle"></i> You can only add ${remaining} more prompt${remaining !== 1 ? 's' : ''} on your current plan.`;
+                limitWarning.style.display = 'flex';
+                limitWarning.className = 'prompts-limit-warning limit-exceeded';
+            } else if (remaining !== null && remaining <= 5 && promptCount > 0) {
+                limitWarning.innerHTML = `<i class="fas fa-info-circle"></i> ${remaining - promptCount} prompt${(remaining - promptCount) !== 1 ? 's' : ''} remaining after adding these.`;
+                limitWarning.style.display = 'flex';
+                limitWarning.className = 'prompts-limit-warning limit-approaching';
+            } else {
+                limitWarning.style.display = 'none';
+            }
         }
 
         const lengthWarning = document.getElementById('promptLengthWarning');
         if (lengthWarning) {
             lengthWarning.style.display = hasShortPrompts ? 'block' : 'none';
         }
+    }
+
+    /**
+     * Show remaining prompts hint in Add Prompts modal
+     */
+    updatePromptsRemainingHint() {
+        const hint = document.getElementById('promptsRemainingHint');
+        if (!hint) return;
+
+        const limits = this.planLimits;
+        const maxPrompts = limits ? limits.max_prompts_per_project : null;
+        if (maxPrompts === null) {
+            hint.style.display = 'none';
+            return;
+        }
+
+        const existingCount = this.allPrompts ? this.allPrompts.length : 0;
+        const remaining = Math.max(0, maxPrompts - existingCount);
+        hint.innerHTML = `<i class="fas fa-layer-group"></i> <strong>${remaining}</strong> of ${maxPrompts} prompts available`;
+        hint.style.display = 'flex';
+        hint.classList.toggle('hint-low', remaining <= 5 && remaining > 0);
+        hint.classList.toggle('hint-zero', remaining === 0);
     }
     
     /**
@@ -5044,7 +5484,25 @@ class LLMMonitoring {
                 body: JSON.stringify(payload)
             });
 
-            await this.handlePaywallResponse(response);
+            if (response.status === 402) {
+                const errorData = await response.json().catch(() => ({}));
+                // Detailed limit error for prompts
+                if (errorData.error === 'prompt_limit_exceeded') {
+                    const current = errorData.current || '?';
+                    const limit = errorData.limit || '?';
+                    const requested = errorData.requested || '?';
+                    this.showError(`Prompt limit reached: you have ${current}/${limit} prompts and tried to add ${requested}. Upgrade your plan to add more.`);
+                    if (window.showPaywall) {
+                        window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['premium', 'business', 'enterprise']);
+                    }
+                    return;
+                }
+                // Generic paywall
+                if (window.showPaywall) {
+                    window.showPaywall('LLM Monitoring', errorData.upgrade_options || ['basic', 'premium', 'business']);
+                }
+                throw new Error(errorData.message || 'LLM Monitoring requires a paid plan.');
+            }
 
             if (!response.ok) {
                 const error = await response.json();

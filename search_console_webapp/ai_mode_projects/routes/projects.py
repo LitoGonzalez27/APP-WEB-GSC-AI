@@ -8,6 +8,8 @@ from auth import auth_required, get_current_user
 from ai_mode_projects import ai_mode_bp
 from ai_mode_projects.services.project_service import ProjectService
 from ai_mode_projects.utils.validators import check_ai_mode_access
+from services.project_access_service import user_has_any_module_access
+from llm_monitoring_limits import get_upgrade_options
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,26 @@ def ai_mode_dashboard():
     """
     user = get_current_user()
     logger.info(f"Usuario accediendo AI Mode dashboard: {user.get('email')} (plan: {user.get('plan')})")
-    return render_template('ai_mode_dashboard.html', user=user)
+    has_shared_access = False
+    try:
+        has_shared_access = user_has_any_module_access(user.get('id'), 'ai_mode')
+    except Exception:
+        has_shared_access = False
+
+    access_blocked = user.get('plan') == 'free' and not has_shared_access
+
+    try:
+        upgrade_options = get_upgrade_options(user.get('plan', 'free'))
+    except Exception:
+        upgrade_options = ['basic', 'premium', 'business']
+
+    return render_template(
+        'ai_mode_dashboard.html',
+        user=user,
+        has_shared_access=has_shared_access,
+        access_blocked=access_blocked,
+        upgrade_options=upgrade_options
+    )
 
 
 @ai_mode_bp.route('/api/projects', methods=['GET'])
@@ -43,7 +64,7 @@ def get_projects():
     logger.info(f"🔍 [AI MODE] Usuario solicitando proyectos: ID={user.get('id')}, Email={user.get('email')}, Plan={user.get('plan')}")
     
     # Control por plan
-    has_access, error_response = check_ai_mode_access(user)
+    has_access, error_response = check_ai_mode_access(user, allow_shared=True)
     if not has_access:
         logger.warning(f"⚠️ [AI MODE] Usuario {user.get('id')} sin acceso: {error_response}")
         return jsonify(error_response), 402
@@ -117,7 +138,7 @@ def get_project_details(project_id):
     user = get_current_user()
     
     # Control por plan
-    has_access, error_response = check_ai_mode_access(user)
+    has_access, error_response = check_ai_mode_access(user, allow_shared=True)
     if not has_access:
         return jsonify(error_response), 402
     
@@ -194,4 +215,3 @@ def delete_project(project_id):
     else:
         status_code = 404 if 'not found' in result.get('error', '').lower() else 500
         return jsonify(result), status_code
-

@@ -60,12 +60,18 @@ export function renderProjects() {
         <div class="project-card" data-project-id="${project.id}" onclick="aiModeSystem.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
-                <div class="project-actions">
-                    <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
-                            title="Project settings" aria-label="Open project settings">
-                        <i class="fas fa-cog" aria-hidden="true"></i>
-                    </button>
-                </div>
+                ${(project.can_edit === false) ? `
+                    <div class="project-actions">
+                        <span class="badge badge-language">Shared (view only)</span>
+                    </div>
+                ` : `
+                    <div class="project-actions">
+                        <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
+                                title="Project settings" aria-label="Open project settings">
+                            <i class="fas fa-cog" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                `}
             </div>
             <div class="project-details">
                 <div class="project-meta">
@@ -107,7 +113,7 @@ export function renderProjects() {
                     Last analysis: ${project.last_analysis_date ? 
                         new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
                 </small>
-                ${(!project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
+                ${(project.can_edit !== false && !project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
                     <div class="first-run-cta" style="margin-top: 10px;">
                         <button type="button" class="btn-primary btn-small" 
                                 onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
@@ -282,6 +288,11 @@ export function renderProjectClustersHorizontal(project) {
 }
 
 export function goToProjectAnalytics(projectId) {
+    const selectedProject = this.projects.find(p => Number(p.id) === Number(projectId));
+    if (selectedProject) {
+        this.currentProject = selectedProject;
+    }
+
     // Switch to Analytics tab
     this.switchTab('analytics');
     
@@ -299,10 +310,15 @@ export function goToProjectAnalytics(projectId) {
 // ================================
 
 export function showCreateProject() {
-    // Verificar plan antes de mostrar formulario
+    // Bloqueo por plan para mantener consistencia con el overlay del dashboard
     if (window.currentUser && window.currentUser.plan === 'free') {
-        console.log('🆓 Usuario gratuito intentó crear proyecto - mostrando paywall');
-        window.showPaywall('Manual AI Analysis', ['basic','premium','business']);
+        if (window.currentUser.has_shared_access) {
+            this.showError('You have view-only access to shared projects. Creating new projects requires a paid owner plan.');
+            return;
+        }
+
+        console.log('🆓 Usuario gratuito bloqueado al crear proyecto - redirigiendo a billing');
+        window.location.href = '/billing';
         return;
     }
     
@@ -499,4 +515,3 @@ export function getCompetitorChipValues() {
 export function setCompetitorError(msg) {
     if (this.elements.competitorError) this.elements.competitorError.textContent = msg || '';
 }
-

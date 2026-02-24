@@ -32,6 +32,9 @@ export class AIModeSystem {
         
         // Setup event listeners
         this.setupEventListeners();
+
+        // Show invitation feedback if present in query params
+        this.handleInvitationFeedbackFromUrl();
         
         // Load initial data
         this.loadInitialData();
@@ -202,8 +205,10 @@ export class AIModeSystem {
         // Auto-refresh projects every 2 minutes to catch cron updates
         this.refreshInterval = setInterval(() => {
             if (this.currentTab === 'projects') {
-                // Only auto-refresh for paid users
-                if (window.currentUser && window.currentUser.plan !== 'free') {
+                // Auto-refresh for paid users and invited viewers with shared access
+                const hasPaidPlan = window.currentUser && window.currentUser.plan !== 'free';
+                const hasSharedAccess = !!window.currentUser?.has_shared_access;
+                if (hasPaidPlan || hasSharedAccess) {
                     console.log('🔄 Auto-refreshing projects...');
                     this.loadProjects();
                 } else {
@@ -360,8 +365,10 @@ export class AIModeSystem {
     }
 
     async loadInitialData() {
-        // Only load projects for paid users
-        if (window.currentUser && window.currentUser.plan !== 'free') {
+        // Load projects for paid users and invited viewers with shared access
+        const hasPaidPlan = window.currentUser && window.currentUser.plan !== 'free';
+        const hasSharedAccess = !!window.currentUser?.has_shared_access;
+        if (hasPaidPlan || hasSharedAccess) {
             console.log('💳 Usuario con plan de pago - cargando proyectos:', window.currentUser.plan);
             await this.loadProjects();
         } else {
@@ -372,11 +379,43 @@ export class AIModeSystem {
         this.populateAnalyticsProjectSelect();
     }
 
+    handleInvitationFeedbackFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const invitationStatus = params.get('invitation');
+        const invitationError = params.get('invitation_error');
+        const projectName = params.get('project_name');
+
+        if (invitationStatus === 'accepted') {
+            const displayName = projectName || 'project';
+            this.showSuccess(`Invitation accepted. You now have access to "${displayName}".`);
+        } else if (invitationError) {
+            const errorMap = {
+                missing_token: 'Invitation link is missing a token.',
+                'Invitation not found': 'Invitation link is invalid or no longer available.',
+                'Invitation has expired': 'Invitation has expired. Ask the owner to send a new one.',
+                'Invitation is revoked': 'Invitation was revoked by the project owner.',
+                'Invitation is accepted': 'This invitation was already accepted.',
+                'Invitation email does not match your current account': 'This invitation was sent to a different email address.'
+            };
+            this.showError(errorMap[invitationError] || invitationError);
+        }
+
+        if (invitationStatus || invitationError || params.has('project_id') || params.has('project_name')) {
+            params.delete('invitation');
+            params.delete('invitation_error');
+            params.delete('project_id');
+            params.delete('project_name');
+            const nextQuery = params.toString();
+            const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname;
+            window.history.replaceState({}, '', nextUrl);
+        }
+    }
+
     showFreeUserState() {
         hideElement(this.elements.projectsLoading);
         this.projects = [];
         this.renderProjects();
-        console.log('🆓 Estado gratuito mostrado - botón "Crear proyecto" disponible para paywall');
+        console.log('🆓 Estado gratuito mostrado - acceso bloqueado por plan hasta upgrade');
     }
 
     // ================================
@@ -427,6 +466,40 @@ export class AIModeSystem {
     // ================================
     // UI HELPERS
     // ================================
+
+    getCurrentProject() {
+        if (this.currentModalProject?.id) {
+            return this.currentModalProject;
+        }
+
+        const selectedProjectId = Number(this.elements.analyticsProjectSelect?.value || 0);
+        if (selectedProjectId) {
+            const selectedProject = this.projects.find(p => Number(p.id) === selectedProjectId);
+            if (selectedProject) {
+                return selectedProject;
+            }
+        }
+
+        if (this.currentProject?.id) {
+            const hydrated = this.projects.find(p => Number(p.id) === Number(this.currentProject.id));
+            return hydrated || this.currentProject;
+        }
+
+        return null;
+    }
+
+    isProjectReadOnly(project = null) {
+        const targetProject = project || this.getCurrentProject();
+        return !!(targetProject && targetProject.can_edit === false);
+    }
+
+    assertProjectEditable(project = null) {
+        if (this.isProjectReadOnly(project)) {
+            this.showError('You have view-only access to this shared project.');
+            return false;
+        }
+        return true;
+    }
 
     showElement(element) {
         showElement(element);
