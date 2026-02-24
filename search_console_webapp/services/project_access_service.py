@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 import psycopg2
+from flask import has_request_context, request
 
 from database import get_db_connection, get_user_by_email, get_user_by_id
 from email_service import send_email
@@ -371,8 +372,35 @@ def list_project_invitations(module_name: str, project_id: int) -> List[Dict]:
         conn.close()
 
 
+def _get_request_base_url() -> Optional[str]:
+    if not has_request_context():
+        return None
+
+    try:
+        forwarded_proto = (request.headers.get("X-Forwarded-Proto") or "").split(",")[0].strip()
+        forwarded_host = (request.headers.get("X-Forwarded-Host") or "").split(",")[0].strip()
+        host = forwarded_host or request.host
+        if host:
+            scheme = forwarded_proto or request.scheme or "https"
+            return f"{scheme}://{host}".rstrip("/")
+    except Exception:
+        return None
+
+    return None
+
+
 def _build_invitation_link(raw_token: str) -> str:
-    base_url = os.getenv("PUBLIC_BASE_URL", "https://app.clicandseo.com").rstrip("/")
+    # Priority:
+    # 1) current request host (works for staging/prod automatically),
+    # 2) explicit invitation base URL,
+    # 3) generic public base URL,
+    # 4) hard fallback.
+    base_url = (
+        _get_request_base_url()
+        or os.getenv("PROJECT_INVITATION_BASE_URL")
+        or os.getenv("PUBLIC_BASE_URL")
+        or "https://app.clicandseo.com"
+    ).rstrip("/")
     return f"{base_url}/project-invitations/accept?token={raw_token}"
 
 
