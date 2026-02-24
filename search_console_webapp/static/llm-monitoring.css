@@ -272,9 +272,8 @@
     gap: 1.5rem;
 }
 
-/* Loading & Empty States */
-.loading-state,
-.empty-state {
+/* Loading & Empty States (scoped to metrics/content sections) */
+.loading-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -302,25 +301,36 @@
     color: #6b7280;
 }
 
-.empty-state i {
+/* Empty states inside metrics/content sections (responses inspector, etc.) */
+.content-section .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+}
+
+.content-section .empty-state i {
     font-size: 4rem;
     color: #d1d5db;
     margin-bottom: 1rem;
 }
 
-.empty-state .btn i {
+.content-section .empty-state .btn i {
     font-size: 1rem !important;
     margin-bottom: 0 !important;
 }
 
-.empty-state h3 {
+.content-section .empty-state h3,
+.content-section .empty-state h4 {
     font-size: 1.25rem;
     font-weight: 600;
     color: #111827;
     margin-bottom: 0.5rem;
 }
 
-.empty-state p {
+.content-section .empty-state p {
     color: #6b7280;
     margin-bottom: 1.5rem;
 }
@@ -1097,22 +1107,11 @@
     color: #dc2626;
 }
 
-.empty-state .empty-icon {
+/* Empty state icon overrides for non-projects sections */
+.content-section .empty-state .empty-icon {
     font-size: 3rem;
     color: #d1d5db;
     margin-bottom: 1rem;
-}
-
-.empty-state h4 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 0.5rem 0;
-}
-
-.empty-state p {
-    color: #6b7280;
-    margin: 0 0 1rem 0;
 }
 
 .mt-2 {

@@ -393,47 +393,73 @@
         </aside>
 
         <main class="main-content-area">
-            <!-- Projects Tab (matching AI Mode structure) -->
-            <section class="tab-content active" id="projectsTab">
-                <div class="projects-header">
-                    <h2>Your LLM Monitoring Projects</h2>
-                    <button type="button" class="btn-primary" id="btnCreateProject">
-                        <i class="fas fa-plus"></i>
-                        Create New Project
+        <div class="manual-ai-app" id="llmProjectsView">
+            <!-- Header -->
+            <header class="manual-ai-header" data-pdf-exclude="true">
+                <div class="header-content">
+                    <div class="header-left">
+                        <h1>LLM Visibility Monitor</h1>
+                        <p class="header-subtitle">Track brand visibility across ChatGPT, Claude, Gemini & Perplexity</p>
+                    </div>
+                    <div class="header-right"></div>
+                </div>
+            </header>
+
+            <!-- Navigation tabs -->
+            <nav class="manual-ai-nav">
+                <div class="nav-tabs">
+                    <button type="button" class="nav-tab active" data-tab="projects">
+                        <i class="fas fa-folder"></i>
+                        Projects
                     </button>
                 </div>
+            </nav>
 
-                <!-- Plan limits banner -->
-                <div id="llmPlanLimitsBanner" style="display: none; margin: 12px 0 20px; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; color: #111827;">
-                    <!-- Filled by JS -->
-                </div>
-
-                <!-- Projects loading state -->
-                <div class="loading-container" id="projectsLoading">
-                    <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
+            <!-- Main content area -->
+            <main class="manual-ai-main">
+                <!-- Projects Tab -->
+                <section class="tab-content active" id="projectsTab">
+                    <div class="projects-header">
+                        <h2>Your LLM Monitoring Projects</h2>
+                        <button type="button" class="btn-primary" id="btnCreateProject">
+                            <i class="fas fa-plus"></i>
+                            Create New Project
+                        </button>
                     </div>
-                    <p>Loading your projects...</p>
-                </div>
 
-                <!-- Projects list container -->
-                <div class="projects-grid" id="projectsGrid" style="display: none;">
-                    <!-- Projects will be rendered here by JavaScript -->
-                </div>
-
-                <!-- Empty state -->
-                <div class="empty-state" id="projectsEmpty" style="display: none;">
-                    <div class="empty-icon">
-                        <i class="fas fa-folder-open"></i>
+                    <!-- Plan limits banner -->
+                    <div id="llmPlanLimitsBanner" style="display: none; margin: 12px 0 20px; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; color: #111827;">
+                        <!-- Filled by JS -->
                     </div>
-                    <h3>No projects yet</h3>
-                    <p>Create your first LLM monitoring project to get started</p>
-                    <button type="button" class="btn-primary mt-2" id="btnCreateFirstProject" onclick="window.llmMonitoring.showProjectModal()">
-                        <i class="fas fa-plus"></i>
-                        Create Your First Project
-                    </button>
-                </div>
-            </section>
+
+                    <!-- Projects loading state -->
+                    <div class="loading-container" id="projectsLoading">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                        <p>Loading your projects...</p>
+                    </div>
+
+                    <!-- Projects list container -->
+                    <div class="projects-grid" id="projectsGrid" style="display: none;">
+                        <!-- Projects will be rendered here by JavaScript -->
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="empty-state" id="projectsEmpty" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h3>No projects yet</h3>
+                        <p>Create your first LLM monitoring project to get started</p>
+                        <button type="button" class="btn-primary btn-small mt-2" id="btnCreateFirstProject" onclick="window.llmMonitoring.showProjectModal()">
+                            <i class="fas fa-plus"></i>
+                            Create Your First Project
+                        </button>
+                    </div>
+                </section>
+            </main>
+        </div>
 
             <!-- Metrics Section (shown when project is selected) -->
             <section class="content-section" id="metricsSection" style="display: none;">

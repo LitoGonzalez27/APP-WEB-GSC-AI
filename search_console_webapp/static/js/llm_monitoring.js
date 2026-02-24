@@ -1242,7 +1242,8 @@ class LLMMonitoring {
 
         this.currentProject = { id: projectId };
 
-        // Hide projects, show metrics
+        // Hide projects wrapper, show metrics
+        const llmProjectsView = document.getElementById('llmProjectsView');
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
         const fab = document.getElementById('globalMetricFab');
@@ -1250,6 +1251,9 @@ class LLMMonitoring {
         console.log('📦 Projects tab element:', projectsTab);
         console.log('📦 Metrics section element:', metricsSection);
 
+        if (llmProjectsView) {
+            llmProjectsView.style.display = 'none';
+        }
         if (projectsTab) {
             projectsTab.style.display = 'none';
             projectsTab.classList.remove('active');
@@ -3143,10 +3147,14 @@ class LLMMonitoring {
      * Show projects list
      */
     showProjectsList() {
+        const llmProjectsView = document.getElementById('llmProjectsView');
         const projectsTab = document.getElementById('projectsTab');
         const metricsSection = document.getElementById('metricsSection');
         const fab = document.getElementById('globalMetricFab');
 
+        if (llmProjectsView) {
+            llmProjectsView.style.display = '';
+        }
         if (projectsTab) {
             projectsTab.style.display = 'block';
             projectsTab.classList.add('active');
