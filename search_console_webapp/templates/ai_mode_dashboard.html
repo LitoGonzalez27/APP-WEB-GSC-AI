@@ -1418,8 +1418,11 @@ keyword 3"></textarea>
     <!-- Project Management Modal -->
     <div class="modal-overlay" id="projectModal">
         <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
+            <div class="settings-header">
+                <div class="header-text">
+                    <h3><i class="fas fa-cog"></i> <span id="projectModalTitle">Project Settings</span></h3>
+                    <p>Manage keywords, media sources, and project configuration</p>
+                </div>
                 <button type="button" class="modal-close" onclick="aiModeSystem.hideProjectModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -1432,18 +1435,18 @@ keyword 3"></textarea>
                         Keywords
                     </button>
                     <button type="button" class="modal-nav-tab" data-modal-tab="settings" onclick="aiModeSystem.switchModalTab('settings')">
-                        <i class="fas fa-cog"></i>
-                        Project Settings
+                        <i class="fas fa-sliders-h"></i>
+                        Settings
                     </button>
                 </div>
 
                 <!-- Keywords Tab -->
                 <div class="modal-tab-content active" id="modalKeywordsTab">
                     <div class="tab-section">
-                        <h4>Add Keywords</h4>
+                        <h4><i class="fas fa-plus-circle"></i> Add Keywords</h4>
                         <div class="keywords-input-section">
                             <div class="input-group">
-                                <textarea id="modalKeywordsInput" class="form-textarea" 
+                                <textarea id="modalKeywordsInput" class="form-textarea"
                                           placeholder="Enter keywords, one per line or separated by commas..."
                                           rows="4"
                                           oninput="aiModeSystem.updateModalKeywordsCounter()"></textarea>
@@ -1459,9 +1462,8 @@ keyword 3"></textarea>
                         </div>
                     </div>
 
-                    <!-- ✨ NUEVO: Thematic Clusters Configuration -->
                     <div class="tab-section">
-                        <h4>Thematic Clusters</h4>
+                        <h4><i class="fas fa-layer-group"></i> Thematic Clusters</h4>
                         <p class="section-description">Group keywords by topics to analyze AI Mode visibility per theme</p>
                         <div class="toggle-row" style="margin-bottom: 15px;">
                             <input type="checkbox" id="projectClustersEnabled">
@@ -1485,12 +1487,11 @@ keyword 3"></textarea>
                         </div>
                     </div>
 
-                    <!-- ✅ NUEVO: Add Notes Section -->
                     <div class="tab-section">
-                        <h4>Add Notes</h4>
+                        <h4><i class="fas fa-sticky-note"></i> Add Notes</h4>
                         <div class="keywords-input-section">
                             <div class="input-group">
-                                <textarea id="modalNotesInput" class="form-textarea" 
+                                <textarea id="modalNotesInput" class="form-textarea"
                                           placeholder="Add notes to mark important days and track optimization efforts. These will appear as blue annotations in your visibility graph."
                                           rows="3"></textarea>
                                 <button type="button" class="btn-primary" onclick="aiModeSystem.addNoteFromModal()">
@@ -1502,12 +1503,12 @@ keyword 3"></textarea>
                     </div>
 
                     <div class="tab-section">
-                        <h4>Current Keywords</h4>
+                        <h4><i class="fas fa-list"></i> Current Keywords</h4>
                         <div class="keywords-list-container">
                             <div class="manual-ai-keyword-search">
-                                <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input" 
+                                <input type="text" id="modalKeywordsSearch" class="form-input manual-ai-keyword-search-input"
                                        placeholder="Search current keywords..." autocomplete="off">
-                                <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear" 
+                                <button type="button" class="btn-secondary btn-compact manual-ai-keyword-search-clear"
                                         onclick="aiModeSystem.clearModalKeywordsSearch()">Clear</button>
                             </div>
                             <div id="modalKeywordsList" class="keywords-list">
@@ -1525,49 +1526,55 @@ keyword 3"></textarea>
                 <!-- Settings Tab -->
                 <div class="modal-tab-content" id="modalSettingsTab">
                     <div class="tab-section">
+                        <h4><i class="fas fa-info-circle"></i> Project Information</h4>
                         <div class="setting-group">
-                            <label for="modalProjectName" class="manual-ai-underline">Project Name</label>
+                            <label for="modalProjectName" class="enhanced-label">
+                                <span>Project Name</span>
+                            </label>
                             <input type="text" id="modalProjectName" class="form-input" placeholder="Enter project name...">
                         </div>
-                        
+
                         <div class="setting-group">
-                            <label for="modalProjectDescription" class="manual-ai-underline">Project Description</label>
-                            <textarea id="modalProjectDescription" class="form-textarea" 
+                            <label for="modalProjectDescription" class="enhanced-label">
+                                <span>Project Description</span>
+                            </label>
+                            <textarea id="modalProjectDescription" class="form-textarea"
                                       placeholder="Enter project description (optional)..." rows="3"></textarea>
                         </div>
+                    </div>
 
-                        <!-- Project Media Sources Section -->
-                        <div class="setting-group">
-                            <label class="manual-ai-underline">Media Sources to Monitor</label>
-                            <p class="section-description">
-                                Track which media outlets and sources mention your brand in AI Mode results
-                            </p>
-                            <div class="competitors-manager">
-                                <div class="add-competitor-section">
-                                    <div class="competitor-input-group">
-                                        <input type="text" id="newCompetitorInput" class="form-input" 
-                                               placeholder="Enter media source domain (e.g., techcrunch.com, forbes.com)" maxlength="100">
-                                        <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="aiModeSystem.addCompetitor()">
-                                            <i class="fas fa-plus"></i>
-                                            Add Source
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div class="competitors-list" id="competitorsList">
-                                    <!-- Media sources will be loaded here -->
-                                </div>
-                                
-                                <div class="competitor-empty-state" id="competitorEmptyState">
-                                    <i class="fas fa-newspaper"></i>
-                                    <p>No media sources added yet</p>
-                                    <small>Add media outlets to track which sources cite your brand</small>
+                    <div class="tab-section">
+                        <h4><i class="fas fa-newspaper"></i> Media Sources to Monitor</h4>
+                        <p class="section-description">
+                            Track which media outlets and sources mention your brand in AI Mode results
+                        </p>
+                        <div class="competitors-manager">
+                            <div class="add-competitor-section">
+                                <div class="competitor-input-group">
+                                    <input type="text" id="newCompetitorInput" class="form-input"
+                                           placeholder="Enter media source domain (e.g., techcrunch.com, forbes.com)" maxlength="100">
+                                    <button type="button" class="btn-primary-inverted btn-compact" id="addCompetitorBtn" onclick="aiModeSystem.addCompetitor()">
+                                        <i class="fas fa-plus"></i>
+                                        Add Source
+                                    </button>
                                 </div>
                             </div>
-                        </div>
 
+                            <div class="competitors-list" id="competitorsList">
+                                <!-- Media sources will be loaded here -->
+                            </div>
+
+                            <div class="competitor-empty-state" id="competitorEmptyState">
+                                <i class="fas fa-newspaper"></i>
+                                <p>No media sources added yet</p>
+                                <small>Add media outlets to track which sources cite your brand</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-section">
                         <div class="setting-group project-access-card" id="projectAccessSection">
-                            <label class="manual-ai-underline">Project Access</label>
+                            <h4 style="margin-bottom: 0.5rem;"><i class="fas fa-share-alt"></i> Project Access</h4>
                             <p class="section-description">
                                 Invite collaborators by email with view-only access to this project.
                             </p>
@@ -1594,20 +1601,20 @@ keyword 3"></textarea>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="save-section">
-                            <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
-                                <i class="fas fa-save"></i>
-                                Save Changes
-                            </button>
-                        </div>
                     </div>
 
-                    <div class="tab-section">
+                    <div class="save-section">
+                        <button type="button" class="btn-primary" onclick="aiModeSystem.updateProjectFromModal()">
+                            <i class="fas fa-save"></i>
+                            Save Changes
+                        </button>
+                    </div>
+
+                    <div class="tab-section" style="margin-top: 1.25rem;">
                         <div class="danger-zone">
                             <h5><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
                             <p class="danger-text">These actions cannot be undone. Please be certain.</p>
-                            
+
                             <div class="danger-actions">
                                 <button type="button" class="btn-danger" onclick="aiModeSystem.confirmDeleteProjectFromModal()">
                                     <i class="fas fa-trash"></i>
