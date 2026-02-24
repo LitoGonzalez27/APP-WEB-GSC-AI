@@ -276,9 +276,36 @@ function ensureQuotaModalStyles() {
             background: #111827 !important;
             color: #D8F9B8 !important;
             border: 1px solid #111827 !important;
+            transition: all 0.2s ease !important;
+            padding: 10px 22px !important;
+            border-radius: 8px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
         }
         .quota-upgrade-dark:hover {
-            filter: brightness(1.05);
+            background: #D8F9B8 !important;
+            color: #111827 !important;
+            border-color: #c4e8a5 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .quota-warning-buttons .btn-secondary,
+        .quota-block-buttons .btn-secondary {
+            background: transparent !important;
+            color: #374151 !important;
+            border: 1px solid #d1d5db !important;
+            padding: 10px 22px !important;
+            border-radius: 8px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            text-decoration: none !important;
+            transition: all 0.2s ease !important;
+        }
+        .quota-warning-buttons .btn-secondary:hover,
+        .quota-block-buttons .btn-secondary:hover {
+            background: #f3f4f6 !important;
+            border-color: #9ca3af !important;
+            color: #111827 !important;
         }
     `;
     document.head.appendChild(style);

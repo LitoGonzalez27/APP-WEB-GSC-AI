@@ -5072,9 +5072,13 @@ class LLMMonitoring {
         const listEl = document.getElementById('quickSuggestionsList');
         const emptyEl = document.getElementById('quickSuggestionsEmpty');
         const sectionEl = document.getElementById('quickSuggestionsSection');
-        
-        if (!listEl || !this.currentProject) return;
-        
+
+        if (!listEl || !this.currentProject) {
+            console.warn('[Suggestions] Missing listEl or currentProject, rendering local fallback');
+            this._renderLocalFallbackSuggestions();
+            return;
+        }
+
         // Show loading
         listEl.innerHTML = `
             <div class="suggestions-loading-inline">
@@ -5084,88 +5088,76 @@ class LLMMonitoring {
         `;
         if (emptyEl) emptyEl.style.display = 'none';
         if (sectionEl) sectionEl.style.display = 'block';
-        
+
+        // Prepare project context
+        const existingPrompts = this.allPrompts || [];
+        const languageCode = this.getProjectLanguageCode();
+        const brandName = this.currentProject.brand_name || 'your brand';
+        const industry = this.currentProject.industry || 'your industry';
+        const competitorName = this.getPrimaryCompetitorName(languageCode);
+        const mode = existingPrompts.length > 0 ? 'variation' : 'default';
+        const cacheKey = existingPrompts.length === 0
+            ? `bootstrap:${this.currentProject.id}:${languageCode}`
+            : `variation:${this.currentProject.id}:${languageCode}:${existingPrompts.length}`;
+
+        // Check cache first
+        if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
+            this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
+            return;
+        }
+
+        // Attempt to fetch AI-generated suggestions with a timeout
         try {
-            // Get existing prompts
-            const existingPrompts = this.allPrompts || [];
-            const languageCode = this.getProjectLanguageCode();
-            const brandName = this.currentProject.brand_name || 'your brand';
-            const industry = this.currentProject.industry || 'your industry';
-            const competitorName = this.getPrimaryCompetitorName(languageCode);
-            
-            if (existingPrompts.length === 0) {
-                const cacheKey = `bootstrap:${this.currentProject.id}:${languageCode}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
-                if (!forceRefresh && this.quickSuggestionsCache.has(cacheKey)) {
-                    this.renderQuickSuggestions(this.quickSuggestionsCache.get(cacheKey));
-                    return;
-                }
+            const body = existingPrompts.length === 0
+                ? { existing_prompts: [], count: 6 }
+                : { existing_prompts: existingPrompts.slice(0, 5).map(p => p.prompt), count: 6 };
 
-                // For new projects with zero prompts, use AI first to honor project language/country.
-                const bootstrapResponse = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`,
+                {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        existing_prompts: [],
-                        count: 6
-                    })
-                });
-
-                if (bootstrapResponse.ok) {
-                    const bootstrapData = await bootstrapResponse.json();
-                    if (bootstrapData.success && bootstrapData.suggestions && bootstrapData.suggestions.length > 0) {
-                        this.quickSuggestionsCache.set(cacheKey, bootstrapData.suggestions);
-                        this.renderQuickSuggestions(bootstrapData.suggestions);
-                        return;
-                    }
+                    body: JSON.stringify(body),
+                    signal: controller.signal
                 }
+            );
+            clearTimeout(timeoutId);
 
-                // Fallback if AI is unavailable
-                this.renderQuickSuggestions(
-                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
-                );
-                return;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+                    this.quickSuggestionsCache.set(cacheKey, data.suggestions);
+                    this.renderQuickSuggestions(data.suggestions);
+                    return;
+                }
             }
-            
-            // Generate variations using existing prompts
-            const response = await fetch(`${this.baseUrl}/projects/${this.currentProject.id}/queries/suggest-variations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    existing_prompts: existingPrompts.slice(0, 5).map(p => p.prompt),
-                    count: 6
-                })
-            });
-            
-            if (!response.ok) {
-                // Fallback to simple variations
-                this.generateLocalSuggestions(existingPrompts);
-                return;
-            }
-            
-            const data = await response.json();
-            
-            if (data.success && data.suggestions && data.suggestions.length > 0) {
-                this.renderQuickSuggestions(data.suggestions);
-            } else {
-                this.generateLocalSuggestions(existingPrompts);
-            }
-            
-        } catch (error) {
-            console.error('Error loading quick suggestions:', error);
-            // Fallback to local generation
-            if (this.allPrompts && this.allPrompts.length > 0) {
-                this.generateLocalSuggestions(this.allPrompts);
-            } else {
-                const languageCode = this.getProjectLanguageCode();
-                const brandName = this.currentProject?.brand_name || 'your brand';
-                const industry = this.currentProject?.industry || 'your industry';
-                const competitorName = this.getPrimaryCompetitorName(languageCode);
-                this.renderQuickSuggestions(
-                    this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
-                );
-            }
+        } catch (err) {
+            // AbortError = timeout, any other = network / parse error
+            console.warn('[Suggestions] API fetch failed, using local fallback:', err.name === 'AbortError' ? 'timeout' : err.message);
         }
+
+        // Fallback: always render local suggestions so the spinner never hangs
+        const localSuggestions = this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, mode);
+        this.quickSuggestionsCache.set(cacheKey, localSuggestions);
+        this.renderQuickSuggestions(localSuggestions);
+    }
+
+    /**
+     * Emergency fallback: render local suggestions when even basic data is missing
+     */
+    _renderLocalFallbackSuggestions() {
+        const listEl = document.getElementById('quickSuggestionsList');
+        if (!listEl) return;
+        const brandName = this.currentProject?.brand_name || 'your brand';
+        const industry = this.currentProject?.industry || 'your industry';
+        const languageCode = this.getProjectLanguageCode ? this.getProjectLanguageCode() : 'en';
+        const competitorName = this.getPrimaryCompetitorName ? this.getPrimaryCompetitorName(languageCode) : 'competitors';
+        this.renderQuickSuggestions(
+            this.buildQuickSuggestions(languageCode, brandName, industry, competitorName, 'default')
+        );
     }
     
     /**

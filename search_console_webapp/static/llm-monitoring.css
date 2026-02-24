@@ -2662,18 +2662,20 @@ label:not(.search-form label) {
 }
 
 .create-project-modal .llm-project-access-row {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     align-items: center;
 }
 
 .create-project-modal .llm-project-access-row .enhanced-input {
     margin: 0;
-    min-height: 44px;
+    min-height: 42px;
     font-family: inherit;
     -webkit-appearance: none;
     appearance: none;
+    flex: 1 1 180px;
+    min-width: 0;
 }
 
 .create-project-modal .llm-project-access-row .enhanced-input::placeholder {
@@ -2682,7 +2684,26 @@ label:not(.search-form label) {
 }
 
 .create-project-modal .llm-project-access-row .btn {
-    min-height: 44px;
+    min-height: 42px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background: #111827;
+    color: #D8F9B8;
+    border: 1px solid #111827;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.create-project-modal .llm-project-access-row .btn:hover {
+    background: #D8F9B8;
+    color: #111827;
+    border-color: #c4e8a5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .create-project-modal .llm-project-access-lists {
@@ -2812,7 +2833,11 @@ label:not(.search-form label) {
     }
 
     .create-project-modal .llm-project-access-row {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+    }
+    .create-project-modal .llm-project-access-row .enhanced-input,
+    .create-project-modal .llm-project-access-row .btn {
+        width: 100%;
     }
     
     .create-project-modal .create-intro {
@@ -4140,8 +4165,8 @@ label:not(.search-form label) {
 
 /* Quick Suggestions Section */
 .quick-suggestions-section {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border: 1px solid #86efac;
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
     border-radius: 10px;
     padding: 0.875rem;
 }
@@ -4159,20 +4184,20 @@ label:not(.search-form label) {
     gap: 6px;
     font-weight: 600;
     font-size: 0.8rem;
-    color: #166534;
+    color: #374151;
 }
 
 .quick-suggestions-header .header-left i {
-    color: #22c55e;
+    color: #8BC34A;
 }
 
 .refresh-suggestions-btn {
     width: 26px;
     height: 26px;
-    border: none;
-    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #e5e7eb;
+    background: white;
     border-radius: 6px;
-    color: #166534;
+    color: #6b7280;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -4182,7 +4207,9 @@ label:not(.search-form label) {
 }
 
 .refresh-suggestions-btn:hover {
-    background: white;
+    background: #f3f4f6;
+    color: #111827;
+    border-color: #d1d5db;
     transform: rotate(180deg);
 }
 
@@ -4202,23 +4229,23 @@ label:not(.search-form label) {
     gap: 6px;
     padding: 6px 12px;
     background: white;
-    border: 1px solid #bbf7d0;
+    border: 1px solid #e5e7eb;
     border-radius: 20px;
     font-size: 0.75rem;
-    color: #166534;
+    color: #374151;
     cursor: pointer;
     transition: all 0.2s ease;
     max-width: 100%;
 }
 
 .suggestion-chip:hover {
-    background: #166534;
-    color: white;
-    border-color: #166534;
+    background: #111827;
+    color: #D8F9B8;
+    border-color: #111827;
 }
 
 .suggestion-chip:hover .chip-add-icon {
-    color: white;
+    color: #D8F9B8;
 }
 
 .chip-text {
@@ -4231,7 +4258,7 @@ label:not(.search-form label) {
 .chip-add-icon {
     flex-shrink: 0;
     font-size: 0.65rem;
-    color: #22c55e;
+    color: #9ca3af;
 }
 
 .suggestions-loading-inline {
@@ -4244,7 +4271,7 @@ label:not(.search-form label) {
 }
 
 .suggestions-loading-inline i {
-    color: #22c55e;
+    color: #6b7280;
 }
 
 .quick-suggestions-empty {
@@ -4288,10 +4315,10 @@ label:not(.search-form label) {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    background: #f3f4f6;
     padding: 4px 10px;
     border-radius: 16px;
-    border: 1px solid #86efac;
+    border: 1px solid #e5e7eb;
 }
 
 .counter-number {
@@ -4327,9 +4354,9 @@ label:not(.search-form label) {
 
 .prompts-textarea:focus {
     outline: none;
-    border-color: #8BC34A;
+    border-color: #111827;
     background: white;
-    box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.12);
+    box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06);
 }
 
 .prompts-textarea::placeholder {
@@ -4427,7 +4454,7 @@ label:not(.search-form label) {
 
 .option-select:focus {
     outline: none;
-    border-color: #8BC34A;
+    border-color: #111827;
     background: white;
 }
 
@@ -4443,46 +4470,49 @@ label:not(.search-form label) {
 
 .btn-cancel {
     padding: 10px 20px;
-    border: 2px solid #e5e7eb;
+    border: 1px solid #d1d5db;
     background: white;
-    color: #6b7280;
-    font-weight: 600;
+    color: #374151;
+    font-weight: 500;
     font-size: 0.875rem;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .btn-cancel:hover {
-    border-color: #d1d5db;
-    background: #f9fafb;
-    color: #374151;
+    border-color: #9ca3af;
+    background: #f3f4f6;
+    color: #111827;
 }
 
 .btn-submit {
     padding: 10px 24px;
-    border: none;
-    background: linear-gradient(135deg, #8BC34A 0%, #689F38 100%);
-    color: white;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #D8F9B8;
     font-weight: 600;
     font-size: 0.875rem;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(139, 195, 74, 0.3);
 }
 
 .btn-submit:hover:not(:disabled) {
+    background: #D8F9B8;
+    color: #111827;
+    border-color: #c4e8a5;
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(139, 195, 74, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-submit:disabled {
     background: #d1d5db;
     color: #9ca3af;
+    border-color: #d1d5db;
     cursor: not-allowed;
     box-shadow: none;
 }
