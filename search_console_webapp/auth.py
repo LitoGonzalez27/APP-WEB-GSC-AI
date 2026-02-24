@@ -915,11 +915,21 @@ def setup_auth_routes(app):
                     }
                 })
 
-            # Mantener usuario sin GSC hasta que conecte; flujo Free → login
+            # Auto-login after signup — no need to redirect to /login
+            session['user_id'] = new_user['id']
+            session['user_email'] = new_user['email']
+            session['user_name'] = new_user['name']
+            update_last_activity()
+
+            # Check if there's a pending invitation URL
+            next_url = '/dashboard?auth_success=true&action=signup'
+            if _is_invitation_next_url(session.get('auth_next')):
+                next_url = session.pop('auth_next')
+
             return jsonify({
                 'success': True,
-                'message': 'Cuenta creada. Ahora inicia sesión.',
-                'next': '/login',
+                'message': 'Account created successfully. Welcome!',
+                'next': next_url,
                 'user': {
                     'id': new_user['id'], 'email': new_user['email'], 'name': new_user['name']
                 }
@@ -1230,13 +1240,29 @@ def setup_auth_routes(app):
                             extra_qs = ''
                         return redirect(f"/billing/checkout/{signup_plan}?source={signup_source}&interval={signup_interval}&first_time=true{extra_qs}")
                     else:
-                        # ✅ FLUJO NORMAL: Sin plan, redirigir a login con mensaje
-                        session.pop('temp_credentials', None)
-                        
-                        login_url = f'/login?registration_success=true&with_google=true&email=' + user_info['email']
-                        logger.info(f"Usuario registrado (redirigiendo a login): {user_info['email']}")
-                        
-                        return redirect(login_url)
+                        # Auto-login after Google signup — direct to dashboard
+                        session['credentials'] = session.pop('temp_credentials', None)
+                        session['user_id'] = new_user['id']
+                        session['user_email'] = new_user['email']
+                        session['user_name'] = new_user['name']
+                        update_last_activity()
+                        # Update last_login_at
+                        try:
+                            db = get_db_connection()
+                            if db:
+                                cur = db.cursor()
+                                cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (new_user['id'],))
+                                db.commit()
+                                db.close()
+                        except Exception as _e_ll:
+                            logger.warning(f"Could not update last_login_at (Google signup free): {_e_ll}")
+
+                        next_url = '/dashboard?auth_success=true&action=signup'
+                        if _is_invitation_next_url(session.get('auth_next')):
+                            next_url = session.pop('auth_next')
+
+                        logger.info(f"✅ User registered and auto-logged in (free): {user_info['email']}")
+                        return redirect(next_url)
                     
                 except Exception as e:
                     session.pop('temp_credentials', None)

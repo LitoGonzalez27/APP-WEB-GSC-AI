@@ -108,28 +108,7 @@ class LLMMonitoring {
 
             const limits = data.limits;
             this.planLimits = limits;
-            const banner = document.getElementById('llmPlanLimitsBanner');
-            if (!banner) return;
-
-            const projectsText = limits.max_projects === null
-                ? 'Unlimited projects'
-                : `${limits.active_projects}/${limits.max_projects} projects`;
-            const promptsText = limits.max_prompts_per_project === null
-                ? 'Unlimited prompts per project'
-                : `${limits.max_prompts_per_project} prompts per project`;
-            const usageText = limits.max_monthly_units === null
-                ? 'Unlimited monthly usage'
-                : `${limits.monthly_units_used}/${limits.max_monthly_units} monthly requests`;
-
-            banner.innerHTML = `
-                <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-                    <strong style="margin-right:6px;">Plan: ${limits.plan.toUpperCase()}</strong>
-                    <span>• ${projectsText}</span>
-                    <span>• ${promptsText}</span>
-                    <span>• ${usageText}</span>
-                </div>
-            `;
-            banner.style.display = 'block';
+            // Plan limits stored for internal use (banner removed from UI)
         } catch (error) {
             console.warn('Could not load LLM plan limits:', error);
         }
