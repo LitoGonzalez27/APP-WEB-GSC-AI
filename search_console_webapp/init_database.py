@@ -72,15 +72,28 @@ def main():
         except Exception as e:
             logger.warning(f"⚠️ Error inicializando Manual AI System: {e} (no crítico)")
         
-        # 6. Obtener estadísticas iniciales
+        # 6. Inicializar tablas de acceso a proyectos (invitaciones, colaboradores)
+        logger.info("🔐 Verificando tablas de Project Access Control...")
+        try:
+            from migrate_project_access_control import run_migration as migrate_project_access
+            if migrate_project_access():
+                logger.info("✅ Tablas de Project Access Control verificadas")
+            else:
+                logger.warning("⚠️ Error con tablas de Project Access Control (no crítico)")
+        except ImportError:
+            logger.info("ℹ️ migrate_project_access_control no disponible - saltando")
+        except Exception as e:
+            logger.warning(f"⚠️ Error inicializando Project Access Control: {e} (no crítico)")
+
+        # 7. Obtener estadísticas iniciales
         logger.info("📊 Obteniendo estadísticas iniciales...")
         try:
             ai_stats = get_ai_overview_stats()
             logger.info(f"📈 Estadísticas AI Overview: {ai_stats.get('total_analyses', 0)} análisis en base de datos")
         except Exception as e:
             logger.warning(f"⚠️ Error obteniendo estadísticas: {e}")
-        
-        # 7. Verificar conexión Redis (no crítico)
+
+        # 8. Verificar conexión Redis (no crítico)
         logger.info("💾 Verificando sistema de caché...")
         try:
             from services.ai_cache import ai_cache
