@@ -180,6 +180,21 @@ def setup_billing_routes(app):
             if source_param == 'pricing':
                 pricing_url = os.getenv('PRICING_PAGE_URL', 'https://clicandseo.com/pricing/')
                 cancel_base += '&next=' + quote(pricing_url)
+
+            # Stripe Tax: habilitar cálculo automático y recogida opcional de Tax ID (CIF/NIF/VAT).
+            # `required` es opcional y puede habilitarse con STRIPE_TAX_ID_COLLECTION_REQUIRED=if_supported
+            tax_id_collection = {'enabled': True}
+            tax_id_required_mode = (os.getenv('STRIPE_TAX_ID_COLLECTION_REQUIRED', '') or '').strip().lower()
+            if tax_id_required_mode:
+                if tax_id_required_mode == 'if_supported':
+                    tax_id_collection['required'] = tax_id_required_mode
+                else:
+                    logger.warning(
+                        "Valor inválido en STRIPE_TAX_ID_COLLECTION_REQUIRED='%s'. "
+                        "Valores soportados: if_supported. Se ignora.",
+                        tax_id_required_mode
+                    )
+
             create_params = {
                 'customer': customer_id,
                 'client_reference_id': str(user['id']),  # ✅ CRÍTICO
@@ -191,6 +206,15 @@ def setup_billing_routes(app):
                 'mode': 'subscription',
                 'success_url': url_for('billing_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url': cancel_base,
+                'automatic_tax': {'enabled': True},
+                'tax_id_collection': tax_id_collection,
+                # Requerir dirección de facturación para cálculo de impuestos robusto.
+                'billing_address_collection': 'required',
+                # Persistir en Customer los datos introducidos en Checkout para renovaciones futuras.
+                'customer_update': {
+                    'name': 'auto',
+                    'address': 'auto'
+                },
                 'metadata': {
                     'user_id': user['id'],
                     'plan': plan,
@@ -240,21 +264,63 @@ def setup_billing_routes(app):
             try:
                 checkout_session = stripe.checkout.Session.create(**create_params)
             except Exception as e_first:
-                # Fallback: reintentar sin parámetros opcionales (allow_promotion_codes/discounts)
-                logger.warning(f"Primer intento de Checkout falló, probando sin códigos promocionales: {e_first}")
-                sanitized_params = dict(create_params)
-                sanitized_params.pop('allow_promotion_codes', None)
-                sanitized_params.pop('discounts', None)
-                try:
-                    checkout_session = stripe.checkout.Session.create(**sanitized_params)
-                except Exception as e_second:
-                    # Segundo fallback: probar sin trial ni overrides antiguos
-                    logger.warning(f"Segundo intento de Checkout falló, probando sin trial/payment_method_types/client_reference_id: {e_second}")
-                    sanitized_params2 = dict(sanitized_params)
-                    sanitized_params2.pop('subscription_data', None)
-                    sanitized_params2.pop('payment_method_types', None)
-                    sanitized_params2.pop('client_reference_id', None)
-                    checkout_session = stripe.checkout.Session.create(**sanitized_params2)
+                # Fallback 0 (compatibilidad API): si falla `tax_id_collection.required`, reintentar sin ese subcampo.
+                logger.warning(f"Primer intento de Checkout falló: {e_first}")
+                tax_cfg = create_params.get('tax_id_collection')
+                if isinstance(tax_cfg, dict) and tax_cfg.get('required'):
+                    logger.warning("Reintentando Checkout sin tax_id_collection.required por compatibilidad de API")
+                    sanitized_tax_params = dict(create_params)
+                    sanitized_tax_id_cfg = dict(tax_cfg)
+                    sanitized_tax_id_cfg.pop('required', None)
+                    sanitized_tax_params['tax_id_collection'] = sanitized_tax_id_cfg
+                    try:
+                        checkout_session = stripe.checkout.Session.create(**sanitized_tax_params)
+                        create_params = sanitized_tax_params
+                    except Exception as e_tax_required:
+                        # Fallback 1: reintentar sin parámetros opcionales de cupones
+                        logger.warning(
+                            "Reintento sin tax_id_collection.required falló, probando sin códigos promocionales: %s",
+                            e_tax_required
+                        )
+                        sanitized_params = dict(sanitized_tax_params)
+                        sanitized_params.pop('allow_promotion_codes', None)
+                        sanitized_params.pop('discounts', None)
+                        try:
+                            checkout_session = stripe.checkout.Session.create(**sanitized_params)
+                            create_params = sanitized_params
+                        except Exception as e_second:
+                            # Fallback 2: probar sin trial ni overrides antiguos
+                            logger.warning(
+                                "Segundo intento de Checkout falló, probando sin trial/payment_method_types/client_reference_id: %s",
+                                e_second
+                            )
+                            sanitized_params2 = dict(sanitized_params)
+                            sanitized_params2.pop('subscription_data', None)
+                            sanitized_params2.pop('payment_method_types', None)
+                            sanitized_params2.pop('client_reference_id', None)
+                            checkout_session = stripe.checkout.Session.create(**sanitized_params2)
+                            create_params = sanitized_params2
+                else:
+                    # Fallback 1: reintentar sin parámetros opcionales (allow_promotion_codes/discounts)
+                    logger.warning(f"Probando Checkout sin códigos promocionales: {e_first}")
+                    sanitized_params = dict(create_params)
+                    sanitized_params.pop('allow_promotion_codes', None)
+                    sanitized_params.pop('discounts', None)
+                    try:
+                        checkout_session = stripe.checkout.Session.create(**sanitized_params)
+                        create_params = sanitized_params
+                    except Exception as e_second:
+                        # Fallback 2: probar sin trial ni overrides antiguos
+                        logger.warning(
+                            "Segundo intento de Checkout falló, probando sin trial/payment_method_types/client_reference_id: %s",
+                            e_second
+                        )
+                        sanitized_params2 = dict(sanitized_params)
+                        sanitized_params2.pop('subscription_data', None)
+                        sanitized_params2.pop('payment_method_types', None)
+                        sanitized_params2.pop('client_reference_id', None)
+                        checkout_session = stripe.checkout.Session.create(**sanitized_params2)
+                        create_params = sanitized_params2
             
             logger.info(f"Checkout session creada para usuario {user['email']}, plan {plan}")
             return redirect(checkout_session.url)
@@ -269,6 +335,9 @@ def setup_billing_routes(app):
                     'has_discounts': bool(create_params.get('discounts')),
                     'allow_promotion_codes': bool(create_params.get('allow_promotion_codes')),
                     'trial_days': create_params.get('subscription_data', {}).get('trial_period_days') if isinstance(create_params.get('subscription_data'), dict) else None,
+                    'automatic_tax_enabled': bool(create_params.get('automatic_tax', {}).get('enabled')) if isinstance(create_params.get('automatic_tax'), dict) else None,
+                    'tax_id_collection': create_params.get('tax_id_collection'),
+                    'billing_address_collection': create_params.get('billing_address_collection'),
                 }
             except Exception:
                 debug_ctx = {}
