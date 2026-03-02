@@ -40,6 +40,10 @@ function closeAllKeywordUrlPopovers(exceptPopoverId = null) {
         btnEl.classList.remove('is-active');
         btnEl.setAttribute('aria-expanded', 'false');
     });
+
+    document.querySelectorAll('.keyword-url-cell.is-open').forEach((cellEl) => {
+        cellEl.classList.remove('is-open');
+    });
 }
 
 function toggleKeywordUrlPopover(event, buttonEl) {
@@ -50,6 +54,7 @@ function toggleKeywordUrlPopover(event, buttonEl) {
 
     const triggerBtn = buttonEl && buttonEl.closest ? buttonEl.closest('.keyword-url-multi-btn') : null;
     if (!triggerBtn) return;
+    const cellEl = triggerBtn.closest('.keyword-url-cell');
 
     const popoverId = triggerBtn.dataset.popoverId;
     if (!popoverId) return;
@@ -65,11 +70,13 @@ function toggleKeywordUrlPopover(event, buttonEl) {
         popoverEl.setAttribute('aria-hidden', 'false');
         triggerBtn.classList.add('is-active');
         triggerBtn.setAttribute('aria-expanded', 'true');
+        if (cellEl) cellEl.classList.add('is-open');
     } else {
         popoverEl.classList.remove('is-open');
         popoverEl.setAttribute('aria-hidden', 'true');
         triggerBtn.classList.remove('is-active');
         triggerBtn.setAttribute('aria-expanded', 'false');
+        if (cellEl) cellEl.classList.remove('is-open');
     }
 }
 
@@ -797,26 +804,19 @@ function formatKeywordUrlCell(urlValue) {
         if (urlItem && !uniqueUrls.includes(urlItem)) uniqueUrls.push(urlItem);
     });
 
-    const tooltipUrls = uniqueUrls;
     const extraUrls = Math.max(0, totalUrls - 1);
-    const tooltipLines = [
-        `Main URL: ${primaryUrl}`,
-        ...(tooltipUrls.length > 1 ? [`Also ranking: ${tooltipUrls.slice(1).join(' | ')}`] : []),
-        ...(totalUrls > tooltipUrls.length ? [`+${totalUrls - tooltipUrls.length} more URL(s)`] : [])
-    ];
-    const safeTitle = escapeForAttribute(tooltipLines.join('\n'));
     const safeDisplay = escapeHtmlLocal(displayUrl);
     const isHttpUrl = /^https?:\/\//i.test(primaryUrl);
     const popoverId = `kw-url-${Math.random().toString(36).slice(2, 11)}`;
 
     const urlMainHtml = isHttpUrl
         ? `
-            <a href="${escapeForAttribute(primaryUrl)}" class="keyword-url-link" target="_blank" rel="noopener noreferrer" title="${safeTitle}">
+            <a href="${escapeForAttribute(primaryUrl)}" class="keyword-url-link keyword-url-trigger" target="_blank" rel="noopener noreferrer">
                 ${safeDisplay}
             </a>
         `
         : `
-            <span class="keyword-url-text" title="${safeTitle}">
+            <span class="keyword-url-text keyword-url-trigger">
                 ${safeDisplay}
             </span>
         `;
@@ -846,18 +846,22 @@ function formatKeywordUrlCell(urlValue) {
         >
             +${extraUrls} URL(s)
         </button>
+    ` : '';
+
+    const popoverHtml = `
         <div class="keyword-url-popover" id="kw-url-popover-${escapeForAttribute(popoverId)}" aria-hidden="true">
-            <div class="keyword-url-popover-header">Ranking URLs</div>
+            <div class="keyword-url-popover-header">Ranking URLs (${Math.max(1, totalUrls)})</div>
             <div class="keyword-url-popover-links">
                 ${popoverLinksHtml}
             </div>
         </div>
-    ` : '';
+    `;
 
     return gridjs.html(`
-        <div class="keyword-url-cell">
+        <div class="keyword-url-cell" data-popover-id="${escapeForAttribute(popoverId)}">
             ${urlMainHtml}
             ${extraHtml}
+            ${popoverHtml}
         </div>
     `);
 }
