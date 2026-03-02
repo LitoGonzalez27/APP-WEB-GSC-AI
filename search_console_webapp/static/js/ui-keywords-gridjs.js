@@ -462,6 +462,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
             id: 'url',
             name: 'Landing URL',
             width: '320px',
+            sort: false,
             formatter: (cell) => formatKeywordUrlCell(cell)
         }
     ];
@@ -591,10 +592,21 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
 
     // Procesar datos (igual que URLs)
     const data = keywordsData.map(keyword => {
+        const normalizedUrls = Array.isArray(keyword.top_urls) ? keyword.top_urls.filter(Boolean) : [];
+        const primaryUrl = keyword.url || keyword.page || normalizedUrls[0] || '';
+        const topUrlsCountRaw = Number(keyword.top_urls_count);
+        const totalUrls = Number.isFinite(topUrlsCountRaw) && topUrlsCountRaw > 0
+            ? topUrlsCountRaw
+            : normalizedUrls.length;
+
         const rowData = [
             '', // Columna SERP (será reemplazada por el formatter)
             keyword.query || keyword.keyword || '',
-            keyword.url || keyword.page || ''
+            {
+                primary: primaryUrl,
+                urls: normalizedUrls.length > 0 ? normalizedUrls : (primaryUrl ? [primaryUrl] : []),
+                total: totalUrls > 0 ? totalUrls : (primaryUrl ? 1 : 0)
+            }
         ];
 
         // Añadir datos según el tipo de análisis
@@ -697,29 +709,52 @@ function truncateMiddle(text, maxLength = 80) {
 }
 
 function formatKeywordUrlCell(urlValue) {
-    const url = String(urlValue || '').trim();
-    if (!url) {
+    const cellData = (urlValue && typeof urlValue === 'object')
+        ? urlValue
+        : { primary: urlValue, urls: urlValue ? [urlValue] : [], total: urlValue ? 1 : 0 };
+
+    const urls = Array.isArray(cellData.urls) ? cellData.urls.filter(Boolean) : [];
+    const primaryUrl = String(cellData.primary || urls[0] || '').trim();
+    const totalRaw = Number(cellData.total);
+    const totalUrls = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : urls.length;
+
+    if (!primaryUrl) {
         return gridjs.html('<span class="keyword-url-empty">N/A</span>');
     }
 
-    const displayUrl = truncateMiddle(url, 82);
-    const safeTitle = escapeForAttribute(url);
+    const displayUrl = truncateMiddle(primaryUrl, 82);
+    const tooltipUrls = urls.slice(0, 5);
+    const extraUrls = Math.max(0, totalUrls - 1);
+    const tooltipLines = [
+        `Main URL: ${primaryUrl}`,
+        ...(tooltipUrls.length > 1 ? [`Also ranking: ${tooltipUrls.slice(1).join(' | ')}`] : []),
+        ...(totalUrls > tooltipUrls.length ? [`+${totalUrls - tooltipUrls.length} more URL(s)`] : [])
+    ];
+    const safeTitle = escapeForAttribute(tooltipLines.join('\n'));
     const safeDisplay = escapeHtmlLocal(displayUrl);
-    const isHttpUrl = /^https?:\/\//i.test(url);
+    const isHttpUrl = /^https?:\/\//i.test(primaryUrl);
 
-    if (isHttpUrl) {
-        const safeHref = escapeForAttribute(url);
-        return gridjs.html(`
-            <a href="${safeHref}" class="keyword-url-link" target="_blank" rel="noopener noreferrer" title="${safeTitle}">
+    const urlMainHtml = isHttpUrl
+        ? `
+            <a href="${escapeForAttribute(primaryUrl)}" class="keyword-url-link" target="_blank" rel="noopener noreferrer" title="${safeTitle}">
                 ${safeDisplay}
             </a>
-        `);
-    }
+        `
+        : `
+            <span class="keyword-url-text" title="${safeTitle}">
+                ${safeDisplay}
+            </span>
+        `;
+
+    const extraHtml = extraUrls > 0
+        ? `<span class="keyword-url-multi" title="${safeTitle}">+${extraUrls} URL(s)</span>`
+        : '';
 
     return gridjs.html(`
-        <span class="keyword-url-text" title="${safeTitle}">
-            ${safeDisplay}
-        </span>
+        <div class="keyword-url-cell">
+            ${urlMainHtml}
+            ${extraHtml}
+        </div>
     `);
 }
 
