@@ -4,6 +4,16 @@ import { createKeywordsGridTable } from './ui-keywords-gridjs.js';
 
 let keywordComparisonGridTable = null;
 
+function getKeywordComparisonGridMount(container) {
+  if (!container) return null;
+  return container.querySelector('#keywordComparisonGridMount') || container;
+}
+
+function getKeywordQuickFiltersHost(container) {
+  if (!container) return null;
+  return container.querySelector('#keywordQuickFiltersHost') || null;
+}
+
 // ✅ REMOVIDO: Funciones duplicadas - ahora se usan las del módulo centralizado number-utils.js
 
 // ✅ FUNCIÓN para determinar el tipo de análisis
@@ -30,6 +40,8 @@ function getAnalysisType(keywordData, periods = null) {
 export function renderKeywordComparisonTable(keywordData, periods = null) {
   const container = document.getElementById('keywordComparisonBlock');
   if (!container) return;
+  const gridMount = getKeywordComparisonGridMount(container);
+  const quickFiltersHost = getKeywordQuickFiltersHost(container);
 
   // ✅ Limpiar Grid.js anterior si existe
   if (keywordComparisonGridTable && keywordComparisonGridTable.destroy) {
@@ -48,13 +60,16 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
 
   if (!keywordData || keywordData.length === 0) {
     // Mostrar mensaje de no hay datos
-    container.innerHTML = `
+    if (quickFiltersHost) quickFiltersHost.innerHTML = '';
+    if (gridMount) {
+      gridMount.innerHTML = `
       <div class="no-aio-message">
         <i class="fas fa-search"></i>
         <h3>No Keywords Found</h3>
         <p>No keyword data for the selected URLs and period.</p>
       </div>
     `;
+    }
     return;
   }
 
@@ -81,13 +96,15 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
     console.error('❌ Error al crear tabla Grid.js de keywords:', error);
     
     // Fallback - mostrar mensaje de error
-    container.innerHTML = `
+    if (gridMount) {
+      gridMount.innerHTML = `
       <div class="no-aio-message">
         <i class="fas fa-exclamation-triangle"></i>
         <h3>Error Loading Table</h3>
         <p>There was an error loading the keywords table. Please try refreshing the page.</p>
       </div>
     `;
+    }
   }
 
   // ✅ Actualizar título de la sección si existe
@@ -114,7 +131,10 @@ export function clearKeywordComparisonTable() {
   
   const container = document.getElementById('keywordComparisonBlock');
   if (container) {
-    container.innerHTML = '';
+    const gridMount = getKeywordComparisonGridMount(container);
+    const quickFiltersHost = getKeywordQuickFiltersHost(container);
+    if (gridMount) gridMount.innerHTML = '';
+    if (quickFiltersHost) quickFiltersHost.innerHTML = '';
   }
 }
 

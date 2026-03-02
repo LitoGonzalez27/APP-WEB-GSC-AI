@@ -248,6 +248,49 @@
   outline: none !important;
 }
 
+/* Layout unificado del bloque de Keywords */
+#keywordComparisonBlock.keywords-comparison-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: visible;
+}
+
+.keywords-comparison-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.keywords-quick-filters-host:empty {
+  display: none;
+}
+
+.keyword-filter-inline {
+  margin: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(248, 249, 250, 0.4);
+}
+
+.keyword-filter-inline .collapsible-content {
+  padding: 0 1rem 1rem;
+}
+
+.keyword-filter-inline .exclusion-container {
+  padding: 1rem;
+}
+
+.keywords-comparison-grid-mount {
+  width: 100%;
+}
+
 /* Chips presets de oportunidades SEO */
 .keywords-presets-row {
   display: flex;
@@ -258,9 +301,9 @@
 }
 
 .keywords-preset-chip {
-  border: 1px solid var(--border-color);
-  background: rgba(216, 249, 184, 0.35);
-  color: #2c2d2e;
+  border: 1px solid #1f1f1f;
+  background: #161616;
+  color: #d8f9b8;
   border-radius: 999px;
   padding: 7px 13px;
   font-size: 0.82rem;
@@ -272,8 +315,9 @@
 }
 
 .keywords-preset-chip:hover {
-  background: rgba(216, 249, 184, 0.6);
+  background: #202020;
   border-color: #b8dea0;
+  color: #d8f9b8;
 }
 
 .keywords-preset-chip.is-active {
@@ -400,6 +444,19 @@ body.dark-mode .keyword-modal-skeleton-cell {
     width: 100%;
   }
 
+  .keywords-comparison-controls {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .keyword-filter-inline .collapsible-content {
+    padding: 0 0.8rem 0.8rem;
+  }
+
+  .keyword-filter-inline .exclusion-container {
+    padding: 0.8rem;
+  }
+
   .keywords-presets-row {
     gap: 8px;
   }
@@ -453,15 +510,26 @@ body.dark-mode .keywords-custom-search input {
   color: var(--text-color) !important;
 }
 
-body.dark-mode .keywords-preset-chip {
-  background: rgba(216, 249, 184, 0.15);
-  color: var(--text-color);
+body.dark-mode .keywords-comparison-controls {
+  background: var(--card-bg);
   border-color: var(--border-color);
 }
 
+body.dark-mode .keyword-filter-inline {
+  background: rgba(15, 23, 42, 0.3);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .keywords-preset-chip {
+  background: #161616;
+  color: #d8f9b8;
+  border-color: #1f1f1f;
+}
+
 body.dark-mode .keywords-preset-chip:hover {
-  background: rgba(216, 249, 184, 0.28);
-  border-color: rgba(216, 249, 184, 0.38);
+  background: #202020;
+  border-color: #b8dea0;
+  color: #d8f9b8;
 }
 
 body.dark-mode .keywords-preset-chip.is-active {
