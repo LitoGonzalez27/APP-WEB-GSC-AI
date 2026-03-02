@@ -13,6 +13,10 @@ const kwFilterState = {
     currentAnalysisType: 'comparison'
 };
 
+const keywordUrlPopoverState = {
+    initialized: false
+};
+
 const kwFilterMethodLabels = {
     contains: 'Contains',
     equals: 'Exact Match',
@@ -22,6 +26,69 @@ const kwFilterMethodLabels = {
 
 function getKwFilterMethodLabel(method) {
     return kwFilterMethodLabels[method] || method || 'Contains';
+}
+
+function closeAllKeywordUrlPopovers(exceptPopoverId = null) {
+    document.querySelectorAll('.keyword-url-popover.is-open').forEach((popoverEl) => {
+        if (exceptPopoverId && popoverEl.id === `kw-url-popover-${exceptPopoverId}`) return;
+        popoverEl.classList.remove('is-open');
+        popoverEl.setAttribute('aria-hidden', 'true');
+    });
+
+    document.querySelectorAll('.keyword-url-multi-btn.is-active').forEach((btnEl) => {
+        if (exceptPopoverId && btnEl.dataset.popoverId === exceptPopoverId) return;
+        btnEl.classList.remove('is-active');
+        btnEl.setAttribute('aria-expanded', 'false');
+    });
+}
+
+function toggleKeywordUrlPopover(event, buttonEl) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const triggerBtn = buttonEl && buttonEl.closest ? buttonEl.closest('.keyword-url-multi-btn') : null;
+    if (!triggerBtn) return;
+
+    const popoverId = triggerBtn.dataset.popoverId;
+    if (!popoverId) return;
+
+    const popoverEl = document.getElementById(`kw-url-popover-${popoverId}`);
+    if (!popoverEl) return;
+
+    const shouldOpen = !popoverEl.classList.contains('is-open');
+    closeAllKeywordUrlPopovers(shouldOpen ? popoverId : null);
+
+    if (shouldOpen) {
+        popoverEl.classList.add('is-open');
+        popoverEl.setAttribute('aria-hidden', 'false');
+        triggerBtn.classList.add('is-active');
+        triggerBtn.setAttribute('aria-expanded', 'true');
+    } else {
+        popoverEl.classList.remove('is-open');
+        popoverEl.setAttribute('aria-hidden', 'true');
+        triggerBtn.classList.remove('is-active');
+        triggerBtn.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function ensureKeywordUrlPopoverSetup() {
+    if (keywordUrlPopoverState.initialized) return;
+
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.keyword-url-cell')) {
+            closeAllKeywordUrlPopovers();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeAllKeywordUrlPopovers();
+        }
+    });
+
+    keywordUrlPopoverState.initialized = true;
 }
 
 function notifyKwFilterStateChanged() {
@@ -282,6 +349,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Aplicar filtro de palabras clave (si hay)
     // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
+    ensureKeywordUrlPopoverSetup();
     const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
 
     // Procesar datos para Grid.js
@@ -723,7 +791,13 @@ function formatKeywordUrlCell(urlValue) {
     }
 
     const displayUrl = truncateMiddle(primaryUrl, 82);
-    const tooltipUrls = urls.slice(0, 5);
+    const uniqueUrls = [];
+    if (primaryUrl) uniqueUrls.push(primaryUrl);
+    urls.forEach((urlItem) => {
+        if (urlItem && !uniqueUrls.includes(urlItem)) uniqueUrls.push(urlItem);
+    });
+
+    const tooltipUrls = uniqueUrls;
     const extraUrls = Math.max(0, totalUrls - 1);
     const tooltipLines = [
         `Main URL: ${primaryUrl}`,
@@ -733,6 +807,7 @@ function formatKeywordUrlCell(urlValue) {
     const safeTitle = escapeForAttribute(tooltipLines.join('\n'));
     const safeDisplay = escapeHtmlLocal(displayUrl);
     const isHttpUrl = /^https?:\/\//i.test(primaryUrl);
+    const popoverId = `kw-url-${Math.random().toString(36).slice(2, 11)}`;
 
     const urlMainHtml = isHttpUrl
         ? `
@@ -746,9 +821,38 @@ function formatKeywordUrlCell(urlValue) {
             </span>
         `;
 
-    const extraHtml = extraUrls > 0
-        ? `<span class="keyword-url-multi" title="${safeTitle}">+${extraUrls} URL(s)</span>`
-        : '';
+    const popoverLinksHtml = uniqueUrls.length > 0
+        ? uniqueUrls.map((urlItem, index) => {
+            const safeHref = escapeForAttribute(urlItem);
+            const safeLabel = escapeHtmlLocal(truncateMiddle(urlItem, 92));
+            const badge = index === 0 ? '<span class="keyword-url-main-badge">Main</span>' : '';
+            return `
+                <a href="${safeHref}" class="keyword-url-popover-link" target="_blank" rel="noopener noreferrer">
+                    ${badge}
+                    <span>${safeLabel}</span>
+                </a>
+            `;
+        }).join('')
+        : '<span class="keyword-url-empty">No URLs available</span>';
+
+    const extraHtml = extraUrls > 0 ? `
+        <button
+            type="button"
+            class="keyword-url-multi-btn"
+            data-popover-id="${escapeForAttribute(popoverId)}"
+            aria-expanded="false"
+            aria-controls="kw-url-popover-${escapeForAttribute(popoverId)}"
+            onclick="window.keywordsGrid.toggleUrlPopover(event, this)"
+        >
+            +${extraUrls} URL(s)
+        </button>
+        <div class="keyword-url-popover" id="kw-url-popover-${escapeForAttribute(popoverId)}" aria-hidden="true">
+            <div class="keyword-url-popover-header">Ranking URLs</div>
+            <div class="keyword-url-popover-links">
+                ${popoverLinksHtml}
+            </div>
+        </div>
+    ` : '';
 
     return gridjs.html(`
         <div class="keyword-url-cell">
@@ -899,6 +1003,13 @@ window.keywordsGrid = {
         }).catch(error => {
             console.error('❌ Error loading SERP modal:', error);
         });
+    },
+
+    toggleUrlPopover: function(event, buttonEl) {
+        toggleKeywordUrlPopover(event, buttonEl);
+    },
+    closeAllUrlPopovers: function() {
+        closeAllKeywordUrlPopovers();
     },
     
     // Funciones de debug para el ordenamiento
