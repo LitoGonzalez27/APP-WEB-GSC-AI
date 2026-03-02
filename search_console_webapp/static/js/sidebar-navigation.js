@@ -122,6 +122,16 @@ class SidebarNavigation {
       console.log('✅ Event listener agregado para botón de descarga Excel');
     }
 
+    const sidebarDownloadJsonBtn = document.getElementById('sidebarDownloadJsonBtn');
+    if (sidebarDownloadJsonBtn) {
+      sidebarDownloadJsonBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('🖱️ Click en botón de descarga JSON del sidebar');
+        this.handleDownloadJsonClick();
+      });
+      console.log('✅ Event listener agregado para botón de descarga JSON');
+    }
+
     // ✅ NUEVO: Event listener para botón de descarga PDF
     const sidebarDownloadPdfBtn = document.getElementById('sidebarDownloadPdfBtn');
     if (sidebarDownloadPdfBtn) {
@@ -643,10 +653,16 @@ class SidebarNavigation {
   // ✅ NUEVO: Mostrar/ocultar botón de descarga Excel
   showDownloadButton(show = true) {
     const sidebarDownloadBtn = document.getElementById('sidebarDownloadBtn');
+    const sidebarDownloadJsonBtn = document.getElementById('sidebarDownloadJsonBtn');
     
     if (sidebarDownloadBtn) {
       sidebarDownloadBtn.style.display = show ? 'flex' : 'none';
       console.log(`📥 Botón de descarga Excel ${show ? 'mostrado' : 'ocultado'}`);
+    }
+
+    if (sidebarDownloadJsonBtn) {
+      sidebarDownloadJsonBtn.style.display = show ? 'flex' : 'none';
+      console.log(`🧾 Botón de descarga JSON ${show ? 'mostrado' : 'ocultado'}`);
     }
   }
 
@@ -663,245 +679,171 @@ class SidebarNavigation {
     }
   }
 
-  // ✅ NUEVO: Manejar click del botón de descarga
-  async handleDownloadClick() {
-    const downloadBtn = document.getElementById('sidebarDownloadBtn');
-    const spinner = downloadBtn?.querySelector('.download-spinner');
-    const btnText = downloadBtn?.querySelector('span');
-    
-    if (!downloadBtn) return;
-    
-    console.log('📥 Iniciando descarga Excel desde sidebar...');
-    
-    if (!window.currentData || !window.currentData.pages) {
-      alert('No data to download. Please run a query first.');
-        return;
-    }
-    
-    try {
-      // Mostrar spinner
-      if (spinner) spinner.style.display = 'inline-block';
-      if (btnText) btnText.style.display = 'none';
-      downloadBtn.disabled = true;
-      
-      // ✅ Manejar diferentes estructuras de datos AI Overview
-      let aiOverviewDataToDownload = null;
-      
-      if (window.currentAIOverviewData) {
-          console.log('🔍 Procesando datos AI Overview para descarga...', window.currentAIOverviewData);
-          
-          // Caso 1: La estructura tiene 'analysis' que contiene 'results' y 'summary'
-          if (window.currentAIOverviewData.analysis) {
-              aiOverviewDataToDownload = {
-                  results: window.currentAIOverviewData.analysis.results || 
-                           window.currentAIOverviewData.keywordResults || 
-                           [],
-                  summary: window.currentAIOverviewData.analysis.summary || 
-                           window.currentAIOverviewData.summary || 
-                           {},
-                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
-              };
-              console.log('✅ Estructura detectada: analysis.results/summary + clusters');
-          }
-          // Caso 2: La estructura ya tiene 'results' y 'summary' directamente
-          else if (window.currentAIOverviewData.results && window.currentAIOverviewData.summary) {
-              aiOverviewDataToDownload = {
-                  results: window.currentAIOverviewData.results,
-                  summary: window.currentAIOverviewData.summary,
-                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
-              };
-              console.log('✅ Estructura detectada: results/summary directa + clusters');
-          }
-          // Caso 3: Intento de rescate con keywordResults
-          else if (window.currentAIOverviewData.keywordResults) {
-              aiOverviewDataToDownload = {
-                  results: window.currentAIOverviewData.keywordResults,
-                  summary: window.currentAIOverviewData.summary || {},
-                  clusters_analysis: window.currentAIOverviewData.clusters_analysis || null  // 🆕 NUEVO: Incluir clusters
-              };
-              console.log('✅ Estructura detectada: keywordResults + clusters');
-          }
-          // Caso 4: Estructura no reconocida, intentar usar tal cual
-          else {
-              console.warn('⚠️ Estructura AI Overview no reconocida, usando tal cual');
-              aiOverviewDataToDownload = window.currentAIOverviewData;
-          }
-          
-          // 🔍 EXCEL DEBUG CRÍTICO: Verificar cluster_name en results para Excel
-          console.log('🔍 [EXCEL DEBUG] Verificando datos para envío a Excel:');
-          if (aiOverviewDataToDownload?.results?.length > 0) {
-              console.log('🔍 [EXCEL DEBUG] Primera keyword para Excel:', aiOverviewDataToDownload.results[0]);
-              console.log('🔍 [EXCEL DEBUG] Tiene cluster_name?:', aiOverviewDataToDownload.results[0].cluster_name);
-              
-              // Contar keywords con clusters que van al Excel
-              const withClusters = aiOverviewDataToDownload.results.filter(r => r.cluster_name && r.cluster_name !== 'Unclassified');
-              const unclassified = aiOverviewDataToDownload.results.filter(r => !r.cluster_name || r.cluster_name === 'Unclassified');
-              console.log(`🔍 [EXCEL DEBUG] Para Excel - Con cluster: ${withClusters.length}, sin cluster: ${unclassified.length}`);
-              
-              // Mostrar algunos ejemplos
-              if (withClusters.length > 0) {
-                  console.log('🔍 [EXCEL DEBUG] Ejemplo keyword con cluster:', withClusters[0]);
-              }
-          }
-          
-          // Log de verificación
-          console.log('📊 Datos AI Overview preparados para descarga:', {
-              tieneResults: !!aiOverviewDataToDownload?.results,
-              resultsCount: aiOverviewDataToDownload?.results?.length || 0,
-              tieneSummary: !!aiOverviewDataToDownload?.summary,
-              summaryKeys: aiOverviewDataToDownload?.summary ? Object.keys(aiOverviewDataToDownload.summary) : [],
-              tieneClusters: !!aiOverviewDataToDownload?.clusters_analysis
-          });
-          
-          // 🔍 DEBUG COMPETIDORES: Log detallado de estructura de datos
-          if (aiOverviewDataToDownload?.results?.length > 0) {
-              console.log('🔍 DEBUG COMPETIDORES: Estructura de resultados para Excel');
-              const firstResult = aiOverviewDataToDownload.results[0];
-              console.log('🔍 DEBUG COMPETIDORES: Primer resultado:', firstResult);
-              console.log('🔍 DEBUG COMPETIDORES: Claves disponibles:', Object.keys(firstResult));
-              
-              if (firstResult.ai_analysis) {
-                  console.log('🔍 DEBUG COMPETIDORES: ai_analysis keys:', Object.keys(firstResult.ai_analysis));
-                  console.log('🔍 DEBUG COMPETIDORES: ai_overview_sources:', firstResult.ai_analysis.ai_overview_sources);
-              }
-              
-              // Buscar resultados con AI Overview para investigar estructura
-              const withAIO = aiOverviewDataToDownload.results.filter(r => r.ai_analysis?.has_ai_overview);
-              console.log(`🔍 DEBUG COMPETIDORES: ${withAIO.length} keywords con AI Overview`);
-              
-              if (withAIO.length > 0) {
-                  console.log('🔍 DEBUG COMPETIDORES: Ejemplo keyword con AIO:', withAIO[0]);
-                  if (withAIO[0].ai_analysis?.ai_overview_sources) {
-                      console.log('🔍 DEBUG COMPETIDORES: Fuentes AIO ejemplo:', withAIO[0].ai_analysis.ai_overview_sources);
-                  }
-              }
-          }
-      } else {
-          console.log('ℹ️ No hay datos de AI Overview para incluir en el Excel');
-      }
-      
-      // 🔧 DEBUG: Crear función global para debugging manual
-      window.debugCompetitorsData = function() {
-          console.log('=== 🔍 DEBUGGING COMPETITORS DATA ===');
-          if (window.currentAIOverviewData) {
-              console.log('✅ window.currentAIOverviewData existe');
-              console.log('📊 Estructura completa:', window.currentAIOverviewData);
-              console.log('📊 Datos que se enviarían al Excel:', aiOverviewDataToDownload);
-              
-              const results = window.currentAIOverviewData.analysis?.results || 
-                             window.currentAIOverviewData.results || 
-                             window.currentAIOverviewData.keywordResults || [];
-                             
-              console.log(`📋 Total resultados: ${results.length}`);
-              
-              const withAIO = results.filter(r => r.ai_analysis?.has_ai_overview);
-              console.log(`🤖 Keywords con AI Overview: ${withAIO.length}`);
-              
-              if (withAIO.length > 0) {
-                  console.log('🎯 Primer keyword con AIO:', withAIO[0]);
-                  
-                  withAIO.forEach((result, index) => {
-                      const keyword = result.keyword;
-                      const ai_analysis = result.ai_analysis || {};
-                      const sources = ai_analysis.ai_overview_sources || ai_analysis.sources || [];
-                      
-                      console.log(`🔗 ${index + 1}. "${keyword}" - ${sources.length} fuentes:`, sources);
-                  });
-              }
-          } else {
-              console.log('❌ window.currentAIOverviewData NO existe');
-          }
-          console.log('=== 🔍 FIN DEBUG ===');
-      };
-      
-      // 🔧 DEBUG: Crear función adicional para debuggear payload del Excel
-      window.debugExcelPayload = function() {
-          console.log('=== 📊 DEBUGGING EXCEL PAYLOAD ===');
-          const payload = {
-              data: window.currentData,
-              ai_overview_data: aiOverviewDataToDownload,
-              metadata: {
-                  site_url: siteUrlSelect ? siteUrlSelect.value : '',
-                  months: [...document.querySelectorAll('.chip.selected')].map(c => c.dataset.value),
-                  generated_at: new Date().toISOString()
-              }
-          };
-          console.log('📤 Payload completo que se envía al servidor:', payload);
-          console.log('🎯 ai_overview_data específico:', payload.ai_overview_data);
-          if (payload.ai_overview_data && payload.ai_overview_data.summary) {
-              console.log('🏆 competitor_analysis en summary:', payload.ai_overview_data.summary.competitor_analysis);
-          }
-          console.log('=== 📊 FIN DEBUG PAYLOAD ===');
-      };
-      
-      console.log('🔧 Funciones window.debugCompetitorsData() y window.debugExcelPayload() creadas. Ejecútalas después del análisis AI.');
+  getDownloadButtonElements(buttonId) {
+    const button = document.getElementById(buttonId);
+    return {
+      button,
+      spinner: button?.querySelector('.download-spinner'),
+      text: button?.querySelector('span')
+    };
+  }
 
-      // Obtener elementos DOM necesarios para metadatos
-      const siteUrlSelect = document.getElementById('siteUrlSelect');
-      
-      const payload = {
-          data: window.currentData,
-          ai_overview_data: aiOverviewDataToDownload,
-          metadata: {
-              site_url: siteUrlSelect ? siteUrlSelect.value : '',
-              months: [...document.querySelectorAll('.chip.selected')].map(c => c.dataset.value),
-              generated_at: new Date().toISOString()
-          }
-      };
+  setDownloadButtonLoadingState(buttonId, isLoading) {
+    const { button, spinner, text } = this.getDownloadButtonElements(buttonId);
+    if (!button) return false;
+    if (spinner) spinner.style.display = isLoading ? 'inline-block' : 'none';
+    if (text) text.style.display = isLoading ? 'none' : 'inline';
+    button.disabled = !!isLoading;
+    return true;
+  }
+
+  showDownloadButtonSuccess(buttonId, successText = 'Downloaded!') {
+    const { button, text } = this.getDownloadButtonElements(buttonId);
+    if (!button || !text) return;
+    const originalText = text.textContent;
+    text.textContent = successText;
+    button.classList.add('success');
+    setTimeout(() => {
+      text.textContent = originalText;
+      button.classList.remove('success');
+    }, 2000);
+  }
+
+  triggerBlobDownload(blob, fileName) {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+
+  buildExportPayload() {
+    if (!window.currentData || !window.currentData.pages) {
+      throw new Error('NO_DATA');
+    }
+
+    let aiOverviewDataToDownload = null;
+
+    if (window.currentAIOverviewData) {
+      console.log('🔍 Procesando datos AI Overview para descarga...', window.currentAIOverviewData);
+
+      if (window.currentAIOverviewData.analysis) {
+        aiOverviewDataToDownload = {
+          results: window.currentAIOverviewData.analysis.results || window.currentAIOverviewData.keywordResults || [],
+          summary: window.currentAIOverviewData.analysis.summary || window.currentAIOverviewData.summary || {},
+          clusters_analysis: window.currentAIOverviewData.clusters_analysis || null
+        };
+      } else if (window.currentAIOverviewData.results && window.currentAIOverviewData.summary) {
+        aiOverviewDataToDownload = {
+          results: window.currentAIOverviewData.results,
+          summary: window.currentAIOverviewData.summary,
+          clusters_analysis: window.currentAIOverviewData.clusters_analysis || null
+        };
+      } else if (window.currentAIOverviewData.keywordResults) {
+        aiOverviewDataToDownload = {
+          results: window.currentAIOverviewData.keywordResults,
+          summary: window.currentAIOverviewData.summary || {},
+          clusters_analysis: window.currentAIOverviewData.clusters_analysis || null
+        };
+      } else {
+        aiOverviewDataToDownload = window.currentAIOverviewData;
+      }
+    }
+
+    const siteUrlSelect = document.getElementById('siteUrlSelect');
+    const payload = {
+      data: window.currentData,
+      ai_overview_data: aiOverviewDataToDownload,
+      metadata: {
+        site_url: siteUrlSelect ? siteUrlSelect.value : '',
+        months: [...document.querySelectorAll('.chip.selected')].map(c => c.dataset.value),
+        generated_at: new Date().toISOString()
+      }
+    };
+
+    return { payload, aiOverviewDataToDownload };
+  }
+
+  // ✅ NUEVO: Manejar click del botón de descarga Excel
+  async handleDownloadClick() {
+    const buttonId = 'sidebarDownloadBtn';
+    const { button } = this.getDownloadButtonElements(buttonId);
+    if (!button) return;
+
+    console.log('📥 Iniciando descarga Excel desde sidebar...');
+
+    try {
+      const { payload, aiOverviewDataToDownload } = this.buildExportPayload();
+      this.setDownloadButtonLoadingState(buttonId, true);
 
       const response = await fetch('/download-excel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: "Error al parsear respuesta del servidor" }));
-          let alertMessage = `Error al generar Excel: ${errorData.error || response.statusText}`;
-          if (errorData.reauth_required) {
-              alertMessage += "\nLa autenticación con Google ha fallado o expirado. Por favor, recarga la página para re-autenticar.";
-          }
-          alert(alertMessage);
-          return;
+        const errorData = await response.json().catch(() => ({ error: 'Error parsing server response' }));
+        let alertMessage = `Error generating Excel: ${errorData.error || response.statusText}`;
+        if (errorData.reauth_required) {
+          alertMessage += '\nGoogle authentication failed or expired. Please reload the page to re-authenticate.';
+        }
+        alert(alertMessage);
+        return;
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const hasAI = aiOverviewDataToDownload ? '_con_AI' : '';
+      this.triggerBlobDownload(blob, `search_console_report${hasAI}_${timestamp}.xlsx`);
+      this.showDownloadButtonSuccess(buttonId, 'Downloaded!');
+      console.log('✅ Descarga Excel completada');
+    } catch (error) {
+      console.error('❌ Error al descargar Excel:', error);
+      if (error?.message === 'NO_DATA') {
+        alert('No data to download. Please run a query first.');
+      } else {
+        alert('An unexpected error occurred while trying to download the Excel file.');
+      }
+    } finally {
+      this.setDownloadButtonLoadingState(buttonId, false);
+    }
+  }
+
+  // ✅ NUEVO: Manejar click del botón de descarga JSON
+  async handleDownloadJsonClick() {
+    const buttonId = 'sidebarDownloadJsonBtn';
+    const { button } = this.getDownloadButtonElements(buttonId);
+    if (!button) return;
+
+    console.log('🧾 Iniciando descarga JSON desde sidebar...');
+
+    try {
+      const { payload, aiOverviewDataToDownload } = this.buildExportPayload();
+      this.setDownloadButtonLoadingState(buttonId, true);
+
+      const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json;charset=utf-8'
+      });
 
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const hasAI = aiOverviewDataToDownload ? '_con_AI' : '';
-      a.download = `search_console_report${hasAI}_${timestamp}.xlsx`;
-
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      console.log('✅ Descarga Excel completada');
-      
-      // Mostrar éxito temporal
-      if (btnText) {
-        const originalText = btnText.textContent;
-        btnText.textContent = 'Descargado!';
-        downloadBtn.classList.add('success');
-        
-        setTimeout(() => {
-          btnText.textContent = originalText;
-          downloadBtn.classList.remove('success');
-        }, 2000);
-      }
-      
+      this.triggerBlobDownload(jsonBlob, `search_console_report${hasAI}_${timestamp}.json`);
+      this.showDownloadButtonSuccess(buttonId, 'Downloaded!');
+      console.log('✅ Descarga JSON completada');
     } catch (error) {
-      console.error('❌ Error al descargar Excel:', error);
-      alert('Se produjo un error inesperado al intentar descargar el archivo Excel.');
+      console.error('❌ Error al descargar JSON:', error);
+      if (error?.message === 'NO_DATA') {
+        alert('No data to download. Please run a query first.');
+      } else {
+        alert('An unexpected error occurred while trying to download the JSON file.');
+      }
     } finally {
-      // Ocultar spinner
-      if (spinner) spinner.style.display = 'none';
-      if (btnText) btnText.style.display = 'inline';
-      downloadBtn.disabled = false;
+      this.setDownloadButtonLoadingState(buttonId, false);
     }
   }
 
