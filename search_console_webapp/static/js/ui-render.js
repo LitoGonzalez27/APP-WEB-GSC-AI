@@ -55,6 +55,7 @@ export async function resetUrlsTableState() {
       }
       preProcessedModalData[range].gridTable = null;
     }
+    preProcessedModalData[range].isLoading = false;
   });
   
   // Limpiar datos globales relacionados
@@ -1320,10 +1321,10 @@ function filterKeywordsByPosition(keywordData, positionRange) {
 
 // ✅ MIGRADO A GRID.JS: Variables para almacenar datos pre-procesados y Grid.js del modal
 let preProcessedModalData = {
-  top3: { keywords: [], gridTable: null, analysisType: 'single' },
-  top10: { keywords: [], gridTable: null, analysisType: 'single' },
-  top20: { keywords: [], gridTable: null, analysisType: 'single' },
-  top20plus: { keywords: [], gridTable: null, analysisType: 'single' }
+  top3: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
+  top10: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
+  top20: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
+  top20plus: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false }
 };
 
 let modalContainersCreated = false;
@@ -1504,11 +1505,14 @@ function openKeywordModal(positionRange, label) {
   }
   
   // Verificar que la Grid.js tabla está lista
-  if (!data.gridTable && data.keywords.length > 0) {
+  if (!data.gridTable && !data.isLoading && data.keywords.length > 0) {
     console.log('🔄 Grid.js table not ready, creating...');
+    data.isLoading = true;
     // No usar await aquí para mantener la apertura instantánea del modal
     createGridTableForRange(positionRange, data.keywords, data.analysisType).catch(error => {
       console.error(`❌ Error creating Grid.js table for ${positionRange}:`, error);
+    }).finally(() => {
+      data.isLoading = false;
     });
   }
   
@@ -1613,21 +1617,14 @@ async function createGridTableForRange(range, keywords, analysisType) {
     
     // Importar dinámicamente para evitar dependencias circulares
     const { createKeywordsGridTable } = await import('./ui-keywords-gridjs.js');
+    preProcessedModalData[range].gridTable = createKeywordsGridTable(keywords, analysisType, container);
     
-    // Crear Grid.js table con delay específico por rango para evitar conflictos
-    const delayMap = { top3: 1000, top10: 1200, top20: 1400, top20plus: 1600 };
-    const delay = delayMap[range] || 1000;
-    
-    setTimeout(() => {
-      preProcessedModalData[range].gridTable = createKeywordsGridTable(keywords, analysisType, container);
-      
-      if (preProcessedModalData[range].gridTable) {
-        const endTime = performance.now();
-        console.log(`✅ Grid.js table for ${range} created in ${(endTime - startTime).toFixed(2)}ms`);
-      } else {
-        console.warn(`⚠️ Could not create Grid.js table for ${range}`);
-      }
-    }, delay);
+    if (preProcessedModalData[range].gridTable) {
+      const endTime = performance.now();
+      console.log(`✅ Grid.js table for ${range} created in ${(endTime - startTime).toFixed(2)}ms`);
+    } else {
+      console.warn(`⚠️ Could not create Grid.js table for ${range}`);
+    }
     
   } catch (error) {
     console.error(`❌ Error creating Grid.js table for ${range}:`, error);
@@ -1683,6 +1680,7 @@ function preprocessKeywordDataByRanges(keywordData) {
         }
         preProcessedModalData[range].gridTable = null;
       }
+      preProcessedModalData[range].isLoading = false;
     });
     return;
   }
@@ -1720,6 +1718,7 @@ function preprocessKeywordDataByRanges(keywordData) {
   Object.keys(ranges).forEach(range => {
     preProcessedModalData[range].keywords = ranges[range];
     preProcessedModalData[range].analysisType = analysisType;
+    preProcessedModalData[range].isLoading = false;
   });
 
   const endTime = performance.now();
@@ -1731,24 +1730,8 @@ function preprocessKeywordDataByRanges(keywordData) {
     analysisType: analysisType
   });
 
-  // Pre-crear las Grid.js tables para cada rango
-  createPreloadedGridTables();
-}
-
-// ✅ MIGRADO A GRID.JS: Función para crear Grid.js tables pre-cargadas
-function createPreloadedGridTables() {
-  if (!modalContainersCreated) {
-    createAllModalContainers();
-  }
-
-  Object.keys(preProcessedModalData).forEach(range => {
-    const data = preProcessedModalData[range];
-    if (data.keywords.length > 0) {
-      createGridTableForRange(range, data.keywords, data.analysisType).catch(error => {
-        console.error(`❌ Error al crear Grid.js tabla para ${range} en precarga:`, error);
-      });
-    }
-  });
+  // Optimización: no pre-cargar tablas de modal.
+  // Se crearán bajo demanda al abrir cada modal para reducir tiempo de carga inicial.
 }
 
 // ✅ NUEVO: Función para actualizar los datos globales de keywords
