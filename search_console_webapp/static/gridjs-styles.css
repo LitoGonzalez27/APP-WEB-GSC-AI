@@ -215,6 +215,39 @@
   outline: none !important;
 }
 
+/* Buscador dual en Keywords: Search keywords + Search URLs */
+.keywords-dual-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.keywords-dual-search-row .gridjs-search {
+  margin-bottom: 0;
+}
+
+.keywords-custom-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.keywords-custom-search input {
+  width: 100%;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  color: var(--text-color) !important;
+}
+
+.keywords-custom-search input:focus {
+  border-color: var(--cta-bg) !important;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2) !important;
+  outline: none !important;
+}
+
 /* =============== RESPONSIVE =============== */
 @media (max-width: 768px) {
   .ai-overview-grid-container {
@@ -242,6 +275,22 @@
     padding: 4px 6px;
     font-size: 0.7rem;
   }
+
+  .keywords-dual-search-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .keywords-dual-search-row .gridjs-search,
+  .keywords-custom-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .keywords-dual-search-row .gridjs-search input {
+    width: 100%;
+  }
 }
 
 /* =============== MODO OSCURO =============== */
@@ -260,6 +309,11 @@ body.dark-mode .gridjs-tr:nth-child(even) .gridjs-td {
 }
 
 body.dark-mode .gridjs-search input {
+  background: var(--card-bg) !important;
+  color: var(--text-color) !important;
+}
+
+body.dark-mode .keywords-custom-search input {
   background: var(--card-bg) !important;
   color: var(--text-color) !important;
 }
