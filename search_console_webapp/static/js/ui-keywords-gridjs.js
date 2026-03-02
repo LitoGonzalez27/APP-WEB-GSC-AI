@@ -525,14 +525,16 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         return null;
     }
 
-    // Aplicar filtro de palabras clave (si hay)
-    // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
-    ensureKwFilterUISetup();
-    ensureKeywordUrlPopoverSetup();
-    const sourceKeywords = Array.isArray(keywordsData) ? keywordsData : [];
     const isMainGrid = container && container.id === 'keywordComparisonBlock';
     const isRangeModalGrid = !!(container && typeof container.id === 'string' && container.id.startsWith('keywordModalTableContainer-'));
     const useDualSearchControls = isMainGrid || isRangeModalGrid;
+
+    // Asegurar inicialización de UI del filtro avanzado solo en la tabla principal
+    if (isMainGrid) {
+        ensureKwFilterUISetup();
+    }
+    ensureKeywordUrlPopoverSetup();
+    const sourceKeywords = Array.isArray(keywordsData) ? keywordsData : [];
     const filteredKeywords = isMainGrid ? applyKeywordAndSearchFilters(sourceKeywords) : sourceKeywords;
 
     // Procesar datos para Grid.js
@@ -657,33 +659,34 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
             setupScopedKeywordsSearchControls(tableContainer, grid, sourceKeywords, analysisType, defaultSortColumn);
         }
         
-        // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
-        setTimeout(() => {
-            try {
-                // Verificar que la grid aún existe y está renderizada
-                if (grid && grid.config && grid.config.data) {
-                    grid.updateConfig({
-                        sort: {
-                            multiColumn: false,
-                            sortColumn: defaultSortColumn, // Clicks P1
-                            sortDirection: 'desc' // De mayor a menor
+        // Mantener orden visual por Clicks P1 desc en la tabla principal.
+        // En modales se evita este re-render extra para mejorar rendimiento.
+        if (isMainGrid) {
+            setTimeout(() => {
+                try {
+                    if (grid && grid.config && grid.config.data) {
+                        grid.updateConfig({
+                            sort: {
+                                multiColumn: false,
+                                sortColumn: defaultSortColumn,
+                                sortDirection: 'desc'
+                            }
+                        }).forceRender();
+                        console.log('🔄 Keywords: Ordenamiento por Clics P1 (desc) aplicado programáticamente');
+                    }
+                } catch (sortError) {
+                    console.warn('⚠️ Keywords: No se pudo aplicar ordenamiento automático:', sortError);
+                    const specificContainer = document.getElementById(uniqueId);
+                    if (specificContainer) {
+                        const clicksHeader = specificContainer.querySelector(`th:nth-child(${defaultSortColumn + 1})`);
+                        if (clicksHeader) {
+                            clicksHeader.click();
+                            setTimeout(() => clicksHeader.click(), 50);
                         }
-                    }).forceRender();
-                    console.log('🔄 Keywords: Ordenamiento por Clics P1 (desc) aplicado programáticamente');
-                }
-            } catch (sortError) {
-                console.warn('⚠️ Keywords: No se pudo aplicar ordenamiento automático:', sortError);
-                // Fallback: usar clicks en header específico de esta tabla
-                const specificContainer = document.getElementById(uniqueId);
-                if (specificContainer) {
-                    const clicksHeader = specificContainer.querySelector(`th:nth-child(${defaultSortColumn + 1})`);
-                    if (clicksHeader) {
-                        clicksHeader.click();
-                        setTimeout(() => clicksHeader.click(), 50);
                     }
                 }
-            }
-        }, 800); // Delay mayor para evitar conflictos con URLs y modales
+            }, 800);
+        }
         
         return grid;
     } catch (error) {
