@@ -769,14 +769,20 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         return null;
     }
 
-    if (!keywordsData || keywordsData.length === 0) {
-        displayNoKeywordsMessage(container);
-        return null;
-    }
-
     const isMainGrid = container && container.id === 'keywordComparisonBlock';
     const isRangeModalGrid = !!(container && typeof container.id === 'string' && container.id.startsWith('keywordModalTableContainer-'));
-    const useDualSearchControls = isMainGrid || isRangeModalGrid;
+    const quickFiltersHost = isMainGrid ? container.querySelector('#keywordQuickFiltersHost') : null;
+    const hasExternalMainControls = !!quickFiltersHost;
+    const gridMountContainer = isMainGrid
+        ? (container.querySelector('#keywordComparisonGridMount') || container)
+        : container;
+    const useInlineDualSearchControls = isRangeModalGrid || (isMainGrid && !hasExternalMainControls);
+    const disableNativeSearch = isMainGrid || isRangeModalGrid;
+
+    if (!keywordsData || keywordsData.length === 0) {
+        displayNoKeywordsMessage(gridMountContainer);
+        return null;
+    }
 
     // Asegurar inicialización de UI del filtro avanzado solo en la tabla principal
     if (isMainGrid) {
@@ -797,7 +803,22 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     const uniqueId = `keywords-grid-table-${Date.now()}`;
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
-    if (isMainGrid) {
+    if (isMainGrid && hasExternalMainControls) {
+        quickFiltersHost.innerHTML = `
+            ${renderKeywordPresetChips()}
+            <div class="keywords-dual-search-row">
+                <div class="gridjs-search keywords-custom-search">
+                    <input type="search" class="gridjs-input keywords-text-search-input" placeholder="Search keywords..." aria-label="Search keywords">
+                </div>
+                <div class="gridjs-search keywords-custom-search">
+                    <input type="search" class="gridjs-input keywords-url-search-input" placeholder="Search URLs..." aria-label="Search URLs">
+                </div>
+            </div>
+        `;
+        tableContainer.innerHTML = `
+            <div id="${uniqueId}" class="ai-overview-grid-wrapper keywords-grid-wrapper"></div>
+        `;
+    } else if (isMainGrid) {
         tableContainer.innerHTML = `
             ${renderKeywordPresetChips()}
             <div class="keywords-dual-search-row">
@@ -810,7 +831,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
             </div>
             <div id="${uniqueId}" class="ai-overview-grid-wrapper keywords-grid-wrapper"></div>
         `;
-    } else if (useDualSearchControls) {
+    } else if (useInlineDualSearchControls) {
         tableContainer.innerHTML = `
             <div class="keywords-dual-search-row">
                 <div class="gridjs-search keywords-custom-search">
@@ -828,12 +849,13 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         `;
     }
     
-    // Limpiar contenedor y añadir nueva tabla
-    container.innerHTML = '';
-    container.appendChild(tableContainer);
+    // Limpiar contenedor de la tabla y añadir nueva tabla
+    gridMountContainer.innerHTML = '';
+    gridMountContainer.appendChild(tableContainer);
     if (isMainGrid) {
-        setupMainKeywordsPresetControls(tableContainer);
-        setupMainKeywordsSearchControls(tableContainer);
+        const mainControlsScope = hasExternalMainControls ? quickFiltersHost : tableContainer;
+        setupMainKeywordsPresetControls(mainControlsScope);
+        setupMainKeywordsSearchControls(mainControlsScope);
     }
 
     // Crear instancia de Grid.js
@@ -841,7 +863,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         columns: columns,
         data: initialSortedData,
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
-        search: useDualSearchControls ? false : {
+        search: disableNativeSearch ? false : {
             enabled: true,
             placeholder: 'Search keywords...',
             selector: (cell) => (typeof cell === 'string' ? cell : '')
