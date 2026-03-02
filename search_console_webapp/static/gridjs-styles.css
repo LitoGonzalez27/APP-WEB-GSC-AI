@@ -379,6 +379,24 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   text-decoration-color: currentColor;
 }
 
+.keyword-url-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.keyword-url-multi {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  background: rgba(11, 110, 168, 0.12);
+  color: #0b6ea8;
+  white-space: nowrap;
+}
+
 .keyword-url-empty {
   opacity: 0.65;
   font-style: italic;

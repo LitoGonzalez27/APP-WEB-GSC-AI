@@ -983,24 +983,30 @@ def get_data():
             keyword_data = {}
             
             if analysis_mode == "property":
-                # SIN filtro de página - obtener keywords agregadas de TODA la propiedad
+                # SIN filtro de página - obtener keywords con su(s) URL(s) real(es) de TODA la propiedad
                 combined_filters_kw = get_base_filters()  # Solo filtros de país si aplica
                 
                 rows_data = fetch_searchconsole_data_single_call(
                     gsc_service, site_url_sc,
                     start_date.strftime('%Y-%m-%d'),
                     end_date.strftime('%Y-%m-%d'),
-                    ['query'],  # Solo query para obtener keywords agregadas de toda la propiedad
+                    ['query', 'page'],  # Query + página para identificar landings reales
                     combined_filters_kw
                 )
                 
                 for r_item in rows_data:
-                    if len(r_item.get('keys', [])) >= 1:
+                    if len(r_item.get('keys', [])) >= 2:
                         query = r_item['keys'][0]
+                        page_url = r_item['keys'][1]
+
+                        if not query:
+                            continue
+
                         if query not in keyword_data:
                             keyword_data[query] = {
                                 'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                'pos_sum': 0.0, 'count': 0, 'url': f"{site_url_sc} (propiedad completa)"
+                                'pos_sum': 0.0, 'count': 0, 'url': '',
+                                'top_urls': [], 'top_urls_count': 0, 'url_metrics': {}
                             }
                         
                         kw_entry = keyword_data[query]
@@ -1009,8 +1015,33 @@ def get_data():
                         kw_entry['ctr_sum'] += r_item['ctr'] * r_item['impressions']
                         kw_entry['pos_sum'] += r_item['position'] * r_item['impressions']
                         kw_entry['count'] += r_item['impressions']
+
+                        if page_url:
+                            if page_url not in kw_entry['url_metrics']:
+                                kw_entry['url_metrics'][page_url] = {'clicks': 0, 'impressions': 0}
+                            kw_entry['url_metrics'][page_url]['clicks'] += r_item['clicks']
+                            kw_entry['url_metrics'][page_url]['impressions'] += r_item['impressions']
+
+                # Determinar URL principal y lista de URLs por keyword (ordenadas por clicks e impresiones)
+                for _, kw_entry in keyword_data.items():
+                    url_metrics = kw_entry.pop('url_metrics', {})
+                    if not url_metrics:
+                        kw_entry['url'] = ''
+                        kw_entry['top_urls'] = []
+                        kw_entry['top_urls_count'] = 0
+                        continue
+
+                    sorted_url_items = sorted(
+                        url_metrics.items(),
+                        key=lambda item: (item[1].get('clicks', 0), item[1].get('impressions', 0)),
+                        reverse=True
+                    )
+                    all_urls_sorted = [url for url, _ in sorted_url_items]
+                    kw_entry['url'] = all_urls_sorted[0] if all_urls_sorted else ''
+                    kw_entry['top_urls'] = all_urls_sorted[:5]
+                    kw_entry['top_urls_count'] = len(all_urls_sorted)
                 
-                logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords agregadas de propiedad completa")
+                logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords con URL(s) real(es) de propiedad completa")
             else:
                 # CON filtro de página - modo tradicional
                 if match_type == 'notContains' and len(form_urls) > 1:
@@ -1043,7 +1074,8 @@ def get_data():
                             if unique_key not in keyword_data:
                                 keyword_data[unique_key] = {
                                     'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                    'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query
+                                    'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query,
+                                    'top_urls': [page_url], 'top_urls_count': 1
                                 }
                             
                             kw_entry = keyword_data[unique_key]
@@ -1078,7 +1110,8 @@ def get_data():
                                 if unique_key not in keyword_data:
                                     keyword_data[unique_key] = {
                                         'clicks': 0, 'impressions': 0, 'ctr_sum': 0.0, 
-                                        'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query
+                                        'pos_sum': 0.0, 'count': 0, 'url': page_url, 'keyword': query,
+                                        'top_urls': [page_url], 'top_urls_count': 1
                                     }
                                 
                                 kw_entry = keyword_data[unique_key]
@@ -1217,6 +1250,8 @@ def get_data():
                     comparison_data.append({
                         'keyword': query,
                         'url': current_data.get('url', ''),
+                        'top_urls': current_data.get('top_urls', []),
+                        'top_urls_count': current_data.get('top_urls_count', 0),
                         'clicks_m1': current_clicks,  # Sin período de comparación
                         'clicks_m2': 0,  # Período actual
                         'delta_clicks_percent': 'New',  # Marcado como nuevo
@@ -1235,8 +1270,8 @@ def get_data():
                 all_keys = set(current_kw.keys()) | set(comparison_kw.keys())
                 
                 for unique_key in all_keys:
-                    current_data = current_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': ''})
-                    comparison_data_kw = comparison_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': ''})
+                    current_data = current_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': '', 'top_urls': [], 'top_urls_count': 0})
+                    comparison_data_kw = comparison_kw.get(unique_key, {'clicks': 0, 'impressions': 0, 'ctr_sum': 0, 'pos_sum': 0, 'count': 0, 'url': '', 'keyword': '', 'top_urls': [], 'top_urls_count': 0})
                     
                     # Extraer la keyword real
                     query = extract_keyword_from_key(unique_key, current_data) or extract_keyword_from_key(unique_key, comparison_data_kw)
@@ -1274,6 +1309,8 @@ def get_data():
                     comparison_data.append({
                         'keyword': query,
                         'url': current_data.get('url') or comparison_data_kw.get('url', ''),
+                        'top_urls': current_data.get('top_urls') or comparison_data_kw.get('top_urls', []),
+                        'top_urls_count': current_data.get('top_urls_count') or comparison_data_kw.get('top_urls_count', 0),
                         'clicks_m1': current_clicks,      # ✅ Actual en P1
                         'clicks_m2': comparison_clicks,   # ✅ Comparación en P2
                         'delta_clicks_percent': calculate_percentage_change(current_clicks, comparison_clicks),  # ✅ (P1 / P2 - 1) * 100
