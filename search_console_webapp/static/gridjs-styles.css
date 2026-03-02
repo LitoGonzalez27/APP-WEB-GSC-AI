@@ -66,6 +66,12 @@
   background: rgba(52, 152, 219, 0.05) !important;
 }
 
+/* Evitar que la regla global `tr:hover td { opacity: 0.7; }` afecte a Grid.js */
+.keywords-grid-table tr:hover td,
+.keywords-grid-table .gridjs-tr:hover .gridjs-td {
+  opacity: 1 !important;
+}
+
 /* =============== COMPONENTES ESPECÍFICOS =============== */
 
 /* Botón SERP */
