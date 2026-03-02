@@ -1038,7 +1038,7 @@ def get_data():
                     )
                     all_urls_sorted = [url for url, _ in sorted_url_items]
                     kw_entry['url'] = all_urls_sorted[0] if all_urls_sorted else ''
-                    kw_entry['top_urls'] = all_urls_sorted[:5]
+                    kw_entry['top_urls'] = all_urls_sorted
                     kw_entry['top_urls_count'] = len(all_urls_sorted)
                 
                 logger.info(f"[GSC KEYWORDS PROPERTY] Obtenidas {len(keyword_data)} keywords con URL(s) real(es) de propiedad completa")
