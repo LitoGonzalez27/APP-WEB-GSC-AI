@@ -385,18 +385,7 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   gap: 8px;
   max-width: 100%;
   position: relative;
-  z-index: 2;
-  isolation: isolate;
-}
-
-.keywords-grid-table .gridjs-td {
-  overflow: visible !important;
-}
-
-.keyword-url-cell:hover,
-.keyword-url-cell:focus-within,
-.keyword-url-cell.is-open {
-  z-index: 2200;
+  z-index: 5;
 }
 
 .keyword-url-multi-btn {
@@ -414,8 +403,7 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   cursor: pointer;
 }
 
-.keyword-url-multi-btn:hover,
-.keyword-url-multi-btn.is-active {
+.keyword-url-multi-btn:hover {
   background: rgba(11, 110, 168, 0.2);
   border-color: rgba(11, 110, 168, 0.35);
 }
@@ -440,13 +428,32 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   z-index: 2600;
 }
 
-.keyword-url-popover.is-open {
+.keyword-url-cell:hover .keyword-url-popover,
+.keyword-url-cell:has(.keyword-url-link:hover) .keyword-url-popover,
+.keyword-url-cell:has(.keyword-url-text:hover) .keyword-url-popover,
+.keyword-url-cell:has(.keyword-url-multi-btn:hover) .keyword-url-popover,
+.keyword-url-cell .keyword-url-popover:hover {
   display: block;
 }
 
-.keyword-url-cell:hover .keyword-url-popover,
-.keyword-url-cell:focus-within .keyword-url-popover {
-  display: block;
+.keywords-grid-table .gridjs-tr,
+.keywords-grid-table .gridjs-td {
+  position: relative;
+}
+
+.keywords-grid-table .gridjs-td {
+  overflow: visible !important;
+  z-index: 1;
+}
+
+.keywords-grid-table .gridjs-tr:has(.keyword-url-cell:hover),
+.keywords-grid-table .gridjs-tr:has(.keyword-url-popover:hover) {
+  z-index: 3400;
+}
+
+.keywords-grid-table .gridjs-td:has(.keyword-url-cell:hover),
+.keywords-grid-table .gridjs-td:has(.keyword-url-popover:hover) {
+  z-index: 3500 !important;
 }
 
 .keyword-url-popover-header {

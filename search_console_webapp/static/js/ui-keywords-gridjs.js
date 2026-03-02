@@ -13,10 +13,6 @@ const kwFilterState = {
     currentAnalysisType: 'comparison'
 };
 
-const keywordUrlPopoverState = {
-    initialized: false
-};
-
 const kwFilterMethodLabels = {
     contains: 'Contains',
     equals: 'Exact Match',
@@ -26,76 +22,6 @@ const kwFilterMethodLabels = {
 
 function getKwFilterMethodLabel(method) {
     return kwFilterMethodLabels[method] || method || 'Contains';
-}
-
-function closeAllKeywordUrlPopovers(exceptPopoverId = null) {
-    document.querySelectorAll('.keyword-url-popover.is-open').forEach((popoverEl) => {
-        if (exceptPopoverId && popoverEl.id === `kw-url-popover-${exceptPopoverId}`) return;
-        popoverEl.classList.remove('is-open');
-        popoverEl.setAttribute('aria-hidden', 'true');
-    });
-
-    document.querySelectorAll('.keyword-url-multi-btn.is-active').forEach((btnEl) => {
-        if (exceptPopoverId && btnEl.dataset.popoverId === exceptPopoverId) return;
-        btnEl.classList.remove('is-active');
-        btnEl.setAttribute('aria-expanded', 'false');
-    });
-
-    document.querySelectorAll('.keyword-url-cell.is-open').forEach((cellEl) => {
-        cellEl.classList.remove('is-open');
-    });
-}
-
-function toggleKeywordUrlPopover(event, buttonEl) {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-
-    const triggerBtn = buttonEl && buttonEl.closest ? buttonEl.closest('.keyword-url-multi-btn') : null;
-    if (!triggerBtn) return;
-    const cellEl = triggerBtn.closest('.keyword-url-cell');
-
-    const popoverId = triggerBtn.dataset.popoverId;
-    if (!popoverId) return;
-
-    const popoverEl = document.getElementById(`kw-url-popover-${popoverId}`);
-    if (!popoverEl) return;
-
-    const shouldOpen = !popoverEl.classList.contains('is-open');
-    closeAllKeywordUrlPopovers(shouldOpen ? popoverId : null);
-
-    if (shouldOpen) {
-        popoverEl.classList.add('is-open');
-        popoverEl.setAttribute('aria-hidden', 'false');
-        triggerBtn.classList.add('is-active');
-        triggerBtn.setAttribute('aria-expanded', 'true');
-        if (cellEl) cellEl.classList.add('is-open');
-    } else {
-        popoverEl.classList.remove('is-open');
-        popoverEl.setAttribute('aria-hidden', 'true');
-        triggerBtn.classList.remove('is-active');
-        triggerBtn.setAttribute('aria-expanded', 'false');
-        if (cellEl) cellEl.classList.remove('is-open');
-    }
-}
-
-function ensureKeywordUrlPopoverSetup() {
-    if (keywordUrlPopoverState.initialized) return;
-
-    document.addEventListener('click', (event) => {
-        if (!event.target.closest('.keyword-url-cell')) {
-            closeAllKeywordUrlPopovers();
-        }
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            closeAllKeywordUrlPopovers();
-        }
-    });
-
-    keywordUrlPopoverState.initialized = true;
 }
 
 function notifyKwFilterStateChanged() {
@@ -356,7 +282,6 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Aplicar filtro de palabras clave (si hay)
     // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
-    ensureKeywordUrlPopoverSetup();
     const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
 
     // Procesar datos para Grid.js
@@ -836,20 +761,13 @@ function formatKeywordUrlCell(urlValue) {
         : '<span class="keyword-url-empty">No URLs available</span>';
 
     const extraHtml = extraUrls > 0 ? `
-        <button
-            type="button"
-            class="keyword-url-multi-btn"
-            data-popover-id="${escapeForAttribute(popoverId)}"
-            aria-expanded="false"
-            aria-controls="kw-url-popover-${escapeForAttribute(popoverId)}"
-            onclick="window.keywordsGrid.toggleUrlPopover(event, this)"
-        >
+        <span class="keyword-url-multi-btn">
             +${extraUrls} URL(s)
-        </button>
+        </span>
     ` : '';
 
     const popoverHtml = `
-        <div class="keyword-url-popover" id="kw-url-popover-${escapeForAttribute(popoverId)}" aria-hidden="true">
+        <div class="keyword-url-popover" id="kw-url-popover-${escapeForAttribute(popoverId)}">
             <div class="keyword-url-popover-header">Ranking URLs (${Math.max(1, totalUrls)})</div>
             <div class="keyword-url-popover-links">
                 ${popoverLinksHtml}
@@ -858,7 +776,7 @@ function formatKeywordUrlCell(urlValue) {
     `;
 
     return gridjs.html(`
-        <div class="keyword-url-cell" data-popover-id="${escapeForAttribute(popoverId)}">
+        <div class="keyword-url-cell">
             ${urlMainHtml}
             ${extraHtml}
             ${popoverHtml}
@@ -1007,13 +925,6 @@ window.keywordsGrid = {
         }).catch(error => {
             console.error('❌ Error loading SERP modal:', error);
         });
-    },
-
-    toggleUrlPopover: function(event, buttonEl) {
-        toggleKeywordUrlPopover(event, buttonEl);
-    },
-    closeAllUrlPopovers: function() {
-        closeAllKeywordUrlPopovers();
     },
     
     // Funciones de debug para el ordenamiento
