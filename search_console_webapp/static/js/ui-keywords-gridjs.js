@@ -219,10 +219,16 @@ function collectRowUrlsForSearch(row) {
     return Array.from(seen);
 }
 
+function sortRowsByColumnDesc(rows, columnIndex) {
+    if (!Array.isArray(rows)) return [];
+    const idx = Number.isInteger(columnIndex) ? columnIndex : 0;
+    return [...rows].sort((rowA, rowB) => parseIntegerValue(rowB?.[idx]) - parseIntegerValue(rowA?.[idx]));
+}
+
 function setupMainKeywordsSearchControls(containerEl) {
     if (!containerEl) return;
-    const keywordInput = containerEl.querySelector('#keywordsTextSearchInput');
-    const urlInput = containerEl.querySelector('#keywordsUrlSearchInput');
+    const keywordInput = containerEl.querySelector('.keywords-text-search-input');
+    const urlInput = containerEl.querySelector('.keywords-url-search-input');
 
     if (keywordInput) {
         if (keywordInput.value !== kwFilterState.keywordSearchTerm) {
@@ -259,14 +265,65 @@ function setupMainKeywordsSearchControls(containerEl) {
     }
 }
 
+function setupScopedKeywordsSearchControls(containerEl, grid, keywordsData, analysisType, fallbackSortColumn = 0) {
+    if (!containerEl || !grid) return;
+
+    const keywordInput = containerEl.querySelector('.keywords-text-search-input');
+    const urlInput = containerEl.querySelector('.keywords-url-search-input');
+    if (!keywordInput || !urlInput) return;
+
+    let keywordTerm = '';
+    let urlTerm = '';
+
+    const applyScopedFilters = () => {
+        let filtered = Array.isArray(keywordsData) ? keywordsData : [];
+
+        if (keywordTerm) {
+            filtered = filtered.filter((row) => {
+                const keyword = String(row?.keyword || row?.query || '').toLowerCase();
+                return keyword.includes(keywordTerm);
+            });
+        }
+
+        if (urlTerm) {
+            filtered = filtered.filter((row) => {
+                const urls = collectRowUrlsForSearch(row);
+                return urls.some((url) => url.includes(urlTerm));
+            });
+        }
+
+        const processed = processKeywordsDataForGrid(filtered, analysisType) || { data: [], defaultSortColumn: fallbackSortColumn };
+        const safeData = sortRowsByColumnDesc(processed.data, processed.defaultSortColumn ?? fallbackSortColumn);
+        grid.updateConfig({ data: () => safeData }).forceRender();
+    };
+
+    let keywordDebounce = null;
+    keywordInput.addEventListener('input', () => {
+        if (keywordDebounce) clearTimeout(keywordDebounce);
+        keywordDebounce = setTimeout(() => {
+            keywordTerm = String(keywordInput.value || '').trim().toLowerCase();
+            applyScopedFilters();
+        }, 120);
+    });
+
+    let urlDebounce = null;
+    urlInput.addEventListener('input', () => {
+        if (urlDebounce) clearTimeout(urlDebounce);
+        urlDebounce = setTimeout(() => {
+            urlTerm = String(urlInput.value || '').trim().toLowerCase();
+            applyScopedFilters();
+        }, 120);
+    });
+}
+
 function renderMainKeywordsGridWithFilter() {
     const grid = kwFilterState.currentGrid;
     if (!grid || typeof grid.updateConfig !== 'function') return false;
 
     try {
         const filtered = applyKeywordAndSearchFilters(kwFilterState.currentKeywordsData) || [];
-        const processed = processKeywordsDataForGrid(filtered, kwFilterState.currentAnalysisType) || { data: [] };
-        const safeData = Array.isArray(processed.data) ? processed.data : [];
+        const processed = processKeywordsDataForGrid(filtered, kwFilterState.currentAnalysisType) || { data: [], defaultSortColumn: 0 };
+        const safeData = sortRowsByColumnDesc(processed.data, processed.defaultSortColumn);
         grid.updateConfig({ data: () => safeData }).forceRender();
         return true;
     } catch (e) {
@@ -472,27 +529,28 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
     ensureKeywordUrlPopoverSetup();
-    const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordAndSearchFilters(keywordsData) : [];
+    const sourceKeywords = Array.isArray(keywordsData) ? keywordsData : [];
+    const isMainGrid = container && container.id === 'keywordComparisonBlock';
+    const isRangeModalGrid = !!(container && typeof container.id === 'string' && container.id.startsWith('keywordModalTableContainer-'));
+    const useDualSearchControls = isMainGrid || isRangeModalGrid;
+    const filteredKeywords = isMainGrid ? applyKeywordAndSearchFilters(sourceKeywords) : sourceKeywords;
 
     // Procesar datos para Grid.js
     const { columns, data, defaultSortColumn } = processKeywordsDataForGrid(filteredKeywords, analysisType);
-    const initialSortedData = Array.isArray(data)
-        ? [...data].sort((rowA, rowB) => parseIntegerValue(rowB?.[defaultSortColumn]) - parseIntegerValue(rowA?.[defaultSortColumn]))
-        : [];
+    const initialSortedData = sortRowsByColumnDesc(data, defaultSortColumn);
 
     // Crear contenedor para la tabla con ID único y consistente
-    const isMainGrid = container && container.id === 'keywordComparisonBlock';
     const uniqueId = `keywords-grid-table-${Date.now()}`;
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
-    if (isMainGrid) {
+    if (useDualSearchControls) {
         tableContainer.innerHTML = `
             <div class="keywords-dual-search-row">
                 <div class="gridjs-search keywords-custom-search">
-                    <input type="search" class="gridjs-input" id="keywordsTextSearchInput" placeholder="Search keywords..." aria-label="Search keywords">
+                    <input type="search" class="gridjs-input keywords-text-search-input" placeholder="Search keywords..." aria-label="Search keywords">
                 </div>
                 <div class="gridjs-search keywords-custom-search">
-                    <input type="search" class="gridjs-input" id="keywordsUrlSearchInput" placeholder="Search URLs..." aria-label="Search URLs">
+                    <input type="search" class="gridjs-input keywords-url-search-input" placeholder="Search URLs..." aria-label="Search URLs">
                 </div>
             </div>
             <div id="${uniqueId}" class="ai-overview-grid-wrapper keywords-grid-wrapper"></div>
@@ -515,7 +573,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         columns: columns,
         data: initialSortedData,
         sort: true, // ✅ MEJORADO: Simplificar para evitar conflictos (igual que URLs)
-        search: isMainGrid ? false : {
+        search: useDualSearchControls ? false : {
             enabled: true,
             placeholder: 'Search keywords...',
             selector: (cell) => (typeof cell === 'string' ? cell : '')
@@ -595,6 +653,8 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         // Asociar contexto de filtros solo para la tabla principal (evita stale closures)
         if (isMainGrid) {
             setMainKeywordsGridContext(grid, keywordsData, analysisType);
+        } else if (isRangeModalGrid) {
+            setupScopedKeywordsSearchControls(tableContainer, grid, sourceKeywords, analysisType, defaultSortColumn);
         }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
