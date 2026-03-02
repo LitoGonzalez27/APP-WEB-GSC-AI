@@ -1,15 +1,6 @@
 // ui-keyword-comparison-table.js — MIGRADO A GRID.JS (reemplaza completamente el archivo existente)
 
-import { elems } from './utils.js';
 import { createKeywordsGridTable } from './ui-keywords-gridjs.js';
-import { 
-  formatInteger, 
-  formatPercentage, 
-  formatPosition, 
-  formatPercentageChange, 
-  formatPositionDelta,
-  escapeHtml as escapeHtmlUtil
-} from './number-utils.js';
 
 let keywordComparisonGridTable = null;
 
@@ -32,68 +23,6 @@ function getAnalysisType(keywordData, periods = null) {
   );
   
   return hasComparison ? 'comparison' : 'single';
-}
-
-// ✅ FUNCIÓN para actualizar headers de tabla según el tipo
-function updateTableHeaders(analysisType) {
-  const table = document.getElementById('keywordComparisonTable');
-  if (!table) return;
-  
-  const headers = table.querySelectorAll('thead th');
-  
-  if (analysisType === 'single') {
-    // Headers para período único
-    if (headers[2]) headers[2].textContent = 'Clicks';
-    if (headers[3]) headers[3].style.display = 'none'; // Ocultar P2
-    if (headers[4]) headers[4].style.display = 'none'; // Ocultar Delta
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) headers[6].style.display = 'none'; // Ocultar P2
-    if (headers[7]) headers[7].style.display = 'none'; // Ocultar Delta
-    if (headers[8]) headers[8].textContent = 'CTR (%)';
-    if (headers[9]) headers[9].style.display = 'none'; // Ocultar P2
-    if (headers[10]) headers[10].style.display = 'none'; // Ocultar Delta
-    if (headers[11]) headers[11].textContent = 'Position';
-    if (headers[12]) headers[12].style.display = 'none'; // Ocultar P2
-    if (headers[13]) headers[13].style.display = 'none'; // Ocultar Delta
-  } else {
-    // Headers para comparación (mostrar todos)
-    if (headers[2]) headers[2].textContent = 'Clicks P1';
-    if (headers[3]) {
-      headers[3].style.display = '';
-      headers[3].textContent = 'Clicks P2';
-    }
-    if (headers[4]) {
-      headers[4].style.display = '';
-      headers[4].textContent = 'ΔClicks (%)';
-    }
-    if (headers[5]) headers[5].textContent = 'Impressions P1';
-    if (headers[6]) {
-      headers[6].style.display = '';
-      headers[6].textContent = 'Impressions P2';
-    }
-    if (headers[7]) {
-      headers[7].style.display = '';
-      headers[7].textContent = 'ΔImp. (%)';
-    }
-    if (headers[8]) headers[8].textContent = 'CTR P1 (%)';
-    if (headers[9]) {
-      headers[9].style.display = '';
-      headers[9].textContent = 'CTR P2 (%)';
-    }
-    if (headers[10]) {
-      headers[10].style.display = '';
-      headers[10].textContent = 'ΔCTR (%)';
-    }
-    if (headers[11]) headers[11].textContent = 'Pos P1';
-    if (headers[12]) {
-      headers[12].style.display = '';
-      headers[12].textContent = 'Pos P2';
-    }
-    if (headers[13]) {
-      headers[13].style.display = '';
-      headers[13].textContent = 'ΔPos';
-    }
-  }
 }
 
 // ✅ REMOVIDO: Funciones de parsing duplicadas - ahora se usan las del módulo centralizado

@@ -14,10 +14,6 @@ export const elems = {
   keywordsSection: document.getElementById('keywordsSection'),
   resultsSection: document.getElementById('resultsSection'),
   
-  keywordComparisonTableTitle: document.getElementById('keywordComparisonTableTitle'),
-  keywordComparisonTable: document.getElementById('keywordComparisonTable'),
-  keywordComparisonTableBody: document.querySelector('#keywordComparisonTable tbody'),
-
   downloadBlock: document.getElementById('downloadBlock'),
   
   insightsTitle: document.getElementById('insightsTitle'),

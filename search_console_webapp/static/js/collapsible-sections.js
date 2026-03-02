@@ -258,6 +258,13 @@ function setupSummaryUpdateListeners() {
     
     // Los listeners para exclusiones ahora se manejan en keyword-exclusion.js
     // mediante el sistema de tags que llama automáticamente a updateCollapsibleSummary()
+
+    // Listener para cambios del filtro de keywords
+    document.addEventListener('kwFilterStateChanged', () => {
+        if (!collapsibleState.keywordFilter) {
+            updateCollapsibleSummary('keywordFilter');
+        }
+    });
 }
 
 /**
@@ -278,7 +285,7 @@ function getTopicClustersSummary() {
  * Función para expandir todas las secciones (útil para debugging)
  */
 function expandAllSections() {
-    ['competitor', 'exclusion', 'topicClusters'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'keywordFilter', 'topicClusters'].forEach(sectionType => {
         if (!collapsibleState[sectionType]) {
             toggleCollapsible(sectionType);
         }
@@ -289,7 +296,7 @@ function expandAllSections() {
  * Función para colapsar todas las secciones
  */
 function collapseAllSections() {
-    ['competitor', 'exclusion', 'topicClusters'].forEach(sectionType => {
+    ['competitor', 'exclusion', 'keywordFilter', 'topicClusters'].forEach(sectionType => {
         if (collapsibleState[sectionType]) {
             toggleCollapsible(sectionType);
         }
@@ -300,6 +307,7 @@ function collapseAllSections() {
 window.toggleCollapsible = toggleCollapsible;
 window.expandAllSections = expandAllSections;
 window.collapseAllSections = collapseAllSections;
+window.updateCollapsibleSummary = updateCollapsibleSummary;
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', initCollapsibleSections);

@@ -216,7 +216,7 @@ export async function handleFormSubmit(e) {
   [
     elems.insightsTitle, elems.performanceTitle,
     elems.keywordsTitle, elems.resultsTitle,
-    elems.keywordComparisonTableTitle, elems.aiOverviewTitle
+    elems.aiOverviewTitle
   ].forEach(el => el && (el.style.display = 'none'));
 
   if (elems.disclaimerBlock) elems.disclaimerBlock.innerHTML = '';
@@ -301,11 +301,7 @@ export async function handleFormSubmit(e) {
         }
         alert(errorMessage);
         renderTableError();
-        if(elems.keywordComparisonTableBody) {
-          elems.keywordComparisonTableBody.innerHTML = '<tr><td colspan="13">Error al cargar datos del servidor.</td></tr>';
-        }
         if(elems.keywordsSection) elems.keywordsSection.style.display = 'block';
-        if(elems.keywordComparisonTableTitle) elems.keywordComparisonTableTitle.style.display = 'block';
         completeProgress();
         return;
     }
@@ -485,11 +481,7 @@ export async function handleFormSubmit(e) {
     
     alert(errorMessage);
     renderTableError();
-    if(elems.keywordComparisonTableBody) {
-      elems.keywordComparisonTableBody.innerHTML = '<tr><td colspan="13">Error al procesar la solicitud.</td></tr>';
-    }
     if(elems.keywordsSection) elems.keywordsSection.style.display = 'block';
-    if(elems.keywordComparisonTableTitle) elems.keywordComparisonTableTitle.style.display = 'block';
   } finally {
     completeProgress();
   }

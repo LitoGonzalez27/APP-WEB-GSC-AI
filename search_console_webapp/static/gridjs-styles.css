@@ -357,3 +357,29 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   background-color: #C5F5A0 !important;
   color: #161616 !important;
 }
+
+.keyword-url-link,
+.keyword-url-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.keyword-url-link {
+  color: var(--text-color);
+  text-decoration: underline;
+  text-decoration-color: rgba(22, 22, 22, 0.25);
+}
+
+.keyword-url-link:hover {
+  color: #0b6ea8;
+  text-decoration-color: currentColor;
+}
+
+.keyword-url-empty {
+  opacity: 0.65;
+  font-style: italic;
+}
