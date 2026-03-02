@@ -385,6 +385,18 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   gap: 8px;
   max-width: 100%;
   position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+.keywords-grid-table .gridjs-td {
+  overflow: visible !important;
+}
+
+.keyword-url-cell:hover,
+.keyword-url-cell:focus-within,
+.keyword-url-cell.is-open {
+  z-index: 2200;
 }
 
 .keyword-url-multi-btn {
@@ -419,12 +431,21 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  background: #ffffff;
+  background: #ffffff !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  mix-blend-mode: normal;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-  z-index: 1200;
+  z-index: 2600;
 }
 
 .keyword-url-popover.is-open {
+  display: block;
+}
+
+.keyword-url-cell:hover .keyword-url-popover,
+.keyword-url-cell:focus-within .keyword-url-popover {
   display: block;
 }
 
