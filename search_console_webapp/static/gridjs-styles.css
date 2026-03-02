@@ -434,10 +434,9 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   z-index: 2600;
 }
 
+.keyword-url-popover.is-open,
 .keyword-url-cell:hover .keyword-url-popover,
-.keyword-url-cell:has(.keyword-url-link:hover) .keyword-url-popover,
-.keyword-url-cell:has(.keyword-url-text:hover) .keyword-url-popover,
-.keyword-url-cell:has(.keyword-url-multi-btn:hover) .keyword-url-popover,
+.keyword-url-cell:focus-within .keyword-url-popover,
 .keyword-url-cell .keyword-url-popover:hover {
   display: block;
 }
@@ -452,13 +451,11 @@ body.dark-mode .gridjs-pagination .gridjs-summary {
   z-index: 1;
 }
 
-.keywords-grid-table .gridjs-tr:has(.keyword-url-cell:hover),
-.keywords-grid-table .gridjs-tr:has(.keyword-url-popover:hover) {
-  z-index: 3400;
+.keywords-grid-table .gridjs-tr.keyword-url-row-open {
+  z-index: 3400 !important;
 }
 
-.keywords-grid-table .gridjs-td:has(.keyword-url-cell:hover),
-.keywords-grid-table .gridjs-td:has(.keyword-url-popover:hover) {
+.keywords-grid-table .gridjs-td.keyword-url-td-open {
   z-index: 3500 !important;
 }
 

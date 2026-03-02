@@ -13,6 +13,12 @@ const kwFilterState = {
     currentAnalysisType: 'comparison'
 };
 
+const keywordUrlPopoverState = {
+    initialized: false,
+    closeTimers: new WeakMap(),
+    activeCell: null
+};
+
 const kwFilterMethodLabels = {
     contains: 'Contains',
     equals: 'Exact Match',
@@ -22,6 +28,95 @@ const kwFilterMethodLabels = {
 
 function getKwFilterMethodLabel(method) {
     return kwFilterMethodLabels[method] || method || 'Contains';
+}
+
+function clearKeywordUrlCloseTimer(cellEl) {
+    if (!cellEl) return;
+    const timerId = keywordUrlPopoverState.closeTimers.get(cellEl);
+    if (timerId) {
+        clearTimeout(timerId);
+        keywordUrlPopoverState.closeTimers.delete(cellEl);
+    }
+}
+
+function closeKeywordUrlPopover(cellEl) {
+    if (!cellEl) return;
+    const popoverEl = cellEl.querySelector('.keyword-url-popover');
+    if (popoverEl) {
+        popoverEl.classList.remove('is-open');
+    }
+    cellEl.classList.remove('is-open');
+
+    const tdEl = cellEl.closest('.gridjs-td');
+    const trEl = cellEl.closest('.gridjs-tr');
+    if (tdEl) tdEl.classList.remove('keyword-url-td-open');
+    if (trEl) trEl.classList.remove('keyword-url-row-open');
+
+    if (keywordUrlPopoverState.activeCell === cellEl) {
+        keywordUrlPopoverState.activeCell = null;
+    }
+}
+
+function openKeywordUrlPopover(cellEl) {
+    if (!cellEl) return;
+    const popoverEl = cellEl.querySelector('.keyword-url-popover');
+    if (!popoverEl) return;
+
+    if (keywordUrlPopoverState.activeCell && keywordUrlPopoverState.activeCell !== cellEl) {
+        closeKeywordUrlPopover(keywordUrlPopoverState.activeCell);
+    }
+
+    clearKeywordUrlCloseTimer(cellEl);
+    popoverEl.classList.add('is-open');
+    cellEl.classList.add('is-open');
+
+    const tdEl = cellEl.closest('.gridjs-td');
+    const trEl = cellEl.closest('.gridjs-tr');
+    if (tdEl) tdEl.classList.add('keyword-url-td-open');
+    if (trEl) trEl.classList.add('keyword-url-row-open');
+
+    keywordUrlPopoverState.activeCell = cellEl;
+}
+
+function scheduleKeywordUrlPopoverClose(cellEl, delayMs = 220) {
+    if (!cellEl) return;
+    clearKeywordUrlCloseTimer(cellEl);
+    const timerId = setTimeout(() => {
+        const popoverEl = cellEl.querySelector('.keyword-url-popover');
+        const isCellHovered = cellEl.matches(':hover');
+        const isPopoverHovered = popoverEl ? popoverEl.matches(':hover') : false;
+        if (!isCellHovered && !isPopoverHovered) {
+            closeKeywordUrlPopover(cellEl);
+        }
+    }, delayMs);
+    keywordUrlPopoverState.closeTimers.set(cellEl, timerId);
+}
+
+function ensureKeywordUrlPopoverSetup() {
+    if (keywordUrlPopoverState.initialized) return;
+
+    document.addEventListener('pointerover', (event) => {
+        const cellEl = event.target.closest('.keyword-url-cell');
+        if (!cellEl) return;
+        openKeywordUrlPopover(cellEl);
+    });
+
+    document.addEventListener('pointerout', (event) => {
+        const cellEl = event.target.closest('.keyword-url-cell');
+        if (!cellEl) return;
+
+        const nextTarget = event.relatedTarget;
+        if (nextTarget && cellEl.contains(nextTarget)) return;
+        scheduleKeywordUrlPopoverClose(cellEl);
+    });
+
+    document.addEventListener('scroll', () => {
+        if (keywordUrlPopoverState.activeCell) {
+            closeKeywordUrlPopover(keywordUrlPopoverState.activeCell);
+        }
+    }, true);
+
+    keywordUrlPopoverState.initialized = true;
 }
 
 function notifyKwFilterStateChanged() {
@@ -282,6 +377,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     // Aplicar filtro de palabras clave (si hay)
     // Asegurar inicialización de UI del filtro (tags, botones) solo una vez
     ensureKwFilterUISetup();
+    ensureKeywordUrlPopoverSetup();
     const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
 
     // Procesar datos para Grid.js
