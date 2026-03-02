@@ -1329,6 +1329,41 @@ let preProcessedModalData = {
 
 let modalContainersCreated = false;
 
+function createKeywordModalTableSkeleton(rowCount = 8) {
+  const rows = Array.from({ length: rowCount }, () => `
+    <div class="keyword-modal-skeleton-row">
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-serp"></span>
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-keyword"></span>
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-url"></span>
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+      <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="keyword-modal-skeleton" aria-hidden="true">
+      <div class="keyword-modal-skeleton-row keyword-modal-skeleton-row-header">
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-serp"></span>
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-keyword"></span>
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-url"></span>
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-metric"></span>
+      </div>
+      ${rows}
+      <div class="keyword-modal-skeleton-footer">
+        <span class="keyword-modal-skeleton-cell keyword-modal-skeleton-cell-footer"></span>
+      </div>
+    </div>
+  `;
+}
+
+function renderKeywordModalTableSkeleton(container, rowCount = 8) {
+  if (!container) return;
+  container.innerHTML = createKeywordModalTableSkeleton(rowCount);
+}
+
 // ✅ NUEVO: Funciones auxiliares para el modal (replicadas de ui-keyword-comparison-table.js)
 function getAnalysisTypeModal(keywordData) {
   if (!keywordData || keywordData.length === 0) return 'empty';
@@ -1514,6 +1549,11 @@ function openKeywordModal(positionRange, label) {
     }).finally(() => {
       data.isLoading = false;
     });
+  } else if (!data.gridTable && data.isLoading) {
+    const loadingContainer = document.getElementById(`keywordModalTableContainer-${positionRange}`);
+    if (loadingContainer && !loadingContainer.querySelector('.keyword-modal-skeleton')) {
+      renderKeywordModalTableSkeleton(loadingContainer);
+    }
   }
   
   // Mostrar el modal instantáneamente
@@ -1609,6 +1649,8 @@ async function createGridTableForRange(range, keywords, analysisType) {
     `;
     return;
   }
+
+  renderKeywordModalTableSkeleton(container);
 
   // ✅ CREAR TABLA GRID.JS usando el módulo creado
   try {

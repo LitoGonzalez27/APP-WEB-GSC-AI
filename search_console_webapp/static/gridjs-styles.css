@@ -248,6 +248,114 @@
   outline: none !important;
 }
 
+/* Chips presets de oportunidades SEO */
+.keywords-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.keywords-preset-chip {
+  border: 1px solid var(--border-color);
+  background: rgba(216, 249, 184, 0.35);
+  color: #2c2d2e;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.keywords-preset-chip:hover {
+  background: rgba(216, 249, 184, 0.6);
+  border-color: #b8dea0;
+}
+
+.keywords-preset-chip.is-active {
+  background: #d8f9b8;
+  border-color: #a8d68a;
+  color: #161616;
+  box-shadow: 0 3px 10px rgba(168, 214, 138, 0.32);
+}
+
+.keywords-preset-chip:focus-visible {
+  outline: 2px solid rgba(52, 152, 219, 0.5);
+  outline-offset: 2px;
+}
+
+/* =============== SKELETON KEYWORDS MODAL =============== */
+.keyword-modal-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.keyword-modal-skeleton-row {
+  display: grid;
+  grid-template-columns: 56px minmax(160px, 1.2fr) minmax(220px, 1.5fr) 90px 90px 90px;
+  gap: 10px;
+}
+
+.keyword-modal-skeleton-cell {
+  display: block;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eef2f6 20%, #dde4eb 45%, #eef2f6 70%);
+  background-size: 220% 100%;
+  animation: keyword-modal-skeleton-shimmer 1.25s ease-in-out infinite;
+}
+
+.keyword-modal-skeleton-row-header .keyword-modal-skeleton-cell {
+  height: 20px;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+
+.keyword-modal-skeleton-cell-serp {
+  width: 46px;
+}
+
+.keyword-modal-skeleton-cell-keyword {
+  width: min(90%, 320px);
+}
+
+.keyword-modal-skeleton-cell-url {
+  width: min(96%, 460px);
+}
+
+.keyword-modal-skeleton-cell-metric {
+  width: 100%;
+}
+
+.keyword-modal-skeleton-footer {
+  padding-top: 8px;
+}
+
+.keyword-modal-skeleton-cell-footer {
+  height: 26px;
+  width: 220px;
+  border-radius: 10px;
+}
+
+@keyframes keyword-modal-skeleton-shimmer {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+body.dark-mode .keyword-modal-skeleton-cell {
+  background: linear-gradient(90deg, #2d3a46 20%, #3a4856 45%, #2d3a46 70%);
+  background-size: 220% 100%;
+}
+
 /* =============== RESPONSIVE =============== */
 @media (max-width: 768px) {
   .ai-overview-grid-container {
@@ -291,6 +399,33 @@
   .keywords-dual-search-row .gridjs-search input {
     width: 100%;
   }
+
+  .keywords-presets-row {
+    gap: 8px;
+  }
+
+  .keywords-preset-chip {
+    font-size: 0.76rem;
+    padding: 6px 11px;
+  }
+
+  .keyword-modal-skeleton-row {
+    grid-template-columns: 46px minmax(110px, 1fr) minmax(130px, 1.1fr) 64px 64px 64px;
+    gap: 8px;
+  }
+
+  .keyword-modal-skeleton-cell {
+    height: 22px;
+  }
+
+  .keyword-modal-skeleton-row-header .keyword-modal-skeleton-cell {
+    height: 16px;
+  }
+
+  .keyword-modal-skeleton-cell-footer {
+    width: 140px;
+    height: 22px;
+  }
 }
 
 /* =============== MODO OSCURO =============== */
@@ -316,6 +451,23 @@ body.dark-mode .gridjs-search input {
 body.dark-mode .keywords-custom-search input {
   background: var(--card-bg) !important;
   color: var(--text-color) !important;
+}
+
+body.dark-mode .keywords-preset-chip {
+  background: rgba(216, 249, 184, 0.15);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .keywords-preset-chip:hover {
+  background: rgba(216, 249, 184, 0.28);
+  border-color: rgba(216, 249, 184, 0.38);
+}
+
+body.dark-mode .keywords-preset-chip.is-active {
+  background: #d8f9b8;
+  border-color: #b8dea0;
+  color: #161616;
 }
 
 /* Paginación en modo oscuro */

@@ -10,10 +10,37 @@ const kwFilterState = {
     terms: [],
     keywordSearchTerm: '',
     urlSearchTerm: '',
+    activePreset: '',
+    presetContext: null,
     currentGrid: null,
     currentKeywordsData: [],
     currentAnalysisType: 'comparison'
 };
+
+const kwPresetDefinitions = {
+    easyWins: {
+        label: 'Easy Wins',
+        description: 'High impressions, avg. position 8-15, and lower CTR than expected'
+    },
+    longTail: {
+        label: 'Long Tail',
+        description: 'Queries with 4 or more words'
+    },
+    aiSeasonalityAffected: {
+        label: 'AI/Seasonality Affected',
+        description: 'Impressions/position stable or better, but clicks drop more than 5%'
+    },
+    cannibalization: {
+        label: 'Cannibalization',
+        description: 'Same keyword ranking with 2 or more URLs'
+    },
+    decayRisk: {
+        label: 'Decay Risk',
+        description: 'Average position worsened more than 15% vs previous period'
+    }
+};
+
+const kwPresetOrder = ['easyWins', 'longTail', 'aiSeasonalityAffected', 'cannibalization', 'decayRisk'];
 
 const keywordUrlPopoverState = {
     initialized: false,
@@ -189,6 +216,7 @@ function setMainKeywordsGridContext(grid, keywordsData, analysisType) {
     kwFilterState.currentGrid = grid || null;
     kwFilterState.currentKeywordsData = Array.isArray(keywordsData) ? keywordsData : [];
     kwFilterState.currentAnalysisType = analysisType || 'comparison';
+    kwFilterState.presetContext = buildKeywordPresetContext(kwFilterState.currentKeywordsData);
 }
 
 function normalizeUrlCandidate(urlValue) {
@@ -217,6 +245,161 @@ function collectRowUrlsForSearch(row) {
     }
 
     return Array.from(seen);
+}
+
+function normalizeUrlForCannibalization(urlValue) {
+    const normalized = normalizeUrlCandidate(urlValue).trim().toLowerCase();
+    if (!normalized) return '';
+
+    const withoutHash = normalized.split('#')[0];
+    const withoutQuery = withoutHash.split('?')[0];
+    if (!withoutQuery) return '';
+
+    return withoutQuery.length > 1 ? withoutQuery.replace(/\/+$/, '') : withoutQuery;
+}
+
+function collectRowUrlsForCannibalization(row) {
+    const seen = new Set();
+    const pushUrl = (rawUrl) => {
+        const normalized = normalizeUrlForCannibalization(rawUrl);
+        if (normalized) seen.add(normalized);
+    };
+
+    pushUrl(row?.url);
+    pushUrl(row?.page);
+
+    if (Array.isArray(row?.top_urls)) {
+        row.top_urls.forEach(pushUrl);
+    }
+
+    return Array.from(seen);
+}
+
+function toFiniteNumber(value, fallback = 0) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+}
+
+function getCurrentMetric(row, key) {
+    return toFiniteNumber(row?.[`${key}_m1`], 0);
+}
+
+function getPreviousMetric(row, key) {
+    return toFiniteNumber(row?.[`${key}_m2`], 0);
+}
+
+function getCurrentPosition(row) {
+    const position = toFiniteNumber(row?.position_m1, 0);
+    return position > 0 ? position : 0;
+}
+
+function getPreviousPosition(row) {
+    const position = toFiniteNumber(row?.position_m2, 0);
+    return position > 0 ? position : 0;
+}
+
+function normalizeCtrToPercent(rawCtr) {
+    const ctr = toFiniteNumber(rawCtr, 0);
+    if (ctr <= 0) return 0;
+    return ctr <= 1 ? ctr * 100 : ctr;
+}
+
+function percentile(values, ratio) {
+    if (!Array.isArray(values) || values.length === 0) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const clampedRatio = Math.min(1, Math.max(0, ratio));
+    const index = Math.floor((sorted.length - 1) * clampedRatio);
+    return sorted[index] || 0;
+}
+
+function expectedCtrForPosition(position) {
+    const pos = toFiniteNumber(position, 0);
+    if (pos <= 0) return 0;
+
+    if (pos <= 1) return 28;
+    if (pos <= 2) return 15;
+    if (pos <= 3) return 10;
+    if (pos <= 4) return 7;
+    if (pos <= 5) return 5.5;
+    if (pos <= 6) return 4.3;
+    if (pos <= 7) return 3.5;
+    if (pos <= 8) return 2.9;
+    if (pos <= 9) return 2.5;
+    if (pos <= 10) return 2.2;
+    if (pos <= 12) return 1.8;
+    if (pos <= 15) return 1.4;
+    if (pos <= 20) return 0.9;
+    return 0.5;
+}
+
+function getKeywordText(row) {
+    return String(row?.keyword || row?.query || '').trim();
+}
+
+function getKeywordWordCount(row) {
+    const keywordText = getKeywordText(row);
+    if (!keywordText) return 0;
+    return keywordText.split(/\s+/).filter(Boolean).length;
+}
+
+function buildKeywordPresetContext(keywordsData) {
+    const rows = Array.isArray(keywordsData) ? keywordsData : [];
+    const impressions = rows
+        .map((row) => getCurrentMetric(row, 'impressions'))
+        .filter((value) => value > 0);
+
+    const p65 = percentile(impressions, 0.65);
+    const highImpressionsThreshold = Math.max(30, Math.round(p65 || 0));
+
+    return {
+        highImpressionsThreshold
+    };
+}
+
+function rowMatchesKeywordPreset(row, presetId, presetContext = {}) {
+    if (!row || !presetId) return true;
+
+    const clicksCurrent = getCurrentMetric(row, 'clicks');
+    const clicksPrevious = getPreviousMetric(row, 'clicks');
+    const impressionsCurrent = getCurrentMetric(row, 'impressions');
+    const impressionsPrevious = getPreviousMetric(row, 'impressions');
+    const positionCurrent = getCurrentPosition(row);
+    const positionPrevious = getPreviousPosition(row);
+
+    switch (presetId) {
+        case 'easyWins': {
+            if (!(positionCurrent >= 8 && positionCurrent <= 15)) return false;
+            if (impressionsCurrent < (presetContext.highImpressionsThreshold || 30)) return false;
+
+            const ctrCurrent = normalizeCtrToPercent(row?.ctr_m1);
+            const expectedCtr = expectedCtrForPosition(positionCurrent);
+            return expectedCtr > 0 && ctrCurrent < (expectedCtr * 0.8);
+        }
+
+        case 'longTail':
+            return getKeywordWordCount(row) >= 4;
+
+        case 'aiSeasonalityAffected': {
+            if (clicksPrevious <= 0 || impressionsPrevious <= 0 || positionPrevious <= 0) return false;
+            const clicksDropRatio = (clicksCurrent - clicksPrevious) / clicksPrevious;
+            const impressionsStable = impressionsCurrent >= impressionsPrevious;
+            const positionStableOrBetter = positionCurrent > 0 && positionCurrent <= positionPrevious;
+            return impressionsStable && positionStableOrBetter && clicksDropRatio < -0.05;
+        }
+
+        case 'cannibalization':
+            if (toFiniteNumber(row?.top_urls_count, 0) >= 2) return true;
+            return collectRowUrlsForCannibalization(row).length >= 2;
+
+        case 'decayRisk': {
+            if (positionPrevious <= 0 || positionCurrent <= 0) return false;
+            const positionDecayRatio = (positionCurrent - positionPrevious) / positionPrevious;
+            return positionDecayRatio > 0.15;
+        }
+
+        default:
+            return true;
+    }
 }
 
 function sortRowsByColumnDesc(rows, columnIndex) {
@@ -263,6 +446,38 @@ function setupMainKeywordsSearchControls(containerEl) {
             urlInput.dataset.bound = 'true';
         }
     }
+}
+
+function updatePresetChipActiveState(containerEl) {
+    if (!containerEl) return;
+    const chipButtons = containerEl.querySelectorAll('.keywords-preset-chip');
+    chipButtons.forEach((chipButton) => {
+        const presetId = chipButton.getAttribute('data-preset-id') || '';
+        const isActive = presetId && kwFilterState.activePreset === presetId;
+        chipButton.classList.toggle('is-active', isActive);
+        chipButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+function setupMainKeywordsPresetControls(containerEl) {
+    if (!containerEl) return;
+    const chipButtons = containerEl.querySelectorAll('.keywords-preset-chip');
+    if (!chipButtons.length) return;
+
+    updatePresetChipActiveState(containerEl);
+
+    chipButtons.forEach((chipButton) => {
+        if (chipButton.dataset.bound === 'true') return;
+        chipButton.addEventListener('click', () => {
+            const presetId = chipButton.getAttribute('data-preset-id') || '';
+            if (!presetId) return;
+
+            kwFilterState.activePreset = kwFilterState.activePreset === presetId ? '' : presetId;
+            updatePresetChipActiveState(containerEl);
+            renderMainKeywordsGridWithFilter();
+        });
+        chipButton.dataset.bound = 'true';
+    });
 }
 
 function setupScopedKeywordsSearchControls(containerEl, grid, keywordsData, analysisType, fallbackSortColumn = 0) {
@@ -468,7 +683,7 @@ function applyKeywordFilter(keywordsData) {
     };
 
     // keywordsData es array de objetos { keyword, ... }
-    return keywordsData.filter(row => matches(row.keyword));
+    return keywordsData.filter((row) => matches(row?.keyword || row?.query || ''));
 }
 
 function applyKeywordSearchInputFilter(keywordsData) {
@@ -491,10 +706,44 @@ function applyUrlSearchInputFilter(keywordsData) {
     });
 }
 
+function applyKeywordPresetFilter(keywordsData) {
+    const activePreset = String(kwFilterState.activePreset || '').trim();
+    if (!Array.isArray(keywordsData) || !activePreset) return keywordsData;
+
+    const presetContext = kwFilterState.presetContext || buildKeywordPresetContext(kwFilterState.currentKeywordsData);
+    return keywordsData.filter((row) => rowMatchesKeywordPreset(row, activePreset, presetContext));
+}
+
 function applyKeywordAndSearchFilters(keywordsData) {
     const keywordFiltered = applyKeywordFilter(keywordsData);
-    const keywordSearchFiltered = applyKeywordSearchInputFilter(keywordFiltered);
+    const presetFiltered = applyKeywordPresetFilter(keywordFiltered);
+    const keywordSearchFiltered = applyKeywordSearchInputFilter(presetFiltered);
     return applyUrlSearchInputFilter(keywordSearchFiltered);
+}
+
+function renderKeywordPresetChips() {
+    return `
+        <div class="keywords-presets-row" role="group" aria-label="Keyword opportunities presets">
+            ${kwPresetOrder.map((presetId) => {
+                const preset = kwPresetDefinitions[presetId];
+                if (!preset) return '';
+                const isActive = kwFilterState.activePreset === presetId;
+                const activeClass = isActive ? ' is-active' : '';
+                const ariaPressed = isActive ? 'true' : 'false';
+                return `
+                    <button
+                        type="button"
+                        class="keywords-preset-chip${activeClass}"
+                        data-preset-id="${presetId}"
+                        title="${escapeForAttribute(preset.description)}"
+                        aria-pressed="${ariaPressed}"
+                    >
+                        ${escapeHtmlLocal(preset.label)}
+                    </button>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 /**
@@ -535,6 +784,9 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     }
     ensureKeywordUrlPopoverSetup();
     const sourceKeywords = Array.isArray(keywordsData) ? keywordsData : [];
+    if (isMainGrid) {
+        kwFilterState.presetContext = buildKeywordPresetContext(sourceKeywords);
+    }
     const filteredKeywords = isMainGrid ? applyKeywordAndSearchFilters(sourceKeywords) : sourceKeywords;
 
     // Procesar datos para Grid.js
@@ -545,7 +797,20 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     const uniqueId = `keywords-grid-table-${Date.now()}`;
     const tableContainer = document.createElement('div');
     tableContainer.className = 'ai-overview-grid-container';
-    if (useDualSearchControls) {
+    if (isMainGrid) {
+        tableContainer.innerHTML = `
+            ${renderKeywordPresetChips()}
+            <div class="keywords-dual-search-row">
+                <div class="gridjs-search keywords-custom-search">
+                    <input type="search" class="gridjs-input keywords-text-search-input" placeholder="Search keywords..." aria-label="Search keywords">
+                </div>
+                <div class="gridjs-search keywords-custom-search">
+                    <input type="search" class="gridjs-input keywords-url-search-input" placeholder="Search URLs..." aria-label="Search URLs">
+                </div>
+            </div>
+            <div id="${uniqueId}" class="ai-overview-grid-wrapper keywords-grid-wrapper"></div>
+        `;
+    } else if (useDualSearchControls) {
         tableContainer.innerHTML = `
             <div class="keywords-dual-search-row">
                 <div class="gridjs-search keywords-custom-search">
@@ -567,6 +832,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     container.innerHTML = '';
     container.appendChild(tableContainer);
     if (isMainGrid) {
+        setupMainKeywordsPresetControls(tableContainer);
         setupMainKeywordsSearchControls(tableContainer);
     }
 
