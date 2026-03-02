@@ -7,8 +7,30 @@ import { formatInteger, formatPercentage, formatPercentageChange, formatPosition
 // =============================
 const kwFilterState = {
     initialized: false,
-    terms: []
+    terms: [],
+    currentGrid: null,
+    currentKeywordsData: [],
+    currentAnalysisType: 'comparison'
 };
+
+const kwFilterMethodLabels = {
+    contains: 'Contains',
+    equals: 'Exact Match',
+    notContains: 'Not Contains',
+    notEquals: 'Not Equal'
+};
+
+function getKwFilterMethodLabel(method) {
+    return kwFilterMethodLabels[method] || method || 'Contains';
+}
+
+function notifyKwFilterStateChanged() {
+    const detail = getKwFilterSummaryInfo();
+    document.dispatchEvent(new CustomEvent('kwFilterStateChanged', { detail }));
+    if (typeof window.updateCollapsibleSummary === 'function') {
+        window.updateCollapsibleSummary('keywordFilter');
+    }
+}
 
 function updateKwFilterMethodDescription() {
     const descEl = document.getElementById('kwFilterMethodDescription');
@@ -27,13 +49,13 @@ function updateKwFilterMethodDescription() {
 function renderKwFilterTags() {
     const container = document.getElementById('kwFilterTagsContainer');
     const countEl = document.getElementById('kwFilterCount');
-    const clearAllEl = document.getElementById('kwFilterClearAll');
     if (!container) return;
 
     if (countEl) countEl.textContent = kwFilterState.terms.length;
 
     if (kwFilterState.terms.length === 0) {
         container.innerHTML = '<div class="exclusion-empty">No exclusions yet...</div>';
+        notifyKwFilterStateChanged();
         return;
     }
 
@@ -45,6 +67,8 @@ function renderKwFilterTags() {
             </span>
         </div>
     `).join('');
+
+    notifyKwFilterStateChanged();
 }
 
 function addKwFilterTerm(raw) {
@@ -61,25 +85,68 @@ function clearKwFilterTerms() {
     const input = document.getElementById('kwFilterTerms');
     if (input) input.value = '';
     renderKwFilterTags();
-    // Restaurar tabla completa inmediatamente si hay grid activa
+    renderMainKeywordsGridWithFilter();
+}
+
+function setMainKeywordsGridContext(grid, keywordsData, analysisType) {
+    kwFilterState.currentGrid = grid || null;
+    kwFilterState.currentKeywordsData = Array.isArray(keywordsData) ? keywordsData : [];
+    kwFilterState.currentAnalysisType = analysisType || 'comparison';
+}
+
+function renderMainKeywordsGridWithFilter() {
+    const grid = kwFilterState.currentGrid;
+    if (!grid || typeof grid.updateConfig !== 'function') return false;
+
     try {
-        const container = document.getElementById('keywordComparisonBlock');
-        if (container) {
-            // Buscar la instancia de Grid.js asociada si existe
-            // Reprocesar con datos originales sin filtro
-            const tables = container.querySelectorAll('.gridjs-container');
-            if (tables && tables.length > 0) {
-                // Reemplazar datos usando la función principal de creación
-                if (window.lastKeywordsData && Array.isArray(window.lastKeywordsData)) {
-                    const { columns, data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
-                    const grid = container.querySelector('.gridjs-root')?.gridjs?.instance;
-                    if (grid) {
-                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
-                    }
-                }
-            }
+        const filtered = applyKeywordFilter(kwFilterState.currentKeywordsData) || [];
+        const processed = processKeywordsDataForGrid(filtered, kwFilterState.currentAnalysisType) || { data: [] };
+        const safeData = Array.isArray(processed.data) ? processed.data : [];
+        grid.updateConfig({ data: () => safeData }).forceRender();
+        return true;
+    } catch (e) {
+        console.warn('⚠️ No se pudo aplicar filtro dinámico de keywords:', e);
+        return false;
+    }
+}
+
+function runKwFilterApplyAction() {
+    const applyBtn = document.getElementById('kwFilterApplyBtn');
+    const icon = applyBtn ? applyBtn.querySelector('i') : null;
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.classList.add('loading');
+    }
+    if (icon) {
+        icon.classList.remove('fa-check');
+        icon.classList.add('fa-spinner', 'fa-spin');
+    }
+
+    setTimeout(() => {
+        renderMainKeywordsGridWithFilter();
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.classList.remove('loading');
         }
-    } catch (_) {}
+        if (icon) {
+            icon.classList.remove('fa-spinner', 'fa-spin');
+            icon.classList.add('fa-check');
+        }
+    }, 0);
+}
+
+function getKwFilterSummaryInfo() {
+    const { method, terms } = getKeywordFilterConfig();
+    const count = terms.length;
+    const preview = count > 0
+        ? (terms.length > 2 ? `${terms.slice(0, 2).join(', ')} +${terms.length - 2} more` : terms.join(', '))
+        : '';
+
+    return {
+        count,
+        method: getKwFilterMethodLabel(method),
+        preview
+    };
 }
 
 function ensureKwFilterUISetup() {
@@ -87,7 +154,6 @@ function ensureKwFilterUISetup() {
     const input = document.getElementById('kwFilterTerms');
     const methodEl = document.getElementById('kwFilterMethod');
     const tagsContainer = document.getElementById('kwFilterTagsContainer');
-    const clearAll = document.getElementById('kwFilterClearAll');
     const clearBtn = document.getElementById('kwFilterClearBtn');
     if (!input || !methodEl || !tagsContainer) return; // UI aún no en DOM
 
@@ -115,7 +181,10 @@ function ensureKwFilterUISetup() {
     });
 
     // Cambios de método → descripción
-    methodEl.addEventListener('change', updateKwFilterMethodDescription);
+    methodEl.addEventListener('change', () => {
+        updateKwFilterMethodDescription();
+        notifyKwFilterStateChanged();
+    });
     updateKwFilterMethodDescription();
 
     // Eliminar tag por click
@@ -134,6 +203,13 @@ function ensureKwFilterUISetup() {
     if (clearBtn && !clearBtn.dataset.bound) {
         clearBtn.addEventListener('click', () => clearKwFilterTerms());
         clearBtn.dataset.bound = 'true';
+    }
+
+    // Apply Filter (bind único)
+    const applyBtn = document.getElementById('kwFilterApplyBtn');
+    if (applyBtn && !applyBtn.dataset.bound) {
+        applyBtn.addEventListener('click', runKwFilterApplyAction);
+        applyBtn.dataset.bound = 'true';
     }
 
     renderKwFilterTags();
@@ -209,7 +285,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
     const filteredKeywords = Array.isArray(keywordsData) ? applyKeywordFilter(keywordsData) : [];
 
     // Procesar datos para Grid.js
-    const { columns, data } = processKeywordsDataForGrid(filteredKeywords, analysisType);
+    const { columns, data, defaultSortColumn } = processKeywordsDataForGrid(filteredKeywords, analysisType);
 
     // Crear contenedor para la tabla con ID único y consistente
     const uniqueId = `keywords-grid-table-${Date.now()}`;
@@ -304,56 +380,10 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
         grid.render(gridElement);
         console.log('✅ Keywords Grid.js table rendered successfully');
 
-        // Adjuntar botón Apply solo para la tabla principal (no para modales)
-        const isMainGrid = (container && (container.id === 'keywordComparisonBlock' || container.classList.contains('table-responsive-container')));
-
-        // Eventos para aplicar filtro bajo demanda (botón Apply)
-        const reRenderWithFilter = () => {
-            try {
-                const filtered = applyKeywordFilter(keywordsData) || [];
-                const processed = processKeywordsDataForGrid(filtered, analysisType) || { data: [] };
-                const safeData = Array.isArray(processed.data) ? processed.data : [];
-                // Usar función para que Grid.js retrase el pipeline correctamente
-                grid.updateConfig({ data: () => safeData }).forceRender();
-            } catch (e) {
-                console.warn('⚠️ No se pudo aplicar filtro dinámico de keywords:', e);
-            }
-        };
-
-        // Botón Apply: bind único y solo en la tabla principal
+        // Asociar contexto de filtros solo para la tabla principal (evita stale closures)
+        const isMainGrid = container && container.id === 'keywordComparisonBlock';
         if (isMainGrid) {
-            const applyBtn = document.getElementById('kwFilterApplyBtn');
-            if (applyBtn && applyBtn.dataset.bound !== 'true') {
-                applyBtn.addEventListener('click', () => {
-                    applyBtn.disabled = true;
-                    applyBtn.classList.add('loading');
-                    const icon = applyBtn.querySelector('i');
-                    if (icon) { icon.classList.remove('fa-check'); icon.classList.add('fa-spinner','fa-spin'); }
-                    setTimeout(() => {
-                        reRenderWithFilter();
-                        applyBtn.disabled = false;
-                        applyBtn.classList.remove('loading');
-                        if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-check'); }
-                    }, 0);
-                });
-                applyBtn.dataset.bound = 'true';
-            }
-
-            // También re-render al limpiar (Clear All) si el botón existe
-            const clearBtn = document.getElementById('kwFilterClearBtn');
-            if (clearBtn && clearBtn.dataset.rebind !== 'true') {
-                clearBtn.addEventListener('click', () => {
-                    const icon = clearBtn.querySelector('i');
-                    if (icon) { icon.classList.remove('fa-trash-alt'); icon.classList.add('fa-spinner','fa-spin'); }
-                    // Tras limpiar términos, restaurar tabla completa
-                    if (window.lastKeywordsData) {
-                        const { data } = processKeywordsDataForGrid(window.lastKeywordsData, window.lastKeywordsAnalysisType || 'comparison');
-                        grid.updateConfig({ data: () => (Array.isArray(data) ? data : []) }).forceRender();
-                    }
-                    setTimeout(() => { if (icon) { icon.classList.remove('fa-spinner','fa-spin'); icon.classList.add('fa-trash-alt'); } }, 150);
-                });
-                clearBtn.dataset.rebind = 'true';
-            }
+            setMainKeywordsGridContext(grid, keywordsData, analysisType);
         }
         
         // ✅ MEJORADO: Aplicar ordenamiento con delay mayor para evitar conflictos
@@ -364,7 +394,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
                     grid.updateConfig({
                         sort: {
                             multiColumn: false,
-                            sortColumn: 2, // Clicks P1 siempre (índice 2)
+                            sortColumn: defaultSortColumn, // Clicks P1
                             sortDirection: 'desc' // De mayor a menor
                         }
                     }).forceRender();
@@ -375,7 +405,7 @@ export function createKeywordsGridTable(keywordsData, analysisType = 'comparison
                 // Fallback: usar clicks en header específico de esta tabla
                 const specificContainer = document.getElementById(uniqueId);
                 if (specificContainer) {
-                    const clicksHeader = specificContainer.querySelector('th:nth-child(3)');
+                    const clicksHeader = specificContainer.querySelector(`th:nth-child(${defaultSortColumn + 1})`);
                     if (clicksHeader) {
                         clicksHeader.click();
                         setTimeout(() => clicksHeader.click(), 50);
@@ -427,6 +457,12 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
             name: 'Keyword',
             width: '200px',
             formatter: (cell) => gridjs.html(`<span class="keyword-text">${escapeHtmlLocal(cell)}</span>`)
+        },
+        {
+            id: 'url',
+            name: 'Landing URL',
+            width: '320px',
+            formatter: (cell) => formatKeywordUrlCell(cell)
         }
     ];
 
@@ -461,7 +497,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
             }
         ];
         
-        dataColumns = ['serp', 'keyword', 'clicks_m1', 'impressions_m1', 'ctr_m1', 'position_m1'];
+        dataColumns = ['serp', 'keyword', 'url', 'clicks_m1', 'impressions_m1', 'ctr_m1', 'position_m1'];
     } else {
         columns = [
             ...baseColumns,
@@ -546,7 +582,7 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
         ];
         
         dataColumns = [
-            'serp', 'keyword', 'clicks_m1', 'clicks_m2', 'delta_clicks_percent',
+            'serp', 'keyword', 'url', 'clicks_m1', 'clicks_m2', 'delta_clicks_percent',
             'impressions_m1', 'impressions_m2', 'delta_impressions_percent',
             'ctr_m1', 'ctr_m2', 'delta_ctr_percent',
             'position_m1', 'position_m2', 'delta_position_absolute'
@@ -557,7 +593,8 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
     const data = keywordsData.map(keyword => {
         const rowData = [
             '', // Columna SERP (será reemplazada por el formatter)
-            keyword.query || keyword.keyword || ''
+            keyword.query || keyword.keyword || '',
+            keyword.url || keyword.page || ''
         ];
 
         // Añadir datos según el tipo de análisis
@@ -600,7 +637,8 @@ function processKeywordsDataForGrid(keywordsData, analysisType) {
         rows: data.length 
     });
 
-    return { columns, data };
+    const defaultSortColumn = Math.max(0, dataColumns.indexOf('clicks_m1'));
+    return { columns, data, defaultSortColumn };
 }
 
 /**
@@ -633,6 +671,7 @@ function displayErrorMessage(container) {
  * Escapa HTML para prevenir XSS
  */
 function escapeHtmlLocal(text) {
+    const safeText = String(text || '');
     const map = {
         '&': '&amp;',
         '<': '&lt;',
@@ -640,14 +679,48 @@ function escapeHtmlLocal(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return safeText.replace(/[&<>"']/g, m => map[m]);
 }
 
 /**
  * Escapa atributos HTML para prevenir XSS
  */
 function escapeForAttribute(text) {
-    return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(text || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function truncateMiddle(text, maxLength = 80) {
+    const value = String(text || '');
+    if (value.length <= maxLength) return value;
+    const half = Math.floor((maxLength - 3) / 2);
+    return `${value.slice(0, half)}...${value.slice(-half)}`;
+}
+
+function formatKeywordUrlCell(urlValue) {
+    const url = String(urlValue || '').trim();
+    if (!url) {
+        return gridjs.html('<span class="keyword-url-empty">N/A</span>');
+    }
+
+    const displayUrl = truncateMiddle(url, 82);
+    const safeTitle = escapeForAttribute(url);
+    const safeDisplay = escapeHtmlLocal(displayUrl);
+    const isHttpUrl = /^https?:\/\//i.test(url);
+
+    if (isHttpUrl) {
+        const safeHref = escapeForAttribute(url);
+        return gridjs.html(`
+            <a href="${safeHref}" class="keyword-url-link" target="_blank" rel="noopener noreferrer" title="${safeTitle}">
+                ${safeDisplay}
+            </a>
+        `);
+    }
+
+    return gridjs.html(`
+        <span class="keyword-url-text" title="${safeTitle}">
+            ${safeDisplay}
+        </span>
+    `);
 }
 
 /**
@@ -819,5 +892,7 @@ window.keywordsGrid = {
         }
     }
 };
+
+window.getKwFilterSummaryInfo = getKwFilterSummaryInfo;
 
 console.log('📦 Keywords Grid.js module loaded');

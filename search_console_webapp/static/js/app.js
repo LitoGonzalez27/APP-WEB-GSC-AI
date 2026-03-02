@@ -214,12 +214,14 @@ function setupMobileEventListeners() {
             setTimeout(() => {
                 console.log('📱 Verificando visibilidad de resultados en móvil...');
                 
-                // Verificar tablas de resultados
-                const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+                // Verificar tablas de resultados (URLs DataTable + Keywords Grid.js)
+                const resultsTables = document.querySelectorAll('#resultsTable');
                 const visibleTables = Array.from(resultsTables).filter(table => {
                     const style = getComputedStyle(table);
                     return style.display !== 'none' && style.visibility !== 'hidden';
                 });
+                const keywordGrid = document.querySelector('#keywordComparisonBlock .gridjs-container');
+                const keywordGridVisible = keywordGrid ? getComputedStyle(keywordGrid).display !== 'none' && getComputedStyle(keywordGrid).visibility !== 'hidden' : false;
                 
                 // Verificar secciones de resultados
                 const resultsSection = document.getElementById('resultsSection');
@@ -231,13 +233,13 @@ function setupMobileEventListeners() {
                 };
                 
                 console.log('📊 Estado de resultados:', {
-                    tablesVisible: visibleTables.length,
+                    tablesVisible: visibleTables.length + (keywordGridVisible ? 1 : 0),
                     sectionsVisible: sectionsVisible,
-                    totalResults: resultsTables.length
+                    totalResults: resultsTables.length + (keywordGrid ? 1 : 0)
                 });
                 
                 // Si no hay resultados visibles, mostrar mensaje de debug
-                if (visibleTables.length === 0 && !sectionsVisible.results && !sectionsVisible.keywords) {
+                if (visibleTables.length === 0 && !keywordGridVisible && !sectionsVisible.results && !sectionsVisible.keywords) {
                     console.warn('⚠️ Resultados no visibles después del cierre del modal');
                     
                     // Intentar forzar visibilidad
@@ -1642,7 +1644,7 @@ window.debugResultsRenderingIssue = function() {
     console.log('1️⃣ Estado del Modal de Progreso:', modalState);
     
     // 2. Verificar estado de las tablas de resultados
-    const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+    const resultsTables = document.querySelectorAll('#resultsTable');
     const tablesInfo = Array.from(resultsTables).map(table => {
         const tbody = table.querySelector('tbody');
         const container = table.closest('.table-responsive-container');
@@ -1654,6 +1656,17 @@ window.debugResultsRenderingIssue = function() {
             visible: getComputedStyle(table).display !== 'none',
             containerVisible: container ? getComputedStyle(container).display !== 'none' : 'No container'
         };
+    });
+
+    const keywordGridRows = document.querySelectorAll('#keywordComparisonBlock .gridjs-container tbody tr').length;
+    tablesInfo.push({
+        id: 'keywordComparisonGrid',
+        exists: !!document.querySelector('#keywordComparisonBlock .gridjs-container'),
+        rowCount: keywordGridRows,
+        visible: !!document.querySelector('#keywordComparisonBlock .gridjs-container') &&
+            getComputedStyle(document.querySelector('#keywordComparisonBlock .gridjs-container')).display !== 'none',
+        containerVisible: !!document.getElementById('keywordComparisonBlock') &&
+            getComputedStyle(document.getElementById('keywordComparisonBlock')).display !== 'none'
     });
     
     console.log('2️⃣ Estado de las Tablas:', tablesInfo);

@@ -553,14 +553,16 @@ export function completeProgress() {
   
   // Verificar elementos que indican que hay resultados
   const checkForResults = () => {
-    const resultsTables = document.querySelectorAll('#resultsTable, #keywordComparisonTable');
+    const resultsTables = document.querySelectorAll('#resultsTable');
+    const keywordGridRows = document.querySelectorAll('#keywordComparisonBlock .gridjs-container tbody tr');
     const resultsSection = document.getElementById('resultsSection');
     const keywordsSection = document.getElementById('keywordsSection');
     
     hasResultsToRender = Array.from(resultsTables).some(table => {
       const tbody = table.querySelector('tbody');
       return tbody && tbody.children.length > 0;
-    }) || (resultsSection && resultsSection.style.display !== 'none') ||
+    }) || keywordGridRows.length > 0 ||
+         (resultsSection && resultsSection.style.display !== 'none') ||
          (keywordsSection && keywordsSection.style.display !== 'none');
     
     console.log(`🔍 Results to render check: ${hasResultsToRender}`);

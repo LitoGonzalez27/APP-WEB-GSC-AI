@@ -149,7 +149,7 @@ function enhancePagination(tableId) {
 
 // ✅ FUNCIÓN para formatear números grandes
 function formatLargeNumbers() {
-  const tables = document.querySelectorAll('#keywordComparisonTable, #resultsTable');
+  const tables = document.querySelectorAll('#resultsTable');
   
   tables.forEach(table => {
     const cells = table.querySelectorAll('tbody td');
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     enhanceResultsTable();
     
     // Si las tablas ya existen, mejorarlas
-    ['keywordComparisonTable', 'resultsTable'].forEach(tableId => {
+    ['resultsTable'].forEach(tableId => {
       if (document.getElementById(tableId)) {
         enhanceTable(tableId);
       }
