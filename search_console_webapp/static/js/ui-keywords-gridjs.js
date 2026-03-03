@@ -723,25 +723,31 @@ function applyKeywordAndSearchFilters(keywordsData) {
 
 function renderKeywordPresetChips() {
     return `
-        <div class="keywords-presets-row" role="group" aria-label="Keyword opportunities presets">
-            ${kwPresetOrder.map((presetId) => {
-                const preset = kwPresetDefinitions[presetId];
-                if (!preset) return '';
-                const isActive = kwFilterState.activePreset === presetId;
-                const activeClass = isActive ? ' is-active' : '';
-                const ariaPressed = isActive ? 'true' : 'false';
-                return `
-                    <button
-                        type="button"
-                        class="keywords-preset-chip${activeClass}"
-                        data-preset-id="${presetId}"
-                        title="${escapeForAttribute(preset.description)}"
-                        aria-pressed="${ariaPressed}"
-                    >
-                        ${escapeHtmlLocal(preset.label)}
-                    </button>
-                `;
-            }).join('')}
+        <div class="keywords-presets-block">
+            <div class="keywords-presets-heading">
+                <span class="keywords-presets-title">Presets</span>
+                <span class="keywords-presets-caption">Quick SEO opportunity filters</span>
+            </div>
+            <div class="keywords-presets-row" role="group" aria-label="Keyword opportunities presets">
+                ${kwPresetOrder.map((presetId) => {
+                    const preset = kwPresetDefinitions[presetId];
+                    if (!preset) return '';
+                    const isActive = kwFilterState.activePreset === presetId;
+                    const activeClass = isActive ? ' is-active' : '';
+                    const ariaPressed = isActive ? 'true' : 'false';
+                    return `
+                        <button
+                            type="button"
+                            class="keywords-preset-chip${activeClass}"
+                            data-preset-id="${presetId}"
+                            title="${escapeForAttribute(preset.description)}"
+                            aria-pressed="${ariaPressed}"
+                        >
+                            ${escapeHtmlLocal(preset.label)}
+                        </button>
+                    `;
+                }).join('')}
+            </div>
         </div>
     `;
 }
