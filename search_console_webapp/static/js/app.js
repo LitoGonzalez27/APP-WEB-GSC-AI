@@ -31,18 +31,17 @@ function updateUrlPlaceholder() {
     
     if (selectedDomain) {
         if (!urlsValue) {
-            // Campo vacío - mostrar placeholder de propiedad completa
+            // Empty field — show instructional placeholder
             const domainDisplay = selectedDomain.replace('sc-domain:', '').replace('https://', '').replace('http://', '');
-            elems.urlsInput.placeholder = `Analizando: ${domainDisplay} (todas las páginas)`;
+            elems.urlsInput.placeholder = `Leave empty to analyze all pages on ${domainDisplay}\n\nOr add 1, 2 or 5 paths, up to 60 URLs (one per line):\n  /blog/\n  /products/shoes/\n  https://${domainDisplay}/landing-page\n\nPaths analyze all pages under that path.\nYou can mix paths and full URLs.`;
             elems.urlsInput.classList.add('property-analysis-mode');
         } else {
-            // Campo con contenido - mostrar placeholder normal
-            elems.urlsInput.placeholder = "URLs específicas seleccionadas";
+            // Field has content
             elems.urlsInput.classList.remove('property-analysis-mode');
         }
     } else {
-        // Sin dominio seleccionado
-        elems.urlsInput.placeholder = "Selecciona un dominio primero";
+        // No domain selected
+        elems.urlsInput.placeholder = "Select a property first";
         elems.urlsInput.classList.remove('property-analysis-mode');
     }
 }
