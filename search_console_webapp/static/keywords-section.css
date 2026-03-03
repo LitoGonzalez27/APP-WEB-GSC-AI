@@ -141,6 +141,18 @@
 }
 
 
+/* ── 3b. BLOCK LABELS (sub-section titles) ───── */
+#keywordsContent .kw-block-label {
+  font-family: var(--bb-font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--bb-text-tertiary);
+  margin-bottom: 0.65rem;
+}
+
+
 /* ── 4. OVERVIEW CARDS ROW ───────────────────── */
 #keywordsContent .keywords-overview-block {
   padding: 0 !important;
@@ -1034,6 +1046,10 @@ body.dark-mode #keywordsContent section#keywordsSection {
   border-color: var(--bb-border) !important;
 }
 
+body.dark-mode #keywordsContent .kw-block-label {
+  color: var(--bb-text-tertiary);
+}
+
 body.dark-mode #keywordsContent .overview-card {
   background: rgba(255, 255, 255, 0.03) !important;
   border-color: var(--bb-border) !important;
@@ -1080,6 +1096,12 @@ body.dark-mode #keywordsContent .gridjs-tr:hover .gridjs-td {
 
 body.dark-mode #keywordsContent .gridjs-wrapper {
   border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .ai-overview-grid-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 body.dark-mode #keywordsContent .gridjs-pagination {
@@ -1336,9 +1358,16 @@ body.dark-mode [id^="keywordModal-"] {
   overflow-x: auto;
 }
 
-/* Grid wrapper */
+/* Grid wrapper — override the generic .ai-overview-grid-container
+   from gridjs-styles.css which adds border/shadow/padding we don't want here */
 #keywordsContent .ai-overview-grid-container {
   margin-top: 0;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
 /* No data message */
