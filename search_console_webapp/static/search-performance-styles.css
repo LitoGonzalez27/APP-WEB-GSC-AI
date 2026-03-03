@@ -92,13 +92,27 @@
   text-align: left !important;
 }
 
-/* Accent word in title — Bio-Lime */
+/* Accent words in title — Serif + green underline */
 #configurationContent .config-title-accent {
-  color: var(--bb-accent) !important;
-  background: linear-gradient(135deg, #d9f9b8, #b8f0a0) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
+  font-family: var(--bb-font-serif) !important;
+  font-weight: 700 !important;
+  font-style: italic !important;
+  color: var(--bb-text-primary) !important;
+  position: relative !important;
+  display: inline !important;
+}
+
+#configurationContent .config-title-accent::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 2px !important;
+  width: 100% !important;
+  height: 6px !important;
+  background: var(--bb-accent) !important;
+  border-radius: 3px !important;
+  z-index: -1 !important;
+  opacity: 0.7 !important;
 }
 
 #configurationContent .form-description {
@@ -193,8 +207,9 @@
 }
 
 #configurationContent .search-form .match-type-btn {
-  flex: 1 !important;
-  padding: 0.5rem 1rem !important;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  padding: 0.5rem 0.625rem !important;
   text-align: center !important;
   background: transparent !important;
   color: var(--bb-text-secondary) !important;
@@ -206,6 +221,9 @@
   font-weight: 500 !important;
   font-family: var(--bb-font-sans) !important;
   letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 #configurationContent .search-form .match-type-group input[type="radio"] {
@@ -214,7 +232,7 @@
 
 #configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
   background: var(--bb-bg-dark) !important;
-  color: var(--bb-text-inverse) !important;
+  color: var(--bb-accent) !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
 }
@@ -226,7 +244,7 @@
 
 #configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn:hover {
   background: var(--bb-bg-dark) !important;
-  color: var(--bb-text-inverse) !important;
+  color: var(--bb-accent) !important;
 }
 
 
@@ -346,12 +364,13 @@ body.dark-mode #configurationContent {
   --bb-shadow-md:      0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.3);
 }
 
-/* Accent gradient still uses Bio-Lime in dark mode */
+/* Accent title in dark mode — keep serif + green underline */
 body.dark-mode #configurationContent .config-title-accent {
-  background: linear-gradient(135deg, #d9f9b8, #a8e890) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
+  color: var(--bb-text-primary) !important;
+}
+
+body.dark-mode #configurationContent .config-title-accent::after {
+  opacity: 0.5 !important;
 }
 
 /* Primary button in dark: Bio-Lime bg, dark text */
@@ -367,8 +386,8 @@ body.dark-mode #configurationContent .search-form .btn-primary:hover {
 
 /* Match type active in dark mode */
 body.dark-mode #configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
-  background: var(--bb-accent) !important;
-  color: #0F172A !important;
+  background: var(--bb-bg-dark) !important;
+  color: var(--bb-accent) !important;
 }
 
 /* Selected chip in dark mode */
