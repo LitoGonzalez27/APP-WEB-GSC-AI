@@ -1,0 +1,525 @@
+/* ==============================================
+   OVERVIEW SECTION — CLICANDSEO BRANDBOOK v2
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Libre Baskerville
+   Flat/solid only · No gradients · No glassmorphism
+   ============================================== */
+
+/* ── 1. SCOPED BRAND TOKENS ──────────────────── */
+#performanceContent {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-text-inverse:   #F8FAFC;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-surface-dark:   #334155;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 2. SECTION WRAPPERS ─────────────────────── */
+#performanceContent section#insightsSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Kill glass-effect from base CSS */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#performanceContent section#performanceSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Kill any leftover glass-effect on any child */
+#performanceContent .glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* ── 3. SECTION TITLES ───────────────────────── */
+#performanceContent .ov-title-compact {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.35rem 0 !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+/* Kill the purple gradient underline from estilos-principales + modulos-especificos */
+#performanceContent #insightsTitle::after {
+  display: none !important;
+  content: none !important;
+}
+
+#performanceContent #performanceTitle::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Serif italic accent word */
+#performanceContent .ov-title-accent {
+  font-family: var(--bb-font-serif) !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+}
+
+/* Bio-Lime underline on the accent word */
+#performanceContent .ov-title-accent::after {
+  content: '';
+  position: absolute;
+  bottom: 0.1em;
+  left: -6px;
+  right: -6px;
+  height: 0.4em;
+  background: var(--bb-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Subtitle */
+#performanceContent .insights-subtitle {
+  font-family: var(--bb-font-sans) !important;
+  font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.9375rem) !important;
+  color: var(--bb-text-secondary) !important;
+  line-height: 1.6 !important;
+  margin-bottom: 2rem !important;
+  font-weight: 400 !important;
+  text-align: center !important;
+}
+
+
+/* ── 4. INSIGHT CARDS ────────────────────────── */
+#performanceContent .insight-item {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-md) !important;
+  padding: 24px !important;
+  font-family: var(--bb-font-sans) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#performanceContent .insight-item:hover {
+  box-shadow: var(--bb-shadow-md) !important;
+  border-color: var(--bb-border) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Flat solid icon backgrounds — kill purple */
+#performanceContent .insight-item.clicks .insight-icon {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: #3B82F6 !important;
+}
+#performanceContent .insight-item.impressions .insight-icon {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: #22C55E !important;
+}
+#performanceContent .insight-item.ctr .insight-icon {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #F59E0B !important;
+}
+#performanceContent .insight-item.position .insight-icon {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #EF4444 !important;
+}
+
+#performanceContent .insight-icon {
+  border-radius: 12px !important;
+}
+
+#performanceContent .insight-label {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+#performanceContent .insight-value {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#performanceContent .insight-description {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+
+/* ── 5. SUMMARY CARDS (modern-card) ──────────── */
+#performanceContent .summary-card {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-md) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#performanceContent .summary-card:hover {
+  box-shadow: var(--bb-shadow-md) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--bb-border) !important;
+}
+
+#performanceContent .modern-card {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-md) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  overflow: hidden !important;
+}
+
+#performanceContent .modern-card:hover {
+  box-shadow: var(--bb-shadow-md) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--bb-border) !important;
+  background: var(--bb-bg-paper) !important;
+}
+
+/* Card header */
+#performanceContent .card-header-modern {
+  font-family: var(--bb-font-sans) !important;
+}
+
+#performanceContent .card-title-modern {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Card icons — flat solid backgrounds, kill inline gradients */
+#performanceContent .card-icon-modern {
+  border-radius: 14px !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#performanceContent #summaryClicks .card-icon-modern {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: #3B82F6 !important;
+}
+
+#performanceContent #summaryImpressions .card-icon-modern {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: #22C55E !important;
+}
+
+#performanceContent #summaryCTR .card-icon-modern {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #F59E0B !important;
+}
+
+#performanceContent #summaryPosition .card-icon-modern {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #EF4444 !important;
+}
+
+
+/* ── 6. PERIOD VALUE / DELTA LINES ───────────── */
+#performanceContent .period-value-line {
+  background: var(--bb-bg-subtle) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: 12px !important;
+  font-family: var(--bb-font-sans) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#performanceContent .period-value-line:hover {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-color: var(--bb-border) !important;
+  transform: translateX(2px) !important;
+}
+
+#performanceContent .period-date {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+#performanceContent .period-metric {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#performanceContent .period-delta-line {
+  font-family: var(--bb-font-sans) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#performanceContent .delta-label {
+  font-family: var(--bb-font-sans) !important;
+}
+
+
+/* ── 7. MINI-CHART CONTAINERS ────────────────── */
+#performanceContent .mini-chart-container-modern {
+  background: rgba(248, 250, 252, 0.5) !important;
+}
+
+
+/* ── 8. PURPLE NUCLEAR OVERRIDE ──────────────── */
+/* Kill any remaining purple within overview scope */
+#performanceContent [style*="8B45FF"],
+#performanceContent [style*="#8B45FF"] {
+  color: #22C55E !important;
+}
+
+
+/* ── 9. ENTRANCE ANIMATIONS ──────────────────── */
+@keyframes ovFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#performanceContent section#insightsSection {
+  animation: ovFadeInUp 0.5s var(--bb-ease) both;
+}
+
+#performanceContent section#performanceSection {
+  animation: ovFadeInUp 0.5s var(--bb-ease) 0.1s both;
+}
+
+#performanceContent .insight-item {
+  animation: ovFadeInUp 0.45s var(--bb-ease) both;
+}
+
+#performanceContent .insight-item:nth-child(1) { animation-delay: 0.15s; }
+#performanceContent .insight-item:nth-child(2) { animation-delay: 0.22s; }
+#performanceContent .insight-item:nth-child(3) { animation-delay: 0.29s; }
+#performanceContent .insight-item:nth-child(4) { animation-delay: 0.36s; }
+
+#performanceContent .summary-card {
+  animation: ovFadeInUp 0.45s var(--bb-ease) both;
+}
+
+#performanceContent .summary-card:nth-child(1) { animation-delay: 0.2s; }
+#performanceContent .summary-card:nth-child(2) { animation-delay: 0.27s; }
+#performanceContent .summary-card:nth-child(3) { animation-delay: 0.34s; }
+#performanceContent .summary-card:nth-child(4) { animation-delay: 0.41s; }
+
+
+/* ── 10. DARK MODE ───────────────────────────── */
+body.dark-mode #performanceContent {
+  --bb-text-primary:   #F8FAFC;
+  --bb-text-secondary: #94A3B8;
+  --bb-text-tertiary:  #64748B;
+  --bb-bg-paper:       #1E293B;
+  --bb-bg-subtle:      #0F172A;
+  --bb-border:         #334155;
+  --bb-border-subtle:  rgba(51, 65, 85, 0.6);
+  --bb-shadow-sm:      0 1px 2px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.15);
+  --bb-shadow-md:      0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.2);
+}
+
+body.dark-mode #performanceContent section#insightsSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #performanceContent section#performanceSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #performanceContent .insight-item {
+  background: var(--bb-bg-subtle) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #performanceContent .insight-item:hover {
+  border-color: rgba(217, 249, 184, 0.2) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+}
+
+body.dark-mode #performanceContent .modern-card {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #performanceContent .modern-card:hover {
+  background: var(--bb-bg-paper) !important;
+  border-color: rgba(217, 249, 184, 0.2) !important;
+}
+
+body.dark-mode #performanceContent .period-value-line {
+  background: var(--bb-bg-subtle) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #performanceContent .period-value-line:hover {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #performanceContent .mini-chart-container-modern {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+body.dark-mode #performanceContent .period-delta-line.delta-positive {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+}
+
+body.dark-mode #performanceContent .period-delta-line.delta-negative {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+body.dark-mode #performanceContent .period-delta-line.delta-neutral {
+  background: rgba(107, 114, 128, 0.15) !important;
+  border-color: rgba(107, 114, 128, 0.3) !important;
+}
+
+/* Dark mode insight icons — keep flat tints */
+body.dark-mode #performanceContent .insight-item.clicks .insight-icon {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60A5FA !important;
+}
+body.dark-mode #performanceContent .insight-item.impressions .insight-icon {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ADE80 !important;
+}
+body.dark-mode #performanceContent .insight-item.ctr .insight-icon {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #FBBF24 !important;
+}
+body.dark-mode #performanceContent .insight-item.position .insight-icon {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #F87171 !important;
+}
+
+/* Dark mode card icons */
+body.dark-mode #performanceContent #summaryClicks .card-icon-modern {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60A5FA !important;
+}
+body.dark-mode #performanceContent #summaryImpressions .card-icon-modern {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ADE80 !important;
+}
+body.dark-mode #performanceContent #summaryCTR .card-icon-modern {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #FBBF24 !important;
+}
+body.dark-mode #performanceContent #summaryPosition .card-icon-modern {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #F87171 !important;
+}
+
+/* Dark mode accent underline */
+body.dark-mode #performanceContent .ov-title-accent::after {
+  opacity: 0.6;
+}
+
+
+/* ── 11. RESPONSIVE ──────────────────────────── */
+@media (max-width: 768px) {
+  #performanceContent section#insightsSection,
+  #performanceContent section#performanceSection {
+    padding: 1.5rem 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  #performanceContent .ov-title-compact {
+    font-size: clamp(1.4rem, 2.5vw, 1.8rem) !important;
+  }
+
+  #performanceContent #summaryBlock {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  #performanceContent .modern-card {
+    min-height: 240px !important;
+  }
+
+  #performanceContent #summaryDisclaimer {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #performanceContent section#insightsSection,
+  #performanceContent section#performanceSection {
+    padding: 1.25rem 0.75rem !important;
+    border-radius: 12px !important;
+  }
+
+  #performanceContent .ov-title-compact {
+    font-size: 1.3rem !important;
+  }
+
+  #performanceContent #summaryBlock {
+    grid-template-columns: 1fr !important;
+  }
+
+  #performanceContent #summaryDisclaimer {
+    grid-template-columns: 1fr !important;
+  }
+
+  #performanceContent .modern-card {
+    min-height: auto !important;
+  }
+
+  #performanceContent .card-header-modern {
+    padding: 16px 16px 12px !important;
+  }
+
+  #performanceContent .period-values-modern {
+    padding: 12px 16px !important;
+  }
+
+  #performanceContent .mini-chart-container-modern {
+    padding: 12px 16px 16px !important;
+  }
+}

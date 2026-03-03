@@ -570,7 +570,7 @@ export function renderSummary(periodSummary) {
     return `
       <div class="summary-card-enhanced modern-card">
         <div class="card-header-modern">
-          <div class="card-icon-modern" style="background: linear-gradient(135deg, ${color}20, ${color}40); color: ${color};">
+          <div class="card-icon-modern">
             <i class="${icon}"></i>
           </div>
           <h3 class="card-title-modern">${title}</h3>

@@ -446,13 +446,13 @@
 
       <div class="content-section" id="performanceContent" data-section="performance">
         <section id="insightsSection" class="glass-effect">
-          <h2 id="insightsTitle">Performance Overview</h2>
+          <h2 id="insightsTitle" class="ov-title-compact">Performance <span class="ov-title-accent">Overview</span></h2>
           <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
           <div id="summaryDisclaimer" class="summary-disclaimer"></div>
         </section>
 
         <section id="performanceSection" class="glass-effect">
-          <h2 id="performanceTitle">Selected Periods Performance</h2>
+          <h2 id="performanceTitle" class="ov-title-compact">Selected Periods <span class="ov-title-accent">Performance</span></h2>
           <div id="summaryBlock" class="summary-block">
 
             <div class="summary-card" id="summaryClicks">
@@ -1155,6 +1155,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='gridjs-styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='keywords-section.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='pages-section.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='overview-section.css') }}">
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
 
   <style>
