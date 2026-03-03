@@ -328,9 +328,9 @@
 }
 
 #configurationContent .search-form .chip.selected {
-  background: var(--bb-bg-dark) !important;
-  color: var(--bb-text-inverse) !important;
-  border-color: var(--bb-bg-dark) !important;
+  background: var(--bb-accent) !important;
+  color: #0F172A !important;
+  border-color: var(--bb-accent) !important;
   font-weight: 600 !important;
 }
 
@@ -347,11 +347,82 @@
 
 #configurationContent .search-form .country-info-icon:hover,
 #configurationContent .search-form .urls-info-icon:hover {
-  color: var(--bb-text-primary) !important;
+  color: var(--bb-accent) !important;
 }
 
 
-/* ── 12. DARK MODE ───────────────────────────── */
+/* ── 12. TOOLTIPS — Brandbook v2 ────────────── */
+/* Country tooltip (from base-y-componentes.css) */
+#configurationContent .country-info-tooltip .tooltip-content {
+  background: #0F172A !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(217, 249, 184, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: none !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-title {
+  color: var(--bb-accent) !important;        /* Bio-Lime green headline */
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 0.9em !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-description {
+  color: #E2E8F0 !important;                /* Light white text */
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82em !important;
+  line-height: 1.55 !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-description strong {
+  color: var(--bb-accent) !important;
+  font-weight: 600 !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-arrow {
+  border-top-color: #0F172A !important;
+}
+
+/* URLs + Match Type tooltip (from analysis-mode-styles.css) */
+#configurationContent .urls-info-tooltip {
+  background: #0F172A !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(217, 249, 184, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: none !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#configurationContent .urls-info-tooltip::before {
+  border-bottom-color: #0F172A !important;
+}
+
+#configurationContent .urls-info-tooltip strong {
+  color: var(--bb-accent) !important;        /* Bio-Lime green headline */
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+#configurationContent .urls-info-tooltip p {
+  color: #E2E8F0 !important;                /* Light white text */
+  font-family: var(--bb-font-sans) !important;
+  font-size: 12.5px !important;
+  line-height: 1.6 !important;
+}
+
+#configurationContent .urls-info-tooltip em {
+  color: var(--bb-accent) !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+}
+
+
+/* ── 13. DARK MODE ───────────────────────────── */
 body.dark-mode #configurationContent {
   --bb-bg-paper:       #1E293B;
   --bb-bg-subtle:      #334155;

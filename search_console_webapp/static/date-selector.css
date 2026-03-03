@@ -168,8 +168,8 @@ body.dark-mode {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 500;
   border: 1px solid transparent;
@@ -182,9 +182,10 @@ body.dark-mode {
 }
 
 .date-badge-primary {
-  background: #d8f9b863;
-  color: #161616;
-  border-color: rgba(217, 249, 184, 0.35);
+  background: #D8F9B8;
+  color: #0F172A;
+  border-color: rgba(217, 249, 184, 0.5);
+  font-weight: 600;
 }
 
 .date-badge-comparison {
@@ -201,9 +202,11 @@ body.dark-mode {
   backdrop-filter: blur(var(--modal-backdrop-blur));
   z-index: 9999;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  padding: 3vh 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -217,17 +220,18 @@ body.dark-mode {
 /* ===== MODAL PRINCIPAL ===== */
 .date-modal {
   background: var(--date-surface);
-  border-radius: var(--radius-lg, 16px);
+  border-radius: 20px;
   box-shadow: var(--modal-shadow);
   width: 100%;
   max-width: 900px;
-  max-height: 90vh;
   display: flex;
   flex-direction: column;
   transform: scale(0.9) translateY(20px);
   transition: var(--date-transition);
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--date-border);
+  margin: auto 0;
+  flex-shrink: 0;
 }
 
 .date-modal.show {
@@ -268,7 +272,7 @@ body.dark-mode {
   border: none;
   background: transparent;
   color: var(--date-text-secondary);
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   transition: var(--date-transition);
 }
@@ -405,9 +409,9 @@ body.dark-mode {
 }
 
 .preset-btn {
-  padding: 6px 12px;
+  padding: 8px 16px;
   border: 1px solid var(--date-border);
-  border-radius: 6px;
+  border-radius: 9999px;
   background: var(--date-surface);
   color: var(--date-text-secondary);
   font-size: 12px;
@@ -425,10 +429,11 @@ body.dark-mode {
 
 .preset-btn:active,
 .preset-btn.active {
-  background: var(--date-primary);
-  border-color: var(--date-primary);
-  color: #D8F9B8;
+  background: #D8F9B8;
+  border-color: #D8F9B8;
+  color: #0F172A;
   transform: scale(0.95);
+  font-weight: 600;
 }
 
 /* ===== OPCIONES DE COMPARACIÓN ===== */
@@ -454,7 +459,7 @@ body.dark-mode {
   gap: 8px;
   padding: 12px 16px;
   border: 1px solid var(--date-border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--date-surface);
   color: var(--date-text-secondary);
   font-size: 13px;
@@ -472,9 +477,10 @@ body.dark-mode {
 }
 
 .comparison-mode-group input[type="radio"]:checked + .comparison-mode-btn {
-  border-color: var(--date-primary);
-  background: var(--date-primary);
-  color: #D8F9B8;
+  border-color: #D8F9B8;
+  background: #D8F9B8;
+  color: #0F172A;
+  font-weight: 600;
   box-shadow: 0 2px 8px rgba(217, 249, 184, 0.35);
 }
 
@@ -560,9 +566,9 @@ body.dark-mode {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 10px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 9999px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -610,7 +616,7 @@ body.dark-mode {
   background: var(--date-error);
   color: white;
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   display: flex;
   align-items: center;
@@ -710,9 +716,9 @@ body.dark-mode {
     max-width: 100%;
     width: 100%;
     margin: 0;
-    border-radius: var(--radius-lg);
+    border-radius: 16px;
   }
-  
+
   .date-modal-header {
     padding: 20px;
     border-bottom: 1px solid var(--date-border);
@@ -720,7 +726,7 @@ body.dark-mode {
     top: 0;
     background: var(--date-surface);
     z-index: 10;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: 16px 16px 0 0;
   }
   
   .modal-title {
@@ -936,17 +942,17 @@ body.dark-mode .date-info-card i {
   color: var(--date-primary);
 }
 
-/* Dark mode: active preset uses Bio-Lime bg with dark text */
+/* Dark mode: green selections stay green bg + dark text */
 body.dark-mode .preset-btn:active,
 body.dark-mode .preset-btn.active {
-  background: var(--date-primary);
-  border-color: var(--date-primary);
+  background: #D8F9B8;
+  border-color: #D8F9B8;
   color: #0F172A;
 }
 
 body.dark-mode .comparison-mode-group input[type="radio"]:checked + .comparison-mode-btn {
-  background: var(--date-primary);
-  border-color: var(--date-primary);
+  background: #D8F9B8;
+  border-color: #D8F9B8;
   color: #0F172A;
 }
 
