@@ -217,13 +217,18 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--cta-bg);
-  opacity: 0.9;
+  color: #111111;
+  text-decoration-line: underline;
+  text-decoration-color: #9fdc78;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  opacity: 1;
 }
 
 #keywordsContent .overview-card .overview-card-action.is-disabled {
-  color: var(--text-color);
-  opacity: 0.45;
+  color: #5d5d5d;
+  text-decoration: none;
+  opacity: 0.75;
 }
 
 /* Estilos del modal de keywords por URL */
@@ -406,4 +411,14 @@ body.dark-mode #keywordsContent .keywords-custom-search input,
 body.dark-mode [id^="keywordModal-"] .keywords-custom-search input {
   background: var(--card-bg) !important;
   color: var(--text-color) !important;
+}
+
+body.dark-mode #keywordsContent .overview-card .overview-card-action {
+  color: #f3f3f3;
+  text-decoration-color: #9fdc78;
+}
+
+body.dark-mode #keywordsContent .overview-card .overview-card-action.is-disabled {
+  color: rgba(243, 243, 243, 0.65);
+  text-decoration: none;
 }
