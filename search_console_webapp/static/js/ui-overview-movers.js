@@ -206,9 +206,14 @@ function renderMoversTable(containerId, rows, type, direction) {
     const dImpr = deltaHTML(row[deltaImpField]);
     const dPos = posDeltaHTML(row[deltaPosField]);
 
+    // For URLs, use a styled tooltip; for keywords, native title is fine
+    const nameCell = !isKeyword
+      ? `<td class="col-name movers-url-cell" data-tooltip="${(row[nameField] || '').replace(/"/g, '&quot;')}">${name}</td>`
+      : `<td class="col-name" title="${(row[nameField] || '').replace(/"/g, '&quot;')}">${name}</td>`;
+
     html += `
         <tr>
-          <td class="col-name" title="${row[nameField] || ''}">${name}</td>
+          ${nameCell}
           <td class="col-metric">${clicks}</td>
           <td class="col-delta">${dClicks}</td>
           <td class="col-metric">${impressions}</td>

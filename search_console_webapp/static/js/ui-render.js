@@ -586,16 +586,16 @@ export function renderSummary(periodSummary) {
 
   // Limpiar y actualizar HTML de cada card completamente
   document.querySelector('#summaryClicks').innerHTML = 
-    createSummaryCard('clicks', 'Total Clicks', 'fas fa-mouse-pointer', null, clicksData, chartLabels, colors.clicks);
-  
-  document.querySelector('#summaryImpressions').innerHTML = 
-    createSummaryCard('impressions', 'Total Impressions', 'fas fa-eye', null, impressionsData, chartLabels, colors.impressions);
-  
-  document.querySelector('#summaryCTR').innerHTML = 
-    createSummaryCard('ctr', 'Average CTR', 'fas fa-percentage', null, ctrData, chartLabels, colors.ctr, true);
-  
-  document.querySelector('#summaryPosition').innerHTML = 
-    createSummaryCard('position', 'Average Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
+    createSummaryCard('clicks', 'Clicks', 'fas fa-mouse-pointer', null, clicksData, chartLabels, colors.clicks);
+
+  document.querySelector('#summaryImpressions').innerHTML =
+    createSummaryCard('impressions', 'Impressions', 'fas fa-eye', null, impressionsData, chartLabels, colors.impressions);
+
+  document.querySelector('#summaryCTR').innerHTML =
+    createSummaryCard('ctr', 'CTR', 'fas fa-percentage', null, ctrData, chartLabels, colors.ctr, true);
+
+  document.querySelector('#summaryPosition').innerHTML =
+    createSummaryCard('position', 'Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
 
   if (elems.summaryBlock) elems.summaryBlock.style.display = 'grid';
   

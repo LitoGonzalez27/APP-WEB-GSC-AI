@@ -608,6 +608,42 @@ body.dark-mode #performanceContent .ov-title-accent::after {
   text-align: right;
 }
 
+/* URL tooltip — styled popup on hover */
+#performanceContent .movers-url-cell {
+  position: relative;
+  cursor: pointer;
+}
+
+#performanceContent .movers-url-cell::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  background: var(--bb-bg-dark);
+  color: var(--bb-text-inverse);
+  font-family: var(--bb-font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: normal;
+  word-break: break-all;
+  max-width: 380px;
+  min-width: 180px;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+#performanceContent .movers-url-cell:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 
 /* ── 17. DELTA TAGS ─────────────────────────────── */
 #performanceContent .delta-tag {
