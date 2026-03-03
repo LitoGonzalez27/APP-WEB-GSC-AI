@@ -174,8 +174,10 @@ function renderMoversTable(containerId, rows, type, direction) {
   const isKeyword = type === 'keyword';
   const nameField = isKeyword ? 'keyword' : 'url';
   const clicksField = isKeyword ? 'clicks_m1' : 'clicks_p1';
+  const impressionsField = isKeyword ? 'impressions_m1' : 'impressions_p1';
   const posField = isKeyword ? 'position_m1' : 'position_p1';
   const deltaClicksField = 'delta_clicks_percent';
+  const deltaImpField = 'delta_impressions_percent';
   const deltaPosField = 'delta_position_absolute';
 
   let html = `
@@ -185,6 +187,8 @@ function renderMoversTable(containerId, rows, type, direction) {
           <th class="col-name">${isKeyword ? 'Keyword' : 'URL'}</th>
           <th class="col-metric">Clicks</th>
           <th class="col-delta">Δ Clicks</th>
+          <th class="col-metric">Impr.</th>
+          <th class="col-delta">Δ Impr.</th>
           <th class="col-metric">Position</th>
           <th class="col-delta">Δ Pos</th>
         </tr>
@@ -196,8 +200,10 @@ function renderMoversTable(containerId, rows, type, direction) {
       ? truncate(row[nameField], 35)
       : truncate(row[nameField], 50);
     const clicks = fmt(row[clicksField]);
+    const impressions = fmt(row[impressionsField]);
     const position = row[posField] !== null ? fmt(row[posField], 1) : '—';
     const dClicks = deltaHTML(row[deltaClicksField]);
+    const dImpr = deltaHTML(row[deltaImpField]);
     const dPos = posDeltaHTML(row[deltaPosField]);
 
     html += `
@@ -205,6 +211,8 @@ function renderMoversTable(containerId, rows, type, direction) {
           <td class="col-name" title="${row[nameField] || ''}">${name}</td>
           <td class="col-metric">${clicks}</td>
           <td class="col-delta">${dClicks}</td>
+          <td class="col-metric">${impressions}</td>
+          <td class="col-delta">${dImpr}</td>
           <td class="col-metric">${position}</td>
           <td class="col-delta">${dPos}</td>
         </tr>`;
@@ -240,12 +248,15 @@ function renderPositionDistribution(keywordData, hasComparison) {
   // Count keywords per bucket for current period (position_m1) and comparison (position_m2)
   const countsP1 = buckets.map(() => 0);
   const countsP2 = buckets.map(() => 0);
+  let totalP1 = 0;
+  let totalP2 = 0;
 
   (keywordData || []).forEach(kw => {
     const pos1 = kw.position_m1;
     const pos2 = kw.position_m2;
 
     if (pos1 !== null && pos1 !== undefined && Number.isFinite(pos1)) {
+      totalP1++;
       for (let i = 0; i < buckets.length; i++) {
         if (pos1 >= buckets[i].min && pos1 <= buckets[i].max) {
           countsP1[i]++;
@@ -255,6 +266,7 @@ function renderPositionDistribution(keywordData, hasComparison) {
     }
 
     if (hasComparison && pos2 !== null && pos2 !== undefined && Number.isFinite(pos2)) {
+      totalP2++;
       for (let i = 0; i < buckets.length; i++) {
         if (pos2 >= buckets[i].min && pos2 <= buckets[i].max) {
           countsP2[i]++;
@@ -264,20 +276,31 @@ function renderPositionDistribution(keywordData, hasComparison) {
     }
   });
 
-  const labels = buckets.map(b => b.label);
+  // Append "Total" bucket
+  countsP1.push(totalP1);
+  countsP2.push(totalP2);
+
+  const labels = [...buckets.map(b => b.label), 'Total'];
 
   // Detect dark mode
   const isDark = document.body.classList.contains('dark-mode');
   const textColor = isDark ? '#CBD5E1' : '#64748B';
   const gridColor = isDark ? 'rgba(51,65,85,0.4)' : 'rgba(226,232,240,0.8)';
 
-  // Brandbook colors
+  // Brandbook colors — "Total" bar gets a distinct accent color
+  const bgP1 = countsP1.map((_, i) =>
+    i === countsP1.length - 1 ? 'rgba(217, 249, 184, 0.55)' : 'rgba(59, 130, 246, 0.75)'
+  );
+  const borderP1 = countsP1.map((_, i) =>
+    i === countsP1.length - 1 ? '#9AE6A1' : '#3B82F6'
+  );
+
   const datasets = [
     {
       label: 'Current Period',
       data: countsP1,
-      backgroundColor: 'rgba(59, 130, 246, 0.75)',
-      borderColor: '#3B82F6',
+      backgroundColor: bgP1,
+      borderColor: borderP1,
       borderWidth: 1,
       borderRadius: 6,
       barPercentage: hasComparison ? 0.45 : 0.6,
@@ -286,11 +309,17 @@ function renderPositionDistribution(keywordData, hasComparison) {
   ];
 
   if (hasComparison) {
+    const bgP2 = countsP2.map((_, i) =>
+      i === countsP2.length - 1 ? 'rgba(148, 163, 184, 0.25)' : 'rgba(148, 163, 184, 0.45)'
+    );
+    const borderP2 = countsP2.map((_, i) =>
+      i === countsP2.length - 1 ? '#B0BEC5' : '#94A3B8'
+    );
     datasets.push({
       label: 'Previous Period',
       data: countsP2,
-      backgroundColor: 'rgba(148, 163, 184, 0.45)',
-      borderColor: '#94A3B8',
+      backgroundColor: bgP2,
+      borderColor: borderP2,
       borderWidth: 1,
       borderRadius: 6,
       barPercentage: 0.45,
@@ -342,8 +371,12 @@ function renderPositionDistribution(keywordData, hasComparison) {
         x: {
           grid: { display: false },
           ticks: {
-            color: textColor,
-            font: { family: "'Inter Tight', sans-serif", size: 13, weight: 600 }
+            color: (ctx) => ctx.index === labels.length - 1 ? (isDark ? '#D9F9B8' : '#0F172A') : textColor,
+            font: (ctx) => ({
+              family: "'Inter Tight', sans-serif",
+              size: 13,
+              weight: ctx.index === labels.length - 1 ? 700 : 600
+            })
           }
         },
         y: {

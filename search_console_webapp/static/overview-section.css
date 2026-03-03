@@ -50,6 +50,8 @@
   text-rendering: optimizeLegibility;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 }
 
 /* Kill any leftover glass-effect */
@@ -118,11 +120,13 @@
 /* ── 4. SUMMARY BLOCK GRID ───────────────────── */
 #performanceContent #summaryBlock {
   display: grid !important;
-  grid-template-columns: repeat(4, 1fr) !important;
-  gap: 20px !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 16px !important;
   margin: 0 auto !important;
-  max-width: 1200px !important;
+  width: 100% !important;
+  max-width: 100% !important;
   padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
 
@@ -134,6 +138,8 @@
   box-shadow: var(--bb-shadow-sm) !important;
   transition: all var(--bb-duration) var(--bb-ease) !important;
   font-family: var(--bb-font-sans) !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 
 #performanceContent .summary-card:hover {
@@ -174,10 +180,10 @@
 /* Card header — compact */
 #performanceContent .card-header-modern {
   font-family: var(--bb-font-sans) !important;
-  padding: 20px 24px 12px !important;
+  padding: 16px 16px 10px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 14px !important;
+  gap: 12px !important;
 }
 
 #performanceContent .card-title-modern {
@@ -220,7 +226,7 @@
 
 /* ── 6. PERIOD VALUE / DELTA LINES ───────────── */
 #performanceContent .period-values-modern {
-  padding: 12px 24px 20px !important;
+  padding: 10px 16px 16px !important;
   flex-grow: 1 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -233,8 +239,8 @@
   border-radius: 10px !important;
   font-family: var(--bb-font-sans) !important;
   transition: all var(--bb-duration) var(--bb-ease) !important;
-  padding: 10px 14px !important;
-  gap: 12px !important;
+  padding: 8px 12px !important;
+  gap: 10px !important;
 }
 
 #performanceContent .period-value-line:hover {
@@ -547,10 +553,13 @@ body.dark-mode #performanceContent .ov-title-accent::after {
 #performanceContent .movers-table-wrap {
   padding: 0;
   min-height: 200px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 #performanceContent .movers-table {
   width: 100%;
+  min-width: 560px;
   border-collapse: collapse;
   font-family: var(--bb-font-sans);
   font-size: 0.85rem;
