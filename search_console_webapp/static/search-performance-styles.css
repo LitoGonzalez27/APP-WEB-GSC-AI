@@ -424,56 +424,6 @@
 }
 
 
-/* ── 13. DARK MODE ───────────────────────────── */
-body.dark-mode #configurationContent {
-  --bb-bg-paper:       #1E293B;
-  --bb-bg-subtle:      #334155;
-  --bb-bg-dark:        #0F172A;
-  --bb-text-primary:   #F1F5F9;
-  --bb-text-secondary: #94A3B8;
-  --bb-text-tertiary:  #64748B;
-  --bb-text-inverse:   #0F172A;
-  --bb-border:         #475569;
-  --bb-border-subtle:  #334155;
-  --bb-surface-dark:   #1E293B;
-  --bb-shadow-sm:      0 1px 2px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.25);
-  --bb-shadow-md:      0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.3);
-}
-
-/* Accent title in dark mode — keep serif + green underline */
-body.dark-mode #configurationContent .config-title-accent {
-  color: var(--bb-text-primary) !important;
-}
-
-body.dark-mode #configurationContent .config-title-accent::after {
-  opacity: 0.5 !important;
-}
-
-/* Primary button in dark: Bio-Lime bg, dark text */
-body.dark-mode #configurationContent .search-form .btn-primary {
-  background: var(--bb-accent) !important;
-  color: #0F172A !important;
-}
-
-body.dark-mode #configurationContent .search-form .btn-primary:hover {
-  background: #c5f0a0 !important;
-  color: #0F172A !important;
-}
-
-/* Match type active in dark mode */
-body.dark-mode #configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
-  background: var(--bb-bg-dark) !important;
-  color: var(--bb-accent) !important;
-}
-
-/* Selected chip in dark mode */
-body.dark-mode #configurationContent .search-form .chip.selected {
-  background: var(--bb-accent) !important;
-  color: #0F172A !important;
-  border-color: var(--bb-accent) !important;
-}
-
-
 /* ── 13. RESPONSIVE ──────────────────────────── */
 @media (max-width: 768px) {
   #configurationContent .page-container {

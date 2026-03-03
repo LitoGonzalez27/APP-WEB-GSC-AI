@@ -369,15 +369,6 @@
 }
 
 
-/* ── 11. DARK MODE (modal is ALWAYS dark, so minimal overrides) ── */
-/* When the app is in dark mode, slightly deeper bg for contrast */
-body.dark-mode #progressModal {
-  --bb-bg-paper:       #0A0F1A;
-  --bb-bg-subtle:      #151D2E;
-  --bb-border-subtle:  #1A2332;
-}
-
-
 /* ── 12. RESPONSIVE ──────────────────────────── */
 @media (max-width: 768px) {
   #progressModal .modal-dialog {
