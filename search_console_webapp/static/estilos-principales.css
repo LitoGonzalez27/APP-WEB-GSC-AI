@@ -50,16 +50,6 @@
   position: relative;
 }
 
-/* ✅ NUEVO: Título más compacto para keywords */
-.keywords-title-compact {
-  margin-bottom: 8px !important;
-}
-
-/* ✅ NUEVO: Espaciado compacto para tabla de keywords */
-#keywordComparisonBlock {
-  margin-top: var(--spacing-md) !important;
-}
-
 /* ✅ NUEVO: Ancho unificado para todas las secciones */
 #keywordsContent,
 #pagesContent,
@@ -122,11 +112,6 @@
     margin-top: var(--spacing-sm) !important;
   }
   
-  /* Keywords: Reducir espaciado de tabla de comparación */
-  #keywordsContent #keywordComparisonBlock {
-    margin-top: var(--spacing-sm) !important;
-  }
-  
   /* Tablas: Aumentar especificidad para superar tablas.css */
   div.dataTables_wrapper table.dataTable thead th,
   div.dataTables_wrapper table.dataTable thead td,
@@ -181,17 +166,6 @@
     font-style: italic !important;
   }
   
-  /* Keywords: Ajustar título para consistencia con Performance */
-  #keywordsContent .keywords-title-compact {
-    font-size: 1.2rem !important;
-    margin-bottom: 6px !important;
-  }
-  
-  #keywordsContent .keywords-overview-subtitle {
-    font-size: 0.8rem !important;
-    margin-bottom: 16px !important;
-    margin-top: 6px !important;
-  }
 }
 
 /* ✅ NUEVO: Optimización para pantallas grandes (≥1600px) */
@@ -304,16 +278,6 @@
   margin-top: 8px;
 }
 
-#keywordOverviewDiv {
-  margin: 40px auto 50px;
-  max-width: 1200px;
-  padding: 0 20px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--spacing-md);
-}
-
 .overview-card {
     padding: 24px 20px;
     text-align: center;
@@ -333,10 +297,6 @@
 .overview-card .value { font-size: 2rem; font-weight: 700; color: var(--heading); margin: 4px 0; }
 .overview-card.improved .value { color: #22C55E; }
 .overview-card.declined .value { color: #EF4444; }
-
-#keywordCategoryDiv {
-  display: grid !important; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin: 40px auto 60px; max-width: 1200px; padding: 0 20px;
-}
 
 .category-card {
   background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 28px 24px; text-align: center; transition: all var(--transition-base); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -448,10 +408,6 @@ textarea.domain-warning {
     padding: 30px 0; 
   }
   
-  #keywordCategoryDiv { 
-    grid-template-columns: 1fr; 
-  }
-  
   .sticky-actions { 
     bottom: 15px; 
     right: 15px; 
@@ -491,71 +447,6 @@ body.dark-mode .domain-validation-error div {
   background: rgba(220, 53, 69, 0.2) !important;
   border-color: rgba(220, 53, 69, 0.4) !important;
   color: #f8d7da !important;
-}
-
-/* ✅ NUEVO: Estilos para el modal de keywords por URL */
-.keywords-icon {
-  font-size: 16px;
-  padding: 8px;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  color: var(--primary-color);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-}
-
-.keywords-icon:hover {
-  background-color: var(--primary-color);
-  color: white !important;
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-  border-color: var(--primary-color);
-}
-
-.url-keywords-info {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-left: 4px solid #007bff;
-}
-
-.url-keywords-info p {
-  margin: 0.5em 0;
-  font-size: 14px;
-}
-
-.url-keywords-info strong {
-  color: #495057;
-}
-
-#keywordModal-url .modal-content {
-  animation: modalSlideIn 0.3s ease-out;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive para el modal de keywords */
-@media (max-width: 768px) {
-  #keywordModal-url .modal-content {
-    max-width: 95%;
-    margin: 2% auto;
-  }
-  
-  .url-keywords-info {
-    font-size: 12px;
-  }
 }
 
 /*=============================================
