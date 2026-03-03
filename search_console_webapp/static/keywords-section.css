@@ -122,6 +122,7 @@
   font-weight: 400 !important;
   position: relative;
   display: inline-block;
+  z-index: 0; /* stacking context so ::after underline stays visible */
 }
 
 /* Bio-Lime underline on the accent word */

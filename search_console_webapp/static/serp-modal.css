@@ -1,98 +1,202 @@
-/*=============================================
-  SERP MODAL - ESTILOS MEJORADOS CON DARK MODE
-  Compatible con el sistema de variables de base-y-componentes.css
-=============================================*/
+/* ==============================================
+   SERP MODAL — CLICANDSEO BRANDBOOK
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Libre Baskerville
+   Flat/solid only · No gradients · No glassmorphism
+   Consistent with keywords-section.css & pages-section.css
+   ============================================== */
 
-/*=============================================
-  1. TABS DE NAVEGACIÓN MEJORADOS
-=============================================*/
-.serp-tabs {
+/* ── SCOPED BRAND TOKENS ──────────────────────── */
+#serpModal {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-warning:        #F59E0B;
+  --bb-info:           #3B82F6;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 1. MODAL SHELL ───────────────────────────── */
+#serpModal .modal-content {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  box-shadow: var(--bb-shadow-lg) !important;
+  font-family: var(--bb-font-sans) !important;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#serpModal .modal-header {
+  background: var(--bb-bg-paper) !important;
+  border-bottom: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) var(--bb-radius-md) 0 0 !important;
+  padding: 1.5rem 1.75rem !important;
+  position: relative;
+}
+
+#serpModal .modal-header h3 {
+  color: var(--bb-text-primary) !important;
+  margin: 0 !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#serpModal .modal-header h3 i { display: none; }
+
+#serpModal #serpKeyword {
+  font-family: var(--bb-font-serif) !important;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--bb-text-primary);
+}
+
+#serpModal .close-btn {
+  position: absolute !important;
+  right: 1rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: var(--bb-bg-subtle) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 1.1rem !important;
+  cursor: pointer;
+  width: 2rem;
+  height: 2rem;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--bb-radius-sm) !important;
+  transition: all 0.2s var(--bb-ease);
+  line-height: 1;
+}
+
+#serpModal .close-btn:hover {
+  color: var(--bb-error) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+  transform: translateY(-50%) !important;
+}
+
+#serpModal .modal-body {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(90vh - 100px);
+  padding: 1.25rem !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+
+/* ── 2. TABS ──────────────────────────────────── */
+#serpModal .serp-tabs {
   display: flex;
   gap: 2px;
   margin-bottom: 0;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--body-bg);
-  padding: 0 4px;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-bottom: 1px solid var(--bb-border);
+  background: var(--bb-bg-paper);
+  padding: 0 0.5rem;
+  border-radius: var(--bb-radius-sm) var(--bb-radius-sm) 0 0;
 }
 
-.serp-tab {
-  padding: 12px 20px;
+#serpModal .serp-tab {
+  padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
   cursor: pointer;
+  font-family: var(--bb-font-sans) !important;
   font-weight: 500;
-  color: var(--text-color);
-  opacity: 0.7;
-  transition: all var(--transition-fast);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 0.875rem;
+  color: var(--bb-text-secondary);
+  transition: all 0.2s var(--bb-ease);
+  border-radius: var(--bb-radius-sm) var(--bb-radius-sm) 0 0;
   position: relative;
   margin-bottom: -1px;
 }
 
-.serp-tab:hover {
-  color: var(--heading);
-  background: var(--even-row-bg);
-  opacity: 1;
+#serpModal .serp-tab:hover {
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-subtle);
 }
 
-.serp-tab.active {
-  color: var(--cta-bg);
-  background: var(--card-bg);
-  opacity: 1;
+#serpModal .serp-tab.active {
+  color: var(--bb-text-primary) !important;
+  background: var(--bb-bg-paper) !important;
   font-weight: 600;
-  border-bottom: 2px solid var(--cta-bg);
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  border-bottom: 2px solid var(--bb-text-primary) !important;
+  box-shadow: none !important;
 }
 
-/* Nueva clase: pestaña activa en negro #161616 según requerimiento */
-.serp-tab-active-dark.serp-tab.active {
-  color: #161616 !important;
-  border-bottom-color: #161616 !important;
-}
-
-.tab-content {
-  background: var(--card-bg);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  border: 1px solid var(--border-color);
+#serpModal .tab-content {
+  background: var(--bb-bg-paper);
+  border-radius: 0 0 var(--bb-radius-md) var(--bb-radius-md);
+  border: 1px solid var(--bb-border-subtle);
   border-top: none;
   overflow: hidden;
 }
 
-/*=============================================
-  2. ELEMENTOS DE INFORMACIÓN MEJORADOS
-=============================================*/
-.domain-info {
-  margin: var(--spacing-xs) 0;
-  padding: 10px 20px;
-  background: var(--even-row-bg);
-  color: var(--text-color);
-  font-size: 0.9em;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  border-left: 4px solid var(--cta-bg);
+#serpModal .serp-tabs { margin-top: 1.25rem; }
+#serpModal #quick-view { padding: 1.5rem; }
+
+
+/* ── 3. INFO ELEMENTS ─────────────────────────── */
+#serpModal .domain-info {
+  margin: 0.5rem 0;
+  padding: 0.75rem 1.25rem;
+  background: var(--bb-bg-subtle);
+  color: var(--bb-text-primary);
+  font-size: 0.875rem;
+  border: 1px solid var(--bb-border-subtle);
+  border-radius: var(--bb-radius-sm);
+  border-left: 3px solid var(--bb-text-primary);
   word-wrap: break-word;
   overflow-wrap: break-word;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.position-highlight {
-  padding: 16px 20px;
-  border-radius: var(--radius-sm);
-  margin: 10px 0;
-  font-size: 1em;
+#serpModal .position-highlight {
+  padding: 1rem 1.25rem;
+  border-radius: var(--bb-radius-sm);
+  margin: 0.625rem 0;
+  font-size: 0.9375rem;
   font-weight: 500;
   border: 1px solid;
-  transition: all var(--transition-base);
+  transition: all 0.2s var(--bb-ease);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
   word-wrap: break-word;
   overflow-wrap: break-word;
   flex-wrap: wrap;
   min-width: 0;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.position-highlight::before {
+#serpModal .position-highlight::before {
   content: '';
   width: 8px;
   height: 8px;
@@ -100,922 +204,673 @@
   flex-shrink: 0;
 }
 
-.position-highlight.success {
-  background: rgba(76, 175, 80, 0.1);
-  border-color: var(--success-color);
-  color: var(--success-color);
+#serpModal .position-highlight.success {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: var(--bb-success);
+  color: #166534;
 }
 
-.position-highlight.success::before {
-  background: var(--success-color);
+#serpModal .position-highlight.success::before {
+  background: var(--bb-success);
 }
 
-.position-highlight.warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: var(--warning-color);
-  color: var(--warning-color);
+#serpModal .position-highlight.warning {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: var(--bb-warning);
+  color: #92400E;
 }
 
-.position-highlight.warning::before {
-  background: var(--warning-color);
+#serpModal .position-highlight.warning::before {
+  background: var(--bb-warning);
 }
 
-/*=============================================
-  3. VISTA PREVIA DE RESULTADOS MEJORADA
-=============================================*/
-.result-preview {
-  background: var(--card-bg);
-  padding: 20px;
-  border-radius: var(--radius-sm);
-  margin: 10px 0;
-  border: 1px solid var(--border-color);
-  border-left: 4px solid var(--info-color);
-  box-shadow: 0 2px 8px var(--shadow-color);
-  transition: all var(--transition-base);
+
+/* ── 4. RESULT PREVIEWS ───────────────────────── */
+#serpModal .result-preview {
+  background: var(--bb-bg-paper);
+  padding: 1.25rem;
+  border-radius: var(--bb-radius-sm);
+  margin: 0.625rem 0;
+  border: 1px solid var(--bb-border-subtle);
+  border-left: 3px solid var(--bb-info);
+  box-shadow: var(--bb-shadow-sm);
+  transition: all 0.2s var(--bb-ease);
 }
 
-.result-preview:hover {
-  box-shadow: 0 4px 12px var(--shadow-color);
+#serpModal .result-preview:hover {
+  box-shadow: var(--bb-shadow-md);
   transform: translateY(-1px);
 }
 
-.result-preview h5 {
-  margin-bottom: 8px;
-}
+#serpModal .result-preview h5 { margin-bottom: 0.5rem; }
 
-.result-preview h5 a {
-  color: #161616;
+#serpModal .result-preview h5 a {
+  color: var(--bb-text-primary) !important;
   text-decoration: none;
+  font-family: var(--bb-font-sans) !important;
   font-weight: 600;
-  font-size: 1.05em;
-  transition: color var(--transition-fast);
+  font-size: 0.9375rem;
+  transition: color 0.2s var(--bb-ease);
   line-height: 1.3;
 }
 
-.result-preview h5 a:hover {
+#serpModal .result-preview h5 a:hover {
   text-decoration: underline;
-  color: var(--cta-hover-bg);
+  color: var(--bb-text-secondary) !important;
 }
 
-.result-preview cite {
-  color: var(--success-color);
+#serpModal .result-preview cite {
+  color: var(--bb-success);
   font-style: normal;
-  font-size: 0.85em;
+  font-size: 0.8rem;
   word-break: break-all;
   display: block;
-  margin: 8px 0;
+  margin: 0.5rem 0;
   font-weight: 500;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.result-preview p {
-  font-size: 0.9em;
-  color: var(--text-color);
-  margin-top: 12px;
-  opacity: 0.8;
-  line-height: 1.5;
+#serpModal .result-preview p {
+  font-size: 0.85rem;
+  color: var(--bb-text-secondary);
+  margin-top: 0.5rem;
+  line-height: 1.6;
+  font-family: var(--bb-font-sans) !important;
 }
 
-/*=============================================
-  4. LISTAS DE RESULTADOS MEJORADAS
-=============================================*/
-.serp-list,
-.serp-list-ads {
+
+/* ── 5. SERP LISTS ────────────────────────────── */
+#serpModal .serp-list,
+#serpModal .serp-list-ads {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.serp-list li,
-.serp-list-ads li {
-  margin-bottom: 8px;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+#serpModal .serp-list { margin-top: 1.25rem; padding: 0 1.25rem 1.25rem; }
+
+#serpModal .serp-list li,
+#serpModal .serp-list-ads li {
+  margin-bottom: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--bb-bg-paper);
+  border: 1px solid var(--bb-border-subtle);
+  border-radius: var(--bb-radius-sm);
+  transition: all 0.2s var(--bb-ease);
   position: relative;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.serp-list li:hover {
-  background: var(--even-row-bg);
-  border-color: var(--cta-bg);
+#serpModal .serp-list li:hover {
+  background: var(--bb-bg-subtle);
+  border-color: var(--bb-border);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--shadow-color);
+  box-shadow: var(--bb-shadow-sm);
 }
 
-.serp-list li strong {
-  color: var(--heading);
+#serpModal .serp-list li strong {
+  color: var(--bb-text-primary);
   display: block;
-  margin-bottom: 4px;
-  font-size: 0.95em;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
 }
 
-.serp-list li strong a {
-  color: #161616;
+#serpModal .serp-list li strong a {
+  color: var(--bb-text-primary) !important;
   text-decoration: none;
-  transition: color var(--transition-fast);
+  transition: color 0.2s var(--bb-ease);
 }
 
-.serp-list li strong a:hover {
+#serpModal .serp-list li strong a:hover {
   text-decoration: underline;
-  color: var(--cta-hover-bg);
+  color: var(--bb-text-secondary) !important;
 }
 
-.serp-list li cite {
-  color: var(--success-color);
+#serpModal .serp-list li cite {
+  color: var(--bb-success);
   font-style: normal;
-  font-size: 0.8em;
+  font-size: 0.78rem;
   word-break: break-all;
   display: block;
-  margin: 4px 0;
+  margin: 0.25rem 0;
 }
 
-.serp-list li small {
-  color: var(--text-color);
-  opacity: 0.7;
+#serpModal .serp-list li small {
+  color: var(--bb-text-secondary);
   line-height: 1.4;
-  font-size: 0.8em;
+  font-size: 0.78rem;
 }
 
-/* Resultado resaltado (el del usuario) */
-.highlighted-result {
-  border: 2px solid var(--success-color) !important;
-  background: rgba(76, 175, 80, 0.05) !important;
+
+/* ── 6. HIGHLIGHTED RESULT ────────────────────── */
+#serpModal .highlighted-result {
+  border: 2px solid var(--bb-success) !important;
+  background: rgba(34, 197, 94, 0.04) !important;
   position: relative;
 }
 
-.highlighted-result::before {
-  content: '👑 TU RESULTADO';
+#serpModal .highlighted-result::before {
+  content: 'YOUR RESULT';
   position: absolute;
   top: -1px;
-  right: 16px;
-  background: linear-gradient(135deg, var(--success-color), #388e3c);
+  right: 1rem;
+  background: var(--bb-success);
   color: white;
-  padding: 4px 12px;
-  border-radius: 0 0 12px 12px;
-  font-size: 10px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0 0 var(--bb-radius-sm) var(--bb-radius-sm);
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: none;
   z-index: 10;
 }
 
-.highlighted-result:hover {
+#serpModal .highlighted-result:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.2) !important;
+  box-shadow: var(--bb-shadow-md) !important;
 }
 
-.serp-tabs{margin-top:25px;}
 
-#quick-view{padding:25px;}
-
-/*=============================================
-  5. BADGES Y ETIQUETAS MEJORADOS
-=============================================*/
-.match-badge,
-.position-badge,
-.ad-badge {
+/* ── 7. BADGES ────────────────────────────────── */
+#serpModal .match-badge,
+#serpModal .position-badge,
+#serpModal .ad-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 0.7em;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--bb-radius-full);
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.65rem;
   font-weight: 600;
-  margin-right: 8px;
-  margin-bottom: 4px;
+  margin-right: 0.5rem;
+  margin-bottom: 0.25rem;
   vertical-align: middle;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all var(--transition-fast);
+  letter-spacing: 0.04em;
+  transition: all 0.2s var(--bb-ease);
 }
 
-.match-badge.own-site-badge {
-  background: linear-gradient(135deg, var(--success-color), #388e3c);
+#serpModal .match-badge.own-site-badge {
+  background: var(--bb-success);
   color: white;
-  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+  box-shadow: none;
 }
 
-.position-badge {
-  background: var(--text-color);
-  color: var(--card-bg);
-  min-width: 24px;
-  height: 24px;
+#serpModal .position-badge {
+  background: var(--bb-text-primary);
+  color: var(--bb-bg-paper);
+  min-width: 1.5rem;
+  height: 1.5rem;
   border-radius: 50%;
   justify-content: center;
   font-weight: 700;
 }
 
-.ad-badge {
-  background: linear-gradient(135deg, var(--warning-color), #e8a441);
+#serpModal .ad-badge {
+  background: var(--bb-warning);
   color: white;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+  box-shadow: none;
 }
 
-/*=============================================
-  6. CONTROLES Y SCREENSHOT MEJORADOS
-=============================================*/
-.screenshot-loading {
+
+/* ── 8. SCREENSHOT & CONTROLS ─────────────────── */
+#serpModal .screenshot-loading {
   text-align: center;
-  padding: 60px 30px;
-  color: var(--text-color);
-  background: var(--even-row-bg);
-  border-radius: var(--radius-sm);
-  margin: 20px 0;
+  padding: 3.5rem 2rem;
+  color: var(--bb-text-secondary);
+  background: var(--bb-bg-subtle);
+  border-radius: var(--bb-radius-sm);
+  margin: 1.25rem 0;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.screenshot-loading i {
-  font-size: 2rem;
-  color: var(--cta-bg);
-  margin-bottom: 16px;
+#serpModal .screenshot-loading i {
+  font-size: 1.75rem;
+  color: var(--bb-text-tertiary);
+  margin-bottom: 1rem;
   display: block;
-  animation: spin 1s linear infinite;
+  animation: serpSpin 1s linear infinite;
 }
 
-.screenshot-controls {
-  margin-bottom: 16px;
+#serpModal .screenshot-controls {
+  margin-bottom: 1rem;
   text-align: right;
-  padding: 15px 20px;
+  padding: 1rem 1.25rem;
 }
 
-.screenshot-controls .btn {
-  margin-left: 12px;
-  padding: 8px 16px;
-  font-size: 0.85em;
+#serpModal .screenshot-controls .btn {
+  margin-left: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.serp-screenshot {
+#serpModal .serp-screenshot {
   display: none;
   cursor: zoom-in;
   max-width: 100%;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 16px var(--shadow-color);
-  transition: transform var(--transition-fast) ease;
+  border-radius: var(--bb-radius-sm);
+  border: 1px solid var(--bb-border-subtle);
+  box-shadow: var(--bb-shadow-sm);
+  transition: transform 0.2s var(--bb-ease);
   margin: 0 auto;
 }
 
-.serp-screenshot.visible {
-  display: block;
-}
+#serpModal .serp-screenshot.visible { display: block; }
 
-.serp-screenshot.zoomed {
+#serpModal .serp-screenshot.zoomed {
   cursor: zoom-out;
   max-width: none;
   width: auto;
-  box-shadow: 0 8px 32px var(--shadow-color);
+  box-shadow: var(--bb-shadow-lg);
 }
 
-.serp-summary {
-  padding: 20px;
-  background: var(--even-row-bg);
-  margin: 0 0 20px 0;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-}
-
-.serp-summary h4 {
-  color: var(--heading);
-  margin-bottom: 12px;
-  font-size: 1.05em;
-}
-
-.serp-list {
-  margin-top: 20px;
-  padding: 0 20px 20px;
-}
-
-.serp-results-container h5 {
-  font-size: 15px;
-  color: var(--heading);
-  margin-bottom: 16px;
-  padding: 0 20px;
-  font-weight: 600;
-}
-
-/* Container de vista de screenshot mejorado */
-.screenshot-view-container {
+#serpModal .screenshot-view-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: var(--even-row-bg);
-  min-height: 300px;
-  margin: 20px;
-  border-radius: var(--radius-sm);
-  border: 2px dashed var(--border-color);
-  transition: all var(--transition-base);
+  background: var(--bb-bg-subtle);
+  min-height: 250px;
+  margin: 1.25rem;
+  border-radius: var(--bb-radius-sm);
+  border: 2px dashed var(--bb-border);
+  transition: all 0.2s var(--bb-ease);
 }
 
-.screenshot-info{padding:25px;}
-
-.screenshot-view-container:hover {
-  border-color: var(--cta-bg);
-  background: var(--card-bg);
+#serpModal .screenshot-view-container:hover {
+  border-color: var(--bb-text-tertiary);
+  background: var(--bb-bg-paper);
 }
 
-.screenshot-info {
-  text-align: center;
-  color: var(--text-color);
-}
+#serpModal .screenshot-info { padding: 1.5rem; text-align: center; }
 
-.screenshot-info i {
+#serpModal .screenshot-info i {
+  color: var(--bb-text-tertiary);
   opacity: 0.7;
 }
 
-.screenshot-info h5 {
-  color: var(--heading);
-  margin-bottom: 8px;
-  font-size: 1.05em;
+#serpModal .screenshot-info h5 {
+  color: var(--bb-text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600;
 }
 
-.screenshot-info p {
-  color: var(--text-color);
-  opacity: 0.7;
-  margin-bottom: 20px;
-  font-size: 0.9em;
+#serpModal .screenshot-info p {
+  color: var(--bb-text-secondary);
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  font-family: var(--bb-font-sans) !important;
 }
 
-.load-screenshot {
-  background: var(--cta-bg);
-  color: var(--cta-text);
-  padding: 12px 24px;
-  border: 1px solid var(--cta-bg);
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  font-size: 0.9em;
+#serpModal .load-screenshot {
+  background: var(--bb-text-primary) !important;
+  color: var(--bb-bg-paper) !important;
+  padding: 0.625rem 1.5rem;
+  border: none !important;
+  border-radius: var(--bb-radius-full) !important;
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: 16px;
-  min-height: 44px;
+  transition: all 0.2s var(--bb-ease);
+  margin-top: 1rem;
+  min-height: 2.5rem;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
+  letter-spacing: -0.01em;
 }
 
-.load-screenshot:hover {
-  background: var(--cta-hover-bg);
-  border-color: var(--cta-hover-bg);
+#serpModal .load-screenshot:hover {
+  background: #1E293B !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(230, 95, 43, 0.3);
+  box-shadow: var(--bb-shadow-md);
 }
 
-/*=============================================
-  7. ALERTAS MEJORADAS
-=============================================*/
-.alert {
-  padding: 16px 20px;
-  margin: 20px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+
+/* ── 9. SUMMARY & HEADINGS ────────────────────── */
+#serpModal .serp-summary {
+  padding: 1.25rem;
+  background: var(--bb-bg-paper);
+  margin: 0 0 1.25rem 0;
+  border-radius: var(--bb-radius-sm);
+  border: 1px solid var(--bb-border-subtle);
 }
 
-.alert i {
-  font-size: 1.2em;
-  flex-shrink: 0;
+#serpModal .serp-summary h4 {
+  color: var(--bb-text-primary);
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600;
 }
 
-.alert-danger {
-  color: var(--error-color);
-  background: rgba(239, 68, 68, 0.1);
-  border-color: var(--error-color);
+#serpModal .serp-results-container h5 {
+  font-size: 0.875rem;
+  color: var(--bb-text-primary);
+  margin-bottom: 1rem;
+  padding: 0 1.25rem;
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600;
 }
 
-.alert-info {
-  color: var(--info-color);
-  background: rgba(25, 160, 212, 0.1);
-  border-color: var(--info-color);
-}
 
-.alert-success {
-  color: var(--success-color);
-  background: rgba(76, 175, 80, 0.1);
-  border-color: var(--success-color);
-}
-
-.alert-warning {
-  color: var(--warning-color);
-  background: rgba(245, 158, 11, 0.1);
-  border-color: var(--warning-color);
-}
-
-/*=============================================
-  8. ELEMENTOS ESPECÍFICOS DE SERP MEJORADOS
-=============================================*/
+/* ── 10. SERP ICON (trigger button) ───────────── */
+#serpModal .serp-icon,
 .serp-icon {
-  font-size: 18px;
-  transition: all var(--transition-fast);
-  color: var(--cta-bg);
+  font-size: 1rem;
+  transition: all 0.2s var(--bb-ease);
+  color: var(--bb-text-secondary, #64748B);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 0.25rem;
+  border-radius: var(--bb-radius-sm);
 }
 
 .serp-icon:hover {
-  transform: scale(1.2);
-  color: var(--cta-hover-bg);
-  background: var(--even-row-bg);
+  transform: scale(1.15);
+  color: var(--bb-text-primary, #0F172A);
+  background: rgba(217, 249, 184, 0.3);
 }
 
-/* Modal body específico para SERP */
-#serpModal .modal-body {
-  background: var(--body-bg);
-  color: var(--text-color);
-  position: relative;
-  overflow-y: auto;
-  max-height: calc(90vh - 100px);
-  padding: 15px;
-}
 
-#serpModal .modal-content {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 10px 40px var(--shadow-color);
-}
-
-#serpModal .modal-header {
-  background: var(--even-row-bg);
-  border-bottom: 1px solid var(--border-color);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: 20px 24px;
-}
-
-#serpModal .modal-header h3 {
-  color: var(--heading);
-  margin: 0;
-  font-size: 1.3em;
-  font-weight: 600;
+/* ── 11. ALERTS ───────────────────────────────── */
+#serpModal .alert {
+  padding: 1rem 1.25rem;
+  margin: 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--bb-radius-sm);
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.875rem;
 }
 
-#serpModal .modal-header h3 i { display: none; }
+#serpModal .alert i { font-size: 1.1rem; flex-shrink: 0; }
 
-#serpModal .modal-header { position: relative; }
-#serpModal .close-btn {
-  position: absolute;
-  right: 16px;
-  top: 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-color);
-  font-size: 24px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all var(--transition-fast);
+#serpModal .alert-danger {
+  color: #991B1B;
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
-#serpModal .close-btn:hover {
-  color: var(--error-color);
-  background: var(--even-row-bg);
-  transform: scale(1.1);
+#serpModal .alert-info {
+  color: #1E40AF;
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.2);
 }
 
-/*=============================================
-  9. UTILIDADES MEJORADAS
-=============================================*/
-.text-muted {
-  color: var(--text-color) !important;
-  opacity: 0.6;
+#serpModal .alert-success {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(34, 197, 94, 0.2);
 }
 
-.text-small {
-  font-size: 0.85em;
+#serpModal .alert-warning {
+  color: #92400E;
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.2);
 }
 
-.text-bold {
+
+/* ── 12. UTILITIES ────────────────────────────── */
+#serpModal .text-muted {
+  color: var(--bb-text-secondary) !important;
+  opacity: 0.7;
+}
+
+#serpModal .text-small { font-size: 0.8rem; }
+#serpModal .text-bold { font-weight: 600; }
+
+
+/* ── 13. DATATABLES COMPAT ────────────────────── */
+#serpModal .dataTables_wrapper {
+  background: var(--bb-bg-paper);
+  border-radius: var(--bb-radius-sm);
+  border: 1px solid var(--bb-border-subtle);
+  padding: 1.25rem;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#serpModal table.dataTable {
+  background: var(--bb-bg-paper);
+  color: var(--bb-text-primary);
+}
+
+#serpModal table.dataTable thead th {
+  background: var(--bb-bg-subtle);
   font-weight: 600;
+  color: var(--bb-text-secondary);
+  border-bottom: 1px solid var(--bb-border);
+  padding: 0.75rem 1rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--bb-font-sans) !important;
 }
 
-/*=============================================
-  10. COMPATIBILIDAD CON DATATABLES MEJORADA
-=============================================*/
-.dataTables_wrapper {
-  background: var(--card-bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  padding:20px;
+#serpModal table.dataTable tbody td {
+  border-bottom: 1px solid var(--bb-border-subtle);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
 }
 
-table.dataTable {
-  background: var(--card-bg);
-  color: var(--text-color);
-}
+#serpModal table.dataTable tbody tr:hover { background: var(--bb-bg-subtle); }
+#serpModal table.dataTable tbody tr:hover td { background: transparent; }
 
-table.dataTable thead th {
-  background: var(--even-row-bg);
-  font-weight: 600;
-  color: var(--heading);
-  border-bottom: 2px solid var(--border-color);
-  padding: 12px 16px;
-}
 
-table.dataTable tbody td {
-  border-bottom: 1px solid var(--border-color);
-  padding: 12px 16px;
-}
-
-table.dataTable tbody tr:hover {
-  background: var(--even-row-bg);
-}
-
-table.dataTable tbody tr:hover td {
-  background: transparent;
-}
-
-/*=============================================
-  11. ANIMACIONES Y TRANSICIONES
-=============================================*/
-@keyframes spin {
+/* ── 14. ANIMATIONS ───────────────────────────── */
+@keyframes serpSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes serpFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.serp-list li {
-  animation: fadeIn 0.3s ease forwards;
+#serpModal .serp-list li {
+  animation: serpFadeIn 0.3s var(--bb-ease) forwards;
 }
 
-.serp-list li:nth-child(1) { animation-delay: 0.1s; }
-.serp-list li:nth-child(2) { animation-delay: 0.2s; }
-.serp-list li:nth-child(3) { animation-delay: 0.3s; }
-.serp-list li:nth-child(4) { animation-delay: 0.4s; }
-.serp-list li:nth-child(5) { animation-delay: 0.5s; }
+#serpModal .serp-list li:nth-child(1) { animation-delay: 0.05s; }
+#serpModal .serp-list li:nth-child(2) { animation-delay: 0.1s; }
+#serpModal .serp-list li:nth-child(3) { animation-delay: 0.15s; }
+#serpModal .serp-list li:nth-child(4) { animation-delay: 0.2s; }
+#serpModal .serp-list li:nth-child(5) { animation-delay: 0.25s; }
 
-/*=============================================
-  12. RESPONSIVE DESIGN MEJORADO
-=============================================*/
 
-/* TABLET (769px - 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .serp-summary {
-    padding: 18px;
-    margin: 0 0 16px 0;
-  }
-  
-  .serp-summary h4 {
-    font-size: 1em;
-  }
-  
-  .domain-info {
-    font-size: 0.85em;
-  }
-  
-  .position-highlight {
-    padding: 12px 16px;
-    font-size: 0.9em;
-  }
-  
-  .result-preview {
-    padding: 16px;
-  }
-  
-  .result-preview h5 a {
-    font-size: 1em;
-  }
-  
-  .result-preview cite {
-    font-size: 0.8em;
-    word-break: break-word;
-    overflow-wrap: break-word;
-  }
-  
-  #serpModal .modal-body {
-    padding: 12px;
-  }
-  
-  .serp-list {
-    padding: 0 16px 16px;
-  }
-  
-  .load-screenshot {
-    padding: 10px 20px;
-    font-size: 0.85em;
-  }
+/* ── 15. DARK MODE ────────────────────────────── */
+body.dark-mode #serpModal {
+  --bb-text-primary:   #F8FAFC;
+  --bb-text-secondary: #94A3B8;
+  --bb-text-tertiary:  #64748B;
+  --bb-bg-paper:       #1E293B;
+  --bb-bg-subtle:      #0F172A;
+  --bb-border:         #334155;
+  --bb-border-subtle:  #1E293B;
 }
 
-/* MOBILE LARGE (481px - 768px) */
-@media (min-width: 481px) and (max-width: 768px) {
-  .serp-summary {
-    padding: 16px;
-    margin: 0 0 12px 0;
-  }
-  
-  .serp-summary h4 {
-    font-size: 0.95em;
-    line-height: 1.3;
-  }
-  
-  .domain-info {
-    font-size: 0.8em;
-  }
-  
-  .domain-info small {
-    font-size: 0.75em;
-    line-height: 1.2;
-  }
-  
-  .position-highlight {
-    padding: 10px 14px;
-    margin: 8px 0;
-    font-size: 0.85em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-  
-  .position-highlight strong {
-    font-size: 0.9em;
-  }
-  
-  .result-preview {
-    padding: 14px;
-    margin: 8px 0;
-  }
-  
-  .result-preview h5 {
-    margin-bottom: 6px;
-  }
-  
-  .result-preview h5 a {
-    font-size: 0.9em;
-    line-height: 1.2;
-  }
-  
-  .result-preview cite {
-    font-size: 0.75em;
-    word-break: break-all;
-    overflow-wrap: anywhere;
-  }
-  
-  .result-preview p {
-    font-size: 0.8em;
-    margin-top: 6px;
-    line-height: 1.4;
-  }
-  
-  .load-screenshot {
-    padding: 10px 18px;
-    font-size: 0.85em;
-    width: auto;
-    min-width: 140px;
-  }
+body.dark-mode #serpModal .modal-content {
+  background: #1E293B !important;
 }
 
-/* MOBILE SMALL (hasta 480px) */
-@media (max-width: 480px) {
-  .serp-summary {
-    padding: 12px;
-    margin: 0 0 10px 0;
-    border-radius: 8px;
-  }
-  
-  .serp-summary h4 {
-    font-size: 0.9em;
-    margin-bottom: 6px;
-    line-height: 1.2;
-    word-break: break-word;
-  }
-  
-  .domain-info {
-    margin-bottom: 8px;
-    font-size: 0.75em;
-  }
-  
-  .domain-info small {
-    font-size: 0.7em;
-    line-height: 1.2;
-  }
-  
-  .position-highlight {
-    padding: 8px 12px;
-    margin: 6px 0;
-    font-size: 0.8em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    line-height: 1.3;
-  }
-  
-  .position-highlight i {
-    margin-right: 6px;
-    flex-shrink: 0;
-  }
-  
-  .position-highlight strong {
-    display: inline;
-    word-break: break-word;
-    font-size: 0.85em;
-  }
-  
-  .result-preview {
-    padding: 10px;
-    margin: 6px 0;
-    border-radius: 8px;
-  }
-  
-  .result-preview h5 {
-    margin-bottom: 4px;
-  }
-  
-  .result-preview h5 a {
-    font-size: 0.85em;
-    line-height: 1.2;
-    word-break: break-word;
-    overflow-wrap: break-word;
-  }
-  
-  .result-preview cite {
-    font-size: 0.7em;
-    word-break: break-all;
-    overflow-wrap: anywhere;
-    margin: 4px 0;
-    line-height: 1.2;
-  }
-  
-  .result-preview p {
-    font-size: 0.75em;
-    margin-top: 8px;
-    line-height: 1.4;
-  }
-  
-  #serpModal .modal-body {
-    padding: 8px;
-  }
-  
-  .serp-list {
-    padding: 0 8px 8px;
-  }
-  
-  .serp-results-container h5 {
-    padding: 0 8px;
-    font-size: 13px;
-  }
-  
-  .load-screenshot {
-    padding: 8px 16px;
-    font-size: 0.8em;
-    width: 100%;
-    max-width: 200px;
-    margin: 16px auto 0;
-  }
-  
-  .screenshot-info {
-    padding: 16px;
-  }
-  
-  .screenshot-info h5 {
-    font-size: 0.95em;
-  }
-  
-  .screenshot-info p {
-    font-size: 0.8em;
-  }
+body.dark-mode #serpModal .modal-header {
+  background: #1E293B !important;
 }
 
-/* Responsive para pantallas muy pequeñas (320px) */
-@media (max-width: 320px) {
-  .serp-summary {
-    padding: 10px;
-  }
-  
-  .serp-summary h4 {
-    font-size: 0.85em;
-  }
-  
-  .position-highlight {
-    padding: 6px 10px;
-    font-size: 0.75em;
-  }
-  
-  .result-preview {
-    padding: 8px;
-  }
-  
-  .result-preview h5 a {
-    font-size: 0.8em;
-  }
-  
-  .result-preview cite {
-    font-size: 0.65em;
-  }
-  
-  .load-screenshot {
-    padding: 8px 14px;
-    font-size: 0.75em;
-    min-width: auto;
-  }
-  
-  .screenshot-info {
-    padding: 12px;
-  }
+body.dark-mode #serpModal .modal-body {
+  background: #0F172A !important;
 }
 
-/* ESTILOS COMUNES PARA TODOS LOS BREAKPOINTS MÓVILES */
+body.dark-mode #serpModal .close-btn {
+  background: #334155 !important;
+  border-color: #475569 !important;
+  color: #94A3B8 !important;
+}
+
+body.dark-mode #serpModal .serp-tab.active {
+  color: #F8FAFC !important;
+  background: #1E293B !important;
+  border-bottom-color: #F8FAFC !important;
+}
+
+body.dark-mode #serpModal .serp-list li strong a,
+body.dark-mode #serpModal .result-preview h5 a {
+  color: #F8FAFC !important;
+}
+
+body.dark-mode #serpModal .load-screenshot {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+body.dark-mode #serpModal .load-screenshot:hover {
+  background: #E2E8F0 !important;
+}
+
+body.dark-mode #serpModal .highlighted-result {
+  background: rgba(34, 197, 94, 0.08) !important;
+}
+
+body.dark-mode #serpModal .position-badge {
+  background: #F8FAFC;
+  color: #0F172A;
+}
+
+
+/* ── 16. RESPONSIVE ───────────────────────────── */
 @media (max-width: 768px) {
-  .serp-tabs {
+  #serpModal .serp-tabs {
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  
-  .serp-tabs::-webkit-scrollbar {
-    display: none;
-  }
-  
-  .serp-tab {
-    padding: 10px 16px;
+
+  #serpModal .serp-tabs::-webkit-scrollbar { display: none; }
+
+  #serpModal .serp-tab {
+    padding: 0.625rem 1rem;
     white-space: nowrap;
     flex-shrink: 0;
-    font-size: 0.85em;
+    font-size: 0.8rem;
   }
-  
-  .tab-content {
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+
+  #serpModal .tab-content {
+    border-radius: 0 0 var(--bb-radius-sm) var(--bb-radius-sm);
   }
-  
-  .screenshot-view-container {
-    margin: 12px;
-    min-height: 220px;
+
+  #serpModal .screenshot-view-container {
+    margin: 0.75rem;
+    min-height: 200px;
   }
-  
-  .screenshot-info i {
-    font-size: 2rem;
+
+  #serpModal .alert {
+    margin: 0.75rem;
+    font-size: 0.8rem;
   }
-  
-  .alert {
-    margin: 12px;
-    font-size: 0.85em;
-  }
-  
+
   #serpModal .modal-header {
-    padding: 16px 20px;
+    padding: 1rem 1.25rem !important;
   }
-  
+
   #serpModal .modal-header h3 {
-    font-size: 1.1em;
+    font-size: 1rem !important;
   }
-  
-  .highlighted-result::before {
-    font-size: 9px;
-    padding: 3px 8px;
-    right: 12px;
+
+  #serpModal .highlighted-result::before {
+    font-size: 0.55rem;
+    padding: 0.15rem 0.5rem;
+    right: 0.75rem;
   }
-  
-  /* Asegurar que los textos largos no se desborden */
-  .domain-info strong,
-  .position-highlight,
-  .result-preview cite {
+
+  #serpModal .domain-info strong,
+  #serpModal .position-highlight,
+  #serpModal .result-preview cite {
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
   }
-  
-  .load-screenshot {
-    min-height: 44px;
-    border-radius: 6px;
-    font-weight: 500;
-    letter-spacing: 0.3px;
+
+  #serpModal .load-screenshot {
+    min-height: 2.5rem;
+    border-radius: var(--bb-radius-full) !important;
+    font-weight: 600;
+    letter-spacing: 0;
     touch-action: manipulation;
   }
-  
-  .load-screenshot i {
-    font-size: 0.9em;
+
+  #serpModal .serp-list {
+    padding: 0 0.75rem 0.75rem;
+  }
+
+  #serpModal .modal-body {
+    padding: 0.75rem !important;
   }
 }
 
-/*=============================================
-  13. ACCESIBILIDAD
-=============================================*/
-.serp-tab:focus,
-.load-screenshot:focus,
+@media (max-width: 480px) {
+  #serpModal .result-preview {
+    padding: 0.75rem;
+  }
+
+  #serpModal .result-preview h5 a {
+    font-size: 0.85rem;
+  }
+
+  #serpModal .result-preview cite {
+    font-size: 0.7rem;
+  }
+
+  #serpModal .serp-list li {
+    padding: 0.625rem 0.75rem;
+  }
+
+  #serpModal .modal-body {
+    padding: 0.5rem !important;
+  }
+
+  #serpModal .screenshot-info {
+    padding: 1rem;
+  }
+
+  #serpModal .load-screenshot {
+    width: 100%;
+    max-width: 12rem;
+    justify-content: center;
+  }
+}
+
+
+/* ── 17. ACCESSIBILITY ────────────────────────── */
+#serpModal .serp-tab:focus,
+#serpModal .load-screenshot:focus,
+#serpModal .serp-icon:focus,
 .serp-icon:focus {
-  outline: 2px solid var(--cta-bg);
+  outline: 2px solid var(--bb-text-primary);
   outline-offset: 2px;
 }
 
-/* Reducir animaciones para usuarios que prefieren menos movimiento */
 @media (prefers-reduced-motion: reduce) {
-  .serp-list li,
-  .serp-tab,
-  .load-screenshot,
-  .serp-icon,
-  .result-preview {
+  #serpModal .serp-list li,
+  #serpModal .serp-tab,
+  #serpModal .load-screenshot,
+  #serpModal .serp-icon,
+  #serpModal .result-preview {
     animation: none;
     transition: none;
   }
-  
-  .serp-list li:hover,
-  .result-preview:hover,
-  .highlighted-result:hover {
+
+  #serpModal .serp-list li:hover,
+  #serpModal .result-preview:hover,
+  #serpModal .highlighted-result:hover {
     transform: none;
   }
 }

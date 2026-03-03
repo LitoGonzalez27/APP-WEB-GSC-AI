@@ -79,6 +79,7 @@
   font-weight: 400 !important;
   position: relative;
   display: inline-block;
+  z-index: 0;
 }
 
 /* Bio-Lime underline on the accent word */
