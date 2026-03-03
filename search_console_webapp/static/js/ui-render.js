@@ -460,7 +460,7 @@ export function renderSummary(periodSummary) {
 
   const colors = {
     clicks: '#3B82F6',      // Azul
-    impressions: '#8B45FF',  // Lila/Morado
+    impressions: '#22C55E',  // Verde (brandbook)
     ctr: '#F59E0B',         // Naranja
     position: '#EF4444'     // Rojo
   };
@@ -580,12 +580,6 @@ export function renderSummary(periodSummary) {
           ${periodValues}
           ${deltaHTML}
         </div>
-        
-        ${periods.length > 1 ? `
-        <div class="mini-chart-container-modern">
-          <canvas id="mini-chart-${id}" width="120" height="80"></canvas>
-        </div>
-        ` : ''}
       </div>
     `;
   };
@@ -602,16 +596,6 @@ export function renderSummary(periodSummary) {
   
   document.querySelector('#summaryPosition').innerHTML = 
     createSummaryCard('position', 'Average Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
-
-  // ✅ ACTUALIZADO: Solo crear mini-gráficos si hay múltiples períodos
-  if (periods.length > 1) {
-    setTimeout(() => {
-      createMiniChart('mini-chart-clicks', clicksData, colors.clicks, chartLabels);
-      createMiniChart('mini-chart-impressions', impressionsData, colors.impressions, chartLabels);
-      createMiniChart('mini-chart-ctr', ctrData, colors.ctr, chartLabels);
-      createMiniChart('mini-chart-position', positionData, colors.position, chartLabels);
-    }, 100);
-  }
 
   if (elems.summaryBlock) elems.summaryBlock.style.display = 'grid';
   
