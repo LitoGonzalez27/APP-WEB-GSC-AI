@@ -1,0 +1,453 @@
+/* ==============================================
+   PAGES SECTION — CLICANDSEO BRANDBOOK
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Libre Baskerville
+   Flat/solid only · No gradients · No glassmorphism
+   Consistent with keywords-section.css
+   ============================================== */
+
+/* ── 1. SCOPED BRAND TOKENS ──────────────────── */
+#pagesContent {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-text-inverse:   #F8FAFC;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-surface-dark:   #334155;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 2. SECTION WRAPPER ──────────────────────── */
+#pagesContent section#resultsSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Kill glass-effect from base CSS */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* ── 3. SECTION HEADER ───────────────────────── */
+#pagesContent .pages-title-compact {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.35rem 0 !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+/* Kill the purple gradient underline from estilos-principales + modulos-especificos */
+#pagesContent #resultsTitle::after {
+  background: var(--bb-accent) !important;
+  background-image: none !important;
+}
+
+#pagesContent .pg-title-accent {
+  font-family: var(--bb-font-serif) !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  position: relative;
+  display: inline-block;
+}
+
+/* Bio-Lime underline on the accent word */
+#pagesContent .pg-title-accent::after {
+  content: '';
+  position: absolute;
+  bottom: 0.1em;
+  left: -6px;
+  right: -6px;
+  height: 0.4em;
+  background: var(--bb-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+#pagesContent .urls-overview-subtitle {
+  font-family: var(--bb-font-sans);
+  font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.9375rem);
+  color: var(--bb-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  font-weight: 400;
+  text-align: center;
+}
+
+
+/* ── 4. GRID.JS TABLE OVERRIDES ──────────────── */
+#pagesContent .gridjs-wrapper {
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  overflow: hidden;
+  box-shadow: none !important;
+  height: auto !important;
+}
+
+#pagesContent .gridjs-table {
+  font-family: var(--bb-font-sans) !important;
+  height: auto !important;
+}
+
+/* Table header */
+#pagesContent .gridjs-thead {
+  background: var(--bb-bg-subtle) !important;
+}
+
+#pagesContent .gridjs-th {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: var(--bb-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  border-color: var(--bb-border-subtle) !important;
+  background: var(--bb-bg-subtle) !important;
+  padding: 0.75rem 0.85rem !important;
+}
+
+/* Table cells */
+#pagesContent .gridjs-td {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82rem !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border-subtle) !important;
+  padding: 0.65rem 0.85rem !important;
+  background: var(--bb-bg-paper) !important;
+}
+
+/* Alternating row */
+#pagesContent .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(241, 245, 249, 0.4) !important;
+}
+
+/* Row hover */
+#pagesContent .gridjs-tr:hover .gridjs-td {
+  background: rgba(217, 249, 184, 0.08) !important;
+}
+
+/* Grid.js pagination */
+#pagesContent .gridjs-pagination {
+  font-family: var(--bb-font-sans) !important;
+  border-top: 1px solid var(--bb-border-subtle) !important;
+  padding: 0.75rem 1rem !important;
+}
+
+#pagesContent .gridjs-pagination .gridjs-pages button {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  border-radius: var(--bb-radius-sm) !important;
+  border: 1px solid var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  background: var(--bb-bg-paper) !important;
+  padding: 0.35rem 0.65rem !important;
+  transition: all 0.2s var(--bb-ease) !important;
+}
+
+#pagesContent .gridjs-pagination .gridjs-pages button:hover {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#pagesContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-text-primary) !important;
+  color: var(--bb-text-inverse) !important;
+  border-color: var(--bb-text-primary) !important;
+}
+
+/* Grid.js footer — kill generic styles */
+#pagesContent .gridjs-footer {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0.75rem 0 !important;
+}
+
+/* Grid.js summary */
+#pagesContent .gridjs-summary {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.75rem !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Grid.js search input */
+#pagesContent .gridjs-search input {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82rem !important;
+  color: var(--bb-text-primary) !important;
+  background: var(--bb-bg-subtle) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  padding: 0.6rem 0.85rem !important;
+  transition: border-color 0.2s var(--bb-ease), box-shadow 0.2s var(--bb-ease) !important;
+}
+
+#pagesContent .gridjs-search input:focus {
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px var(--bb-accent-subtle) !important;
+  background: var(--bb-bg-paper) !important;
+  outline: none !important;
+}
+
+#pagesContent .gridjs-search input::placeholder {
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Grid.js sort icon */
+#pagesContent .gridjs-sort {
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Grid.js loading */
+#pagesContent .gridjs-loading {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+/* Override .ai-overview-grid-container from gridjs-styles.css */
+#pagesContent .ai-overview-grid-container {
+  margin-top: 0;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+
+/* ── 5. DATATABLES FALLBACK OVERRIDES ────────── */
+/* In case DataTables renders instead of Grid.js */
+#pagesContent .dataTables_wrapper {
+  font-family: var(--bb-font-sans) !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_filter input {
+  font-family: var(--bb-font-sans) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_filter input:focus {
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px var(--bb-accent-subtle) !important;
+  outline: none !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_length select {
+  font-family: var(--bb-font-sans) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_info {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.75rem !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_paginate .paginate_button {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78rem !important;
+  border-radius: var(--bb-radius-sm) !important;
+  border: 1px solid var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  background: var(--bb-bg-paper) !important;
+}
+
+#pagesContent .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--bb-text-primary) !important;
+  color: var(--bb-text-inverse) !important;
+  border-color: var(--bb-text-primary) !important;
+}
+
+#pagesContent table.dataTable thead th {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: var(--bb-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  background: var(--bb-bg-subtle) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+#pagesContent table.dataTable tbody td {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82rem !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+#pagesContent table.dataTable tbody tr:hover td {
+  background: rgba(217, 249, 184, 0.08) !important;
+}
+
+/* Positive/negative change colors */
+#pagesContent .positive-change {
+  color: var(--bb-success) !important;
+}
+
+#pagesContent .negative-change {
+  color: var(--bb-error) !important;
+}
+
+
+/* ── 6. DARK MODE ────────────────────────────── */
+body.dark-mode #pagesContent {
+  --bb-bg-paper:      #0A0A0B;
+  --bb-bg-subtle:     rgba(255, 255, 255, 0.03);
+  --bb-text-primary:  #F8FAFC;
+  --bb-text-secondary:rgba(255, 255, 255, 0.6);
+  --bb-text-tertiary: rgba(255, 255, 255, 0.4);
+  --bb-border:        rgba(255, 255, 255, 0.06);
+  --bb-border-subtle: rgba(255, 255, 255, 0.04);
+}
+
+body.dark-mode #pagesContent section#resultsSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-td {
+  background: var(--bb-bg-paper) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-tr:hover .gridjs-td {
+  background: rgba(217, 249, 184, 0.04) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-wrapper {
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-footer {
+  background-color: transparent !important;
+}
+
+body.dark-mode #pagesContent .gridjs-pagination {
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-pagination .gridjs-pages button {
+  border-color: var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  background: transparent !important;
+}
+
+body.dark-mode #pagesContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-accent) !important;
+  color: #0F172A !important;
+  border-color: var(--bb-accent) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-search input {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: var(--bb-border) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+body.dark-mode #pagesContent .gridjs-search input:focus {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+body.dark-mode #pagesContent .ai-overview-grid-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* DataTables dark mode fallback */
+body.dark-mode #pagesContent table.dataTable thead th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent table.dataTable tbody td {
+  background: var(--bb-bg-paper) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #pagesContent table.dataTable tbody tr:hover td {
+  background: rgba(217, 249, 184, 0.04) !important;
+}
+
+
+/* ── 7. RESPONSIVE ───────────────────────────── */
+@media (max-width: 768px) {
+  #pagesContent section#resultsSection {
+    padding: 1.5rem 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #pagesContent .pages-title-compact {
+    font-size: 1.5rem !important;
+  }
+}
+
+
+/* ── 8. KILL GLASS-EFFECT ────────────────────── */
+#pagesContent section#resultsSection.glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#pagesContent .glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
