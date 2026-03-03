@@ -442,3 +442,371 @@ body.dark-mode #performanceContent .ov-title-accent::after {
     padding: 8px 16px 14px !important;
   }
 }
+
+
+/* ==============================================================
+   MOVERS SECTION — Top Winners & Losers
+   ============================================================== */
+
+/* ── 11. MOVERS SECTION WRAPPER ─────────────────── */
+#performanceContent #moversSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-top: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  animation: ovFadeInUp 0.5s var(--bb-ease) both;
+  animation-delay: 0.1s;
+}
+
+
+/* ── 12. MOVERS GRID (2 columns) ────────────────── */
+#performanceContent .movers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 1.5rem;
+}
+
+
+/* ── 13. MOVERS PANEL ───────────────────────────── */
+#performanceContent .movers-panel {
+  background: var(--bb-bg-paper);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-md);
+  box-shadow: var(--bb-shadow-sm);
+  overflow: hidden;
+  transition: all var(--bb-duration) var(--bb-ease);
+}
+
+#performanceContent .movers-panel:hover {
+  box-shadow: var(--bb-shadow-md);
+}
+
+
+/* ── 14. MOVERS PANEL HEADER ────────────────────── */
+#performanceContent .movers-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--bb-border-subtle);
+}
+
+#performanceContent .movers-panel-label {
+  font-family: var(--bb-font-sans);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--bb-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#performanceContent .movers-panel-label i {
+  font-size: 0.85rem;
+  color: var(--bb-text-secondary);
+}
+
+
+/* ── 15. MOVERS CHIPS ───────────────────────────── */
+#performanceContent .movers-chips {
+  display: flex;
+  gap: 6px;
+}
+
+#performanceContent .movers-chip {
+  font-family: var(--bb-font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: var(--bb-radius-full);
+  border: 1px solid var(--bb-border);
+  background: var(--bb-bg-subtle);
+  color: var(--bb-text-secondary);
+  cursor: pointer;
+  transition: all var(--bb-duration) var(--bb-ease);
+  white-space: nowrap;
+}
+
+#performanceContent .movers-chip:hover {
+  border-color: var(--bb-text-tertiary);
+  color: var(--bb-text-primary);
+}
+
+#performanceContent .movers-chip.active {
+  background: var(--bb-bg-dark);
+  color: var(--bb-text-inverse);
+  border-color: var(--bb-bg-dark);
+}
+
+
+/* ── 16. MOVERS TABLE ───────────────────────────── */
+#performanceContent .movers-table-wrap {
+  padding: 0;
+  min-height: 200px;
+}
+
+#performanceContent .movers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--bb-font-sans);
+  font-size: 0.85rem;
+}
+
+#performanceContent .movers-table thead th {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bb-text-tertiary);
+  padding: 12px 14px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--bb-border-subtle);
+  white-space: nowrap;
+}
+
+#performanceContent .movers-table tbody tr {
+  transition: background var(--bb-duration) var(--bb-ease);
+}
+
+#performanceContent .movers-table tbody tr:hover {
+  background: var(--bb-bg-subtle);
+}
+
+#performanceContent .movers-table tbody td {
+  padding: 10px 14px;
+  color: var(--bb-text-primary);
+  border-bottom: 1px solid var(--bb-border-subtle);
+  white-space: nowrap;
+}
+
+#performanceContent .movers-table .col-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+#performanceContent .movers-table .col-metric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#performanceContent .movers-table .col-delta {
+  text-align: right;
+}
+
+
+/* ── 17. DELTA TAGS ─────────────────────────────── */
+#performanceContent .delta-tag {
+  display: inline-block;
+  font-family: var(--bb-font-sans);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: var(--bb-radius-full);
+  white-space: nowrap;
+}
+
+#performanceContent .delta-tag.positive {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16A34A;
+}
+
+#performanceContent .delta-tag.negative {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+}
+
+#performanceContent .delta-tag.neutral {
+  background: var(--bb-bg-subtle);
+  color: var(--bb-text-tertiary);
+}
+
+
+/* ── 18. MOVERS EMPTY STATE ─────────────────────── */
+#performanceContent .movers-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--bb-text-tertiary);
+  font-family: var(--bb-font-sans);
+  font-size: 0.9rem;
+}
+
+#performanceContent .movers-empty i {
+  font-size: 1.6rem;
+  opacity: 0.5;
+}
+
+
+/* ==============================================================
+   POSITION DISTRIBUTION SECTION
+   ============================================================== */
+
+/* ── 19. POSITION DIST WRAPPER ──────────────────── */
+#performanceContent #positionDistSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-top: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  animation: ovFadeInUp 0.5s var(--bb-ease) both;
+  animation-delay: 0.2s;
+}
+
+
+/* ── 20. POSITION DIST CARD ─────────────────────── */
+#performanceContent .position-dist-card {
+  margin-top: 1rem;
+  padding: 16px;
+  max-height: 360px;
+  position: relative;
+}
+
+#performanceContent .position-dist-card canvas {
+  width: 100% !important;
+}
+
+
+/* ==============================================================
+   DARK MODE — MOVERS & POSITION DIST
+   ============================================================== */
+
+body.dark-mode #performanceContent #moversSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #performanceContent .movers-panel {
+  background: var(--bb-bg-paper);
+  border-color: var(--bb-border);
+}
+
+body.dark-mode #performanceContent .movers-panel:hover {
+  border-color: rgba(217, 249, 184, 0.2);
+}
+
+body.dark-mode #performanceContent .movers-panel-header {
+  border-bottom-color: var(--bb-border-subtle);
+}
+
+body.dark-mode #performanceContent .movers-chip {
+  background: var(--bb-bg-subtle);
+  border-color: var(--bb-border);
+  color: var(--bb-text-secondary);
+}
+
+body.dark-mode #performanceContent .movers-chip:hover {
+  border-color: var(--bb-text-tertiary);
+  color: var(--bb-text-primary);
+}
+
+body.dark-mode #performanceContent .movers-chip.active {
+  background: #E2E8F0;
+  color: #0F172A;
+  border-color: #E2E8F0;
+}
+
+body.dark-mode #performanceContent .movers-table thead th {
+  border-bottom-color: var(--bb-border-subtle);
+}
+
+body.dark-mode #performanceContent .movers-table tbody tr:hover {
+  background: var(--bb-bg-subtle);
+}
+
+body.dark-mode #performanceContent .movers-table tbody td {
+  border-bottom-color: var(--bb-border-subtle);
+}
+
+body.dark-mode #performanceContent .delta-tag.positive {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ADE80;
+}
+
+body.dark-mode #performanceContent .delta-tag.negative {
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+}
+
+body.dark-mode #performanceContent .delta-tag.neutral {
+  background: rgba(51, 65, 85, 0.4);
+  color: var(--bb-text-tertiary);
+}
+
+body.dark-mode #performanceContent #positionDistSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #performanceContent .movers-empty {
+  color: var(--bb-text-tertiary);
+}
+
+
+/* ==============================================================
+   RESPONSIVE — MOVERS & POSITION DIST
+   ============================================================== */
+
+@media (max-width: 768px) {
+  #performanceContent #moversSection,
+  #performanceContent #positionDistSection {
+    padding: 1.5rem 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  #performanceContent .movers-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #performanceContent .movers-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px 12px;
+  }
+
+  #performanceContent .movers-table .col-name {
+    max-width: 140px;
+  }
+
+  #performanceContent .movers-table {
+    font-size: 0.8rem;
+  }
+
+  #performanceContent .movers-table thead th,
+  #performanceContent .movers-table tbody td {
+    padding: 8px 10px;
+  }
+
+  #performanceContent .position-dist-card {
+    padding: 10px 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  #performanceContent #moversSection,
+  #performanceContent #positionDistSection {
+    padding: 1.25rem 0.75rem !important;
+    border-radius: 12px !important;
+  }
+
+  #performanceContent .movers-table .col-name {
+    max-width: 110px;
+  }
+
+  #performanceContent .movers-chip {
+    font-size: 0.75rem;
+    padding: 5px 12px;
+  }
+}

@@ -472,6 +472,45 @@
             </div>
           </div>
         </section>
+
+        <!-- Winners & Losers -->
+        <section id="moversSection" style="display:none;">
+          <h2 class="ov-title-compact">Top <span class="ov-title-accent">Movers</span></h2>
+          <p class="performance-subtitle">Keywords and URLs with biggest changes between periods</p>
+          <div class="movers-grid">
+            <!-- Keywords panel -->
+            <div class="movers-panel" id="keywordMoversPanel">
+              <div class="movers-panel-header">
+                <span class="movers-panel-label"><i class="fas fa-key"></i> Keywords</span>
+                <div class="movers-chips">
+                  <button class="movers-chip active" data-type="winners">Winners</button>
+                  <button class="movers-chip" data-type="losers">Losers</button>
+                </div>
+              </div>
+              <div class="movers-table-wrap" id="keywordMoversTable"></div>
+            </div>
+            <!-- URLs panel -->
+            <div class="movers-panel" id="urlMoversPanel">
+              <div class="movers-panel-header">
+                <span class="movers-panel-label"><i class="fas fa-link"></i> URLs</span>
+                <div class="movers-chips">
+                  <button class="movers-chip active" data-type="winners">Winners</button>
+                  <button class="movers-chip" data-type="losers">Losers</button>
+                </div>
+              </div>
+              <div class="movers-table-wrap" id="urlMoversTable"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Position Distribution -->
+        <section id="positionDistSection" style="display:none;">
+          <h2 class="ov-title-compact">Position <span class="ov-title-accent">Distribution</span></h2>
+          <p class="performance-subtitle">Keyword ranking distribution across position ranges</p>
+          <div class="position-dist-card">
+            <canvas id="positionDistChart" height="280"></canvas>
+          </div>
+        </section>
       </div>
 
       <div class="content-section" id="keywordsContent" data-section="keywords">
@@ -1222,6 +1261,7 @@
   <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-overview-movers.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-keywords-gridjs.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
 

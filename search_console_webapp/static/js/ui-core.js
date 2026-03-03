@@ -27,6 +27,7 @@ import {
   updateStickyData 
 } from './ui-sticky-actions.js';
 import { isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice, getAdaptiveTimeouts } from './utils.js';
+import { renderOverviewMovers } from './ui-overview-movers.js';
 
 // ✅ NUEVO: Funciones del sidebar ahora están disponibles globalmente
 // Las funciones están disponibles como: window.onAnalysisStart, window.onAnalysisComplete, etc.
@@ -210,7 +211,9 @@ export async function handleFormSubmit(e) {
   [
     elems.insightsSection, elems.performanceSection,
     elems.keywordsSection, elems.resultsSection,
-    elems.downloadBlock, elems.aiOverviewSection
+    elems.downloadBlock, elems.aiOverviewSection,
+    document.getElementById('moversSection'),
+    document.getElementById('positionDistSection')
   ].forEach(el => el && (el.style.display = 'none'));
 
   [
@@ -356,13 +359,18 @@ export async function handleFormSubmit(e) {
     await renderTable(data.pages);
 
     // ✅ NUEVO: Generar estadísticas adicionales de URLs si hay comparación
+    const urlsCompData = processUrlsForComparison(data.pages, data.periods);
     if (hasUrlComparison(data.pages)) {
-      const urlsData = processUrlsForComparison(data.pages, data.periods);
-      const urlsStats = generateUrlsStats(urlsData);
+      const urlsStats = generateUrlsStats(urlsCompData);
       console.log('📋 Estadísticas de URLs generadas:', urlsStats);
-      
-      // ✅ ELIMINADO: Ya no agregamos conteo dinámico al título - se mantiene limpio como "URLs Performance"
     }
+
+    // ✅ NUEVO: Renderizar Top Movers + Position Distribution
+    renderOverviewMovers(
+      data.keyword_comparison_data || [],
+      urlsCompData,
+      data.periods?.has_comparison || false
+    );
 
     const keywordData = data.keyword_comparison_data || [];
     updateStickyData(keywordData, siteUrlForAI);

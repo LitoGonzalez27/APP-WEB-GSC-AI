@@ -300,7 +300,9 @@ class SidebarNavigation {
       document.getElementById('performanceSection'),
       document.getElementById('insightsTitle'),
       document.getElementById('performanceTitle'),
-      document.getElementById('summaryBlock')
+      document.getElementById('summaryBlock'),
+      document.getElementById('moversSection'),
+      document.getElementById('positionDistSection')
     ];
     
     elements.forEach((element, index) => {
@@ -1151,7 +1153,7 @@ window.diagnoseSectionElements = function(section) {
   console.log(`🔍 Diagnosticando elementos de la sección: ${section}`);
   
   const sectionMapping = {
-    'performance': ['insightsSection', 'performanceSection', 'insightsTitle', 'performanceTitle', 'summaryBlock'],
+    'performance': ['insightsSection', 'performanceSection', 'insightsTitle', 'performanceTitle', 'summaryBlock', 'moversSection', 'positionDistSection'],
     'keywords': ['keywordsSection', 'keywordsTitle', 'keyword-overview', 'keyword-category-cards', 'keywordComparisonBlock'],
     'pages': ['resultsSection', 'resultsTitle', 'resultsBlock'],
     'ai-overview': ['aiOverviewResultsContainer', 'aiAnalysisMessage']
