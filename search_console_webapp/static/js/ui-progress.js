@@ -801,7 +801,7 @@ function createProgressModal() {
                     cy="60" 
                     r="54" 
                     fill="none" 
-                    stroke="#E2E8F0" 
+                    stroke="#334155"
                     stroke-width="8">
                   </circle>
                   <circle 

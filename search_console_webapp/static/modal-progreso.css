@@ -37,6 +37,7 @@
 
 
 /* ── 2. MODAL DIALOG ─────────────────────────── */
+/* Override base .modal-dialog that has white bg + 16px radius from base-y-componentes.css */
 #progressModal .modal-dialog {
   width: 90vw;
   height: 85vh;
@@ -45,6 +46,10 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  background: transparent !important;
+  border-radius: var(--bb-radius-md) !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 
@@ -56,7 +61,7 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border-radius: var(--bb-radius-md);
-  border: 1px solid var(--bb-border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: var(--bb-shadow-lg);
   display: flex;
   flex-direction: column;

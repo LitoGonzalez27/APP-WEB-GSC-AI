@@ -3,50 +3,58 @@
    ============================================= */
 
 /* ===== VARIABLES ESPECÍFICAS PARA EL SELECTOR DE FECHAS ===== */
+/* NOTE: --cta-bg is #0D7FF3 (blue) in base CSS — we MUST NOT inherit it.
+   All values here are direct, matching Brandbook v2 (Bio-Lime / dark). */
 :root {
-  /* Date Selector Colors */
-  --date-primary: var(--cta-bg, #161616);
-  --date-primary-hover: var(--cta-hover-bg, #D8F9B8);
+  /* Date Selector Colors — Brandbook v2 */
+  --date-primary: #161616;
+  --date-primary-hover: #D8F9B8;
   --date-primary-light: rgba(217, 249, 184, 0.25);
-  
-  --date-surface: var(--card-bg, #ffffff);
+
+  --date-surface: #ffffff;
   --date-surface-alt: #f8fafc;
   --date-surface-hover: #f1f5f9;
-  
-  --date-border: var(--border-color, rgba(0, 0, 0, 0.1));
+
+  --date-border: rgba(0, 0, 0, 0.1);
   --date-border-light: #f1f5f9;
   --date-border-hover: #cbd5e1;
-  
-  --date-text-primary: var(--heading, #1e293b);
-  --date-text-secondary: var(--text-color, #64748b);
-  
-  --date-success: #10b981;
+
+  --date-text-primary: #1e293b;
+  --date-text-secondary: #64748b;
+
+  --date-success: #22C55E;
   --date-warning: #f59e0b;
   --date-error: #ef4444;
-  --date-info: #0284c7;
-  
+  --date-info: #161616;
+
   /* Modal específicos */
   --modal-overlay: rgba(0, 0, 0, 0.5);
   --modal-backdrop-blur: 8px;
   --modal-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-  
+
   /* Animaciones */
   --date-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark Mode Variables */
+/* Dark Mode Variables — direct values, no base CSS inheritance */
 body.dark-mode {
-  --date-surface: var(--card-bg, #1e293b);
+  --date-primary: #D8F9B8;
+  --date-primary-hover: #161616;
+  --date-primary-light: rgba(217, 249, 184, 0.15);
+
+  --date-surface: #1e293b;
   --date-surface-alt: #334155;
   --date-surface-hover: #475569;
-  
-  --date-border: var(--border-color, #475569);
+
+  --date-border: #475569;
   --date-border-light: #334155;
   --date-border-hover: #64748b;
-  
-  --date-text-primary: var(--heading, #f1f5f9);
-  --date-text-secondary: var(--text-color, #94a3b8);
-  
+
+  --date-text-primary: #f1f5f9;
+  --date-text-secondary: #94a3b8;
+
+  --date-info: #D8F9B8;
+
   --modal-overlay: rgba(0, 0, 0, 0.7);
   --modal-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
 }
@@ -419,7 +427,7 @@ body.dark-mode {
 .preset-btn.active {
   background: var(--date-primary);
   border-color: var(--date-primary);
-  color: #161616;
+  color: #D8F9B8;
   transform: scale(0.95);
 }
 
@@ -466,7 +474,7 @@ body.dark-mode {
 .comparison-mode-group input[type="radio"]:checked + .comparison-mode-btn {
   border-color: var(--date-primary);
   background: var(--date-primary);
-  color: white;
+  color: #D8F9B8;
   box-shadow: 0 2px 8px rgba(217, 249, 184, 0.35);
 }
 
@@ -919,13 +927,27 @@ body.dark-mode {
 
 /* ===== MODO OSCURO ESPECÍFICO ===== */
 body.dark-mode .date-info-card {
-  background: rgba(217, 249, 184, 0.25);
-  border-color: rgba(217, 249, 184, 0.35);
-  color: #161616;
+  background: rgba(217, 249, 184, 0.12);
+  border-color: rgba(217, 249, 184, 0.25);
+  color: #f1f5f9;
 }
 
 body.dark-mode .date-info-card i {
   color: var(--date-primary);
+}
+
+/* Dark mode: active preset uses Bio-Lime bg with dark text */
+body.dark-mode .preset-btn:active,
+body.dark-mode .preset-btn.active {
+  background: var(--date-primary);
+  border-color: var(--date-primary);
+  color: #0F172A;
+}
+
+body.dark-mode .comparison-mode-group input[type="radio"]:checked + .comparison-mode-btn {
+  background: var(--date-primary);
+  border-color: var(--date-primary);
+  color: #0F172A;
 }
 
 body.dark-mode .date-error-toast {
