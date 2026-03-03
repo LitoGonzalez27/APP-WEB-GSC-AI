@@ -111,7 +111,8 @@
 #pagesContent .gridjs-wrapper {
   border: 1px solid var(--bb-border-subtle) !important;
   border-radius: var(--bb-radius-md) !important;
-  overflow: hidden;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
   box-shadow: none !important;
   height: auto !important;
 }

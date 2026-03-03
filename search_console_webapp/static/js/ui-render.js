@@ -1270,7 +1270,7 @@ export async function renderTable(pages) {
     elems.resultsSection.innerHTML = '';
     elems.resultsSection.appendChild(emptyContainer);
     
-    if (elems.resultsTitle) elems.resultsTitle.textContent = 'URLs Performance';
+    if (elems.resultsTitle) elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     
     const urlsSubtitle = document.querySelector('.urls-overview-subtitle');
     if (urlsSubtitle) {
@@ -1333,7 +1333,7 @@ export async function renderTable(pages) {
     // elems.resultsTitle.style.display = 'block';
     
     // ✅ NUEVO: Título simple y consistente como keywords
-    elems.resultsTitle.textContent = 'URLs Performance';
+    elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     console.log('✅ Título actualizado: URLs Performance');
   }
   
@@ -1392,7 +1392,7 @@ export function renderTableError() {
   if (elems.resultsTitle) {
     // ✅ SIDEBAR: No mostrar automáticamente, pero sí actualizar el contenido
     // elems.resultsTitle.style.display = 'block';
-    elems.resultsTitle.textContent = 'URLs Performance';
+    elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     console.log('✅ Título actualizado (estado error)');
   }
   

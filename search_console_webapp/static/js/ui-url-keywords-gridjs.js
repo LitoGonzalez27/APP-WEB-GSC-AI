@@ -66,9 +66,9 @@ export function createUrlKeywordsGridTable(keywordsData, hasComparison = false, 
                 'placeholder': '🔍 Search keywords...'
             },
             'pagination': {
-                'previous': '⬅️',
-                'next': '➡️',
-                'showing': '🔍 Showing',
+                'previous': '‹',
+                'next': '›',
+                'showing': 'Showing',
                 'of': 'of',
                 'to': 'to',
                 'results': 'keywords'
