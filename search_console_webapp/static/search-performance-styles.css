@@ -361,20 +361,22 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
   backdrop-filter: none !important;
   font-family: var(--bb-font-sans) !important;
+  font-size: 13px !important;              /* Base size — prevents inheritance from small parent */
+  padding: 14px 16px !important;
 }
 
 #configurationContent .country-info-tooltip .tooltip-title {
   color: var(--bb-accent) !important;        /* Bio-Lime green headline */
   font-family: var(--bb-font-sans) !important;
   font-weight: 700 !important;
-  font-size: 0.9em !important;
+  font-size: 13px !important;               /* Absolute px — matches URLs/Match Type tooltip */
 }
 
 #configurationContent .country-info-tooltip .tooltip-description {
   color: #E2E8F0 !important;                /* Light white text */
   font-family: var(--bb-font-sans) !important;
-  font-size: 0.82em !important;
-  line-height: 1.55 !important;
+  font-size: 12.5px !important;             /* Absolute px — matches URLs/Match Type tooltip */
+  line-height: 1.6 !important;
 }
 
 #configurationContent .country-info-tooltip .tooltip-description strong {

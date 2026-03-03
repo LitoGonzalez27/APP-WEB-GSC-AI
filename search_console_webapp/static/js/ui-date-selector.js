@@ -324,12 +324,16 @@ export class DateRangeSelector {
     openModal() {
         const overlay = document.getElementById('dateModalOverlay');
         const modal = document.getElementById('dateModal');
-        
+
         if (overlay && modal) {
             this.isModalOpen = true;
             overlay.style.display = 'flex';
-            document.body.classList.add('modal-open');
-            
+            // NOTE: We intentionally do NOT add body.modal-open anymore.
+            // That class applied overflow:hidden to body, which blocked ALL
+            // scrolling — including the overlay's own scroll when the modal
+            // was taller than the viewport. The overlay handles scroll itself
+            // via overflow-y:auto in CSS.
+
             // Animación de entrada
             requestAnimationFrame(() => {
                 overlay.classList.add('show');
@@ -341,14 +345,13 @@ export class DateRangeSelector {
     closeModal() {
         const overlay = document.getElementById('dateModalOverlay');
         const modal = document.getElementById('dateModal');
-        
+
         if (overlay && modal) {
             overlay.classList.remove('show');
             modal.classList.remove('show');
-            
+
             setTimeout(() => {
                 overlay.style.display = 'none';
-                document.body.classList.remove('modal-open');
                 this.isModalOpen = false;
             }, 300);
         }
