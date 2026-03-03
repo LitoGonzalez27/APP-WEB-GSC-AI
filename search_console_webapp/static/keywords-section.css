@@ -197,6 +197,35 @@
   outline-offset: 2px;
 }
 
+#keywordsContent .overview-card.overview-card-clickable {
+  cursor: pointer;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+#keywordsContent .overview-card.overview-card-clickable:hover {
+  transform: translateY(-1px);
+}
+
+#keywordsContent .overview-card.overview-card-clickable:focus-visible {
+  outline: 2px solid rgba(52, 152, 219, 0.45);
+  outline-offset: 4px;
+}
+
+#keywordsContent .overview-card .overview-card-action {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cta-bg);
+  opacity: 0.9;
+}
+
+#keywordsContent .overview-card .overview-card-action.is-disabled {
+  color: var(--text-color);
+  opacity: 0.45;
+}
+
 /* Estilos del modal de keywords por URL */
 #pagesContent .keywords-icon,
 #keywordModal-url .keywords-icon {
