@@ -33,7 +33,7 @@ function updateUrlPlaceholder() {
         if (!urlsValue) {
             // Empty field — show instructional placeholder
             const domainDisplay = selectedDomain.replace('sc-domain:', '').replace('https://', '').replace('http://', '');
-            elems.urlsInput.placeholder = `Leave empty to analyze all pages on ${domainDisplay}\n\nOr add 1, 2 or 5 paths, up to 60 URLs (one per line):\n  /blog/\n  /products/shoes/\n  https://${domainDisplay}/landing-page\n\nPaths analyze all pages under that path.\nYou can mix paths and full URLs.`;
+            elems.urlsInput.placeholder = `Leave empty to analyze all pages on ${domainDisplay}\n\nYou can also add paths, URLs, or a mix of both.\nWe'll fetch the data for everything you add here.`;
             elems.urlsInput.classList.add('property-analysis-mode');
         } else {
             // Field has content
@@ -1047,6 +1047,9 @@ async function loadSearchConsoleProperties() {
                 storage.siteUrl = elems.siteUrlSelect.value;
             }
             elems.siteUrlSelect.disabled = false;
+
+            // Update URL placeholder after property auto-restore
+            updateUrlPlaceholder();
 
             // Filtro de búsqueda en vivo
             const filterInput = document.getElementById('siteUrlFilter');
