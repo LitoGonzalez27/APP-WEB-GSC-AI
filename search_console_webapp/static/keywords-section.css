@@ -533,7 +533,7 @@
 
 /* Collapsible Content */
 #keywordsContent .collapsible-content {
-  padding: 0 1.25rem 1.25rem;
+  padding: 1rem 1.25rem 1.25rem !important;
 }
 
 /* Exclusion Grid (Filter internals) */
@@ -641,6 +641,13 @@
   flex-wrap: wrap;
   gap: 6px;
   min-height: 32px;
+}
+
+/* Empty state text */
+#keywordsContent .exclusion-tags-container .exclusion-empty {
+  font-family: var(--bb-font-sans);
+  font-size: 0.875rem;
+  color: var(--bb-text-tertiary);
 }
 
 /* Individual filter tag */
@@ -837,6 +844,12 @@
   border-radius: var(--bb-radius-md) !important;
   overflow: hidden;
   box-shadow: none !important;
+  height: auto !important;
+}
+
+#keywordsContent .gridjs-table,
+[id^="keywordModal-"] .gridjs-table {
+  height: auto !important;
 }
 
 #keywordsContent .gridjs-table,
@@ -918,6 +931,16 @@
   background: var(--bb-text-primary) !important;
   color: var(--bb-text-inverse) !important;
   border-color: var(--bb-text-primary) !important;
+}
+
+/* Grid.js footer — kill generic .gridjs-footer styles */
+#keywordsContent .gridjs-footer,
+[id^="keywordModal-"] .gridjs-footer {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0.75rem 0 !important;
 }
 
 /* Grid.js summary / footer */
