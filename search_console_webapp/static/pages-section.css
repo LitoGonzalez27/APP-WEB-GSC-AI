@@ -69,8 +69,8 @@
 
 /* Kill the purple gradient underline from estilos-principales + modulos-especificos */
 #pagesContent #resultsTitle::after {
-  background: var(--bb-accent) !important;
-  background-image: none !important;
+  display: none !important;
+  content: none !important;
 }
 
 #pagesContent .pg-title-accent {

@@ -112,8 +112,8 @@
 
 /* Kill the purple gradient underline from estilos-principales + modulos-especificos */
 #keywordsContent #keywordsTitle::after {
-  background: var(--bb-accent) !important;
-  background-image: none !important;
+  display: none !important;
+  content: none !important;
 }
 
 #keywordsContent .kw-title-accent {
