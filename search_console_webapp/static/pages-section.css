@@ -451,3 +451,32 @@ body.dark-mode #pagesContent table.dataTable tbody tr:hover td {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* ── 9. ANIMATIONS ──────────────────────────── */
+@keyframes pgFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#pagesContent .pages-title-compact {
+  animation: pgFadeInUp 0.5s var(--bb-ease) both;
+}
+
+#pagesContent .urls-overview-subtitle {
+  animation: pgFadeInUp 0.5s var(--bb-ease) 0.05s both;
+}
+
+#pagesContent .ai-overview-grid-container {
+  animation: pgFadeInUp 0.5s var(--bb-ease) 0.1s both;
+}
+
+#pagesContent .gridjs-wrapper {
+  animation: pgFadeInUp 0.5s var(--bb-ease) 0.15s both;
+}
