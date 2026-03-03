@@ -1,0 +1,301 @@
+/* ==============================================
+   KEYWORDS SECTION STYLES
+   Estilos exclusivos de la sección Keywords
+   ============================================== */
+
+#keywordsContent .keywords-title-compact {
+  margin-bottom: 8px !important;
+}
+
+#keywordsContent #keywordComparisonBlock {
+  margin-top: var(--spacing-md) !important;
+}
+
+#keywordsContent #keywordComparisonBlock.keywords-comparison-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: visible;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#keywordsContent #keywordComparisonBlock .keywords-quick-filters-host:empty {
+  display: none;
+}
+
+#keywordsContent #keywordComparisonBlock .keyword-filter-inline {
+  margin: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+#keywordsContent #keywordComparisonBlock .keyword-filter-inline .collapsible-content {
+  padding: 0 1rem 1rem;
+}
+
+#keywordsContent #keywordComparisonBlock .keyword-filter-inline .exclusion-container {
+  padding: 1rem;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+#keywordsContent .kw-filter-actions {
+  gap: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#keywordsContent .kw-filter-apply-btn {
+  background: #161616;
+  color: #fff;
+  border-color: #161616;
+}
+
+#keywordsContent #keywordComparisonGridMount.keywords-comparison-grid-mount {
+  width: 100%;
+}
+
+#keywordsContent #keywordComparisonGridMount .ai-overview-grid-container {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0;
+}
+
+/* Buscador dual de keywords (tabla principal + modales de rangos) */
+#keywordsContent .keywords-dual-search-row,
+[id^="keywordModal-"] .keywords-dual-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+#keywordsContent .keywords-dual-search-row .gridjs-search,
+[id^="keywordModal-"] .keywords-dual-search-row .gridjs-search {
+  margin-bottom: 0;
+}
+
+#keywordsContent .keywords-custom-search,
+[id^="keywordModal-"] .keywords-custom-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+#keywordsContent .keywords-custom-search input,
+[id^="keywordModal-"] .keywords-custom-search input {
+  width: 100%;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  color: var(--text-color) !important;
+}
+
+#keywordsContent .keywords-custom-search input:focus,
+[id^="keywordModal-"] .keywords-custom-search input:focus {
+  border-color: var(--cta-bg) !important;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2) !important;
+  outline: none !important;
+}
+
+#keywordsContent .keywords-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+#keywordsContent .keywords-preset-chip {
+  border: 1px solid #1f1f1f;
+  background: #161616;
+  color: #d8f9b8;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+#keywordsContent .keywords-preset-chip:hover {
+  background: #202020;
+  border-color: #b8dea0;
+  color: #d8f9b8;
+}
+
+#keywordsContent .keywords-preset-chip.is-active {
+  background: #d8f9b8;
+  border-color: #a8d68a;
+  color: #161616;
+  box-shadow: 0 3px 10px rgba(168, 214, 138, 0.32);
+}
+
+#keywordsContent .keywords-preset-chip:focus-visible {
+  outline: 2px solid rgba(52, 152, 219, 0.5);
+  outline-offset: 2px;
+}
+
+/* Estilos del modal de keywords por URL */
+#pagesContent .keywords-icon,
+#keywordModal-url .keywords-icon {
+  font-size: 16px;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+#pagesContent .keywords-icon:hover,
+#keywordModal-url .keywords-icon:hover {
+  background-color: var(--primary-color);
+  color: white !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  border-color: var(--primary-color);
+}
+
+#keywordModal-url .url-keywords-info {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid #007bff;
+}
+
+#keywordModal-url .url-keywords-info p {
+  margin: 0.5em 0;
+  font-size: 14px;
+}
+
+#keywordModal-url .url-keywords-info strong {
+  color: #495057;
+}
+
+#keywordModal-url .modal-content {
+  animation: keywordModalUrlSlideIn 0.3s ease-out;
+}
+
+@keyframes keywordModalUrlSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 1366px) and (max-width: 1599px) {
+  #keywordsContent #keywordComparisonBlock {
+    margin-top: var(--spacing-sm) !important;
+  }
+
+  #keywordsContent .keywords-title-compact {
+    font-size: 1.2rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  #keywordsContent .keywords-overview-subtitle {
+    font-size: 0.8rem !important;
+    margin-bottom: 16px !important;
+    margin-top: 6px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
+    padding: 0;
+    gap: 10px;
+  }
+
+  #keywordsContent #keywordComparisonBlock .keyword-filter-inline .collapsible-content {
+    padding: 0 0.8rem 0.8rem;
+  }
+
+  #keywordsContent #keywordComparisonBlock .keyword-filter-inline .exclusion-container {
+    padding: 0.8rem;
+  }
+
+  #keywordsContent .keywords-presets-row {
+    gap: 8px;
+  }
+
+  #keywordsContent .keywords-preset-chip {
+    font-size: 0.76rem;
+    padding: 6px 11px;
+  }
+
+  #keywordModal-url .modal-content {
+    max-width: 95%;
+    margin: 2% auto;
+  }
+
+  #keywordModal-url .url-keywords-info {
+    font-size: 12px;
+  }
+}
+
+body.dark-mode #keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+body.dark-mode #keywordsContent #keywordComparisonBlock .keyword-filter-inline {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip {
+  background: #161616;
+  color: #d8f9b8;
+  border-color: #1f1f1f;
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip:hover {
+  background: #202020;
+  border-color: #b8dea0;
+  color: #d8f9b8;
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip.is-active {
+  background: #d8f9b8;
+  border-color: #b8dea0;
+  color: #161616;
+}
+
+body.dark-mode #keywordsContent .keywords-custom-search input,
+body.dark-mode [id^="keywordModal-"] .keywords-custom-search input {
+  background: var(--card-bg) !important;
+  color: var(--text-color) !important;
+}

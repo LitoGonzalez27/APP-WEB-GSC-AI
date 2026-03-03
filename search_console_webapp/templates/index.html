@@ -562,12 +562,12 @@
                         </h4>
                         <div class="exclusion-tags-wrapper">
                           <div class="exclusion-tags-container" id="kwFilterTagsContainer"></div>
-                          <div class="exclusion-clear-all" id="kwFilterClearAll" style="gap: 8px; display: flex; align-items: center; flex-wrap: wrap;">
+                          <div class="exclusion-clear-all kw-filter-actions" id="kwFilterClearAll">
                             <button type="button" class="clear-all-btn" id="kwFilterClearBtn">
                               <i class="fas fa-trash-alt"></i>
                               Clear All
                             </button>
-                            <button type="button" class="clear-all-btn" id="kwFilterApplyBtn" style="background:#161616; color:#fff; border-color:#161616;">
+                            <button type="button" class="clear-all-btn kw-filter-apply-btn" id="kwFilterApplyBtn">
                               <i class="fas fa-check"></i>
                               Apply Filter
                             </button>
@@ -1150,6 +1150,7 @@
   <!-- Grid.js para tablas avanzadas -->
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='gridjs-styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='keywords-section.css') }}">
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
 
   <style>
