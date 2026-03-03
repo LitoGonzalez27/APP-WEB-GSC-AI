@@ -75,6 +75,54 @@ export async function resetUrlsTableState() {
 // ✅ NUEVO: Variable global para almacenar los datos de keywords
 let globalKeywordData = [];
 
+const KEYWORD_MODAL_META = {
+  top3: {
+    title: 'Top 1-3',
+    info: 'These are the keywords positioned between 1 and 3. Click the search icon to view the SERP.'
+  },
+  top10: {
+    title: 'Positions 4-10',
+    info: 'These are the keywords positioned between 4 and 10. Click the search icon to view the SERP.'
+  },
+  top20: {
+    title: 'Positions 11-20',
+    info: 'These are the keywords positioned between 11 and 20. Click the search icon to view the SERP.'
+  },
+  top20plus: {
+    title: 'Positions 20+',
+    info: 'These are the keywords positioned beyond 20. Click the search icon to view the SERP.'
+  },
+  improved: {
+    title: 'Keywords That Improve',
+    info: 'Keywords with better average position in P1 vs P2.'
+  },
+  worsened: {
+    title: 'Keywords That Decline',
+    info: 'Keywords with worse average position in P1 vs P2.'
+  },
+  same: {
+    title: 'Keywords That Keep Position',
+    info: 'Keywords with the same average position in P1 and P2.'
+  },
+  new: {
+    title: 'New Keywords',
+    info: 'Keywords that rank in P1 but did not rank in P2.'
+  },
+  lost: {
+    title: 'Lost Keywords',
+    info: 'Keywords that ranked in P2 but no longer rank in P1.'
+  }
+};
+
+function createInitialKeywordModalState() {
+  return Object.fromEntries(
+    Object.keys(KEYWORD_MODAL_META).map((key) => ([
+      key,
+      { keywords: [], gridTable: null, analysisType: 'single', isLoading: false }
+    ]))
+  );
+}
+
 // ✅ REMOVIDO: Funciones de formateo - ahora se usan las del módulo centralizado number-utils.js
 
 // ✅ NUEVA función para determinar el tipo de análisis para URLs
@@ -584,10 +632,41 @@ export function renderKeywords(keywordStats = {}) {
   const ov = keywordStats.overall || {};
   
   if (elems.keywordOverviewDiv) {
+    const hasExplicitComparison = !!(
+      window.currentData &&
+      window.currentData.periods &&
+      window.currentData.periods.has_comparison &&
+      window.currentData.periods.comparison
+    );
     // ✅ Adaptar mensajes según si hay comparación o no
-    const hasComparison = (ov.improved > 0 || ov.worsened > 0 || ov.lost > 0);
+    const hasComparison = hasExplicitComparison || (ov.improved > 0 || ov.worsened > 0 || ov.lost > 0);
     
     if (hasComparison) {
+      const buildOverviewTrendCard = ({
+        cardClass,
+        iconClass,
+        label,
+        value,
+        prefix = '',
+        modalKey
+      }) => {
+        const numericValue = Number(value) || 0;
+        const isClickable = numericValue > 0 && !!modalKey;
+        const interactiveAttrs = isClickable
+          ? `data-overview-range="${modalKey}" data-modal-label="${label}" role="button" tabindex="0" aria-label="Open ${label} keywords modal"`
+          : '';
+        const actionClass = isClickable ? '' : ' is-disabled';
+        const actionText = isClickable ? 'View keywords' : 'No keywords';
+        return `
+          <div class="overview-card ${cardClass}${isClickable ? ' overview-card-clickable' : ''}" ${interactiveAttrs}>
+            <div class="card-icon"><i class="${iconClass}"></i></div>
+            <div class="label">${label}</div>
+            <div class="value">${prefix}${formatInteger(numericValue)}</div>
+            <div class="overview-card-action${actionClass}">${actionText}</div>
+          </div>
+        `;
+      };
+
       // Mostrar iconos completos cuando hay comparación de períodos
       elems.keywordOverviewDiv.innerHTML = `
         <div class="overview-card total-kws">
@@ -595,31 +674,45 @@ export function renderKeywords(keywordStats = {}) {
           <div class="label">Total KWs</div>
           <div class="value">${formatInteger(ov.total ?? 0)}</div>
         </div>
-        <div class="overview-card improved">
-          <div class="card-icon"><i class="fas fa-arrow-trend-up"></i></div>
-          <div class="label">Improve positions</div>
-          <div class="value">+${formatInteger(ov.improved ?? 0)}</div>
-        </div>
-        <div class="overview-card declined">
-          <div class="card-icon"><i class="fas fa-arrow-trend-down"></i></div>
-          <div class="label">Decline positions</div>
-          <div class="value">-${formatInteger(ov.worsened ?? 0)}</div>
-        </div>
-        <div class="overview-card same-pos">
-          <div class="card-icon"><i class="fas fa-equals"></i></div>
-          <div class="label">Same pos.</div>
-          <div class="value">${formatInteger(ov.same ?? 0)}</div>
-        </div>
-        <div class="overview-card added">
-          <div class="card-icon"><i class="fas fa-plus-circle"></i></div>
-          <div class="label">New</div>
-          <div class="value">+${formatInteger(ov.new ?? 0)}</div>
-        </div>
-        <div class="overview-card removed">
-          <div class="card-icon"><i class="fas fa-minus-circle"></i></div>
-          <div class="label">Lost</div>
-          <div class="value">-${formatInteger(ov.lost ?? 0)}</div>
-        </div>
+        ${buildOverviewTrendCard({
+          cardClass: 'improved',
+          iconClass: 'fas fa-arrow-trend-up',
+          label: 'Improve positions',
+          value: ov.improved ?? 0,
+          prefix: '+',
+          modalKey: 'improved'
+        })}
+        ${buildOverviewTrendCard({
+          cardClass: 'declined',
+          iconClass: 'fas fa-arrow-trend-down',
+          label: 'Decline positions',
+          value: ov.worsened ?? 0,
+          prefix: '-',
+          modalKey: 'worsened'
+        })}
+        ${buildOverviewTrendCard({
+          cardClass: 'same-pos',
+          iconClass: 'fas fa-equals',
+          label: 'Same pos.',
+          value: ov.same ?? 0,
+          modalKey: 'same'
+        })}
+        ${buildOverviewTrendCard({
+          cardClass: 'added',
+          iconClass: 'fas fa-plus-circle',
+          label: 'New',
+          value: ov.new ?? 0,
+          prefix: '+',
+          modalKey: 'new'
+        })}
+        ${buildOverviewTrendCard({
+          cardClass: 'removed',
+          iconClass: 'fas fa-minus-circle',
+          label: 'Lost',
+          value: ov.lost ?? 0,
+          prefix: '-',
+          modalKey: 'lost'
+        })}
       `;
     } else {
       // Mostrar solo el total de keywords cuando no hay comparación
@@ -633,8 +726,23 @@ export function renderKeywords(keywordStats = {}) {
     }
     elems.keywordOverviewDiv.style.display = 'flex';
     
-    // ✅ NOTA: No se agregan event listeners a las tarjetas del overview
-    // El overview es solo informativo, no clickeable
+    const overviewCards = elems.keywordOverviewDiv.querySelectorAll('.overview-card[data-overview-range]');
+    overviewCards.forEach(card => {
+      const openFromCard = () => {
+        const modalRange = card.dataset.overviewRange;
+        const modalLabel = card.dataset.modalLabel || card.querySelector('.label')?.textContent || '';
+        if (!modalRange) return;
+        openKeywordModal(modalRange, modalLabel);
+      };
+
+      card.addEventListener('click', openFromCard);
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openFromCard();
+        }
+      });
+    });
   }
 
   if (elems.keywordCategoryDiv) {
@@ -1320,12 +1428,7 @@ function filterKeywordsByPosition(keywordData, positionRange) {
 }
 
 // ✅ MIGRADO A GRID.JS: Variables para almacenar datos pre-procesados y Grid.js del modal
-let preProcessedModalData = {
-  top3: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
-  top10: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
-  top20: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false },
-  top20plus: { keywords: [], gridTable: null, analysisType: 'single', isLoading: false }
-};
+let preProcessedModalData = createInitialKeywordModalState();
 
 let modalContainersCreated = false;
 
@@ -1511,19 +1614,21 @@ function updateModalTableHeadersForRange(range, analysisType) {
 }
 
 // ✅ NUEVO: Función para abrir el modal de keywords (versión optimizada con pre-procesamiento)
-function openKeywordModal(positionRange, label) {
-  console.log('🔍 Opening modal for range:', positionRange, 'label:', label);
+function openKeywordModal(modalKey, label = '') {
+  console.log('🔍 Opening modal for range:', modalKey, 'label:', label);
   
   // Verificar que los datos estén pre-procesados
-  if (!preProcessedModalData[positionRange]) {
-    console.error('❌ No pre-processed data found for range:', positionRange);
+  if (!preProcessedModalData[modalKey]) {
+    console.error('❌ No pre-processed data found for range:', modalKey);
     return;
   }
   
-  const data = preProcessedModalData[positionRange];
+  const data = preProcessedModalData[modalKey];
+  const fallbackLabel = KEYWORD_MODAL_META[modalKey]?.title || modalKey;
+  const modalLabel = label || fallbackLabel;
   
   if (data.keywords.length === 0) {
-    console.log('⚠️  No keywords in this position range');
+    console.log('⚠️  No keywords in this selected keyword group');
     return;
   }
   
@@ -1533,10 +1638,15 @@ function openKeywordModal(positionRange, label) {
   }
   
   // Verificar que el modal específico existe
-  const modal = document.getElementById(`keywordModal-${positionRange}`);
+  const modal = document.getElementById(`keywordModal-${modalKey}`);
   if (!modal) {
-    console.error('❌ Modal no encontrado para rango:', positionRange);
+    console.error('❌ Modal no encontrado para rango:', modalKey);
     return;
+  }
+
+  const modalTitleEl = document.getElementById(`keywordModalTitle-${modalKey}`);
+  if (modalTitleEl) {
+    modalTitleEl.innerHTML = `<i class="fas fa-search"></i> ${escapeHtml(modalLabel)}`;
   }
   
   // Verificar que la Grid.js tabla está lista
@@ -1544,13 +1654,13 @@ function openKeywordModal(positionRange, label) {
     console.log('🔄 Grid.js table not ready, creating...');
     data.isLoading = true;
     // No usar await aquí para mantener la apertura instantánea del modal
-    createGridTableForRange(positionRange, data.keywords, data.analysisType).catch(error => {
-      console.error(`❌ Error creating Grid.js table for ${positionRange}:`, error);
+    createGridTableForRange(modalKey, data.keywords, data.analysisType).catch(error => {
+      console.error(`❌ Error creating Grid.js table for ${modalKey}:`, error);
     }).finally(() => {
       data.isLoading = false;
     });
   } else if (!data.gridTable && data.isLoading) {
-    const loadingContainer = document.getElementById(`keywordModalTableContainer-${positionRange}`);
+    const loadingContainer = document.getElementById(`keywordModalTableContainer-${modalKey}`);
     if (loadingContainer && !loadingContainer.querySelector('.keyword-modal-skeleton')) {
       renderKeywordModalTableSkeleton(loadingContainer);
     }
@@ -1560,7 +1670,7 @@ function openKeywordModal(positionRange, label) {
   modal.classList.add('modal-open');
   document.body.style.overflow = 'hidden';
   
-  console.log(`✅ Modal opened instantly for: ${label} (${data.keywords.length} keywords)`);
+  console.log(`✅ Modal opened instantly for: ${modalLabel} (${data.keywords.length} keywords)`);
 }
 
 // ✅ NUEVO: Función para crear todos los contenedores de modales
@@ -1568,27 +1678,19 @@ function createAllModalContainers() {
   if (modalContainersCreated) return;
   
   console.log('🔍 Creating preloaded modal containers...');
-  
-  const ranges = ['top3', 'top10', 'top20', 'top20plus'];
-  const labels = {
-    top3: 'Top 1-3',
-    top10: 'Positions 4-10', 
-    top20: 'Positions 11-20',
-    top20plus: 'Positions 20+'
-  };
 
-  ranges.forEach(range => {
+  Object.entries(KEYWORD_MODAL_META).forEach(([range, meta]) => {
     const modalHTML = `
       <div id="keywordModal-${range}" class="modal">
         <div class="modal-content">
           <div class="modal-header">
-            <h3 id="keywordModalTitle-${range}"><i class="fas fa-search"></i> Keywords in ${labels[range]}</h3>
+            <h3 id="keywordModalTitle-${range}"><i class="fas fa-search"></i> ${meta.title}</h3>
             <span class="close-btn" onclick="closeKeywordModal('${range}')">&times;</span>
           </div>
           <div class="modal-body">
             <div class="keyword-modal-info">
               <i class="fas fa-info-circle"></i>
-              <span>Info: These are the keywords positioned in the selected range. Click the search icon to view the SERP.</span>
+              <span>${meta.info}</span>
             </div>
             <div id="keywordModalTableContainer-${range}" class="table-responsive-container">
               <!-- Grid.js table will be inserted here -->
@@ -1644,7 +1746,7 @@ async function createGridTableForRange(range, keywords, analysisType) {
       <div class="no-aio-message">
         <i class="fas fa-search"></i>
         <h3>No Keywords Found</h3>
-        <p>No keywords found in this position range.</p>
+        <p>No keywords found in this selected group.</p>
       </div>
     `;
     return;
@@ -1686,7 +1788,7 @@ async function createGridTableForRange(range, keywords, analysisType) {
 function closeKeywordModal(range = null) {
   // Si no se especifica rango, cerrar todos los modales
   if (!range) {
-    const ranges = ['top3', 'top10', 'top20', 'top20plus'];
+    const ranges = Object.keys(KEYWORD_MODAL_META);
     ranges.forEach(r => {
       const modal = document.getElementById(`keywordModal-${r}`);
       if (modal && modal.classList.contains('modal-open')) {
@@ -1708,8 +1810,44 @@ function closeKeywordModal(range = null) {
   console.log(`✅ Modal cerrado para rango: ${range}`);
 }
 
-// ✅ NUEVO: Función para pre-procesar datos por rangos de posición
+function toValidKeywordPosition(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function toNumericMetric(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortByCurrentClicksDesc(a, b) {
+  return toNumericMetric(b?.clicks_m1) - toNumericMetric(a?.clicks_m1);
+}
+
+function sortByPreviousClicksDesc(a, b) {
+  return toNumericMetric(b?.clicks_m2) - toNumericMetric(a?.clicks_m2);
+}
+
+function sortByPositionGainDesc(a, b) {
+  const gainA = (toValidKeywordPosition(a?.position_m2) || 0) - (toValidKeywordPosition(a?.position_m1) || 0);
+  const gainB = (toValidKeywordPosition(b?.position_m2) || 0) - (toValidKeywordPosition(b?.position_m1) || 0);
+  return gainB - gainA || sortByCurrentClicksDesc(a, b);
+}
+
+function sortByPositionLossDesc(a, b) {
+  const lossA = (toValidKeywordPosition(a?.position_m1) || 0) - (toValidKeywordPosition(a?.position_m2) || 0);
+  const lossB = (toValidKeywordPosition(b?.position_m1) || 0) - (toValidKeywordPosition(b?.position_m2) || 0);
+  return lossB - lossA || sortByPreviousClicksDesc(a, b);
+}
+
+// ✅ NUEVO: Función para pre-procesar datos por rangos de posición y estado
 function preprocessKeywordDataByRanges(keywordData) {
+  Object.keys(KEYWORD_MODAL_META).forEach((modalKey) => {
+    if (!preProcessedModalData[modalKey]) {
+      preProcessedModalData[modalKey] = { keywords: [], gridTable: null, analysisType: 'single', isLoading: false };
+    }
+  });
+
   if (!keywordData || keywordData.length === 0) {
     // Limpiar datos existentes
     Object.keys(preProcessedModalData).forEach(range => {
@@ -1727,48 +1865,98 @@ function preprocessKeywordDataByRanges(keywordData) {
     return;
   }
 
-  console.log('🔄 Pre-procesando keywords por rangos...');
+  console.log('🔄 Pre-procesando keywords por rangos y tendencias...');
   const startTime = performance.now();
 
   // Determinar tipo de análisis una vez
   const analysisType = getAnalysisTypeModal(keywordData);
-  
+
   // Clasificar keywords por rangos
-  const ranges = {
-    top3: keywordData.filter(kw => {
-      const pos = kw.position_m1;
-      return typeof pos === 'number' && pos >= 1 && pos <= 3;
-    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
-    
-    top10: keywordData.filter(kw => {
-      const pos = kw.position_m1;
-      return typeof pos === 'number' && pos >= 4 && pos <= 10;
-    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
-    
-    top20: keywordData.filter(kw => {
-      const pos = kw.position_m1;
-      return typeof pos === 'number' && pos >= 11 && pos <= 20;
-    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0)),
-    
-    top20plus: keywordData.filter(kw => {
-      const pos = kw.position_m1;
-      return typeof pos === 'number' && pos > 20;
-    }).sort((a, b) => (b.clicks_m1 || 0) - (a.clicks_m1 || 0))
+  const groupedRows = {
+    top3: keywordData
+      .filter((kw) => {
+        const pos = toValidKeywordPosition(kw?.position_m1);
+        return pos !== null && pos >= 1 && pos <= 3;
+      })
+      .sort(sortByCurrentClicksDesc),
+
+    top10: keywordData
+      .filter((kw) => {
+        const pos = toValidKeywordPosition(kw?.position_m1);
+        return pos !== null && pos >= 4 && pos <= 10;
+      })
+      .sort(sortByCurrentClicksDesc),
+
+    top20: keywordData
+      .filter((kw) => {
+        const pos = toValidKeywordPosition(kw?.position_m1);
+        return pos !== null && pos >= 11 && pos <= 20;
+      })
+      .sort(sortByCurrentClicksDesc),
+
+    top20plus: keywordData
+      .filter((kw) => {
+        const pos = toValidKeywordPosition(kw?.position_m1);
+        return pos !== null && pos > 20;
+      })
+      .sort(sortByCurrentClicksDesc),
+
+    improved: [],
+    worsened: [],
+    same: [],
+    new: [],
+    lost: []
   };
 
+  keywordData.forEach((kw) => {
+    const currentPosition = toValidKeywordPosition(kw?.position_m1);
+    const previousPosition = toValidKeywordPosition(kw?.position_m2);
+
+    if (currentPosition !== null && previousPosition !== null) {
+      if (currentPosition < previousPosition) {
+        groupedRows.improved.push(kw);
+      } else if (currentPosition > previousPosition) {
+        groupedRows.worsened.push(kw);
+      } else {
+        groupedRows.same.push(kw);
+      }
+      return;
+    }
+
+    if (currentPosition !== null && previousPosition === null) {
+      groupedRows.new.push(kw);
+      return;
+    }
+
+    if (currentPosition === null && previousPosition !== null) {
+      groupedRows.lost.push(kw);
+    }
+  });
+
+  groupedRows.improved.sort(sortByPositionGainDesc);
+  groupedRows.worsened.sort(sortByPositionLossDesc);
+  groupedRows.same.sort(sortByCurrentClicksDesc);
+  groupedRows.new.sort(sortByCurrentClicksDesc);
+  groupedRows.lost.sort(sortByPreviousClicksDesc);
+
   // Actualizar datos pre-procesados
-  Object.keys(ranges).forEach(range => {
-    preProcessedModalData[range].keywords = ranges[range];
-    preProcessedModalData[range].analysisType = analysisType;
-    preProcessedModalData[range].isLoading = false;
+  Object.keys(KEYWORD_MODAL_META).forEach((modalKey) => {
+    preProcessedModalData[modalKey].keywords = groupedRows[modalKey] || [];
+    preProcessedModalData[modalKey].analysisType = analysisType;
+    preProcessedModalData[modalKey].isLoading = false;
   });
 
   const endTime = performance.now();
   console.log(`✅ Keywords pre-procesadas en ${(endTime - startTime).toFixed(2)}ms:`, {
-    top3: ranges.top3.length,
-    top10: ranges.top10.length,
-    top20: ranges.top20.length,
-    top20plus: ranges.top20plus.length,
+    top3: groupedRows.top3.length,
+    top10: groupedRows.top10.length,
+    top20: groupedRows.top20.length,
+    top20plus: groupedRows.top20plus.length,
+    improved: groupedRows.improved.length,
+    worsened: groupedRows.worsened.length,
+    same: groupedRows.same.length,
+    new: groupedRows.new.length,
+    lost: groupedRows.lost.length,
     analysisType: analysisType
   });
 
