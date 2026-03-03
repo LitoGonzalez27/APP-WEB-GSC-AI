@@ -750,30 +750,29 @@ export function renderKeywords(keywordStats = {}) {
     
     const buildModernCatCard = (title, stat = { current: 0, new: 0, lost: 0, stay: 0 }, dataRange) => {
       const hasComparison = (stat.new > 0 || stat.lost > 0);
-      
-      // ✅ TAREA 2: Iconos de medallas según rango de posición
-      let iconClass = 'fas fa-layer-group'; // fallback
-      let iconColor = '#666';
-      
+
+      let iconClass = 'fas fa-layer-group';
+      let iconColor = '#94A3B8';
+
       switch (dataRange) {
         case 'top3':
           iconClass = 'fas fa-trophy';
-          iconColor = '#FFD700'; // Oro
+          iconColor = '#FFD700';
           break;
         case 'top10':
           iconClass = 'fas fa-trophy';
-          iconColor = '#C0C0C0'; // Plata
+          iconColor = '#C0C0C0';
           break;
         case 'top20':
           iconClass = 'fas fa-trophy';
-          iconColor = '#CD7F32'; // Bronce
+          iconColor = '#CD7F32';
           break;
         case 'top20plus':
           iconClass = 'fas fa-medal';
-          iconColor = '#808080'; // Gris neutro (medalla negra/sin color)
+          iconColor = '#94A3B8';
           break;
       }
-      
+
       return `
         <div class="category-card clickable-card" data-position-range="${dataRange}" style="cursor: pointer;">
           <div class="card-icon"><i class="${iconClass}" style="color: ${iconColor};"></i></div>
@@ -784,6 +783,7 @@ export function renderKeywords(keywordStats = {}) {
             <div class="exit">Lost: <strong>-${formatInteger(stat.lost ?? 0)}</strong></div>
             <div class="maintain">Maintained: <strong>${formatInteger(stat.stay ?? 0)}</strong></div>
           ` : ``}
+          <div class="overview-card-action" style="margin-top: 10px;">View keywords</div>
         </div>
       `;
     };
