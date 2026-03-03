@@ -118,7 +118,7 @@
 /* ── 4. SUMMARY BLOCK GRID ───────────────────── */
 #performanceContent #summaryBlock {
   display: grid !important;
-  grid-template-columns: repeat(2, 1fr) !important;
+  grid-template-columns: repeat(4, 1fr) !important;
   gap: 20px !important;
   margin: 0 auto !important;
   max-width: 1200px !important;
