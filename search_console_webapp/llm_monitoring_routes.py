@@ -4245,199 +4245,715 @@ def get_project_responses(project_id):
 @validate_project_ownership
 def export_project_excel(project_id):
     """
-    Exportar datos del proyecto a Excel
-    
+    Exportar datos COMPLETOS del proyecto a Excel (todas las métricas visibles en UI)
+
     Query params:
         days: int - Período de días (default: 30)
+
+    Sheets generadas:
+        1. Project Summary - Resumen del proyecto y métricas globales
+        2. Share of Voice - SOV de marca y competidores por día
+        3. LLM Comparison - Métricas comparativas por proveedor LLM
+        4. Daily Metrics - Snapshots diarios detallados por LLM
+        5. Prompts & Queries - Performance por prompt/query
+        6. URL Rankings - URLs más citadas por los LLMs
+        7. Sentiment Analysis - Distribución de sentimiento por LLM
+        8. Detailed Results - Datos individuales por query × LLM × día
     """
     from io import BytesIO
     from flask import send_file
-    
-    logger.info(f"📥 Starting Excel export for project {project_id}")
-    
+    json_module = json  # alias to avoid shadowing in nested scope
+
+    logger.info(f"📥 Starting comprehensive Excel export for project {project_id}")
+
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
         from openpyxl.utils import get_column_letter
-        logger.info("✅ openpyxl imported successfully")
     except ImportError as e:
         logger.error(f"openpyxl no está instalado: {e}")
         return jsonify({'error': 'Excel export not available. Missing openpyxl library.'}), 500
-    
+
     days = _normalize_days_param(request.args.get('days'), default=30)
-    
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
-    
+
     try:
         cur = conn.cursor()
-        
-        # Obtener datos del proyecto
+
+        # ──────────────────────────────────────────────────
+        # FETCH ALL DATA
+        # ──────────────────────────────────────────────────
+
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+
+        # 1. Project info
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
+            SELECT name, brand_name, industry, brand_domain, brand_keywords,
+                   competitor_domains, selected_competitors,
+                   language, country_code, enabled_llms, queries_per_llm,
+                   is_active, created_at, last_analysis_date
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         project = cur.fetchone()
-        
+
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-        
-        # Obtener métricas por LLM
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+
         enabled_llms_filter = project.get('enabled_llms') or []
-        
+
+        # Helper for LLM filter in queries
+        def _add_llm_filter(query_str, params_list, column='llm_provider'):
+            if enabled_llms_filter:
+                query_str += f" AND {column} = ANY(%s)"
+                params_list.append(enabled_llms_filter)
+            return query_str, params_list
+
+        # 2. Snapshots (daily metrics per LLM) — source for multiple sheets
+        snap_query = """
+            SELECT
+                snapshot_date, llm_provider,
+                total_queries, total_mentions, mention_rate,
+                avg_position,
+                appeared_in_top3, appeared_in_top5, appeared_in_top10,
+                share_of_voice, weighted_share_of_voice,
+                total_competitor_mentions, competitor_breakdown, weighted_competitor_breakdown,
+                positive_mentions, neutral_mentions, negative_mentions, avg_sentiment_score,
+                avg_response_time_ms, total_cost_usd, total_tokens
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s AND snapshot_date >= %s
+        """
+        snap_params = [project_id, start_date_str]
+        snap_query, snap_params = _add_llm_filter(snap_query, snap_params)
+        snap_query += " ORDER BY snapshot_date DESC, llm_provider"
+        cur.execute(snap_query, snap_params)
+        snapshots = cur.fetchall()
+
+        # 3. Aggregated LLM metrics (from results table)
         metrics_query = """
-            SELECT 
+            SELECT
                 llm_provider,
                 COUNT(DISTINCT query_id) as total_queries,
+                COUNT(*) as total_results,
                 SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
                 ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct,
-                AVG(CASE WHEN sentiment = 'positive' THEN 1 WHEN sentiment = 'negative' THEN -1 ELSE 0 END) as avg_sentiment
+                AVG(position_in_list) FILTER (WHERE position_in_list IS NOT NULL) as avg_position,
+                SUM(CASE WHEN sentiment = 'positive' THEN 1 ELSE 0 END) as positive_count,
+                SUM(CASE WHEN sentiment = 'neutral' THEN 1 ELSE 0 END) as neutral_count,
+                SUM(CASE WHEN sentiment = 'negative' THEN 1 ELSE 0 END) as negative_count,
+                AVG(sentiment_score) as avg_sentiment_score,
+                SUM(cost_usd) as total_cost,
+                SUM(tokens_used) as total_tokens,
+                AVG(response_time_ms) as avg_response_time
             FROM llm_monitoring_results
             WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
         """
         metrics_params = [project_id, start_date, end_date]
-        if enabled_llms_filter:
-            metrics_query += " AND llm_provider = ANY(%s)"
-            metrics_params.append(enabled_llms_filter)
-        metrics_query += """
-            GROUP BY llm_provider
-            ORDER BY llm_provider
-        """
+        metrics_query, metrics_params = _add_llm_filter(metrics_query, metrics_params)
+        metrics_query += " GROUP BY llm_provider ORDER BY llm_provider"
         cur.execute(metrics_query, metrics_params)
-        metrics = cur.fetchall()
-        
-        # Obtener queries con resultados
-        export_country = project['country_code'] or 'Global'
-        queries_export_query = """
-            SELECT 
+        llm_metrics = cur.fetchall()
+
+        # 4. Query/Prompt level data
+        queries_query = """
+            SELECT
                 q.query_text AS prompt,
-                %s::text AS country,
                 q.language,
+                q.query_type,
                 COUNT(DISTINCT r.llm_provider) as llms_analyzed,
-                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as times_mentioned,
-                AVG(r.position_in_list) as avg_position
+                COUNT(r.id) as total_results,
+                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                SUM(CASE WHEN r.position_source = 'link' OR r.position_source = 'both' THEN 1 ELSE 0 END) as url_citations,
+                SUM(CASE WHEN r.position_source = 'text' THEN 1 ELSE 0 END) as text_mentions,
+                ROUND(AVG(CASE WHEN r.brand_mentioned THEN 100.0 ELSE 0 END), 1) as visibility_pct,
+                AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL) as avg_position,
+                MAX(r.analysis_date) as last_analysis
             FROM llm_monitoring_queries q
-            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id AND r.analysis_date >= %s AND r.analysis_date <= %s
+            LEFT JOIN llm_monitoring_results r ON q.id = r.query_id
+                AND r.analysis_date >= %s AND r.analysis_date <= %s
                 {llm_filter}
             WHERE q.project_id = %s AND q.is_active = TRUE
-            GROUP BY q.id, q.query_text, q.language
-            ORDER BY times_mentioned DESC
+            GROUP BY q.id, q.query_text, q.language, q.query_type
+            ORDER BY total_mentions DESC, visibility_pct DESC
         """.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
         )
-        queries_export_params = [export_country, start_date, end_date]
+        queries_params = [start_date, end_date]
         if enabled_llms_filter:
-            queries_export_params.append(enabled_llms_filter)
-        queries_export_params.append(project_id)
-        cur.execute(queries_export_query, queries_export_params)
+            queries_params.append(enabled_llms_filter)
+        queries_params.append(project_id)
+        cur.execute(queries_query, queries_params)
         queries = cur.fetchall()
-        
+
+        # 5. Detailed results (per query × LLM × date)
+        detail_query = """
+            SELECT
+                r.analysis_date,
+                r.llm_provider,
+                r.model_used,
+                q.query_text,
+                r.brand_mentioned,
+                r.mention_count,
+                r.position_in_list,
+                r.total_items_in_list,
+                r.position_source,
+                r.sentiment,
+                r.sentiment_score,
+                r.competitors_mentioned,
+                r.sources,
+                r.tokens_used,
+                r.cost_usd,
+                r.response_time_ms,
+                r.response_length
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON r.query_id = q.id
+            WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+        """
+        detail_params = [project_id, start_date, end_date]
+        detail_query, detail_params = _add_llm_filter(detail_query, detail_params, 'r.llm_provider')
+        detail_query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
+        cur.execute(detail_query, detail_params)
+        detailed_results = cur.fetchall()
+
         cur.close()
         conn.close()
-        
-        # Crear Excel
+
+        # 6. URL Rankings (via service)
+        try:
+            urls_ranking = LLMMonitoringStatsService.get_project_urls_ranking(
+                project_id=project_id,
+                days=days,
+                enabled_llms=enabled_llms_filter if enabled_llms_filter else None,
+                limit=100
+            )
+        except Exception as url_err:
+            logger.warning(f"⚠️ Could not fetch URL rankings: {url_err}")
+            urls_ranking = []
+
+        # ──────────────────────────────────────────────────
+        # BUILD EXCEL WORKBOOK
+        # ──────────────────────────────────────────────────
+
         wb = openpyxl.Workbook()
-        
-        # Estilos
-        header_font = Font(bold=True, color="FFFFFF")
+
+        # — Shared styles —
+        header_font = Font(bold=True, color="FFFFFF", size=10)
         header_fill = PatternFill(start_color="161616", end_color="161616", fill_type="solid")
-        accent_fill = PatternFill(start_color="D8F9B8", end_color="D8F9B8", fill_type="solid")
+        subheader_font = Font(bold=True, size=10)
+        subheader_fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+        title_font = Font(bold=True, size=14, color="161616")
+        section_font = Font(bold=True, size=12, color="161616")
+        brand_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+        positive_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+        negative_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
         border = Border(
             left=Side(style='thin', color='E5E7EB'),
             right=Side(style='thin', color='E5E7EB'),
             top=Side(style='thin', color='E5E7EB'),
             bottom=Side(style='thin', color='E5E7EB')
         )
-        
-        # === Hoja 1: Resumen del Proyecto ===
-        ws_summary = wb.active
-        ws_summary.title = "Project Summary"
-        
-        ws_summary['A1'] = "LLM Monitoring Report"
-        ws_summary['A1'].font = Font(bold=True, size=16)
-        ws_summary['A2'] = f"Project: {project['name']}"
-        ws_summary['A3'] = f"Period: Last {days} days"
-        ws_summary['A4'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        
-        ws_summary['A6'] = "Project Details"
-        ws_summary['A6'].font = Font(bold=True, size=12)
-        ws_summary['A7'] = "Industry:"
-        ws_summary['B7'] = project['industry'] or 'N/A'
-        ws_summary['A8'] = "Brand Domain:"
-        ws_summary['B8'] = project['brand_domain'] or 'N/A'
-        ws_summary['A9'] = "Brand Keywords:"
-        ws_summary['B9'] = ', '.join(project['brand_keywords']) if project['brand_keywords'] else 'N/A'
-        ws_summary['A10'] = "Language:"
-        ws_summary['B10'] = project['language'] or 'N/A'
-        ws_summary['A11'] = "Country:"
-        ws_summary['B11'] = project['country_code'] or 'N/A'
-        
-        # === Hoja 2: Métricas por LLM ===
-        ws_metrics = wb.create_sheet("LLM Metrics")
-        
-        headers = ["LLM Provider", "Total Queries", "Total Mentions", "Mention Rate (%)", "Avg Sentiment"]
-        for col, header in enumerate(headers, 1):
-            cell = ws_metrics.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal='center')
+        center_align = Alignment(horizontal='center', vertical='center')
+        wrap_align = Alignment(wrap_text=True, vertical='top')
+
+        def write_header_row(ws, row, headers_list, col_start=1):
+            """Write styled header row"""
+            for col_idx, h in enumerate(headers_list, col_start):
+                cell = ws.cell(row=row, column=col_idx, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+                cell.border = border
+
+        def write_data_cell(ws, row, col, value, fmt=None):
+            """Write data cell with border"""
+            cell = ws.cell(row=row, column=col, value=value)
             cell.border = border
-        
-        for row_idx, m in enumerate(metrics, 2):
-            ws_metrics.cell(row=row_idx, column=1, value=m['llm_provider'].upper()).border = border
-            ws_metrics.cell(row=row_idx, column=2, value=m['total_queries'] or 0).border = border
-            ws_metrics.cell(row=row_idx, column=3, value=m['total_mentions'] or 0).border = border
-            ws_metrics.cell(row=row_idx, column=4, value=round(float(m['mention_rate_pct'] or 0), 1)).border = border
-            ws_metrics.cell(row=row_idx, column=5, value=round(float(m['avg_sentiment'] or 0), 2)).border = border
-        
-        # Ajustar anchos
-        for col in range(1, 6):
-            ws_metrics.column_dimensions[get_column_letter(col)].width = 20
-        
-        # === Hoja 3: Queries/Prompts ===
-        ws_queries = wb.create_sheet("Prompts & Queries")
-        
-        headers = ["Prompt", "Country", "Language", "LLMs Analyzed", "Times Mentioned", "Avg Position"]
-        for col, header in enumerate(headers, 1):
-            cell = ws_queries.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = border
-        
+            if fmt:
+                cell.number_format = fmt
+            return cell
+
+        def auto_width(ws, min_width=10, max_width=60):
+            """Auto-adjust column widths"""
+            for col_cells in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col_cells[0].column)
+                for cell in col_cells:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                adjusted = min(max(max_len + 2, min_width), max_width)
+                ws.column_dimensions[col_letter].width = adjusted
+
+        # ════════════════════════════════════════════════
+        # SHEET 1: PROJECT SUMMARY
+        # ════════════════════════════════════════════════
+        ws1 = wb.active
+        ws1.title = "Project Summary"
+
+        ws1['A1'] = "LLM Monitoring Report"
+        ws1['A1'].font = title_font
+        ws1['A2'] = f"Project: {project['name']}"
+        ws1['A2'].font = Font(bold=True, size=12)
+        ws1['A3'] = f"Period: Last {days} days ({start_date.strftime('%Y-%m-%d')} → {end_date.strftime('%Y-%m-%d')})"
+        ws1['A4'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        # Project details
+        ws1['A6'] = "Project Configuration"
+        ws1['A6'].font = section_font
+        details = [
+            ("Brand Name", project.get('brand_name') or project['name']),
+            ("Industry", project['industry'] or 'N/A'),
+            ("Brand Domain", project.get('brand_domain') or 'N/A'),
+            ("Brand Keywords", ', '.join(project.get('brand_keywords') or []) or 'N/A'),
+            ("Language", project['language'] or 'N/A'),
+            ("Country", project['country_code'] or 'N/A'),
+            ("Enabled LLMs", ', '.join([llm.upper() for llm in (project.get('enabled_llms') or [])]) or 'All'),
+            ("Queries per LLM", project.get('queries_per_llm') or 'N/A'),
+            ("Status", "Active" if project.get('is_active') else "Paused"),
+            ("Last Analysis", str(project.get('last_analysis_date') or 'Never')),
+        ]
+        for i, (label, value) in enumerate(details, 7):
+            ws1[f'A{i}'] = label
+            ws1[f'A{i}'].font = Font(bold=True)
+            ws1[f'B{i}'] = str(value)
+
+        # Competitors
+        selected_competitors = project.get('selected_competitors') or []
+        row_offset = 7 + len(details) + 1
+        ws1[f'A{row_offset}'] = "Competitors"
+        ws1[f'A{row_offset}'].font = section_font
+        row_offset += 1
+        if selected_competitors:
+            ws1[f'A{row_offset}'] = "Domain"
+            ws1[f'A{row_offset}'].font = Font(bold=True)
+            ws1[f'B{row_offset}'] = "Keywords"
+            ws1[f'B{row_offset}'].font = Font(bold=True)
+            row_offset += 1
+            for comp in selected_competitors:
+                ws1[f'A{row_offset}'] = comp.get('domain', 'N/A')
+                ws1[f'B{row_offset}'] = ', '.join(comp.get('keywords', []))
+                row_offset += 1
+        else:
+            ws1[f'A{row_offset}'] = "No competitors configured"
+            row_offset += 1
+
+        # Global aggregated metrics summary
+        row_offset += 1
+        ws1[f'A{row_offset}'] = "Global Metrics Summary"
+        ws1[f'A{row_offset}'].font = section_font
+        row_offset += 1
+
+        total_mentions_all = sum(m.get('total_mentions') or 0 for m in llm_metrics)
+        total_results_all = sum(m.get('total_results') or 0 for m in llm_metrics)
+        total_cost_all = sum(float(m.get('total_cost') or 0) for m in llm_metrics)
+        total_tokens_all = sum(m.get('total_tokens') or 0 for m in llm_metrics)
+
+        global_summary = [
+            ("Total LLM Responses", total_results_all),
+            ("Total Brand Mentions", total_mentions_all),
+            ("Overall Mention Rate", f"{round(total_mentions_all / total_results_all * 100, 1)}%" if total_results_all > 0 else "N/A"),
+            ("Total Cost (USD)", f"${round(total_cost_all, 4)}"),
+            ("Total Tokens Used", total_tokens_all),
+            ("Active Queries", len(queries)),
+            ("URLs Cited", len(urls_ranking)),
+        ]
+        for label, value in global_summary:
+            ws1[f'A{row_offset}'] = label
+            ws1[f'A{row_offset}'].font = Font(bold=True)
+            ws1[f'B{row_offset}'] = str(value)
+            row_offset += 1
+
+        ws1.column_dimensions['A'].width = 25
+        ws1.column_dimensions['B'].width = 50
+
+        # ════════════════════════════════════════════════
+        # SHEET 2: SHARE OF VOICE (brand vs competitors over time)
+        # ════════════════════════════════════════════════
+        ws2 = wb.create_sheet("Share of Voice")
+
+        # Build SOV data from snapshots
+        # Aggregate across LLMs per date for brand SOV
+        sov_by_date = {}
+        all_competitor_domains = set()
+
+        for snap in snapshots:
+            d = str(snap['snapshot_date'])
+            if d not in sov_by_date:
+                sov_by_date[d] = {
+                    'brand_sov': [], 'brand_weighted_sov': [],
+                    'brand_mentions': 0, 'total_competitor_mentions': 0,
+                    'competitor_breakdown': {}, 'weighted_competitor_breakdown': {}
+                }
+
+            sov_by_date[d]['brand_sov'].append(float(snap['share_of_voice'] or 0))
+            sov_by_date[d]['brand_weighted_sov'].append(float(snap['weighted_share_of_voice'] or 0))
+            sov_by_date[d]['brand_mentions'] += (snap['total_mentions'] or 0)
+            sov_by_date[d]['total_competitor_mentions'] += (snap['total_competitor_mentions'] or 0)
+
+            # Merge competitor breakdowns
+            for field, target in [
+                ('competitor_breakdown', 'competitor_breakdown'),
+                ('weighted_competitor_breakdown', 'weighted_competitor_breakdown')
+            ]:
+                breakdown = snap.get(field) or {}
+                if isinstance(breakdown, str):
+                    try:
+                        breakdown = json_module.loads(breakdown)
+                    except:
+                        breakdown = {}
+                for comp_key, val in breakdown.items():
+                    all_competitor_domains.add(comp_key)
+                    if comp_key not in sov_by_date[d][target]:
+                        sov_by_date[d][target][comp_key] = 0
+                    sov_by_date[d][target][comp_key] += (val if isinstance(val, (int, float)) else 0)
+
+        sorted_competitor_domains = sorted(all_competitor_domains)
+
+        # Build header: Date, Brand SoV (Weighted), Brand SoV (Standard), Brand Mentions,
+        #               Competitor1 SoV, Competitor1 Mentions, Competitor2 SoV, ...
+        sov_headers = [
+            "Date",
+            "Brand SoV Weighted (%)", "Brand SoV Standard (%)",
+            "Brand Mentions", "Total Competitor Mentions"
+        ]
+        for comp_d in sorted_competitor_domains:
+            sov_headers.append(f"{comp_d} - Mentions")
+            sov_headers.append(f"{comp_d} - Weighted SoV")
+
+        write_header_row(ws2, 1, sov_headers)
+
+        row_idx = 2
+        for d in sorted(sov_by_date.keys()):
+            data = sov_by_date[d]
+            avg_wsov = round(sum(data['brand_weighted_sov']) / len(data['brand_weighted_sov']), 2) if data['brand_weighted_sov'] else 0
+            avg_sov = round(sum(data['brand_sov']) / len(data['brand_sov']), 2) if data['brand_sov'] else 0
+
+            col = 1
+            write_data_cell(ws2, row_idx, col, d); col += 1
+            write_data_cell(ws2, row_idx, col, avg_wsov, '0.00'); col += 1
+            write_data_cell(ws2, row_idx, col, avg_sov, '0.00'); col += 1
+            write_data_cell(ws2, row_idx, col, data['brand_mentions']); col += 1
+            write_data_cell(ws2, row_idx, col, data['total_competitor_mentions']); col += 1
+
+            # Competitor columns
+            total_all = data['brand_mentions'] + data['total_competitor_mentions']
+            for comp_d in sorted_competitor_domains:
+                mentions = data['competitor_breakdown'].get(comp_d, 0)
+                weighted = data['weighted_competitor_breakdown'].get(comp_d, 0)
+                write_data_cell(ws2, row_idx, col, mentions); col += 1
+                write_data_cell(ws2, row_idx, col, round(float(weighted), 2) if weighted else 0, '0.00'); col += 1
+
+            row_idx += 1
+
+        auto_width(ws2)
+
+        # ════════════════════════════════════════════════
+        # SHEET 3: LLM COMPARISON (aggregated per provider)
+        # ════════════════════════════════════════════════
+        ws3 = wb.create_sheet("LLM Comparison")
+
+        comp_headers = [
+            "LLM Provider", "Total Queries", "Total Results", "Total Mentions",
+            "Mention Rate (%)", "Avg Position",
+            "Positive", "Neutral", "Negative", "Avg Sentiment Score",
+            "SoV Weighted (%)", "SoV Standard (%)",
+            "Total Cost (USD)", "Total Tokens", "Avg Response Time (ms)"
+        ]
+        write_header_row(ws3, 1, comp_headers)
+
+        # Also compute avg SOV from snapshots per provider
+        sov_per_provider = {}
+        for snap in snapshots:
+            prov = snap['llm_provider']
+            if prov not in sov_per_provider:
+                sov_per_provider[prov] = {'sov': [], 'wsov': []}
+            sov_per_provider[prov]['sov'].append(float(snap['share_of_voice'] or 0))
+            sov_per_provider[prov]['wsov'].append(float(snap['weighted_share_of_voice'] or 0))
+
+        for row_idx, m in enumerate(llm_metrics, 2):
+            prov = m['llm_provider']
+            prov_sov = sov_per_provider.get(prov, {'sov': [0], 'wsov': [0]})
+            avg_wsov = round(sum(prov_sov['wsov']) / len(prov_sov['wsov']), 2) if prov_sov['wsov'] else 0
+            avg_sov = round(sum(prov_sov['sov']) / len(prov_sov['sov']), 2) if prov_sov['sov'] else 0
+
+            col = 1
+            write_data_cell(ws3, row_idx, col, prov.upper()); col += 1
+            write_data_cell(ws3, row_idx, col, m['total_queries'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, m['total_results'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, m['total_mentions'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, round(float(m['mention_rate_pct'] or 0), 1), '0.0'); col += 1
+            write_data_cell(ws3, row_idx, col, round(float(m['avg_position'] or 0), 1) if m['avg_position'] else 'N/A', '0.0'); col += 1
+            write_data_cell(ws3, row_idx, col, m['positive_count'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, m['neutral_count'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, m['negative_count'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, round(float(m['avg_sentiment_score'] or 0), 3) if m['avg_sentiment_score'] else 'N/A', '0.000'); col += 1
+            write_data_cell(ws3, row_idx, col, avg_wsov, '0.00'); col += 1
+            write_data_cell(ws3, row_idx, col, avg_sov, '0.00'); col += 1
+            write_data_cell(ws3, row_idx, col, round(float(m['total_cost'] or 0), 4) if m['total_cost'] else 0, '0.0000'); col += 1
+            write_data_cell(ws3, row_idx, col, m['total_tokens'] or 0); col += 1
+            write_data_cell(ws3, row_idx, col, round(float(m['avg_response_time'] or 0), 0) if m['avg_response_time'] else 'N/A'); col += 1
+
+        auto_width(ws3)
+
+        # ════════════════════════════════════════════════
+        # SHEET 4: DAILY METRICS (snapshots per date × LLM)
+        # ════════════════════════════════════════════════
+        ws4 = wb.create_sheet("Daily Metrics")
+
+        daily_headers = [
+            "Date", "LLM Provider",
+            "Total Queries", "Total Mentions", "Mention Rate (%)",
+            "Avg Position", "Top 3", "Top 5", "Top 10",
+            "SoV Weighted (%)", "SoV Standard (%)",
+            "Competitor Mentions",
+            "Positive", "Neutral", "Negative", "Sentiment Score",
+            "Cost (USD)", "Tokens", "Avg Response (ms)"
+        ]
+        write_header_row(ws4, 1, daily_headers)
+
+        for row_idx, snap in enumerate(snapshots, 2):
+            col = 1
+            write_data_cell(ws4, row_idx, col, str(snap['snapshot_date'])); col += 1
+            write_data_cell(ws4, row_idx, col, snap['llm_provider'].upper()); col += 1
+            write_data_cell(ws4, row_idx, col, snap['total_queries'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['total_mentions'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['mention_rate'] or 0), 1), '0.0'); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['avg_position'] or 0), 1) if snap['avg_position'] else 'N/A', '0.0'); col += 1
+            write_data_cell(ws4, row_idx, col, snap['appeared_in_top3'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['appeared_in_top5'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['appeared_in_top10'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['weighted_share_of_voice'] or 0), 2), '0.00'); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['share_of_voice'] or 0), 2), '0.00'); col += 1
+            write_data_cell(ws4, row_idx, col, snap['total_competitor_mentions'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['positive_mentions'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['neutral_mentions'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['negative_mentions'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['avg_sentiment_score'] or 0), 3) if snap['avg_sentiment_score'] else 'N/A', '0.000'); col += 1
+            write_data_cell(ws4, row_idx, col, round(float(snap['total_cost_usd'] or 0), 4) if snap['total_cost_usd'] else 0, '0.0000'); col += 1
+            write_data_cell(ws4, row_idx, col, snap['total_tokens'] or 0); col += 1
+            write_data_cell(ws4, row_idx, col, snap['avg_response_time_ms'] or 0); col += 1
+
+        auto_width(ws4)
+
+        # ════════════════════════════════════════════════
+        # SHEET 5: PROMPTS & QUERIES (enhanced)
+        # ════════════════════════════════════════════════
+        ws5 = wb.create_sheet("Prompts & Queries")
+
+        export_country = project['country_code'] or 'Global'
+        query_headers = [
+            "Prompt", "Country", "Language", "Type",
+            "LLMs Analyzed", "Total Results",
+            "Total Mentions", "Text Mentions", "URL Citations",
+            "Visibility (%)", "Avg Position",
+            "Last Analysis"
+        ]
+        write_header_row(ws5, 1, query_headers)
+
         for row_idx, q in enumerate(queries, 2):
-            ws_queries.cell(row=row_idx, column=1, value=q['prompt']).border = border
-            ws_queries.cell(row=row_idx, column=2, value=q['country']).border = border
-            ws_queries.cell(row=row_idx, column=3, value=q['language']).border = border
-            ws_queries.cell(row=row_idx, column=4, value=q['llms_analyzed']).border = border
-            ws_queries.cell(row=row_idx, column=5, value=q['times_mentioned']).border = border
-            ws_queries.cell(row=row_idx, column=6, value=round(float(q['avg_position'] or 0), 1) if q['avg_position'] else 'N/A').border = border
-        
-        # Ajustar anchos
-        ws_queries.column_dimensions['A'].width = 60
-        for col in range(2, 7):
-            ws_queries.column_dimensions[get_column_letter(col)].width = 15
-        
-        # Guardar en memoria
+            col = 1
+            write_data_cell(ws5, row_idx, col, q['prompt']); col += 1
+            write_data_cell(ws5, row_idx, col, export_country); col += 1
+            write_data_cell(ws5, row_idx, col, q['language'] or 'N/A'); col += 1
+            write_data_cell(ws5, row_idx, col, q['query_type'] or 'general'); col += 1
+            write_data_cell(ws5, row_idx, col, q['llms_analyzed'] or 0); col += 1
+            write_data_cell(ws5, row_idx, col, q['total_results'] or 0); col += 1
+            write_data_cell(ws5, row_idx, col, q['total_mentions'] or 0); col += 1
+            write_data_cell(ws5, row_idx, col, q['text_mentions'] or 0); col += 1
+            write_data_cell(ws5, row_idx, col, q['url_citations'] or 0); col += 1
+            write_data_cell(ws5, row_idx, col, round(float(q['visibility_pct'] or 0), 1), '0.0'); col += 1
+            write_data_cell(ws5, row_idx, col, round(float(q['avg_position'] or 0), 1) if q['avg_position'] else 'N/A', '0.0'); col += 1
+            write_data_cell(ws5, row_idx, col, str(q['last_analysis']) if q['last_analysis'] else 'N/A'); col += 1
+
+        ws5.column_dimensions['A'].width = 60
+        auto_width(ws5, min_width=12)
+        ws5.column_dimensions['A'].width = 60  # Override for prompt column
+
+        # ════════════════════════════════════════════════
+        # SHEET 6: URL RANKINGS
+        # ════════════════════════════════════════════════
+        ws6 = wb.create_sheet("URL Rankings")
+
+        url_headers = ["Rank", "URL", "Total Mentions", "Percentage (%)", "Providers"]
+        # Add per-LLM breakdown columns
+        llm_provider_names = ['openai', 'anthropic', 'google', 'perplexity']
+        for llm_name in llm_provider_names:
+            url_headers.append(f"{llm_name.upper()} Mentions")
+
+        write_header_row(ws6, 1, url_headers)
+
+        for row_idx, url_data in enumerate(urls_ranking, 2):
+            col = 1
+            write_data_cell(ws6, row_idx, col, url_data.get('rank', row_idx - 1)); col += 1
+            write_data_cell(ws6, row_idx, col, url_data.get('url', 'N/A')); col += 1
+            write_data_cell(ws6, row_idx, col, url_data.get('mentions', 0)); col += 1
+            write_data_cell(ws6, row_idx, col, round(float(url_data.get('percentage', 0)), 1), '0.0'); col += 1
+            write_data_cell(ws6, row_idx, col, ', '.join(url_data.get('providers', []))); col += 1
+
+            llm_breakdown = url_data.get('llm_breakdown', {})
+            for llm_name in llm_provider_names:
+                write_data_cell(ws6, row_idx, col, llm_breakdown.get(llm_name, 0)); col += 1
+
+        ws6.column_dimensions['B'].width = 70
+        auto_width(ws6, min_width=12)
+        ws6.column_dimensions['B'].width = 70  # Override for URL column
+
+        # ════════════════════════════════════════════════
+        # SHEET 7: SENTIMENT ANALYSIS
+        # ════════════════════════════════════════════════
+        ws7 = wb.create_sheet("Sentiment Analysis")
+
+        # Section A: Sentiment by LLM Provider (aggregated)
+        ws7['A1'] = "Sentiment Distribution by LLM Provider"
+        ws7['A1'].font = section_font
+
+        sent_headers = [
+            "LLM Provider", "Positive", "Neutral", "Negative", "Total",
+            "Positive %", "Neutral %", "Negative %", "Avg Sentiment Score"
+        ]
+        write_header_row(ws7, 3, sent_headers)
+
+        row_idx = 4
+        for m in llm_metrics:
+            pos = m['positive_count'] or 0
+            neu = m['neutral_count'] or 0
+            neg = m['negative_count'] or 0
+            total = pos + neu + neg
+
+            col = 1
+            write_data_cell(ws7, row_idx, col, m['llm_provider'].upper()); col += 1
+            c = write_data_cell(ws7, row_idx, col, pos); c.fill = positive_fill; col += 1
+            write_data_cell(ws7, row_idx, col, neu); col += 1
+            c = write_data_cell(ws7, row_idx, col, neg); c.fill = negative_fill; col += 1
+            write_data_cell(ws7, row_idx, col, total); col += 1
+            write_data_cell(ws7, row_idx, col, round(pos / total * 100, 1) if total > 0 else 0, '0.0'); col += 1
+            write_data_cell(ws7, row_idx, col, round(neu / total * 100, 1) if total > 0 else 0, '0.0'); col += 1
+            write_data_cell(ws7, row_idx, col, round(neg / total * 100, 1) if total > 0 else 0, '0.0'); col += 1
+            write_data_cell(ws7, row_idx, col, round(float(m['avg_sentiment_score'] or 0), 3), '0.000'); col += 1
+            row_idx += 1
+
+        # Section B: Sentiment over time (from snapshots)
+        row_idx += 2
+        ws7.cell(row=row_idx, column=1, value="Sentiment Over Time (Daily)").font = section_font
+        row_idx += 1
+
+        sent_time_headers = ["Date", "LLM Provider", "Positive", "Neutral", "Negative", "Sentiment Score"]
+        write_header_row(ws7, row_idx, sent_time_headers)
+        row_idx += 1
+
+        for snap in snapshots:
+            col = 1
+            write_data_cell(ws7, row_idx, col, str(snap['snapshot_date'])); col += 1
+            write_data_cell(ws7, row_idx, col, snap['llm_provider'].upper()); col += 1
+            write_data_cell(ws7, row_idx, col, snap['positive_mentions'] or 0); col += 1
+            write_data_cell(ws7, row_idx, col, snap['neutral_mentions'] or 0); col += 1
+            write_data_cell(ws7, row_idx, col, snap['negative_mentions'] or 0); col += 1
+            write_data_cell(ws7, row_idx, col, round(float(snap['avg_sentiment_score'] or 0), 3) if snap['avg_sentiment_score'] else 'N/A', '0.000'); col += 1
+            row_idx += 1
+
+        auto_width(ws7)
+
+        # ════════════════════════════════════════════════
+        # SHEET 8: DETAILED RESULTS (per query × LLM × date)
+        # ════════════════════════════════════════════════
+        ws8 = wb.create_sheet("Detailed Results")
+
+        detail_headers = [
+            "Date", "LLM Provider", "Model", "Query/Prompt",
+            "Brand Mentioned", "Mention Count", "Position", "Total in List",
+            "Position Source", "Sentiment", "Sentiment Score",
+            "Competitors Mentioned", "URLs Cited",
+            "Tokens", "Cost (USD)", "Response Time (ms)", "Response Length"
+        ]
+        write_header_row(ws8, 1, detail_headers)
+
+        # Limit to 5000 rows to avoid memory issues
+        max_detail_rows = min(len(detailed_results), 5000)
+
+        for row_idx, r in enumerate(detailed_results[:max_detail_rows], 2):
+            col = 1
+            write_data_cell(ws8, row_idx, col, str(r['analysis_date'])); col += 1
+            write_data_cell(ws8, row_idx, col, r['llm_provider'].upper()); col += 1
+            write_data_cell(ws8, row_idx, col, r['model_used'] or 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, r['query_text'] or 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, "Yes" if r['brand_mentioned'] else "No"); col += 1
+            write_data_cell(ws8, row_idx, col, r['mention_count'] or 0); col += 1
+            write_data_cell(ws8, row_idx, col, r['position_in_list'] if r['position_in_list'] else 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, r['total_items_in_list'] if r['total_items_in_list'] else 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, r['position_source'] or 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, r['sentiment'] or 'N/A'); col += 1
+            write_data_cell(ws8, row_idx, col, round(float(r['sentiment_score'] or 0), 3) if r['sentiment_score'] else 'N/A', '0.000'); col += 1
+
+            # Competitors mentioned (JSON → readable string)
+            comps = r.get('competitors_mentioned') or {}
+            if isinstance(comps, str):
+                try:
+                    comps = json_module.loads(comps)
+                except:
+                    comps = {}
+            if isinstance(comps, dict) and comps:
+                comps_str = ', '.join([f"{k}: {v}" for k, v in comps.items()])
+            else:
+                comps_str = 'None'
+            write_data_cell(ws8, row_idx, col, comps_str); col += 1
+
+            # Sources/URLs (JSON → readable string)
+            sources = r.get('sources') or []
+            if isinstance(sources, str):
+                try:
+                    sources = json_module.loads(sources)
+                except:
+                    sources = []
+            if isinstance(sources, list) and sources:
+                urls_str = ', '.join([s.get('url', '') for s in sources if isinstance(s, dict) and s.get('url')])
+            else:
+                urls_str = 'None'
+            write_data_cell(ws8, row_idx, col, urls_str); col += 1
+
+            write_data_cell(ws8, row_idx, col, r['tokens_used'] or 0); col += 1
+            write_data_cell(ws8, row_idx, col, round(float(r['cost_usd'] or 0), 6) if r['cost_usd'] else 0, '0.000000'); col += 1
+            write_data_cell(ws8, row_idx, col, r['response_time_ms'] or 0); col += 1
+            write_data_cell(ws8, row_idx, col, r['response_length'] or 0); col += 1
+
+        # Add note if truncated
+        if len(detailed_results) > max_detail_rows:
+            note_row = max_detail_rows + 2
+            ws8.cell(row=note_row, column=1,
+                     value=f"⚠ Showing {max_detail_rows} of {len(detailed_results)} results. Full data available in the application.").font = Font(italic=True, color="666666")
+
+        ws8.column_dimensions['D'].width = 60  # Query column
+        ws8.column_dimensions['L'].width = 30  # Competitors
+        ws8.column_dimensions['M'].width = 50  # URLs
+        auto_width(ws8, min_width=12)
+        ws8.column_dimensions['D'].width = 60
+        ws8.column_dimensions['L'].width = 30
+        ws8.column_dimensions['M'].width = 50
+
+        # ──────────────────────────────────────────────────
+        # SAVE & RETURN
+        # ──────────────────────────────────────────────────
+
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        
-        filename = f"llm-monitoring-{project['name'].replace(' ', '-')}-{datetime.now().strftime('%Y%m%d')}.xlsx"
-        
-        logger.info(f"✅ Excel exportado para proyecto {project_id}")
-        
+
+        safe_name = project['name'].replace(' ', '-').replace('/', '-')[:50]
+        filename = f"llm-monitoring-{safe_name}-{days}d-{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        logger.info(f"✅ Comprehensive Excel exported for project {project_id} ({len(snapshots)} snapshots, {len(queries)} queries, {len(detailed_results)} results, {len(urls_ranking)} URLs)")
+
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
             download_name=filename
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Error exportando Excel para proyecto {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando Excel: {str(e)}'}), 500
