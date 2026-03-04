@@ -1116,5 +1116,197 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
         if conn:
             conn.close()
 
+def get_time_segmented_stats():
+    """
+    Devuelve métricas segmentadas por periodo: hoy, últimos 7 días, último mes.
+    Cada periodo incluye:
+      - active_users:    usuarios que hicieron login en el periodo
+      - cancellations:   usuarios con billing_status='canceled' cuyo updated_at cae en el periodo
+      - registrations:   usuarios cuyo created_at cae en el periodo
+      - ru_consumed:     suma de ru_consumed en quota_usage_events
+      - llm_units:       count de llm_monitoring_results
+      - llm_cost:        sum de cost_usd en llm_monitoring_results
+    """
+    empty_period = {
+        'active_users': 0,
+        'cancellations': 0,
+        'registrations': 0,
+        'ru_consumed': 0,
+        'llm_units': 0,
+        'llm_cost': 0.0
+    }
+    result = {
+        'today': dict(empty_period),
+        'week': dict(empty_period),
+        'month': dict(empty_period)
+    }
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return result
+        cur = conn.cursor()
+
+        now = datetime.utcnow()
+        day_start, next_day = _get_today_bounds(now)
+        week_start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start, next_month = _get_month_bounds(now)
+
+        periods = [
+            ('today', day_start, next_day),
+            ('week', week_start, next_day),       # últimos 7 días hasta ahora
+            ('month', month_start, next_month),    # mes en curso
+        ]
+
+        # ── 1. Usuarios activos (last_login_at en el periodo) ──
+        for key, start, end in periods:
+            try:
+                cur.execute('''
+                    SELECT COUNT(*) AS cnt FROM users
+                    WHERE last_login_at >= %s AND last_login_at < %s
+                ''', (start, end))
+                row = cur.fetchone()
+                result[key]['active_users'] = int(row['cnt'] if isinstance(row, dict) else row[0]) if row else 0
+            except Exception:
+                pass
+
+        # ── 2. Cancelaciones (billing_status='canceled', updated_at en el periodo) ──
+        for key, start, end in periods:
+            try:
+                cur.execute('''
+                    SELECT COUNT(*) AS cnt FROM users
+                    WHERE billing_status = 'canceled'
+                      AND updated_at >= %s AND updated_at < %s
+                ''', (start, end))
+                row = cur.fetchone()
+                result[key]['cancellations'] = int(row['cnt'] if isinstance(row, dict) else row[0]) if row else 0
+            except Exception:
+                pass
+
+        # ── 3. Registros (created_at en el periodo) ──
+        for key, start, end in periods:
+            try:
+                cur.execute('''
+                    SELECT COUNT(*) AS cnt FROM users
+                    WHERE created_at >= %s AND created_at < %s
+                ''', (start, end))
+                row = cur.fetchone()
+                result[key]['registrations'] = int(row['cnt'] if isinstance(row, dict) else row[0]) if row else 0
+            except Exception:
+                pass
+
+        # ── 4. RU consumidas (quota_usage_events) ──
+        columns = _get_table_columns(cur, 'quota_usage_events')
+        time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
+        if time_col and time_col in _ALLOWED_TIME_COLS:
+            for key, start, end in periods:
+                try:
+                    cur.execute(f'''
+                        SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
+                        FROM quota_usage_events
+                        WHERE {time_col} >= %s AND {time_col} < %s
+                    ''', (start, end))
+                    row = cur.fetchone()
+                    result[key]['ru_consumed'] = int(row['total_ru'] if isinstance(row, dict) else row[0]) if row else 0
+                except Exception:
+                    pass
+
+        # ── 5. LLM unidades y coste (llm_monitoring_results, usa DATE) ──
+        try:
+            cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
+            reg = cur.fetchone()
+            has_llm = reg and (reg['reg'] if isinstance(reg, dict) else reg[0])
+        except Exception:
+            has_llm = False
+
+        if has_llm:
+            for key, start, end in periods:
+                try:
+                    # analysis_date es DATE, convertir a date
+                    start_date = start.date() if hasattr(start, 'date') else start
+                    end_date = end.date() if hasattr(end, 'date') else end
+                    cur.execute('''
+                        SELECT COUNT(*) AS units,
+                               COALESCE(SUM(cost_usd), 0) AS cost
+                        FROM llm_monitoring_results
+                        WHERE analysis_date >= %s AND analysis_date < %s
+                    ''', (start_date, end_date))
+                    row = cur.fetchone()
+                    if row:
+                        result[key]['llm_units'] = int(row['units'] if isinstance(row, dict) else row[0])
+                        result[key]['llm_cost'] = float(row['cost'] if isinstance(row, dict) else row[1])
+                except Exception:
+                    pass
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error en get_time_segmented_stats: {e}")
+        return result
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_revenue_stats():
+    """
+    Devuelve ingresos estimados mensuales EXCLUYENDO admins.
+    Incluye desglose por plan y total.
+    """
+    PLAN_PRICES = {
+        'basic': 29.99,
+        'premium': 49.99,
+        'business': 139.99,
+    }
+    empty = {
+        'total_revenue': 0.0,
+        'by_plan': {},
+        'paying_users': 0
+    }
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return empty
+        cur = conn.cursor()
+
+        # Contar usuarios de pago por plan, excluyendo admins
+        cur.execute('''
+            SELECT plan, COUNT(*) AS cnt
+            FROM users
+            WHERE role != 'admin'
+              AND plan IN ('basic', 'premium', 'business')
+            GROUP BY plan
+        ''')
+        rows = cur.fetchall()
+
+        by_plan = {}
+        total_revenue = 0.0
+        paying_users = 0
+        for row in rows:
+            plan = row['plan'] if isinstance(row, dict) else row[0]
+            cnt = int(row['cnt'] if isinstance(row, dict) else row[1])
+            price = PLAN_PRICES.get(plan, 0)
+            rev = cnt * price
+            by_plan[plan] = {'count': cnt, 'price': price, 'revenue': round(rev, 2)}
+            total_revenue += rev
+            paying_users += cnt
+
+        return {
+            'total_revenue': round(total_revenue, 2),
+            'by_plan': by_plan,
+            'paying_users': paying_users
+        }
+
+    except Exception as e:
+        logger.error(f"Error en get_revenue_stats: {e}")
+        return empty
+    finally:
+        if conn:
+            conn.close()
+
+
 if __name__ == "__main__":
     test_billing_functions()

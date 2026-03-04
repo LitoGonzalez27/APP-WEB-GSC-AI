@@ -1621,17 +1621,22 @@ def setup_auth_routes(app):
 
             # 🚀 MEJORA: Usar funciones de billing para datos completos
             try:
-                from admin_billing_panel import get_users_with_billing, get_billing_stats
+                from admin_billing_panel import get_users_with_billing, get_billing_stats, get_time_segmented_stats, get_revenue_stats
                 users = get_users_with_billing(limit=per_page, offset=offset)
                 # Fusionar stats básicos con stats de billing
                 basic_stats = get_user_stats()
                 billing_stats = get_billing_stats()
                 stats = {**basic_stats, **billing_stats}
+                # Stats segmentados por periodo + ingresos (sin admins)
+                time_stats = get_time_segmented_stats()
+                revenue_stats = get_revenue_stats()
                 logger.info(f"✅ Admin panel mejorado - Usuarios con billing: {len(users)}")
             except ImportError as e:
                 logger.warning(f"⚠️ Fallback a función básica - admin_billing_panel no disponible: {e}")
                 users = get_all_users()
                 stats = get_user_stats()
+                time_stats = {}
+                revenue_stats = {}
             
             current_user = get_current_user()
             total_users = stats.get('total_users', len(users))
@@ -1645,6 +1650,8 @@ def setup_auth_routes(app):
                 'admin_simple.html',
                 users=users,
                 stats=stats,
+                time_stats=time_stats,
+                revenue_stats=revenue_stats,
                 current_user=current_user,
                 page=page,
                 per_page=per_page,
@@ -1657,7 +1664,7 @@ def setup_auth_routes(app):
             users = get_all_users() if 'get_all_users' in globals() else []
             stats = get_user_stats() if 'get_user_stats' in globals() else {}
             current_user = get_current_user()
-            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user)
+            return render_template('admin_simple.html', users=users, stats=stats, current_user=current_user, time_stats={}, revenue_stats={})
 
     @app.route('/admin/users/<int:user_id>/billing-details')
     @admin_required
