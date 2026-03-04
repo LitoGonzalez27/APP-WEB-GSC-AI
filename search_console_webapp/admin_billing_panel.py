@@ -1054,15 +1054,18 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
         ''', (next_reset, user_id))
         
         # Registrar evento de reset en quota_usage_events (si la tabla existe)
+        # ✅ FIX: Usar SAVEPOINT para que un fallo del INSERT (e.g. CHECK constraint)
+        #    no aborte toda la transacción de PostgreSQL.
         try:
+            cur.execute('SAVEPOINT quota_event_insert')
             cur.execute('''
                 INSERT INTO quota_usage_events
                 (user_id, ru_consumed, source, keyword, country_code, timestamp, metadata)
                 VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             ''', (
-                user_id, 
+                user_id,
                 0,  # No consume RU, es un reset
-                'admin_quota_reset',
+                'manual_ai',  # Usar valor permitido por CHECK constraint
                 'admin_quota_reset',
                 '',
                 json.dumps({
@@ -1072,8 +1075,13 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
                     'reason': 'Manual admin reset'
                 })
             ))
+            cur.execute('RELEASE SAVEPOINT quota_event_insert')
         except Exception as event_error:
-            # Si falla el registro de evento, continuar (no crítico)
+            # Rollback solo el SAVEPOINT, no toda la transacción
+            try:
+                cur.execute('ROLLBACK TO SAVEPOINT quota_event_insert')
+            except Exception:
+                pass
             logger.warning(f"Could not log quota reset event: {event_error}")
 
         try:
