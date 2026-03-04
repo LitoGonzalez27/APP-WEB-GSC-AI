@@ -1718,6 +1718,28 @@ def analyze_single_keyword_ai_impact(keyword_arg, site_url_arg, country_code=Non
             raise Exception(error_msg)
 
         ai_analysis_data = detect_ai_overview_elements(serp_data_from_service, site_url_arg)
+
+        # Fix #1: If AI Overview is collapsed (has page_token), make second API call
+        if ai_analysis_data.get('debug_info', {}).get('requires_additional_request'):
+            page_token = ai_analysis_data['debug_info'].get('page_token', '')
+            if page_token:
+                logger.info(f"[AI OVERVIEW] Making second API call with page_token for '{keyword_arg}'")
+                try:
+                    expanded_params = dict(params_ai)
+                    expanded_params['page_token'] = page_token
+                    expanded_serp_data = get_serp_json(expanded_params)
+
+                    if expanded_serp_data and not expanded_serp_data.get('error') and expanded_serp_data.get('ai_overview'):
+                        logger.info(f"[AI OVERVIEW] Expanded AI Overview received for '{keyword_arg}'")
+                        # Merge expanded ai_overview into original SERP data for complete analysis
+                        serp_data_from_service['ai_overview'] = expanded_serp_data['ai_overview']
+                        ai_analysis_data = detect_ai_overview_elements(serp_data_from_service, site_url_arg)
+                    else:
+                        logger.warning(f"[AI OVERVIEW] Second call returned no expanded data for '{keyword_arg}'")
+                except Exception as e_page_token:
+                    logger.warning(f"[AI OVERVIEW] Second API call failed for '{keyword_arg}': {e_page_token}")
+                    # Keep the original analysis (has_ai_overview=True but no references)
+
         organic_results_data = serp_data_from_service.get('organic_results', [])
         site_pos_info = get_site_position_from_serp(keyword_arg, site_url_arg, organic_results_data, serp_data_from_service)
         

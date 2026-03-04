@@ -1571,7 +1571,19 @@ def init_ai_overview_tables():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_user ON ai_overview_analysis(user_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_word_count ON ai_overview_analysis(keyword_word_count)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_ai_analysis_has_ai ON ai_overview_analysis(has_ai_overview)')
-        
+
+        # Fix #2: Add aio_serp_position column (top/middle/bottom)
+        try:
+            cur.execute("ALTER TABLE ai_overview_analysis ADD COLUMN IF NOT EXISTS aio_serp_position VARCHAR(10)")
+        except Exception:
+            pass  # Column may already exist
+
+        # Fix #3: Unique index for UPSERT — one row per (site, keyword, country, date, user)
+        cur.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_analysis_upsert
+            ON ai_overview_analysis(site_url, keyword, country_code, CAST(analysis_date AS DATE), COALESCE(user_id, 0))
+        ''')
+
         conn.commit()
         logger.info("Tablas de AI Overview Analysis inicializadas correctamente")
         return True
@@ -1584,27 +1596,27 @@ def init_ai_overview_tables():
             conn.close()
 
 def save_ai_overview_analysis(analysis_data, user_id=None):
-    """Guarda un análisis de AI Overview en la base de datos"""
+    """Guarda un análisis de AI Overview en la base de datos (UPSERT: actualiza si ya existe hoy)"""
     try:
         conn = get_db_connection()
         if not conn:
             return False
-            
+
         cur = conn.cursor()
         saved_count = 0
-        
+
         results = analysis_data.get('results', [])
-        
+
         for result in results:
             try:
                 # Extraer datos del resultado
                 keyword = result.get('keyword', '')
                 site_url = analysis_data.get('site_url', '')
                 country_code = result.get('country_analyzed', '')
-                
+
                 # Calcular número de palabras en la keyword
                 keyword_word_count = len(keyword.split()) if keyword else 0
-                
+
                 # Datos de AI Overview
                 ai_analysis = result.get('ai_analysis', {})
                 has_ai_overview = ai_analysis.get('has_ai_overview', False)
@@ -1612,10 +1624,11 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
                 impact_score = ai_analysis.get('impact_score', 0)
                 ai_elements_count = ai_analysis.get('total_elements', 0)
                 domain_ai_source_position = ai_analysis.get('domain_ai_source_position')
-                
+                aio_serp_position = ai_analysis.get('aio_serp_position')  # Fix #2
+
                 # Métricas de GSC
                 clicks_m1 = result.get('clicks_m1', 0)
-                clicks_m2 = result.get('clicks_m2', 0) 
+                clicks_m2 = result.get('clicks_m2', 0)
                 delta_clicks_absolute = result.get('delta_clicks_absolute', 0)
                 delta_clicks_percent = result.get('delta_clicks_percent')
                 impressions_m1 = result.get('impressions_m1', 0)
@@ -1624,7 +1637,7 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
                 ctr_m2 = result.get('ctr_m2')
                 position_m1 = result.get('position_m1')
                 position_m2 = result.get('position_m2')
-                
+
                 # Datos raw como JSON
                 raw_data = {
                     'ai_analysis': ai_analysis,
@@ -1633,17 +1646,28 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
                     'timestamp': result.get('timestamp'),
                     'analysis_summary': analysis_data.get('summary', {})
                 }
-                
+
+                # Fix #3: UPSERT — delete existing row for same day, then insert
+                # This is safer than ON CONFLICT with expression indexes
+                cur.execute('''
+                    DELETE FROM ai_overview_analysis
+                    WHERE site_url = %s
+                      AND keyword = %s
+                      AND country_code = %s
+                      AND CAST(analysis_date AS DATE) = CURRENT_DATE
+                      AND COALESCE(user_id, 0) = COALESCE(%s, 0)
+                ''', (site_url, keyword, country_code, user_id))
+
                 cur.execute('''
                     INSERT INTO ai_overview_analysis (
-                        site_url, keyword, has_ai_overview, domain_is_ai_source, 
+                        site_url, keyword, has_ai_overview, domain_is_ai_source,
                         impact_score, country_code, keyword_word_count,
                         clicks_m1, clicks_m2, delta_clicks_absolute, delta_clicks_percent,
                         impressions_m1, impressions_m2, ctr_m1, ctr_m2,
                         position_m1, position_m2, ai_elements_count,
-                        domain_ai_source_position, raw_data, user_id
+                        domain_ai_source_position, aio_serp_position, raw_data, user_id
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                 ''', (
                     site_url, keyword, has_ai_overview, domain_is_ai_source,
@@ -1651,11 +1675,11 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
                     clicks_m1, clicks_m2, delta_clicks_absolute, delta_clicks_percent,
                     impressions_m1, impressions_m2, ctr_m1, ctr_m2,
                     position_m1, position_m2, ai_elements_count,
-                    domain_ai_source_position, json.dumps(raw_data), user_id
+                    domain_ai_source_position, aio_serp_position, json.dumps(raw_data), user_id
                 ))
-                
+
                 saved_count += 1
-                
+
             except Exception as e:
                 logger.error(f"Error guardando análisis para keyword '{keyword}': {e}")
                 continue

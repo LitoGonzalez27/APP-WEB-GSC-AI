@@ -342,47 +342,18 @@ class AnalysisService:
         brand_name = project.get('brand_name', '')
         country_code = project.get('country_code', 'US')
         
-        # Mapeo de códigos ISO-2 a ubicaciones para Google AI Mode
-        # SerpApi requiere formato "Ciudad, País" para evitar errores de dominio
-        # Usar ciudad principal evita que SerpAPI derive dominios incorrectos (ej: google.esp)
-        location_map = {
-            'ES': 'Madrid, Spain',           # NO usar solo 'Spain' (causa error google.esp)
-            'US': 'New York, United States',
-            'GB': 'London, United Kingdom',
-            'FR': 'Paris, France',
-            'DE': 'Berlin, Germany',
-            'IT': 'Rome, Italy',
-            'PT': 'Lisbon, Portugal',
-            'MX': 'Mexico City, Mexico',
-            'AR': 'Buenos Aires, Argentina',
-            'CO': 'Bogotá, Colombia',
-            'CL': 'Santiago, Chile',
-            'PE': 'Lima, Peru',
-            'BR': 'São Paulo, Brazil',
-            'CA': 'Toronto, Canada',
-            'AU': 'Sydney, Australia',
-            'NZ': 'Auckland, New Zealand',
-            'IN': 'Mumbai, India',
-            'JP': 'Tokyo, Japan',
-            'CN': 'Beijing, China',
-            'KR': 'Seoul, South Korea',
-            'NL': 'Amsterdam, Netherlands',
-            'BE': 'Brussels, Belgium',
-            'CH': 'Zurich, Switzerland',
-            'AT': 'Vienna, Austria',
-            'SE': 'Stockholm, Sweden',
-            'NO': 'Oslo, Norway',
-            'DK': 'Copenhagen, Denmark',
-            'FI': 'Helsinki, Finland',
-            'PL': 'Warsaw, Poland',
-            'CZ': 'Prague, Czech Republic',
-            'IE': 'Dublin, Ireland',
-            'GR': 'Athens, Greece',
-            'RO': 'Bucharest, Romania',
-            'HU': 'Budapest, Hungary'
-        }
-        
-        location = location_map.get(country_code, 'Madrid, Spain')  # Default con ciudad
+        # Fix #7: Unified location map — use country_config.py (70+ countries) via ISO-2 conversion
+        # instead of hardcoded 32-country map
+        internal_code = convert_iso_to_internal_country(country_code)
+        try:
+            from services.country_config import get_country_config
+            country_cfg = get_country_config(internal_code)
+            if country_cfg:
+                location = country_cfg['serp_location']
+            else:
+                location = 'Madrid, Spain'  # Fallback seguro
+        except Exception:
+            location = 'Madrid, Spain'
         
         try:
             # Parámetros para Google AI Mode (google.com/ai)
@@ -676,7 +647,7 @@ class AnalysisService:
         if not result['brand_mentioned']:
             logger.info(f"❌ Brand '{brand_name}' not found in AI Mode results")
             logger.info(f"   → Analyzed {len(text_blocks)} text_blocks and {len(references)} references")
-            logger.debug(f"   → Variations searched: {variations}")
+            logger.debug(f"   → Variations searched: domain={domain_variations}, text={text_variations}")
         
         return result
 

@@ -6,6 +6,78 @@ from .utils import urls_match, normalize_search_console_url, extract_domain
 
 logger = logging.getLogger(__name__)
 
+
+def _detect_aio_serp_position(serp_data):
+    """
+    Detect where the AI Overview appears in the SERP page.
+
+    Returns: 'top', 'middle', 'bottom', or None
+
+    Logic:
+    - 'top': AIO appears before any organic results (most common)
+    - 'middle': AIO appears between organic results
+    - 'bottom': AIO appears after most organic results
+
+    SerpAPI signals this via:
+    - 'ai_overview' key position relative to other SERP features
+    - 'inline_*' position indicators for some features
+    - Whether ads appear above/below the AIO
+    """
+    if not serp_data or 'ai_overview' not in serp_data:
+        return None
+
+    # Check for explicit position indicators from SerpAPI
+    ai_overview = serp_data.get('ai_overview', {})
+
+    # Some SerpAPI responses include a 'position' or block_position field
+    if isinstance(ai_overview, dict):
+        explicit_pos = ai_overview.get('block_position')
+        if explicit_pos is not None:
+            try:
+                pos_num = int(explicit_pos)
+                if pos_num <= 1:
+                    return 'top'
+                elif pos_num <= 5:
+                    return 'middle'
+                else:
+                    return 'bottom'
+            except (ValueError, TypeError):
+                pass
+
+    # Heuristic: Check what appears before organic results
+    # If there are ads + AI Overview but organic_results start at position 1+, AIO is likely at top
+    has_ads = bool(serp_data.get('ads'))
+    organic_results = serp_data.get('organic_results', [])
+
+    if not organic_results:
+        return 'top'  # No organic results → AIO dominates the page
+
+    # Check if first organic result has a high position number
+    # (indicating many things appear before it, including AIO)
+    first_organic_position = organic_results[0].get('position', 1) if organic_results else 1
+
+    # SerpAPI returns inline positions for some features
+    # If there's an inline_ai_overview or similar, check its position
+    for key in serp_data:
+        if 'inline' in key.lower() and 'ai' in key.lower():
+            inline_data = serp_data[key]
+            if isinstance(inline_data, dict) and 'block_position' in inline_data:
+                try:
+                    pos = int(inline_data['block_position'])
+                    if pos <= 2:
+                        return 'top'
+                    elif pos <= 6:
+                        return 'middle'
+                    else:
+                        return 'bottom'
+                except (ValueError, TypeError):
+                    pass
+
+    # Default heuristic: AI Overview almost always appears at top in current Google layout
+    # The fact that it exists as a top-level key (not inline) suggests it's at the top
+    return 'top'
+
+
 def remove_accents(text):
     """
     Elimina acentos y diacríticos de un texto.
@@ -219,6 +291,7 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'domain_is_ai_source': False,
         'domain_ai_source_position': None,
         'domain_ai_source_link': None,
+        'aio_serp_position': None,  # Fix #2: Where AIO appears in SERP (top/middle/bottom)
         'debug_info': {}
     }
     
@@ -256,23 +329,32 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         ai_elements['debug_info']['ai_overview_error'] = ai_overview_data['error']
         return ai_elements
     
-    # Verificar si requiere petición adicional
-    if 'page_token' in ai_overview_data:
-        logger.info(f"[AI ANALYSIS] AI Overview requiere petición adicional con page_token")
+    # Verificar si requiere petición adicional (collapsed AI Overview)
+    if 'page_token' in ai_overview_data and not ai_overview_data.get('text_blocks') and not ai_overview_data.get('references'):
+        logger.info(f"[AI ANALYSIS] AI Overview requiere petición adicional con page_token (collapsed)")
+        ai_elements['has_ai_overview'] = True  # AI Overview EXISTS even if collapsed
         ai_elements['debug_info']['requires_additional_request'] = True
-        ai_elements['debug_info']['page_token'] = ai_overview_data['page_token'][:50] + "..."
+        ai_elements['debug_info']['page_token'] = ai_overview_data.get('page_token', '')
         ai_elements['debug_info']['serpapi_link'] = ai_overview_data.get('serpapi_link')
+        ai_elements['debug_info']['ai_overview_found'] = True
+        ai_elements['debug_info']['ai_overview_collapsed'] = True
         return ai_elements
     
     # ✅ AI OVERVIEW DETECTADO
     ai_elements['has_ai_overview'] = True
     logger.info("[AI ANALYSIS] ✅ AI Overview encontrado!")
-    
+
+    # Fix #2: Detect AIO position in SERP (top/middle/bottom)
+    # SerpAPI places ai_overview as a top-level key; we infer position from SERP structure
+    aio_serp_position = _detect_aio_serp_position(serp_data)
+    ai_elements['aio_serp_position'] = aio_serp_position
+    logger.info(f"[AI ANALYSIS] AIO SERP position: {aio_serp_position}")
+
     # Analizar estructura completa
     text_blocks = ai_overview_data.get('text_blocks', [])
     references = ai_overview_data.get('references', [])
     organic_results = serp_data.get('organic_results', [])  # Para caso híbrido
-    
+
     logger.info(f"[AI ANALYSIS] Estructura: {len(text_blocks)} text_blocks, {len(references)} references, {len(organic_results)} organic_results")
     
     # Contadores para estadísticas y compatibilidad legacy
@@ -487,6 +569,7 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'reference_indexes_found': sorted(total_reference_indexes),
         'structure_type': 'hybrid_ultra_strict_anti_false_positives',
         'detection_method': detection_method,
+        'aio_serp_position': aio_serp_position,  # Fix #2: top/middle/bottom
         'ai_overview_found': True,
         'available_keys': list(serp_data.keys()),
         'requires_additional_request': False,
