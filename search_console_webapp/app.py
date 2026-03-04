@@ -17,10 +17,11 @@ from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
-# ✅ NUEVO: Permitir HTTP para desarrollo local con OAuth2
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-# ✅ NUEVO: Relajar validación de scopes para evitar errores de orden
+# Relajar validación de scopes para evitar errores de orden en todos los entornos
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+# Permitir HTTP solo en desarrollo local (NUNCA en producción/staging)
+if not os.getenv('RAILWAY_ENVIRONMENT'):
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # --- Servicios extraídos ---
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
@@ -124,6 +125,19 @@ setup_auth_routes(app)
 
 # --- NUEVO: Configurar webhook de Stripe ---
 create_webhook_route(app)
+
+# --- Security headers (producción y staging) ---
+@app.after_request
+def _set_security_headers(response):
+    if is_production or is_staging:
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        if is_production:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 # --- Inyección automática de silenciador de consola en HTML (prod/staging) ---
 @app.after_request

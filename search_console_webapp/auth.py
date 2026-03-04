@@ -66,9 +66,11 @@ from database import (
 # Carga las variables de entorno desde el .env
 load_dotenv()
 
-# Permitir HTTP en desarrollo
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+# Relajar validación de scopes en todos los entornos
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+# Permitir HTTP solo en desarrollo local (NUNCA en producción/staging)
+if not os.getenv('RAILWAY_ENVIRONMENT'):
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 logger = logging.getLogger(__name__)
 
