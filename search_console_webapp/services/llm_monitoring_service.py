@@ -1166,32 +1166,34 @@ JSON:"""
             healthy_providers = {}
             unhealthy_providers = []
             
-            health_max_attempts = int(os.getenv('LLM_HEALTHCHECK_RETRIES', '3'))
+            # ✅ OPTIMIZADO: Usar test_connection() en vez de execute_query("Hi")
+            # test_connection() es un health check ligero que NO dispara
+            # el retry chain completo ni el fallback (ej: gpt-5.2 → gpt-4o)
+            health_max_attempts = int(os.getenv('LLM_HEALTHCHECK_RETRIES', '2'))
             health_delay_seconds = float(os.getenv('LLM_HEALTHCHECK_DELAY_SECONDS', '2'))
-            
+
             for name, provider in active_providers.items():
                 logger.info(f"🔍 Testeando {name}...")
                 health_ok = False
-                
+
                 for attempt in range(1, health_max_attempts + 1):
                     try:
-                        # Test rápido con query simple
-                        test_result = provider.execute_query("Hi")
-                        
-                        if test_result.get('success'):
+                        # ✅ test_connection() - ligero, sin retry chain ni fallback
+                        connection_ok = provider.test_connection()
+
+                        if connection_ok:
                             healthy_providers[name] = provider
                             health_ok = True
-                            logger.info(f"   ✅ {name} respondió OK en {test_result.get('response_time_ms', 0)}ms")
+                            logger.info(f"   ✅ {name} connection OK")
                             break
-                        
-                        error = test_result.get('error', 'Unknown error')
+
                         if attempt < health_max_attempts:
-                            logger.warning(f"   ⚠️ {name} falló (intento {attempt}/{health_max_attempts}): {error}")
+                            logger.warning(f"   ⚠️ {name} connection failed (intento {attempt}/{health_max_attempts})")
                             logger.warning(f"   🔄 Reintentando en {health_delay_seconds:.0f}s...")
                             time.sleep(health_delay_seconds)
                         else:
-                            logger.error(f"   ❌ {name} falló: {error}")
-                    
+                            logger.error(f"   ❌ {name} connection failed after {health_max_attempts} attempts")
+
                     except Exception as e:
                         if attempt < health_max_attempts:
                             logger.warning(f"   ⚠️ {name} excepción (intento {attempt}/{health_max_attempts}): {e}")
@@ -1199,7 +1201,7 @@ JSON:"""
                             time.sleep(health_delay_seconds)
                         else:
                             logger.error(f"   ❌ {name} excepción: {e}")
-                
+
                 if not health_ok:
                     unhealthy_providers.append(name)
                     logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
@@ -1374,26 +1376,27 @@ JSON:"""
                     })
                     logger.error(f"   ❌ Excepción en tarea: {e}")
         
-        # ✨ NUEVO: Sistema de reintentos para tareas fallidas
-        # OPTIMIZADO PARA CRON: Más reintentos y delays más largos para asegurar completitud
+        # ✨ Sistema de reintentos para tareas fallidas
+        # ✅ OPTIMIZADO: Reducido de 4 a 2 reintentos con delays cortos (3s, 6s)
+        # El @with_retry decorator ya maneja reintentos a nivel de provider.
+        # Estos reintentos son solo para tareas que fallaron por razones transitorias.
         if failed_tasks > 0:
             logger.info("")
             logger.info("=" * 70)
             logger.info(f"🔄 REINTENTANDO {failed_tasks} TAREAS FALLIDAS")
             logger.info("=" * 70)
-            logger.info(f"   Estrategia para CRON: 4 reintentos con delays incrementales")
-            logger.info(f"   Objetivo: 100% de completitud (velocidad no es crítica)")
+            logger.info(f"   Estrategia: 2 reintentos rápidos (el provider ya tiene su propio retry)")
             logger.info("")
-            
+
             retry_count = 0
-            max_retries = 4  # Aumentado de 2 a 4 para cron diario
-            
+            max_retries = 2  # ✅ Reducido de 4: el @with_retry del provider ya reintenta
+
             for attempt in range(1, max_retries + 1):
                 if not failed_task_list:
                     break
-                    
-                # Delay incremental: 5s, 10s, 20s, 30s
-                delay = min(5 * (2 ** (attempt - 1)), 30)
+
+                # ✅ Delay reducido: 3s, 6s (antes era 5s, 10s, 20s, 30s)
+                delay = 3 * attempt
                 
                 logger.info(f"📍 Intento {attempt}/{max_retries} ({len(failed_task_list)} tareas)")
                 logger.info(f"   Esperando {delay}s para evitar rate limits...")

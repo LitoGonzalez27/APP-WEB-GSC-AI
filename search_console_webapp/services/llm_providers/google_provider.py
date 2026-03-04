@@ -1,17 +1,17 @@
 """
-Proveedor Google - Gemini 3.1 Pro Preview
-Versión: gemini-3.1-pro-preview (Febrero 2026)
+Proveedor Google - Gemini 3 Flash Preview
+Versión: gemini-3-flash-preview (Marzo 2026)
 
 IMPORTANTE:
-- Modelo más reciente no-thinking para uso general
-- Ideal para tareas complejas multimodales
-- Knowledge Cutoff: Enero 2025
+- Modelo Flash optimizado para alto volumen y bajo coste
+- RPD mucho mayor que Pro (evita quota_exhausted en cron diario)
+- 4x más barato que Pro: $0.50/$3.00 vs $2/$12 per 1M tokens
 
 MODEL IDs disponibles:
-- gemini-3.1-pro-preview (principal)
-- gemini-3-flash-preview (rápido/económico)
+- gemini-3-flash-preview (principal — alto RPD, bajo coste)
+- gemini-3.1-pro-preview (premium — bajo RPD, más razonamiento)
 
-Docs: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-pro-preview
+Docs: https://ai.google.dev/gemini-api/docs/models
 """
 
 import logging
@@ -31,32 +31,32 @@ logger = logging.getLogger(__name__)
 
 class GoogleProvider(BaseLLMProvider):
     """
-    Proveedor para Gemini 3.1 (Google)
-    
+    Proveedor para Gemini 3 Flash (Google)
+
     Características:
-    - Modelo pro más reciente disponible para análisis general
+    - Modelo Flash optimizado para alto volumen
+    - RPD muy superior al Pro (ideal para cron con muchos proyectos)
     - Multimodal (texto, imágenes, audio, video)
-    
-    Knowledge Cutoff: Enero 2025
+    - 4x más barato que Gemini Pro
     """
-    
+
     def __init__(self, api_key: str, model: str = None):
         """
         Inicializa el proveedor Google
-        
+
         Args:
             api_key: API key de Google (obtener en aistudio.google.com)
             model: Modelo específico a usar (opcional)
         """
         genai.configure(api_key=api_key)
-        
+
         if model:
             self.model_name = model
         else:
             self.model_name = get_current_model_for_provider('google')
             if not self.model_name:
-                self.model_name = 'gemini-3.1-pro-preview'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3.1-pro-preview por defecto")
+                self.model_name = 'gemini-3-flash-preview'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3-flash-preview por defecto")
         
         generation_config = {
             'max_output_tokens': 65536,
@@ -72,7 +72,6 @@ class GoogleProvider(BaseLLMProvider):
         
         logger.info(f"🤖 Google Provider inicializado")
         logger.info(f"   Modelo: {self.model_name}")
-        logger.info(f"   Knowledge Cutoff: Enero 2025")
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry
@@ -83,7 +82,10 @@ class GoogleProvider(BaseLLMProvider):
         start_time = time.time()
         
         try:
-            response = self.model.generate_content(query)
+            response = self.model.generate_content(
+                query,
+                request_options={"timeout": 60}  # Hard cap 60s, evita gRPC defaults de 300s+
+            )
             response_time = int((time.time() - start_time) * 1000)
             
             content = response.text
@@ -140,10 +142,11 @@ class GoogleProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
-            'gemini-3.1-pro-preview': 'Gemini 3.1 Pro Preview',
+            'gemini-3-flash-preview': 'Gemini 3 Flash',
+            'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
             'gemini-3-pro-preview': 'Gemini 3 Pro',
             'gemini-3-pro-image-preview': 'Gemini 3 Pro Image',
-            'gemini-3-flash-preview': 'Gemini 3 Flash Preview',
+            'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
             'gemini-1.5-flash': 'Gemini 1.5 Flash',
             'gemini-pro': 'Gemini Pro'
         }
@@ -154,7 +157,10 @@ class GoogleProvider(BaseLLMProvider):
         Verifica que la API key funcione
         """
         try:
-            test_response = self.model.generate_content("Hi")
+            test_response = self.model.generate_content(
+                "Hi",
+                request_options={"timeout": 15}  # Health check: 15s max
+            )
             if test_response and test_response.text:
                 logger.info("✅ Google connection test successful")
                 return True

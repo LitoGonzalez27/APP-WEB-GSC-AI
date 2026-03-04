@@ -120,6 +120,14 @@ if is_production or is_staging:
     app.config['PREFERRED_URL_SCHEME'] = 'https'
     logger.info("✅ Configuración HTTPS habilitada para entorno no-development")
 
+# ✅ ProxyFix: Railway (y cualquier reverse proxy) termina SSL y reenvía HTTP internamente.
+# Sin ProxyFix, request.url devuelve http:// lo que rompe OAuth (InsecureTransportError).
+# ProxyFix lee X-Forwarded-Proto/Host/For del proxy y corrige request.url automáticamente.
+if is_production or is_staging:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    logger.info("✅ ProxyFix habilitado para reverse proxy")
+
 # --- NUEVO: Configurar rutas de autenticación ---
 setup_auth_routes(app)
 

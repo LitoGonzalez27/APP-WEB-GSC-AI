@@ -27,7 +27,7 @@ def update_current_models():
     
     Modelos a configurar como actuales:
     - OpenAI: gpt-5.2
-    - Google: gemini-3-pro-preview
+    - Google: gemini-3-flash-preview
     - Anthropic: claude-sonnet-4-5-20250929
     - Perplexity: sonar
     
@@ -69,7 +69,7 @@ def update_current_models():
         # Model IDs correctos según documentación oficial (Dic 2025):
         desired_models = {
             'openai': 'gpt-5.2',  # GPT-5.2 flagship (lanzado 12 Dic 2025)
-            'google': 'gemini-3-pro-preview',  # Gemini 3 Pro Preview
+            'google': 'gemini-3-flash-preview',  # Gemini 3 Flash (alto RPD, bajo coste)
             'anthropic': 'claude-sonnet-4-5-20250929',  # Claude Sonnet 4.5 (correcto)
             'perplexity': 'sonar'  # Sonar
         }
@@ -116,7 +116,7 @@ def update_current_models():
                 # GPT-5.1: Verificar docs, estimado similar a GPT-5
                 default_pricing = {
                     'openai': {'input': 2.50, 'output': 10.00},  # GPT-5.1 estimado
-                    'google': {'input': 2.00, 'output': 12.00},  # Gemini 3 Pro (<200k)
+                    'google': {'input': 0.50, 'output': 3.00},  # Gemini 3 Flash
                     'anthropic': {'input': 3.00, 'output': 15.00},  # Claude Sonnet 4.5
                     'perplexity': {'input': 1.00, 'output': 1.00}  # Sonar
                 }

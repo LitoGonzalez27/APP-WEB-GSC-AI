@@ -1427,7 +1427,11 @@ def setup_auth_routes(app):
         except Exception as e:
             session.pop('temp_credentials', None)
             session.pop('oauth_action', None)
-            logger.error(f"Error en auth_callback: {e}")
+            # ✅ Log detallado del error incluyendo tipo y request.url para diagnóstico
+            logger.error(f"❌ Error en auth_callback: {type(e).__name__}: {e}")
+            logger.error(f"   request.url scheme: {request.url[:30]}...")
+            import traceback
+            logger.error(f"   Traceback: {traceback.format_exc()}")
             return redirect('/login?auth_error=callback_failed')
 
     # ✅ ELIMINADAS: Rutas innecesarias de pending-google-signup y complete-google-signup
