@@ -1860,10 +1860,8 @@ def get_query_history(project_id, query_id):
     Returns:
         JSON con historial de menciones por fecha y LLM
     """
-    # ✨ Obtener parámetro days del time range global
-    days = request.args.get('days', 30, type=int)
-    if days not in [7, 14, 30, 60, 90]:
-        days = 30
+    # ✨ Obtener parámetro days del time range global (normalizado como el resto)
+    days = _normalize_days_param(request.args.get('days'), default=30)
     
     conn = get_db_connection()
     if not conn:
@@ -1890,8 +1888,8 @@ def get_query_history(project_id, query_id):
         
         # Obtener historial de resultados para esta query
         enabled_llms_filter = query.get('enabled_llms') or []
-        history_query = f"""
-            SELECT 
+        history_query = """
+            SELECT
                 analysis_date,
                 llm_provider,
                 brand_mentioned,
@@ -1899,9 +1897,9 @@ def get_query_history(project_id, query_id):
                 sentiment
             FROM llm_monitoring_results
             WHERE query_id = %s AND project_id = %s
-                AND analysis_date >= CURRENT_DATE - INTERVAL '{days} days'
+                AND analysis_date >= CURRENT_DATE - (%s * INTERVAL '1 day')
         """
-        history_params = [query_id, project_id]
+        history_params = [query_id, project_id, days]
         if enabled_llms_filter:
             history_query += " AND llm_provider = ANY(%s)"
             history_params.append(enabled_llms_filter)

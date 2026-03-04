@@ -380,6 +380,84 @@ class MultiLLMMonitoringService:
                     f"{{competitor}} o ci sono opzioni migliori?",
                     f"Confronta {{competitor}} con altri di {industry}",
                 ]
+            },
+            'fr': {
+                'general': [
+                    f"Quels sont les meilleurs outils de {industry} ?",
+                    f"Top 10 des entreprises de {industry}",
+                    f"Quel logiciel de {industry} recommandez-vous ?",
+                    f"Comparatif {industry}",
+                    f"Meilleures solutions pour {industry}",
+                    f"Comment choisir {industry} ?",
+                    f"Avantages et inconvénients de {industry}",
+                    f"Avis sur {industry}",
+                    f"Alternatives pour {industry}",
+                    f"Prix de {industry}",
+                ],
+                'with_brand': [
+                    f"Qu'est-ce que {brand_name} ?",
+                    f"Avis sur {brand_name}",
+                    f"{brand_name} est-il fiable ?",
+                    f"Avantages de {brand_name}",
+                    f"Alternatives à {brand_name}",
+                ],
+                'with_competitors': [
+                    f"{{competitor}} vs alternatives de {industry}",
+                    f"{{competitor}} ou y a-t-il de meilleures options ?",
+                    f"Comparer {{competitor}} avec d'autres {industry}",
+                ]
+            },
+            'de': {
+                'general': [
+                    f"Was sind die besten {industry}-Tools?",
+                    f"Top 10 {industry}-Unternehmen",
+                    f"Welche {industry}-Software empfehlen Sie?",
+                    f"{industry} Vergleich",
+                    f"Beste Lösungen für {industry}",
+                    f"Wie wählt man {industry}?",
+                    f"Vor- und Nachteile von {industry}",
+                    f"Bewertungen von {industry}",
+                    f"Alternativen für {industry}",
+                    f"Preise für {industry}",
+                ],
+                'with_brand': [
+                    f"Was ist {brand_name}?",
+                    f"Bewertungen zu {brand_name}",
+                    f"Ist {brand_name} gut?",
+                    f"Vorteile von {brand_name}",
+                    f"Alternativen zu {brand_name}",
+                ],
+                'with_competitors': [
+                    f"{{competitor}} vs {industry} Alternativen",
+                    f"{{competitor}} oder gibt es bessere Optionen?",
+                    f"{{competitor}} mit anderen {industry} vergleichen",
+                ]
+            },
+            'pt': {
+                'general': [
+                    f"Quais são as melhores ferramentas de {industry}?",
+                    f"Top 10 empresas de {industry}",
+                    f"Qual software de {industry} você recomenda?",
+                    f"Comparação de {industry}",
+                    f"Melhores soluções para {industry}",
+                    f"Como escolher {industry}?",
+                    f"Vantagens e desvantagens de {industry}",
+                    f"Opiniões sobre {industry}",
+                    f"Alternativas para {industry}",
+                    f"Preço de {industry}",
+                ],
+                'with_brand': [
+                    f"O que é {brand_name}?",
+                    f"Avaliações sobre {brand_name}",
+                    f"{brand_name} é bom?",
+                    f"Vantagens de {brand_name}",
+                    f"Alternativas a {brand_name}",
+                ],
+                'with_competitors': [
+                    f"{{competitor}} vs alternativas de {industry}",
+                    f"{{competitor}} ou há opções melhores?",
+                    f"Comparar {{competitor}} com outros de {industry}",
+                ]
             }
         }
         
@@ -755,12 +833,31 @@ class MultiLLMMonitoringService:
             #
             # Por esta razón, este patrón ha sido eliminado del algoritmo.
         
-        # Patrón 3: Ordinales en inglés (First, Second, etc.)
+        # Patrón 3: Ordinales multiidioma (en, es, fr, de, it, pt)
         ordinal_map = {
+            # English
             'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
             'sixth': 6, 'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10,
+            # Spanish
             'primero': 1, 'segundo': 2, 'tercero': 3, 'cuarto': 4, 'quinto': 5,
-            'sexto': 6, 'séptimo': 7, 'octavo': 8, 'noveno': 9, 'décimo': 10
+            'sexto': 6, 'séptimo': 7, 'octavo': 8, 'noveno': 9, 'décimo': 10,
+            'primera': 1, 'segunda': 2, 'tercera': 3, 'cuarta': 4, 'quinta': 5,
+            # French
+            'premier': 1, 'première': 1, 'deuxième': 2, 'troisième': 3,
+            'quatrième': 4, 'cinquième': 5, 'sixième': 6, 'septième': 7,
+            'huitième': 8, 'neuvième': 9, 'dixième': 10,
+            # German
+            'erste': 1, 'erster': 1, 'zweite': 2, 'zweiter': 2, 'dritte': 3,
+            'dritter': 3, 'vierte': 4, 'fünfte': 5, 'sechste': 6,
+            'siebte': 7, 'achte': 8, 'neunte': 9, 'zehnte': 10,
+            # Italian
+            'primo': 1, 'prima': 1, 'secondo': 2, 'terzo': 3, 'quarto': 4,
+            'quinto': 5, 'sesto': 6, 'settimo': 7, 'ottavo': 8,
+            'nono': 9, 'decimo': 10,
+            # Portuguese
+            'primeiro': 1, 'primeira': 1, 'segundo': 2, 'terceiro': 3,
+            'quarto': 4, 'quinto': 5, 'sexto': 6, 'sétimo': 7,
+            'oitavo': 8, 'nono': 9, 'décimo': 10,
         }
         
         for ordinal, position in ordinal_map.items():
@@ -858,19 +955,21 @@ class MultiLLMMonitoringService:
     def _analyze_sentiment_with_llm(
         self,
         contexts: List[str],
-        brand_name: str
+        brand_name: str,
+        language: str = 'en'
     ) -> Dict:
         """
         Analiza el sentimiento hacia la marca usando LLM (Gemini Flash)
-        
+
         IMPORTANTE: Usa LLM en vez de keywords porque:
         - "No es el mejor" → Negativo (keywords fallarían)
         - "Es caro pero vale la pena" → Positivo (keywords lo marcarían negativo)
-        
+
         Args:
             contexts: Lista de contextos donde se menciona la marca
             brand_name: Nombre de la marca
-            
+            language: Código de idioma del proyecto (es, en, fr, de, etc.)
+
         Returns:
             Dict con:
                 sentiment: 'positive', 'neutral', 'negative'
@@ -883,25 +982,27 @@ class MultiLLMMonitoringService:
                 'score': 0.5,
                 'method': 'none'
             }
-        
+
         # Si no hay Gemini disponible, usar fallback
         if not self.sentiment_analyzer:
-            return self._analyze_sentiment_keywords(contexts)
-        
+            return self._analyze_sentiment_keywords(contexts, language)
+
         # Unir contextos (máximo 1000 chars para no gastar mucho)
         combined_contexts = ' ... '.join(contexts)[:1000]
-        
-        # Prompt estructurado para obtener JSON
-        prompt = f"""Analiza el sentimiento hacia "{brand_name}" en el siguiente texto.
 
-Responde SOLO con JSON en este formato exacto:
+        # Prompt en inglés (todos los LLMs lo entienden bien) con instrucción de idioma
+        language_name = LANGUAGE_NAMES.get(language, 'English')
+        prompt = f"""Analyze the sentiment towards "{brand_name}" in the following text.
+The text may be in {language_name}. Analyze it in its original language.
+
+Respond ONLY with JSON in this exact format:
 {{"sentiment": "positive/neutral/negative", "score": 0.XX}}
 
-Donde:
-- sentiment: "positive", "neutral" o "negative"
-- score: 0.0 (muy negativo) a 1.0 (muy positivo)
+Where:
+- sentiment: "positive", "neutral" or "negative"
+- score: 0.0 (very negative) to 1.0 (very positive)
 
-Texto a analizar:
+Text to analyze:
 {combined_contexts}
 
 JSON:"""
@@ -911,13 +1012,13 @@ JSON:"""
             
             if not result['success']:
                 logger.warning(f"⚠️ Sentimiento LLM falló, usando keywords")
-                return self._analyze_sentiment_keywords(contexts)
+                return self._analyze_sentiment_keywords(contexts, language)
             
             # Parsear JSON de la respuesta
             response_text = (result.get('content') or result.get('response_text') or '').strip()
             if not response_text:
                 logger.warning("⚠️ Respuesta vacía en análisis de sentimiento, usando keywords")
-                return self._analyze_sentiment_keywords(contexts)
+                return self._analyze_sentiment_keywords(contexts, language)
             
             # Extraer JSON (puede venir con texto adicional)
             json_match = re.search(r'\{[^}]+\}', response_text)
@@ -931,24 +1032,64 @@ JSON:"""
                 }
             else:
                 logger.warning(f"⚠️ No se pudo extraer JSON, usando keywords")
-                return self._analyze_sentiment_keywords(contexts)
+                return self._analyze_sentiment_keywords(contexts, language)
                 
         except Exception as e:
             logger.error(f"❌ Error analizando sentimiento con LLM: {e}")
-            return self._analyze_sentiment_keywords(contexts)
+            return self._analyze_sentiment_keywords(contexts, language)
     
-    def _analyze_sentiment_keywords(self, contexts: List[str]) -> Dict:
+    def _analyze_sentiment_keywords(self, contexts: List[str], language: str = 'en') -> Dict:
         """
-        Fallback: análisis de sentimiento por keywords
-        
-        Método simple pero funciona en ~70% de casos
+        Fallback: análisis de sentimiento por keywords multiidioma
+
+        Método simple pero funciona en ~70% de casos.
+        Incluye palabras clave en español, inglés, francés, alemán,
+        italiano y portugués para cobertura amplia.
         """
         combined = ' '.join(contexts).lower()
-        
-        positive_words = ['excelente', 'bueno', 'mejor', 'recomiendo', 'fantástico',
-                         'increíble', 'perfecto', 'great', 'excellent', 'best', 'amazing']
-        negative_words = ['malo', 'peor', 'no recomiendo', 'terrible', 'horrible',
-                         'decepcionante', 'bad', 'worst', 'terrible', 'disappointing']
+
+        # Palabras positivas multiidioma (es, en, fr, de, it, pt)
+        positive_words = [
+            # English
+            'great', 'excellent', 'best', 'amazing', 'outstanding', 'perfect',
+            'recommended', 'fantastic', 'wonderful', 'impressive', 'top',
+            # Spanish
+            'excelente', 'bueno', 'mejor', 'recomiendo', 'fantástico',
+            'increíble', 'perfecto', 'genial', 'destacado', 'magnífico',
+            # French
+            'excellent', 'meilleur', 'recommandé', 'fantastique', 'parfait',
+            'incroyable', 'formidable', 'superbe', 'génial',
+            # German
+            'ausgezeichnet', 'hervorragend', 'empfohlen', 'fantastisch',
+            'perfekt', 'großartig', 'wunderbar', 'beste',
+            # Italian
+            'eccellente', 'migliore', 'consigliato', 'fantastico', 'perfetto',
+            'incredibile', 'ottimo', 'magnifico', 'straordinario',
+            # Portuguese
+            'excelente', 'melhor', 'recomendado', 'fantástico', 'perfeito',
+            'incrível', 'ótimo', 'maravilhoso', 'impressionante',
+        ]
+        # Palabras negativas multiidioma (es, en, fr, de, it, pt)
+        negative_words = [
+            # English
+            'bad', 'worst', 'terrible', 'disappointing', 'poor', 'awful',
+            'horrible', 'avoid', 'unreliable', 'overpriced',
+            # Spanish
+            'malo', 'peor', 'no recomiendo', 'terrible', 'horrible',
+            'decepcionante', 'pésimo', 'evitar', 'caro',
+            # French
+            'mauvais', 'pire', 'terrible', 'décevant', 'horrible',
+            'médiocre', 'éviter', 'nul',
+            # German
+            'schlecht', 'schrecklich', 'enttäuschend', 'furchtbar',
+            'miserabel', 'vermeiden', 'mangelhaft',
+            # Italian
+            'cattivo', 'peggiore', 'terribile', 'deludente', 'orribile',
+            'pessimo', 'evitare', 'mediocre',
+            # Portuguese
+            'mau', 'pior', 'terrível', 'decepcionante', 'horrível',
+            'péssimo', 'evitar', 'medíocre',
+        ]
         
         positive_count = sum(1 for word in positive_words if word in combined)
         negative_count = sum(1 for word in negative_words if word in combined)
@@ -1618,7 +1759,8 @@ JSON:"""
             if mention_analysis['brand_mentioned']:
                 sentiment_data = self._analyze_sentiment_with_llm(
                     contexts=mention_analysis['mention_contexts'],
-                    brand_name=task['brand_name']
+                    brand_name=task['brand_name'],
+                    language=task.get('language', 'en')
                 )
             
             # Guardar resultado en BD (conexión thread-local)
@@ -1981,11 +2123,21 @@ JSON:"""
                 total_mentions = EXCLUDED.total_mentions,
                 mention_rate = EXCLUDED.mention_rate,
                 avg_position = EXCLUDED.avg_position,
+                appeared_in_top3 = EXCLUDED.appeared_in_top3,
+                appeared_in_top5 = EXCLUDED.appeared_in_top5,
+                appeared_in_top10 = EXCLUDED.appeared_in_top10,
+                total_competitor_mentions = EXCLUDED.total_competitor_mentions,
                 share_of_voice = EXCLUDED.share_of_voice,
+                competitor_breakdown = EXCLUDED.competitor_breakdown,
                 weighted_share_of_voice = EXCLUDED.weighted_share_of_voice,
                 weighted_competitor_breakdown = EXCLUDED.weighted_competitor_breakdown,
+                positive_mentions = EXCLUDED.positive_mentions,
+                neutral_mentions = EXCLUDED.neutral_mentions,
+                negative_mentions = EXCLUDED.negative_mentions,
                 avg_sentiment_score = EXCLUDED.avg_sentiment_score,
+                avg_response_time_ms = EXCLUDED.avg_response_time_ms,
                 total_cost_usd = EXCLUDED.total_cost_usd,
+                total_tokens = EXCLUDED.total_tokens,
                 created_at = NOW()
         """, (
             project_id, date, llm_provider,
