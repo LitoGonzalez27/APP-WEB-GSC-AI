@@ -267,166 +267,252 @@ def _get_project_counts_by_user(cur):
 
 
 def get_billing_stats():
-    """Obtiene estadísticas de billing para el dashboard admin"""
+    """Wrapper de compatibilidad – delega a get_admin_dashboard_stats()."""
+    data = get_admin_dashboard_stats()
+    return data.get('stats', {})
+
+
+def get_admin_dashboard_stats():
+    """
+    UNA sola conexión para TODOS los stats del dashboard admin.
+    Devuelve { stats: {...}, time_stats: {...}, revenue_stats: {...} }.
+    Reemplaza a get_billing_stats + get_user_stats + get_time_segmented_stats + get_revenue_stats.
+    """
+    _PLAN_PRICES = {'basic': 29.99, 'premium': 49.99, 'business': 139.99}
+
+    empty_period = {
+        'active_users': 0, 'cancellations': 0, 'registrations': 0,
+        'ru_consumed': 0, 'llm_units': 0, 'llm_cost': 0.0
+    }
+    defaults = {
+        'stats': {
+            'total_users': 0, 'active_users': 0, 'inactive_users': 0,
+            'today_registrations': 0, 'week_registrations': 0,
+            'users_by_plan': {}, 'users_by_billing_status': {},
+            'total_ru_consumed_today': 0, 'total_ru_consumed_month': 0,
+            'total_serp_ru_month': 0, 'total_llm_units_month': 0,
+            'total_llm_cost_month': 0, 'revenue_estimate_month': 0
+        },
+        'time_stats': {
+            'today': dict(empty_period),
+            'week': dict(empty_period),
+            'month': dict(empty_period)
+        },
+        'revenue_stats': {
+            'total_revenue': 0.0, 'by_plan': {}, 'paying_users': 0
+        }
+    }
+
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
-            return {
-                'total_users': 0,
-                'users_by_plan': {},
-                'users_by_billing_status': {},
-                'total_ru_consumed_today': 0,
-                'total_ru_consumed_month': 0,
-                'revenue_estimate_month': 0
-            }
-        
+            return defaults
         cur = conn.cursor()
-        
-        # Total de usuarios
-        cur.execute('SELECT COUNT(*) AS count FROM users')
-        row = cur.fetchone()
-        total_users = row['count'] if isinstance(row, dict) else (row[0] if row else 0)
-        
-        # Usuarios por plan
+
+        now = datetime.utcnow()
+        day_start, next_day = _get_today_bounds(now)
+        week_start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start, next_month = _get_month_bounds(now)
+
+        # ═══════════════════════════════════════════════════
+        # 1) USERS – una sola query con todos los contadores
+        # ═══════════════════════════════════════════════════
         cur.execute('''
-            SELECT plan, COUNT(*) as count 
-            FROM users 
-            GROUP BY plan 
-            ORDER BY plan
-        ''')
+            SELECT
+                COUNT(*) AS total_users,
+                COUNT(*) FILTER (WHERE COALESCE(is_active, TRUE))  AS active_users,
+                COUNT(*) FILTER (WHERE NOT COALESCE(is_active, TRUE)) AS inactive_users,
+                COUNT(*) FILTER (WHERE created_at >= %s AND created_at < %s) AS reg_today,
+                COUNT(*) FILTER (WHERE created_at >= %s AND created_at < %s) AS reg_week,
+                COUNT(*) FILTER (WHERE created_at >= %s AND created_at < %s) AS reg_month,
+                COUNT(*) FILTER (WHERE last_login_at >= %s AND last_login_at < %s) AS active_today,
+                COUNT(*) FILTER (WHERE last_login_at >= %s AND last_login_at < %s) AS active_week,
+                COUNT(*) FILTER (WHERE last_login_at >= %s AND last_login_at < %s) AS active_month,
+                COUNT(*) FILTER (WHERE billing_status = 'canceled' AND updated_at >= %s AND updated_at < %s) AS cancel_today,
+                COUNT(*) FILTER (WHERE billing_status = 'canceled' AND updated_at >= %s AND updated_at < %s) AS cancel_week,
+                COUNT(*) FILTER (WHERE billing_status = 'canceled' AND updated_at >= %s AND updated_at < %s) AS cancel_month
+            FROM users
+        ''', (
+            day_start, next_day,       # reg_today
+            week_start, next_day,      # reg_week
+            month_start, next_month,   # reg_month
+            day_start, next_day,       # active_today
+            week_start, next_day,      # active_week
+            month_start, next_month,   # active_month
+            day_start, next_day,       # cancel_today
+            week_start, next_day,      # cancel_week
+            month_start, next_month,   # cancel_month
+        ))
+        u = cur.fetchone()
+
+        stats = defaults['stats']
+        time_stats = defaults['time_stats']
+
+        if u:
+            stats['total_users'] = int(u['total_users'])
+            stats['active_users'] = int(u['active_users'])
+            stats['inactive_users'] = int(u['inactive_users'])
+            stats['today_registrations'] = int(u['reg_today'])
+            stats['week_registrations'] = int(u['reg_week'])
+
+            time_stats['today']['registrations'] = int(u['reg_today'])
+            time_stats['week']['registrations'] = int(u['reg_week'])
+            time_stats['month']['registrations'] = int(u['reg_month'])
+            time_stats['today']['active_users'] = int(u['active_today'])
+            time_stats['week']['active_users'] = int(u['active_week'])
+            time_stats['month']['active_users'] = int(u['active_month'])
+            time_stats['today']['cancellations'] = int(u['cancel_today'])
+            time_stats['week']['cancellations'] = int(u['cancel_week'])
+            time_stats['month']['cancellations'] = int(u['cancel_month'])
+
+        # ═══════════════════════════════════════════════════
+        # 2) Usuarios por plan + billing_status (2 queries)
+        # ═══════════════════════════════════════════════════
+        cur.execute('SELECT plan, COUNT(*) AS cnt FROM users GROUP BY plan')
         users_by_plan = {}
         for row in cur.fetchall():
-            if isinstance(row, dict):
-                users_by_plan[row.get('plan')] = row.get('count', 0)
-            elif row:
-                users_by_plan[row[0]] = row[1]
-        
-        # Usuarios por estado de billing
-        cur.execute('''
-            SELECT billing_status, COUNT(*) as count 
-            FROM users 
-            GROUP BY billing_status 
-            ORDER BY billing_status
-        ''')
+            users_by_plan[row['plan']] = int(row['cnt'])
+        stats['users_by_plan'] = users_by_plan
+
+        cur.execute('SELECT billing_status, COUNT(*) AS cnt FROM users GROUP BY billing_status')
         users_by_billing_status = {}
         for row in cur.fetchall():
-            if isinstance(row, dict):
-                users_by_billing_status[row.get('billing_status')] = row.get('count', 0)
-            elif row:
-                users_by_billing_status[row[0]] = row[1]
-        
-        # RU consumidas hoy/mes (si existe la tabla)
-        total_ru_today = 0
-        total_ru_month = 0
-        total_serp_ru_month = 0
+            users_by_billing_status[row['billing_status']] = int(row['cnt'])
+        stats['users_by_billing_status'] = users_by_billing_status
+
+        # ═══════════════════════════════════════════════════
+        # 3) RU consumidas – una sola query con CASE WHEN
+        # ═══════════════════════════════════════════════════
         try:
             columns = _get_table_columns(cur, 'quota_usage_events')
             time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
-            if time_col:
-                day_start, next_day = _get_today_bounds()
-                month_start, next_month = _get_month_bounds()
-                cur.execute(f'''
-                    SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
-                    FROM quota_usage_events 
-                    WHERE {time_col} >= %s AND {time_col} < %s
-                ''', (day_start, next_day))
-                row = cur.fetchone()
-                total_ru_today = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
-                
-                cur.execute(f'''
-                    SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
-                    FROM quota_usage_events 
-                    WHERE {time_col} >= %s AND {time_col} < %s
-                ''', (month_start, next_month))
-                row = cur.fetchone()
-                total_ru_month = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
-
+            if time_col and time_col in _ALLOWED_TIME_COLS:
+                # Determinar filtro SERP
                 if 'source' in columns:
                     serp_filter = "source = 'serp_api'"
                 elif 'operation_type' in columns:
-                    serp_filter = "operation_type LIKE 'serp_%'"
+                    serp_filter = "operation_type LIKE 'serp_%%'"
                 else:
                     serp_filter = None
-                if serp_filter:
-                    cur.execute(f'''
-                        SELECT COALESCE(SUM(ru_consumed), 0) AS total_ru
-                        FROM quota_usage_events
-                        WHERE {time_col} >= %s
-                          AND {time_col} < %s
-                          AND {serp_filter}
-                    ''', (month_start, next_month))
-                    row = cur.fetchone()
-                    total_serp_ru_month = row['total_ru'] if isinstance(row, dict) else (row[0] if row else 0)
-        except:
-            # Tabla quota_usage_events no existe aún
+
+                serp_col = f", COALESCE(SUM(ru_consumed) FILTER (WHERE {serp_filter} AND {time_col} >= %s AND {time_col} < %s), 0) AS serp_month" if serp_filter else ""
+                serp_params = (month_start, next_month) if serp_filter else ()
+
+                cur.execute(f'''
+                    SELECT
+                        COALESCE(SUM(ru_consumed) FILTER (WHERE {time_col} >= %s AND {time_col} < %s), 0) AS ru_today,
+                        COALESCE(SUM(ru_consumed) FILTER (WHERE {time_col} >= %s AND {time_col} < %s), 0) AS ru_week,
+                        COALESCE(SUM(ru_consumed) FILTER (WHERE {time_col} >= %s AND {time_col} < %s), 0) AS ru_month
+                        {serp_col}
+                    FROM quota_usage_events
+                    WHERE {time_col} >= %s
+                ''', (
+                    day_start, next_day,
+                    week_start, next_day,
+                    month_start, next_month,
+                    *serp_params,
+                    month_start,  # outer WHERE para limitar scan
+                ))
+                r = cur.fetchone()
+                if r:
+                    stats['total_ru_consumed_today'] = int(r['ru_today'])
+                    stats['total_ru_consumed_month'] = int(r['ru_month'])
+                    if serp_filter:
+                        stats['total_serp_ru_month'] = int(r['serp_month'])
+                    time_stats['today']['ru_consumed'] = int(r['ru_today'])
+                    time_stats['week']['ru_consumed'] = int(r['ru_week'])
+                    time_stats['month']['ru_consumed'] = int(r['ru_month'])
+        except Exception:
             pass
 
-        # LLM usage (si existen tablas)
-        total_llm_units_month = 0
-        total_llm_cost_month = 0
+        # ═══════════════════════════════════════════════════
+        # 4) LLM unidades y coste – una sola query
+        # ═══════════════════════════════════════════════════
         try:
             cur.execute("SELECT to_regclass('public.llm_monitoring_results') AS reg")
             reg = cur.fetchone()
-            if reg and (reg['reg'] if isinstance(reg, dict) else reg[0]):
-                month_start, next_month = _get_month_bounds()
+            if reg and reg['reg']:
+                d_start = day_start.date()
+                d_next = next_day.date()
+                w_start = week_start.date()
+                m_start = month_start.date()
+                m_next = next_month.date()
+
                 cur.execute('''
-                    SELECT 
-                        COUNT(*) AS total_units,
-                        COALESCE(SUM(cost_usd), 0) AS total_cost
+                    SELECT
+                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_today,
+                        COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_today,
+                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_week,
+                        COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_week,
+                        COUNT(*) FILTER (WHERE analysis_date >= %s AND analysis_date < %s) AS u_month,
+                        COALESCE(SUM(cost_usd) FILTER (WHERE analysis_date >= %s AND analysis_date < %s), 0) AS c_month
                     FROM llm_monitoring_results
                     WHERE analysis_date >= %s
-                      AND analysis_date < %s
-                ''', (month_start.date(), next_month.date()))
-                row = cur.fetchone()
-                if row:
-                    if isinstance(row, dict):
-                        total_llm_units_month = row.get('total_units', 0)
-                        total_llm_cost_month = row.get('total_cost', 0)
-                    else:
-                        total_llm_units_month = row[0] if len(row) > 0 else 0
-                        total_llm_cost_month = row[1] if len(row) > 1 else 0
+                ''', (
+                    d_start, d_next, d_start, d_next,
+                    w_start, d_next, w_start, d_next,
+                    m_start, m_next, m_start, m_next,
+                    m_start,
+                ))
+                r = cur.fetchone()
+                if r:
+                    stats['total_llm_units_month'] = int(r['u_month'])
+                    stats['total_llm_cost_month'] = float(r['c_month'])
+                    time_stats['today']['llm_units'] = int(r['u_today'])
+                    time_stats['today']['llm_cost'] = float(r['c_today'])
+                    time_stats['week']['llm_units'] = int(r['u_week'])
+                    time_stats['week']['llm_cost'] = float(r['c_week'])
+                    time_stats['month']['llm_units'] = int(r['u_month'])
+                    time_stats['month']['llm_cost'] = float(r['c_month'])
         except Exception:
             pass
-        
-        # Estimación de ingresos mensuales (básico: €29.99, premium: pricing por configurar)
-        revenue_estimate = 0
-        for plan, count in users_by_plan.items():
-            try:
-                count_val = int(count or 0)
-            except Exception:
-                count_val = 0
-            if plan == 'basic':
-                revenue_estimate += count_val * 29.99
-            elif plan == 'premium':
-                revenue_estimate += count_val * 49.99  # Estimación, ajustar según tu pricing
-            elif plan == 'business':
-                revenue_estimate += count_val * 139.99
-        
+
+        # ═══════════════════════════════════════════════════
+        # 5) Revenue (excluyendo admins) – una sola query
+        # ═══════════════════════════════════════════════════
+        revenue_stats = defaults['revenue_stats']
+        try:
+            cur.execute('''
+                SELECT plan, COUNT(*) AS cnt
+                FROM users
+                WHERE role != 'admin' AND plan IN ('basic', 'premium', 'business')
+                GROUP BY plan
+            ''')
+            by_plan = {}
+            total_rev = 0.0
+            paying = 0
+            for row in cur.fetchall():
+                plan = row['plan']
+                cnt = int(row['cnt'])
+                price = _PLAN_PRICES.get(plan, 0)
+                rev = cnt * price
+                by_plan[plan] = {'count': cnt, 'price': price, 'revenue': round(rev, 2)}
+                total_rev += rev
+                paying += cnt
+            revenue_stats = {
+                'total_revenue': round(total_rev, 2),
+                'by_plan': by_plan,
+                'paying_users': paying
+            }
+        except Exception:
+            pass
+
+        # Legacy revenue estimate (incluye admins, para compatibilidad con template antiguo)
+        rev_est = 0
+        for plan, cnt in users_by_plan.items():
+            rev_est += int(cnt or 0) * _PLAN_PRICES.get(plan, 0)
+        stats['revenue_estimate_month'] = round(rev_est, 2)
+
         return {
-            'total_users': total_users,
-            'users_by_plan': users_by_plan,
-            'users_by_billing_status': users_by_billing_status,
-            'total_ru_consumed_today': total_ru_today,
-            'total_ru_consumed_month': total_ru_month,
-            'total_serp_ru_month': total_serp_ru_month,
-            'total_llm_units_month': total_llm_units_month,
-            'total_llm_cost_month': total_llm_cost_month,
-            'revenue_estimate_month': revenue_estimate
+            'stats': stats,
+            'time_stats': time_stats,
+            'revenue_stats': revenue_stats
         }
-        
+
     except Exception as e:
-        logger.error(f"Error obteniendo stats de billing: {e}")
-        return {
-            'total_users': 0,
-            'users_by_plan': {},
-            'users_by_billing_status': {},
-            'total_ru_consumed_today': 0,
-            'total_ru_consumed_month': 0,
-            'total_serp_ru_month': 0,
-            'total_llm_units_month': 0,
-            'total_llm_cost_month': 0,
-            'revenue_estimate_month': 0
-        }
+        logger.error(f"Error en get_admin_dashboard_stats: {e}")
+        return defaults
     finally:
         if conn:
             conn.close()

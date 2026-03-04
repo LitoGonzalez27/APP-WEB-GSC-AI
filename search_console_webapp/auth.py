@@ -1621,16 +1621,14 @@ def setup_auth_routes(app):
 
             # 🚀 MEJORA: Usar funciones de billing para datos completos
             try:
-                from admin_billing_panel import get_users_with_billing, get_billing_stats, get_time_segmented_stats, get_revenue_stats
+                from admin_billing_panel import get_users_with_billing, get_admin_dashboard_stats
                 users = get_users_with_billing(limit=per_page, offset=offset)
-                # Fusionar stats básicos con stats de billing
-                basic_stats = get_user_stats()
-                billing_stats = get_billing_stats()
-                stats = {**basic_stats, **billing_stats}
-                # Stats segmentados por periodo + ingresos (sin admins)
-                time_stats = get_time_segmented_stats()
-                revenue_stats = get_revenue_stats()
-                logger.info(f"✅ Admin panel mejorado - Usuarios con billing: {len(users)}")
+                # ⚡ Una sola conexión DB para TODOS los stats del dashboard
+                dashboard = get_admin_dashboard_stats()
+                stats = dashboard.get('stats', {})
+                time_stats = dashboard.get('time_stats', {})
+                revenue_stats = dashboard.get('revenue_stats', {})
+                logger.info(f"✅ Admin panel - {len(users)} usuarios, stats consolidados")
             except ImportError as e:
                 logger.warning(f"⚠️ Fallback a función básica - admin_billing_panel no disponible: {e}")
                 users = get_all_users()
