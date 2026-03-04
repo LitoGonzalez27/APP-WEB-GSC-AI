@@ -117,6 +117,9 @@ class OpenAIProvider(BaseLLMProvider):
             else:
                 completion_params["max_tokens"] = 16000
 
+            actual_model_used = self.model  # Track qué modelo se usó realmente
+            actual_pricing = self.pricing  # Track pricing correcto
+
             try:
                 response = self.client.chat.completions.create(**completion_params)
                 content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
@@ -128,7 +131,7 @@ class OpenAIProvider(BaseLLMProvider):
                 err_msg = str(e_chat).lower()
                 if 'model' in err_msg or 'not found' in err_msg or 'does not exist' in err_msg or 'not have access' in err_msg or 'unsupported' in err_msg:
                     fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
-                    logger.warning(f"⚠️ Error con '{self.model}'. Usando fallback: {fallback_model}")
+                    logger.warning(f"⚠️ Error con '{self.model}': {e_chat}. Usando fallback: {fallback_model}")
                     # gpt-4o usa max_tokens
                     fallback_params = {
                         "model": fallback_model,
@@ -141,6 +144,8 @@ class OpenAIProvider(BaseLLMProvider):
                     input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                     output_tokens = getattr(response.usage, 'completion_tokens', 0)
                     total_tokens = getattr(response.usage, 'total_tokens', (input_tokens + output_tokens))
+                    actual_model_used = fallback_model
+                    actual_pricing = get_model_pricing_from_db('openai', fallback_model)
                 else:
                     raise e_chat
             
@@ -157,11 +162,11 @@ class OpenAIProvider(BaseLLMProvider):
 
             # ✨ NUEVO: Extraer URLs del texto
             sources = extract_urls_from_text(content)
-            
-            # Calcular coste usando pricing de BD
-            cost = (input_tokens * self.pricing['input'] + 
-                   output_tokens * self.pricing['output'])
-            
+
+            # Calcular coste usando pricing del modelo que realmente se usó
+            cost = (input_tokens * actual_pricing['input'] +
+                   output_tokens * actual_pricing['output'])
+
             return {
                 'success': True,
                 'content': content,
@@ -171,7 +176,7 @@ class OpenAIProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'cost_usd': round(cost, 6),
                 'response_time_ms': response_time,
-                'model_used': self.model
+                'model_used': actual_model_used
             }
             
         except (getattr(openai, 'APIStatusError', Exception), getattr(openai, 'BadRequestError', Exception), getattr(openai, 'NotFoundError', Exception), openai.APIError) as e:
