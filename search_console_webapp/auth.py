@@ -129,12 +129,35 @@ WARNING_MINUTES = int(os.getenv('SESSION_WARNING_MINUTES', '5'))  # Advertir 5 m
 
 def create_flow():
     try:
-        flow = Flow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE,
-            scopes=SCOPES,
-            redirect_uri=REDIRECT_URI
-        )
-        return flow
+        # 1. Try environment variables first (production / staging on Railway)
+        client_id = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+
+        if client_id and client_secret:
+            client_config = {
+                "web": {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [REDIRECT_URI]
+                }
+            }
+            flow = Flow.from_client_config(client_config, scopes=SCOPES)
+            flow.redirect_uri = REDIRECT_URI
+            return flow
+
+        # 2. Fallback to JSON file (local development)
+        if os.path.exists(CLIENT_SECRETS_FILE):
+            flow = Flow.from_client_secrets_file(
+                CLIENT_SECRETS_FILE,
+                scopes=SCOPES,
+                redirect_uri=REDIRECT_URI
+            )
+            return flow
+
+        logger.error("OAuth2: No credentials found — set GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET env vars or provide client_secret.json")
+        return None
     except Exception as e:
         logger.error(f"Error creando flow OAuth2: {e}")
         return None
