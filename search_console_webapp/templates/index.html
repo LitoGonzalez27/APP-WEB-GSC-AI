@@ -20,6 +20,7 @@
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
 
   <link href="https://fonts.googleapis.com/css2?family=Jost&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -357,7 +358,7 @@
           <form id="urlForm" class="search-form">
 
             <div class="form-header">
-              <h1>Search Results Performance</h1>
+              <h1>Configuration for <span class="config-title-accent">Search Results</span></h1>
               <p class="form-description">Analyze your site's performance with precise date ranges and comparison periods</p>
             </div> 
 
@@ -396,7 +397,7 @@
                   URL(s)
                   <i class="fas fa-info-circle urls-info-icon" id="urlsInfoIcon"></i>
                 </label>
-                <textarea id="urlsInput" name="urls" rows="6" placeholder="Enter URLs (one per line)"></textarea>
+                <textarea id="urlsInput" name="urls" rows="6" placeholder="Leave empty to analyze all pages on your property.&#10;&#10;You can also add paths, URLs, or a mix of both.&#10;We'll fetch the data for everything you add here."></textarea>
               </div>
 
               <div class="form-group form-group-small">
@@ -444,14 +445,9 @@
       </div>
 
       <div class="content-section" id="performanceContent" data-section="performance">
-        <section id="insightsSection" class="glass-effect">
-          <h2 id="insightsTitle">Performance Overview</h2>
-          <p class="insights-subtitle">Key metrics and comparison between selected periods</p>
-          <div id="summaryDisclaimer" class="summary-disclaimer"></div>
-        </section>
-
         <section id="performanceSection" class="glass-effect">
-          <h2 id="performanceTitle">Selected Periods Performance</h2>
+          <h2 id="performanceTitle" class="ov-title-compact">Selected Periods <span class="ov-title-accent">Performance</span></h2>
+          <p class="performance-subtitle">Key metrics and comparison between selected periods</p>
           <div id="summaryBlock" class="summary-block">
 
             <div class="summary-card" id="summaryClicks">
@@ -476,18 +472,59 @@
             </div>
           </div>
         </section>
+
+        <!-- Winners & Losers -->
+        <section id="moversSection" style="display:none;">
+          <h2 class="ov-title-compact">Top <span class="ov-title-accent">Movers</span></h2>
+          <p class="performance-subtitle">Keywords and URLs with biggest changes between periods</p>
+          <div class="movers-grid">
+            <!-- Keywords panel -->
+            <div class="movers-panel" id="keywordMoversPanel">
+              <div class="movers-panel-header">
+                <span class="movers-panel-label"><i class="fas fa-key"></i> Keywords</span>
+                <div class="movers-chips">
+                  <button class="movers-chip active" data-type="winners">Winners</button>
+                  <button class="movers-chip" data-type="losers">Losers</button>
+                </div>
+              </div>
+              <div class="movers-table-wrap" id="keywordMoversTable"></div>
+            </div>
+            <!-- URLs panel -->
+            <div class="movers-panel" id="urlMoversPanel">
+              <div class="movers-panel-header">
+                <span class="movers-panel-label"><i class="fas fa-link"></i> URLs</span>
+                <div class="movers-chips">
+                  <button class="movers-chip active" data-type="winners">Winners</button>
+                  <button class="movers-chip" data-type="losers">Losers</button>
+                </div>
+              </div>
+              <div class="movers-table-wrap" id="urlMoversTable"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Position Distribution -->
+        <section id="positionDistSection" style="display:none;">
+          <h2 class="ov-title-compact">Position <span class="ov-title-accent">Distribution</span></h2>
+          <p class="performance-subtitle">Keyword ranking distribution across position ranges</p>
+          <div class="position-dist-card">
+            <canvas id="positionDistChart" height="280"></canvas>
+          </div>
+        </section>
       </div>
 
       <div class="content-section" id="keywordsContent" data-section="keywords">
         <section id="keywordsSection" class="glass-effect">
-          <h2 id="keywordsTitle" class="keywords-title-compact">Keyword Performance</h2> 
+          <h2 id="keywordsTitle" class="keywords-title-compact">Performance <span class="kw-title-accent">Keywords</span></h2>
           <div class="keywords-overview-subtitle">Performance comparison between selected periods</div>
 
           <div class="keywords-overview-block">
+            <div class="kw-block-label">Keywords Status</div>
             <div id="keyword-overview" class="overview-cards overview-cards-horizontal"></div>
           </div>
 
           <div class="keywords-category-block">
+            <div class="kw-block-label">Keywords by Position</div>
             <div id="keyword-category-cards" class="category-cards category-cards-horizontal"></div>
           </div>
 
@@ -589,7 +626,7 @@
 
       <div class="content-section" id="pagesContent" data-section="pages">
         <section id="resultsSection" class="glass-effect">
-          <h2 id="resultsTitle">URLs Performance</h2>
+          <h2 id="resultsTitle" class="pages-title-compact">Performance <span class="pg-title-accent">URLs</span></h2>
           <div class="urls-overview-subtitle">Performance comparison between selected periods</div>
           <div id="resultsBlock" class="table-responsive-container">
             <table id="resultsTable" class="display" aria-live="polite" style="width:100%;">
@@ -1077,14 +1114,12 @@
             <svg class="progress-circle-svg" viewBox="0 0 120 120">
               <defs>
                 <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                  <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+                  <stop offset="0%" style="stop-color:#d9f9b8;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#d9f9b8;stop-opacity:1" />
                 </linearGradient>
                 <linearGradient id="progressGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
-                  <stop offset="50%" style="stop-color:#00f2fe;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#43e97b;stop-opacity:1" />
+                  <stop offset="0%" style="stop-color:#d9f9b8;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#d9f9b8;stop-opacity:1" />
                 </linearGradient>
               </defs>
               <circle 
@@ -1151,6 +1186,8 @@
   <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='gridjs-styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='keywords-section.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='pages-section.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='overview-section.css') }}">
   <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
 
   <style>
@@ -1222,6 +1259,7 @@
   <script type="module" src="{{ url_for('static', filename='js/number-utils.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/debug-number-formatting.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ui-serp-modal.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ui-overview-movers.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-keywords-gridjs.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/ui-keyword-comparison-table.js') }}"></script>
 

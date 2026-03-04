@@ -107,13 +107,13 @@ export function renderKeywordComparisonTable(keywordData, periods = null) {
     }
   }
 
-  // ✅ Actualizar título de la sección si existe
+  // ✅ Actualizar título de la sección si existe (usando innerHTML para preservar accent span)
   const titleElement = document.querySelector('#keywordsSection h2');
   if (titleElement) {
     if (analysisType === 'single') {
-      titleElement.textContent = 'Keyword Performance - Single Period';
+      titleElement.innerHTML = 'Performance <span class="kw-title-accent">Keywords</span> — Single Period';
     } else {
-      titleElement.textContent = 'Keyword Performance';
+      titleElement.innerHTML = 'Performance <span class="kw-title-accent">Keywords</span>';
     }
   }
 }

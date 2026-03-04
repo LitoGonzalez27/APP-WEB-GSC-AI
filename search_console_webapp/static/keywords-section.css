@@ -1,279 +1,1346 @@
 /* ==============================================
-   KEYWORDS SECTION STYLES
-   Estilos exclusivos de la sección Keywords
+   KEYWORDS SECTION — CLICANDSEO BRANDBOOK v2
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Libre Baskerville
+   Flat/solid only · No gradients · No glassmorphism
    ============================================== */
 
+/* ── 1. SCOPED BRAND TOKENS ──────────────────── */
+#keywordsContent {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-text-inverse:   #F8FAFC;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-surface-dark:   #334155;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+/* Tokens duplicated on modals (appended to body, outside #keywordsContent) */
+[id^="keywordModal-"] {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-text-inverse:   #F8FAFC;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-surface-dark:   #334155;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 2. SECTION WRAPPER ──────────────────────── */
+/* White card wrapper matching other sections */
+#keywordsContent section#keywordsSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Kill glass-effect from base CSS */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* ── 3. SECTION HEADER ───────────────────────── */
+#keywordsContent .kw-section-eyebrow {
+  display: inline-block;
+  font-family: var(--bb-font-sans);
+  font-size: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--bb-text-tertiary);
+  margin-bottom: 0.5rem;
+  background: none !important;
+  padding: 0;
+  border-radius: 0;
+}
+
 #keywordsContent .keywords-title-compact {
-  margin-bottom: 8px !important;
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.35rem 0 !important;
+  text-align: center !important;
+  position: relative !important;
 }
 
-#keywordsContent #keywordComparisonBlock {
-  margin-top: var(--spacing-md) !important;
+/* Kill the purple gradient underline from estilos-principales + modulos-especificos */
+#keywordsContent #keywordsTitle::after {
+  display: none !important;
+  content: none !important;
 }
 
-#keywordsContent #keywordComparisonBlock.keywords-comparison-block {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow: visible;
+#keywordsContent .kw-title-accent {
+  font-family: var(--bb-font-serif) !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  position: relative;
+  display: inline-block;
+  z-index: 0; /* stacking context so ::after underline stays visible */
+}
+
+/* Bio-Lime underline on the accent word */
+#keywordsContent .kw-title-accent::after {
+  content: '';
+  position: absolute;
+  bottom: 0.1em;
+  left: -6px;
+  right: -6px;
+  height: 0.4em;
+  background: var(--bb-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+#keywordsContent .keywords-overview-subtitle {
+  font-family: var(--bb-font-sans);
+  font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.9375rem);
+  color: var(--bb-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  font-weight: 400;
+  text-align: center;
+}
+
+
+/* ── 3b. BLOCK LABELS (sub-section titles) ───── */
+#keywordsContent .kw-block-label {
+  font-family: var(--bb-font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--bb-text-tertiary);
+  margin-bottom: 0.65rem;
+}
+
+
+/* ── 4. OVERVIEW CARDS ROW ───────────────────── */
+#keywordsContent .keywords-overview-block {
+  padding: 0 !important;
+  margin-bottom: 1.5rem !important;
+  background: none !important;
   border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 0 var(--spacing-md) var(--spacing-md);
-  box-sizing: border-box;
 }
 
-#keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 0;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
+#keywordsContent .overview-cards,
+#keywordsContent .overview-cards-horizontal {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 12px !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  padding: 0 !important;
 }
 
-#keywordsContent #keywordComparisonBlock .keywords-quick-filters-host:empty {
-  display: none;
-}
-
-#keywordsContent #keywordComparisonBlock .keywords-quick-filters-host {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-#keywordsContent #keywordComparisonBlock .keyword-filter-inline {
-  margin: 0;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+/* Individual Overview Card */
+#keywordsContent .overview-card {
+  flex: 1 1 0;
+  min-width: 130px;
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  padding: 1.25rem 1rem !important;
+  text-align: center;
+  transition: all 0.3s var(--bb-ease);
+  position: relative;
   overflow: hidden;
-  background: transparent !important;
-}
-
-#keywordsContent #keywordComparisonBlock .keyword-filter-inline .collapsible-content {
-  padding: 0 1rem 1rem;
-}
-
-#keywordsContent #keywordComparisonBlock .keyword-filter-inline .exclusion-container {
-  padding: 1rem;
-  border: none !important;
-  border-radius: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
 }
 
-#keywordsContent .kw-filter-actions {
-  gap: 8px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+#keywordsContent .overview-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--bb-shadow-md) !important;
+  border-color: var(--bb-accent) !important;
 }
 
-#keywordsContent .kw-filter-apply-btn {
-  background: #161616;
-  color: #fff;
-  border-color: #161616;
+#keywordsContent .overview-card-clickable {
+  cursor: pointer;
 }
 
-#keywordsContent #keywordComparisonGridMount.keywords-comparison-grid-mount {
-  width: 100%;
-  margin-top: 4px;
+/* ── Overview Card Icon ── */
+#keywordsContent .overview-card .card-icon {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  margin: 0 auto 0.5rem auto !important;
+  /* Default — neutral slate bg */
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-secondary) !important;
 }
 
-#keywordsContent #keywordComparisonGridMount .ai-overview-grid-container {
+/* TOTAL KWs icon → GREEN (search icon should be green per user) */
+#keywordsContent .overview-card.total-kws .card-icon {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: var(--bb-success) !important;
+}
+
+/* Improved → green */
+#keywordsContent .overview-card.improved .card-icon {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: var(--bb-success) !important;
+}
+
+/* Declined → red */
+#keywordsContent .overview-card.declined .card-icon {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--bb-error) !important;
+}
+
+/* Same position → neutral */
+#keywordsContent .overview-card.same-pos .card-icon {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* New/Added → fresh green */
+#keywordsContent .overview-card.added .card-icon {
+  background: rgba(34, 197, 94, 0.08) !important;
+  color: var(--bb-success) !important;
+}
+
+/* Removed/Lost → subdued */
+#keywordsContent .overview-card.removed .card-icon {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* ── Overview Card Label ── */
+#keywordsContent .overview-card .label {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--bb-text-tertiary) !important;
+  margin: 0 0 0.25rem 0 !important;
+  opacity: 1 !important;
+  line-height: 1.3 !important;
+}
+
+/* ── Overview Card Value ── */
+#keywordsContent .overview-card .value {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.15rem 0 !important;
+  line-height: 1.2 !important;
+}
+
+/* Value colors for specific cards */
+#keywordsContent .overview-card.improved .value {
+  color: var(--bb-success) !important;
+}
+#keywordsContent .overview-card.declined .value {
+  color: var(--bb-error) !important;
+}
+
+/* ── Overview Card Action / CTA ── */
+#keywordsContent .overview-card .overview-card-action {
+  font-family: var(--bb-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bb-text-secondary);
+  margin-top: 0.5rem;
+  letter-spacing: 0;
+  transition: color 0.3s var(--bb-ease);
+  cursor: pointer;
+}
+
+#keywordsContent .overview-card:hover .overview-card-action {
+  color: var(--bb-text-primary);
+}
+
+#keywordsContent .overview-card .overview-card-action.is-disabled {
+  color: var(--bb-text-tertiary);
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Bottom accent line on hover (Bio-Lime) */
+#keywordsContent .overview-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bb-accent);
+  opacity: 0;
+  transition: opacity 0.3s var(--bb-ease);
+}
+
+#keywordsContent .overview-card:hover::after {
+  opacity: 1;
+}
+
+
+/* ── 5. CATEGORY CARDS ROW ───────────────────── */
+#keywordsContent .keywords-category-block {
+  padding: 0 !important;
+  margin-bottom: 2rem !important;
+  background: none !important;
   border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 0;
 }
 
-/* Buscador dual de keywords (tabla principal + modales de rangos) */
-#keywordsContent .keywords-dual-search-row,
-[id^="keywordModal-"] .keywords-dual-search-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+#keywordsContent .category-cards,
+#keywordsContent .category-cards-horizontal {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* Individual Category Card */
+#keywordsContent .category-card,
+#keywordsContent .category-card.clickable-card {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  padding: 1.5rem 1rem !important;
+  text-align: center;
+  transition: all 0.3s var(--bb-ease) !important;
+  position: relative;
+  overflow: hidden;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+#keywordsContent .category-card:hover,
+#keywordsContent .category-card.clickable-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+/* Bottom accent on category cards too */
+#keywordsContent .category-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bb-accent);
+  opacity: 0;
+  transition: opacity 0.3s var(--bb-ease);
+}
+
+#keywordsContent .category-card:hover::after {
+  opacity: 1;
+}
+
+/* Category Card Icon — trophy/medal colors from JS inline style take precedence */
+#keywordsContent .category-card .card-icon {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  margin: 0 auto 0.75rem auto !important;
+  background: var(--bb-bg-subtle) !important;
+  padding: 0 !important;
+  /* Let inline style from JS control icon color */
+}
+
+/* Category Card Value */
+#keywordsContent .category-card .value {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin-bottom: 0.25rem !important;
+  line-height: 1.2 !important;
+}
+
+/* Category Card Subtitle */
+#keywordsContent .category-card .subtitle {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  color: var(--bb-text-secondary) !important;
+  margin-bottom: 0.75rem !important;
+}
+
+/* Category Card New / Lost / Maintained */
+#keywordsContent .category-card .entry,
+#keywordsContent .category-card .exit,
+#keywordsContent .category-card .maintain {
+  font-family: var(--bb-font-sans);
+  font-size: 0.78rem;
+  color: var(--bb-text-secondary);
+  margin-bottom: 2px;
+  font-weight: 400;
+}
+
+#keywordsContent .category-card .entry strong {
+  color: var(--bb-success) !important;
+  font-weight: 700;
+}
+
+#keywordsContent .category-card .exit strong {
+  color: var(--bb-error) !important;
+  font-weight: 700;
+}
+
+#keywordsContent .category-card .maintain strong {
+  color: var(--bb-text-primary) !important;
+  font-weight: 600;
+}
+
+/* Category Card CTA */
+#keywordsContent .category-card .overview-card-action {
+  font-family: var(--bb-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bb-text-secondary);
+  margin-top: 0.5rem;
+  transition: color 0.3s var(--bb-ease);
+}
+
+#keywordsContent .category-card:hover .overview-card-action {
+  color: var(--bb-text-primary);
+}
+
+
+/* ── 6. COMPARISON BLOCK — FILTER + PRESETS + GRID ── */
+#keywordsContent .keywords-comparison-block {
+  margin-top: 0.5rem;
+}
+
+#keywordsContent .keywords-comparison-controls {
   margin-bottom: 1rem;
 }
 
-#keywordsContent .keywords-dual-search-row .gridjs-search,
-[id^="keywordModal-"] .keywords-dual-search-row .gridjs-search {
-  margin-bottom: 0;
+
+/* ── 7. COLLAPSIBLE KEYWORD FILTER ───────────── */
+#keywordsContent .collapsible-block {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  margin-bottom: 1rem !important;
+  overflow: hidden;
+  box-shadow: none !important;
 }
 
-#keywordsContent .keywords-custom-search,
-[id^="keywordModal-"] .keywords-custom-search {
-  flex: 1 1 260px;
-  min-width: 220px;
+#keywordsContent .collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.2s var(--bb-ease);
 }
 
-#keywordsContent .keywords-custom-search input,
-[id^="keywordModal-"] .keywords-custom-search input {
+#keywordsContent .collapsible-header:hover {
+  background: var(--bb-bg-subtle);
+}
+
+#keywordsContent .collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--bb-font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--bb-text-primary);
+}
+
+#keywordsContent .collapsible-title i {
+  color: var(--bb-text-tertiary);
+  font-size: 0.85rem;
+}
+
+#keywordsContent .optional-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--bb-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* NO pill shape, NO background — brandbook rules */
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+#keywordsContent .collapsible-summary {
+  font-family: var(--bb-font-sans);
+  font-size: 0.78rem;
+  color: var(--bb-text-tertiary);
+  flex: 1;
+  text-align: right;
+}
+
+#keywordsContent .collapsible-arrow {
+  font-size: 0.75rem;
+  color: var(--bb-text-tertiary);
+  transition: transform 0.3s var(--bb-ease);
+}
+
+#keywordsContent .collapsible-block.is-open .collapsible-arrow {
+  transform: rotate(180deg);
+}
+
+/* Collapsible Content */
+#keywordsContent .collapsible-content {
+  padding: 1rem 1.25rem 1.25rem !important;
+}
+
+/* Exclusion Grid (Filter internals) */
+#keywordsContent .exclusion-container {
+  padding: 0;
+}
+
+#keywordsContent .exclusion-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+#keywordsContent .exclusion-column-title {
+  font-family: var(--bb-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bb-text-secondary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#keywordsContent .exclusion-column-title i {
+  color: var(--bb-text-tertiary);
+  font-size: 0.7rem;
+}
+
+#keywordsContent .exclusion-method-select {
+  font-family: var(--bb-font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-subtle);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  padding: 0.5rem 0.75rem;
   width: 100%;
-  border: 1px solid var(--border-color) !important;
-  border-radius: 6px !important;
-  padding: 8px 12px !important;
-  font-size: 0.9rem !important;
-  color: var(--text-color) !important;
+  cursor: pointer;
+  transition: border-color 0.2s var(--bb-ease);
+  appearance: auto;
 }
 
-#keywordsContent .keywords-custom-search input:focus,
-[id^="keywordModal-"] .keywords-custom-search input:focus {
-  border-color: var(--cta-bg) !important;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2) !important;
-  outline: none !important;
+#keywordsContent .exclusion-method-select:focus {
+  outline: 2px solid var(--bb-accent);
+  outline-offset: 2px;
+  border-color: var(--bb-accent);
 }
 
-#keywordsContent .keywords-presets-row {
+#keywordsContent .exclusion-method-description {
+  font-size: 0.7rem;
+  color: var(--bb-text-tertiary);
+  margin-top: 0.35rem;
+}
+
+#keywordsContent .exclusion-input {
+  font-family: var(--bb-font-sans);
+  font-size: 0.8rem;
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-paper);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  transition: border-color 0.2s var(--bb-ease), box-shadow 0.2s var(--bb-ease);
+}
+
+#keywordsContent .exclusion-input:focus {
+  outline: none;
+  border-color: var(--bb-accent);
+  box-shadow: 0 0 0 3px var(--bb-accent-subtle);
+}
+
+#keywordsContent .exclusion-input::placeholder {
+  color: var(--bb-text-tertiary);
+}
+
+#keywordsContent .exclusion-input-hint {
+  font-family: var(--bb-font-sans);
+  font-size: 0.65rem;
+  color: var(--bb-text-tertiary);
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#keywordsContent .exclusion-count {
+  font-family: var(--bb-font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--bb-text-secondary);
+  margin-left: 0.35rem;
+  /* NO pill/badge shape — brandbook forbids it */
+  background: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Filter tags container */
+#keywordsContent .exclusion-tags-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 0;
+  gap: 6px;
+  min-height: 32px;
 }
 
-#keywordsContent .keywords-presets-block {
+/* Empty state text */
+#keywordsContent .exclusion-tags-container .exclusion-empty {
+  font-family: var(--bb-font-sans);
+  font-size: 0.875rem;
+  color: var(--bb-text-tertiary);
+}
+
+/* Individual filter tag */
+#keywordsContent .exclusion-tags-container .exclusion-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--bb-font-sans);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--bb-text-primary);
+  background: var(--bb-bg-subtle);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  padding: 4px 8px;
+  transition: all 0.2s var(--bb-ease);
+}
+
+#keywordsContent .exclusion-tags-container .exclusion-tag:hover {
+  border-color: var(--bb-error);
+}
+
+#keywordsContent .exclusion-tags-container .exclusion-tag .remove-tag {
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: var(--bb-text-tertiary);
+  transition: color 0.2s;
+}
+
+#keywordsContent .exclusion-tags-container .exclusion-tag .remove-tag:hover {
+  color: var(--bb-error);
+}
+
+/* Clear All / Apply buttons */
+#keywordsContent .kw-filter-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+#keywordsContent .clear-all-btn {
+  font-family: var(--bb-font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bb-text-secondary);
+  background: transparent;
+  border: 1.5px solid var(--bb-border);
+  border-radius: var(--bb-radius-full);
+  padding: 6px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.3s var(--bb-ease);
+}
+
+#keywordsContent .clear-all-btn:hover {
+  background: var(--bb-bg-subtle);
+  transform: translateY(-1px);
+}
+
+#keywordsContent .kw-filter-apply-btn {
+  color: var(--bb-text-primary) !important;
+  background: var(--bb-accent) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+#keywordsContent .kw-filter-apply-btn:hover {
+  box-shadow: var(--bb-shadow-sm);
+}
+
+
+/* ── 8. PRESET CHIPS ─────────────────────────── */
+#keywordsContent .keywords-presets-block {
+  margin-bottom: 1rem;
 }
 
 #keywordsContent .keywords-presets-heading {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 #keywordsContent .keywords-presets-title {
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--heading);
+  font-family: var(--bb-font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bb-text-primary);
+  letter-spacing: -0.01em;
 }
 
 #keywordsContent .keywords-presets-caption {
-  font-size: 0.8rem;
-  color: var(--text-color);
-  opacity: 0.75;
+  font-family: var(--bb-font-sans);
+  font-size: 0.7rem;
+  color: var(--bb-text-tertiary);
+  font-weight: 400;
 }
 
+#keywordsContent .keywords-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Preset chip — pill-shaped buttons (brandbook-approved) */
 #keywordsContent .keywords-preset-chip {
-  border: 1px solid #1f1f1f;
-  background: #161616;
-  color: #d8f9b8;
-  border-radius: 999px;
-  padding: 7px 13px;
-  font-size: 0.82rem;
+  font-family: var(--bb-font-sans);
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1;
+  color: var(--bb-text-secondary);
+  background: var(--bb-bg-paper);
+  border: 1.5px solid var(--bb-border);
+  border-radius: var(--bb-radius-full);
+  padding: 8px 18px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.3s var(--bb-ease);
   white-space: nowrap;
+  line-height: 1;
 }
 
 #keywordsContent .keywords-preset-chip:hover {
-  background: #202020;
-  border-color: #b8dea0;
-  color: #d8f9b8;
+  color: var(--bb-text-primary);
+  border-color: var(--bb-text-tertiary);
+  transform: translateY(-2px);
+  box-shadow: var(--bb-shadow-sm);
 }
 
+/* Active preset */
 #keywordsContent .keywords-preset-chip.is-active {
-  background: #d8f9b8;
-  border-color: #a8d68a;
-  color: #161616;
-  box-shadow: 0 3px 10px rgba(168, 214, 138, 0.32);
+  color: var(--bb-text-primary);
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
 }
 
-#keywordsContent .keywords-preset-chip:focus-visible {
-  outline: 2px solid rgba(52, 152, 219, 0.5);
-  outline-offset: 2px;
+#keywordsContent .keywords-preset-chip.is-active:hover {
+  box-shadow: var(--bb-shadow-md);
 }
 
-#keywordsContent .overview-card.overview-card-clickable {
-  cursor: pointer;
-  transition: transform 0.16s ease, opacity 0.16s ease;
+
+/* ── 9. DUAL SEARCH ROW ─────────────────────── */
+#keywordsContent .keywords-dual-search-row,
+[id^="keywordModal-"] .keywords-dual-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
 }
 
-#keywordsContent .overview-card.overview-card-clickable:hover {
-  transform: translateY(-1px);
+#keywordsContent .keywords-custom-search,
+[id^="keywordModal-"] .keywords-custom-search {
+  flex: 1;
+  position: relative;
 }
 
-#keywordsContent .overview-card.overview-card-clickable:focus-visible {
-  outline: 2px solid rgba(52, 152, 219, 0.45);
-  outline-offset: 4px;
+/* Search inputs */
+#keywordsContent .keywords-text-search-input,
+#keywordsContent .keywords-url-search-input,
+[id^="keywordModal-"] .keywords-text-search-input,
+[id^="keywordModal-"] .keywords-url-search-input {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82rem !important;
+  font-weight: 400 !important;
+  color: var(--bb-text-primary) !important;
+  background: var(--bb-bg-subtle) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  padding: 0.6rem 0.85rem !important;
+  width: 100% !important;
+  transition: border-color 0.2s var(--bb-ease), box-shadow 0.2s var(--bb-ease) !important;
+  outline: none !important;
 }
 
-#keywordsContent .overview-card .overview-card-action {
-  margin-top: 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--cta-bg);
-  opacity: 0.9;
+#keywordsContent .keywords-text-search-input:focus,
+#keywordsContent .keywords-url-search-input:focus,
+[id^="keywordModal-"] .keywords-text-search-input:focus,
+[id^="keywordModal-"] .keywords-url-search-input:focus {
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px var(--bb-accent-subtle) !important;
+  background: var(--bb-bg-paper) !important;
 }
 
-#keywordsContent .overview-card .overview-card-action.is-disabled {
-  color: var(--text-color);
-  opacity: 0.45;
+#keywordsContent .keywords-text-search-input::placeholder,
+#keywordsContent .keywords-url-search-input::placeholder,
+[id^="keywordModal-"] .keywords-text-search-input::placeholder,
+[id^="keywordModal-"] .keywords-url-search-input::placeholder {
+  color: var(--bb-text-tertiary) !important;
 }
 
-/* Estilos del modal de keywords por URL */
-#pagesContent .keywords-icon,
-#keywordModal-url .keywords-icon {
-  font-size: 16px;
-  padding: 8px;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  color: var(--primary-color);
-  display: inline-flex;
+
+/* ── 10. GRID.JS TABLE OVERRIDES ─────────────── */
+#keywordsContent .gridjs-wrapper,
+[id^="keywordModal-"] .gridjs-wrapper {
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-md) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  box-shadow: none !important;
+  height: auto !important;
+}
+
+#keywordsContent .gridjs-table,
+[id^="keywordModal-"] .gridjs-table {
+  height: auto !important;
+}
+
+#keywordsContent .gridjs-table,
+[id^="keywordModal-"] .gridjs-table {
+  font-family: var(--bb-font-sans) !important;
+}
+
+/* Table header */
+#keywordsContent .gridjs-thead,
+[id^="keywordModal-"] .gridjs-thead {
+  background: var(--bb-bg-subtle) !important;
+}
+
+#keywordsContent .gridjs-th,
+[id^="keywordModal-"] .gridjs-th {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: var(--bb-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  border-color: var(--bb-border-subtle) !important;
+  background: var(--bb-bg-subtle) !important;
+  padding: 0.75rem 0.85rem !important;
+}
+
+/* Table cells */
+#keywordsContent .gridjs-td,
+[id^="keywordModal-"] .gridjs-td {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.82rem !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border-subtle) !important;
+  padding: 0.65rem 0.85rem !important;
+  background: var(--bb-bg-paper) !important;
+}
+
+/* Alternating row */
+#keywordsContent .gridjs-tr:nth-child(even) .gridjs-td,
+[id^="keywordModal-"] .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(241, 245, 249, 0.4) !important;
+}
+
+/* Row hover */
+#keywordsContent .gridjs-tr:hover .gridjs-td,
+[id^="keywordModal-"] .gridjs-tr:hover .gridjs-td {
+  background: rgba(217, 249, 184, 0.08) !important;
+}
+
+/* Grid.js pagination */
+#keywordsContent .gridjs-pagination,
+[id^="keywordModal-"] .gridjs-pagination {
+  font-family: var(--bb-font-sans) !important;
+  border-top: 1px solid var(--bb-border-subtle) !important;
+  padding: 0.75rem 1rem !important;
+}
+
+#keywordsContent .gridjs-pagination .gridjs-pages button,
+[id^="keywordModal-"] .gridjs-pagination .gridjs-pages button {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  border-radius: var(--bb-radius-sm) !important;
+  border: 1px solid var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  background: var(--bb-bg-paper) !important;
+  padding: 0.35rem 0.65rem !important;
+  transition: all 0.2s var(--bb-ease) !important;
+}
+
+#keywordsContent .gridjs-pagination .gridjs-pages button:hover,
+[id^="keywordModal-"] .gridjs-pagination .gridjs-pages button:hover {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#keywordsContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage,
+[id^="keywordModal-"] .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-text-primary) !important;
+  color: var(--bb-text-inverse) !important;
+  border-color: var(--bb-text-primary) !important;
+}
+
+/* Grid.js footer — kill generic .gridjs-footer styles */
+#keywordsContent .gridjs-footer,
+[id^="keywordModal-"] .gridjs-footer {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0.75rem 0 !important;
+}
+
+/* Grid.js summary / footer */
+#keywordsContent .gridjs-summary,
+[id^="keywordModal-"] .gridjs-summary {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.75rem !important;
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Grid.js native search (if visible) */
+#keywordsContent .gridjs-search input,
+[id^="keywordModal-"] .gridjs-search input {
+  font-family: var(--bb-font-sans) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  border: 1px solid var(--bb-border) !important;
+}
+
+/* Grid.js sort icon */
+#keywordsContent .gridjs-sort,
+[id^="keywordModal-"] .gridjs-sort {
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Grid.js loading */
+#keywordsContent .gridjs-loading,
+[id^="keywordModal-"] .gridjs-loading {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+/* ── Grid cell keyword-url popover ── */
+#keywordsContent .keyword-url-cell,
+[id^="keywordModal-"] .keyword-url-cell {
+  position: relative;
+}
+
+#keywordsContent .keyword-url-popover,
+[id^="keywordModal-"] .keyword-url-popover {
+  font-family: var(--bb-font-sans) !important;
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+  font-size: 0.75rem !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+
+/* ── 11. KEYWORD MODAL ───────────────────────── */
+[id^="keywordModal-"] .modal-overlay {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+[id^="keywordModal-"] .modal-content,
+[id^="keywordModal-"] .keyword-modal-content {
+  font-family: var(--bb-font-sans) !important;
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  box-shadow: var(--bb-shadow-lg) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  padding: 2rem !important;
+  max-width: 95vw;
+  width: 1200px;
+}
+
+[id^="keywordModal-"] .keyword-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--bb-border-subtle);
+}
+
+[id^="keywordModal-"] .keyword-modal-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+  color: var(--bb-text-primary) !important;
+  letter-spacing: -0.02em !important;
+}
+
+[id^="keywordModal-"] .keyword-modal-close,
+[id^="keywordModal-"] .modal-close-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  background: var(--bb-bg-subtle);
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-sm);
+  color: var(--bb-text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s var(--bb-ease);
 }
 
-#pagesContent .keywords-icon:hover,
-#keywordModal-url .keywords-icon:hover {
-  background-color: var(--primary-color);
-  color: white !important;
+[id^="keywordModal-"] .keyword-modal-close:hover,
+[id^="keywordModal-"] .modal-close-btn:hover {
+  background: var(--bb-bg-subtle);
+  color: var(--bb-text-primary);
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-  border-color: var(--primary-color);
 }
 
-#keywordModal-url .url-keywords-info {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-left: 4px solid #007bff;
+/* Modal body */
+[id^="keywordModal-"] .keyword-modal-body {
+  overflow: auto;
 }
 
-#keywordModal-url .url-keywords-info p {
-  margin: 0.5em 0;
-  font-size: 14px;
+
+/* ── 12. DARK MODE ───────────────────────────── */
+body.dark-mode #keywordsContent {
+  --bb-bg-paper:      #0A0A0B;
+  --bb-bg-subtle:     rgba(255, 255, 255, 0.03);
+  --bb-text-primary:  #F8FAFC;
+  --bb-text-secondary:rgba(255, 255, 255, 0.6);
+  --bb-text-tertiary: rgba(255, 255, 255, 0.4);
+  --bb-border:        rgba(255, 255, 255, 0.06);
+  --bb-border-subtle: rgba(255, 255, 255, 0.04);
 }
 
-#keywordModal-url .url-keywords-info strong {
-  color: #495057;
+body.dark-mode #keywordsContent section#keywordsSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border) !important;
 }
 
-#keywordModal-url .modal-content {
-  animation: keywordModalUrlSlideIn 0.3s ease-out;
+body.dark-mode #keywordsContent .kw-block-label {
+  color: var(--bb-text-tertiary);
 }
 
-@keyframes keywordModalUrlSlideIn {
+body.dark-mode #keywordsContent .overview-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .overview-card:hover {
+  border-color: rgba(217, 249, 184, 0.2) !important;
+}
+
+body.dark-mode #keywordsContent .category-card,
+body.dark-mode #keywordsContent .category-card.clickable-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .category-card:hover {
+  border-color: rgba(217, 249, 184, 0.2) !important;
+}
+
+body.dark-mode #keywordsContent .collapsible-block {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-td {
+  background: var(--bb-bg-paper) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-tr:hover .gridjs-td {
+  background: rgba(217, 249, 184, 0.04) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-wrapper {
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .ai-overview-grid-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-pagination {
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-pagination .gridjs-pages button {
+  border-color: var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  background: transparent !important;
+}
+
+body.dark-mode #keywordsContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-accent) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip {
+  background: transparent;
+  border-color: var(--bb-border);
+  color: var(--bb-text-secondary);
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--bb-text-primary);
+}
+
+body.dark-mode #keywordsContent .keywords-preset-chip.is-active {
+  background: var(--bb-accent);
+  border-color: var(--bb-accent);
+  color: #0F172A;
+}
+
+body.dark-mode #keywordsContent .keywords-text-search-input,
+body.dark-mode #keywordsContent .keywords-url-search-input {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: var(--bb-border) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+body.dark-mode #keywordsContent .keywords-text-search-input:focus,
+body.dark-mode #keywordsContent .keywords-url-search-input:focus {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+body.dark-mode #keywordsContent .exclusion-method-select {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--bb-border);
+  color: var(--bb-text-primary);
+}
+
+body.dark-mode #keywordsContent .exclusion-input {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--bb-border);
+  color: var(--bb-text-primary);
+}
+
+body.dark-mode #keywordsContent .exclusion-tags-container .exclusion-tag {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--bb-border);
+  color: var(--bb-text-primary);
+}
+
+body.dark-mode #keywordsContent .clear-all-btn {
+  border-color: var(--bb-border);
+  color: var(--bb-text-secondary);
+}
+
+/* Dark mode for modals */
+body.dark-mode [id^="keywordModal-"] {
+  --bb-bg-paper:      #0A0A0B;
+  --bb-bg-subtle:     rgba(255, 255, 255, 0.03);
+  --bb-text-primary:  #F8FAFC;
+  --bb-text-secondary:rgba(255, 255, 255, 0.6);
+  --bb-text-tertiary: rgba(255, 255, 255, 0.4);
+  --bb-border:        rgba(255, 255, 255, 0.06);
+  --bb-border-subtle: rgba(255, 255, 255, 0.04);
+}
+
+
+/* ── 13. NUCLEAR PURPLE OVERRIDE ─────────────── */
+/* Kill ALL purple/indigo (#6366F1, #667eea) from base CSS files */
+
+/* estilos-principales.css sets gradient + #6366F1 on overview card icons */
+#keywordsContent .overview-card.total-kws .card-icon,
+#keywordsContent .overview-card.improved .card-icon,
+#keywordsContent .overview-card.declined .card-icon,
+#keywordsContent .overview-card.same-pos .card-icon,
+#keywordsContent .overview-card.added .card-icon,
+#keywordsContent .overview-card.removed .card-icon {
+  background-image: none !important;
+  /* Individual colors already set above in section 4 */
+}
+
+/* estilos-principales.css sets #6366F1 on category card icon + value */
+#keywordsContent .category-card .card-icon {
+  background-image: none !important;
+  color: inherit !important;
+}
+
+/* base-y-componentes.css sets .label { color: var(--cta-bg) } */
+#keywordsContent .overview-card .label,
+#keywordsContent .category-card .label {
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* base-y-componentes.css sets .category-card .value { color: var(--cta-bg) } */
+#keywordsContent .category-card .value {
+  color: var(--bb-text-primary) !important;
+}
+
+/* base-y-componentes.css sets .card-icon with CTA bg */
+#keywordsContent .category-card .card-icon {
+  background-color: var(--bb-bg-subtle) !important;
+}
+
+/* Kill any leftover glass-effect on section */
+#keywordsContent section#keywordsSection.glass-effect {
+  background: var(--bb-bg-paper) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Kill any underline/decoration that might be purple */
+#keywordsContent a,
+#keywordsContent .overview-card-action {
+  text-decoration: none !important;
+}
+
+
+/* ── 14. RESPONSIVE ──────────────────────────── */
+@media (max-width: 1024px) {
+  #keywordsContent .category-cards,
+  #keywordsContent .category-cards-horizontal {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  #keywordsContent .exclusion-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  #keywordsContent section#keywordsSection {
+    padding: 1.5rem 1rem !important;
+  }
+
+  #keywordsContent .overview-cards,
+  #keywordsContent .overview-cards-horizontal {
+    flex-direction: column;
+  }
+
+  #keywordsContent .overview-card {
+    min-width: 100%;
+  }
+
+  #keywordsContent .category-cards,
+  #keywordsContent .category-cards-horizontal {
+    grid-template-columns: 1fr !important;
+  }
+
+  #keywordsContent .keywords-dual-search-row,
+  [id^="keywordModal-"] .keywords-dual-search-row {
+    flex-direction: column;
+  }
+
+  #keywordsContent .keywords-presets-row {
+    gap: 6px;
+  }
+
+  #keywordsContent .keywords-preset-chip {
+    font-size: 0.7rem;
+    padding: 6px 12px;
+  }
+
+  [id^="keywordModal-"] .modal-content,
+  [id^="keywordModal-"] .keyword-modal-content {
+    padding: 1.25rem !important;
+    margin: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  #keywordsContent .keywords-title-compact {
+    font-size: 1.5rem !important;
+  }
+
+  #keywordsContent .overview-card .value {
+    font-size: 1.4rem !important;
+  }
+
+  #keywordsContent .category-card .value {
+    font-size: 1.6rem !important;
+  }
+}
+
+
+/* ── 15. ANIMATIONS ──────────────────────────── */
+@keyframes kwFadeInUp {
   from {
     opacity: 0;
-    transform: translateY(-50px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -281,129 +1348,86 @@
   }
 }
 
-@media (min-width: 1366px) and (max-width: 1599px) {
-  #keywordsContent #keywordComparisonBlock {
-    margin-top: var(--spacing-sm) !important;
-    padding: 0 var(--spacing-sm) var(--spacing-sm);
-  }
-
-  #keywordsContent .keywords-title-compact {
-    font-size: 1.2rem !important;
-    margin-bottom: 6px !important;
-  }
-
-  #keywordsContent .keywords-overview-subtitle {
-    font-size: 0.8rem !important;
-    margin-bottom: 16px !important;
-    margin-top: 6px !important;
-  }
+#keywordsContent .overview-card {
+  animation: kwFadeInUp 0.5s var(--bb-ease) both;
 }
 
-@media (max-width: 768px) {
-  #keywordsContent #keywordComparisonBlock.keywords-comparison-block {
-    padding: 0 10px 12px;
-    gap: 10px;
-  }
+#keywordsContent .overview-card:nth-child(1) { animation-delay: 0s; }
+#keywordsContent .overview-card:nth-child(2) { animation-delay: 0.05s; }
+#keywordsContent .overview-card:nth-child(3) { animation-delay: 0.1s; }
+#keywordsContent .overview-card:nth-child(4) { animation-delay: 0.15s; }
+#keywordsContent .overview-card:nth-child(5) { animation-delay: 0.2s; }
+#keywordsContent .overview-card:nth-child(6) { animation-delay: 0.25s; }
 
-  #keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
-    padding: 0;
-    gap: 10px;
-  }
-
-  #keywordsContent #keywordComparisonBlock .keyword-filter-inline .collapsible-content {
-    padding: 0 0.8rem 0.8rem;
-  }
-
-  #keywordsContent #keywordComparisonBlock .keyword-filter-inline .exclusion-container {
-    padding: 0.8rem;
-  }
-
-  #keywordsContent .keywords-presets-row {
-    gap: 8px;
-  }
-
-  #keywordsContent .keywords-presets-heading {
-    gap: 6px;
-  }
-
-  #keywordsContent .keywords-preset-chip {
-    font-size: 0.76rem;
-    padding: 6px 11px;
-  }
-
-  #keywordsContent .keywords-presets-caption {
-    font-size: 0.75rem;
-  }
-
-  #keywordsContent .keywords-dual-search-row,
-  [id^="keywordModal-"] .keywords-dual-search-row {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  #keywordsContent .keywords-dual-search-row .gridjs-search,
-  [id^="keywordModal-"] .keywords-dual-search-row .gridjs-search,
-  #keywordsContent .keywords-custom-search,
-  [id^="keywordModal-"] .keywords-custom-search {
-    width: 100%;
-    min-width: 0;
-  }
-
-  #keywordsContent .keywords-dual-search-row .gridjs-search input,
-  [id^="keywordModal-"] .keywords-dual-search-row .gridjs-search input {
-    width: 100%;
-  }
-
-  #keywordModal-url .modal-content {
-    max-width: 95%;
-    margin: 2% auto;
-  }
-
-  #keywordModal-url .url-keywords-info {
-    font-size: 12px;
-  }
+#keywordsContent .category-card {
+  animation: kwFadeInUp 0.5s var(--bb-ease) both;
 }
 
-body.dark-mode #keywordsContent #keywordComparisonBlock .keywords-comparison-controls {
+#keywordsContent .category-card:nth-child(1) { animation-delay: 0.05s; }
+#keywordsContent .category-card:nth-child(2) { animation-delay: 0.1s; }
+#keywordsContent .category-card:nth-child(3) { animation-delay: 0.15s; }
+#keywordsContent .category-card:nth-child(4) { animation-delay: 0.2s; }
+
+
+/* ── 16. MISC UTILITY OVERRIDES ──────────────── */
+
+/* Remove any leftover weird margins from base */
+#keywordsContent .keywords-overview-block,
+#keywordsContent .keywords-category-block {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* The quick filters host area */
+#keywordsContent .keywords-quick-filters-host {
+  margin-bottom: 0.5rem;
+}
+
+/* Table responsive container */
+#keywordsContent .table-responsive-container {
+  overflow: visible;
+}
+
+#keywordsContent .keywords-comparison-grid-mount {
+  overflow-x: auto;
+}
+
+/* Grid wrapper — override the generic .ai-overview-grid-container
+   from gridjs-styles.css which adds border/shadow/padding we don't want here */
+#keywordsContent .ai-overview-grid-container {
+  margin-top: 0;
   background: transparent !important;
-  border-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
 }
 
-body.dark-mode #keywordsContent #keywordComparisonBlock .keyword-filter-inline {
-  background: transparent !important;
-  border-color: transparent !important;
+/* No data message */
+#keywordsContent .no-keywords-message {
+  font-family: var(--bb-font-sans);
+  color: var(--bb-text-tertiary);
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 0.9rem;
 }
 
-body.dark-mode #keywordsContent .keywords-preset-chip {
-  background: #161616;
-  color: #d8f9b8;
-  border-color: #1f1f1f;
+/* Single period card (when no comparison) */
+#keywordsContent .overview-card.single-period {
+  max-width: 220px;
 }
 
-body.dark-mode #keywordsContent .keywords-preset-chip:hover {
-  background: #202020;
-  border-color: #b8dea0;
-  color: #d8f9b8;
+/* Grid.js sort arrows */
+#keywordsContent .gridjs-th-sort .gridjs-th-content,
+[id^="keywordModal-"] .gridjs-th-sort .gridjs-th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-body.dark-mode #keywordsContent .keywords-preset-chip.is-active {
-  background: #d8f9b8;
-  border-color: #b8dea0;
-  color: #161616;
-}
-
-body.dark-mode #keywordsContent .keywords-presets-title {
-  color: var(--text-color);
-}
-
-body.dark-mode #keywordsContent .keywords-presets-caption {
-  color: var(--text-color);
-  opacity: 0.7;
-}
-
-body.dark-mode #keywordsContent .keywords-custom-search input,
-body.dark-mode [id^="keywordModal-"] .keywords-custom-search input {
-  background: var(--card-bg) !important;
-  color: var(--text-color) !important;
+/* Override any stray .glass-effect properties on inner elements */
+#keywordsContent .glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }

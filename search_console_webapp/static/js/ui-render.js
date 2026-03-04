@@ -460,7 +460,7 @@ export function renderSummary(periodSummary) {
 
   const colors = {
     clicks: '#3B82F6',      // Azul
-    impressions: '#8B45FF',  // Lila/Morado
+    impressions: '#22C55E',  // Verde (brandbook)
     ctr: '#F59E0B',         // Naranja
     position: '#EF4444'     // Rojo
   };
@@ -570,7 +570,7 @@ export function renderSummary(periodSummary) {
     return `
       <div class="summary-card-enhanced modern-card">
         <div class="card-header-modern">
-          <div class="card-icon-modern" style="background: linear-gradient(135deg, ${color}20, ${color}40); color: ${color};">
+          <div class="card-icon-modern">
             <i class="${icon}"></i>
           </div>
           <h3 class="card-title-modern">${title}</h3>
@@ -580,38 +580,22 @@ export function renderSummary(periodSummary) {
           ${periodValues}
           ${deltaHTML}
         </div>
-        
-        ${periods.length > 1 ? `
-        <div class="mini-chart-container-modern">
-          <canvas id="mini-chart-${id}" width="120" height="80"></canvas>
-        </div>
-        ` : ''}
       </div>
     `;
   };
 
   // Limpiar y actualizar HTML de cada card completamente
   document.querySelector('#summaryClicks').innerHTML = 
-    createSummaryCard('clicks', 'Total Clicks', 'fas fa-mouse-pointer', null, clicksData, chartLabels, colors.clicks);
-  
-  document.querySelector('#summaryImpressions').innerHTML = 
-    createSummaryCard('impressions', 'Total Impressions', 'fas fa-eye', null, impressionsData, chartLabels, colors.impressions);
-  
-  document.querySelector('#summaryCTR').innerHTML = 
-    createSummaryCard('ctr', 'Average CTR', 'fas fa-percentage', null, ctrData, chartLabels, colors.ctr, true);
-  
-  document.querySelector('#summaryPosition').innerHTML = 
-    createSummaryCard('position', 'Average Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
+    createSummaryCard('clicks', 'Clicks', 'fas fa-mouse-pointer', null, clicksData, chartLabels, colors.clicks);
 
-  // ✅ ACTUALIZADO: Solo crear mini-gráficos si hay múltiples períodos
-  if (periods.length > 1) {
-    setTimeout(() => {
-      createMiniChart('mini-chart-clicks', clicksData, colors.clicks, chartLabels);
-      createMiniChart('mini-chart-impressions', impressionsData, colors.impressions, chartLabels);
-      createMiniChart('mini-chart-ctr', ctrData, colors.ctr, chartLabels);
-      createMiniChart('mini-chart-position', positionData, colors.position, chartLabels);
-    }, 100);
-  }
+  document.querySelector('#summaryImpressions').innerHTML =
+    createSummaryCard('impressions', 'Impressions', 'fas fa-eye', null, impressionsData, chartLabels, colors.impressions);
+
+  document.querySelector('#summaryCTR').innerHTML =
+    createSummaryCard('ctr', 'CTR', 'fas fa-percentage', null, ctrData, chartLabels, colors.ctr, true);
+
+  document.querySelector('#summaryPosition').innerHTML =
+    createSummaryCard('position', 'Position', 'fas fa-location-arrow', null, positionData, chartLabels, colors.position, false, true);
 
   if (elems.summaryBlock) elems.summaryBlock.style.display = 'grid';
   
@@ -750,30 +734,29 @@ export function renderKeywords(keywordStats = {}) {
     
     const buildModernCatCard = (title, stat = { current: 0, new: 0, lost: 0, stay: 0 }, dataRange) => {
       const hasComparison = (stat.new > 0 || stat.lost > 0);
-      
-      // ✅ TAREA 2: Iconos de medallas según rango de posición
-      let iconClass = 'fas fa-layer-group'; // fallback
-      let iconColor = '#666';
-      
+
+      let iconClass = 'fas fa-layer-group';
+      let iconColor = '#94A3B8';
+
       switch (dataRange) {
         case 'top3':
           iconClass = 'fas fa-trophy';
-          iconColor = '#FFD700'; // Oro
+          iconColor = '#FFD700';
           break;
         case 'top10':
           iconClass = 'fas fa-trophy';
-          iconColor = '#C0C0C0'; // Plata
+          iconColor = '#C0C0C0';
           break;
         case 'top20':
           iconClass = 'fas fa-trophy';
-          iconColor = '#CD7F32'; // Bronce
+          iconColor = '#CD7F32';
           break;
         case 'top20plus':
           iconClass = 'fas fa-medal';
-          iconColor = '#808080'; // Gris neutro (medalla negra/sin color)
+          iconColor = '#94A3B8';
           break;
       }
-      
+
       return `
         <div class="category-card clickable-card" data-position-range="${dataRange}" style="cursor: pointer;">
           <div class="card-icon"><i class="${iconClass}" style="color: ${iconColor};"></i></div>
@@ -784,6 +767,7 @@ export function renderKeywords(keywordStats = {}) {
             <div class="exit">Lost: <strong>-${formatInteger(stat.lost ?? 0)}</strong></div>
             <div class="maintain">Maintained: <strong>${formatInteger(stat.stay ?? 0)}</strong></div>
           ` : ``}
+          <div class="overview-card-action" style="margin-top: 10px;">View keywords</div>
         </div>
       `;
     };
@@ -1270,7 +1254,7 @@ export async function renderTable(pages) {
     elems.resultsSection.innerHTML = '';
     elems.resultsSection.appendChild(emptyContainer);
     
-    if (elems.resultsTitle) elems.resultsTitle.textContent = 'URLs Performance';
+    if (elems.resultsTitle) elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     
     const urlsSubtitle = document.querySelector('.urls-overview-subtitle');
     if (urlsSubtitle) {
@@ -1333,7 +1317,7 @@ export async function renderTable(pages) {
     // elems.resultsTitle.style.display = 'block';
     
     // ✅ NUEVO: Título simple y consistente como keywords
-    elems.resultsTitle.textContent = 'URLs Performance';
+    elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     console.log('✅ Título actualizado: URLs Performance');
   }
   
@@ -1392,7 +1376,7 @@ export function renderTableError() {
   if (elems.resultsTitle) {
     // ✅ SIDEBAR: No mostrar automáticamente, pero sí actualizar el contenido
     // elems.resultsTitle.style.display = 'block';
-    elems.resultsTitle.textContent = 'URLs Performance';
+    elems.resultsTitle.innerHTML = 'Performance <span class="pg-title-accent">URLs</span>';
     console.log('✅ Título actualizado (estado error)');
   }
   

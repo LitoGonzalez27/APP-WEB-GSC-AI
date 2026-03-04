@@ -31,18 +31,17 @@ function updateUrlPlaceholder() {
     
     if (selectedDomain) {
         if (!urlsValue) {
-            // Campo vacío - mostrar placeholder de propiedad completa
+            // Empty field — show instructional placeholder
             const domainDisplay = selectedDomain.replace('sc-domain:', '').replace('https://', '').replace('http://', '');
-            elems.urlsInput.placeholder = `Analizando: ${domainDisplay} (todas las páginas)`;
+            elems.urlsInput.placeholder = `Leave empty to analyze all pages on ${domainDisplay}\n\nYou can also add paths, URLs, or a mix of both.\nWe'll fetch the data for everything you add here.`;
             elems.urlsInput.classList.add('property-analysis-mode');
         } else {
-            // Campo con contenido - mostrar placeholder normal
-            elems.urlsInput.placeholder = "URLs específicas seleccionadas";
+            // Field has content
             elems.urlsInput.classList.remove('property-analysis-mode');
         }
     } else {
-        // Sin dominio seleccionado
-        elems.urlsInput.placeholder = "Selecciona un dominio primero";
+        // No domain selected
+        elems.urlsInput.placeholder = "Select a property first";
         elems.urlsInput.classList.remove('property-analysis-mode');
     }
 }
@@ -1048,6 +1047,9 @@ async function loadSearchConsoleProperties() {
                 storage.siteUrl = elems.siteUrlSelect.value;
             }
             elems.siteUrlSelect.disabled = false;
+
+            // Update URL placeholder after property auto-restore
+            updateUrlPlaceholder();
 
             // Filtro de búsqueda en vivo
             const filterInput = document.getElementById('siteUrlFilter');

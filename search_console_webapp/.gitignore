@@ -80,10 +80,12 @@ temp/
 .env.test
 
 # IMPORTANTE: NO ignorar estos archivos necesarios para Railway
-# client_secret.json - NECESARIO para Google OAuth en producción
 # requirements.txt - NECESARIO para dependencias
 # Procfile - NECESARIO para Railway
 # nixpacks.toml - NECESARIO para Railway
+
+# Credenciales OAuth — NUNCA commitear, usar variables de entorno en Railway
+client_secret.json
 
 # Archivos específicos del proyecto que SÍ deben ignorarse
 *.xlsx

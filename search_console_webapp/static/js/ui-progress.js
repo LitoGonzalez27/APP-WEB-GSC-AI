@@ -791,9 +791,8 @@ function createProgressModal() {
                 <svg class="progress-circle" viewBox="0 0 120 120" aria-hidden="true">
                   <defs>
                     <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" style="stop-color:#4285f4;stop-opacity:1" />
-                      <stop offset="50%" style="stop-color:#34a853;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#ea4335;stop-opacity:1" />
+                      <stop offset="0%" style="stop-color:#d9f9b8;stop-opacity:1" />
+                      <stop offset="100%" style="stop-color:#d9f9b8;stop-opacity:1" />
                     </linearGradient>
                   </defs>
                   <circle 
@@ -802,7 +801,7 @@ function createProgressModal() {
                     cy="60" 
                     r="54" 
                     fill="none" 
-                    stroke="rgba(255,255,255,0.1)" 
+                    stroke="#334155"
                     stroke-width="8">
                   </circle>
                   <circle 

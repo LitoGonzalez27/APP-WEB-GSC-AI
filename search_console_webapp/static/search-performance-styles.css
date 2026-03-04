@@ -1,334 +1,482 @@
-/*=============================================
-  CLICANDSEO STYLE GUIDE - SEARCH PERFORMANCE
-  Consistencia con Dashboard y Manual AI Overview
-=============================================*/
+/* ==============================================
+   CONFIGURATION SECTION — CLICANDSEO BRANDBOOK v2
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Libre Baskerville
+   Flat/solid only · No gradients · No glassmorphism
+   ============================================== */
 
-:root {
-  /* Colores CTA - ClicAndSEO Style Guide */
-  --cta-bg: #D8F9B8 !important;                    /* Negro principal */
-  --cta-hover-bg: #161616 !important;              /* Verde principal */
-  --cta-text: #161616 !important;                  /* Verde en botón negro */
-  --cta-hover-text: #D8F9B8 !important;            /* Negro en botón verde */
-  
-  /* Actualizar colores principales */
-  --heading: #161616 !important;                   /* Títulos en negro */
-  --primary-color: #161616 !important;             /* Color primario */
-  --secondary-color: #D8F9B8 !important;           /* Color secundario */
-  
-  /* Grises actualizados para consistencia */
-  --text-secondary: #4b5563 !important;            /* Texto secundario */
-  --border-primary: #e5e7eb !important;            /* Bordes principales */
-  --background-secondary: #f9fafb !important;      /* Fondos secundarios */
-  
-  /* Sistema de sombras Dashboard */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  
-  /* Transiciones */
-  --transition: all 0.15s ease-in-out;
+
+/* ── 1. SCOPED BRAND TOKENS ──────────────────── */
+#configurationContent {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-text-inverse:   #F8FAFC;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-surface-dark:   #334155;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
 }
 
-/*=============================================
-  FORMULARIO PRINCIPAL - STYLE GUIDE
-=============================================*/
 
-.search-form {
-  background: white !important;
-  border-radius: 12px !important;                  /* Border radius del Dashboard */
-  border: 1px solid var(--border-primary) !important;
-  padding: 2rem !important;                        /* Espaciado Dashboard */
+/* ── 2. LAYOUT CONTAINER ─────────────────────── */
+#configurationContent .page-container {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  font-family: var(--bb-font-sans) !important;
+  line-height: 1.6 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+
+/* ── 3. FORM CARD ────────────────────────────── */
+#configurationContent .search-form {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
   margin-bottom: 2rem !important;
-  box-shadow: var(--shadow-md) !important;
-  transition: var(--transition) !important;       /* Transición Dashboard */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: var(--bb-font-sans) !important;
+  transition: box-shadow var(--bb-duration) var(--bb-ease) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-.form-header {
+#configurationContent .search-form:hover {
+  box-shadow: var(--bb-shadow-md) !important;
+}
+
+/* Kill leftover glass-effect */
+#configurationContent .glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* ── 4. FORM HEADER ──────────────────────────── */
+#configurationContent .form-header {
   text-align: left !important;
   margin-bottom: 2rem !important;
   padding-bottom: 1.5rem !important;
-  border-bottom: 1px solid var(--border-primary) !important;
+  border-bottom: 1px solid var(--bb-border-subtle) !important;
 }
 
-.form-header h1 {
-  font-size: 2.25rem !important;                   /* Tamaño títulos Dashboard */
-  font-weight: 700 !important;                     /* Peso títulos Dashboard */
+#configurationContent .form-header h1 {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
   margin-bottom: 0.75rem !important;
-  color: var(--heading) !important;                /* Negro #161616 */
   text-align: left !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  line-height: 1.2 !important;
 }
 
-.form-description {
-  font-size: 1.125rem !important;                  /* Tamaño subtítulos Dashboard */
-  color: var(--text-secondary) !important;         /* Gris consistente */
+/* Accent words in title — Serif + green underline */
+#configurationContent .config-title-accent {
+  font-family: var(--bb-font-serif) !important;
+  font-weight: 700 !important;
+  font-style: italic !important;
+  color: var(--bb-text-primary) !important;
+  position: relative !important;
+  display: inline-block !important;
+  isolation: isolate !important;          /* NEW — creates stacking context */
+}
+
+#configurationContent .config-title-accent::after {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 2px !important;
+  width: 100% !important;
+  height: 8px !important;
+  background: var(--bb-accent) !important;
+  border-radius: 4px !important;
+  z-index: -1 !important;                /* now behind text but IN FRONT of card bg */
+  opacity: 0.55 !important;
+}
+
+#configurationContent .form-description {
+  font-size: 1.05rem !important;
+  color: var(--bb-text-secondary) !important;
   margin: 0 !important;
   font-weight: 400 !important;
   line-height: 1.6 !important;
+  font-family: var(--bb-font-sans) !important;
 }
 
-/*=============================================
-  BOTONES - CLICANDSEO STYLE GUIDE
-=============================================*/
 
-.search-form .btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.75rem !important;                         /* Gap Dashboard */
-  padding: 0.875rem 1.75rem !important;            /* Padding Dashboard */
-  border: none !important;
-  border-radius: 8px !important;                   /* Border radius Dashboard */
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;                     /* Peso Dashboard */
-  cursor: pointer !important;
-  transition: var(--transition) !important;        /* Transición Dashboard */
-  text-decoration: none !important;
-  min-width: auto !important;
-  justify-content: center !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
-.search-form .btn-primary {
-  background: var(--cta-hover-bg) !important;            /* Negro #161616 */
-  color: var(--cta-hover-text) !important;               /* Verde #D8F9B8 */
-}
-
-.search-form .btn-primary:hover {
-  background: var(--cta-bg) !important;      /* Verde #D8F9B8 */
-  color: var(--cta-hover-bg) !important;         /* Negro #161616 */
-  transform: translateY(-1px) !important;          /* Elevación Dashboard */
-  box-shadow: var(--shadow) !important;
-}
-
-.search-form .btn-secondary {
-  background: transparent !important;
-  color: var(--cta-hover-bg) !important;                 /* Negro #161616 */
-  border: 1px solid var(--cta-hover-bg) !important;
-}
-
-.search-form .btn-secondary:hover {
-  background: var(--cta-bg) !important;            /* Negro #161616 */
-  color: var(--cta-hover-bg) !important;               /* Verde #D8F9B8 */
-  transform: translateY(-1px) !important;
-  box-shadow: var(--shadow) !important;
-}
-
-.search-form .btn:active {
-  transform: translateY(0) !important;
-}
-
-/*=============================================
-  INPUTS Y SELECTS - STYLE GUIDE
-=============================================*/
-
-.search-form .form-group label {
-  font-weight: 600 !important;
-  margin-bottom: 0.5rem !important;
-  color: var(--heading) !important;               /* Negro #161616 */
-  font-size: 0.875rem !important;
-  display: flex !important;
-  align-items: center !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-}
-
-.search-form .form-group input,
-.search-form .form-group select,
-.search-form .form-group textarea {
-  width: 100% !important;
-  padding: 0.75rem 1rem !important;
-  border: 1px solid var(--border-primary) !important;
-  border-radius: 8px !important;                  /* Border radius Dashboard */
-  background: white !important;
-  color: var(--heading) !important;
-  font-size: 0.875rem !important;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  line-height: 1.5 !important;
-}
-
-.search-form .form-group input:focus,
-.search-form .form-group select:focus,
-.search-form .form-group textarea:focus {
-  outline: none !important;
-  border-color: var(--cta-bg) !important;         /* Negro #161616 */
-  box-shadow: 0 0 0 3px rgba(22, 22, 22, 0.1) !important;
-}
-
-.search-form .form-group textarea {
-  resize: vertical !important;
-  min-height: 120px !important;
-}
-
-/*=============================================
-  MATCH TYPE BUTTONS - STYLE GUIDE
-=============================================*/
-
-.search-form .match-type-group {
-  display: flex !important;
-  background: #f9fafb !important;                 /* Background Dashboard */
-  border-radius: 8px !important;
-  padding: 0.25rem !important;
-  border: 1px solid var(--border-primary) !important;
-  margin-top: 0.5rem !important;
-}
-
-.search-form .match-type-btn {
-  flex: 1 !important;
-  padding: 0.5rem 1rem !important;
-  text-align: center !important;
-  background: transparent !important;
-  color: var(--text-secondary) !important;
-  border: none !important;
-  border-radius: 6px !important;
-  cursor: pointer !important;
-  transition: var(--transition) !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-}
-
-.search-form .match-type-group input[type="radio"] {
-  display: none !important;
-}
-
-.search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
-  background: var(--cta-bg) !important;           /* Negro #161616 */
-  color: var(--cta-text) !important;              /* Verde #D8F9B8 */
-  font-weight: 600 !important;
-}
-
-.search-form .match-type-btn:hover {
-  background: rgba(22, 22, 22, 0.05) !important;
-}
-
-.search-form .match-type-group input[type="radio"]:checked + .match-type-btn:hover {
-  background: var(--cta-bg) !important;
-  color: var(--cta-text) !important;
-}
-
-/*=============================================
-  LAYOUT Y CONTAINER - STYLE GUIDE
-=============================================*/
-
-.page-container {
-  max-width: 1200px !important;                   /* Max width Dashboard */
-  margin: 0 auto !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  line-height: 1.6 !important;
-}
-
-.search-form .form-row {
+/* ── 5. FORM GRID LAYOUT ────────────────────── */
+#configurationContent .search-form .form-row {
   display: grid !important;
-  gap: 1.5rem !important;                         /* Gap Dashboard */
+  gap: 1.5rem !important;
   margin-bottom: 1.5rem !important;
 }
 
-.search-form .form-row.form-actions {
+#configurationContent .search-form .form-row.form-actions {
   grid-template-columns: auto auto !important;
   justify-content: flex-start !important;
   gap: 1rem !important;
   margin-top: 2rem !important;
 }
 
-.search-form .form-group {
+#configurationContent .search-form .form-group {
   display: flex !important;
   flex-direction: column !important;
 }
 
-/*=============================================
-  ICONOS Y ELEMENTOS ADICIONALES
-=============================================*/
 
-.search-form .country-info-icon,
-.search-form .urls-info-icon {
-  color: var(--text-secondary) !important;
+/* ── 6. LABELS ───────────────────────────────── */
+#configurationContent .search-form .form-group label {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  color: var(--bb-text-primary) !important;
+  margin-bottom: 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  letter-spacing: -0.01em !important;
+}
+
+
+/* ── 7. INPUTS, SELECTS, TEXTAREA ────────────── */
+#configurationContent .search-form .form-group input,
+#configurationContent .search-form .form-group select,
+#configurationContent .search-form .form-group textarea {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  background: var(--bb-bg-paper) !important;
+  color: var(--bb-text-primary) !important;
+  font-size: 0.875rem !important;
+  font-family: var(--bb-font-sans) !important;
+  line-height: 1.5 !important;
+  transition: border-color var(--bb-duration) var(--bb-ease),
+              box-shadow var(--bb-duration) var(--bb-ease) !important;
+}
+
+#configurationContent .search-form .form-group input:focus,
+#configurationContent .search-form .form-group select:focus,
+#configurationContent .search-form .form-group textarea:focus {
+  outline: none !important;
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 249, 184, 0.35) !important;
+}
+
+#configurationContent .search-form .form-group input::placeholder,
+#configurationContent .search-form .form-group textarea::placeholder {
+  color: var(--bb-text-tertiary) !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#configurationContent .search-form .form-group textarea {
+  resize: vertical !important;
+  min-height: 120px !important;
+}
+
+
+/* ── 8. MATCH TYPE GROUP ─────────────────────── */
+#configurationContent .search-form .match-type-group {
+  display: flex !important;
+  background: var(--bb-bg-subtle) !important;
+  border-radius: var(--bb-radius-full) !important;
+  padding: 4px !important;
+  border: 1px solid var(--bb-border) !important;
+  margin-top: 0.5rem !important;
+  gap: 2px !important;
+}
+
+#configurationContent .search-form .match-type-btn {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  padding: 0.5rem 0.625rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  color: var(--bb-text-secondary) !important;
+  border: none !important;
+  border-radius: var(--bb-radius-full) !important;
+  cursor: pointer !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  font-family: var(--bb-font-sans) !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#configurationContent .search-form .match-type-group input[type="radio"] {
+  display: none !important;
+}
+
+#configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn {
+  background: var(--bb-bg-dark) !important;
+  color: var(--bb-accent) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+}
+
+#configurationContent .search-form .match-type-btn:hover {
+  background: rgba(217, 249, 184, 0.18) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#configurationContent .search-form .match-type-group input[type="radio"]:checked + .match-type-btn:hover {
+  background: var(--bb-bg-dark) !important;
+  color: var(--bb-accent) !important;
+}
+
+
+/* ── 9. BUTTONS ──────────────────────────────── */
+#configurationContent .search-form .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  padding: 0.875rem 2rem !important;
+  border: none !important;
+  border-radius: var(--bb-radius-full) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  font-family: var(--bb-font-sans) !important;
+  cursor: pointer !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  text-decoration: none !important;
+  min-width: auto !important;
+  justify-content: center !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Primary: dark bg, Bio-Lime text */
+#configurationContent .search-form .btn-primary {
+  background: var(--bb-bg-dark) !important;
+  color: var(--bb-accent) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+}
+
+#configurationContent .search-form .btn-primary:hover {
+  background: var(--bb-accent) !important;
+  color: var(--bb-text-primary) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+}
+
+/* Secondary: ghost with subtle border */
+#configurationContent .search-form .btn-secondary {
+  background: transparent !important;
+  color: var(--bb-text-primary) !important;
+  border: 1px solid var(--bb-border) !important;
+  box-shadow: none !important;
+}
+
+#configurationContent .search-form .btn-secondary:hover {
+  background: var(--bb-bg-subtle) !important;
+  border-color: var(--bb-text-tertiary) !important;
+  transform: translateY(-1px) !important;
+}
+
+#configurationContent .search-form .btn:active {
+  transform: translateY(0) !important;
+}
+
+
+/* ── 10. DATE CHIPS ──────────────────────────── */
+#configurationContent .search-form #monthChips {
+  margin-top: 0.5rem !important;
+}
+
+#configurationContent .search-form .chip {
+  background: var(--bb-bg-subtle) !important;
+  border: 1px solid var(--bb-border) !important;
+  color: var(--bb-text-secondary) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: var(--bb-radius-full) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  font-family: var(--bb-font-sans) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  cursor: pointer !important;
+}
+
+#configurationContent .search-form .chip:hover {
+  background: var(--bb-accent-subtle) !important;
+  border-color: var(--bb-accent) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#configurationContent .search-form .chip.selected {
+  background: var(--bb-accent) !important;
+  color: #0F172A !important;
+  border-color: var(--bb-accent) !important;
+  font-weight: 600 !important;
+}
+
+
+/* ── 11. INFO ICONS ──────────────────────────── */
+#configurationContent .search-form .country-info-icon,
+#configurationContent .search-form .urls-info-icon {
+  color: var(--bb-text-tertiary) !important;
   margin-left: 0.5rem !important;
   cursor: help !important;
-  transition: var(--transition) !important;
+  transition: color var(--bb-duration) var(--bb-ease) !important;
+  font-size: 0.8em !important;
 }
 
-.search-form .country-info-icon:hover,
-.search-form .urls-info-icon:hover {
-  color: var(--heading) !important;
+#configurationContent .search-form .country-info-icon:hover,
+#configurationContent .search-form .urls-info-icon:hover {
+  color: var(--bb-accent) !important;
 }
 
-/*=============================================
-  RESPONSIVE - STYLE GUIDE
-=============================================*/
 
+/* ── 12. TOOLTIPS — Brandbook v2 ────────────── */
+/* Country tooltip (from base-y-componentes.css) */
+#configurationContent .country-info-tooltip .tooltip-content {
+  background: #0F172A !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(217, 249, 184, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: none !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 13px !important;              /* Base size — prevents inheritance from small parent */
+  padding: 14px 16px !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-title {
+  color: var(--bb-accent) !important;        /* Bio-Lime green headline */
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;               /* Absolute px — matches URLs/Match Type tooltip */
+}
+
+#configurationContent .country-info-tooltip .tooltip-description {
+  color: #E2E8F0 !important;                /* Light white text */
+  font-family: var(--bb-font-sans) !important;
+  font-size: 12.5px !important;             /* Absolute px — matches URLs/Match Type tooltip */
+  line-height: 1.6 !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-description strong {
+  color: var(--bb-accent) !important;
+  font-weight: 600 !important;
+}
+
+#configurationContent .country-info-tooltip .tooltip-arrow {
+  border-top-color: #0F172A !important;
+}
+
+/* URLs + Match Type tooltip (from analysis-mode-styles.css) */
+#configurationContent .urls-info-tooltip {
+  background: #0F172A !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(217, 249, 184, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: none !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#configurationContent .urls-info-tooltip::before {
+  border-bottom-color: #0F172A !important;
+}
+
+#configurationContent .urls-info-tooltip strong {
+  color: var(--bb-accent) !important;        /* Bio-Lime green headline */
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+}
+
+#configurationContent .urls-info-tooltip p {
+  color: #E2E8F0 !important;                /* Light white text */
+  font-family: var(--bb-font-sans) !important;
+  font-size: 12.5px !important;
+  line-height: 1.6 !important;
+}
+
+#configurationContent .urls-info-tooltip em {
+  color: var(--bb-accent) !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+}
+
+
+/* ── 13. RESPONSIVE ──────────────────────────── */
 @media (max-width: 768px) {
-  .page-container {
+  #configurationContent .page-container {
     padding: 1rem !important;
   }
-  
-  .search-form {
+
+  #configurationContent .search-form {
     padding: 1.5rem !important;
+    border-radius: 16px !important;
   }
-  
-  .form-header h1 {
-    font-size: 1.875rem !important;
+
+  #configurationContent .form-header h1 {
+    font-size: 1.75rem !important;
   }
-  
-  .search-form .form-row {
+
+  #configurationContent .search-form .form-row {
     grid-template-columns: 1fr !important;
   }
-  
-  .search-form .form-row.form-actions {
+
+  #configurationContent .search-form .form-row.form-actions {
     grid-template-columns: 1fr !important;
     gap: 0.75rem !important;
   }
-  
-  .search-form .btn {
+
+  #configurationContent .search-form .btn {
     width: 100% !important;
   }
 }
 
 @media (max-width: 480px) {
-  .page-container {
+  #configurationContent .page-container {
     padding: 0.75rem !important;
   }
-  
-  .search-form {
+
+  #configurationContent .search-form {
     padding: 1rem !important;
+    border-radius: 14px !important;
   }
-  
-  .form-header h1 {
-    font-size: 1.625rem !important;
+
+  #configurationContent .form-header h1 {
+    font-size: 1.5rem !important;
   }
-  
-  .form-description {
-    font-size: 1rem !important;
+
+  #configurationContent .form-description {
+    font-size: 0.95rem !important;
   }
-}
 
-/*=============================================
-  CHIPS DE FECHA (Si existen)
-=============================================*/
+  #configurationContent .search-form .match-type-group {
+    flex-direction: column !important;
+    border-radius: var(--bb-radius-sm) !important;
+  }
 
-.search-form #monthChips {
-  margin-top: 0.5rem !important;
-}
-
-.search-form .chip {
-  background: #f9fafb !important;
-  border: 1px solid var(--border-primary) !important;
-  color: var(--text-secondary) !important;
-  padding: 0.5rem 1rem !important;
-  border-radius: 6px !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-  transition: var(--transition) !important;
-}
-
-.search-form .chip:hover {
-  background: var(--background-secondary) !important;
-  border-color: var(--cta-bg) !important;
-}
-
-.search-form .chip.selected {
-  background: var(--cta-bg) !important;
-  color: var(--cta-text) !important;
-  border-color: var(--cta-bg) !important;
+  #configurationContent .search-form .match-type-btn {
+    border-radius: var(--bb-radius-sm) !important;
+  }
 }

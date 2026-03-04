@@ -143,9 +143,15 @@ html {
     padding-top: 60px;
   }
   
-  .modal,
-  .date-modal {
+  .modal {
     max-height: calc(100vh - 80px);
+    width: 100%;
+    margin: 0;
+  }
+
+  .date-modal {
+    /* No max-height — the date modal overlay scrolls when
+       the modal exceeds the viewport height */
     width: 100%;
     margin: 0;
   }
