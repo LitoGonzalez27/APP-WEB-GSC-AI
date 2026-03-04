@@ -1579,10 +1579,36 @@ def init_ai_overview_tables():
             pass  # Column may already exist
 
         # Fix #3: Unique index for UPSERT — one row per (site, keyword, country, date, user)
-        cur.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_analysis_upsert
-            ON ai_overview_analysis(site_url, keyword, country_code, CAST(analysis_date AS DATE), COALESCE(user_id, 0))
-        ''')
+        # First, check if the index already exists to avoid re-deduplicating
+        cur.execute("""
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = 'idx_ai_analysis_upsert'
+        """)
+        if not cur.fetchone():
+            # Deduplicate existing data: keep only the most recent row per unique key
+            logger.info("Deduplicating ai_overview_analysis before creating unique index...")
+            cur.execute('''
+                DELETE FROM ai_overview_analysis a
+                USING ai_overview_analysis b
+                WHERE a.id < b.id
+                  AND a.site_url = b.site_url
+                  AND a.keyword = b.keyword
+                  AND COALESCE(a.country_code, '') = COALESCE(b.country_code, '')
+                  AND CAST(a.analysis_date AS DATE) = CAST(b.analysis_date AS DATE)
+                  AND COALESCE(a.user_id, 0) = COALESCE(b.user_id, 0)
+            ''')
+            deduped = cur.rowcount
+            logger.info(f"Removed {deduped} duplicate rows from ai_overview_analysis")
+            conn.commit()
+
+            # Now create the unique index
+            cur.execute('''
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_analysis_upsert
+                ON ai_overview_analysis(
+                    site_url, keyword, COALESCE(country_code, ''),
+                    CAST(analysis_date AS DATE), COALESCE(user_id, 0)
+                )
+            ''')
 
         conn.commit()
         logger.info("Tablas de AI Overview Analysis inicializadas correctamente")
@@ -1653,7 +1679,7 @@ def save_ai_overview_analysis(analysis_data, user_id=None):
                     DELETE FROM ai_overview_analysis
                     WHERE site_url = %s
                       AND keyword = %s
-                      AND country_code = %s
+                      AND COALESCE(country_code, '') = COALESCE(%s, '')
                       AND CAST(analysis_date AS DATE) = CURRENT_DATE
                       AND COALESCE(user_id, 0) = COALESCE(%s, 0)
                 ''', (site_url, keyword, country_code, user_id))
