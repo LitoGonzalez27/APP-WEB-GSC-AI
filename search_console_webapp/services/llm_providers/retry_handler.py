@@ -6,16 +6,111 @@ Características:
 - Reintentos selectivos según tipo de error
 - Máximo de reintentos configurable
 - Timeout configurable
+- Circuit Breaker para providers inestables
 - Logging detallado
 - Optimizado para costos
 """
 
 import logging
 import time
+import threading
 from typing import Dict, Callable, Optional
 from functools import wraps
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# CIRCUIT BREAKER
+# ============================================
+
+class CircuitBreaker:
+    """
+    Circuit Breaker para proteger contra providers inestables.
+
+    Estados:
+    - CLOSED:    Todo normal, requests pasan.
+    - OPEN:      Provider ha fallado N veces seguidas, requests rechazadas inmediatamente.
+    - HALF_OPEN: Cooldown expirado, permite 1 request de prueba.
+
+    Configuración via env vars:
+    - CIRCUIT_BREAKER_THRESHOLD: Fallos consecutivos para abrir (default: 3)
+    - CIRCUIT_BREAKER_COOLDOWN: Segundos de cooldown (default: 120)
+    """
+
+    STATE_CLOSED = 'closed'
+    STATE_OPEN = 'open'
+    STATE_HALF_OPEN = 'half_open'
+
+    def __init__(self, failure_threshold: int = 3, cooldown_seconds: int = 120):
+        import os
+        self.failure_threshold = int(os.getenv('CIRCUIT_BREAKER_THRESHOLD', str(failure_threshold)))
+        self.cooldown_seconds = int(os.getenv('CIRCUIT_BREAKER_COOLDOWN', str(cooldown_seconds)))
+        self._lock = threading.Lock()
+        # Per-provider state
+        self._failures: Dict[str, int] = {}           # consecutive failures
+        self._last_failure_time: Dict[str, float] = {} # timestamp of last failure
+        self._state: Dict[str, str] = {}               # current state
+
+    def _get_state(self, provider: str) -> str:
+        """Get current state for a provider, checking cooldown expiry."""
+        state = self._state.get(provider, self.STATE_CLOSED)
+
+        if state == self.STATE_OPEN:
+            last_fail = self._last_failure_time.get(provider, 0)
+            if time.time() - last_fail >= self.cooldown_seconds:
+                # Cooldown expired → allow one test request
+                return self.STATE_HALF_OPEN
+
+        return state
+
+    def is_open(self, provider: str) -> bool:
+        """Check if circuit is open (should skip this provider)."""
+        with self._lock:
+            state = self._get_state(provider)
+            if state == self.STATE_OPEN:
+                return True
+            if state == self.STATE_HALF_OPEN:
+                # Allow one request through (transition to half_open)
+                self._state[provider] = self.STATE_HALF_OPEN
+                return False
+            return False
+
+    def record_success(self, provider: str):
+        """Record a successful request — reset failures."""
+        with self._lock:
+            self._failures[provider] = 0
+            self._state[provider] = self.STATE_CLOSED
+
+    def record_failure(self, provider: str):
+        """Record a failed request — increment counter, possibly open circuit."""
+        with self._lock:
+            self._failures[provider] = self._failures.get(provider, 0) + 1
+            self._last_failure_time[provider] = time.time()
+
+            if self._failures[provider] >= self.failure_threshold:
+                if self._state.get(provider) != self.STATE_OPEN:
+                    logger.warning(
+                        f"🔴 Circuit Breaker OPEN para '{provider}' — "
+                        f"{self._failures[provider]} fallos consecutivos. "
+                        f"Cooldown: {self.cooldown_seconds}s"
+                    )
+                self._state[provider] = self.STATE_OPEN
+
+    def get_status(self, provider: str) -> Dict:
+        """Get diagnostic info for a provider."""
+        with self._lock:
+            return {
+                'provider': provider,
+                'state': self._get_state(provider),
+                'consecutive_failures': self._failures.get(provider, 0),
+                'failure_threshold': self.failure_threshold,
+                'cooldown_seconds': self.cooldown_seconds
+            }
+
+
+# Singleton global — compartido entre todos los providers y threads
+circuit_breaker = CircuitBreaker()
 
 
 class RetryConfig:
@@ -25,10 +120,11 @@ class RetryConfig:
     # Errores que vale la pena reintentar
     RETRYABLE_ERRORS = {
         'rate_limit': {
-            'max_retries': 4,
-            'initial_delay': 3,  # segundos
+            # ✅ Rate limit temporal (RPM exceeded) — vale la pena esperar
+            'max_retries': 2,       # Reducido de 4: no agravar el problema
+            'initial_delay': 5,     # Esperar más para que pase el minuto
             'backoff_multiplier': 2,
-            'max_delay': 60
+            'max_delay': 30
         },
         'timeout': {
             'max_retries': 2,
@@ -49,14 +145,15 @@ class RetryConfig:
             'max_delay': 10
         }
     }
-    
+
     # Errores que NO vale la pena reintentar (fallan inmediatamente)
     NON_RETRYABLE_ERRORS = [
         'invalid_api_key',
         'authentication_error',
         'invalid_request',
         'content_blocked',  # Safety filters
-        'model_not_found'
+        'model_not_found',
+        'quota_exhausted'   # ✅ NUEVO: cuota diaria agotada, NO reintentar
     ]
     
     # Timeout por defecto para todas las requests
@@ -79,19 +176,27 @@ def classify_error(error: Exception) -> str:
         Tipo de error: 'rate_limit', 'timeout', 'server_error', 'network', 'non_retryable'
     """
     error_str = str(error).lower()
-    
-    # Rate limit
+
+    # ✅ QUOTA EXHAUSTED — cuota diaria agotada, NO reintentar
+    # Estos errores dicen "retry in Xh" — reintentar es inútil y agrava el problema
+    if 'quota' in error_str and ('exceeded' in error_str or 'exhausted' in error_str):
+        return 'quota_exhausted'
+    if 'per_day' in error_str or 'per day' in error_str:
+        return 'quota_exhausted'
+    if 'requests_per_model_per_day' in error_str:
+        return 'quota_exhausted'
+    if 'retry in' in error_str and ('h' in error_str or 'hour' in error_str):
+        # "retry in 12h58m" → cuota diaria, no rate limit temporal
+        return 'quota_exhausted'
+
+    # Rate limit TEMPORAL (RPM exceeded) — vale la pena reintentar
     if 'rate' in error_str and 'limit' in error_str:
         return 'rate_limit'
     if '429' in error_str:
         return 'rate_limit'
-    if 'quota' in error_str and 'exceeded' in error_str:
-        return 'rate_limit'
     if 'resource_exhausted' in error_str:
         return 'rate_limit'
     if 'too many requests' in error_str:
-        return 'rate_limit'
-    if 'quota' in error_str:
         return 'rate_limit'
     
     # Timeout
@@ -143,15 +248,32 @@ def with_retry(func: Callable) -> Callable:
     """
     @wraps(func)
     def wrapper(self, query: str, *args, **kwargs) -> Dict:
+        provider_name = self.get_provider_name()
+
+        # ── Circuit Breaker check ──
+        if circuit_breaker.is_open(provider_name):
+            cb_status = circuit_breaker.get_status(provider_name)
+            logger.warning(
+                f"⚡ Circuit Breaker: '{provider_name}' bloqueado "
+                f"({cb_status['consecutive_failures']} fallos). Skipping."
+            )
+            return {
+                'success': False,
+                'error': f"Circuit breaker open for {provider_name} "
+                         f"(cooldown {cb_status['cooldown_seconds']}s)",
+                'circuit_breaker': True
+            }
+
         last_error = None
         total_attempts = 0
-        
+
         # Primer intento sin delay
         try:
             result = func(self, query, *args, **kwargs)
-            
+
             # Si tiene éxito, retornar
             if result.get('success'):
+                circuit_breaker.record_success(provider_name)
                 return result
             
             # Si falla, clasificar el error
@@ -160,7 +282,16 @@ def with_retry(func: Callable) -> Callable:
             
             # Si no es retriable, retornar inmediatamente
             if error_type == 'non_retryable':
-                logger.warning(f"⚠️ {self.get_provider_name()}: Error no retriable, abortando")
+                logger.warning(f"⚠️ {provider_name}: Error no retriable, abortando")
+                return result
+
+            # ✅ Quota exhausted: abrir circuit breaker con cooldown largo
+            if error_type == 'quota_exhausted':
+                logger.error(f"🚫 {provider_name}: Cuota diaria agotada — NO reintentar")
+                logger.error(f"   El circuit breaker bloqueará este provider")
+                # Forzar apertura inmediata del circuit breaker
+                for _ in range(circuit_breaker.failure_threshold):
+                    circuit_breaker.record_failure(provider_name)
                 return result
             
             # Obtener configuración de retry
@@ -185,7 +316,8 @@ def with_retry(func: Callable) -> Callable:
                     result = func(self, query, *args, **kwargs)
                     
                     if result.get('success'):
-                        logger.info(f"✅ {self.get_provider_name()}: Éxito en intento {total_attempts}")
+                        logger.info(f"✅ {provider_name}: Éxito en intento {total_attempts}")
+                        circuit_breaker.record_success(provider_name)
                         return result
                     
                     last_error = result.get('error', 'Unknown error')
@@ -204,9 +336,10 @@ def with_retry(func: Callable) -> Callable:
                 delay = min(delay * config['backoff_multiplier'], config['max_delay'])
             
             # Se acabaron los reintentos
-            logger.error(f"❌ {self.get_provider_name()}: Falló después de {total_attempts} intentos")
+            circuit_breaker.record_failure(provider_name)
+            logger.error(f"❌ {provider_name}: Falló después de {total_attempts} intentos")
             logger.error(f"   Último error: {last_error}")
-            
+
             return {
                 'success': False,
                 'error': f"Failed after {total_attempts} attempts: {last_error}",

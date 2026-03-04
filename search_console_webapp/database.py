@@ -183,7 +183,46 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)')
-        
+
+        # ================================
+        # Tablas para LLM Monitoring Analysis Lock & Runs
+        # ================================
+
+        # Singleton lock para prevenir análisis concurrentes
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS llm_monitoring_analysis_lock (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                is_running BOOLEAN DEFAULT FALSE,
+                started_at TIMESTAMP,
+                started_by TEXT,
+                CONSTRAINT single_row CHECK (id = 1)
+            )
+        ''')
+        # Insertar la fila singleton si no existe
+        cur.execute('''
+            INSERT INTO llm_monitoring_analysis_lock (id, is_running)
+            VALUES (1, FALSE)
+            ON CONFLICT (id) DO NOTHING
+        ''')
+
+        # Historial de ejecuciones de análisis
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS llm_monitoring_analysis_runs (
+                id SERIAL PRIMARY KEY,
+                started_at TIMESTAMP DEFAULT NOW(),
+                completed_at TIMESTAMP,
+                status TEXT DEFAULT 'running',
+                total_projects INTEGER DEFAULT 0,
+                successful_projects INTEGER DEFAULT 0,
+                failed_projects INTEGER DEFAULT 0,
+                total_queries INTEGER DEFAULT 0,
+                error_message TEXT,
+                triggered_by TEXT DEFAULT 'cron'
+            )
+        ''')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_status ON llm_monitoring_analysis_runs(status)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_started ON llm_monitoring_analysis_runs(started_at DESC)')
+
         conn.commit()
         logger.info("Todas las tablas inicializadas correctamente")
         return True
@@ -2149,6 +2188,163 @@ def resume_quota_pauses_for_user(user_id):
         if conn:
             conn.rollback()
         return False
+    finally:
+        if conn:
+            conn.close()
+
+
+# ====================================
+# 🔒 ANALYSIS LOCK & RUN TRACKING
+# ====================================
+
+def acquire_analysis_lock(triggered_by: str = 'cron', stale_timeout_minutes: int = 30) -> Optional[int]:
+    """
+    Intenta adquirir el lock de análisis.
+
+    Si el lock está libre, lo toma y crea un run en llm_monitoring_analysis_runs.
+    Si el lock está tomado pero lleva más de stale_timeout_minutes, lo fuerza (crash recovery).
+    Si el lock está tomado y es reciente, retorna None (análisis en curso).
+
+    Returns:
+        run_id (int) si se adquirió el lock, None si ya hay un análisis en curso.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+
+        # Asegurar que la tabla y fila singleton existen
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS llm_monitoring_analysis_lock (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                is_running BOOLEAN DEFAULT FALSE,
+                started_at TIMESTAMP,
+                started_by TEXT,
+                CONSTRAINT single_row CHECK (id = 1)
+            )
+        ''')
+        cur.execute('''
+            INSERT INTO llm_monitoring_analysis_lock (id, is_running)
+            VALUES (1, FALSE)
+            ON CONFLICT (id) DO NOTHING
+        ''')
+
+        # Intentar adquirir lock
+        cur.execute('SELECT is_running, started_at FROM llm_monitoring_analysis_lock WHERE id = 1 FOR UPDATE')
+        row = cur.fetchone()
+
+        if row and row['is_running']:
+            # Lock está tomado - verificar si es stale
+            started_at = row['started_at']
+            if started_at:
+                from datetime import timezone
+                now = datetime.now(timezone.utc) if started_at.tzinfo else datetime.now()
+                elapsed = (now - started_at).total_seconds() / 60
+                if elapsed < stale_timeout_minutes:
+                    # Lock reciente, análisis en curso
+                    logger.warning(f"🔒 Analysis lock held since {started_at} ({elapsed:.0f}min ago). Skipping.")
+                    conn.rollback()
+                    return None
+                else:
+                    # Lock stale (posible crash), forzar liberación
+                    logger.warning(f"🔓 Stale lock detected ({elapsed:.0f}min). Force releasing.")
+
+        # Adquirir lock
+        cur.execute('''
+            UPDATE llm_monitoring_analysis_lock
+            SET is_running = TRUE, started_at = NOW(), started_by = %s
+            WHERE id = 1
+        ''', (triggered_by,))
+
+        # Crear run record
+        cur.execute('''
+            INSERT INTO llm_monitoring_analysis_runs (status, triggered_by)
+            VALUES ('running', %s)
+            RETURNING id
+        ''', (triggered_by,))
+        run_id = cur.fetchone()['id']
+
+        conn.commit()
+        logger.info(f"🔒 Analysis lock acquired (run_id={run_id}, by={triggered_by})")
+        return run_id
+
+    except Exception as e:
+        logger.error(f"Error acquiring analysis lock: {e}")
+        if conn:
+            conn.rollback()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int = 0,
+                          failed: int = 0, total_queries: int = 0, error_message: str = None):
+    """
+    Libera el lock de análisis y actualiza el run con resultados.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return
+        cur = conn.cursor()
+
+        # Liberar lock
+        cur.execute('''
+            UPDATE llm_monitoring_analysis_lock
+            SET is_running = FALSE, started_at = NULL, started_by = NULL
+            WHERE id = 1
+        ''')
+
+        # Actualizar run
+        status = 'failed' if error_message else 'completed'
+        cur.execute('''
+            UPDATE llm_monitoring_analysis_runs
+            SET completed_at = NOW(),
+                status = %s,
+                total_projects = %s,
+                successful_projects = %s,
+                failed_projects = %s,
+                total_queries = %s,
+                error_message = %s
+            WHERE id = %s
+        ''', (status, total_projects, successful, failed, total_queries, error_message, run_id))
+
+        conn.commit()
+        logger.info(f"🔓 Analysis lock released (run_id={run_id}, status={status})")
+
+    except Exception as e:
+        logger.error(f"Error releasing analysis lock: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+
+def get_latest_analysis_run() -> Optional[Dict]:
+    """
+    Retorna información del último análisis ejecutado.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        cur.execute('''
+            SELECT * FROM llm_monitoring_analysis_runs
+            ORDER BY started_at DESC
+            LIMIT 1
+        ''')
+        row = cur.fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error getting latest analysis run: {e}")
+        return None
     finally:
         if conn:
             conn.close()

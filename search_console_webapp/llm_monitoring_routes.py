@@ -53,7 +53,7 @@ from services.project_access_service import (
 )
 
 # Importar servicios
-from database import get_db_connection
+from database import get_db_connection, acquire_analysis_lock, release_analysis_lock, get_latest_analysis_run
 from services.llm_monitoring_service import MultiLLMMonitoringService, analyze_all_active_projects
 from services.llm_monitoring_stats import LLMMonitoringStatsService
 
@@ -3763,7 +3763,7 @@ def get_current_models():
             "models": {
                 "openai": {"model_id": "gpt-5.2", "display_name": "GPT-5.2"},
                 "anthropic": {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6"},
-                "google": {"model_id": "gemini-3.1-pro-preview", "display_name": "Gemini 3.1 Pro Preview"},
+                "google": {"model_id": "gemini-3-flash-preview", "display_name": "Gemini 3 Flash"},
                 "perplexity": {"model_id": "sonar-pro", "display_name": "Perplexity Sonar Pro"}
             }
         }
@@ -3772,7 +3772,7 @@ def get_current_models():
     fallbacks = {
         'openai': {'model_id': 'gpt-5.2', 'display_name': 'GPT-5.2'},
         'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
-        'google': {'model_id': 'gemini-3.1-pro-preview', 'display_name': 'Gemini 3.1 Pro Preview'},
+        'google': {'model_id': 'gemini-3-flash-preview', 'display_name': 'Gemini 3 Flash'},
         'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
     }
     
@@ -3945,58 +3945,105 @@ def trigger_daily_analysis():
     try:
         # Verificar si se solicita ejecución asíncrona
         is_async = request.args.get('async', '0') == '1'
-        
+        triggered_by = request.args.get('triggered_by', 'cron')
+
         if is_async:
-            # Ejecutar en background y responder inmediatamente
-            def run_analysis_in_background():
+            # ✅ NUEVO: Intentar adquirir lock ANTES de lanzar thread
+            run_id = acquire_analysis_lock(triggered_by=triggered_by)
+            if run_id is None:
+                # Ya hay un análisis en curso
+                latest_run = get_latest_analysis_run()
+                return jsonify({
+                    'success': False,
+                    'error': 'Analysis already running',
+                    'message': 'Hay un análisis en curso. Espera a que termine antes de lanzar otro.',
+                    'latest_run': latest_run
+                }), 409  # Conflict
+
+            # Ejecutar en background con lock y state tracking
+            def run_analysis_in_background(run_id):
                 try:
-                    logger.info("🚀 LLM Monitoring: Starting daily analysis in background")
+                    logger.info(f"🚀 LLM Monitoring: Starting daily analysis in background (run_id={run_id})")
                     results = analyze_all_active_projects(
                         api_keys=None,  # Usar variables de entorno
                         max_workers=10
                     )
-                    
+
                     # Procesar resultados
                     successful = sum(1 for r in results if 'error' not in r)
                     failed = sum(1 for r in results if 'error' in r)
                     total_queries = sum(r.get('total_queries_executed', 0) for r in results if 'error' not in r)
-                    
+
                     logger.info(f"✅ LLM Monitoring: Daily analysis completed - {len(results)} projects processed")
                     logger.info(f"   Successful: {successful}, Failed: {failed}, Total queries: {total_queries}")
+
+                    # ✅ Liberar lock y registrar resultados
+                    release_analysis_lock(
+                        run_id=run_id,
+                        total_projects=len(results),
+                        successful=successful,
+                        failed=failed,
+                        total_queries=total_queries
+                    )
                 except Exception as e:
                     logger.error(f"💥 LLM Monitoring: Background analysis error: {e}")
-            
+                    # ✅ Liberar lock incluso en caso de error
+                    release_analysis_lock(run_id=run_id, error_message=str(e))
+
             # Iniciar thread en background
-            thread = threading.Thread(target=run_analysis_in_background, daemon=True)
+            thread = threading.Thread(target=run_analysis_in_background, args=(run_id,), daemon=True)
             thread.start()
-            
-            logger.info("📤 LLM Monitoring: Daily analysis triggered (async mode)")
+
+            logger.info(f"📤 LLM Monitoring: Daily analysis triggered (async mode, run_id={run_id})")
             return jsonify({
                 'success': True,
                 'message': 'Daily analysis triggered in background',
-                'async': True
+                'async': True,
+                'run_id': run_id
             }), 202
-        
-        # Modo síncrono (comportamiento original)
-        results = analyze_all_active_projects(
-            api_keys=None,  # Usar variables de entorno
-            max_workers=10
-        )
-        
-        # Procesar resultados
-        successful = sum(1 for r in results if 'error' not in r)
-        failed = sum(1 for r in results if 'error' in r)
-        total_queries = sum(r.get('total_queries_executed', 0) for r in results if 'error' not in r)
-        
-        return jsonify({
-            'success': True,
-            'total_projects': len(results),
-            'successful': successful,
-            'failed': failed,
-            'total_queries': total_queries,
-            'results': results
-        }), 200
-            
+
+        # Modo síncrono (comportamiento original) — también con lock
+        run_id = acquire_analysis_lock(triggered_by=triggered_by)
+        if run_id is None:
+            latest_run = get_latest_analysis_run()
+            return jsonify({
+                'success': False,
+                'error': 'Analysis already running',
+                'message': 'Hay un análisis en curso. Espera a que termine antes de lanzar otro.',
+                'latest_run': latest_run
+            }), 409
+
+        try:
+            results = analyze_all_active_projects(
+                api_keys=None,
+                max_workers=10
+            )
+
+            successful = sum(1 for r in results if 'error' not in r)
+            failed = sum(1 for r in results if 'error' in r)
+            total_queries = sum(r.get('total_queries_executed', 0) for r in results if 'error' not in r)
+
+            release_analysis_lock(
+                run_id=run_id,
+                total_projects=len(results),
+                successful=successful,
+                failed=failed,
+                total_queries=total_queries
+            )
+
+            return jsonify({
+                'success': True,
+                'total_projects': len(results),
+                'successful': successful,
+                'failed': failed,
+                'total_queries': total_queries,
+                'run_id': run_id,
+                'results': results
+            }), 200
+        except Exception as e:
+            release_analysis_lock(run_id=run_id, error_message=str(e))
+            raise
+
     except Exception as e:
         logger.error(f"Error in daily analysis cron trigger: {e}")
         return jsonify({
@@ -4779,7 +4826,7 @@ def cron_model_discovery():
             if google_key:
                 genai.configure(api_key=google_key)
                 models = genai.list_models()
-                current_google = current_models.get('google', 'gemini-3.1-pro-preview')
+                current_google = current_models.get('google', 'gemini-3-flash-preview')
                 
                 for m in models:
                     if 'gemini' in m.name.lower():
