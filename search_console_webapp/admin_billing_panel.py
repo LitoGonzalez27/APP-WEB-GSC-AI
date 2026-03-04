@@ -16,6 +16,31 @@ from database import get_db_connection, resume_quota_pauses_for_user
 logger = logging.getLogger(__name__)
 
 
+def log_admin_action(admin_id, action, target_user_id=None, details=None):
+    """Registra una acción administrativa en el audit log."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return
+        cur = conn.cursor()
+        # Verificar si la tabla existe antes de insertar
+        cur.execute("SELECT to_regclass('public.admin_audit_log') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return
+        cur.execute('''
+            INSERT INTO admin_audit_log (admin_user_id, action, target_user_id, details)
+            VALUES (%s, %s, %s, %s)
+        ''', (admin_id, action, target_user_id, json.dumps(details) if details else None))
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Error registrando admin action: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+
 def _get_table_columns(cur, table_name):
     """Devuelve set de columnas de una tabla (si existe)."""
     try:
@@ -46,6 +71,10 @@ def _get_today_bounds(now=None):
     return day_start, next_day
 
 
+_ALLOWED_TIME_COLS = frozenset({'timestamp', 'created_at'})
+_ALLOWED_SOURCE_FILTERS = frozenset({"source = 'serp_api'", "operation_type LIKE 'serp_%'"})
+
+
 def _get_serp_usage_by_user(cur):
     """Mapa user_id -> ru SERP consumidas este mes."""
     columns = _get_table_columns(cur, 'quota_usage_events')
@@ -53,7 +82,7 @@ def _get_serp_usage_by_user(cur):
         return {}
 
     time_col = 'timestamp' if 'timestamp' in columns else ('created_at' if 'created_at' in columns else None)
-    if not time_col:
+    if not time_col or time_col not in _ALLOWED_TIME_COLS:
         return {}
 
     if 'source' in columns:
@@ -61,6 +90,10 @@ def _get_serp_usage_by_user(cur):
     elif 'operation_type' in columns:
         source_filter = "operation_type LIKE 'serp_%'"
     else:
+        return {}
+
+    # ✅ Validación explícita de valores dinámicos en SQL
+    if source_filter not in _ALLOWED_SOURCE_FILTERS:
         return {}
 
     month_start, next_month = _get_month_bounds()
@@ -180,6 +213,58 @@ def _get_llm_paused_projects_by_user(cur):
     ''')
     rows = cur.fetchall()
     return {row['user_id']: row for row in rows}
+
+def _get_invitations_by_user(cur):
+    """Mapa user_id -> {total_sent, accepted, pending} invitaciones."""
+    try:
+        cur.execute("SELECT to_regclass('public.project_invitations') AS reg")
+        reg = cur.fetchone()
+        if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+            return {}
+    except Exception:
+        return {}
+
+    try:
+        cur.execute('''
+            SELECT owner_user_id,
+                COUNT(*) AS total_sent,
+                COUNT(CASE WHEN status = 'accepted' THEN 1 END) AS accepted,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) AS pending
+            FROM project_invitations
+            GROUP BY owner_user_id
+        ''')
+        return {row['owner_user_id']: row for row in cur.fetchall()}
+    except Exception:
+        return {}
+
+
+def _get_project_counts_by_user(cur):
+    """Mapa user_id -> {aio_total, aio_active, aim_total, aim_active, llm_total, llm_active}."""
+    counts = {}
+    for table, key in [('manual_ai_projects', 'aio'), ('ai_mode_projects', 'aim'), ('llm_monitoring_projects', 'llm')]:
+        try:
+            cur.execute("SELECT to_regclass(%s) AS reg", (f'public.{table}',))
+            reg = cur.fetchone()
+            if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+                continue
+        except Exception:
+            continue
+
+        try:
+            cur.execute(f'''
+                SELECT user_id,
+                    COUNT(*) AS total,
+                    COUNT(CASE WHEN is_active THEN 1 END) AS active
+                FROM {table} GROUP BY user_id
+            ''')
+            for row in cur.fetchall():
+                uid = row['user_id']
+                counts.setdefault(uid, {})[f'{key}_total'] = int(row['total'] or 0)
+                counts.setdefault(uid, {})[f'{key}_active'] = int(row['active'] or 0)
+        except Exception:
+            pass
+    return counts
+
 
 def get_billing_stats():
     """Obtiene estadísticas de billing para el dashboard admin"""
@@ -397,6 +482,8 @@ def get_users_with_billing(limit=200, offset=0):
         llm_projects = _get_llm_active_projects_by_user(cur)
         ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
         llm_paused = _get_llm_paused_projects_by_user(cur)
+        invitations = _get_invitations_by_user(cur)
+        project_counts = _get_project_counts_by_user(cur)
 
         for user in users_list:
             user_id = user['id']
@@ -406,6 +493,8 @@ def get_users_with_billing(limit=200, offset=0):
             proj_row = llm_projects.get(user_id, {})
             ai_mode_row = ai_mode_paused.get(user_id, {})
             llm_paused_row = llm_paused.get(user_id, {})
+            inv_row = invitations.get(user_id, {})
+            pc_row = project_counts.get(user_id, {})
 
             user['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
             user['ru_month'] = int(ru_row.get('ru_month', 0) or 0)
@@ -414,6 +503,17 @@ def get_users_with_billing(limit=200, offset=0):
             user['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
             user['ai_mode_paused_projects'] = int(ai_mode_row.get('paused_projects', 0) or 0)
             user['llm_paused_projects'] = int(llm_paused_row.get('paused_projects', 0) or 0)
+            # Invitaciones
+            user['invitations_sent'] = int(inv_row.get('total_sent', 0) or 0)
+            user['invitations_accepted'] = int(inv_row.get('accepted', 0) or 0)
+            user['invitations_pending'] = int(inv_row.get('pending', 0) or 0)
+            # Proyectos por módulo
+            user['aio_total'] = pc_row.get('aio_total', 0)
+            user['aio_active'] = pc_row.get('aio_active', 0)
+            user['aim_total'] = pc_row.get('aim_total', 0)
+            user['aim_active'] = pc_row.get('aim_active', 0)
+            user['llm_total'] = pc_row.get('llm_total', 0)
+            user['llm_active'] = pc_row.get('llm_active', 0)
 
         return users_list
         
@@ -516,12 +616,17 @@ def get_user_billing_details(user_id):
         llm_projects = _get_llm_active_projects_by_user(cur)
         ai_mode_paused = _get_ai_mode_paused_projects_by_user(cur)
         llm_paused = _get_llm_paused_projects_by_user(cur)
+        invitations = _get_invitations_by_user(cur)
+        project_counts = _get_project_counts_by_user(cur)
+
         serp_row = serp_usage.get(user_id, {})
         ru_row = ru_usage.get(user_id, {})
         llm_row = llm_usage.get(user_id, {})
         proj_row = llm_projects.get(user_id, {})
         ai_mode_row = ai_mode_paused.get(user_id, {})
         llm_paused_row = llm_paused.get(user_id, {})
+        inv_row = invitations.get(user_id, {})
+        pc_row = project_counts.get(user_id, {})
 
         user_dict['serp_ru_month'] = int(serp_row.get('serp_ru_month', 0) or 0)
         user_dict['ru_month'] = int(ru_row.get('ru_month', 0) or 0)
@@ -530,7 +635,18 @@ def get_user_billing_details(user_id):
         user_dict['llm_active_projects'] = int(proj_row.get('active_projects', 0) or 0)
         user_dict['ai_mode_paused_projects'] = int(ai_mode_row.get('paused_projects', 0) or 0)
         user_dict['llm_paused_projects'] = int(llm_paused_row.get('paused_projects', 0) or 0)
-        
+        # Invitaciones
+        user_dict['invitations_sent'] = int(inv_row.get('total_sent', 0) or 0)
+        user_dict['invitations_accepted'] = int(inv_row.get('accepted', 0) or 0)
+        user_dict['invitations_pending'] = int(inv_row.get('pending', 0) or 0)
+        # Proyectos por módulo
+        user_dict['aio_total'] = pc_row.get('aio_total', 0)
+        user_dict['aio_active'] = pc_row.get('aio_active', 0)
+        user_dict['aim_total'] = pc_row.get('aim_total', 0)
+        user_dict['aim_active'] = pc_row.get('aim_active', 0)
+        user_dict['llm_total'] = pc_row.get('llm_total', 0)
+        user_dict['llm_active'] = pc_row.get('llm_active', 0)
+
         return user_dict
         
     except Exception as e:
@@ -566,15 +682,17 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         new_quota_limit = quota_limits[new_plan]
         
         # Actualizar usuario
+        # ✅ FIX: Preservar billing_status si ya es 'active' o 'trialing' (suscripción Stripe válida)
         cur.execute('''
-            UPDATE users 
-            SET 
+            UPDATE users
+            SET
                 plan = %s,
                 current_plan = %s,
                 quota_limit = %s,
-                billing_status = CASE 
+                billing_status = CASE
+                    WHEN billing_status IN ('active', 'trialing') THEN billing_status
                     WHEN %s = 'free' THEN 'active'
-                    ELSE 'beta'  -- Planes de pago manuales marcados como beta
+                    ELSE 'beta'
                 END,
                 updated_at = NOW()
             WHERE id = %s
@@ -585,11 +703,16 @@ def update_user_plan_manual(user_id, new_plan, admin_id):
         
         # Log de la acción
         logger.info(f"Admin {admin_id} cambió plan de usuario {user_id} a {new_plan}")
-        
+
         conn.commit()
-        
+
+        # ✅ Audit log
+        log_admin_action(admin_id, 'plan_change', user_id, {
+            'new_plan': new_plan, 'new_quota_limit': new_quota_limit
+        })
+
         return {
-            'success': True, 
+            'success': True,
             'message': f'Plan actualizado a {new_plan} ({new_quota_limit} RU/mes)',
             'new_plan': new_plan,
             'new_quota_limit': new_quota_limit
@@ -728,11 +851,16 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id):
         
         # Log de la acción
         logger.info(f"Admin {admin_id} ({admin_name}) asignó custom quota {custom_limit} RU a usuario {user_id}")
-        
+
         conn.commit()
-        
+
+        # ✅ Audit log
+        log_admin_action(admin_id, 'assign_custom_quota', user_id, {
+            'custom_limit': custom_limit, 'notes': notes
+        })
+
         return {
-            'success': True, 
+            'success': True,
             'message': f'Custom quota assigned: {custom_limit} RU/month',
             'custom_limit': custom_limit,
             'assigned_by': admin_name,
@@ -782,11 +910,14 @@ def remove_custom_quota(user_id, admin_id):
         
         # Log de la acción
         logger.info(f"Admin {admin_id} ({admin_name}) removió custom quota de usuario {user_id}")
-        
+
         conn.commit()
-        
+
+        # ✅ Audit log
+        log_admin_action(admin_id, 'remove_custom_quota', user_id, {})
+
         return {
-            'success': True, 
+            'success': True,
             'message': 'Custom quota removed. User reverted to Free plan.',
             'reverted_to': 'free'
         }
@@ -954,7 +1085,12 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
         
         logger.info(f"✅ Quota reset: user {user_id} ({user_info['email']}) by admin {admin_info['email']}")
         logger.info(f"   Previous usage: {previous_quota_used} RU -> Reset to: 0 RU")
-        
+
+        # ✅ Audit log
+        log_admin_action(admin_id, 'quota_reset', user_id, {
+            'previous_usage': previous_quota_used
+        })
+
         return {
             'success': True,
             'message': f'Quota reset successfully. Previous usage: {previous_quota_used} RU',

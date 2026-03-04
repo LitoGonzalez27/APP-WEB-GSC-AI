@@ -781,6 +781,27 @@
             </div>
         </div>
 
+        <!-- Segunda fila: Billing Stats -->
+        <div class="stats" style="margin-top: 0.5rem;">
+            {% set ubp = stats.users_by_plan if stats and stats.users_by_plan else {} %}
+            <div class="stat-card" style="border-left: 3px solid #007bff;">
+                <div class="stat-number">{{ (ubp.get('basic', 0)|int + ubp.get('premium', 0)|int + ubp.get('business', 0)|int + ubp.get('enterprise', 0)|int) if ubp else 0 }}</div>
+                <div class="stat-label">Usuarios de Pago</div>
+            </div>
+            <div class="stat-card" style="border-left: 3px solid #28a745;">
+                <div class="stat-number">€{{ "%.0f"|format(stats.revenue_estimate_month or 0) if stats else "0" }}</div>
+                <div class="stat-label">Ingresos Est. /mes</div>
+            </div>
+            <div class="stat-card" style="border-left: 3px solid #fd7e14;">
+                <div class="stat-number">{{ "{:,}".format(stats.total_serp_ru_month or 0) if stats else 0 }}</div>
+                <div class="stat-label">SERP RU Mes</div>
+            </div>
+            <div class="stat-card" style="border-left: 3px solid #6f42c1;">
+                <div class="stat-number">{{ "{:,}".format(stats.total_ru_consumed_today or 0) if stats else 0 }}</div>
+                <div class="stat-label">RU Consumidas Hoy</div>
+            </div>
+        </div>
+
         <!-- Controles de UX: búsqueda, filtros y ordenación -->
         <div class="table-controls" style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
             <input id="filterSearch" type="text" placeholder="Buscar por nombre o email" style="flex:1; padding:10px 12px; border:1px solid #e2e8f0; border-radius:10px;">
@@ -948,8 +969,8 @@
                                         </button>
                                         {% endif %}
                                         
-                                        <!-- Reset Quota Button (solo si hay uso de quota) -->
-                                        {% if user.quota_used and user.quota_used > 0 %}
+                                        <!-- Reset Quota Button (visible para usuarios con plan de pago) -->
+                                        {% if user.plan != 'free' %}
                                         <button class="btn-reset-quota btn-sm" 
                                                 data-user-id="{{ user.id }}"
                                                 data-user-name="{{ user.name or user.email }}"
@@ -1044,6 +1065,97 @@
                 {% endif %}
             </div>
         </div>
+
+    <!-- 📋 Audit Log Section -->
+    <details style="margin: 1.5rem 0; background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); overflow: hidden;">
+        <summary style="padding: 1rem 1.5rem; cursor: pointer; font-weight: 600; font-size: 1rem; color: #333; user-select: none; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-clipboard-list"></i> Últimas Acciones Admin
+            <span id="auditBadge" style="background: #667eea; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500;">cargando…</span>
+        </summary>
+        <div style="padding: 0 1.5rem 1.5rem;">
+            <table id="auditLogTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
+                        <th style="padding: 0.5rem 0.5rem;">Fecha</th>
+                        <th style="padding: 0.5rem 0.5rem;">Admin</th>
+                        <th style="padding: 0.5rem 0.5rem;">Acción</th>
+                        <th style="padding: 0.5rem 0.5rem;">Usuario Objetivo</th>
+                        <th style="padding: 0.5rem 0.5rem;">Detalles</th>
+                    </tr>
+                </thead>
+                <tbody id="auditLogBody">
+                    <tr><td colspan="5" style="padding: 1rem; text-align: center; color: #999;">Cargando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+    <script>
+    // Cargar audit log al abrir el details
+    document.querySelector('details').addEventListener('toggle', function() {
+        if (this.open && !this.dataset.loaded) {
+            this.dataset.loaded = 'true';
+            loadAuditLog();
+        }
+    });
+
+    async function loadAuditLog() {
+        try {
+            const resp = await fetch('/admin/audit-log');
+            const data = await resp.json();
+            const tbody = document.getElementById('auditLogBody');
+            const badge = document.getElementById('auditBadge');
+
+            if (!data.success || !data.actions || data.actions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:#999;">Sin acciones registradas</td></tr>';
+                badge.textContent = '0';
+                return;
+            }
+
+            badge.textContent = data.actions.length;
+
+            const actionLabels = {
+                'plan_change': '📋 Cambio de plan',
+                'quota_reset': '🔄 Reset de cuota',
+                'status_toggle': '🔀 Cambio de estado',
+                'role_change': '👤 Cambio de rol',
+                'assign_custom_quota': '👑 Asignar custom quota',
+                'remove_custom_quota': '❌ Remover custom quota',
+                'delete_user': '🗑️ Eliminar usuario'
+            };
+
+            tbody.innerHTML = data.actions.map(a => {
+                const date = a.created_at ? new Date(a.created_at).toLocaleString('es-ES', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
+                const admin = a.admin_name || a.admin_email || '-';
+                const target = a.target_name || a.target_email || (a.details && a.details.deleted_email) || '-';
+                const label = actionLabels[a.action] || a.action;
+                let details = '-';
+                if (a.details) {
+                    const d = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
+                    const parts = [];
+                    if (d.new_plan) parts.push('Plan → ' + d.new_plan);
+                    if (d.previous_usage !== undefined) parts.push('Uso previo: ' + d.previous_usage + ' RU');
+                    if (d.new_status !== undefined) parts.push(d.new_status ? 'Activado' : 'Desactivado');
+                    if (d.new_role) parts.push('Rol → ' + d.new_role);
+                    if (d.custom_limit) parts.push(d.custom_limit + ' RU');
+                    if (d.deleted_email) parts.push(d.deleted_email);
+                    if (parts.length > 0) details = parts.join(', ');
+                }
+                return `<tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${date}</td>
+                    <td style="padding:0.4rem 0.5rem;">${admin}</td>
+                    <td style="padding:0.4rem 0.5rem;">${label}</td>
+                    <td style="padding:0.4rem 0.5rem;">${target}</td>
+                    <td style="padding:0.4rem 0.5rem; font-size:0.8rem; color:#666;">${details}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            console.error('Error cargando audit log:', e);
+            document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" style="padding:1rem; text-align:center; color:#dc3545;">Error cargando audit log</td></tr>';
+            document.getElementById('auditBadge').textContent = '!';
+        }
+    }
+    </script>
 
     <!-- Modal de Detalles de Usuario MEJORADO -->
     <div id="userModal" class="modal">
@@ -1227,6 +1339,48 @@
                         <div class="detail-item">
                             <span class="detail-label">Fecha de Asignación:</span>
                             <span class="detail-value" id="detailCustomAssignedDate">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📁 Sección Proyectos por módulo -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-folder-open"></i> Proyectos por Módulo
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">AI Overview:</span>
+                            <span class="detail-value" id="detailAioProjects">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">AI Mode:</span>
+                            <span class="detail-value" id="detailAimProjects">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">LLM Monitoring:</span>
+                            <span class="detail-value" id="detailLlmProjectsDetail">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✉️ Sección Invitaciones -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: #333; margin-bottom: 0.75rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem;">
+                        <i class="fas fa-paper-plane"></i> Invitaciones
+                    </h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Enviadas:</span>
+                            <span class="detail-value" id="detailInvSent">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Aceptadas:</span>
+                            <span class="detail-value" id="detailInvAccepted">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Pendientes:</span>
+                            <span class="detail-value" id="detailInvPending">0</span>
                         </div>
                     </div>
                 </div>
@@ -1534,7 +1688,24 @@
                     } else {
                         customQuotaSection.style.display = 'none';
                     }
-                    
+
+                    // Proyectos por módulo
+                    const aioTotal = user.aio_total || 0;
+                    const aioActive = user.aio_active || 0;
+                    const aimTotal = user.aim_total || 0;
+                    const aimActive = user.aim_active || 0;
+                    const llmTotal = user.llm_total || 0;
+                    const llmActive = user.llm_active || 0;
+
+                    document.getElementById('detailAioProjects').textContent = `${aioActive} activos / ${aioTotal} total`;
+                    document.getElementById('detailAimProjects').textContent = `${aimActive} activos / ${aimTotal} total`;
+                    document.getElementById('detailLlmProjectsDetail').textContent = `${llmActive} activos / ${llmTotal} total`;
+
+                    // Invitaciones
+                    document.getElementById('detailInvSent').textContent = user.invitations_sent || 0;
+                    document.getElementById('detailInvAccepted').textContent = user.invitations_accepted || 0;
+                    document.getElementById('detailInvPending').textContent = user.invitations_pending || 0;
+
                 } else {
                     console.warn('⚠️ No se pudieron cargar los detalles de billing:', result.error);
                     // Mantener solo la información básica visible
@@ -1558,6 +1729,12 @@
                     document.getElementById('detailLlmPausedProjects').textContent = 'No disponible';
                     document.getElementById('detailProgressContainer').style.display = 'none';
                     document.getElementById('detailCustomQuotaSection').style.display = 'none';
+                    document.getElementById('detailAioProjects').textContent = 'No disponible';
+                    document.getElementById('detailAimProjects').textContent = 'No disponible';
+                    document.getElementById('detailLlmProjectsDetail').textContent = 'No disponible';
+                    document.getElementById('detailInvSent').textContent = 'No disponible';
+                    document.getElementById('detailInvAccepted').textContent = 'No disponible';
+                    document.getElementById('detailInvPending').textContent = 'No disponible';
                 }
                 
             } catch (error) {
@@ -1799,15 +1976,16 @@
 
         async function updateUserStatus(userId, userName) {
             console.log('🔄 Actualizando estado de usuario:', userId);
-            
+
             const newStatus = document.getElementById('statusSelect').value === 'true';
-            
+
             try {
                 const response = await fetch(`/admin/users/${userId}/toggle-status`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ is_active: newStatus })
                 });
                 
                 const result = await response.json();

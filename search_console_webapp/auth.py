@@ -1803,18 +1803,32 @@ def setup_auth_routes(app):
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
     @admin_required
     def toggle_user_status(user_id):
-        """Activar/desactivar usuario"""
+        """Activar/desactivar usuario — acepta valor deseado o fallback a toggle"""
         try:
             user = get_user_by_id(user_id)
             if not user:
                 return jsonify({'error': 'Usuario no encontrado'}), 404
-            
-            new_status = not user['is_active']
+
+            # ✅ FIX: Aceptar estado deseado del body; fallback a toggle si no viene
+            data = request.get_json(silent=True) or {}
+            if 'is_active' in data:
+                new_status = bool(data['is_active'])
+            else:
+                new_status = not user['is_active']
             success = update_user_activity(user_id, new_status)
             
             if success:
                 action = 'activado' if new_status else 'desactivado'
                 logger.info(f"Usuario {user['email']} {action} por admin")
+                # ✅ Audit log
+                try:
+                    from admin_billing_panel import log_admin_action
+                    current_user = get_current_user()
+                    log_admin_action(current_user['id'], 'status_toggle', user_id, {
+                        'new_status': new_status, 'action': action
+                    })
+                except Exception:
+                    pass
                 return jsonify({
                     'success': True,
                     'message': f'Usuario {action} exitosamente',
@@ -1846,6 +1860,15 @@ def setup_auth_routes(app):
             
             if success:
                 logger.info(f"Rol de usuario {user['email']} actualizado a {new_role}")
+                # ✅ Audit log
+                try:
+                    from admin_billing_panel import log_admin_action
+                    current_user = get_current_user()
+                    log_admin_action(current_user['id'], 'role_change', user_id, {
+                        'new_role': new_role
+                    })
+                except Exception:
+                    pass
                 return jsonify({
                     'success': True,
                     'message': f'Rol actualizado a {new_role}',
@@ -1853,7 +1876,7 @@ def setup_auth_routes(app):
                 })
             else:
                 return jsonify({'error': 'Error actualizando rol'}), 500
-                
+
         except Exception as e:
             logger.error(f"Error updating user role: {e}")
             return jsonify({'error': 'Error interno del servidor'}), 500
@@ -2097,6 +2120,15 @@ def setup_auth_routes(app):
             
             if success:
                 logger.info(f"Usuario {target_user['email']} eliminado por admin {current_admin['email']}")
+                # ✅ Audit log
+                try:
+                    from admin_billing_panel import log_admin_action
+                    log_admin_action(current_admin['id'], 'delete_user', user_id, {
+                        'deleted_email': target_user['email'],
+                        'deleted_name': target_user.get('name', '')
+                    })
+                except Exception:
+                    pass
                 return jsonify({
                     'success': True,
                     'message': f'Usuario {target_user["name"]} eliminado exitosamente'
@@ -2213,6 +2245,91 @@ def setup_auth_routes(app):
         except Exception as e:
             logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
             return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+
+    @app.route('/admin/users/<int:user_id>/invitations')
+    @admin_required
+    def admin_user_invitations(user_id):
+        """Obtener invitaciones detalladas de un usuario"""
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'success': False, 'error': 'DB connection failed'}), 500
+            cur = conn.cursor()
+
+            # Verificar si la tabla existe
+            cur.execute("SELECT to_regclass('public.project_invitations') AS reg")
+            reg = cur.fetchone()
+            if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+                conn.close()
+                return jsonify({'success': True, 'invitations': []})
+
+            cur.execute('''
+                SELECT invitee_email, module_name, role, status, created_at, accepted_at
+                FROM project_invitations
+                WHERE owner_user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 50
+            ''', (user_id,))
+            rows = cur.fetchall()
+            invitations = []
+            for row in rows:
+                r = dict(row)
+                # Serializar datetimes
+                for k in ('created_at', 'accepted_at'):
+                    if r.get(k):
+                        r[k] = r[k].isoformat()
+                invitations.append(r)
+            conn.close()
+            return jsonify({'success': True, 'invitations': invitations})
+        except Exception as e:
+            logger.error(f"Error obteniendo invitaciones de usuario {user_id}: {e}")
+            return jsonify({'success': False, 'error': 'Error interno'}), 500
+
+    @app.route('/admin/audit-log')
+    @admin_required
+    def admin_audit_log():
+        """Obtener últimas acciones del admin"""
+        try:
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({'success': False, 'error': 'DB connection failed'}), 500
+            cur = conn.cursor()
+
+            # Verificar si la tabla existe
+            cur.execute("SELECT to_regclass('public.admin_audit_log') AS reg")
+            reg = cur.fetchone()
+            if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
+                conn.close()
+                return jsonify({'success': True, 'actions': []})
+
+            cur.execute('''
+                SELECT
+                    a.id,
+                    a.action,
+                    a.details,
+                    a.created_at,
+                    adm.name AS admin_name,
+                    adm.email AS admin_email,
+                    tgt.name AS target_name,
+                    tgt.email AS target_email
+                FROM admin_audit_log a
+                LEFT JOIN users adm ON adm.id = a.admin_user_id
+                LEFT JOIN users tgt ON tgt.id = a.target_user_id
+                ORDER BY a.created_at DESC
+                LIMIT 50
+            ''')
+            rows = cur.fetchall()
+            actions = []
+            for row in rows:
+                r = dict(row)
+                if r.get('created_at'):
+                    r['created_at'] = r['created_at'].isoformat()
+                actions.append(r)
+            conn.close()
+            return jsonify({'success': True, 'actions': actions})
+        except Exception as e:
+            logger.error(f"Error obteniendo audit log: {e}")
+            return jsonify({'success': False, 'error': 'Error interno'}), 500
 
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""

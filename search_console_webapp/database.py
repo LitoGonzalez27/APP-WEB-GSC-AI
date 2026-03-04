@@ -255,6 +255,20 @@ def init_database():
         """)
         logger.info("✅ Google model migrado a gemini-3-flash-preview")
 
+        # ── Admin Audit Log ──
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS admin_audit_log (
+                id SERIAL PRIMARY KEY,
+                admin_user_id INTEGER REFERENCES users(id),
+                action TEXT NOT NULL,
+                target_user_id INTEGER,
+                details JSONB,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at DESC)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_admin_audit_target ON admin_audit_log(target_user_id)')
+
         conn.commit()
         logger.info("Todas las tablas inicializadas correctamente")
         return True
