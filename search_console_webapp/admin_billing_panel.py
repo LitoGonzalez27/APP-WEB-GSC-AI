@@ -658,8 +658,9 @@ def get_user_billing_details(user_id):
                 quota_reset_date, stripe_customer_id, subscription_id,
                 current_period_start, current_period_end, pending_plan, pending_plan_date,
                 ai_overview_paused_until, ai_overview_paused_at, ai_overview_paused_reason,
-                custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date
-            FROM users 
+                custom_quota_limit, custom_quota_notes, custom_quota_assigned_by, custom_quota_assigned_date,
+                custom_llm_prompts_limit, custom_llm_monthly_units_limit
+            FROM users
             WHERE id = %s
         ''', (user_id,))
         
@@ -895,15 +896,27 @@ def get_billing_status_display_info(billing_status):
         'icon': 'fas fa-question-circle'
     })
 
-def assign_custom_quota(user_id, custom_limit, notes, admin_id):
-    """Asigna una cuota personalizada a un usuario (para planes Enterprise)"""
+def assign_custom_quota(user_id, custom_limit, notes, admin_id,
+                        custom_llm_prompts_limit=None,
+                        custom_llm_monthly_units_limit=None):
+    """
+    Asigna una cuota personalizada a un usuario (para planes Enterprise).
+
+    Args:
+        user_id: ID del usuario
+        custom_limit: Límite de RU generales por mes
+        notes: Notas del admin
+        admin_id: ID del admin que asigna
+        custom_llm_prompts_limit: Máx prompts por proyecto en LLM Monitoring (ej: 3000)
+        custom_llm_monthly_units_limit: Máx unidades mensuales LLM (1 prompt × 1 LLM = 1 unidad)
+    """
     try:
         conn = get_db_connection()
         if not conn:
             return {'success': False, 'error': 'Database connection failed'}
-        
+
         cur = conn.cursor()
-        
+
         # Validar que custom_limit sea un número positivo
         try:
             custom_limit = int(custom_limit)
@@ -911,48 +924,89 @@ def assign_custom_quota(user_id, custom_limit, notes, admin_id):
                 return {'success': False, 'error': 'Custom limit must be >= 0'}
         except (ValueError, TypeError):
             return {'success': False, 'error': 'Custom limit must be a valid number'}
-        
+
+        # Validar custom_llm_prompts_limit si se proporciona
+        if custom_llm_prompts_limit is not None:
+            try:
+                custom_llm_prompts_limit = int(custom_llm_prompts_limit)
+                if custom_llm_prompts_limit < 1:
+                    return {'success': False, 'error': 'LLM prompts limit must be >= 1'}
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'LLM prompts limit must be a valid number'}
+
+        # Validar custom_llm_monthly_units_limit si se proporciona
+        if custom_llm_monthly_units_limit is not None:
+            try:
+                custom_llm_monthly_units_limit = int(custom_llm_monthly_units_limit)
+                if custom_llm_monthly_units_limit < 1:
+                    return {'success': False, 'error': 'LLM monthly units limit must be >= 1'}
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'LLM monthly units limit must be a valid number'}
+
         # Obtener información del admin que asigna
         cur.execute('SELECT name, email FROM users WHERE id = %s', (admin_id,))
         admin_info = cur.fetchone()
         admin_name = admin_info['email'] if admin_info else f'Admin ID {admin_id}'
-        
-        # Actualizar usuario con custom quota
+
+        # Actualizar usuario con custom quota + LLM limits
         cur.execute('''
-            UPDATE users 
-            SET 
+            UPDATE users
+            SET
                 custom_quota_limit = %s,
                 custom_quota_notes = %s,
                 custom_quota_assigned_by = %s,
                 custom_quota_assigned_date = NOW(),
+                custom_llm_prompts_limit = %s,
+                custom_llm_monthly_units_limit = %s,
                 -- También actualizar plan a enterprise si no lo es
                 plan = CASE WHEN plan != 'enterprise' THEN 'enterprise' ELSE plan END,
                 current_plan = CASE WHEN current_plan != 'enterprise' THEN 'enterprise' ELSE current_plan END,
+                billing_status = CASE
+                    WHEN billing_status IN ('active', 'trialing') THEN billing_status
+                    ELSE 'active'
+                END,
                 updated_at = NOW()
             WHERE id = %s
-        ''', (custom_limit, notes, admin_name, user_id))
-        
+        ''', (custom_limit, notes, admin_name,
+              custom_llm_prompts_limit, custom_llm_monthly_units_limit,
+              user_id))
+
         if cur.rowcount == 0:
             return {'success': False, 'error': 'Usuario no encontrado'}
-        
+
         # Log de la acción
-        logger.info(f"Admin {admin_id} ({admin_name}) asignó custom quota {custom_limit} RU a usuario {user_id}")
+        llm_info = ''
+        if custom_llm_prompts_limit:
+            llm_info += f', LLM prompts: {custom_llm_prompts_limit}'
+        if custom_llm_monthly_units_limit:
+            llm_info += f', LLM units/mes: {custom_llm_monthly_units_limit}'
+        logger.info(
+            f"Admin {admin_id} ({admin_name}) asignó custom quota "
+            f"{custom_limit} RU{llm_info} a usuario {user_id}"
+        )
 
         conn.commit()
 
         # ✅ Audit log
         log_admin_action(admin_id, 'assign_custom_quota', user_id, {
-            'custom_limit': custom_limit, 'notes': notes
+            'custom_limit': custom_limit,
+            'notes': notes,
+            'custom_llm_prompts_limit': custom_llm_prompts_limit,
+            'custom_llm_monthly_units_limit': custom_llm_monthly_units_limit,
         })
 
         return {
             'success': True,
-            'message': f'Custom quota assigned: {custom_limit} RU/month',
+            'message': f'Enterprise plan assigned: {custom_limit} RU/month'
+                       + (f', {custom_llm_prompts_limit} LLM prompts/project' if custom_llm_prompts_limit else '')
+                       + (f', {custom_llm_monthly_units_limit} LLM units/month' if custom_llm_monthly_units_limit else ''),
             'custom_limit': custom_limit,
+            'custom_llm_prompts_limit': custom_llm_prompts_limit,
+            'custom_llm_monthly_units_limit': custom_llm_monthly_units_limit,
             'assigned_by': admin_name,
             'assigned_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
-        
+
     except Exception as e:
         logger.error(f"Error asignando custom quota: {e}")
         import traceback
@@ -976,14 +1030,16 @@ def remove_custom_quota(user_id, admin_id):
         admin_info = cur.fetchone()
         admin_name = admin_info['email'] if admin_info else f'Admin ID {admin_id}'
         
-        # Remover custom quota y volver a plan free por defecto
+        # Remover custom quota (incluye LLM limits) y volver a plan free por defecto
         cur.execute('''
-            UPDATE users 
-            SET 
+            UPDATE users
+            SET
                 custom_quota_limit = NULL,
                 custom_quota_notes = NULL,
                 custom_quota_assigned_by = NULL,
                 custom_quota_assigned_date = NULL,
+                custom_llm_prompts_limit = NULL,
+                custom_llm_monthly_units_limit = NULL,
                 plan = 'free',
                 current_plan = 'free',
                 quota_limit = 0,

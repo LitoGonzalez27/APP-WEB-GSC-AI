@@ -2183,28 +2183,36 @@ def setup_auth_routes(app):
             return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
 
     @app.route('/admin/users/<int:user_id>/assign-custom-quota', methods=['POST'])
-    @admin_required  
+    @admin_required
     def admin_assign_custom_quota(user_id):
-        """Asignar quota personalizada (Enterprise) desde admin panel"""
+        """Asignar quota personalizada (Enterprise) desde admin panel.
+        Soporta custom_limit (RU generales), custom_llm_prompts_limit y
+        custom_llm_monthly_units_limit para LLM Monitoring."""
         try:
             from admin_billing_panel import assign_custom_quota
-            
+
             data = request.get_json()
             custom_limit = data.get('custom_limit')
             notes = data.get('notes', '')
+            custom_llm_prompts_limit = data.get('custom_llm_prompts_limit')
+            custom_llm_monthly_units_limit = data.get('custom_llm_monthly_units_limit')
             current_user = get_current_user()
-            
+
             if custom_limit is None:
                 return jsonify({'success': False, 'error': 'Custom limit no especificado'}), 400
-            
+
             # Usar función del admin billing panel
-            result = assign_custom_quota(user_id, custom_limit, notes, current_user['id'])
-            
+            result = assign_custom_quota(
+                user_id, custom_limit, notes, current_user['id'],
+                custom_llm_prompts_limit=custom_llm_prompts_limit,
+                custom_llm_monthly_units_limit=custom_llm_monthly_units_limit
+            )
+
             if result['success']:
                 return jsonify(result)
             else:
                 return jsonify(result), 400
-                
+
         except Exception as e:
             logger.error(f"Error asignando custom quota a usuario {user_id}: {e}")
             return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500

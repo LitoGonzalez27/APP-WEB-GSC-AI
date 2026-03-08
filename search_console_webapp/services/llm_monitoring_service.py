@@ -1195,7 +1195,8 @@ JSON:"""
 
             # Obtener usuario y validar acceso por plan/billing
             cur.execute("""
-                SELECT id, plan, billing_status, role
+                SELECT id, plan, billing_status, role,
+                       custom_llm_prompts_limit, custom_llm_monthly_units_limit
                 FROM users
                 WHERE id = %s
             """, (project['user_id'],))
@@ -1208,6 +1209,13 @@ JSON:"""
                     'current_plan': user_row.get('plan', 'free') if user_row else 'free'
                 }
             plan_limits = get_llm_plan_limits(user_row.get('plan', 'free'))
+            # Enterprise: aplicar custom limits si existen
+            if user_row.get('plan') == 'enterprise':
+                plan_limits = dict(plan_limits)
+                if user_row.get('custom_llm_prompts_limit') is not None:
+                    plan_limits['max_prompts_per_project'] = int(user_row['custom_llm_prompts_limit'])
+                if user_row.get('custom_llm_monthly_units_limit') is not None:
+                    plan_limits['max_monthly_units'] = int(user_row['custom_llm_monthly_units_limit'])
             
             logger.info(f"📋 Proyecto: {project['name']}")
             logger.info(f"   Marca: {project['brand_name']}")

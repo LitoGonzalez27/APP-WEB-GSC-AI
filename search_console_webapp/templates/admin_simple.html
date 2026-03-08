@@ -1545,12 +1545,20 @@
                     </h4>
                     <div class="detail-grid">
                         <div class="detail-item">
-                            <span class="detail-label">Custom Limit:</span>
+                            <span class="detail-label">Custom RU Limit:</span>
                             <span class="detail-value" id="detailCustomLimit">-</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Notas:</span>
                             <span class="detail-value" id="detailCustomNotes">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fas fa-robot"></i> LLM Prompts/Proyecto:</span>
+                            <span class="detail-value" id="detailCustomLlmPrompts">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fas fa-robot"></i> LLM Units/Mes:</span>
+                            <span class="detail-value" id="detailCustomLlmUnits">-</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Asignado por:</span>
@@ -1759,15 +1767,32 @@
                 </div>
                 <div style="margin-top: 1rem;">
                     <label for="customQuotaNotes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Notes (optional):</label>
-                    <textarea id="customQuotaNotes" placeholder="e.g., Special agreement with Agency XYZ" 
+                    <textarea id="customQuotaNotes" placeholder="e.g., Special agreement with Agency XYZ"
                               style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 5px; min-height: 60px; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-top: 1.5rem; padding: 1rem; background: #f3e8ff; border: 1px solid #d4b5ff; border-radius: 5px;">
+                    <p style="margin: 0; font-weight: 600; color: #6f42c1;"><i class="fas fa-robot"></i> LLM Monitoring Limits</p>
+                    <div style="margin-top: 0.75rem;">
+                        <label for="customLlmPromptsLimit" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Max prompts per project:</label>
+                        <input type="number" id="customLlmPromptsLimit" min="1" max="10000" step="100" placeholder="e.g., 3000 (empty = unlimited)"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #d4b5ff; border-radius: 5px;">
+                    </div>
+                    <div style="margin-top: 0.75rem;">
+                        <label for="customLlmMonthlyUnits" style="display: block; margin-bottom: 0.3rem; font-weight: 500; font-size: 0.9rem;">Max LLM units per month <small>(1 prompt x 1 LLM = 1 unit)</small>:</label>
+                        <input type="number" id="customLlmMonthlyUnits" min="1" max="500000" step="1000" placeholder="e.g., 120000 (empty = unlimited)"
+                               style="width: 100%; padding: 0.5rem; border: 1px solid #d4b5ff; border-radius: 5px;">
+                    </div>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: #7c3aed;">
+                        Example: 3000 prompts x 4 LLMs x 30 days = 360,000 units/month
+                    </p>
                 </div>
                 <div style="margin-top: 1rem; padding: 1rem; background: #e8f4fd; border-radius: 5px; font-size: 0.9rem;">
                     <p style="margin: 0;"><strong>Enterprise Features:</strong></p>
                     <p style="margin: 0.5rem 0 0 0; color: #0066cc;">
                         • Plan will automatically change to "Enterprise"<br>
                         • User will bypass standard plan limits<br>
-                        • Custom quota takes priority over plan quotas
+                        • Custom quota takes priority over plan quotas<br>
+                        • LLM limits control prompts and monthly usage independently
                     </p>
                 </div>
             </div>
@@ -1898,7 +1923,21 @@
                         document.getElementById('detailCustomLimit').textContent = `${user.custom_quota_limit} RU/mes`;
                         document.getElementById('detailCustomNotes').textContent = user.custom_quota_notes || 'Sin notas';
                         document.getElementById('detailCustomAssignedBy').textContent = user.custom_quota_assigned_by || 'N/A';
-                        
+
+                        // LLM Monitoring limits
+                        const llmPromptsEl = document.getElementById('detailCustomLlmPrompts');
+                        const llmUnitsEl = document.getElementById('detailCustomLlmUnits');
+                        if (llmPromptsEl) {
+                            llmPromptsEl.textContent = user.custom_llm_prompts_limit
+                                ? `${user.custom_llm_prompts_limit} prompts/proyecto`
+                                : 'Unlimited';
+                        }
+                        if (llmUnitsEl) {
+                            llmUnitsEl.textContent = user.custom_llm_monthly_units_limit
+                                ? `${user.custom_llm_monthly_units_limit} units/mes`
+                                : 'Unlimited';
+                        }
+
                         if (user.custom_quota_assigned_date) {
                             const assignedDate = new Date(user.custom_quota_assigned_date).toLocaleDateString('es-ES');
                             document.getElementById('detailCustomAssignedDate').textContent = assignedDate;
@@ -2500,19 +2539,21 @@
 
         function showCustomQuotaModal(userId, userName) {
             console.log('👑 Abriendo modal de custom quota:', userId);
-            
+
             document.getElementById('customQuotaUserName').textContent = userName;
             document.getElementById('customQuotaLimit').value = '';
             document.getElementById('customQuotaNotes').value = '';
-            
+            document.getElementById('customLlmPromptsLimit').value = '';
+            document.getElementById('customLlmMonthlyUnits').value = '';
+
             // Remove previous event listeners
             const oldBtn = document.getElementById('confirmCustomQuotaBtn');
             const newBtn = oldBtn.cloneNode(true);
             oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-            
+
             // Add new event listener
             newBtn.addEventListener('click', () => assignCustomQuota(userId, userName));
-            
+
             document.getElementById('customQuotaModal').style.display = 'flex';
         }
 
@@ -2548,32 +2589,43 @@
         async function assignCustomQuota(userId, userName) {
             const customLimit = parseInt(document.getElementById('customQuotaLimit').value);
             const notes = document.getElementById('customQuotaNotes').value;
-            
+            const llmPromptsRaw = document.getElementById('customLlmPromptsLimit').value;
+            const llmUnitsRaw = document.getElementById('customLlmMonthlyUnits').value;
+
             if (!customLimit || customLimit < 0) {
-                alert('❌ Por favor ingresa un límite válido (mayor a 0)');
+                alert('❌ Por favor ingresa un límite de RU válido (mayor a 0)');
                 return;
             }
-            
-            console.log(`👑 Asignando custom quota ${customLimit} RU a usuario ${userId}`);
-            
+
+            const payload = {
+                custom_limit: customLimit,
+                notes: notes
+            };
+            // Solo enviar LLM limits si se rellenaron (vacío = unlimited)
+            if (llmPromptsRaw && llmPromptsRaw.trim() !== '') {
+                payload.custom_llm_prompts_limit = parseInt(llmPromptsRaw);
+            }
+            if (llmUnitsRaw && llmUnitsRaw.trim() !== '') {
+                payload.custom_llm_monthly_units_limit = parseInt(llmUnitsRaw);
+            }
+
+            console.log(`👑 Asignando enterprise quota a usuario ${userId}:`, payload);
+
             try {
                 const response = await fetch(`/admin/users/${userId}/assign-custom-quota`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ 
-                        custom_limit: customLimit,
-                        notes: notes 
-                    })
+                    body: JSON.stringify(payload)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    alert(`✅ Custom quota asignada exitosamente para ${userName}: ${result.message}`);
+                    alert(`✅ Enterprise plan asignado a ${userName}: ${result.message}`);
                     closeModal('customQuotaModal');
-                    location.reload(); // Recargar para ver cambios
+                    location.reload();
                 } else {
                     alert('❌ Error: ' + result.error);
                 }

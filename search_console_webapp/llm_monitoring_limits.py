@@ -190,6 +190,17 @@ def get_llm_limits_summary(user: dict) -> dict:
     limits = get_llm_plan_limits(plan)
     used_units = get_user_monthly_llm_usage(user['id'])
     max_units = limits.get('max_monthly_units')
+
+    # Enterprise: respetar custom limits si el admin los ha configurado
+    max_prompts = limits.get('max_prompts_per_project')
+    if plan == 'enterprise':
+        custom_prompts = user.get('custom_llm_prompts_limit')
+        custom_units = user.get('custom_llm_monthly_units_limit')
+        if custom_prompts is not None:
+            max_prompts = int(custom_prompts)
+        if custom_units is not None:
+            max_units = int(custom_units)
+
     remaining_units = None if max_units is None else max(0, max_units - used_units)
     projects_count = count_user_active_projects(user['id'])
 
@@ -197,7 +208,7 @@ def get_llm_limits_summary(user: dict) -> dict:
         'plan': plan,
         'is_admin': False,
         'max_projects': limits.get('max_projects'),
-        'max_prompts_per_project': limits.get('max_prompts_per_project'),
+        'max_prompts_per_project': max_prompts,
         'max_monthly_units': max_units,
         'monthly_units_used': used_units,
         'monthly_units_remaining': remaining_units,

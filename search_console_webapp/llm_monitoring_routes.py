@@ -224,6 +224,8 @@ def _get_effective_plan_limits(user: dict) -> dict:
     """
     Devuelve límites efectivos por usuario.
     Admin opera sin límites para soporte y validación interna.
+    Enterprise: respeta custom_llm_prompts_limit y custom_llm_monthly_units_limit
+    si están configurados por el admin; si no, opera sin límites (None).
     """
     limits = get_llm_plan_limits((user or {}).get('plan', 'free'))
     if user and user.get('role') == 'admin':
@@ -231,6 +233,15 @@ def _get_effective_plan_limits(user: dict) -> dict:
         limits['max_projects'] = None
         limits['max_prompts_per_project'] = None
         limits['max_monthly_units'] = None
+    elif user and (user or {}).get('plan') == 'enterprise':
+        limits = dict(limits)
+        # Aplicar custom limits si el admin los ha configurado para este usuario
+        custom_prompts = user.get('custom_llm_prompts_limit')
+        custom_units = user.get('custom_llm_monthly_units_limit')
+        if custom_prompts is not None:
+            limits['max_prompts_per_project'] = int(custom_prompts)
+        if custom_units is not None:
+            limits['max_monthly_units'] = int(custom_units)
     return limits
 
 
@@ -493,8 +504,11 @@ def create_project():
     max_prompts = plan_limits.get('max_prompts_per_project')
     # queries_per_llm deja de ser configurable por usuario.
     # Se guarda internamente una capacidad derivada del plan para compatibilidad.
-    if isinstance(max_prompts, int):
-        configured_prompt_capacity = max(5, min(60, max_prompts))
+    # Enterprise (max_prompts=None) permite hasta 5000 prompts por proyecto.
+    if max_prompts is None:
+        configured_prompt_capacity = 5000  # Enterprise / Admin: sin límite efectivo
+    elif isinstance(max_prompts, int):
+        configured_prompt_capacity = max(5, min(5000, max_prompts))
     else:
         configured_prompt_capacity = 60
     
