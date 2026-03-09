@@ -210,6 +210,33 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         }
     });
 
+    // SERP Features column (icons showing which features are present)
+    columns.push({
+        name: gridjs.html('SERP<br>Features'),
+        width: '110px',
+        sort: {
+            compare: (a, b) => {
+                const numA = typeof a === 'number' ? a : 0;
+                const numB = typeof b === 'number' ? b : 0;
+                return numB - numA;
+            }
+        },
+        formatter: (cell) => {
+            if (!cell || cell === 0 || cell === '—') {
+                return gridjs.html('<span class="aio-na">—</span>');
+            }
+            // cell is an array of {key, label, icon, color}
+            if (Array.isArray(cell)) {
+                const icons = cell.slice(0, 4).map(f =>
+                    `<i class="fas ${f.icon}" style="color: ${f.color}; font-size: 0.85em;" title="${f.label}"></i>`
+                ).join(' ');
+                const extra = cell.length > 4 ? `<span style="color:#888;font-size:0.75em;">+${cell.length - 4}</span>` : '';
+                return gridjs.html(`<span style="display:flex;gap:3px;align-items:center;justify-content:center;">${icons}${extra}</span>`);
+            }
+            return gridjs.html(`<span style="color: #6c757d;">${cell}</span>`);
+        }
+    });
+
     // Añadir columnas dinámicas para competidores
     competitorDomains.forEach((domain, index) => {
         const competitorNumber = index + 1;
@@ -269,6 +296,10 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         row.push(ctr.expected_ctr != null ? ctr.expected_ctr : '—');
         row.push(ctr.ctr_gap != null ? ctr.ctr_gap : '—');
         row.push(ctr.clicks_absorbed != null ? ctr.clicks_absorbed : '—');
+
+        // SERP Features icons
+        const serpFeatures = ctr.serp_features || [];
+        row.push(serpFeatures.length > 0 ? serpFeatures : '—');
 
         // Añadir datos de competidores
         competitorDomains.forEach(domain => {

@@ -193,6 +193,41 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            name: gridjs.html('SERP<br>Features'),
+            width: '110px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = typeof a === 'number' ? a : 0;
+                    const numB = typeof b === 'number' ? b : 0;
+                    return numB - numA;
+                }
+            },
+            formatter: (cell) => {
+                if (!cell || cell === '—' || (Array.isArray(cell) && cell.length === 0)) {
+                    return gridjs.html('<span class="aio-na">—</span>');
+                }
+                if (Array.isArray(cell)) {
+                    const icons = cell.slice(0, 4).map(f =>
+                        `<i class="fas ${f.icon}" style="color: ${f.color}; font-size: 0.85em;" title="${f.label}"></i>`
+                    ).join(' ');
+                    const extra = cell.length > 4 ? `<span style="color:#888;font-size:0.75em;">+${cell.length - 4}</span>` : '';
+                    return gridjs.html(`<span style="display:flex;gap:3px;align-items:center;justify-content:center;">${icons}${extra}</span>`);
+                }
+                return gridjs.html(`<span style="color: #6c757d;">${cell}</span>`);
+            }
+        },
+        {
+            name: 'Diagnostic',
+            width: '130px',
+            sort: true,
+            formatter: (cell) => {
+                if (!cell || cell === '—') {
+                    return gridjs.html('<span class="aio-na">—</span>');
+                }
+                return gridjs.html(`<span style="font-size:0.8em;font-weight:600;opacity:0.85;">${cell}</span>`);
+            }
+        },
+        {
             name: 'Cluster',
             width: '120px',
             sort: true,
@@ -255,6 +290,8 @@ function processDetailedDataForGrid(keywordResults) {
             organicPosition, // Organic Position
             formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // Clics (P1)
             formatInteger(result.impressions_p1 || result.impressions_m1 || 0), // Impresiones (P1)
+            (result._ctr_analysis?.serp_features?.length > 0) ? result._ctr_analysis.serp_features : '—', // SERP Features
+            result._diagnostic?.label || '—', // Diagnostic category
             clusterName // Cluster
         ];
     });

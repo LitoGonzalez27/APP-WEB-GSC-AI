@@ -205,6 +205,47 @@ function createCTRAnalysisHTML(result) {
           : `Your CTR exceeds the benchmark, suggesting strong click performance despite SERP features.`
         }
       </p>
+      ${_createSerpFeaturesDetailHTML(ctr)}
+    </div>
+  `;
+}
+
+function _createSerpFeaturesDetailHTML(ctr) {
+  const features = ctr.serp_features || [];
+  if (features.length === 0) return '';
+
+  const absorbedBySerpFeatures = ctr.clicks_absorbed_by_serp_features || 0;
+  const impactPct = ctr.serp_features_impact ? (ctr.serp_features_impact * 100).toFixed(0) : '0';
+
+  const pills = features.map(f => `
+    <span style="
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 12px; font-size: 0.78em;
+      background: ${f.color}15; color: ${f.color}; border: 1px solid ${f.color}25;
+    ">
+      <i class="fas ${f.icon}" style="font-size: 0.85em;"></i>
+      ${f.label}
+    </span>
+  `).join('');
+
+  return `
+    <div style="margin-top: 0.8em; padding-top: 0.8em; border-top: 1px solid #dee2e6;">
+      <div style="font-size: 0.78em; color: #555; font-weight: 600; margin-bottom: 0.4em;">
+        <i class="fas fa-layer-group" style="margin-right: 4px; color: #6f42c1;"></i>
+        Other SERP Features Detected
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0.4em;">
+        ${pills}
+      </div>
+      ${absorbedBySerpFeatures > 0 ? `
+        <p style="color: #888; font-size: 0.72em; margin: 0.3em 0 0 0;">
+          These features reduce expected CTR by ~${impactPct}%, absorbing ≈${absorbedBySerpFeatures} additional clicks beyond AI Overview.
+        </p>
+      ` : `
+        <p style="color: #888; font-size: 0.72em; margin: 0.3em 0 0 0;">
+          These features may reduce organic visibility (~${impactPct}% estimated CTR impact).
+        </p>
+      `}
     </div>
   `;
 }

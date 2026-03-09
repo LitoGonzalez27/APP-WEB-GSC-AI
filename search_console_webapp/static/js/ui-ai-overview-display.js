@@ -15,6 +15,40 @@ const CTR_BENCHMARKS = {
   6: 0.045, 7: 0.035, 8: 0.028, 9: 0.024, 10: 0.020
 };
 
+// SERP features that absorb organic CTR (estimated % reduction on organic CTR)
+// Based on industry studies: each feature pushes organic results down and captures clicks
+const SERP_FEATURE_CTR_IMPACT = {
+  featured_snippet:   { label: 'Featured Snippet',   icon: 'fa-star',          impact: 0.12, color: '#ffc107' },
+  people_also_ask:    { label: 'People Also Ask',    icon: 'fa-question-circle', impact: 0.05, color: '#17a2b8' },
+  knowledge_graph:    { label: 'Knowledge Graph',    icon: 'fa-info-circle',   impact: 0.08, color: '#6f42c1' },
+  video_results:      { label: 'Video Results',      icon: 'fa-video',         impact: 0.06, color: '#e83e8c' },
+  images_results:     { label: 'Image Results',      icon: 'fa-images',        impact: 0.03, color: '#20c997' },
+  shopping_results:   { label: 'Shopping Results',   icon: 'fa-shopping-cart', impact: 0.08, color: '#fd7e14' },
+  local_results:      { label: 'Local Pack',         icon: 'fa-map-marker-alt', impact: 0.07, color: '#28a745' },
+  news_results:       { label: 'News Results',       icon: 'fa-newspaper',     impact: 0.04, color: '#6c757d' },
+  ads:                { label: 'Paid Ads',           icon: 'fa-ad',            impact: 0.10, color: '#dc3545' },
+  related_questions:  { label: 'Related Questions',  icon: 'fa-comments',      impact: 0.04, color: '#007bff' }
+};
+
+/**
+ * Parses the serp_features string array from backend into structured data.
+ * Backend sends: ["featured_snippet: presente", "people_also_ask: 4 elementos", ...]
+ * @param {Array<string>} serpFeatures - Array of feature strings
+ * @returns {Array<{key: string, label: string, icon: string, impact: number, color: string}>}
+ */
+function parseSerpFeatures(serpFeatures) {
+  if (!serpFeatures || !Array.isArray(serpFeatures)) return [];
+  const detected = [];
+  for (const featureStr of serpFeatures) {
+    const key = featureStr.split(':')[0].trim();
+    const meta = SERP_FEATURE_CTR_IMPACT[key];
+    if (meta) {
+      detected.push({ key, ...meta });
+    }
+  }
+  return detected;
+}
+
 const DIAGNOSTIC_CATEGORIES = {
   max_impact: {
     id: 'max_impact',
@@ -190,24 +224,55 @@ function enrichWithCTRAnalysis(result) {
 
   const expectedCTR = getExpectedCTR(position);
 
+  // Parse SERP features for this keyword
+  const serpFeatures = parseSerpFeatures(result.serp_features);
+  const hasAIO = result.ai_analysis?.has_ai_overview || false;
+
+  // Calculate adjusted expected CTR considering all SERP features
+  let adjustedExpectedCTR = expectedCTR;
+  let totalSerpImpact = 0;
+  if (expectedCTR !== null && serpFeatures.length > 0) {
+    // Sum individual feature impacts (capped at 40% total reduction)
+    totalSerpImpact = serpFeatures.reduce((sum, f) => sum + f.impact, 0);
+    totalSerpImpact = Math.min(totalSerpImpact, 0.40);
+    // Apply reduction: if baseline is 15.5% and SERP features absorb 20%, new expected = 15.5% * (1 - 0.20)
+    adjustedExpectedCTR = expectedCTR * (1 - totalSerpImpact);
+  }
+
   if (expectedCTR === null || actualCTR === null || impressions === 0) {
     result._ctr_analysis = {
       expected_ctr: expectedCTR,
+      adjusted_expected_ctr: adjustedExpectedCTR,
       actual_ctr: actualCTR,
       ctr_gap: null,
-      clicks_absorbed: null
+      ctr_gap_adjusted: null,
+      clicks_absorbed: null,
+      clicks_absorbed_by_serp_features: null,
+      serp_features: serpFeatures,
+      serp_features_impact: totalSerpImpact
     };
     return result;
   }
 
-  const ctrGap = expectedCTR - actualCTR; // Positive = underperforming
+  // Full gap (vs clean SERP benchmark)
+  const ctrGap = expectedCTR - actualCTR;
   const clicksAbsorbed = Math.round(ctrGap * impressions);
+
+  // Adjusted gap (remaining gap AFTER accounting for SERP features)
+  const ctrGapAdjusted = adjustedExpectedCTR - actualCTR;
+  // Clicks absorbed by non-AIO SERP features = difference between full and adjusted
+  const clicksAbsorbedBySerpFeatures = Math.max(0, Math.round((expectedCTR - adjustedExpectedCTR) * impressions));
 
   result._ctr_analysis = {
     expected_ctr: expectedCTR,
+    adjusted_expected_ctr: adjustedExpectedCTR,
     actual_ctr: actualCTR,
     ctr_gap: ctrGap,
-    clicks_absorbed: Math.max(0, clicksAbsorbed)
+    ctr_gap_adjusted: ctrGapAdjusted,
+    clicks_absorbed: Math.max(0, clicksAbsorbed),
+    clicks_absorbed_by_serp_features: clicksAbsorbedBySerpFeatures,
+    serp_features: serpFeatures,
+    serp_features_impact: totalSerpImpact
   };
 
   return result;
@@ -750,7 +815,7 @@ function _createDiagnosticCard(id, cat, catData) {
   const tooltipColor = isDark ? 'color: rgba(216, 249, 184, 0.5);' : 'color: rgba(0,0,0,0.3);';
 
   return `
-    <div class="diagnostic-card" data-category="${id}" data-tooltip="${escapeHtml(cat.description)}" style="
+    <div class="diagnostic-card" data-category="${id}" style="
       ${bgStyle}
       text-align: center;
       padding: 1em 0.6em;
@@ -760,7 +825,7 @@ function _createDiagnosticCard(id, cat, catData) {
       position: relative;
       outline: 3px solid transparent;
     ">
-      <div class="diagnostic-card-tooltip-icon" style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;">
+      <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}" style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;">
         <i class="fas fa-info-circle"></i>
       </div>
       <div style="
@@ -919,27 +984,8 @@ function _initDiagnosticTooltips() {
     document.body.appendChild(tooltipEl);
   }
 
-  // Attach listeners to all elements with data-tooltip
-  document.querySelectorAll('[data-tooltip]').forEach(el => {
-    el.addEventListener('mouseenter', (e) => {
-      const text = el.getAttribute('data-tooltip');
-      if (!text) return;
-      tooltipEl.textContent = text;
-      tooltipEl.style.opacity = '1';
-      _positionTooltip(e, tooltipEl);
-    });
-
-    el.addEventListener('mousemove', (e) => {
-      _positionTooltip(e, tooltipEl);
-    });
-
-    el.addEventListener('mouseleave', () => {
-      tooltipEl.style.opacity = '0';
-    });
-  });
-
-  // Also handle the header-level tooltip trigger
-  document.querySelectorAll('.diagnostic-tooltip-trigger').forEach(el => {
+  // Attach listeners ONLY to tooltip icon elements (not entire cards)
+  document.querySelectorAll('.diagnostic-card-tooltip-icon[data-tooltip], .diagnostic-tooltip-trigger[data-tooltip]').forEach(el => {
     el.addEventListener('mouseenter', (e) => {
       const text = el.getAttribute('data-tooltip');
       if (!text) return;
@@ -1005,6 +1051,61 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
     r._ctr_analysis.actual_ctr < r._ctr_analysis.expected_ctr
   ).length;
 
+  // SERP features breakdown: aggregate clicks absorbed by non-AIO features
+  const totalClicksBySerpFeatures = aioKeywords.reduce((sum, r) => {
+    return sum + (r._ctr_analysis.clicks_absorbed_by_serp_features || 0);
+  }, 0);
+
+  // Count frequency of each SERP feature across all keywords
+  const featureFrequency = {};
+  enrichedResults.forEach(r => {
+    const features = r._ctr_analysis?.serp_features || [];
+    features.forEach(f => {
+      if (!featureFrequency[f.key]) {
+        featureFrequency[f.key] = { ...f, count: 0 };
+      }
+      featureFrequency[f.key].count++;
+    });
+  });
+  const sortedFeatures = Object.values(featureFrequency).sort((a, b) => b.count - a.count);
+
+  // Build SERP features pills HTML
+  let serpFeaturesPillsHTML = '';
+  if (sortedFeatures.length > 0) {
+    const pills = sortedFeatures.map(f => `
+      <span style="
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 10px; border-radius: 12px; font-size: 0.75em;
+        background: ${f.color}18; color: ${f.color}; border: 1px solid ${f.color}30;
+        white-space: nowrap;
+      ">
+        <i class="fas ${f.icon}" style="font-size: 0.85em;"></i>
+        ${escapeHtml(f.label)} <strong>${f.count}</strong>
+      </span>
+    `).join('');
+
+    serpFeaturesPillsHTML = `
+      <div style="margin-top: 1em; padding-top: 1em; border-top: 1px solid rgba(255,255,255,0.08);">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 0.6em;">
+          <span style="color: rgba(216, 249, 184, 0.7); font-size: 0.82em; font-weight: 600;">
+            <i class="fas fa-layer-group" style="margin-right: 4px;"></i>SERP Features Detected
+          </span>
+          <span class="ctr-metric-tooltip-trigger" data-tooltip="Other SERP features (Featured Snippets, People Also Ask, Video Carousels, etc.) also push organic results down and absorb clicks. We estimate ~${formatNumber(totalClicksBySerpFeatures)} additional clicks are being captured by these features beyond AI Overview." style="color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+            <i class="fas fa-question-circle"></i>
+          </span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+          ${pills}
+        </div>
+        ${totalClicksBySerpFeatures > 0 ? `
+          <p style="text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.75em; margin-top: 0.6em;">
+            Est. <strong style="color: #fd7e14;">${formatNumber(totalClicksBySerpFeatures)}</strong> additional clicks absorbed by non-AIO SERP features
+          </p>
+        ` : ''}
+      </div>
+    `;
+  }
+
   const sectionHTML = `
     <div class="ctr-analysis-summary" style="
       margin-bottom: 2em;
@@ -1033,7 +1134,10 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
         gap: 1em;
         margin-bottom: 1em;
       ">
-        <div data-tooltip="Estimated number of clicks lost due to the difference between expected CTR (based on your organic position) and your actual CTR. When AI Overview appears above organic results, it absorbs clicks that would normally go to your position." style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px; cursor: help;">
+        <div style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px; position: relative;">
+          <span class="ctr-metric-tooltip-trigger" data-tooltip="Total estimated clicks lost: the full difference between expected CTR (based on organic position) and actual CTR. Includes impact from AI Overview AND other SERP features (Featured Snippets, PAA, Videos, etc.)." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+            <i class="fas fa-question-circle"></i>
+          </span>
           <div style="font-size: 2em; font-weight: bold; color: #ff6b6b; line-height: 1.1;">
             ${formatNumber(totalClicksAbsorbed)}
           </div>
@@ -1041,7 +1145,10 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
             Est. Clicks Absorbed
           </div>
         </div>
-        <div data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected for your ranking position." style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px; cursor: help;">
+        <div style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px; position: relative;">
+          <span class="ctr-metric-tooltip-trigger" data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+            <i class="fas fa-question-circle"></i>
+          </span>
           <div style="font-size: 2em; font-weight: bold; color: #fd7e14; line-height: 1.1;">
             ${(avgCTRGap * 100).toFixed(1)}%
           </div>
@@ -1049,7 +1156,10 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
             Avg CTR Gap
           </div>
         </div>
-        <div data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview or other SERP features stealing clicks." style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px; cursor: help;">
+        <div style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px; position: relative;">
+          <span class="ctr-metric-tooltip-trigger" data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview and/or other SERP features." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+            <i class="fas fa-question-circle"></i>
+          </span>
           <div style="font-size: 2em; font-weight: bold; color: #ffc107; line-height: 1.1;">
             ${underperformingCount}<span style="font-size: 0.5em; opacity: 0.7;">/${aioKeywords.length}</span>
           </div>
@@ -1062,6 +1172,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
         Based on organic position CTR benchmarks, we estimate these clicks are being absorbed by AI Overview
         and other SERP features displayed above organic results.
       </p>
+      ${serpFeaturesPillsHTML}
     </div>
   `;
 
@@ -1091,8 +1202,8 @@ function _initCTRTooltips() {
     document.body.appendChild(tooltipEl);
   }
 
-  // Attach to all data-tooltip elements in CTR section
-  document.querySelectorAll('.ctr-analysis-summary [data-tooltip], .ctr-tooltip-trigger').forEach(el => {
+  // Attach ONLY to tooltip trigger icons (not entire metric containers)
+  document.querySelectorAll('.ctr-metric-tooltip-trigger[data-tooltip], .ctr-tooltip-trigger[data-tooltip]').forEach(el => {
     if (el._tooltipBound) return; // prevent duplicate binds
     el._tooltipBound = true;
 
