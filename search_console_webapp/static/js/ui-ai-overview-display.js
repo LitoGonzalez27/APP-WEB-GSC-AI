@@ -273,10 +273,7 @@ export function displayAIOverviewResults(data) {
     .join(', ')
   );
 
-  // 🆕 1.6️⃣ Display keyword diagnostic cards
-  displayDiagnosticSection(categories, resultsContainer, data, competitorDomains);
-
-  // 🆕 1.7️⃣ Display CTR benchmark analysis summary
+  // 🆕 1.6️⃣ Display CTR benchmark analysis summary
   displayCTRAnalysisSummary(enrichedResults, resultsContainer);
 
   // 2️⃣ Mostrar análisis de competidores si hay datos
@@ -304,8 +301,11 @@ export function displayAIOverviewResults(data) {
   // 5️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ABAJO)
   displayTypologyChart(resultsContainer, data);
 
-  // 6️⃣ Mostrar tabla detallada de keywords usando Grid.js
-  createDetailedResultsGridTable(data.keywordResults, resultsContainer);
+  // 6️⃣ Diagnostic cards — just above the detailed results table, filtering IT
+  displayDiagnosticSection(categories, resultsContainer, data, competitorDomains);
+
+  // 7️⃣ Mostrar tabla detallada de keywords usando Grid.js
+  displayDetailedResultsWithDiagnosticFilter(data.keywordResults, resultsContainer);
 
   showToast('AI Overview analysis complete', 'success');
 }
@@ -659,23 +659,13 @@ function displayAIOverviewGridTable(data, container, competitorDomainsPassed) {
   gridContainer.className = 'ai-overview-grid-section';
   gridContainer.style.marginTop = '2rem';
 
-  // Inner wrapper for the actual Grid.js table (re-rendered on filter)
+  // Inner wrapper for the actual Grid.js table
   const gridTableWrapper = document.createElement('div');
   gridTableWrapper.id = 'aiOverviewGridTableWrapper';
   gridContainer.appendChild(gridTableWrapper);
 
   // Añadir al contenedor principal
   container.appendChild(gridContainer);
-
-  // Store state for diagnostic card filtering
-  window._aiOverviewGridState = {
-    originalResults: data.keywordResults,
-    competitorDomains: competitorDomains,
-    activeFilter: null
-  };
-
-  // Global clear filter handler
-  window._aiOverviewClearFilter = () => _filterGridByCategory(null);
 
   // Crear la tabla Grid.js
   try {
@@ -701,17 +691,23 @@ function displayAIOverviewGridTable(data, container, competitorDomainsPassed) {
 
 /**
  * Displays the keyword diagnostic classification cards.
- * Each card is clickable and filters the Grid.js table below.
+ * Each card is clickable and filters the "Detailed Results by Keyword" table below.
  */
 function displayDiagnosticSection(categories, container, data, competitorDomains) {
   const totalKeywords = data.keywordResults?.length || 0;
   if (totalKeywords === 0) return;
 
   const sectionHTML = `
-    <div class="diagnostic-section" style="margin-bottom: 2em;">
+    <div class="diagnostic-section" id="diagnosticSection" style="margin-bottom: 1.5em;">
       <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.3em; font-size: 1.3em; font-weight: 600;">
         <i class="fas fa-stethoscope" style="margin-right: 8px; color: #6f42c1;"></i>
         Keyword Diagnostic
+        <span class="diagnostic-tooltip-trigger" data-tooltip="Each keyword is classified into one diagnostic category based on how AI Overview affects its organic performance. Categories are mutually exclusive — each keyword belongs to exactly one. Click a card to filter the table below and see only keywords in that category." style="
+          font-size: 0.55em; vertical-align: middle; margin-left: 6px;
+          cursor: help; opacity: 0.4;
+        ">
+          <i class="fas fa-question-circle"></i>
+        </span>
       </h3>
       <p style="text-align: center; color: var(--text-color); opacity: 0.7; font-size: 0.9em; margin-bottom: 1.2em;">
         Click a category to filter the table below
@@ -736,9 +732,12 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
   container.querySelectorAll('.diagnostic-card').forEach(card => {
     card.addEventListener('click', () => {
       const categoryId = card.dataset.category;
-      _filterGridByCategory(categoryId);
+      _filterDetailedTableByCategory(categoryId);
     });
   });
+
+  // Initialize tooltips on diagnostic cards
+  _initDiagnosticTooltips();
 }
 
 function _createDiagnosticCard(id, cat, catData) {
@@ -751,7 +750,7 @@ function _createDiagnosticCard(id, cat, catData) {
   const tooltipColor = isDark ? 'color: rgba(216, 249, 184, 0.5);' : 'color: rgba(0,0,0,0.3);';
 
   return `
-    <div class="diagnostic-card" data-category="${id}" style="
+    <div class="diagnostic-card" data-category="${id}" data-tooltip="${escapeHtml(cat.description)}" style="
       ${bgStyle}
       text-align: center;
       padding: 1em 0.6em;
@@ -761,8 +760,7 @@ function _createDiagnosticCard(id, cat, catData) {
       position: relative;
       outline: 3px solid transparent;
     ">
-      <div style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;"
-           title="${escapeHtml(cat.description)}">
+      <div class="diagnostic-card-tooltip-icon" style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;">
         <i class="fas fa-info-circle"></i>
       </div>
       <div style="
@@ -797,18 +795,41 @@ function _createDiagnosticCard(id, cat, catData) {
 }
 
 /**
- * Filters the Grid.js table by diagnostic category.
- * If categoryId matches the active filter, clears the filter.
+ * Wraps createDetailedResultsGridTable with a filterable container
+ * that the diagnostic cards can control.
  */
-function _filterGridByCategory(categoryId) {
-  const state = window._aiOverviewGridState;
+function displayDetailedResultsWithDiagnosticFilter(keywordResults, container) {
+  // Store state for diagnostic card filtering (used by the Detailed Results table)
+  window._detailedResultsFilterState = {
+    originalResults: keywordResults,
+    activeFilter: null
+  };
+
+  // Global clear filter handler
+  window._aiOverviewClearFilter = () => _filterDetailedTableByCategory(null);
+
+  // Create wrapping section with an ID so we can target it
+  const filterSection = document.createElement('div');
+  filterSection.id = 'detailedResultsFilterSection';
+  container.appendChild(filterSection);
+
+  // Render the Grid.js detailed results table inside
+  createDetailedResultsGridTable(keywordResults, filterSection);
+}
+
+/**
+ * Filters the "Detailed Results by Keyword" table by diagnostic category.
+ * If categoryId matches the active filter, clears the filter (toggle).
+ */
+function _filterDetailedTableByCategory(categoryId) {
+  const state = window._detailedResultsFilterState;
   if (!state) return;
 
-  const gridSection = document.getElementById('aiOverviewGridSection');
-  if (!gridSection) return;
+  const filterSection = document.getElementById('detailedResultsFilterSection');
+  if (!filterSection) return;
 
   // Remove existing filter banner
-  const existingBanner = document.getElementById('gridFilterBanner');
+  const existingBanner = document.getElementById('detailedFilterBanner');
   if (existingBanner) existingBanner.remove();
 
   let filteredResults;
@@ -820,11 +841,11 @@ function _filterGridByCategory(categoryId) {
 
     const categoryInfo = DIAGNOSTIC_CATEGORIES[categoryId];
     const banner = document.createElement('div');
-    banner.id = 'gridFilterBanner';
+    banner.id = 'detailedFilterBanner';
     banner.className = 'filter-active-banner';
     banner.innerHTML = `
       <div style="
-        display: flex; align-items: center; justify-content: space-between;
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5em;
         padding: 0.7em 1.2em;
         background: linear-gradient(135deg, ${categoryInfo.color}15, ${categoryInfo.color}08);
         border: 1px solid ${categoryInfo.color}40;
@@ -833,7 +854,7 @@ function _filterGridByCategory(categoryId) {
       ">
         <span style="color: var(--text-color); font-size: 0.9em;">
           <i class="fas fa-filter" style="color: ${categoryInfo.color}; margin-right: 6px;"></i>
-          Showing: <strong style="color: ${categoryInfo.color};">${escapeHtml(categoryInfo.label)}</strong>
+          Filtered by: <strong style="color: ${categoryInfo.color};">${escapeHtml(categoryInfo.label)}</strong>
           — ${filteredResults.length} keyword${filteredResults.length !== 1 ? 's' : ''}
         </span>
         <button onclick="window._aiOverviewClearFilter()" style="
@@ -845,10 +866,7 @@ function _filterGridByCategory(categoryId) {
         </button>
       </div>
     `;
-    const wrapper = document.getElementById('aiOverviewGridTableWrapper');
-    if (wrapper) {
-      gridSection.insertBefore(banner, wrapper);
-    }
+    filterSection.insertBefore(banner, filterSection.firstChild);
   } else {
     // Clear filter
     filteredResults = state.originalResults;
@@ -863,11 +881,101 @@ function _filterGridByCategory(categoryId) {
     card.style.transform = isActive ? 'translateY(-3px)' : '';
   });
 
-  // Re-render Grid.js table
-  const wrapper = document.getElementById('aiOverviewGridTableWrapper');
-  if (wrapper) {
-    createAIOverviewGridTable(filteredResults, state.competitorDomains, wrapper);
+  // Re-render the detailed results Grid.js table
+  // First remove existing grid section inside filterSection
+  const existingGrid = filterSection.querySelector('.ai-overview-grid-section');
+  if (existingGrid) existingGrid.remove();
+
+  createDetailedResultsGridTable(filteredResults, filterSection);
+}
+
+/**
+ * Initializes custom tooltips for diagnostic cards and other elements.
+ * Uses a floating tooltip div instead of native title attribute for better UX.
+ */
+function _initDiagnosticTooltips() {
+  // Create tooltip element if it doesn't exist
+  let tooltipEl = document.getElementById('diagnosticTooltip');
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'diagnosticTooltip';
+    tooltipEl.className = 'diagnostic-custom-tooltip';
+    tooltipEl.style.cssText = `
+      position: fixed;
+      z-index: 10000;
+      max-width: 280px;
+      padding: 10px 14px;
+      background: #1a1a1a;
+      color: #f0f0f0;
+      border-radius: 8px;
+      font-size: 0.82em;
+      line-height: 1.5;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      border: 1px solid #333;
+    `;
+    document.body.appendChild(tooltipEl);
   }
+
+  // Attach listeners to all elements with data-tooltip
+  document.querySelectorAll('[data-tooltip]').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      const text = el.getAttribute('data-tooltip');
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.style.opacity = '1';
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mousemove', (e) => {
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mouseleave', () => {
+      tooltipEl.style.opacity = '0';
+    });
+  });
+
+  // Also handle the header-level tooltip trigger
+  document.querySelectorAll('.diagnostic-tooltip-trigger').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      const text = el.getAttribute('data-tooltip');
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.style.opacity = '1';
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mousemove', (e) => {
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mouseleave', () => {
+      tooltipEl.style.opacity = '0';
+    });
+  });
+}
+
+function _positionTooltip(e, tooltipEl) {
+  const pad = 12;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+
+  // Prevent going off-screen right
+  const tooltipWidth = tooltipEl.offsetWidth || 280;
+  if (x + tooltipWidth > window.innerWidth - pad) {
+    x = e.clientX - tooltipWidth - pad;
+  }
+  // Prevent going off-screen bottom
+  const tooltipHeight = tooltipEl.offsetHeight || 60;
+  if (y + tooltipHeight > window.innerHeight - pad) {
+    y = e.clientY - tooltipHeight - pad;
+  }
+
+  tooltipEl.style.left = x + 'px';
+  tooltipEl.style.top = y + 'px';
 }
 
 // ====================================
@@ -909,11 +1017,11 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
       <h3 style="text-align: center; color: #D8F9B8; margin-bottom: 0.3em; font-size: 1.15em; font-weight: 600;">
         <i class="fas fa-chart-bar" style="margin-right: 8px;"></i>
         CTR Benchmark Analysis
-        <span style="
-          font-size: 0.6em; vertical-align: middle; margin-left: 6px;
+        <span class="ctr-tooltip-trigger" data-tooltip="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing." style="
+          font-size: 0.55em; vertical-align: middle; margin-left: 6px;
           cursor: help; opacity: 0.5; color: #D8F9B8;
-        " title="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing.">
-          <i class="fas fa-info-circle"></i>
+        ">
+          <i class="fas fa-question-circle"></i>
         </span>
       </h3>
       <p style="text-align: center; color: rgba(216, 249, 184, 0.6); font-size: 0.82em; margin-bottom: 1.2em;">
@@ -925,7 +1033,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
         gap: 1em;
         margin-bottom: 1em;
       ">
-        <div style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px;">
+        <div data-tooltip="Estimated number of clicks lost due to the difference between expected CTR (based on your organic position) and your actual CTR. When AI Overview appears above organic results, it absorbs clicks that would normally go to your position." style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px; cursor: help;">
           <div style="font-size: 2em; font-weight: bold; color: #ff6b6b; line-height: 1.1;">
             ${formatNumber(totalClicksAbsorbed)}
           </div>
@@ -933,7 +1041,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
             Est. Clicks Absorbed
           </div>
         </div>
-        <div style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px;">
+        <div data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected for your ranking position." style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px; cursor: help;">
           <div style="font-size: 2em; font-weight: bold; color: #fd7e14; line-height: 1.1;">
             ${(avgCTRGap * 100).toFixed(1)}%
           </div>
@@ -941,7 +1049,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
             Avg CTR Gap
           </div>
         </div>
-        <div style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px;">
+        <div data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview or other SERP features stealing clicks." style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px; cursor: help;">
           <div style="font-size: 2em; font-weight: bold; color: #ffc107; line-height: 1.1;">
             ${underperformingCount}<span style="font-size: 0.5em; opacity: 0.7;">/${aioKeywords.length}</span>
           </div>
@@ -958,6 +1066,52 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
   `;
 
   container.insertAdjacentHTML('beforeend', sectionHTML);
+
+  // Initialize tooltips for CTR section
+  _initCTRTooltips();
+}
+
+/**
+ * Initialize tooltips for the CTR analysis section.
+ * Reuses the same floating tooltip element.
+ */
+function _initCTRTooltips() {
+  let tooltipEl = document.getElementById('diagnosticTooltip');
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'diagnosticTooltip';
+    tooltipEl.className = 'diagnostic-custom-tooltip';
+    tooltipEl.style.cssText = `
+      position: fixed; z-index: 10000; max-width: 280px;
+      padding: 10px 14px; background: #1a1a1a; color: #f0f0f0;
+      border-radius: 8px; font-size: 0.82em; line-height: 1.5;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none;
+      opacity: 0; transition: opacity 0.2s ease; border: 1px solid #333;
+    `;
+    document.body.appendChild(tooltipEl);
+  }
+
+  // Attach to all data-tooltip elements in CTR section
+  document.querySelectorAll('.ctr-analysis-summary [data-tooltip], .ctr-tooltip-trigger').forEach(el => {
+    if (el._tooltipBound) return; // prevent duplicate binds
+    el._tooltipBound = true;
+
+    el.addEventListener('mouseenter', (e) => {
+      const text = el.getAttribute('data-tooltip');
+      if (!text) return;
+      tooltipEl.textContent = text;
+      tooltipEl.style.opacity = '1';
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mousemove', (e) => {
+      _positionTooltip(e, tooltipEl);
+    });
+
+    el.addEventListener('mouseleave', () => {
+      tooltipEl.style.opacity = '0';
+    });
+  });
 }
 
 function displaySummary(summary, container, keywordCount = null) {
