@@ -332,6 +332,9 @@ export function displayAIOverviewResults(data) {
   enrichedResults.forEach(r => enrichWithCTRAnalysis(r));
   data.keywordResults = enrichedResults;
 
+  // 🆕 Store globally so the SERP modal can access AI analysis data per keyword
+  window._aioKeywordResults = enrichedResults;
+
   console.log('🏷️ Diagnostic classification complete:', Object.entries(categories)
     .filter(([_, v]) => v.count > 0)
     .map(([k, v]) => `${k}: ${v.count}`)
