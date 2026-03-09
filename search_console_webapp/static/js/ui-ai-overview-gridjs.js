@@ -151,6 +151,65 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         }
     ];
 
+    // 🆕 CTR Benchmark columns (Expected CTR, CTR Gap, Est. Clicks Absorbed)
+    columns.push({
+        name: gridjs.html('Expected<br>CTR'),
+        width: '85px',
+        sort: {
+            compare: (a, b) => {
+                const numA = typeof a === 'number' ? a : -1;
+                const numB = typeof b === 'number' ? b : -1;
+                return numA - numB;
+            }
+        },
+        formatter: (cell) => {
+            if (cell === null || cell === undefined || cell === '—') {
+                return gridjs.html('<span class="aio-na">—</span>');
+            }
+            return gridjs.html(`<span style="color: #6c757d; font-weight: 500;">${(cell * 100).toFixed(1)}%</span>`);
+        }
+    });
+
+    columns.push({
+        name: gridjs.html('CTR<br>Gap'),
+        width: '90px',
+        sort: {
+            compare: (a, b) => {
+                const numA = typeof a === 'number' ? a : -999;
+                const numB = typeof b === 'number' ? b : -999;
+                return numB - numA; // Higher gap first
+            }
+        },
+        formatter: (cell) => {
+            if (cell === null || cell === undefined || cell === '—') {
+                return gridjs.html('<span class="aio-na">—</span>');
+            }
+            const isNegative = cell < 0; // Negative gap = overperforming
+            const color = cell > 0.01 ? '#dc3545' : (cell < -0.01 ? '#28a745' : '#6c757d');
+            const prefix = cell > 0 ? '+' : '';
+            return gridjs.html(`<span style="color: ${color}; font-weight: 600;">${prefix}${(cell * 100).toFixed(1)}%</span>`);
+        }
+    });
+
+    columns.push({
+        name: gridjs.html('Clicks<br>Absorbed'),
+        width: '95px',
+        sort: {
+            compare: (a, b) => {
+                const numA = typeof a === 'number' ? a : -1;
+                const numB = typeof b === 'number' ? b : -1;
+                return numB - numA; // Higher absorbed first
+            }
+        },
+        formatter: (cell) => {
+            if (cell === null || cell === undefined || cell === '—') {
+                return gridjs.html('<span class="aio-na">—</span>');
+            }
+            const color = cell > 0 ? '#dc3545' : '#28a745';
+            return gridjs.html(`<span style="color: ${color}; font-weight: 700;">${cell > 0 ? '~' : ''}${cell}</span>`);
+        }
+    });
+
     // Añadir columnas dinámicas para competidores
     competitorDomains.forEach((domain, index) => {
         const competitorNumber = index + 1;
@@ -204,6 +263,12 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
             aiAnalysis.domain_ai_source_position || 'N/A'
         ];
+
+        // 🆕 CTR analysis data
+        const ctr = result._ctr_analysis || {};
+        row.push(ctr.expected_ctr != null ? ctr.expected_ctr : '—');
+        row.push(ctr.ctr_gap != null ? ctr.ctr_gap : '—');
+        row.push(ctr.clicks_absorbed != null ? ctr.clicks_absorbed : '—');
 
         // Añadir datos de competidores
         competitorDomains.forEach(domain => {

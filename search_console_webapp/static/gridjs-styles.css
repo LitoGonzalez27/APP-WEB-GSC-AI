@@ -614,3 +614,99 @@ body.dark-mode .keyword-url-multi-btn {
   opacity: 0.65;
   font-style: italic;
 }
+
+/* =============== DIAGNOSTIC CARDS =============== */
+.diagnostic-section {
+  margin-bottom: 2em;
+}
+
+.diagnostic-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
+  outline: 3px solid transparent;
+}
+
+.diagnostic-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.diagnostic-card.active {
+  outline: 3px solid #D8F9B8 !important;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(216, 249, 184, 0.3) !important;
+}
+
+/* =============== FILTER BANNER =============== */
+.filter-active-banner {
+  animation: filterBannerIn 0.3s ease;
+}
+
+@keyframes filterBannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filter-active-banner button:hover {
+  background: var(--card-bg) !important;
+  border-color: #dc3545 !important;
+  color: #dc3545 !important;
+}
+
+/* =============== CTR ANALYSIS SUMMARY =============== */
+.ctr-analysis-summary {
+  transition: transform 0.2s ease;
+}
+
+/* =============== CTR MODAL SECTION =============== */
+.ctr-benchmark-section {
+  transition: all 0.2s ease;
+}
+
+/* =============== DARK MODE — DIAGNOSTIC & CTR =============== */
+body.dark-mode .diagnostic-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .ctr-benchmark-section {
+  background: linear-gradient(135deg, #1a1b1c 0%, #2a2b2c 100%) !important;
+  border-left-color: inherit;
+}
+
+body.dark-mode .ctr-benchmark-section h5 {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .ctr-benchmark-section p {
+  color: #999 !important;
+}
+
+body.dark-mode .ctr-benchmark-section > div > div > div:first-child {
+  background: #2C2D2E !important;
+}
+
+/* =============== RESPONSIVE — DIAGNOSTIC CARDS =============== */
+@media (max-width: 768px) {
+  .diagnostic-cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+    gap: 0.5em !important;
+  }
+
+  .diagnostic-card {
+    padding: 0.7em 0.4em !important;
+  }
+
+  .diagnostic-card div[style*="font-size: 1.8em"] {
+    font-size: 1.4em !important;
+  }
+
+  .ctr-analysis-summary > div:nth-child(3) {
+    grid-template-columns: 1fr !important;
+  }
+}

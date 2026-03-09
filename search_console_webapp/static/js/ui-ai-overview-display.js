@@ -6,6 +6,240 @@ import { openSerpModal } from './ui-serp-modal.js'; // IMPORTANTE: Importar la f
 import { createAIOverviewGridTable } from './ui-ai-overview-gridjs.js'; // Grid.js table
 import { createDetailedResultsGridTable } from './ui-detailed-results-gridjs.js'; // Detailed Grid.js table
 
+// ====================================
+// 🏷️ KEYWORD DIAGNOSTIC CLASSIFICATION
+// ====================================
+
+const CTR_BENCHMARKS = {
+  1: 0.280, 2: 0.155, 3: 0.110, 4: 0.080, 5: 0.060,
+  6: 0.045, 7: 0.035, 8: 0.028, 9: 0.024, 10: 0.020
+};
+
+const DIAGNOSTIC_CATEGORIES = {
+  max_impact: {
+    id: 'max_impact',
+    label: 'Maximum Impact',
+    icon: 'fa-bolt',
+    description: 'Top 3 organic position with AI Overview above — your domain is NOT cited. Highest risk of click loss.',
+    color: '#dc3545',
+    dark: true
+  },
+  paradox: {
+    id: 'paradox',
+    label: 'Position Paradox',
+    icon: 'fa-arrows-alt-v',
+    description: 'Position improved but clicks dropped. AI Overview is likely absorbing the clicks you should be gaining.',
+    color: '#fd7e14',
+    dark: true
+  },
+  impacted: {
+    id: 'impacted',
+    label: 'Impacted by AIO',
+    icon: 'fa-exclamation-triangle',
+    description: 'Clicks dropped while position stayed stable. AI Overview is the most probable cause.',
+    color: '#ffc107',
+    dark: false
+  },
+  missed: {
+    id: 'missed',
+    label: 'Missed Opportunity',
+    icon: 'fa-bullseye',
+    description: 'A competitor appears as source in AI Overview but your domain does not. You could gain visibility here.',
+    color: '#6f42c1',
+    dark: true
+  },
+  visibility: {
+    id: 'visibility',
+    label: 'Visibility w/o Click',
+    icon: 'fa-eye',
+    description: 'Your domain IS cited in AI Overview but clicks still dropped. Brand visibility maintained, traffic absorbed.',
+    color: '#17a2b8',
+    dark: false
+  },
+  protected: {
+    id: 'protected',
+    label: 'Protected',
+    icon: 'fa-shield-alt',
+    description: 'Cited in AI Overview and clicks stable or growing. Best-case scenario — AIO works in your favor.',
+    color: '#28a745',
+    dark: false
+  },
+  no_impact: {
+    id: 'no_impact',
+    label: 'No AI Impact',
+    icon: 'fa-check-circle',
+    description: 'No AI Overview detected. Organic performance is not affected by AIO for these keywords.',
+    color: '#6c757d',
+    dark: false
+  }
+};
+
+/**
+ * Classifies all keywords into diagnostic categories.
+ * Priority order ensures mutual exclusivity (first match wins).
+ * @param {Array} keywordResults - All keyword results
+ * @param {Array} competitorDomains - List of competitor domain strings
+ * @returns {{ categories: Object, enrichedResults: Array }}
+ */
+function classifyKeywords(keywordResults, competitorDomains = []) {
+  const categories = {};
+  Object.keys(DIAGNOSTIC_CATEGORIES).forEach(id => {
+    categories[id] = { count: 0, percentage: 0, keywords: [] };
+  });
+
+  const enrichedResults = keywordResults.map(result => {
+    const ai = result.ai_analysis || {};
+    const hasAIO = ai.has_ai_overview || false;
+    const isDomainSource = ai.domain_is_ai_source || false;
+
+    // m1 = previous period, m2 = current period
+    const clicksM1 = result.clicks_m1 || 0;
+    const clicksM2 = result.clicks_m2 || 0;
+    const deltaClicks = result.delta_clicks_absolute != null
+      ? result.delta_clicks_absolute
+      : (clicksM2 - clicksM1);
+
+    const posM1 = result.position_m1;
+    const posM2 = result.position_m2;
+    const posDelta = (typeof posM1 === 'number' && typeof posM2 === 'number')
+      ? posM2 - posM1
+      : null;
+
+    const anyCompetitorIsSource = _checkCompetitorIsSource(result, competitorDomains);
+
+    let category = 'no_impact';
+
+    if (hasAIO) {
+      // Priority 1: Maximum Impact — top 3 organic + AIO + not cited
+      if (typeof posM2 === 'number' && posM2 > 0 && posM2 <= 3 && !isDomainSource) {
+        category = 'max_impact';
+      }
+      // Priority 2: Paradox — position improved but clicks dropped
+      else if (deltaClicks < 0 && posDelta !== null && posDelta < 0) {
+        category = 'paradox';
+      }
+      // Priority 3: Impacted — clicks dropped, position stable
+      else if (deltaClicks < 0 && (posDelta === null || Math.abs(posDelta) < 3)) {
+        category = 'impacted';
+      }
+      // Priority 4: Missed Opportunity — competitor is source, you are not
+      else if (!isDomainSource && anyCompetitorIsSource) {
+        category = 'missed';
+      }
+      // Priority 5: Visibility Without Click — cited but clicks dropped
+      else if (deltaClicks < 0 && isDomainSource) {
+        category = 'visibility';
+      }
+      // Priority 6: Protected — cited and clicks stable/growing
+      else if (deltaClicks >= 0 && isDomainSource) {
+        category = 'protected';
+      }
+      // Fallback for AIO keywords that don't match specific patterns
+      else {
+        category = 'impacted';
+      }
+    }
+
+    result._diagnostic = {
+      category: category,
+      label: DIAGNOSTIC_CATEGORIES[category].label
+    };
+
+    categories[category].keywords.push(result);
+    categories[category].count++;
+
+    return result;
+  });
+
+  const total = enrichedResults.length;
+  Object.keys(categories).forEach(id => {
+    categories[id].percentage = total > 0
+      ? ((categories[id].count / total) * 100).toFixed(1)
+      : '0.0';
+  });
+
+  return { categories, enrichedResults };
+}
+
+/**
+ * Returns expected CTR for a given organic position (industry benchmark).
+ * @param {number} position - Organic position (1-based)
+ * @returns {number|null} Expected CTR as decimal (0.280 = 28%)
+ */
+function getExpectedCTR(position) {
+  if (position === null || position === undefined || position <= 0) return null;
+  const rounded = Math.min(Math.round(position), 10);
+  return CTR_BENCHMARKS[rounded] || null;
+}
+
+/**
+ * Enriches a keyword result with CTR benchmark analysis.
+ * Mutates result by adding _ctr_analysis field.
+ * @param {Object} result - Single keyword result
+ * @returns {Object} The same result with _ctr_analysis added
+ */
+function enrichWithCTRAnalysis(result) {
+  const position = result.position_m2; // Current period position from GSC
+  const impressions = result.impressions_m2 || result.impressions_m1 || 0;
+
+  // CTR from GSC: could be a percentage (5.2) or decimal (0.052)
+  let actualCTR = result.ctr_m2 != null ? result.ctr_m2 : null;
+  if (actualCTR !== null && actualCTR > 1) {
+    actualCTR = actualCTR / 100; // Normalize percentage to decimal
+  }
+
+  const expectedCTR = getExpectedCTR(position);
+
+  if (expectedCTR === null || actualCTR === null || impressions === 0) {
+    result._ctr_analysis = {
+      expected_ctr: expectedCTR,
+      actual_ctr: actualCTR,
+      ctr_gap: null,
+      clicks_absorbed: null
+    };
+    return result;
+  }
+
+  const ctrGap = expectedCTR - actualCTR; // Positive = underperforming
+  const clicksAbsorbed = Math.round(ctrGap * impressions);
+
+  result._ctr_analysis = {
+    expected_ctr: expectedCTR,
+    actual_ctr: actualCTR,
+    ctr_gap: ctrGap,
+    clicks_absorbed: Math.max(0, clicksAbsorbed)
+  };
+
+  return result;
+}
+
+/**
+ * Checks if any competitor domain appears as a source in the AI Overview references.
+ */
+function _checkCompetitorIsSource(result, competitorDomains) {
+  if (!competitorDomains || competitorDomains.length === 0) return false;
+  const references = result.ai_analysis?.debug_info?.references_found || [];
+  if (references.length === 0) return false;
+
+  for (const domain of competitorDomains) {
+    const norm = domain.toLowerCase().replace('www.', '');
+    for (const ref of references) {
+      const link = (ref.link || '').toLowerCase();
+      const source = (ref.source || '').toLowerCase();
+      if (link.includes(norm) || source.includes(norm)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Extracts competitor domain list from analysis data.
+ */
+function _getCompetitorDomains(data) {
+  const competitorAnalysis = data.summary?.competitor_analysis || [];
+  return competitorAnalysis.slice(1).map(comp => comp.domain);
+}
+
 export function displayAIOverviewResults(data) {
   const resultsContainer = document.getElementById('aiOverviewResultsContainer');
   if (!resultsContainer) {
@@ -26,12 +260,30 @@ export function displayAIOverviewResults(data) {
 
   // 1️⃣ Mostrar resumen
   displaySummary(data.summary, resultsContainer, selectedKeywordCount);
-  
+
+  // 🆕 1.5️⃣ Enrich all keyword data with diagnostic classification + CTR analysis
+  const competitorDomains = _getCompetitorDomains(data);
+  const { categories, enrichedResults } = classifyKeywords(data.keywordResults, competitorDomains);
+  enrichedResults.forEach(r => enrichWithCTRAnalysis(r));
+  data.keywordResults = enrichedResults;
+
+  console.log('🏷️ Diagnostic classification complete:', Object.entries(categories)
+    .filter(([_, v]) => v.count > 0)
+    .map(([k, v]) => `${k}: ${v.count}`)
+    .join(', ')
+  );
+
+  // 🆕 1.6️⃣ Display keyword diagnostic cards
+  displayDiagnosticSection(categories, resultsContainer, data, competitorDomains);
+
+  // 🆕 1.7️⃣ Display CTR benchmark analysis summary
+  displayCTRAnalysisSummary(enrichedResults, resultsContainer);
+
   // 2️⃣ Mostrar análisis de competidores si hay datos
   if (data.summary && data.summary.competitor_analysis) {
     displayCompetitorResults(data.summary.competitor_analysis, resultsContainer);
   }
-  
+
   // 🆕 3️⃣ Mostrar análisis de Topic Clusters si hay datos
   if (data.clusters_analysis && window.TopicClustersVisualization) {
     console.log('🔗 Mostrando Topic Clusters:', data.clusters_analysis);
@@ -45,16 +297,16 @@ export function displayAIOverviewResults(data) {
       fullData: data
     });
   }
-  
+
   // 4️⃣ Mostrar tabla Grid.js de keywords con AI Overview (debajo de competidores y clusters)
-  displayAIOverviewGridTable(data, resultsContainer);
-  
+  displayAIOverviewGridTable(data, resultsContainer, competitorDomains);
+
   // 5️⃣ Mostrar tablas de tipología y posiciones (MOVIDO ABAJO)
   displayTypologyChart(resultsContainer, data);
-  
+
   // 6️⃣ Mostrar tabla detallada de keywords usando Grid.js
   createDetailedResultsGridTable(data.keywordResults, resultsContainer);
-  
+
   showToast('AI Overview analysis complete', 'success');
 }
 
@@ -385,19 +637,16 @@ function createAIOPositionTable(keywordResults) {
  * @param {Object} data - Datos completos del análisis
  * @param {HTMLElement} container - Contenedor donde mostrar la tabla
  */
-function displayAIOverviewGridTable(data, container) {
+function displayAIOverviewGridTable(data, container, competitorDomainsPassed) {
   console.log('🏗️ Displaying AI Overview Grid.js table');
-  
+
   if (!data || !data.keywordResults) {
     console.warn('⚠️ No keyword results available for Grid.js table');
     return;
   }
 
-  // Obtener dominios de competidores del resumen
-  const competitorAnalysis = data.summary?.competitor_analysis || [];
-  const competitorDomains = competitorAnalysis
-    .slice(1) // Saltar el primer elemento (dominio principal)
-    .map(comp => comp.domain);
+  // Use passed competitor domains or extract from summary
+  const competitorDomains = competitorDomainsPassed || _getCompetitorDomains(data);
 
   console.log('📊 Grid.js table data:', {
     totalKeywords: data.keywordResults.length,
@@ -406,20 +655,36 @@ function displayAIOverviewGridTable(data, container) {
 
   // Crear contenedor para la tabla Grid.js
   const gridContainer = document.createElement('div');
+  gridContainer.id = 'aiOverviewGridSection';
   gridContainer.className = 'ai-overview-grid-section';
   gridContainer.style.marginTop = '2rem';
-  
+
+  // Inner wrapper for the actual Grid.js table (re-rendered on filter)
+  const gridTableWrapper = document.createElement('div');
+  gridTableWrapper.id = 'aiOverviewGridTableWrapper';
+  gridContainer.appendChild(gridTableWrapper);
+
   // Añadir al contenedor principal
   container.appendChild(gridContainer);
-  
+
+  // Store state for diagnostic card filtering
+  window._aiOverviewGridState = {
+    originalResults: data.keywordResults,
+    competitorDomains: competitorDomains,
+    activeFilter: null
+  };
+
+  // Global clear filter handler
+  window._aiOverviewClearFilter = () => _filterGridByCategory(null);
+
   // Crear la tabla Grid.js
   try {
     const grid = createAIOverviewGridTable(
-      data.keywordResults, 
-      competitorDomains, 
-      gridContainer
+      data.keywordResults,
+      competitorDomains,
+      gridTableWrapper
     );
-    
+
     if (grid) {
       console.log('✅ Grid.js table created successfully');
     } else {
@@ -428,6 +693,271 @@ function displayAIOverviewGridTable(data, container) {
   } catch (error) {
     console.error('❌ Error creating Grid.js table:', error);
   }
+}
+
+// ====================================
+// 🏷️ DIAGNOSTIC CARDS UI
+// ====================================
+
+/**
+ * Displays the keyword diagnostic classification cards.
+ * Each card is clickable and filters the Grid.js table below.
+ */
+function displayDiagnosticSection(categories, container, data, competitorDomains) {
+  const totalKeywords = data.keywordResults?.length || 0;
+  if (totalKeywords === 0) return;
+
+  const sectionHTML = `
+    <div class="diagnostic-section" style="margin-bottom: 2em;">
+      <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.3em; font-size: 1.3em; font-weight: 600;">
+        <i class="fas fa-stethoscope" style="margin-right: 8px; color: #6f42c1;"></i>
+        Keyword Diagnostic
+      </h3>
+      <p style="text-align: center; color: var(--text-color); opacity: 0.7; font-size: 0.9em; margin-bottom: 1.2em;">
+        Click a category to filter the table below
+      </p>
+      <div class="diagnostic-cards-grid" style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8em;
+      ">
+        ${Object.entries(DIAGNOSTIC_CATEGORIES).map(([id, cat]) => {
+          const catData = categories[id] || { count: 0, percentage: '0.0' };
+          if (catData.count === 0 && id !== 'no_impact') return ''; // Skip empty categories except no_impact
+          return _createDiagnosticCard(id, cat, catData);
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', sectionHTML);
+
+  // Attach click handlers to cards
+  container.querySelectorAll('.diagnostic-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const categoryId = card.dataset.category;
+      _filterGridByCategory(categoryId);
+    });
+  });
+}
+
+function _createDiagnosticCard(id, cat, catData) {
+  const isDark = cat.dark;
+  const bgStyle = isDark
+    ? 'background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); border: 2px solid #4A4B4C; box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);'
+    : 'background: var(--card-bg); border: 1px solid var(--border-color);';
+  const countColor = isDark ? '#D8F9B8' : '#161616';
+  const labelColor = isDark ? 'color: #D8F9B8; opacity: 0.9;' : 'color: var(--text-color); opacity: 0.7;';
+  const tooltipColor = isDark ? 'color: rgba(216, 249, 184, 0.5);' : 'color: rgba(0,0,0,0.3);';
+
+  return `
+    <div class="diagnostic-card" data-category="${id}" style="
+      ${bgStyle}
+      text-align: center;
+      padding: 1em 0.6em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
+      position: relative;
+      outline: 3px solid transparent;
+    ">
+      <div style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;"
+           title="${escapeHtml(cat.description)}">
+        <i class="fas fa-info-circle"></i>
+      </div>
+      <div style="
+        width: 42px; height: 42px;
+        background: ${cat.color}22;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 0.4em;
+      ">
+        <i class="fas ${cat.icon}" style="color: ${cat.color}; font-size: 16px;"></i>
+      </div>
+      <div style="font-size: 1.8em; font-weight: bold; color: ${countColor}; line-height: 1.1;">
+        ${catData.count}
+      </div>
+      <div style="font-size: 0.78em; font-weight: 600; ${labelColor} margin-top: 0.2em; line-height: 1.2;">
+        ${escapeHtml(cat.label)}
+      </div>
+      <div style="
+        display: inline-block;
+        margin-top: 0.4em;
+        font-size: 0.7em;
+        padding: 1px 8px;
+        border-radius: 10px;
+        background: ${cat.color}20;
+        color: ${cat.color};
+        font-weight: 600;
+      ">
+        ${catData.percentage}%
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Filters the Grid.js table by diagnostic category.
+ * If categoryId matches the active filter, clears the filter.
+ */
+function _filterGridByCategory(categoryId) {
+  const state = window._aiOverviewGridState;
+  if (!state) return;
+
+  const gridSection = document.getElementById('aiOverviewGridSection');
+  if (!gridSection) return;
+
+  // Remove existing filter banner
+  const existingBanner = document.getElementById('gridFilterBanner');
+  if (existingBanner) existingBanner.remove();
+
+  let filteredResults;
+
+  if (categoryId && categoryId !== state.activeFilter) {
+    // Apply filter
+    filteredResults = state.originalResults.filter(r => r._diagnostic?.category === categoryId);
+    state.activeFilter = categoryId;
+
+    const categoryInfo = DIAGNOSTIC_CATEGORIES[categoryId];
+    const banner = document.createElement('div');
+    banner.id = 'gridFilterBanner';
+    banner.className = 'filter-active-banner';
+    banner.innerHTML = `
+      <div style="
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.7em 1.2em;
+        background: linear-gradient(135deg, ${categoryInfo.color}15, ${categoryInfo.color}08);
+        border: 1px solid ${categoryInfo.color}40;
+        border-radius: 8px;
+        margin-bottom: 1em;
+      ">
+        <span style="color: var(--text-color); font-size: 0.9em;">
+          <i class="fas fa-filter" style="color: ${categoryInfo.color}; margin-right: 6px;"></i>
+          Showing: <strong style="color: ${categoryInfo.color};">${escapeHtml(categoryInfo.label)}</strong>
+          — ${filteredResults.length} keyword${filteredResults.length !== 1 ? 's' : ''}
+        </span>
+        <button onclick="window._aiOverviewClearFilter()" style="
+          background: none; border: 1px solid var(--border-color);
+          padding: 4px 12px; border-radius: 6px; cursor: pointer;
+          color: var(--text-color); font-size: 0.82em; transition: all 0.2s ease;
+        ">
+          <i class="fas fa-times" style="margin-right: 4px;"></i> Clear filter
+        </button>
+      </div>
+    `;
+    const wrapper = document.getElementById('aiOverviewGridTableWrapper');
+    if (wrapper) {
+      gridSection.insertBefore(banner, wrapper);
+    }
+  } else {
+    // Clear filter
+    filteredResults = state.originalResults;
+    state.activeFilter = null;
+  }
+
+  // Update card active states
+  document.querySelectorAll('.diagnostic-card').forEach(card => {
+    const isActive = card.dataset.category === state.activeFilter;
+    card.classList.toggle('active', isActive);
+    card.style.outline = isActive ? `3px solid #D8F9B8` : '3px solid transparent';
+    card.style.transform = isActive ? 'translateY(-3px)' : '';
+  });
+
+  // Re-render Grid.js table
+  const wrapper = document.getElementById('aiOverviewGridTableWrapper');
+  if (wrapper) {
+    createAIOverviewGridTable(filteredResults, state.competitorDomains, wrapper);
+  }
+}
+
+// ====================================
+// 📊 CTR BENCHMARK ANALYSIS SUMMARY
+// ====================================
+
+/**
+ * Displays a summary of CTR benchmark analysis comparing expected vs actual CTR.
+ */
+function displayCTRAnalysisSummary(enrichedResults, container) {
+  // Only analyze keywords WITH AI Overview that have valid CTR data
+  const aioKeywords = enrichedResults.filter(r =>
+    r.ai_analysis?.has_ai_overview && r._ctr_analysis?.ctr_gap !== null
+  );
+
+  if (aioKeywords.length === 0) return;
+
+  const totalClicksAbsorbed = aioKeywords.reduce((sum, r) => {
+    return sum + (r._ctr_analysis.clicks_absorbed || 0);
+  }, 0);
+
+  const avgCTRGap = aioKeywords.reduce((sum, r) => {
+    return sum + (r._ctr_analysis.ctr_gap || 0);
+  }, 0) / aioKeywords.length;
+
+  const underperformingCount = aioKeywords.filter(r =>
+    r._ctr_analysis.actual_ctr < r._ctr_analysis.expected_ctr
+  ).length;
+
+  const sectionHTML = `
+    <div class="ctr-analysis-summary" style="
+      margin-bottom: 2em;
+      padding: 1.2em 1.5em;
+      background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%);
+      border-radius: 12px;
+      border: 2px solid #4A4B4C;
+      box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
+    ">
+      <h3 style="text-align: center; color: #D8F9B8; margin-bottom: 0.3em; font-size: 1.15em; font-weight: 600;">
+        <i class="fas fa-chart-bar" style="margin-right: 8px;"></i>
+        CTR Benchmark Analysis
+        <span style="
+          font-size: 0.6em; vertical-align: middle; margin-left: 6px;
+          cursor: help; opacity: 0.5; color: #D8F9B8;
+        " title="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing.">
+          <i class="fas fa-info-circle"></i>
+        </span>
+      </h3>
+      <p style="text-align: center; color: rgba(216, 249, 184, 0.6); font-size: 0.82em; margin-bottom: 1.2em;">
+        Keywords with AI Overview: expected vs actual CTR based on organic position
+      </p>
+      <div style="
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1em;
+        margin-bottom: 1em;
+      ">
+        <div style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px;">
+          <div style="font-size: 2em; font-weight: bold; color: #ff6b6b; line-height: 1.1;">
+            ${formatNumber(totalClicksAbsorbed)}
+          </div>
+          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
+            Est. Clicks Absorbed
+          </div>
+        </div>
+        <div style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px;">
+          <div style="font-size: 2em; font-weight: bold; color: #fd7e14; line-height: 1.1;">
+            ${(avgCTRGap * 100).toFixed(1)}%
+          </div>
+          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
+            Avg CTR Gap
+          </div>
+        </div>
+        <div style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px;">
+          <div style="font-size: 2em; font-weight: bold; color: #ffc107; line-height: 1.1;">
+            ${underperformingCount}<span style="font-size: 0.5em; opacity: 0.7;">/${aioKeywords.length}</span>
+          </div>
+          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
+            Underperforming
+          </div>
+        </div>
+      </div>
+      <p style="text-align: center; color: rgba(255, 255, 255, 0.45); font-size: 0.78em; line-height: 1.5; max-width: 600px; margin: 0 auto;">
+        Based on organic position CTR benchmarks, we estimate these clicks are being absorbed by AI Overview
+        and other SERP features displayed above organic results.
+      </p>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', sectionHTML);
 }
 
 function displaySummary(summary, container, keywordCount = null) {

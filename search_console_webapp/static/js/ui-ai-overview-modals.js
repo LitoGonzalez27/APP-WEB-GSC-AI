@@ -19,9 +19,10 @@ export function showAIDetailsModalImproved(result) {
   const debugSection = createDebugSection(debugInfo);
   const domainAsSourceHTML = createDomainAsSourceSection(aiAnalysis);
   const impactSummaryHTML = createImpactSummaryHTML(aiAnalysis, result);
+  const ctrAnalysisHTML = createCTRAnalysisHTML(result);
   const elementsListHTML = createElementsListHTML(aiElements);
 
-  modal.innerHTML = createModalHTML(result, debugSection, impactSummaryHTML, elementsListHTML, domainAsSourceHTML);
+  modal.innerHTML = createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, elementsListHTML, domainAsSourceHTML);
   
   document.body.appendChild(modal);
   setupModalEventListeners(modal, result);
@@ -135,6 +136,79 @@ function createImpactSummaryHTML(aiAnalysis, result) {
   `;
 }
 
+// 🆕 CTR Benchmark Analysis section for the detail modal
+function createCTRAnalysisHTML(result) {
+  const ctr = result._ctr_analysis;
+  if (!ctr || ctr.expected_ctr === null || ctr.actual_ctr === null) {
+    return ''; // No CTR data available — graceful fallback
+  }
+
+  const expectedPct = (ctr.expected_ctr * 100).toFixed(1);
+  const actualPct = (ctr.actual_ctr * 100).toFixed(1);
+  const gapPct = ctr.ctr_gap !== null ? (ctr.ctr_gap * 100).toFixed(1) : null;
+  const absorbed = ctr.clicks_absorbed || 0;
+  const isUnderperforming = ctr.ctr_gap > 0;
+  const position = result.position_m2 != null ? Math.round(result.position_m2) : '?';
+
+  const gapColor = isUnderperforming ? '#dc3545' : '#28a745';
+  const gapLabel = isUnderperforming ? 'below benchmark' : 'above benchmark';
+
+  return `
+    <div class="ctr-benchmark-section" style="
+      margin: 1.5em 0;
+      padding: 1.2em;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 10px;
+      border-left: 4px solid ${gapColor};
+    ">
+      <h5 style="margin-bottom: 0.8em; color: #333; font-size: 1em;">
+        <i class="fas fa-chart-bar" style="margin-right: 6px; color: #6f42c1;"></i>
+        CTR Benchmark Analysis
+      </h5>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; margin-bottom: 0.8em;">
+        <div style="text-align: center; padding: 0.8em; background: white; border-radius: 8px;">
+          <div style="font-size: 0.75em; color: #888; margin-bottom: 0.3em;">Expected CTR (pos #${position})</div>
+          <div style="font-size: 1.6em; font-weight: bold; color: #6c757d;">${expectedPct}%</div>
+        </div>
+        <div style="text-align: center; padding: 0.8em; background: white; border-radius: 8px;">
+          <div style="font-size: 0.75em; color: #888; margin-bottom: 0.3em;">Actual CTR (GSC)</div>
+          <div style="font-size: 1.6em; font-weight: bold; color: ${isUnderperforming ? '#dc3545' : '#28a745'};">${actualPct}%</div>
+        </div>
+      </div>
+      ${gapPct !== null ? `
+        <div style="text-align: center; margin-bottom: 0.6em;">
+          <span style="
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            background: ${gapColor}15;
+            color: ${gapColor};
+            font-weight: 700;
+            font-size: 0.95em;
+          ">
+            CTR Gap: ${isUnderperforming ? '+' : ''}${gapPct}% ${gapLabel}
+          </span>
+        </div>
+      ` : ''}
+      ${absorbed > 0 ? `
+        <div style="text-align: center; margin-bottom: 0.5em;">
+          <span style="color: #dc3545; font-weight: 600; font-size: 0.9em;">
+            ≈ ${absorbed} clicks/month absorbed
+          </span>
+        </div>
+      ` : ''}
+      <p style="color: #666; font-size: 0.78em; line-height: 1.5; margin: 0.5em 0 0 0; text-align: center;">
+        At position #${position}, the industry benchmark CTR is ${expectedPct}%.
+        Your actual CTR is ${actualPct}%.
+        ${isUnderperforming
+          ? `This ${gapPct}% gap represents approximately ${absorbed} clicks that may be absorbed by SERP features.`
+          : `Your CTR exceeds the benchmark, suggesting strong click performance despite SERP features.`
+        }
+      </p>
+    </div>
+  `;
+}
+
 function createElementsListHTML(aiElements) {
   if (aiElements.length === 0) {
     return `
@@ -188,7 +262,7 @@ function createElementCard(element, index) {
   `;
 }
 
-function createModalHTML(result, debugSection, impactSummaryHTML, elementsListHTML, domainAsSourceHTML) {
+function createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, elementsListHTML, domainAsSourceHTML) {
   return `
     <div class="modal-content" style="
       background: white;
@@ -225,6 +299,7 @@ function createModalHTML(result, debugSection, impactSummaryHTML, elementsListHT
       </div>
       <div class="modal-body" style="padding: 1.5em 2em; overflow-y: auto; flex-grow: 1;">
         ${impactSummaryHTML}
+        ${ctrAnalysisHTML}
         ${elementsListHTML}
         ${domainAsSourceHTML}
         ${debugSection}
