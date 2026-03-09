@@ -440,6 +440,30 @@ function _findKeywordResult(keyword) {
   return results.find(r => r.keyword === keyword) || null;
 }
 
+// 🆕 Classify a reference as user, competitor, or other
+function _classifyRef(refLink, refSource, siteUrl, competitorDomains) {
+  const normalizedRef = (refLink + ' ' + refSource).toLowerCase();
+
+  // Check user domain
+  if (siteUrl) {
+    const normalizedSite = siteUrl.toLowerCase().replace(/^www\./, '');
+    if (normalizedRef.includes(normalizedSite)) return { type: 'user', label: 'You', color: '#28a745', icon: 'fa-check-circle' };
+  }
+
+  // Check competitor domains
+  if (competitorDomains && competitorDomains.length > 0) {
+    for (const comp of competitorDomains) {
+      const normComp = comp.toLowerCase().replace(/^www\./, '');
+      if (normalizedRef.includes(normComp)) {
+        const shortName = comp.replace(/^www\./, '');
+        return { type: 'competitor', label: shortName, color: '#fd7e14', icon: 'fa-crosshairs' };
+      }
+    }
+  }
+
+  return { type: 'other', label: '', color: '#6c757d', icon: 'fa-external-link-alt' };
+}
+
 // 🆕 Render the AI Overview preview tab content
 function _renderAIOPreviewTab(result) {
   const container = document.getElementById('aio-preview-view');
@@ -447,7 +471,7 @@ function _renderAIOPreviewTab(result) {
 
   const aiAnalysis = result.ai_analysis || {};
   const debugInfo = aiAnalysis.debug_info || {};
-  const ctr = result._ctr_analysis || {};
+  const competitorDomains = window._aioCompetitorDomains || [];
 
   const contentPreview = debugInfo.aio_content_preview || '';
   const references = debugInfo.references_found || [];
@@ -456,6 +480,7 @@ function _renderAIOPreviewTab(result) {
   const totalBlocks = debugInfo.total_text_blocks || 0;
   const isDomainSource = aiAnalysis.domain_is_ai_source || false;
   const domainPos = aiAnalysis.domain_ai_source_position;
+  const aiElements = Array.isArray(aiAnalysis.ai_overview_detected) ? aiAnalysis.ai_overview_detected : [];
 
   let html = '';
 
@@ -503,46 +528,6 @@ function _renderAIOPreviewTab(result) {
     `;
   }
 
-  // --- CTR Benchmark mini-summary ---
-  if (ctr.expected_ctr != null && ctr.actual_ctr != null) {
-    const expectedPct = (ctr.expected_ctr * 100).toFixed(1);
-    const actualPct = (ctr.actual_ctr * 100).toFixed(1);
-    const gapPct = ctr.ctr_gap != null ? (ctr.ctr_gap * 100).toFixed(1) : null;
-    const absorbed = ctr.clicks_absorbed || 0;
-    const isUnder = ctr.ctr_gap > 0;
-    const gapColor = isUnder ? '#dc3545' : '#28a745';
-    const position = result.position_m2 != null ? Math.round(result.position_m2) : '?';
-
-    html += `
-      <div style="margin-bottom:1.2em;padding:1em;background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:10px;border-left:4px solid ${gapColor};">
-        <div style="font-size:0.85em;font-weight:600;color:#333;margin-bottom:0.6em;">
-          <i class="fas fa-chart-bar" style="margin-right:6px;color:#6f42c1;"></i> CTR Benchmark (pos #${position})
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.8em;text-align:center;">
-          <div style="padding:0.6em;background:white;border-radius:8px;">
-            <div style="font-size:0.7em;color:#888;">Expected</div>
-            <div style="font-size:1.3em;font-weight:bold;color:#6c757d;">${expectedPct}%</div>
-          </div>
-          <div style="padding:0.6em;background:white;border-radius:8px;">
-            <div style="font-size:0.7em;color:#888;">Actual</div>
-            <div style="font-size:1.3em;font-weight:bold;color:${gapColor};">${actualPct}%</div>
-          </div>
-          <div style="padding:0.6em;background:white;border-radius:8px;">
-            <div style="font-size:0.7em;color:#888;">Absorbed</div>
-            <div style="font-size:1.3em;font-weight:bold;color:#dc3545;">~${absorbed}</div>
-          </div>
-        </div>
-        ${gapPct != null ? `
-          <div style="text-align:center;margin-top:0.5em;">
-            <span style="display:inline-block;padding:3px 12px;border-radius:16px;background:${gapColor}15;color:${gapColor};font-weight:700;font-size:0.82em;">
-              CTR Gap: ${isUnder ? '+' : ''}${gapPct}% ${isUnder ? 'below benchmark' : 'above benchmark'}
-            </span>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  }
-
   // --- Cited sources + Position mockup (side by side) ---
   if (references.length > 0) {
     // Cited sources list
@@ -550,13 +535,7 @@ function _renderAIOPreviewTab(result) {
       const refLink = ref.link || '';
       const refSource = ref.source || '';
       const refTitle = ref.title || refSource || refLink;
-
-      let isUserDomain = false;
-      if (siteUrl) {
-        const normalizedRef = (refLink + ' ' + refSource).toLowerCase();
-        const normalizedSite = siteUrl.toLowerCase().replace(/^www\./, '');
-        isUserDomain = normalizedRef.includes(normalizedSite);
-      }
+      const cls = _classifyRef(refLink, refSource, siteUrl, competitorDomains);
 
       const pos = i + 1;
       let displayDomain = refSource || '';
@@ -564,17 +543,21 @@ function _renderAIOPreviewTab(result) {
         try { displayDomain = new URL(refLink).hostname; } catch (e) { displayDomain = refLink; }
       }
 
+      const isHighlighted = cls.type !== 'other';
+      const bgColor = cls.type === 'user' ? 'rgba(40,167,69,0.08)' : (cls.type === 'competitor' ? 'rgba(253,126,20,0.08)' : 'transparent');
+      const borderColor = isHighlighted ? cls.color : '#e9ecef';
+
       return `
         <div style="
           display:flex;align-items:center;gap:8px;
           padding:7px 10px;border-radius:8px;
-          background:${isUserDomain ? 'rgba(40,167,69,0.08)' : 'transparent'};
-          border:1px solid ${isUserDomain ? '#28a745' : '#e9ecef'};
-          ${isUserDomain ? 'box-shadow:0 0 0 1px rgba(40,167,69,0.15);' : ''}
+          background:${bgColor};
+          border:1px solid ${borderColor};
+          ${isHighlighted ? `box-shadow:0 0 0 1px ${cls.color}25;` : ''}
         ">
           <div style="
             min-width:26px;height:26px;
-            background:${isUserDomain ? '#28a745' : '#6c757d'};
+            background:${cls.color};
             color:white;border-radius:50%;
             display:flex;align-items:center;justify-content:center;
             font-weight:700;font-size:0.75em;
@@ -587,37 +570,39 @@ function _renderAIOPreviewTab(result) {
               ${escapeHtml(displayDomain)}
             </div>
           </div>
-          ${isUserDomain
-            ? '<span style="color:#28a745;font-weight:700;font-size:0.8em;white-space:nowrap;"><i class="fas fa-check-circle"></i> You</span>'
-            : '<span style="color:#aaa;font-size:0.8em;"><i class="fas fa-external-link-alt"></i></span>'
+          ${cls.type === 'user'
+            ? `<span style="color:${cls.color};font-weight:700;font-size:0.8em;white-space:nowrap;"><i class="fas ${cls.icon}"></i> You</span>`
+            : cls.type === 'competitor'
+              ? `<span style="color:${cls.color};font-weight:700;font-size:0.75em;white-space:nowrap;"><i class="fas ${cls.icon}"></i> Competitor</span>`
+              : `<span style="color:#aaa;font-size:0.8em;"><i class="fas ${cls.icon}"></i></span>`
           }
         </div>
       `;
     }).join('');
 
     // Position mini-mockup
-    const maxShow = Math.min(references.length, 6);
+    const maxShow = Math.min(references.length, 8);
     const slotsHTML = Array.from({ length: maxShow }, (_, i) => {
       const ref = references[i];
       const refLink = ref.link || '';
       const refSource = ref.source || '';
+      const cls = _classifyRef(refLink, refSource, siteUrl, competitorDomains);
       let displayName = refSource || '';
       if (!displayName && refLink) {
         try { displayName = new URL(refLink).hostname.replace(/^www\./, ''); } catch (e) { displayName = refLink; }
       }
       if (displayName.length > 18) displayName = displayName.substring(0, 16) + '...';
 
-      let isUser = false;
-      if (siteUrl) {
-        const normalizedRef = (refLink + ' ' + refSource).toLowerCase();
-        const normalizedSite = siteUrl.toLowerCase().replace(/^www\./, '');
-        isUser = normalizedRef.includes(normalizedSite);
-      }
-
-      if (isUser) {
+      if (cls.type === 'user') {
         return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:linear-gradient(135deg,#28a74520,#28a74510);border:2px solid #28a745;font-size:0.8em;font-weight:700;color:#28a745;">
           <span style="background:#28a745;color:white;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.75em;">${i+1}</span>
           <i class="fas fa-check-circle" style="font-size:0.85em;"></i>${escapeHtml(displayName)}
+        </div>`;
+      }
+      if (cls.type === 'competitor') {
+        return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:linear-gradient(135deg,#fd7e1420,#fd7e1410);border:2px solid #fd7e14;font-size:0.8em;font-weight:700;color:#e67e22;">
+          <span style="background:#fd7e14;color:white;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.75em;">${i+1}</span>
+          <i class="fas fa-crosshairs" style="font-size:0.85em;"></i>${escapeHtml(displayName)}
         </div>`;
       }
       return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:#f1f3f5;border:1px solid #dee2e6;font-size:0.8em;color:#555;">
@@ -632,13 +617,13 @@ function _renderAIOPreviewTab(result) {
       : '';
 
     html += `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1em;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1em;margin-bottom:1em;">
         <div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:0.5em;font-size:0.85em;font-weight:600;color:#444;">
             <i class="fas fa-quote-right" style="color:#17a2b8;"></i>
             Cited Sources <span style="font-weight:400;color:#888;font-size:0.9em;">(${references.length})</span>
           </div>
-          <div style="display:flex;flex-direction:column;gap:5px;max-height:250px;overflow-y:auto;padding-right:4px;">
+          <div style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;padding-right:4px;">
             ${sourceItems}
           </div>
         </div>
@@ -653,29 +638,44 @@ function _renderAIOPreviewTab(result) {
             </div>
             ${extraCount > 0 ? `<div style="text-align:center;color:#888;font-size:0.72em;margin-top:5px;">+${extraCount} more</div>` : ''}
           </div>
+          <div style="display:flex;gap:10px;margin-top:8px;justify-content:center;">
+            <span style="font-size:0.7em;color:#28a745;"><i class="fas fa-circle" style="font-size:0.6em;"></i> You</span>
+            <span style="font-size:0.7em;color:#fd7e14;"><i class="fas fa-circle" style="font-size:0.6em;"></i> Competitor</span>
+            <span style="font-size:0.7em;color:#6c757d;"><i class="fas fa-circle" style="font-size:0.6em;"></i> Other</span>
+          </div>
         </div>
       </div>
     `;
   }
 
-  // --- SERP Features pills ---
-  const features = ctr.serp_features || [];
-  if (features.length > 0) {
-    const impactPct = ctr.serp_features_impact ? (ctr.serp_features_impact * 100).toFixed(0) : '0';
-    const pills = features.map(f => `
-      <span style="display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:12px;font-size:0.78em;background:${f.color}15;color:${f.color};border:1px solid ${f.color}25;">
-        <i class="fas ${f.icon}" style="font-size:0.85em;"></i> ${escapeHtml(f.label)}
-      </span>
-    `).join('');
+  // --- Rich Snippets detected ---
+  if (aiElements.length > 0) {
+    const elementsHTML = aiElements.map((el, i) => {
+      const isAIO = el.type?.toLowerCase().includes('ai overview');
+      return `
+        <div style="
+          display:flex;align-items:center;gap:8px;
+          padding:6px 10px;border-radius:6px;
+          background:${isAIO ? 'rgba(220,53,69,0.06)' : 'rgba(255,193,7,0.06)'};
+          border-left:3px solid ${isAIO ? '#dc3545' : '#ffc107'};
+        ">
+          <span style="font-size:0.75em;font-weight:700;color:${isAIO ? '#dc3545' : '#e67e22'};min-width:18px;">
+            ${el.position != null ? el.position : i + 1}
+          </span>
+          <span style="font-size:0.82em;color:#333;font-weight:500;">${escapeHtml(el.type || 'Unknown')}</span>
+          ${el.sources_count ? `<span style="font-size:0.7em;color:#888;margin-left:auto;">${el.sources_count} sources</span>` : ''}
+        </div>
+      `;
+    }).join('');
 
     html += `
-      <div style="margin-top:1em;padding-top:0.8em;border-top:1px solid #dee2e6;">
-        <div style="font-size:0.8em;color:#555;font-weight:600;margin-bottom:0.4em;">
+      <div style="padding-top:0.8em;border-top:1px solid #dee2e6;">
+        <div style="font-size:0.85em;font-weight:600;color:#444;margin-bottom:0.5em;">
           <i class="fas fa-layer-group" style="margin-right:4px;color:#6f42c1;"></i>
-          Other SERP Features (~${impactPct}% CTR impact)
+          Detected Rich Snippets (${aiElements.length})
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;">
-          ${pills}
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;">
+          ${elementsHTML}
         </div>
       </div>
     `;

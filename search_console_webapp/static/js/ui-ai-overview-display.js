@@ -334,6 +334,7 @@ export function displayAIOverviewResults(data) {
 
   // 🆕 Store globally so the SERP modal can access AI analysis data per keyword
   window._aioKeywordResults = enrichedResults;
+  window._aioCompetitorDomains = competitorDomains;
 
   console.log('🏷️ Diagnostic classification complete:', Object.entries(categories)
     .filter(([_, v]) => v.count > 0)
