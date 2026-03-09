@@ -20,9 +20,10 @@ export function showAIDetailsModalImproved(result) {
   const domainAsSourceHTML = createDomainAsSourceSection(aiAnalysis);
   const impactSummaryHTML = createImpactSummaryHTML(aiAnalysis, result);
   const ctrAnalysisHTML = createCTRAnalysisHTML(result);
+  const aioPreviewHTML = createAIOPreviewSection(aiAnalysis, debugInfo, result);
   const elementsListHTML = createElementsListHTML(aiElements);
 
-  modal.innerHTML = createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, elementsListHTML, domainAsSourceHTML);
+  modal.innerHTML = createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, aioPreviewHTML, elementsListHTML, domainAsSourceHTML);
   
   document.body.appendChild(modal);
   setupModalEventListeners(modal, result);
@@ -210,6 +211,250 @@ function createCTRAnalysisHTML(result) {
   `;
 }
 
+/**
+ * Creates the AI Overview Preview section for the keyword detail modal.
+ * Shows: content preview, cited sources with indicators, position mockup.
+ */
+function createAIOPreviewSection(aiAnalysis, debugInfo, result) {
+  if (!aiAnalysis.has_ai_overview) return '';
+
+  const contentPreview = debugInfo.aio_content_preview || '';
+  const references = debugInfo.references_found || [];
+  const isDomainSource = aiAnalysis.domain_is_ai_source || false;
+  const domainPos = aiAnalysis.domain_ai_source_position;
+  const serpPosition = debugInfo.aio_serp_position || 'unknown';
+  const totalBlocks = debugInfo.total_text_blocks || 0;
+
+  // Get site URL for matching
+  const siteUrl = debugInfo.site_url_normalized || '';
+
+  // --- 1. Content preview ---
+  let contentHTML = '';
+  if (contentPreview) {
+    const truncated = contentPreview.length >= 490
+      ? contentPreview.substring(0, 300) + '...'
+      : contentPreview;
+    contentHTML = `
+      <div style="margin-bottom: 1.2em;">
+        <div style="
+          display: flex; align-items: center; gap: 6px;
+          margin-bottom: 0.5em;
+          font-size: 0.82em; font-weight: 600; color: #444;
+        ">
+          <i class="fas fa-align-left" style="color: #6f42c1;"></i>
+          AI Overview Content
+          <span style="font-weight: 400; color: #888; font-size: 0.9em;">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
+        </div>
+        <div style="
+          background: #f8f9fa; border-radius: 8px; padding: 0.9em 1em;
+          font-size: 0.85em; line-height: 1.65; color: #333;
+          border-left: 3px solid #6f42c1;
+          max-height: 120px; overflow-y: auto;
+        ">
+          <i class="fas fa-robot" style="color: #6f42c1; margin-right: 4px; opacity: 0.6;"></i>
+          ${escapeHtml(truncated)}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- 2. Cited sources list ---
+  let sourcesHTML = '';
+  if (references.length > 0) {
+    const sourceItems = references.map((ref, i) => {
+      const refLink = ref.link || '';
+      const refSource = ref.source || '';
+      const refTitle = ref.title || refSource || refLink;
+
+      // Check if this is the user's domain
+      let isUserDomain = false;
+      if (siteUrl) {
+        const normalizedRef = (refLink + ' ' + refSource).toLowerCase();
+        const normalizedSite = siteUrl.toLowerCase().replace(/^www\./, '');
+        isUserDomain = normalizedRef.includes(normalizedSite);
+      }
+
+      const pos = i + 1;
+      const bgColor = isUserDomain ? 'rgba(40, 167, 69, 0.08)' : 'transparent';
+      const borderColor = isUserDomain ? '#28a745' : '#e9ecef';
+      const indicator = isUserDomain
+        ? '<span style="color: #28a745; font-weight: 700; font-size: 0.85em; white-space: nowrap;"><i class="fas fa-check-circle"></i> You</span>'
+        : '<span style="color: #aaa; font-size: 0.85em;"><i class="fas fa-external-link-alt"></i></span>';
+
+      // Extract domain from link
+      let displayDomain = refSource || '';
+      if (!displayDomain && refLink) {
+        try { displayDomain = new URL(refLink).hostname; } catch (e) { displayDomain = refLink; }
+      }
+
+      return `
+        <div style="
+          display: flex; align-items: center; gap: 10px;
+          padding: 8px 10px; border-radius: 8px;
+          background: ${bgColor}; border: 1px solid ${borderColor};
+          ${isUserDomain ? 'box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.15);' : ''}
+        ">
+          <div style="
+            min-width: 28px; height: 28px;
+            background: ${isUserDomain ? '#28a745' : '#6c757d'};
+            color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.78em;
+          ">${pos}</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.82em; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+              title="${escapeHtml(refTitle)}"
+            >${escapeHtml(refTitle.length > 55 ? refTitle.substring(0, 55) + '...' : refTitle)}</div>
+            <div style="font-size: 0.72em; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${escapeHtml(displayDomain)}
+            </div>
+          </div>
+          ${indicator}
+        </div>
+      `;
+    }).join('');
+
+    sourcesHTML = `
+      <div style="margin-bottom: 1.2em;">
+        <div style="
+          display: flex; align-items: center; gap: 6px;
+          margin-bottom: 0.5em;
+          font-size: 0.82em; font-weight: 600; color: #444;
+        ">
+          <i class="fas fa-quote-right" style="color: #17a2b8;"></i>
+          Cited Sources
+          <span style="font-weight: 400; color: #888; font-size: 0.9em;">(${references.length})</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+          ${sourceItems}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- 3. Position mini-mockup ---
+  let positionMockupHTML = '';
+  if (references.length > 0) {
+    const maxShow = Math.min(references.length, 6);
+    const slots = [];
+    for (let i = 0; i < maxShow; i++) {
+      const ref = references[i];
+      const refLink = ref.link || '';
+      const refSource = ref.source || '';
+      let displayName = refSource || '';
+      if (!displayName && refLink) {
+        try { displayName = new URL(refLink).hostname.replace(/^www\./, ''); } catch (e) { displayName = refLink; }
+      }
+      if (displayName.length > 20) displayName = displayName.substring(0, 18) + '...';
+
+      let isUser = false;
+      if (siteUrl) {
+        const normalizedRef = (refLink + ' ' + refSource).toLowerCase();
+        const normalizedSite = siteUrl.toLowerCase().replace(/^www\./, '');
+        isUser = normalizedRef.includes(normalizedSite);
+      }
+
+      slots.push({ pos: i + 1, name: displayName, isUser });
+    }
+
+    const slotsHTML = slots.map(s => {
+      if (s.isUser) {
+        return `
+          <div style="
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 8px;
+            background: linear-gradient(135deg, #28a74520, #28a74510);
+            border: 2px solid #28a745;
+            font-size: 0.82em; font-weight: 700; color: #28a745;
+          ">
+            <span style="
+              background: #28a745; color: white; border-radius: 50%;
+              min-width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+              font-size: 0.78em;
+            ">${s.pos}</span>
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <i class="fas fa-check-circle" style="margin-right: 2px;"></i>${escapeHtml(s.name)}
+            </span>
+          </div>`;
+      }
+      return `
+        <div style="
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 12px; border-radius: 8px;
+          background: #f1f3f5; border: 1px solid #dee2e6;
+          font-size: 0.82em; color: #555;
+        ">
+          <span style="
+            background: #6c757d; color: white; border-radius: 50%;
+            min-width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+            font-size: 0.78em;
+          ">${s.pos}</span>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(s.name)}</span>
+        </div>`;
+    }).join('');
+
+    const extraCount = references.length - maxShow;
+    const serpPosBadge = serpPosition !== 'unknown'
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#6f42c120;color:#6f42c1;font-size:0.72em;font-weight:600;">
+           <i class="fas fa-map-pin"></i> AIO position: ${escapeHtml(serpPosition)}
+         </span>`
+      : '';
+
+    positionMockupHTML = `
+      <div>
+        <div style="
+          display: flex; align-items: center; gap: 6px;
+          margin-bottom: 0.5em;
+          font-size: 0.82em; font-weight: 600; color: #444;
+        ">
+          <i class="fas fa-list-ol" style="color: #fd7e14;"></i>
+          AI Overview Source Ranking
+          ${serpPosBadge}
+        </div>
+        <div style="
+          background: #fafbfc; border-radius: 10px; padding: 10px;
+          border: 1px solid #e9ecef;
+        ">
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            ${slotsHTML}
+          </div>
+          ${extraCount > 0 ? `<div style="text-align:center;color:#888;font-size:0.75em;margin-top:6px;">+${extraCount} more source${extraCount > 1 ? 's' : ''}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- Combine all ---
+  if (!contentHTML && !sourcesHTML && !positionMockupHTML) return '';
+
+  return `
+    <div style="
+      margin: 1.5em 0;
+      padding: 1.2em;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e0e4e8;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    ">
+      <h5 style="margin-bottom: 1em; color: #333; font-size: 1.05em; display: flex; align-items: center; gap: 8px;">
+        <span style="
+          display: flex; align-items: center; justify-content: center;
+          width: 30px; height: 30px; border-radius: 8px;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+        ">
+          <i class="fas fa-eye" style="color: white; font-size: 0.8em;"></i>
+        </span>
+        What Google Shows in AI Overview
+      </h5>
+      ${contentHTML}
+      <div style="display: grid; grid-template-columns: ${references.length > 0 ? '1fr 1fr' : '1fr'}; gap: 1em;">
+        ${sourcesHTML}
+        ${positionMockupHTML}
+      </div>
+    </div>
+  `;
+}
+
 function _createSerpFeaturesDetailHTML(ctr) {
   const features = ctr.serp_features || [];
   if (features.length === 0) return '';
@@ -303,7 +548,7 @@ function createElementCard(element, index) {
   `;
 }
 
-function createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, elementsListHTML, domainAsSourceHTML) {
+function createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTML, aioPreviewHTML, elementsListHTML, domainAsSourceHTML) {
   return `
     <div class="modal-content" style="
       background: white;
@@ -341,6 +586,7 @@ function createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTM
       <div class="modal-body" style="padding: 1.5em 2em; overflow-y: auto; flex-grow: 1;">
         ${impactSummaryHTML}
         ${ctrAnalysisHTML}
+        ${aioPreviewHTML}
         ${elementsListHTML}
         ${domainAsSourceHTML}
         ${debugSection}

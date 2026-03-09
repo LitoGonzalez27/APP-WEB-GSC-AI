@@ -586,7 +586,11 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         'uses_brand_detection': len(brand_variations) > 0,
         # 🆕 NUEVO: Guardar referencias para análisis de competidores
         'references_found': references,
-        'organic_matches': []  # Se llenará si se usan organic results con reference_indexes
+        'organic_matches': [],  # Se llenará si se usan organic results con reference_indexes
+        # 🆕 AIO content preview for frontend display (first 500 chars of all text blocks)
+        'aio_content_preview': ' '.join(
+            block.get('snippet', '') for block in text_blocks
+        )[:500] if text_blocks else ''
     }
     
     # Log del resultado final
