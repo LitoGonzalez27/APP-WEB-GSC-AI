@@ -27,6 +27,7 @@ if not os.getenv('RAILWAY_ENVIRONMENT'):
 from services.search_console import authenticate, fetch_searchconsole_data_single_call
 from services.serp_service import get_serp_json, get_serp_html, get_page_screenshot, SCREENSHOT_CACHE
 from services.ai_analysis import detect_ai_overview_elements
+from services.aio_recommendations import get_ai_recommendations
 from stripe_webhooks import create_webhook_route
 from services.utils import extract_domain, normalize_search_console_url, urls_match
 from services.country_config import get_country_config
@@ -3050,6 +3051,85 @@ def get_url_keywords():
                 'error_type': 'server_error',
                 'details': 'An unexpected error occurred while fetching keywords.'
             }), 500
+
+# ====================================
+# 🤖 AI RECOMMENDATIONS (Jina + Gemini)
+# ====================================
+
+@app.route('/api/ai-recommendations', methods=['POST'])
+@auth_required
+@limiter.limit("10 per minute")
+def ai_recommendations_route():
+    """
+    POST /api/ai-recommendations
+    Fetches cited page content via Jina.ai, analyzes with Gemini,
+    and returns actionable SEO recommendations for AIO appearance.
+    """
+    # Paywall check
+    user = get_current_user()
+    if user.get('plan') == 'free':
+        logger.warning(f"Free user tried AI Recommendations: {user.get('email')}")
+        return jsonify({
+            'error': 'paywall',
+            'message': 'AI Recommendations requires a paid plan',
+            'upgrade_options': ['basic', 'premium', 'business'],
+            'current_plan': 'free'
+        }), 402
+
+    # Quota pause check
+    try:
+        from datetime import datetime as _dt
+        paused_until = user.get('ai_overview_paused_until')
+        if paused_until and paused_until > _dt.utcnow():
+            return jsonify({
+                'error': 'quota_paused',
+                'message': 'AI Overview paused until next billing cycle',
+                'paused_until': paused_until.isoformat()
+            }), 429
+    except Exception:
+        pass
+
+    # Parse request
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Request body required'}), 400
+
+    keyword = data.get('keyword', '').strip()
+    user_domain = data.get('user_domain', '').strip()
+    user_url = data.get('user_url')
+    cited_urls = data.get('cited_urls', [])
+    aio_content = data.get('aio_content', '')
+    organic_position = data.get('organic_position')
+
+    if not keyword or not user_domain:
+        return jsonify({'success': False, 'error': 'keyword and user_domain are required'}), 400
+
+    if not cited_urls and not aio_content:
+        return jsonify({'success': False, 'error': 'cited_urls or aio_content required'}), 400
+
+    # Call service
+    try:
+        logger.info(f"🤖 AI Recommendations request: '{keyword}' for {user_domain} by {user.get('email')}")
+        result = get_ai_recommendations(
+            keyword=keyword,
+            user_domain=user_domain,
+            cited_urls=cited_urls,
+            aio_content=aio_content,
+            user_url=user_url,
+            organic_position=organic_position
+        )
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+
+    except Exception as e:
+        logger.error(f"❌ Error in ai_recommendations_route: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Server error: {str(e)}',
+            'recommendations': [],
+            'summary': ''
+        }), 500
+
 
 # ====================================
 # 📊 NUEVAS RUTAS AI OVERVIEW ANALYTICS
