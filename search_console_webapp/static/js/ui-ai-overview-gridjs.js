@@ -119,6 +119,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             sort: true
         },
         {
+            id: 'domain_in_aio',
             name: gridjs.html('Your Domain<br>in AIO'),
             width: '120px',
             sort: true,
@@ -132,6 +133,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             }
         },
         {
+            id: 'position_in_aio',
             name: gridjs.html('Your Position<br>in AIO'),
             width: '120px',
             sort: {
@@ -153,6 +155,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
 
     // 🆕 CTR Benchmark columns (Expected CTR, CTR Gap, Est. Clicks Absorbed)
     columns.push({
+        id: 'expected_ctr',
         name: gridjs.html('Expected<br>CTR'),
         width: '85px',
         sort: {
@@ -171,6 +174,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
     });
 
     columns.push({
+        id: 'ctr_gap',
         name: gridjs.html('CTR<br>Gap'),
         width: '90px',
         sort: {
@@ -192,6 +196,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
     });
 
     columns.push({
+        id: 'clicks_absorbed',
         name: gridjs.html('Clicks<br>Absorbed'),
         width: '95px',
         sort: {
@@ -212,6 +217,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
 
     // SERP Features column (icons showing which features are present)
     columns.push({
+        id: 'serp_features',
         name: gridjs.html('SERP<br>Features'),
         width: '110px',
         sort: {
@@ -244,6 +250,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         
         // Columna de presencia del competidor
         columns.push({
+            id: `comp_${index}_in_aio`,
             name: gridjs.html(`${truncatedDomain}<br>in AIO`),
             width: '120px',
             sort: true,
@@ -259,6 +266,7 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
 
         // Columna de posición del competidor
         columns.push({
+            id: `comp_${index}_position`,
             name: gridjs.html(`Position of<br>${truncatedDomain}`),
             width: '120px',
             sort: {

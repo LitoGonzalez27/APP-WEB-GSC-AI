@@ -107,6 +107,7 @@ function processDetailedDataForGrid(keywordResults) {
             sort: true
         },
         {
+            id: 'with_aio',
             name: gridjs.html('With<br>AIO'),
             width: '100px',
             sort: true,
@@ -120,6 +121,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'domain_in_aio',
             name: gridjs.html('Your Domain<br>in AIO'),
             width: '120px',
             sort: true,
@@ -133,6 +135,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'aio_position',
             name: gridjs.html('AIO<br>Position'),
             width: '100px',
             sort: {
@@ -151,6 +154,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'organic_position',
             name: gridjs.html('Organic<br>Position'),
             width: '120px',
             sort: {
@@ -169,6 +173,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'clicks_p1',
             name: gridjs.html('Clicks<br>(P1)'),
             width: '100px',
             sort: {
@@ -181,6 +186,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'impressions_p1',
             name: gridjs.html('Impressions<br>(P1)'),
             width: '120px',
             sort: {
@@ -193,6 +199,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'serp_features',
             name: gridjs.html('SERP<br>Features'),
             width: '110px',
             sort: {
@@ -217,6 +224,7 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
+            id: 'diagnostic',
             name: 'Diagnostic',
             width: '130px',
             sort: true,
