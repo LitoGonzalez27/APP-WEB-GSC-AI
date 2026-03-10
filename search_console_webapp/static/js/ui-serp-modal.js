@@ -497,20 +497,24 @@ function _renderAIOPreviewTab(result) {
     </div>
   `;
 
-  // --- AI Recommendations CTA button ---
+  // --- AI Recommendations CTA button (centered) ---
   const ctaText = isDomainSource
-    ? 'Get recommendations to improve your AI Overview position'
-    : 'Get recommendations on how to appear in AI Overview';
+    ? 'Get recommendations to improve your position'
+    : 'Get recommendations to appear in AI Overview';
   html += `
-    <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { alert('AI Recommendations not available. Run the AI Overview analysis first.'); }">
-      <i class="fas fa-lightbulb"></i>
-      <span>${ctaText}</span>
-      <i class="fas fa-arrow-right saio-cta-arrow"></i>
-    </button>
+    <div class="saio-cta-wrapper">
+      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { alert('AI Recommendations not available. Run the AI Overview analysis first.'); }">
+        <i class="fas fa-lightbulb"></i>
+        <span>${ctaText}</span>
+        <i class="fas fa-arrow-right saio-cta-arrow"></i>
+      </button>
+    </div>
   `;
 
-  // --- Full AI Overview content ---
+  // --- Full AI Overview content (with line breaks preserved) ---
   if (contentPreview) {
+    // Escape HTML then convert newlines to <br> for proper rendering
+    const formattedContent = escapeHtml(contentPreview).replace(/\n/g, '<br>');
     html += `
       <div class="saio-content-block">
         <div class="saio-section-label">
@@ -518,7 +522,7 @@ function _renderAIOPreviewTab(result) {
           <span class="saio-label-meta">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
         </div>
         <div class="saio-content-preview">
-          ${escapeHtml(contentPreview)}
+          ${formattedContent}
         </div>
       </div>
     `;

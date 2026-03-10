@@ -1180,45 +1180,45 @@ body.dark-mode #serpModal .position-badge {
 
 
 /* ── AI Recommendations CTA Button ─────────── */
-#serpModal .saio-recommendations-cta {
+#serpModal .saio-cta-wrapper {
   display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+#serpModal .saio-recommendations-cta {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 0.9rem 1.25rem;
-  margin-bottom: 2rem;
-  border: 1px solid #1a2e1a;
-  border-radius: var(--bb-radius-sm);
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(163, 230, 53, 0.25);
+  border-radius: var(--bb-radius-full);
   background: #0A0A0B;
   color: #d9f9b8;
   font-family: var(--bb-font-sans);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s var(--bb-ease);
-  text-align: left;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 #serpModal .saio-recommendations-cta:hover {
   border-color: #a3e635;
-  background: #0f1a0f;
-  box-shadow: 0 0 16px rgba(163, 230, 53, 0.1);
+  background: #111a11;
+  box-shadow: 0 0 20px rgba(163, 230, 53, 0.12);
 }
 
 #serpModal .saio-recommendations-cta .fa-lightbulb {
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: #a3e635;
   flex-shrink: 0;
 }
 
-#serpModal .saio-recommendations-cta span {
-  flex: 1;
-}
-
 #serpModal .saio-cta-arrow {
-  font-size: 0.75rem;
-  opacity: 0.5;
+  font-size: 0.68rem;
+  opacity: 0.4;
   transition: transform 0.25s var(--bb-ease), opacity 0.25s var(--bb-ease);
   flex-shrink: 0;
 }
@@ -1383,22 +1383,23 @@ body.dark-mode #serpModal .position-badge {
 }
 
 #serpModal a.saio-source-item--link:hover {
-  border-color: var(--bb-accent, #a3e635);
-  box-shadow: 0 2px 8px rgba(163, 230, 53, 0.1);
+  border-color: #0F172A;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 #serpModal a.saio-source-item--link:hover .saio-source-title {
-  color: var(--bb-accent, #a3e635);
+  color: #0F172A;
 }
 
 #serpModal a.saio-source-item--link:hover .saio-source-linkicon {
-  color: var(--bb-accent, #a3e635);
+  color: #0F172A;
+  opacity: 1;
 }
 
 #serpModal .saio-source-linkicon {
   font-size: 0.58rem;
   color: var(--bb-text-tertiary);
-  opacity: 0.7;
+  opacity: 0.6;
   transition: color 0.2s var(--bb-ease), opacity 0.2s var(--bb-ease);
 }
 
@@ -1701,10 +1702,14 @@ body.dark-mode #serpModal .saio-recommendations-cta:hover {
 }
 
 body.dark-mode #serpModal a.saio-source-item--link:hover {
-  border-color: rgba(163, 230, 53, 0.3);
-  box-shadow: 0 2px 8px rgba(163, 230, 53, 0.06);
+  border-color: rgba(217, 249, 184, 0.3);
+  box-shadow: 0 2px 8px rgba(217, 249, 184, 0.06);
 }
 
 body.dark-mode #serpModal a.saio-source-item--link:hover .saio-source-title {
+  color: #d9f9b8;
+}
+
+body.dark-mode #serpModal a.saio-source-item--link:hover .saio-source-linkicon {
   color: #d9f9b8;
 }

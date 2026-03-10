@@ -587,10 +587,10 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         # 🆕 NUEVO: Guardar referencias para análisis de competidores
         'references_found': references,
         'organic_matches': [],  # Se llenará si se usan organic results con reference_indexes
-        # 🆕 AIO content preview for frontend display (first 500 chars of all text blocks)
-        'aio_content_preview': ' '.join(
-            block.get('snippet', '') for block in text_blocks
-        )[:500] if text_blocks else ''
+        # 🆕 AIO content for frontend display (full text from all blocks)
+        'aio_content_preview': '\n'.join(
+            block.get('snippet', '') for block in text_blocks if block.get('snippet', '').strip()
+        ) if text_blocks else ''
     }
     
     # Log del resultado final
