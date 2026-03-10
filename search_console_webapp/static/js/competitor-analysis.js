@@ -302,7 +302,7 @@ function getCompetitorTypeLabel(result) {
 }
 
 /**
- * Creates the competitor bar chart using Chart.js (full-width)
+ * Creates the competitor bar chart using Chart.js (full-width, tall)
  * @param {Array<Object>} competitorResults - with competitor_type field
  * @returns {HTMLElement} - Chart container element
  */
@@ -310,7 +310,11 @@ function createCompetitorBarChart(competitorResults) {
     let chartData = [];
 
     if (competitorResults && competitorResults.length > 0) {
-        chartData = competitorResults.map((result, index) => ({
+        // Sort by mentions desc and limit to top 10 for the chart
+        const sorted = [...competitorResults]
+            .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
+            .slice(0, 10);
+        chartData = sorted.map((result, index) => ({
             label: result.domain,
             value: result.mentions,
             percentage: result.visibility_percentage || 0,
@@ -345,6 +349,10 @@ function createCompetitorBarChart(competitorResults) {
         // Build border styles: solid for own/user, dashed for auto
         const borderWidths = chartData.map(d => d.competitorType === 'auto' ? 1 : 2);
 
+        // Dynamic bar thickness based on number of domains
+        const barPercentage = chartData.length <= 6 ? 0.7 : 0.85;
+        const categoryPercentage = chartData.length <= 6 ? 0.65 : 0.8;
+
         new Chart(ctx, {
             type: 'bar',
             data: {
@@ -352,25 +360,36 @@ function createCompetitorBarChart(competitorResults) {
                 datasets: [{
                     label: 'Visibility %',
                     data: chartData.map(d => d.percentage),
-                    backgroundColor: chartData.map(d => d.color + 'CC'), // slight transparency
+                    backgroundColor: chartData.map(d => d.color + 'CC'),
                     borderColor: chartData.map(d => d.color),
-                    borderWidth: borderWidths
+                    borderWidth: borderWidths,
+                    barPercentage: barPercentage,
+                    categoryPercentage: categoryPercentage,
+                    borderRadius: 3
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { left: 8, right: 16, top: 8, bottom: 0 }
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        title: { display: true, text: 'Visibility %', font: { family: "'Inter Tight', sans-serif", weight: '500' } },
-                        grid: { color: '#F1F5F9' }
+                        title: { display: true, text: 'Visibility %', font: { family: "'Inter Tight', sans-serif", weight: '500', size: 12 } },
+                        grid: { color: '#F1F5F9' },
+                        ticks: { font: { size: 11, family: "'Inter Tight', sans-serif" } }
                     },
                     x: {
-                        title: { display: true, text: 'Domains', font: { family: "'Inter Tight', sans-serif", weight: '500' } },
+                        title: { display: false },
                         grid: { display: false },
-                        ticks: { font: { size: 11, family: "'Inter Tight', sans-serif" } }
+                        ticks: {
+                            font: { size: 11, family: "'Inter Tight', sans-serif" },
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
                     }
                 },
                 plugins: {
@@ -413,33 +432,35 @@ function createCompetitorBarChart(competitorResults) {
 }
 
 /**
- * Creates the competitor domain visibility table
+ * Creates the competitor domain visibility table (max 10 domains)
  * @param {Array<Object>} competitorResults - with competitor_type field
  * @returns {string} - HTML string
  */
 function createCompetitorResultsTable(competitorResults) {
     if (!competitorResults || competitorResults.length === 0) return '';
 
-    const sorted = [...competitorResults].sort((a, b) => b.mentions - a.mentions);
+    // Sort by mentions descending, keep top 10
+    const sorted = [...competitorResults].sort((a, b) => b.mentions - a.mentions).slice(0, 10);
 
     const tableRows = sorted.map((result) => {
         const visibilityClass = getVisibilityClass(result.visibility_percentage);
         const positionClass = getPositionClass(result.average_position);
-        const isHighlighted = result.competitor_type === 'user';
+        const isOwn = result.competitor_type === 'own';
+        const isUser = result.competitor_type === 'user';
+        const rowClass = isOwn ? 'competitor-row-own' : (isUser ? 'competitor-row-highlighted' : '');
 
         // Badge based on competitor_type
         let badge = '';
-        if (result.competitor_type === 'own') {
+        if (isOwn) {
             badge = '<span class="competitor-badge competitor-badge--own">You</span>';
-        } else if (result.competitor_type === 'user') {
+        } else if (isUser) {
             badge = '<span class="competitor-badge competitor-badge--user">Selected</span>';
-        } else {
-            badge = '<span class="competitor-badge competitor-badge--auto">Discovered</span>';
         }
+        // Auto-discovered domains get NO badge — cleaner look
 
         return `
-            <tr class="${isHighlighted ? 'competitor-row-highlighted' : ''}">
-                <td class="domain-cell">${truncateStr(result.domain, 30)} ${badge}</td>
+            <tr class="${rowClass}">
+                <td class="domain-cell">${truncateStr(result.domain, 28)} ${badge}</td>
                 <td class="mentions-cell">${result.mentions}</td>
                 <td class="visibility-cell ${visibilityClass}">${result.visibility_percentage}%</td>
                 <td class="position-cell ${positionClass}">${result.average_position || 'N/A'}</td>
@@ -467,49 +488,116 @@ function createCompetitorResultsTable(competitorResults) {
 }
 
 /**
- * Creates the Most Cited URLs table
+ * Creates the Most Cited URLs table with pagination (10+10)
  * @param {Array<Object>} citedUrls - [{url, domain, title, citation_count, keywords_cited_in}]
  * @returns {string} - HTML string
  */
 function createMostCitedUrlsTable(citedUrls) {
     if (!citedUrls || citedUrls.length === 0) {
-        return '<p class="competitor-no-data">No cited URLs found in this analysis.</p>';
+        return '<p class="competitor-no-data"><i class="fas fa-link"></i>No cited URLs found in this analysis.</p>';
     }
 
-    const rows = citedUrls.map(item => {
-        const displayUrl = truncateStr(item.url, 55);
-        const displayTitle = truncateStr(item.title || '', 35);
+    // Limit to 20 total
+    const allUrls = citedUrls.slice(0, 20);
+    const PAGE_SIZE = 10;
 
-        return `
+    function buildRows(items) {
+        return items.map(item => `
             <tr>
                 <td class="url-cell" title="${item.url}">
-                    <a href="${item.url}" target="_blank" rel="noopener noreferrer">${displayUrl}</a>
-                    ${displayTitle ? `<span class="url-title">${displayTitle}</span>` : ''}
+                    <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>
                 </td>
-                <td class="domain-cell">${truncateStr(item.domain, 25)}</td>
-                <td class="citations-cell">${item.citation_count}</td>
-                <td class="keywords-cell">${item.keywords_cited_in ? item.keywords_cited_in.length : 0}</td>
+                <td class="citation-count">${item.citation_count}</td>
+                <td class="keyword-count">${item.keywords_cited_in ? item.keywords_cited_in.length : 0}</td>
             </tr>
-        `;
-    }).join('');
+        `).join('');
+    }
+
+    const firstPage = allUrls.slice(0, PAGE_SIZE);
+    const secondPage = allUrls.slice(PAGE_SIZE, PAGE_SIZE * 2);
+    const hasPagination = secondPage.length > 0;
+
+    // Unique ID for pagination control
+    const tableId = 'citedUrlsTable_' + Date.now();
 
     return `
-        <div class="cited-urls-table">
+        <div class="cited-urls-table" id="${tableId}">
             <table class="competitor-table cited-urls">
                 <thead>
                     <tr>
                         <th>URL</th>
-                        <th>Domain</th>
                         <th>Citations</th>
                         <th>Keywords</th>
                     </tr>
                 </thead>
-                <tbody>
-                    ${rows}
+                <tbody class="cited-urls-page cited-urls-page-1">
+                    ${buildRows(firstPage)}
                 </tbody>
+                ${hasPagination ? `
+                    <tbody class="cited-urls-page cited-urls-page-2" style="display:none;">
+                        ${buildRows(secondPage)}
+                    </tbody>
+                ` : ''}
             </table>
+            ${hasPagination ? `
+                <div class="cited-urls-pagination">
+                    <span class="cited-urls-page-info">1–${PAGE_SIZE} of ${allUrls.length}</span>
+                    <button class="cited-urls-page-btn cited-urls-prev" disabled>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="cited-urls-page-btn cited-urls-next">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            ` : `
+                <div class="cited-urls-pagination">
+                    <span class="cited-urls-page-info">${allUrls.length} URL${allUrls.length !== 1 ? 's' : ''}</span>
+                </div>
+            `}
         </div>
     `;
+}
+
+/**
+ * Initializes pagination events for Most Cited URLs table
+ * Called after the table is rendered in the DOM
+ */
+function initCitedUrlsPagination(containerEl) {
+    const table = containerEl.querySelector('.cited-urls-table');
+    if (!table) return;
+
+    const page1 = table.querySelector('.cited-urls-page-1');
+    const page2 = table.querySelector('.cited-urls-page-2');
+    if (!page1 || !page2) return;
+
+    const prevBtn = table.querySelector('.cited-urls-prev');
+    const nextBtn = table.querySelector('.cited-urls-next');
+    const pageInfo = table.querySelector('.cited-urls-page-info');
+    if (!prevBtn || !nextBtn || !pageInfo) return;
+
+    const totalRows = page1.querySelectorAll('tr').length + page2.querySelectorAll('tr').length;
+    const pageSize = page1.querySelectorAll('tr').length;
+    let currentPage = 1;
+
+    function updateView() {
+        if (currentPage === 1) {
+            page1.style.display = '';
+            page2.style.display = 'none';
+            prevBtn.disabled = true;
+            nextBtn.disabled = false;
+            pageInfo.textContent = `1–${pageSize} of ${totalRows}`;
+        } else {
+            page1.style.display = 'none';
+            page2.style.display = '';
+            prevBtn.disabled = false;
+            nextBtn.disabled = true;
+            const page2Rows = page2.querySelectorAll('tr').length;
+            pageInfo.textContent = `${pageSize + 1}–${pageSize + page2Rows} of ${totalRows}`;
+        }
+    }
+
+    nextBtn.addEventListener('click', () => { currentPage = 2; updateView(); });
+    prevBtn.addEventListener('click', () => { currentPage = 1; updateView(); });
 }
 
 /**
@@ -593,6 +681,9 @@ function displayCompetitorResults(competitorResults, container, options = {}) {
             chartColumn.appendChild(chartElement);
         }
     }
+
+    // Initialize pagination for cited URLs
+    setTimeout(() => initCitedUrlsPagination(competitorContainer), 50);
 
     console.log(`Displayed competitor results: ${competitorResults.length} domains, ${mostCitedUrls.length} cited URLs`);
 }
