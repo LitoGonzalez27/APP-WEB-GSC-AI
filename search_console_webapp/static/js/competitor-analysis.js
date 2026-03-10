@@ -260,196 +260,186 @@ function initializeCompetitorValidation() {
     console.log('✅ Competitor domain validation initialized');
 }
 
+// ====================================
+// CHART & TABLE DISPLAY FUNCTIONS
+// ====================================
+
+// Expanded color palette for 10+ domains (brandbook-safe on light backgrounds)
+const COMPETITOR_COLORS = [
+    '#0F172A',  // Dark navy — own domain (brandbook primary)
+    '#7C3AED',  // Violet
+    '#2563EB',  // Blue
+    '#0891B2',  // Cyan
+    '#D97706',  // Amber
+    '#DC2626',  // Red
+    '#059669',  // Emerald
+    '#DB2777',  // Pink
+    '#4F46E5',  // Indigo
+    '#0D9488',  // Teal
+    '#CA8A04',  // Dark yellow
+    '#9333EA',  // Purple
+    '#E11D48',  // Rose
+    '#6366F1',  // Slate-indigo
+];
+
 /**
- * Creates the competitor bar chart using Chart.js
- * @param {Array<Object>} competitorResults - Array of competitor analysis results
+ * Helper: truncate long strings
+ */
+function truncateStr(str, maxLength = 20) {
+    if (!str) return '';
+    if (str.length <= maxLength) return str;
+    return str.substring(0, maxLength - 3) + '...';
+}
+
+/**
+ * Helper: get label for competitor_type
+ */
+function getCompetitorTypeLabel(result) {
+    const t = result.competitor_type;
+    if (t === 'own') return 'Your Domain';
+    if (t === 'user') return 'Selected Competitor';
+    return 'Auto-Discovered';
+}
+
+/**
+ * Creates the competitor bar chart using Chart.js (full-width)
+ * @param {Array<Object>} competitorResults - with competitor_type field
  * @returns {HTMLElement} - Chart container element
  */
 function createCompetitorBarChart(competitorResults) {
-    // Definir colores para usuario y competidores
-    const colors = ['#D9FAB9', '#F2B9FA', '#FADBB9', '#B9E8FA'];
-    
-    // Preparar datos para el gráfico - siempre mostrar todos los dominios
     let chartData = [];
-    
+
     if (competitorResults && competitorResults.length > 0) {
         chartData = competitorResults.map((result, index) => ({
             label: result.domain,
             value: result.mentions,
             percentage: result.visibility_percentage || 0,
-            color: colors[index] || '#CCCCCC'
+            competitorType: result.competitor_type || 'auto',
+            color: COMPETITOR_COLORS[index] || '#94A3B8'
         }));
     } else {
-        // Si no hay datos, mostrar un placeholder
-        chartData = [{
-            label: 'No data available',
-            value: 0,
-            percentage: 0,
-            color: '#CCCCCC'
-        }];
+        chartData = [{ label: 'No data', value: 0, percentage: 0, competitorType: 'auto', color: '#CBD5E1' }];
     }
 
-    // Función helper para truncar dominios largos
-    function truncateDomain(domain, maxLength = 20) {
-        if (domain.length <= maxLength) return domain;
-        return domain.substring(0, maxLength - 3) + '...';
-    }
-
-    // Función para determinar el tipo de dominio
-    function getDomainType(domain, index) {
-        if (index === 0) return 'Your Domain';
-        return `Competitor ${index}`;
-    }
-
-    // Crear contenedor del gráfico
     const chartContainer = document.createElement('div');
     chartContainer.className = 'competitor-chart-container';
-    
-    // Crear leyenda
-    const legendHTML = chartData.map((item, index) => `
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: ${item.color};"></div>
-            <div class="legend-label">
-                <strong>${getDomainType(item.label, index)}</strong><br>
-                <span style="font-size: 0.8em; opacity: 0.8;">${truncateDomain(item.label)}</span>
-            </div>
-        </div>
-    `).join('');
-    
+
+    // Unique canvas ID to avoid conflicts on re-render
+    const canvasId = 'competitorBarChart_' + Date.now();
+
     chartContainer.innerHTML = `
         <div class="chart-wrapper">
-            <canvas id="competitorBarChart" width="450" height="350"></canvas>
+            <canvas id="${canvasId}"></canvas>
         </div>
     `;
 
-    // Configurar el gráfico cuando se añada al DOM
+    // Initialize chart after DOM insertion
     setTimeout(() => {
-        const canvas = document.getElementById('competitorBarChart');
-        if (canvas && window.Chart) {
-            const ctx = canvas.getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: chartData.map(item => truncateDomain(item.label, 15)),
-                    datasets: [{
-                        label: 'Visibility %',
-                        data: chartData.map(item => item.percentage),
-                        backgroundColor: chartData.map(item => item.color),
-                        borderColor: chartData.map(item => item.color),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Visibility %'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Domains'
-                            }
-                        }
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !window.Chart) {
+            console.warn('Chart.js not available or canvas not found');
+            return;
+        }
+        const ctx = canvas.getContext('2d');
+
+        // Build border styles: solid for own/user, dashed for auto
+        const borderWidths = chartData.map(d => d.competitorType === 'auto' ? 1 : 2);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.map(d => truncateStr(d.label, 18)),
+                datasets: [{
+                    label: 'Visibility %',
+                    data: chartData.map(d => d.percentage),
+                    backgroundColor: chartData.map(d => d.color + 'CC'), // slight transparency
+                    borderColor: chartData.map(d => d.color),
+                    borderWidth: borderWidths
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: { display: true, text: 'Visibility %', font: { family: "'Inter Tight', sans-serif", weight: '500' } },
+                        grid: { color: '#F1F5F9' }
                     },
-                    plugins: {
-                        legend: {
-                            display: false // Usamos nuestra leyenda personalizada
-                        },
-                        tooltip: {
-                            backgroundColor: '#ffffff',
-                            titleColor: '#1f2937',
-                            bodyColor: '#374151',
-                            borderColor: '#e5e7eb',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                            titleFont: {
-                                size: 15,
-                                weight: '600',
-                                family: 'Inter, system-ui, sans-serif'
+                    x: {
+                        title: { display: true, text: 'Domains', font: { family: "'Inter Tight', sans-serif", weight: '500' } },
+                        grid: { display: false },
+                        ticks: { font: { size: 11, family: "'Inter Tight', sans-serif" } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0F172A',
+                        bodyColor: '#374151',
+                        borderColor: '#E2E8F0',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        titleFont: { size: 14, weight: '600', family: "'Inter Tight', sans-serif" },
+                        bodyFont: { size: 12, weight: '400', family: "'Inter Tight', sans-serif" },
+                        padding: { top: 10, bottom: 10, left: 14, right: 14 },
+                        displayColors: true,
+                        boxWidth: 12,
+                        boxHeight: 12,
+                        boxPadding: 4,
+                        callbacks: {
+                            title: function(context) {
+                                const item = chartData[context[0].dataIndex];
+                                return getCompetitorTypeLabel(item);
                             },
-                            bodyFont: {
-                                size: 13,
-                                weight: '400',
-                                family: 'Inter, system-ui, sans-serif'
-                            },
-                            padding: {
-                                top: 12,
-                                bottom: 12,
-                                left: 16,
-                                right: 16
-                            },
-                            displayColors: false,
-                            titleSpacing: 8,
-                            bodySpacing: 6,
-                            callbacks: {
-                                title: function(context) {
-                                    const item = chartData[context[0].dataIndex];
-                                    const domainType = getDomainType(item.label, context[0].dataIndex);
-                                    return domainType;
-                                },
-                                beforeBody: function() {
-                                    return '';
-                                },
-                                label: function(context) {
-                                    const item = chartData[context.dataIndex];
-                                    return [
-                                        `Domain: ${item.label}`,
-                                        `Mentions: ${item.value}`,
-                                        `Visibility: ${context.parsed.y}%`
-                                    ];
-                                },
-                                labelColor: function(context) {
-                                    return {
-                                        borderColor: 'transparent',
-                                        backgroundColor: 'transparent'
-                                    };
-                                }
+                            label: function(context) {
+                                const item = chartData[context.dataIndex];
+                                return [
+                                    `${item.label}`,
+                                    `Mentions: ${item.value}`,
+                                    `Visibility: ${context.parsed.y}%`
+                                ];
                             }
                         }
                     }
                 }
-            });
-        } else {
-            console.warn('Chart.js not available or canvas not found');
-        }
+            }
+        });
     }, 100);
 
     return chartContainer;
 }
 
 /**
- * Creates the competitor results table HTML
- * @param {Array<Object>} competitorResults - Array of competitor analysis results
- * @returns {string} - HTML string for the results table
+ * Creates the competitor domain visibility table
+ * @param {Array<Object>} competitorResults - with competitor_type field
+ * @returns {string} - HTML string
  */
 function createCompetitorResultsTable(competitorResults) {
-    if (!competitorResults || competitorResults.length === 0) {
-        return '';
-    }
+    if (!competitorResults || competitorResults.length === 0) return '';
 
-    // Sort by mentions descending so most-mentioned domains appear first
     const sorted = [...competitorResults].sort((a, b) => b.mentions - a.mentions);
-
-    // Detect user domain (first entry in the original array)
-    const userDomain = competitorResults[0]?.domain;
 
     const tableRows = sorted.map((result) => {
         const visibilityClass = getVisibilityClass(result.visibility_percentage);
         const positionClass = getPositionClass(result.average_position);
-        const domainClass = result.domain === userDomain ? 'user-domain' : 'competitor-domain';
-        
+        const isHighlighted = result.competitor_type === 'user';
+
+        // Badge based on competitor_type
+        let badge = '';
+        if (result.competitor_type === 'own') {
+            badge = '<span class="competitor-badge competitor-badge--own">You</span>';
+        } else if (result.competitor_type === 'user') {
+            badge = '<span class="competitor-badge competitor-badge--user">Selected</span>';
+        } else {
+            badge = '<span class="competitor-badge competitor-badge--auto">Discovered</span>';
+        }
+
         return `
-            <tr>
-                <td class="domain-cell ${domainClass}">${result.domain}</td>
+            <tr class="${isHighlighted ? 'competitor-row-highlighted' : ''}">
+                <td class="domain-cell">${truncateStr(result.domain, 30)} ${badge}</td>
                 <td class="mentions-cell">${result.mentions}</td>
                 <td class="visibility-cell ${visibilityClass}">${result.visibility_percentage}%</td>
                 <td class="position-cell ${positionClass}">${result.average_position || 'N/A'}</td>
@@ -464,8 +454,8 @@ function createCompetitorResultsTable(competitorResults) {
                     <tr>
                         <th>Domain</th>
                         <th>Mentions</th>
-                        <th>% Visibility</th>
-                        <th>Avg Position</th>
+                        <th>Visibility</th>
+                        <th>Avg Pos.</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -477,9 +467,53 @@ function createCompetitorResultsTable(competitorResults) {
 }
 
 /**
+ * Creates the Most Cited URLs table
+ * @param {Array<Object>} citedUrls - [{url, domain, title, citation_count, keywords_cited_in}]
+ * @returns {string} - HTML string
+ */
+function createMostCitedUrlsTable(citedUrls) {
+    if (!citedUrls || citedUrls.length === 0) {
+        return '<p class="competitor-no-data">No cited URLs found in this analysis.</p>';
+    }
+
+    const rows = citedUrls.map(item => {
+        const displayUrl = truncateStr(item.url, 55);
+        const displayTitle = truncateStr(item.title || '', 35);
+
+        return `
+            <tr>
+                <td class="url-cell" title="${item.url}">
+                    <a href="${item.url}" target="_blank" rel="noopener noreferrer">${displayUrl}</a>
+                    ${displayTitle ? `<span class="url-title">${displayTitle}</span>` : ''}
+                </td>
+                <td class="domain-cell">${truncateStr(item.domain, 25)}</td>
+                <td class="citations-cell">${item.citation_count}</td>
+                <td class="keywords-cell">${item.keywords_cited_in ? item.keywords_cited_in.length : 0}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="cited-urls-table">
+            <table class="competitor-table cited-urls">
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Domain</th>
+                        <th>Citations</th>
+                        <th>Keywords</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+/**
  * Gets CSS class for visibility percentage color coding
- * @param {number} percentage - Visibility percentage
- * @returns {string} - CSS class name
  */
 function getVisibilityClass(percentage) {
     if (percentage >= 50) return 'visibility-high';
@@ -489,8 +523,6 @@ function getVisibilityClass(percentage) {
 
 /**
  * Gets CSS class for average position color coding
- * @param {number|null} position - Average position
- * @returns {string} - CSS class name
  */
 function getPositionClass(position) {
     if (!position) return '';
@@ -501,10 +533,12 @@ function getPositionClass(position) {
 
 /**
  * Displays competitor analysis results in the UI
- * @param {Array<Object>} competitorResults - Array of competitor analysis results
- * @param {HTMLElement} container - Container element to display results
+ * NEW LAYOUT: Full-width chart on top, two tables side-by-side below
+ * @param {Array<Object>} competitorResults - with competitor_type field
+ * @param {HTMLElement} container
+ * @param {Object} options - { mostCitedUrls: [], manualDomains: [] }
  */
-function displayCompetitorResults(competitorResults, container) {
+function displayCompetitorResults(competitorResults, container, options = {}) {
     if (!container) {
         console.warn('No container provided for competitor results');
         return;
@@ -515,7 +549,9 @@ function displayCompetitorResults(competitorResults, container) {
         return;
     }
 
-    // Find existing competitor container or create new one
+    const { mostCitedUrls = [] } = options;
+
+    // Find or create competitor container
     let competitorContainer = container.querySelector('.competitor-results-container');
     if (!competitorContainer) {
         competitorContainer = document.createElement('div');
@@ -523,36 +559,42 @@ function displayCompetitorResults(competitorResults, container) {
         container.appendChild(competitorContainer);
     }
 
-    // Create the main layout with chart and table
+    // Create components
     const chartElement = createCompetitorBarChart(competitorResults);
     const tableHTML = createCompetitorResultsTable(competitorResults);
-    
-    // Build the combined layout with title
+    const citedUrlsHTML = createMostCitedUrlsTable(mostCitedUrls);
+
+    // Build new layout: chart full-width on top, two tables side-by-side below
     let layoutHTML = `
-        <h3 class="competitor-analysis-title">Competitor Analysis</h3>
-        <div class="competitor-analysis-layout">`;
-    
-    if (chartElement) {
-        layoutHTML += '<div class="competitor-chart-column"></div>';
-    }
-    
-    layoutHTML += `
-            <div class="competitor-table-column">
+        <h3 class="competitor-analysis-title">
+            <i class="fas fa-users"></i> Competitor Analysis
+        </h3>
+        <div class="competitor-chart-row">
+            <div class="competitor-chart-column"></div>
+        </div>
+        <div class="competitor-tables-row">
+            <div class="competitor-domain-table-column">
+                <h4><i class="fas fa-chart-bar"></i> Domain Visibility</h4>
                 ${tableHTML}
             </div>
-        </div>`;
-    
+            <div class="competitor-cited-urls-column">
+                <h4><i class="fas fa-link"></i> Most Cited URLs</h4>
+                ${citedUrlsHTML}
+            </div>
+        </div>
+    `;
+
     competitorContainer.innerHTML = layoutHTML;
-    
-    // Add the chart element if it exists
+
+    // Insert chart element into the chart row
     if (chartElement) {
         const chartColumn = competitorContainer.querySelector('.competitor-chart-column');
         if (chartColumn) {
             chartColumn.appendChild(chartElement);
         }
     }
-    
-    console.log(`✅ Displayed competitor results for ${competitorResults.length} domains with ${chartElement ? 'chart and' : ''} table`);
+
+    console.log(`Displayed competitor results: ${competitorResults.length} domains, ${mostCitedUrls.length} cited URLs`);
 }
 
 // Export functions for use in other modules
@@ -566,6 +608,7 @@ window.CompetitorAnalysis = {
     clearCompetitorFields,
     initializeCompetitorValidation,
     createCompetitorResultsTable,
+    createMostCitedUrlsTable,
     displayCompetitorResults
 };
 

@@ -870,27 +870,45 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         # ===== ESTRUCTURA DE LA HOJA DE COMPETIDORES =====
         # 🚀 NUEVO: Solo información solicitada por el usuario
         
-        # 1) RESUMEN DE COMPETIDORES (Dominio, apariciones, posición promedio, presencia %)
+        # 1) RESUMEN DE COMPETIDORES (Dominio, Type, apariciones, posición promedio, presencia %)
         competitors_summary = [
-            ['Dominio', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
+            ['Dominio', 'Type', 'Apariciones en AIO', 'Posición Promedio', 'Presencia (%)'],
         ]
-        
+
+        # Build a lookup for competitor_type from processed data
+        competitor_type_map = {}
+        for comp_data in competitor_analysis_processed:
+            competitor_type_map[comp_data.get('domain', '')] = comp_data.get('competitor_type', 'auto')
+
         # Generar datos de resumen
         total_keywords_with_aio = len([r for r in keyword_results if r.get('ai_analysis', {}).get('has_ai_overview')])
-        
-        for domain, data in sorted_competitors[:10]:  # Top 10 competidores
-            presence_percentage = (data['total_appearances'] / total_keywords_with_aio * 100) if total_keywords_with_aio > 0 else 0
+
+        for domain, data in sorted_competitors[:15]:  # Top 15 competidores
+            # Use pre-calculated visibility_percentage if available (processed path), else calculate
+            presence_percentage = data.get('visibility_percentage', 0) or (
+                (data['total_appearances'] / total_keywords_with_aio * 100) if total_keywords_with_aio > 0 else 0
+            )
             avg_pos_formatted = f"{data['avg_position']:.1f}" if data['avg_position'] > 0 else 'N/A'
-            
+
+            # Map competitor_type to readable label
+            comp_type = competitor_type_map.get(domain, 'auto')
+            if comp_type == 'own':
+                type_label = 'Your Domain'
+            elif comp_type == 'user':
+                type_label = 'Selected'
+            else:
+                type_label = 'Auto-Discovered'
+
             competitors_summary.append([
                 domain,
+                type_label,
                 data['total_appearances'],
                 avg_pos_formatted,
                 f"{presence_percentage:.1f}%"
             ])
-        
+
         # Espaciado
-        competitors_summary.extend([['', '', '', ''], ['', '', '', '']])
+        competitors_summary.extend([['', '', '', '', ''], ['', '', '', '', '']])
         
         # 2) TABLA IGUAL A "DETAILS OF KEYWORDS WITH AIO"
         # Obtener dominios de competidores para las columnas dinámicas
@@ -973,13 +991,14 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         
         # Formatear columnas base
         worksheet.set_column('A:A', 35)  # Keyword/Dominio
-        worksheet.set_column('B:B', 18)  # Apariciones/Your Domain in AIO
-        worksheet.set_column('C:C', 18)  # Posición Promedio/Your Position in AIO
-        worksheet.set_column('D:D', 15)  # Presencia %
-        
+        worksheet.set_column('B:B', 16)  # Type
+        worksheet.set_column('C:C', 18)  # Apariciones/Your Domain in AIO
+        worksheet.set_column('D:D', 18)  # Posición Promedio/Your Position in AIO
+        worksheet.set_column('E:E', 15)  # Presencia %
+
         # Formatear columnas adicionales para competidores si existen
-        if num_columns > 4:
-            for i in range(4, min(num_columns, 26)):  # Máximo hasta columna Z
+        if num_columns > 5:
+            for i in range(5, min(num_columns, 26)):  # Máximo hasta columna Z
                 col_letter = chr(ord('A') + i)
                 worksheet.set_column(f'{col_letter}:{col_letter}', 15)
         
@@ -994,8 +1013,7 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
         # Aplicar header format para headers de summary (row 1, pero startrow=1 escribe header en row 1 (0-based row 1))
         # Ajustar según indexing 0-based
         summary_header_row = 1  # 0-based
-        for col_num in range(4):
-            col_letter = chr(ord('A') + col_num)
+        for col_num in range(5):
             worksheet.write(summary_header_row, col_num, df_summary.columns[col_num], header_format)
         
         # Para table header
@@ -1004,8 +1022,37 @@ def create_competitors_analysis_sheet(writer, ai_overview_data, header_format):
             col_letter = chr(ord('A') + col_num)
             worksheet.write(table_header_row, col_num, df_table.columns[col_num], header_format)
         
-        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con resumen y tabla detallada")
-                
+        # 3) MOST CITED URLs section
+        most_cited_urls = summary.get('most_cited_urls', [])
+        if most_cited_urls:
+            startrow_cited = startrow_table + len(df_table) + 4  # After detail table + spacing
+
+            cited_section_title = 'MOST CITED URLs'
+            worksheet.write(f'A{startrow_cited}', cited_section_title, section_format)
+
+            cited_headers = ['URL', 'Domain', 'Citations', 'Keywords Cited In']
+            cited_data = []
+            for url_item in most_cited_urls[:20]:
+                keywords_list = url_item.get('keywords_cited_in', [])
+                cited_data.append([
+                    url_item.get('url', ''),
+                    url_item.get('domain', ''),
+                    url_item.get('citation_count', 0),
+                    len(keywords_list)
+                ])
+
+            df_cited = pd.DataFrame(cited_data, columns=cited_headers)
+            df_cited.to_excel(writer, sheet_name=sheet_name, index=False, startrow=startrow_cited + 1)
+
+            # Format cited table headers
+            cited_header_row = startrow_cited + 1  # 0-based
+            for col_num in range(len(cited_headers)):
+                worksheet.write(cited_header_row, col_num, cited_headers[col_num], header_format)
+
+            logger.info(f"[COMPETITORS DEBUG] ✅ Most Cited URLs section added: {len(cited_data)} URLs")
+
+        logger.info(f"[COMPETITORS DEBUG] ✅ Hoja 'AIO Competitors Analysis' creada exitosamente con resumen, tabla detallada y Most Cited URLs")
+
     except Exception as e:
         logger.error(f"[COMPETITORS DEBUG] ❌ Error creando hoja de análisis de competidores: {e}", exc_info=True)
 

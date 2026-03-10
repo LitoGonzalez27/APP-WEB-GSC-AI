@@ -335,6 +335,8 @@ export function displayAIOverviewResults(data) {
   // 🆕 Store globally so the SERP modal can access AI analysis data per keyword
   window._aioKeywordResults = enrichedResults;
   window._aioCompetitorDomains = competitorDomains;
+  window._aioMostCitedUrls = data.summary?.most_cited_urls || [];
+  window._aioManualCompetitors = data.summary?.manual_competitor_domains || [];
 
   console.log('🏷️ Diagnostic classification complete:', Object.entries(categories)
     .filter(([_, v]) => v.count > 0)
@@ -347,7 +349,10 @@ export function displayAIOverviewResults(data) {
 
   // 2️⃣ Mostrar análisis de competidores si hay datos
   if (data.summary && data.summary.competitor_analysis) {
-    displayCompetitorResults(data.summary.competitor_analysis, resultsContainer);
+    displayCompetitorResults(data.summary.competitor_analysis, resultsContainer, {
+      mostCitedUrls: data.summary.most_cited_urls || [],
+      manualDomains: data.summary.manual_competitor_domains || []
+    });
   }
 
   // 🆕 3️⃣ Mostrar análisis de Topic Clusters si hay datos
@@ -1237,8 +1242,11 @@ function displaySummary(summary, container, keywordCount = null) {
 
 /**
  * Muestra los resultados de análisis de competidores
+ * @param {Array} competitorResults - Competitor analysis data
+ * @param {HTMLElement} container - DOM container
+ * @param {Object} options - { mostCitedUrls, manualDomains }
  */
-function displayCompetitorResults(competitorResults, container) {
+function displayCompetitorResults(competitorResults, container, options = {}) {
   if (!competitorResults || competitorResults.length === 0) {
     console.warn('⚠️ No hay resultados de competidores para mostrar');
     return;
@@ -1246,28 +1254,26 @@ function displayCompetitorResults(competitorResults, container) {
 
   console.log('📊 Datos de competidores recibidos:');
   console.table(competitorResults);
-  
+
   // Log detallado de cada dominio
   competitorResults.forEach((result, index) => {
-    console.log(`🏢 Dominio ${index + 1}: ${result.domain}`);
+    console.log(`🏢 Dominio ${index + 1}: ${result.domain} [${result.competitor_type || 'unknown'}]`);
     console.log(`   📊 Menciones: ${result.mentions}`);
     console.log(`   👁️ Visibilidad: ${result.visibility_percentage}%`);
     console.log(`   📍 Posición media: ${result.average_position || 'N/A'}`);
   });
 
-  // 🚀 NUEVA FUNCIONALIDAD: Log de competidores auto-detectados (sin toast)
-  const aiOverviewData = window.currentAIOverviewData;
-  const summary = aiOverviewData?.summary || aiOverviewData?.analysis?.summary;
-  const autoDetected = summary?.competitors_auto_detected;
-  const competitorDomains = summary?.competitor_domains_analyzed || [];
-  
-  if (autoDetected && competitorDomains.length > 0) {
-    console.log(`🤖 Competidores auto-detectados: ${competitorDomains.join(', ')}`);
+  // Log cited URLs info
+  if (options.mostCitedUrls && options.mostCitedUrls.length > 0) {
+    console.log(`🔗 Most cited URLs: ${options.mostCitedUrls.length} URLs found`);
+  }
+  if (options.manualDomains && options.manualDomains.length > 0) {
+    console.log(`👤 Manual competitor domains: ${options.manualDomains.join(', ')}`);
   }
 
   // Crear tabla de competidores usando la función del módulo CompetitorAnalysis
   if (window.CompetitorAnalysis) {
-    window.CompetitorAnalysis.displayCompetitorResults(competitorResults, container);
+    window.CompetitorAnalysis.displayCompetitorResults(competitorResults, container, options);
   } else {
     console.warn('⚠️ Módulo CompetitorAnalysis no disponible para mostrar resultados');
   }
