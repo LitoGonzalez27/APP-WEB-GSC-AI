@@ -762,14 +762,13 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
   const sectionHTML = `
     <div class="diagnostic-section aio-diagnostic-section" id="diagnosticSection">
       <h3 class="aio-diagnostic-title">
-        <i class="fas fa-stethoscope" style="margin-right: 8px; color: #8B5CF6;"></i>
         Keyword Diagnostic
         <span class="diagnostic-tooltip-trigger" data-tooltip="Each keyword is classified into one diagnostic category based on how AI Overview affects its organic performance. Categories are mutually exclusive — each keyword belongs to exactly one. Click a card to filter the table below and see only keywords in that category." style="font-size: 0.55em; vertical-align: middle; margin-left: 6px; cursor: help; opacity: 0.4;">
           <i class="fas fa-question-circle"></i>
         </span>
       </h3>
       <p class="aio-diagnostic-subtitle">
-        Click a category to filter the table below
+        <span class="aio-diagnostic-accent">Click a category</span> to filter the table below
       </p>
       <div class="diagnostic-cards-grid aio-diagnostic-grid">
         ${Object.entries(DIAGNOSTIC_CATEGORIES).map(([id, cat]) => {
@@ -801,11 +800,11 @@ function _createDiagnosticCard(id, cat, catData) {
 
   return `
     <div class="diagnostic-card aio-diagnostic-card${darkClass}" data-category="${id}">
-      <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}" style="position: absolute; top: 6px; right: 8px; font-size: 0.7em; cursor: help; color: ${isDark ? 'rgba(217,249,184,0.5)' : 'rgba(0,0,0,0.3)'};">
+      <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}">
         <i class="fas fa-info-circle"></i>
       </div>
-      <div class="aio-diagnostic-icon" style="background: ${cat.color}22;">
-        <i class="fas ${cat.icon}" style="color: ${cat.color};"></i>
+      <div class="aio-diagnostic-icon">
+        <i class="fas ${cat.icon}"></i>
       </div>
       <div class="aio-diagnostic-count">
         ${catData.count}
@@ -813,7 +812,7 @@ function _createDiagnosticCard(id, cat, catData) {
       <div class="aio-diagnostic-label">
         ${escapeHtml(cat.label)}
       </div>
-      <div class="aio-diagnostic-badge" style="background: ${cat.color}20; color: ${cat.color};">
+      <div class="aio-diagnostic-badge">
         ${catData.percentage}%
       </div>
     </div>
@@ -1032,8 +1031,8 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
   let serpFeaturesPillsHTML = '';
   if (sortedFeatures.length > 0) {
     const pills = sortedFeatures.map(f => `
-      <span class="aio-serp-pill" style="background: ${f.color}18; color: ${f.color}; border: 1px solid ${f.color}30;">
-        <i class="fas ${f.icon}" style="font-size: 0.85em;"></i>
+      <span class="aio-serp-pill">
+        <i class="fas ${f.icon}"></i>
         ${escapeHtml(f.label)} <strong>${f.count}</strong>
       </span>
     `).join('');
@@ -1051,7 +1050,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
         </div>
         ${totalClicksBySerpFeatures > 0 ? `
           <p class="aio-ctr-footnote" style="margin-top: 0.6em;">
-            Est. <strong style="color: #fd7e14;">${formatNumber(totalClicksBySerpFeatures)}</strong> additional clicks absorbed by non-AIO SERP features
+            Est. <strong>${formatNumber(totalClicksBySerpFeatures)}</strong> additional clicks absorbed by non-AIO SERP features
           </p>
         ` : ''}
       </div>
@@ -1061,7 +1060,6 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
   const sectionHTML = `
     <div class="aio-ctr-section">
       <h3 class="aio-ctr-title">
-        <i class="fas fa-chart-bar" style="margin-right: 8px;"></i>
         CTR Benchmark Analysis
         <span class="ctr-tooltip-trigger" data-tooltip="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing." style="font-size: 0.55em; vertical-align: middle; margin-left: 6px; cursor: help; opacity: 0.5;">
           <i class="fas fa-question-circle"></i>
@@ -1071,30 +1069,30 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
         Keywords with AI Overview: expected vs actual CTR based on organic position
       </p>
       <div class="aio-ctr-metrics-grid">
-        <div class="aio-ctr-metric" style="background: rgba(239, 68, 68, 0.15);">
-          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Total estimated clicks lost: the full difference between expected CTR (based on organic position) and actual CTR. Includes impact from AI Overview AND other SERP features (Featured Snippets, PAA, Videos, etc.)." style="position: absolute; top: 6px; right: 8px;">
+        <div class="aio-ctr-metric">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Total estimated clicks lost: the full difference between expected CTR (based on organic position) and actual CTR. Includes impact from AI Overview AND other SERP features (Featured Snippets, PAA, Videos, etc.).">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div class="aio-ctr-metric-value" style="color: #ff6b6b;">
+          <div class="aio-ctr-metric-value">
             ${formatNumber(totalClicksAbsorbed)}
           </div>
           <div class="aio-ctr-metric-label">Est. Clicks Absorbed</div>
         </div>
-        <div class="aio-ctr-metric" style="background: rgba(253, 126, 20, 0.15);">
-          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected." style="position: absolute; top: 6px; right: 8px;">
+        <div class="aio-ctr-metric">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected.">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div class="aio-ctr-metric-value" style="color: #fd7e14;">
+          <div class="aio-ctr-metric-value">
             ${(avgCTRGap * 100).toFixed(1)}%
           </div>
           <div class="aio-ctr-metric-label">Avg CTR Gap</div>
         </div>
-        <div class="aio-ctr-metric" style="background: rgba(245, 158, 11, 0.12);">
-          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview and/or other SERP features." style="position: absolute; top: 6px; right: 8px;">
+        <div class="aio-ctr-metric">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview and/or other SERP features.">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div class="aio-ctr-metric-value" style="color: #F59E0B;">
-            ${underperformingCount}<span style="font-size: 0.5em; opacity: 0.7;">/${aioKeywords.length}</span>
+          <div class="aio-ctr-metric-value">
+            ${underperformingCount}<span class="aio-ctr-metric-sub">/${aioKeywords.length}</span>
           </div>
           <div class="aio-ctr-metric-label">Underperforming</div>
         </div>
@@ -1175,10 +1173,10 @@ function displaySummary(summary, container, keywordCount = null) {
   const summaryHTML = `
     <div class="ai-overview-summary">
       <h3 class="aio-section-title">
-        AI <span class="aio-title-accent">Overview</span> Analysis
+        <span class="aio-title-accent">AI Overview</span> Analysis
       </h3>
       <p class="aio-section-subtitle">
-        based on the <span class="aio-kw-count-highlight">${keywordCountText} most clicked keywords</span>
+        based on the ${keywordCountText} most clicked keywords
       </p>
       <div class="aio-summary-grid">
         <div class="aio-summary-card aio-summary-card--dark">

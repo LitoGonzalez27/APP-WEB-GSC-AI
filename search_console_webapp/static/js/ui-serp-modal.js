@@ -486,20 +486,11 @@ function _renderAIOPreviewTab(result) {
 
   // --- Domain status banner ---
   html += `
-    <div style="
-      margin-bottom: 1.2em; padding: 0.9em 1.1em; border-radius: 10px;
-      ${isDomainSource
-        ? 'background: rgba(40,167,69,0.08); border-left: 4px solid #28a745;'
-        : 'background: rgba(220,53,69,0.08); border-left: 4px solid #dc3545;'}
-    ">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <i class="fas fa-${isDomainSource ? 'check-circle' : 'times-circle'}" style="color: ${isDomainSource ? '#28a745' : '#dc3545'}; font-size: 1.3em;"></i>
-        <div>
-          <strong style="color: ${isDomainSource ? '#28a745' : '#dc3545'};">
-            ${isDomainSource ? `Your domain appears at position #${domainPos} in this AI Overview` : 'Your domain is NOT cited in this AI Overview'}
-          </strong>
-        </div>
-      </div>
+    <div class="saio-status-banner ${isDomainSource ? 'saio-status-banner--cited' : 'saio-status-banner--not-cited'}">
+      <i class="fas fa-${isDomainSource ? 'check-circle' : 'times-circle'}"></i>
+      <span>
+        ${isDomainSource ? `Your domain appears at position #${domainPos} in this AI Overview` : 'Your domain is NOT cited in this AI Overview'}
+      </span>
     </div>
   `;
 
@@ -509,19 +500,12 @@ function _renderAIOPreviewTab(result) {
       ? contentPreview.substring(0, 300) + '...'
       : contentPreview;
     html += `
-      <div style="margin-bottom: 1.2em;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:0.5em;font-size:0.85em;font-weight:600;color:#444;">
-          <i class="fas fa-align-left" style="color: #6f42c1;"></i>
+      <div class="saio-content-block">
+        <div class="saio-section-label">
           AI Overview Content
-          <span style="font-weight:400;color:#888;font-size:0.9em;">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
+          <span class="saio-label-meta">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
         </div>
-        <div style="
-          background:#f8f9fa;border-radius:8px;padding:0.9em 1em;
-          font-size:0.85em;line-height:1.65;color:#333;
-          border-left:3px solid #6f42c1;
-          max-height:140px;overflow-y:auto;
-        ">
-          <i class="fas fa-robot" style="color:#6f42c1;margin-right:4px;opacity:0.6;"></i>
+        <div class="saio-content-preview">
           ${escapeHtml(truncated)}
         </div>
       </div>
@@ -543,38 +527,20 @@ function _renderAIOPreviewTab(result) {
         try { displayDomain = new URL(refLink).hostname; } catch (e) { displayDomain = refLink; }
       }
 
-      const isHighlighted = cls.type !== 'other';
-      const bgColor = cls.type === 'user' ? 'rgba(40,167,69,0.08)' : (cls.type === 'competitor' ? 'rgba(253,126,20,0.08)' : 'transparent');
-      const borderColor = isHighlighted ? cls.color : '#e9ecef';
+      const typeClass = cls.type === 'user' ? 'saio-source--user' : (cls.type === 'competitor' ? 'saio-source--competitor' : '');
 
       return `
-        <div style="
-          display:flex;align-items:center;gap:8px;
-          padding:7px 10px;border-radius:8px;
-          background:${bgColor};
-          border:1px solid ${borderColor};
-          ${isHighlighted ? `box-shadow:0 0 0 1px ${cls.color}25;` : ''}
-        ">
-          <div style="
-            min-width:26px;height:26px;
-            background:${cls.color};
-            color:white;border-radius:50%;
-            display:flex;align-items:center;justify-content:center;
-            font-weight:700;font-size:0.75em;
-          ">${pos}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:0.8em;font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-              title="${escapeHtml(refTitle)}"
-            >${escapeHtml(refTitle.length > 50 ? refTitle.substring(0, 50) + '...' : refTitle)}</div>
-            <div style="font-size:0.7em;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${escapeHtml(displayDomain)}
-            </div>
+        <div class="saio-source-item ${typeClass}">
+          <div class="saio-source-pos ${cls.type === 'user' ? 'saio-source-pos--user' : (cls.type === 'competitor' ? 'saio-source-pos--competitor' : '')}">${pos}</div>
+          <div class="saio-source-info">
+            <div class="saio-source-title" title="${escapeHtml(refTitle)}">${escapeHtml(refTitle.length > 50 ? refTitle.substring(0, 50) + '...' : refTitle)}</div>
+            <div class="saio-source-domain">${escapeHtml(displayDomain)}</div>
           </div>
           ${cls.type === 'user'
-            ? `<span style="color:${cls.color};font-weight:700;font-size:0.8em;white-space:nowrap;"><i class="fas ${cls.icon}"></i> You</span>`
+            ? '<span class="saio-source-tag saio-source-tag--user">You</span>'
             : cls.type === 'competitor'
-              ? `<span style="color:${cls.color};font-weight:700;font-size:0.75em;white-space:nowrap;"><i class="fas ${cls.icon}"></i> Competitor</span>`
-              : `<span style="color:#aaa;font-size:0.8em;"><i class="fas ${cls.icon}"></i></span>`
+              ? '<span class="saio-source-tag saio-source-tag--competitor">Competitor</span>'
+              : ''
           }
         </div>
       `;
@@ -593,55 +559,42 @@ function _renderAIOPreviewTab(result) {
       }
       if (displayName.length > 18) displayName = displayName.substring(0, 16) + '...';
 
-      if (cls.type === 'user') {
-        return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:linear-gradient(135deg,#28a74520,#28a74510);border:2px solid #28a745;font-size:0.8em;font-weight:700;color:#28a745;">
-          <span style="background:#28a745;color:white;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.75em;">${i+1}</span>
-          <i class="fas fa-check-circle" style="font-size:0.85em;"></i>${escapeHtml(displayName)}
-        </div>`;
-      }
-      if (cls.type === 'competitor') {
-        return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:linear-gradient(135deg,#fd7e1420,#fd7e1410);border:2px solid #fd7e14;font-size:0.8em;font-weight:700;color:#e67e22;">
-          <span style="background:#fd7e14;color:white;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.75em;">${i+1}</span>
-          <i class="fas fa-crosshairs" style="font-size:0.85em;"></i>${escapeHtml(displayName)}
-        </div>`;
-      }
-      return `<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;background:#f1f3f5;border:1px solid #dee2e6;font-size:0.8em;color:#555;">
-        <span style="background:#6c757d;color:white;border-radius:50%;min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.75em;">${i+1}</span>
+      const slotClass = cls.type === 'user' ? 'saio-slot--user' : (cls.type === 'competitor' ? 'saio-slot--competitor' : 'saio-slot--other');
+      return `<div class="saio-slot ${slotClass}">
+        <span class="saio-slot-num">${i+1}</span>
         ${escapeHtml(displayName)}
       </div>`;
     }).join('');
 
     const extraCount = references.length - maxShow;
     const serpPosBadge = serpPosition !== 'unknown'
-      ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;background:#6f42c120;color:#6f42c1;font-size:0.7em;font-weight:600;"><i class="fas fa-map-pin"></i>AIO pos: ${escapeHtml(String(serpPosition))}</span>`
+      ? `<span class="saio-pos-badge">AIO pos: ${escapeHtml(String(serpPosition))}</span>`
       : '';
 
     html += `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1em;margin-bottom:1em;">
+      <div class="saio-sources-grid">
         <div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:0.5em;font-size:0.85em;font-weight:600;color:#444;">
-            <i class="fas fa-quote-right" style="color:#17a2b8;"></i>
-            Cited Sources <span style="font-weight:400;color:#888;font-size:0.9em;">(${references.length})</span>
+          <div class="saio-section-label">
+            Cited Sources <span class="saio-label-meta">(${references.length})</span>
           </div>
-          <div style="display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto;padding-right:4px;">
+          <div class="saio-sources-list">
             ${sourceItems}
           </div>
         </div>
         <div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:0.5em;font-size:0.85em;font-weight:600;color:#444;">
-            <i class="fas fa-list-ol" style="color:#fd7e14;"></i>
+          <div class="saio-section-label">
             Source Ranking ${serpPosBadge}
           </div>
-          <div style="background:#fafbfc;border-radius:10px;padding:10px;border:1px solid #e9ecef;">
-            <div style="display:flex;flex-direction:column;gap:4px;">
+          <div class="saio-ranking-box">
+            <div class="saio-ranking-slots">
               ${slotsHTML}
             </div>
-            ${extraCount > 0 ? `<div style="text-align:center;color:#888;font-size:0.72em;margin-top:5px;">+${extraCount} more</div>` : ''}
+            ${extraCount > 0 ? `<div class="saio-ranking-more">+${extraCount} more</div>` : ''}
           </div>
-          <div style="display:flex;gap:10px;margin-top:8px;justify-content:center;">
-            <span style="font-size:0.7em;color:#28a745;"><i class="fas fa-circle" style="font-size:0.6em;"></i> You</span>
-            <span style="font-size:0.7em;color:#fd7e14;"><i class="fas fa-circle" style="font-size:0.6em;"></i> Competitor</span>
-            <span style="font-size:0.7em;color:#6c757d;"><i class="fas fa-circle" style="font-size:0.6em;"></i> Other</span>
+          <div class="saio-legend">
+            <span class="saio-legend-item saio-legend-item--user"><i class="fas fa-circle"></i> You</span>
+            <span class="saio-legend-item saio-legend-item--competitor"><i class="fas fa-circle"></i> Competitor</span>
+            <span class="saio-legend-item saio-legend-item--other"><i class="fas fa-circle"></i> Other</span>
           </div>
         </div>
       </div>
@@ -651,30 +604,21 @@ function _renderAIOPreviewTab(result) {
   // --- Rich Snippets detected ---
   if (aiElements.length > 0) {
     const elementsHTML = aiElements.map((el, i) => {
-      const isAIO = el.type?.toLowerCase().includes('ai overview');
       return `
-        <div style="
-          display:flex;align-items:center;gap:8px;
-          padding:6px 10px;border-radius:6px;
-          background:${isAIO ? 'rgba(220,53,69,0.06)' : 'rgba(255,193,7,0.06)'};
-          border-left:3px solid ${isAIO ? '#dc3545' : '#ffc107'};
-        ">
-          <span style="font-size:0.75em;font-weight:700;color:${isAIO ? '#dc3545' : '#e67e22'};min-width:18px;">
-            ${el.position != null ? el.position : i + 1}
-          </span>
-          <span style="font-size:0.82em;color:#333;font-weight:500;">${escapeHtml(el.type || 'Unknown')}</span>
-          ${el.sources_count ? `<span style="font-size:0.7em;color:#888;margin-left:auto;">${el.sources_count} sources</span>` : ''}
+        <div class="saio-snippet-item">
+          <span class="saio-snippet-pos">${el.position != null ? el.position : i + 1}</span>
+          <span class="saio-snippet-type">${escapeHtml(el.type || 'Unknown')}</span>
+          ${el.sources_count ? `<span class="saio-snippet-meta">${el.sources_count} sources</span>` : ''}
         </div>
       `;
     }).join('');
 
     html += `
-      <div style="padding-top:0.8em;border-top:1px solid #dee2e6;">
-        <div style="font-size:0.85em;font-weight:600;color:#444;margin-bottom:0.5em;">
-          <i class="fas fa-layer-group" style="margin-right:4px;color:#6f42c1;"></i>
+      <div class="saio-snippets-section">
+        <div class="saio-section-label">
           Detected Rich Snippets (${aiElements.length})
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;">
+        <div class="saio-snippets-list">
           ${elementsHTML}
         </div>
       </div>
@@ -683,20 +627,9 @@ function _renderAIOPreviewTab(result) {
 
   // Wrap everything
   container.innerHTML = `
-    <div style="
-      padding:1.2em;
-      background:white;
-      border-radius:12px;
-      border:1px solid #e0e4e8;
-      box-shadow:0 2px 8px rgba(0,0,0,0.04);
-    ">
-      <h5 style="margin-bottom:1em;color:#333;font-size:1.05em;display:flex;align-items:center;gap:8px;">
-        <span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);">
-          <i class="fas fa-eye" style="color:white;font-size:0.8em;"></i>
-        </span>
-        What Google Shows in AI Overview
-      </h5>
-      ${html || '<p style="color:#888;text-align:center;">No AI Overview data available for this keyword.</p>'}
+    <div class="saio-wrapper">
+      <h5 class="saio-header">What Google Shows in AI Overview</h5>
+      ${html || '<p class="saio-empty">No AI Overview data available for this keyword.</p>'}
     </div>
   `;
 
