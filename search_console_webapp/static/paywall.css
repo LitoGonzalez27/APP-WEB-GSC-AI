@@ -1,17 +1,75 @@
 /* ================================
-   PAYWALL STYLES - Manual AI System Compatible
+   PAYWALL STYLES — ClicanDSEO Brandbook
+   ================================
+   Tokens:
+     Dark   #0A0A0B (backgrounds, text on light)
+     Light  #FAFAFA (content bg)
+     Lime   #d9f9b8 (ONLY on dark bg)
+     Navy   #0F172A (headings, hover on light bg)
+     Font   'Inter Tight', system-ui, sans-serif
+     Serif  'Libre Baskerville', Georgia, serif (italic accent words)
+   Rules:
+     - NO gradients
+     - NO green/lime on white/light backgrounds
+     - Flat, solid colors only
    ================================ */
 
-/* Reutilizar variables CSS de Manual AI para consistencia total */
+/* ================================
+   CSS VARIABLES
+   ================================ */
 :root {
-  /* Usar mismas variables que manual-ai.css */
-  --paywall-primary: #161616;
-  --paywall-primary-light: #2d2d2d;
-  --paywall-secondary: #D8F9B8;
-  --paywall-accent: #4F46E5;
-  --paywall-accent-light: #6366F1;
-  
-  /* Grises (igual que Manual AI) */
+  /* Brandbook core */
+  --pw-dark: #0A0A0B;
+  --pw-dark-light: #1a1a1b;
+  --pw-lime: #d9f9b8;
+  --pw-navy: #0F172A;
+  --pw-white: #ffffff;
+  --pw-light: #FAFAFA;
+
+  /* Grays */
+  --pw-gray-50: #f9fafb;
+  --pw-gray-100: #f3f4f6;
+  --pw-gray-200: #e5e7eb;
+  --pw-gray-300: #d1d5db;
+  --pw-gray-400: #9ca3af;
+  --pw-gray-500: #6b7280;
+  --pw-gray-600: #4b5563;
+  --pw-gray-700: #374151;
+  --pw-gray-800: #1f2937;
+  --pw-gray-900: #111827;
+
+  /* Semantic */
+  --pw-error: #ef4444;
+  --pw-error-soft: #fef2f2;
+  --pw-warning: #f59e0b;
+
+  /* Typography */
+  --pw-font-sans: 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --pw-font-serif: 'Libre Baskerville', Georgia, serif;
+
+  /* Spacing */
+  --pw-space-xs: 0.25rem;
+  --pw-space-sm: 0.5rem;
+  --pw-space-md: 1rem;
+  --pw-space-lg: 1.5rem;
+  --pw-space-xl: 2rem;
+  --pw-space-2xl: 3rem;
+
+  /* Radii */
+  --pw-radius: 8px;
+  --pw-radius-lg: 12px;
+  --pw-radius-full: 9999px;
+
+  /* Shadows */
+  --pw-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --pw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --pw-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --pw-shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* Legacy aliases (keep for existing billing page etc.) */
+  --paywall-primary: #0A0A0B;
+  --paywall-primary-light: #1a1a1b;
+  --paywall-secondary: #d9f9b8;
   --paywall-gray-50: #f9fafb;
   --paywall-gray-100: #f3f4f6;
   --paywall-gray-200: #e5e7eb;
@@ -22,34 +80,25 @@
   --paywall-gray-700: #374151;
   --paywall-gray-800: #1f2937;
   --paywall-gray-900: #111827;
-  
-  /* Estados */
   --paywall-success: #10b981;
-  --paywall-warning: #f59e0b;
   --paywall-error: #ef4444;
-  --paywall-info: #3b82f6;
-  
-  /* Espaciado (igual que Manual AI) */
+  --paywall-border-radius: 8px;
+  --paywall-border-radius-lg: 12px;
+  --paywall-border-width: 1px;
   --paywall-spacing-xs: 0.25rem;
   --paywall-spacing-sm: 0.5rem;
   --paywall-spacing-md: 1rem;
   --paywall-spacing-lg: 1.5rem;
   --paywall-spacing-xl: 2rem;
   --paywall-spacing-2xl: 3rem;
-  
-  /* Bordes */
-  --paywall-border-radius: 8px;
-  --paywall-border-radius-lg: 12px;
-  --paywall-border-width: 1px;
-  
-  /* Sombras (igual que Manual AI) */
   --paywall-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --paywall-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --paywall-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
+
 /* ================================
-   MODAL OVERLAY (igual que Manual AI)
+   MODAL OVERLAY
    ================================ */
 
 .paywall-modal,
@@ -59,389 +108,957 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(10, 10, 11, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: var(--paywall-spacing-md);
+  padding: var(--pw-space-md);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .paywall-content {
-  background: white;
-  border-radius: var(--paywall-border-radius-lg);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: var(--pw-white);
+  border-radius: var(--pw-radius-lg);
+  box-shadow: var(--pw-shadow-xl);
   width: 100%;
-  max-width: 600px;
+  max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalFadeIn 0.3s ease-out;
+  animation: pwSlideIn 0.25s ease-out;
+  position: relative;
 }
 
-@keyframes modalFadeIn {
+/* Brandbook scoped override */
+.paywall-content.pw-brandbook {
+  font-family: var(--pw-font-sans);
+  color: var(--pw-navy);
+}
+
+@keyframes pwSlideIn {
   from {
     opacity: 0;
-    transform: scale(0.95) translateY(-10px);
+    transform: translateY(-12px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
+
 /* ================================
-   CONTENT SECTIONS
+   CLOSE BUTTON
    ================================ */
 
-.paywall-header {
-  padding: var(--paywall-spacing-lg);
-  border-bottom: var(--paywall-border-width) solid var(--paywall-gray-200);
+.pw-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--pw-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.pw-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--pw-white);
+}
+
+
+/* ================================
+   DARK HEADER (Bio-lime allowed here)
+   ================================ */
+
+.pw-header-dark {
+  background: var(--pw-dark);
+  padding: var(--pw-space-xl) var(--pw-space-xl) var(--pw-space-lg);
   text-align: center;
+  border-radius: var(--pw-radius-lg) var(--pw-radius-lg) 0 0;
 }
 
-.paywall-header h3 {
-  margin: 0 0 var(--paywall-spacing-sm) 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--paywall-gray-900);
+.pw-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--pw-radius-full);
+  background: rgba(217, 249, 184, 0.12);
+  border: 1px solid rgba(217, 249, 184, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--pw-space-md);
 }
 
-.paywall-header p {
-  margin: 0;
-  color: var(--paywall-gray-600);
+.pw-header-icon i {
   font-size: 1.1rem;
+  color: var(--pw-lime);
 }
 
-.paywall-body {
-  padding: var(--paywall-spacing-lg);
+.pw-header-dark h3 {
+  margin: 0 0 var(--pw-space-sm) 0;
+  font-family: var(--pw-font-sans);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--pw-white);
+  letter-spacing: -0.02em;
 }
 
-.paywall-footer {
-  padding: var(--paywall-spacing-lg);
-  border-top: var(--paywall-border-width) solid var(--paywall-gray-200);
-  text-align: center;
+.pw-header-dark h3 em {
+  font-family: var(--pw-font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--pw-lime);
 }
+
+.pw-header-dark p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
 
 /* ================================
-   UPGRADE OPTIONS (Plan Cards)
+   BODY
    ================================ */
 
-.upgrade-options { display: none; }
-
-/* Nueva disposición: dos columnas arriba (basic/premium), una abajo (business) */
-.upgrade-options-two {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--paywall-spacing-md);
-  margin: var(--paywall-spacing-lg) 0;
+.pw-body {
+  padding: var(--pw-space-xl);
 }
 
-.upgrade-options-single {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--paywall-spacing-md);
+
+/* ================================
+   QUOTA STATUS CARD
+   ================================ */
+
+.pw-quota-card {
+  background: var(--pw-gray-50);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius);
+  padding: var(--pw-space-lg);
+  margin-bottom: var(--pw-space-xl);
 }
 
-.plan-card {
-  flex: 1;
-  padding: var(--paywall-spacing-lg);
-  border: 2px solid var(--paywall-gray-200);
-  border-radius: var(--paywall-border-radius-lg);
+.pw-quota-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--pw-space-sm);
+  font-size: 0.85rem;
+  color: var(--pw-gray-600);
+  font-weight: 500;
+}
+
+.pw-quota-numbers {
+  font-weight: 700;
+  color: var(--pw-navy);
+  font-size: 0.9rem;
+}
+
+.pw-quota-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--pw-gray-200);
+  border-radius: var(--pw-radius-full);
+  overflow: hidden;
+}
+
+.pw-quota-fill {
+  height: 100%;
+  background: var(--pw-error);
+  border-radius: var(--pw-radius-full);
+  transition: width 0.6s ease-out;
+}
+
+.pw-quota-reset {
+  margin: var(--pw-space-sm) 0 0 0;
+  font-size: 0.8rem;
+  color: var(--pw-gray-500);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pw-quota-reset i {
+  font-size: 0.7rem;
+}
+
+
+/* ================================
+   BENEFITS LIST
+   ================================ */
+
+.pw-benefits {
+  margin-bottom: var(--pw-space-xl);
+}
+
+.pw-benefits h4 {
+  margin: 0 0 var(--pw-space-md) 0;
+  font-family: var(--pw-font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--pw-navy);
+  letter-spacing: -0.01em;
+}
+
+.pw-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-sm);
+}
+
+.pw-benefits-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pw-space-sm);
+  padding: var(--pw-space-sm) 0;
+}
+
+.pw-benefits-list li i {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: var(--pw-radius);
+  background: var(--pw-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--pw-navy);
+  margin-top: 1px;
+}
+
+.pw-benefits-list li div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pw-benefits-list li strong {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--pw-navy);
+}
+
+.pw-benefits-list li span {
+  font-size: 0.8rem;
+  color: var(--pw-gray-500);
+  font-weight: 400;
+}
+
+
+/* ================================
+   UPGRADE CARD (Quota Exceeded — single plan CTA)
+   ================================ */
+
+.pw-upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: var(--pw-space-md);
+  padding: var(--pw-space-lg);
+  background: var(--pw-dark);
+  border-radius: var(--pw-radius-lg);
   text-decoration: none;
-  color: var(--paywall-gray-700);
-  transition: all 0.3s ease;
+  color: var(--pw-white);
+  position: relative;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.pw-upgrade-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(10, 10, 11, 0.3);
+  text-decoration: none;
+  color: var(--pw-white);
+}
+
+.pw-upgrade-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--pw-lime);
+  color: var(--pw-dark);
+  padding: 3px 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 0 var(--pw-radius-lg) 0 var(--pw-radius);
+}
+
+.pw-upgrade-info {
+  flex: 1;
+}
+
+.pw-upgrade-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pw-white);
+}
+
+.pw-upgrade-price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.pw-upgrade-price .pw-price-amount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--pw-lime);
+}
+
+.pw-upgrade-price .pw-price-period {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+}
+
+.pw-upgrade-quota {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.pw-upgrade-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--pw-lime);
+  color: var(--pw-dark);
+  border-radius: var(--pw-radius);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.pw-upgrade-card:hover .pw-upgrade-cta {
+  transform: translateX(2px);
+}
+
+
+/* ================================
+   PLANS GRID (Feature Paywall — multiple plans)
+   ================================ */
+
+.pw-plans-grid {
+  display: grid;
+  gap: var(--pw-space-md);
+  margin-bottom: var(--pw-space-lg);
+}
+
+.pw-plans-grid--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.pw-plans-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.pw-plan-card {
+  padding: var(--pw-space-lg);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius-lg);
+  text-decoration: none;
+  color: var(--pw-navy);
+  transition: all 0.2s ease;
   text-align: center;
   position: relative;
-  background: white;
+  background: var(--pw-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.plan-card:hover {
-  border-color: var(--paywall-primary);
+.pw-plan-card:hover {
+  border-color: var(--pw-navy);
   transform: translateY(-2px);
-  box-shadow: var(--paywall-shadow-lg);
+  box-shadow: var(--pw-shadow-lg);
   text-decoration: none;
-  color: var(--paywall-gray-700);
+  color: var(--pw-navy);
 }
 
-.plan-card h4 {
-  margin: 0 0 var(--paywall-spacing-sm) 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--paywall-primary);
+.pw-plan-card--highlight {
+  border-color: var(--pw-dark);
+  border-width: 2px;
 }
 
-.plan-card .plan-price {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--paywall-primary);
-  margin: var(--paywall-spacing-sm) 0;
-}
-
-.plan-card .plan-features {
-  font-size: 0.95rem;
-  color: var(--paywall-gray-600);
-  margin: var(--paywall-spacing-sm) 0;
-}
-
-.plan-card .plan-badge {
+.pw-plan-badge {
   position: absolute;
-  top: -8px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--paywall-success);
-  color: white;
-  padding: var(--paywall-spacing-xs) var(--paywall-spacing-sm);
-  border-radius: var(--paywall-border-radius);
-  font-size: 0.75rem;
+  background: var(--pw-dark);
+  color: var(--pw-lime);
+  padding: 3px 12px;
+  border-radius: var(--pw-radius-full);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.pw-plan-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pw-radius-full);
+  background: var(--pw-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--pw-space-sm);
+}
+
+.pw-plan-icon i {
+  font-size: 0.85rem;
+  color: var(--pw-navy);
+}
+
+.pw-plan-card--highlight .pw-plan-icon {
+  background: var(--pw-dark);
+}
+
+.pw-plan-card--highlight .pw-plan-icon i {
+  color: var(--pw-lime);
+}
+
+.pw-plan-card h4 {
+  margin: 0 0 var(--pw-space-xs) 0;
+  font-family: var(--pw-font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pw-navy);
+}
+
+.pw-plan-price {
+  margin-bottom: var(--pw-space-xs);
+}
+
+.pw-plan-price .pw-price-amount {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--pw-navy);
+}
+
+.pw-plan-price .pw-price-period {
+  font-size: 0.8rem;
+  color: var(--pw-gray-500);
+  font-weight: 400;
+}
+
+.pw-plan-quota {
+  font-size: 0.82rem;
+  color: var(--pw-gray-500);
+  margin-bottom: var(--pw-space-xs);
+}
+
+.pw-plan-desc {
+  font-size: 0.8rem;
+  color: var(--pw-gray-400);
+  line-height: 1.4;
+  margin-bottom: var(--pw-space-md);
+}
+
+.pw-plan-cta {
+  width: 100%;
+  background: var(--pw-dark);
+  color: var(--pw-lime);
+  padding: 10px var(--pw-space-md);
+  border-radius: var(--pw-radius);
+  font-size: 0.82rem;
   font-weight: 600;
-  text-transform: uppercase;
+  text-align: center;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: auto;
 }
 
-/* ✅ TÍTULO PREMIUM CON SUBRAYADO VERDE */
-.paywall-title-premium {
-  display: inline-block;
-  background: linear-gradient(to top, #D8F9B8 40%, transparent 40%);
+.pw-plan-cta i {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.pw-plan-card:hover .pw-plan-cta {
+  background: var(--pw-dark-light);
+}
+
+.pw-plan-card:hover .pw-plan-cta i {
+  transform: translateX(2px);
+}
+
+
+/* ================================
+   INFO BOX
+   ================================ */
+
+.pw-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pw-space-sm);
+  background: var(--pw-gray-50);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius);
+  padding: var(--pw-space-md);
+  margin-bottom: var(--pw-space-md);
+}
+
+.pw-info-box > i {
+  color: var(--pw-gray-400);
+  font-size: 0.85rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.pw-info-box p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--pw-gray-600);
+  line-height: 1.5;
+}
+
+.pw-info-box strong {
+  color: var(--pw-navy);
+}
+
+
+/* ================================
+   FOOTER
+   ================================ */
+
+.pw-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pw-space-md);
+  padding: var(--pw-space-lg) var(--pw-space-xl);
+  border-top: 1px solid var(--pw-gray-200);
+}
+
+.pw-btn-ghost {
+  background: none;
+  border: none;
+  color: var(--pw-gray-500);
+  font-family: var(--pw-font-sans);
+  font-size: 0.85rem;
   font-weight: 500;
-  padding: 2px 4px;
-  color: var(--paywall-gray-800);
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: var(--pw-radius);
+  transition: all 0.2s ease;
 }
 
-/* ✅ BOTÓN VIEW PLANS PARA AI OVERVIEW (estilo CTA Manual AI) */
+.pw-btn-ghost:hover {
+  color: var(--pw-navy);
+  background: var(--pw-gray-100);
+}
+
+.pw-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--pw-gray-300);
+  border-radius: var(--pw-radius);
+  background: var(--pw-white);
+  color: var(--pw-navy);
+  font-family: var(--pw-font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pw-btn-outline:hover {
+  border-color: var(--pw-navy);
+  background: var(--pw-gray-50);
+  text-decoration: none;
+  color: var(--pw-navy);
+}
+
+.pw-btn-outline i {
+  font-size: 0.75rem;
+}
+
+.pw-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--pw-dark);
+  color: var(--pw-lime);
+  border-radius: var(--pw-radius);
+  font-family: var(--pw-font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.pw-btn-primary:hover {
+  background: var(--pw-dark-light);
+  transform: translateY(-1px);
+  box-shadow: var(--pw-shadow);
+  text-decoration: none;
+  color: var(--pw-lime);
+}
+
+.pw-btn-primary i {
+  font-size: 0.72rem;
+}
+
+
+/* ================================
+   VIEW PLANS BUTTON (AI Overview trigger)
+   ================================ */
+
 .btn-view-plans-ai {
-  background: #161616;
-  color: #D8F9B8;
+  background: var(--pw-dark);
+  color: var(--pw-lime);
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 500;
+  border-radius: var(--pw-radius);
+  font-family: var(--pw-font-sans);
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .btn-view-plans-ai:hover {
-  background: #D8F9B8;
-  color: #161616;
+  background: var(--pw-dark-light);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(10, 10, 11, 0.2);
   text-decoration: none;
+  color: var(--pw-lime);
 }
 
-/* ✅ NUEVOS ESTILOS PARA PAYWALL MEJORADO */
+
+/* ================================
+   LEGACY CLASSES (keep for existing billing page + old selectors)
+   ================================ */
+
+/* Old paywall header/body/footer — only used if pw-brandbook is NOT present */
+.paywall-header {
+  padding: var(--pw-space-lg);
+  border-bottom: 1px solid var(--pw-gray-200);
+  text-align: center;
+}
+
+.paywall-header h3 {
+  margin: 0 0 var(--pw-space-sm) 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--pw-gray-900);
+}
+
+.paywall-header p {
+  margin: 0;
+  color: var(--pw-gray-600);
+  font-size: 1.1rem;
+}
+
+.paywall-body {
+  padding: var(--pw-space-lg);
+}
+
+.paywall-footer {
+  padding: var(--pw-space-lg);
+  border-top: 1px solid var(--pw-gray-200);
+  text-align: center;
+}
+
+.paywall-title-premium {
+  display: inline-block;
+  font-weight: 500;
+  padding: 2px 4px;
+  color: var(--pw-gray-800);
+  border-bottom: 3px solid var(--pw-dark);
+}
+
+/* Legacy plan cards — keep for any non-brandbook usage */
+.upgrade-options { display: none; }
+.upgrade-options-two {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--pw-space-md);
+  margin: var(--pw-space-lg) 0;
+}
+.upgrade-options-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--pw-space-md);
+}
+.plan-card {
+  flex: 1;
+  padding: var(--pw-space-lg);
+  border: 2px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius-lg);
+  text-decoration: none;
+  color: var(--pw-gray-700);
+  transition: all 0.3s ease;
+  text-align: center;
+  position: relative;
+  background: white;
+}
+.plan-card:hover {
+  border-color: var(--pw-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--pw-shadow-lg);
+  text-decoration: none;
+  color: var(--pw-gray-700);
+}
+.plan-card h4 {
+  margin: 0 0 var(--pw-space-sm) 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--pw-dark);
+}
+.plan-card .plan-price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--pw-dark);
+  margin: var(--pw-space-sm) 0;
+}
+.plan-card .plan-features {
+  font-size: 0.95rem;
+  color: var(--pw-gray-600);
+  margin: var(--pw-space-sm) 0;
+}
+.plan-card .plan-badge {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--pw-dark);
+  color: var(--pw-lime);
+  padding: var(--pw-space-xs) var(--pw-space-sm);
+  border-radius: var(--pw-radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
 .plan-card.premium-highlight {
-  border-color: var(--paywall-primary);
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-color: var(--pw-dark);
+  background: var(--pw-gray-50);
   transform: scale(1.02);
-  box-shadow: var(--paywall-shadow-lg);
+  box-shadow: var(--pw-shadow-lg);
 }
-
 .plan-card.premium-highlight:hover {
   transform: scale(1.02) translateY(-3px);
   box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
 }
-
 .plan-card .plan-description {
   font-size: 0.9rem;
-  color: var(--paywall-gray-500);
-  margin: var(--paywall-spacing-sm) 0;
+  color: var(--pw-gray-500);
+  margin: var(--pw-space-sm) 0;
   line-height: 1.4;
 }
-
 .plan-card .plan-cta {
-  background: var(--paywall-primary);
-  color: var(--paywall-secondary);
-  padding: var(--paywall-spacing-sm) var(--paywall-spacing-md);
-  border-radius: var(--paywall-border-radius);
+  background: var(--pw-dark);
+  color: var(--pw-lime);
+  padding: var(--pw-space-sm) var(--pw-space-md);
+  border-radius: var(--pw-radius);
   font-weight: 600;
-  margin-top: var(--paywall-spacing-md);
+  margin-top: var(--pw-space-md);
   transition: all 0.2s ease;
   display: inline-block;
   width: 100%;
   text-align: center;
 }
-
 .plan-card:hover .plan-cta {
-  background: var(--paywall-primary-light);
+  background: var(--pw-dark-light);
   transform: translateY(-1px);
 }
 
-/* Feature Benefits Section */
+/* Feature Benefits — legacy */
 .feature-benefits {
-  margin: var(--paywall-spacing-lg) 0;
-  padding: var(--paywall-spacing-md);
-  background: var(--paywall-gray-50);
-  border-radius: var(--paywall-border-radius);
+  margin: var(--pw-space-lg) 0;
+  padding: var(--pw-space-md);
+  background: var(--pw-gray-50);
+  border-radius: var(--pw-radius);
 }
-
 .feature-benefits h4 {
-  margin: 0 0 var(--paywall-spacing-md) 0;
-  color: var(--paywall-gray-900);
+  margin: 0 0 var(--pw-space-md) 0;
+  color: var(--pw-gray-900);
   font-size: 1.1rem;
   font-weight: 600;
 }
-
 .feature-benefits ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .feature-benefits li {
-  padding: var(--paywall-spacing-xs) 0;
-  color: var(--paywall-gray-700);
+  padding: var(--pw-space-xs) 0;
+  color: var(--pw-gray-700);
   line-height: 1.5;
   font-size: 0.95rem;
   position: relative;
   padding-left: 1.5rem;
 }
-
-/* ✅ NUEVO: Viñetas visuales para la lista */
 .feature-benefits li::before {
-  content: "✓";
+  content: "\f00c"; /* fa-check */
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
   position: absolute;
   left: 0;
-  top: var(--paywall-spacing-xs);
-  color: #10b981;
-  font-weight: bold;
-  font-size: 1rem;
+  top: var(--pw-space-xs);
+  color: var(--pw-navy);
+  font-size: 0.75rem;
 }
 
-/* Paywall Info Section */
+/* Paywall Info */
 .paywall-info {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: var(--paywall-border-radius);
-  padding: var(--paywall-spacing-md);
-  margin: var(--paywall-spacing-lg) 0;
+  background: var(--pw-gray-50);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius);
+  padding: var(--pw-space-md);
+  margin: var(--pw-space-lg) 0;
   font-size: 0.9rem;
-  color: var(--paywall-gray-700);
+  color: var(--pw-gray-700);
   line-height: 1.5;
 }
 
-/* Quota Status (para quota exceeded) */
+/* Legacy quota styles — kept for non-brandbook fallback */
 .quota-status {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: var(--paywall-border-radius);
-  padding: var(--paywall-spacing-lg);
-  margin: var(--paywall-spacing-lg) 0;
+  background: var(--pw-gray-50);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius);
+  padding: var(--pw-space-lg);
+  margin: var(--pw-space-lg) 0;
   text-align: center;
 }
-
 .quota-bar {
   width: 100%;
-  height: 12px;
-  background: #fee2e2;
-  border-radius: 6px;
+  height: 8px;
+  background: var(--pw-gray-200);
+  border-radius: var(--pw-radius-full);
   overflow: hidden;
-  margin: var(--paywall-spacing-md) 0;
+  margin: var(--pw-space-md) 0;
 }
-
 .quota-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
-  border-radius: 6px;
+  background: var(--pw-error);
+  border-radius: var(--pw-radius-full);
   transition: width 0.3s ease;
 }
-
 .quota-text {
   font-weight: 600;
-  color: #dc2626;
-  margin: var(--paywall-spacing-sm) 0;
+  color: var(--pw-navy);
+  margin: var(--pw-space-sm) 0;
 }
-
 .quota-explanation {
-  margin: var(--paywall-spacing-xl) 0;
+  margin: var(--pw-space-xl) 0;
 }
-
 .quota-explanation h4 {
-  margin: 0 0 var(--paywall-spacing-md) 0;
-  color: var(--paywall-gray-900);
+  margin: 0 0 var(--pw-space-md) 0;
+  color: var(--pw-gray-900);
   font-size: 1.1rem;
   font-weight: 600;
 }
-
 .quota-explanation ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .quota-explanation li {
-  padding: var(--paywall-spacing-xs) 0;
-  color: var(--paywall-gray-700);
+  padding: var(--pw-space-xs) 0;
+  color: var(--pw-gray-700);
   line-height: 1.4;
   font-size: 0.95rem;
 }
 
+
 /* ================================
-   BUTTONS (igual que Manual AI)
+   BUTTONS — Legacy (btn-primary, btn-secondary)
    ================================ */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--paywall-spacing-xs);
-  padding: var(--paywall-spacing-sm) var(--paywall-spacing-md);
-  border-radius: var(--paywall-border-radius);
+  gap: var(--pw-space-xs);
+  padding: var(--pw-space-sm) var(--pw-space-md);
+  border-radius: var(--pw-radius);
   text-decoration: none;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
   border: none;
   line-height: 1.2;
 }
 
 .btn-primary {
-  background: var(--paywall-primary);
-  color: var(--paywall-secondary);
+  background: var(--pw-dark);
+  color: var(--pw-lime);
   border: none;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: var(--pw-radius);
 }
 
 .btn-primary:hover {
-  background: var(--paywall-secondary);
-  color: var(--paywall-primary);
+  background: var(--pw-dark-light);
+  color: var(--pw-lime);
   transform: translateY(-1px);
-  box-shadow: var(--paywall-shadow);
+  box-shadow: var(--pw-shadow);
   text-decoration: none;
 }
 
 .btn-secondary {
   background: white;
-  color: var(--paywall-gray-700);
-  border: var(--paywall-border-width) solid var(--paywall-gray-300);
-  border-radius: 8px;
+  color: var(--pw-gray-700);
+  border: 1px solid var(--pw-gray-300);
+  border-radius: var(--pw-radius);
 }
 
-/* Secundario estilo dashboard (coincide visualmente con /dashboard .btn-secondary) */
+.btn-secondary:hover {
+  background: var(--pw-gray-50);
+  border-color: var(--pw-navy);
+  color: var(--pw-navy);
+  text-decoration: none;
+}
+
 .btn-secondary-dashboard {
-  background: var(--paywall-gray-700);
+  background: var(--pw-gray-700);
   color: #ffffff;
-  border: 1px solid var(--paywall-gray-700);
+  border: 1px solid var(--pw-gray-700);
 }
 
 .btn-secondary-dashboard:hover {
   filter: brightness(1.05);
 }
 
-.btn-secondary:hover {
-  background: var(--paywall-gray-50);
-  border-color: var(--paywall-gray-400);
-  color: var(--paywall-primary);
-  text-decoration: none;
-}
-
 .btn-sm {
-  padding: var(--paywall-spacing-xs) var(--paywall-spacing-sm);
+  padding: var(--pw-space-xs) var(--pw-space-sm);
   font-size: 0.875rem;
 }
+
 
 /* ================================
    BILLING PAGE STYLES
@@ -450,91 +1067,145 @@
 .billing-page {
   max-width: 800px;
   margin: 0 auto;
-  padding: var(--paywall-spacing-xl);
-  font-family: system-ui, -apple-system, sans-serif;
+  padding: var(--pw-space-xl);
+  font-family: var(--pw-font-sans);
 }
 
 .billing-page h1 {
-  color: var(--paywall-gray-900);
-  margin-bottom: var(--paywall-spacing-xl);
+  color: var(--pw-gray-900);
+  margin-bottom: var(--pw-space-xl);
   font-size: 2rem;
   font-weight: 600;
 }
 
 .current-plan {
-  background: var(--paywall-gray-50);
-  border: var(--paywall-border-width) solid var(--paywall-gray-200);
-  border-radius: var(--paywall-border-radius-lg);
-  padding: var(--paywall-spacing-xl);
-  margin-bottom: var(--paywall-spacing-xl);
+  background: var(--pw-gray-50);
+  border: 1px solid var(--pw-gray-200);
+  border-radius: var(--pw-radius-lg);
+  padding: var(--pw-space-xl);
+  margin-bottom: var(--pw-space-xl);
 }
 
 .current-plan h2 {
-  margin: 0 0 var(--paywall-spacing-lg) 0;
-  color: var(--paywall-gray-900);
+  margin: 0 0 var(--pw-space-lg) 0;
+  color: var(--pw-gray-900);
   font-size: 1.5rem;
   font-weight: 600;
 }
 
 .quota-usage {
-  margin-top: var(--paywall-spacing-lg);
+  margin-top: var(--pw-space-lg);
 }
 
 .quota-usage label {
   display: block;
-  margin-bottom: var(--paywall-spacing-sm);
-  color: var(--paywall-gray-700);
+  margin-bottom: var(--pw-space-sm);
+  color: var(--pw-gray-700);
   font-weight: 500;
 }
 
 .quota-usage progress {
   width: 100%;
   height: 20px;
-  border-radius: var(--paywall-border-radius);
-  margin-bottom: var(--paywall-spacing-sm);
+  border-radius: var(--pw-radius);
+  margin-bottom: var(--pw-space-sm);
 }
 
 .quota-usage progress::-webkit-progress-bar {
-  background-color: var(--paywall-gray-200);
-  border-radius: var(--paywall-border-radius);
+  background-color: var(--pw-gray-200);
+  border-radius: var(--pw-radius);
 }
 
 .quota-usage progress::-webkit-progress-value {
-  background-color: var(--paywall-primary);
-  border-radius: var(--paywall-border-radius);
+  background-color: var(--pw-dark);
+  border-radius: var(--pw-radius);
 }
 
 .quota-warning {
-  color: var(--paywall-error);
+  color: var(--pw-error);
   font-weight: 500;
-  margin-top: var(--paywall-spacing-sm);
+  margin-top: var(--pw-space-sm);
 }
 
 .billing-actions {
   display: flex;
-  gap: var(--paywall-spacing-md);
-  margin-bottom: var(--paywall-spacing-xl);
+  gap: var(--pw-space-md);
+  margin-bottom: var(--pw-space-xl);
 }
 
+
 /* ================================
-   RESPONSIVE DESIGN
+   RESPONSIVE
    ================================ */
 
 @media (max-width: 768px) {
   .paywall-content {
-    margin: var(--paywall-spacing-md);
+    margin: var(--pw-space-md);
     max-width: none;
   }
-  
+
+  .pw-body {
+    padding: var(--pw-space-lg);
+  }
+
+  .pw-header-dark {
+    padding: var(--pw-space-lg) var(--pw-space-lg) var(--pw-space-md);
+  }
+
+  .pw-plans-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  .pw-upgrade-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .pw-upgrade-cta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pw-footer {
+    flex-direction: column;
+    gap: var(--pw-space-sm);
+  }
+
   .upgrade-options {
     flex-direction: column;
   }
-  
+
+  .upgrade-options-two {
+    grid-template-columns: 1fr;
+  }
+
   .billing-actions {
     flex-direction: column;
   }
-  
+
   .billing-page {
-    padding: var(--paywall-spacing-md);
+    padding: var(--pw-space-md);
   }
+}
+
+
+/* ================================
+   SCROLLBAR (subtle, brandbook-consistent)
+   ================================ */
+
+.paywall-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.paywall-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.paywall-content::-webkit-scrollbar-thumb {
+  background: var(--pw-gray-300);
+  border-radius: var(--pw-radius-full);
+}
+
+.paywall-content::-webkit-scrollbar-thumb:hover {
+  background: var(--pw-gray-400);
 }
