@@ -2401,14 +2401,12 @@ def analyze_ai_overview_route():
         
         # 🆕 MODIFICADO: Optimizar workers basado en cantidad solicitada
         num_keywords = len(keywords_to_process_list)
-        if num_keywords <= 25:
+        if num_keywords <= 15:
             max_workers = 2  # Análisis pequeño
-        elif num_keywords <= 75:
-            max_workers = 3  # Análisis medio
-        elif num_keywords <= 125:
-            max_workers = 4  # Análisis grande
+        elif num_keywords <= 30:
+            max_workers = 4  # Análisis medio
         else:
-            max_workers = 5  # Análisis muy grande (máximo para evitar rate limiting)
+            max_workers = 5  # Análisis grande (máximo para evitar rate limiting)
             
         logger.info(f"🚀 Iniciando análisis paralelo de {num_keywords} keywords con {max_workers} workers")
         

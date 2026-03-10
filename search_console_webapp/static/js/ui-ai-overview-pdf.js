@@ -1,18 +1,135 @@
 // static/js/ui-ai-overview-pdf.js
 // Módulo para generar PDF del análisis AI Overview con marca de agua Clicandseo
+// v2: Preparar DOM antes de captura para fix chart/URLs/grid issues
 
 /**
- * Genera y descarga un PDF de la sección AI Overview actual
- * Incluye marca de agua de Clicandseo en cada página
+ * Convierte todos los canvas de Chart.js a imágenes estáticas para captura limpia.
+ * Returns array of originals para restaurar después.
+ */
+function convertChartsToImages(container) {
+    const canvases = container.querySelectorAll('canvas');
+    const originals = [];
+
+    canvases.forEach(canvas => {
+        try {
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png');
+            img.style.width = (canvas.offsetWidth || canvas.width) + 'px';
+            img.style.height = (canvas.offsetHeight || canvas.height) + 'px';
+            img.style.display = 'block';
+            img.className = 'pdf-chart-img-temp';
+            canvas.parentNode.insertBefore(img, canvas);
+            canvas.style.display = 'none';
+            originals.push({ canvas, img });
+        } catch (e) {
+            console.warn('⚠️ Canvas conversion failed:', e);
+        }
+    });
+
+    return originals;
+}
+
+/**
+ * Restaura canvas de Chart.js eliminando las imágenes temporales.
+ */
+function restoreCharts(originals) {
+    originals.forEach(({ canvas, img }) => {
+        canvas.style.display = '';
+        if (img.parentNode) img.parentNode.removeChild(img);
+    });
+}
+
+/**
+ * Expande todas las páginas de paginación de URLs para que aparezcan en el PDF.
+ * Returns array of originals para restaurar después.
+ */
+function expandAllPagination(container) {
+    const hiddenPages = container.querySelectorAll('.cited-urls-page-2');
+    const originals = [];
+
+    hiddenPages.forEach(el => {
+        originals.push({ el, display: el.style.display });
+        el.style.display = '';  // Mostrar todas las páginas
+    });
+
+    return originals;
+}
+
+/**
+ * Restaura la paginación ocultando las páginas que estaban ocultas.
+ */
+function restorePagination(originals) {
+    originals.forEach(({ el, display }) => {
+        el.style.display = display;
+    });
+}
+
+/**
+ * Prepara el DOM para captura de PDF:
+ * - Convierte Chart.js canvas a imágenes estáticas
+ * - Expande paginación de URLs
+ * - Añade clase pdf-capture-mode al body
+ * - Fuerza min-width para evitar colapso de grid
+ */
+function prepareDOMForPDF(container) {
+    const state = {
+        chartOriginals: [],
+        paginationOriginals: [],
+        containerMinWidth: container.style.minWidth,
+        containerWidth: container.style.width
+    };
+
+    // 1. Convertir charts a imágenes
+    state.chartOriginals = convertChartsToImages(container);
+    console.log(`📊 ${state.chartOriginals.length} chart(s) convertidos a imagen`);
+
+    // 2. Expandir paginación
+    state.paginationOriginals = expandAllPagination(container);
+    console.log(`📄 ${state.paginationOriginals.length} página(s) de paginación expandidas`);
+
+    // 3. Añadir clase de captura al body
+    document.body.classList.add('pdf-capture-mode');
+
+    // 4. Forzar ancho mínimo para evitar colapso de grid
+    container.style.minWidth = '1100px';
+    container.style.width = '1100px';
+
+    return state;
+}
+
+/**
+ * Restaura el DOM al estado original después de la captura.
+ */
+function restoreDOMAfterPDF(container, state) {
+    // 1. Restaurar charts
+    restoreCharts(state.chartOriginals);
+
+    // 2. Restaurar paginación
+    restorePagination(state.paginationOriginals);
+
+    // 3. Quitar clase de captura
+    document.body.classList.remove('pdf-capture-mode');
+
+    // 4. Restaurar width
+    container.style.minWidth = state.containerMinWidth || '';
+    container.style.width = state.containerWidth || '';
+}
+
+/**
+ * Genera y descarga un PDF de la sección AI Overview actual.
+ * Incluye marca de agua de Clicandseo en cada página.
  */
 export async function generateAIOverviewPDF() {
+    let domState = null;
+    let targetSection = null;
+
     try {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
-        
+
         console.log('📄 Iniciando generación de PDF para AI Overview...');
-        
+
         // Mostrar estado de carga
         if (spinner && btnText) {
             spinner.style.display = 'inline-block';
@@ -23,12 +140,12 @@ export async function generateAIOverviewPDF() {
         // Verificar que hay datos de AI Overview disponibles
         const aiSection = document.getElementById('aiOverviewSection');
         const aiResults = document.getElementById('aiOverviewResultsContainer');
-        
+
         if (!aiSection || !aiResults || aiResults.style.display === 'none') {
             throw new Error('No AI Overview data to export. Please run an AI analysis first.');
         }
 
-        // Ocultar elementos que no deben aparecer en el PDF
+        // Ocultar elementos excluidos del PDF
         const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"]'));
         const prevDisplay = new Map();
         excluded.forEach(el => {
@@ -36,11 +153,11 @@ export async function generateAIOverviewPDF() {
             el.style.display = 'none';
         });
 
-        // También ocultar el overlay y botones de acción si están visibles
+        // Ocultar overlay y botones de acción
         const aiOverlay = document.getElementById('aiOverlay');
         const resetBtn = document.getElementById('resetAIAnalysisBtn');
         const stickyActions = document.getElementById('stickyActions');
-        
+
         const tempHidden = [];
         [aiOverlay, resetBtn, stickyActions].forEach(el => {
             if (el && el.style.display !== 'none') {
@@ -67,29 +184,48 @@ export async function generateAIOverviewPDF() {
             });
         }
 
+        // ====== FASE 1: Preparar DOM para captura ======
+        targetSection = document.getElementById('aiOverviewContent');
+        console.log('🔧 Preparando DOM para captura PDF...');
+        domState = prepareDOMForPDF(targetSection);
+
+        // Pequeña pausa para que el navegador repinte el layout
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        // ====== FASE 2: Capturar DOM preparado ======
         console.log('🎨 Generando canvas de la sección AI Overview...');
-        
-        // Generar canvas del contenido de AI Overview
-        const targetSection = document.getElementById('aiOverviewContent');
         const canvas = await html2canvas(targetSection, {
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false,
-            windowWidth: targetSection.scrollWidth,
+            windowWidth: Math.max(targetSection.scrollWidth, 1100),
             windowHeight: targetSection.scrollHeight
         });
 
-        console.log('📄 Creando documento PDF...');
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        // ====== FASE 3: Restaurar DOM ======
+        console.log('🔄 Restaurando DOM...');
+        restoreDOMAfterPDF(targetSection, domState);
+        domState = null; // Marcar como restaurado
 
-        // Crear PDF
+        // Restaurar elementos ocultos
+        excluded.forEach(el => {
+            el.style.display = prevDisplay.get(el) || '';
+        });
+        tempHidden.forEach(({ el, display }) => {
+            el.style.display = display;
+        });
+
+        // ====== FASE 4: Generar PDF ======
+        console.log('📄 Creando documento PDF...');
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+
         const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         const imgWidth = pageWidth;
         const imgHeight = canvas.height * (imgWidth / canvas.width);
-        
+
         let position = 0;
         let heightLeft = imgHeight;
 
@@ -105,7 +241,7 @@ export async function generateAIOverviewPDF() {
                 const logoSrc = logoEl?.src || '/static/images/logos/logo%20clicandseo.png';
                 const logoImg = new Image();
                 logoImg.crossOrigin = 'anonymous';
-                
+
                 await new Promise((resolve) => {
                     logoImg.onload = resolve;
                     logoImg.onerror = resolve;
@@ -120,7 +256,7 @@ export async function generateAIOverviewPDF() {
                     const ctx = tempCanvas.getContext('2d');
                     ctx.drawImage(logoImg, 0, 0);
                     const dataUrl = tempCanvas.toDataURL('image/png');
-                    
+
                     // Configuración de la marca de agua
                     const margin = 16; // pt
                     const maxLogoWidth = Math.min(80, pageWidth * 0.18);
@@ -129,10 +265,9 @@ export async function generateAIOverviewPDF() {
                     const logoH = logoW * ratio;
                     const x = pageWidth - logoW - margin;
                     const y = pageHeight - logoH - margin;
-                    
+
                     try {
                         pdf.addImage(dataUrl, 'PNG', x, y, logoW, logoH);
-                        console.log('✅ Marca de agua añadida correctamente');
                     } catch (err) {
                         console.warn('⚠️ Error al añadir marca de agua:', err);
                     }
@@ -164,28 +299,30 @@ export async function generateAIOverviewPDF() {
         console.log(`💾 Guardando PDF: ${fileName}`);
         pdf.save(fileName);
 
-        // Restaurar elementos ocultos
-        excluded.forEach(el => {
-            el.style.display = prevDisplay.get(el) || '';
-        });
-        tempHidden.forEach(({ el, display }) => {
-            el.style.display = display;
-        });
-
         console.log('✅ PDF generado exitosamente');
-        
-        // Mostrar mensaje de éxito breve
         showSuccessMessage('PDF downloaded successfully!');
 
     } catch (err) {
         console.error('❌ Error generating PDF:', err);
         alert(`Error generating PDF: ${err.message}`);
+
+        // Restaurar DOM si falló antes de la restauración
+        if (domState && targetSection) {
+            try {
+                restoreDOMAfterPDF(targetSection, domState);
+            } catch (restoreErr) {
+                console.error('❌ Error restaurando DOM:', restoreErr);
+            }
+        }
     } finally {
+        // Asegurar que pdf-capture-mode se quita siempre
+        document.body.classList.remove('pdf-capture-mode');
+
         // Restaurar estado del botón
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
-        
+
         if (spinner && btnText) {
             spinner.style.display = 'none';
             btnText.textContent = 'Download PDF';
@@ -254,4 +391,3 @@ if (!document.getElementById('pdf-animations')) {
     `;
     document.head.appendChild(style);
 }
-

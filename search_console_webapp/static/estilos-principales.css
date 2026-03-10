@@ -977,6 +977,37 @@ body.dark-mode .domain-validation-error div {
   color: #CBD5E1;
 }
 
+/* ===== PDF Capture Mode ===== */
+/* Applied temporarily during PDF generation to ensure clean capture */
+body.pdf-capture-mode .url-cell {
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: normal !important;
+  max-width: none !important;
+}
+
+body.pdf-capture-mode .competitor-tables-row {
+  grid-template-columns: 1fr 1fr !important;
+  min-width: 1000px;
+}
+
+body.pdf-capture-mode .chart-wrapper {
+  min-height: 350px !important;
+}
+
+body.pdf-capture-mode .cited-urls-pagination {
+  display: none !important;
+}
+
+body.pdf-capture-mode * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
+body.pdf-capture-mode .pdf-chart-img-temp {
+  display: block !important;
+}
+
 /* ===== Responsive: Competitor Analysis ===== */
 @media (max-width: 1200px) {
   .competitor-tables-row {

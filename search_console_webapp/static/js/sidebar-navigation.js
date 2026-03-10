@@ -757,8 +757,16 @@ class SidebarNavigation {
     }
 
     const siteUrlSelect = document.getElementById('siteUrlSelect');
+
+    // Optimizado: enviar solo los campos que excel_generator.py realmente usa
+    const prunedData = {
+      pages: window.currentData.pages || [],
+      keyword_comparison_data: window.currentData.keyword_comparison_data || [],
+      selected_country: window.currentData.selected_country || ''
+    };
+
     const payload = {
-      data: window.currentData,
+      data: prunedData,
       ai_overview_data: aiOverviewDataToDownload,
       metadata: {
         site_url: siteUrlSelect ? siteUrlSelect.value : '',

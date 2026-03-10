@@ -138,7 +138,7 @@ function completeProgressBar(analysisData = null) {
         progressFill.style.background = 'linear-gradient(90deg, var(--success-color), #4CAF50)';
     }
     
-    // Ocultar la barra después de 3 segundos para dar tiempo a leer el resultado
+    // Ocultar la barra después de 1.2 segundos
     setTimeout(() => {
         const progressContainer = document.querySelector('.ai-progress-container');
         if (progressContainer) {
@@ -146,7 +146,7 @@ function completeProgressBar(analysisData = null) {
             progressContainer.style.opacity = '0';
             setTimeout(() => progressContainer.remove(), 500);
         }
-    }, 3000);
+    }, 1200);
 }
 
 // Nueva función para el fetch de análisis AI
@@ -279,8 +279,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
   const progressBarHTML = createProgressBar();
   resultsContainer.innerHTML = progressBarHTML;
   
-  // Pequeño delay para que la animación de entrada sea visible
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // La animación de entrada es inmediata (sin delay artificial)
   
   try {
     // ✅ NUEVO: Simplificado - tomar top 30 keywords por clics directamente
@@ -324,7 +323,7 @@ export async function handleAIOverviewAnalysis(aiOverviewResults, setAIOverviewR
       if (nextValue < topKeywords.length) {
                     updateProgressBar(nextValue, topKeywords.length, 'Processing keywords in parallel...');
       }
-    }, 1000);
+    }, 2000);
 
     // ✅ SIMPLIFICADO: Análisis directo sin filtrado previo
     const analysisData = await analyzeAIOverview(topKeywords, siteUrl);

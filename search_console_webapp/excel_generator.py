@@ -114,17 +114,18 @@ def format_ai_summary_data(ai_overview_results):
 
 def filter_keywords_by_position(keyword_data, position_range):
     """
-    Filtra keywords por rango de posición específico
+    Filtra keywords por rango de posición específico.
+    Nota: Para múltiples rangos, usar bucket_keywords_by_position() para un solo loop.
     """
     if not keyword_data:
         return []
-    
+
     filtered_keywords = []
     for k in keyword_data:
         position = k.get('position_m1')
         if not isinstance(position, (int, float)):
             continue
-            
+
         include_keyword = False
         if position_range == 'top3' and 1 <= position <= 3:
             include_keyword = True
@@ -134,13 +135,41 @@ def filter_keywords_by_position(keyword_data, position_range):
             include_keyword = True
         elif position_range == 'top20plus' and position > 20:
             include_keyword = True
-            
+
         if include_keyword:
             filtered_keywords.append(k)
-    
+
     # Ordenar por clics descendente
     filtered_keywords.sort(key=lambda x: x.get('clicks_m1', 0), reverse=True)
     return filtered_keywords
+
+
+def bucket_keywords_by_position(keyword_data):
+    """
+    Single-pass bucketing: clasifica keywords en rangos de posición en un solo loop.
+    Retorna dict {'top3': [...], 'top10': [...], 'top20': [...]}
+    Cada bucket se ordena por clics descendente.
+    """
+    buckets = {'top3': [], 'top10': [], 'top20': []}
+    if not keyword_data:
+        return buckets
+
+    for k in keyword_data:
+        position = k.get('position_m1')
+        if not isinstance(position, (int, float)):
+            continue
+        if 1 <= position <= 3:
+            buckets['top3'].append(k)
+        elif 4 <= position <= 10:
+            buckets['top10'].append(k)
+        elif 11 <= position <= 20:
+            buckets['top20'].append(k)
+
+    # Ordenar cada bucket por clics descendente
+    for key in buckets:
+        buckets[key].sort(key=lambda x: x.get('clicks_m1', 0), reverse=True)
+
+    return buckets
 
 
 def create_keyword_position_sheets(writer, data, country_info, header_format):
@@ -155,14 +184,17 @@ def create_keyword_position_sheets(writer, data, country_info, header_format):
     ]
     
     all_keywords = data.get('keyword_comparison_data', [])
-    
+
+    # Single-pass: clasificar todas las keywords en buckets de una vez
+    position_buckets = bucket_keywords_by_position(all_keywords)
+
     for range_config in ranges_config:
         range_name = range_config['range']
         sheet_name = range_config['title']
         description = range_config['description']
-        
-        # Filtrar keywords para este rango
-        filtered_keywords = filter_keywords_by_position(all_keywords, range_name)
+
+        # Usar el bucket pre-calculado en lugar de filtrar 3 veces
+        filtered_keywords = position_buckets.get(range_name, [])
         
         # Crear filas para la hoja
         keyword_rows = []
