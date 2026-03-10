@@ -105,17 +105,10 @@ async function handleExecuteAnalysis() {
     } catch (error) {
         console.error('❌ Error en análisis IA:', error);
         
-        // ✅ NUEVO FASE 4.5: Limpiar TODOS los timers de progreso en caso de error
-        if (aiProgressTimer) {
-            clearTimeout(aiProgressTimer);
-            aiProgressTimer = null;
-        }
-        
-        // Limpiar timer de startSimpleProgress (que programa startRealisticProgress)
-        if (window.simpleProgressTimeout) {
-            clearTimeout(window.simpleProgressTimeout);
-            window.simpleProgressTimeout = null;
-        }
+        // Limpiar TODOS los timers y animaciones en caso de error
+        if (aiProgressTimer) { clearTimeout(aiProgressTimer); aiProgressTimer = null; }
+        if (smoothAnimationId) { cancelAnimationFrame(smoothAnimationId); smoothAnimationId = null; }
+        if (window.simpleProgressTimeout) { clearTimeout(window.simpleProgressTimeout); window.simpleProgressTimeout = null; }
         
         // ✅ NUEVO: Para paywalls/quotas, mostrar modal pero NO error genérico
         if (error.message === 'paywall' || error.message === 'quota_exceeded') {
@@ -184,149 +177,149 @@ function formatEstimatedTime(seconds) {
 }
 
 /**
- * 🔄 MODIFICADA: Inicia progreso realista basado en cantidad de keywords
+ * 🔄 MEJORADA v2: Progreso suave con interpolación frame-by-frame
  */
+let smoothAnimationId = null;
+let smoothPhases = [];
+let smoothCurrentPct = 0;
+
 function startRealisticProgress(keywordCount) {
-    console.log(`🚀 Iniciando progreso realista para ${keywordCount} keywords`);
-    
-    // Limpiar cualquier timer anterior
-    if (aiProgressTimer) {
-        clearTimeout(aiProgressTimer);
-        aiProgressTimer = null;
-    }
-    
-    // Calcular tiempo total estimado
-    totalEstimatedTime = calculateAIAnalysisTime(keywordCount) * 1000; // en milisegundos
+    console.log(`🚀 Iniciando progreso fluido para ${keywordCount} keywords`);
+
+    // Limpiar cualquier timer/animación anterior
+    if (aiProgressTimer) { clearTimeout(aiProgressTimer); aiProgressTimer = null; }
+    if (smoothAnimationId) { cancelAnimationFrame(smoothAnimationId); smoothAnimationId = null; }
+
+    totalEstimatedTime = calculateAIAnalysisTime(keywordCount) * 1000;
     startTime = Date.now();
     currentPhase = 0;
-    
-    // 🔄 MEJORADO: Fases más fluidas sin estancamiento
-    const phases = [
-        { 
-            percentage: 8, 
-            message: 'Preparing analysis...', 
-            details: `Configuring analysis for ${keywordCount} keywords`,
-            duration: totalEstimatedTime * 0.06 // 6% del tiempo
-        },
-        { 
-            percentage: 18, 
-            message: 'Connecting to APIs...', 
-            details: 'Authenticating and establishing connections',
-            duration: totalEstimatedTime * 0.08 // 8% del tiempo
-        },
-        { 
-            percentage: 35, 
-            message: 'Querying SERPs...', 
-            details: `Processing ${keywordCount} keywords in parallel`,
-            duration: totalEstimatedTime * 0.25 // 25% del tiempo (reducido)
-        },
-        { 
-            percentage: 55, 
-            message: 'Analyzing results...', 
-            details: 'Processing SERP data and rankings',
-            duration: totalEstimatedTime * 0.20 // 20% del tiempo
-        },
-        { 
-            percentage: 75, 
-            message: 'Detecting AI Overview...', 
-            details: 'Analyzing AI presence in results',
-            duration: totalEstimatedTime * 0.18 // 18% del tiempo
-        },
-        { 
-            percentage: 88, 
-            message: 'Processing results...', 
-            details: 'Calculating metrics and statistics',
-            duration: totalEstimatedTime * 0.15 // 15% del tiempo
-        },
-        { 
-            percentage: 96, 
-            message: 'Finalizing analysis...', 
-            details: 'Preparing data visualization',
-            duration: totalEstimatedTime * 0.08 // 8% del tiempo
-        }
+    smoothCurrentPct = 3; // arrancamos desde el 3% que ya tiene startSimpleProgress
+
+    // Fases con timestamps acumulados
+    smoothPhases = [
+        { pct: 10,  message: 'Preparing analysis...',     details: `Configuring for ${keywordCount} keywords`,  step: 1 },
+        { pct: 20,  message: 'Connecting to APIs...',      details: 'Authenticating connections',                step: 1 },
+        { pct: 38,  message: 'Querying SERPs...',          details: `Processing ${keywordCount} keywords`,       step: 2 },
+        { pct: 56,  message: 'Analyzing results...',       details: 'Processing SERP data and rankings',         step: 2 },
+        { pct: 72,  message: 'Detecting AI Overview...',   details: 'Analyzing AI presence in results',          step: 3 },
+        { pct: 85,  message: 'Processing metrics...',      details: 'Calculating statistics',                    step: 3 },
+        { pct: 95,  message: 'Finalizing analysis...',     details: 'Preparing visualization',                   step: 4 }
     ];
-    
-    // Función para ejecutar cada fase
-    function executePhase(phaseIndex) {
-        if (phaseIndex >= phases.length) {
-            console.log('✅ Todas las fases de progreso completadas');
-            return;
+
+    // Calcular timestamps de inicio/fin para cada fase
+    const timeSlices = [0.06, 0.08, 0.24, 0.20, 0.17, 0.15, 0.10];
+    let accumulated = 0;
+    smoothPhases.forEach((p, i) => {
+        p.startTime = startTime + accumulated * totalEstimatedTime;
+        accumulated += timeSlices[i];
+        p.endTime = startTime + accumulated * totalEstimatedTime;
+    });
+
+    // Arrancar el loop de animación
+    smoothAnimationTick();
+}
+
+function smoothAnimationTick() {
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const totalPct = Math.min((elapsed / totalEstimatedTime) * 97, 97); // Max 97% until real completion
+
+    // Encontrar la fase actual
+    let activePhase = smoothPhases[0];
+    for (let i = smoothPhases.length - 1; i >= 0; i--) {
+        if (now >= smoothPhases[i].startTime) {
+            activePhase = smoothPhases[i];
+            currentPhase = i;
+            break;
         }
-        
-        const phase = phases[phaseIndex];
-        currentPhase = phaseIndex;
-        
-        console.log(`📊 Fase ${phaseIndex + 1}: ${phase.message} (${phase.percentage}%)`);
-        updateProgress(phase.percentage, phase.message, phase.details, Math.min(phaseIndex + 1, 4));
-        
-        // Programar siguiente fase
-        aiProgressTimer = setTimeout(() => {
-            executePhase(phaseIndex + 1);
-        }, phase.duration);
     }
-    
-    // Iniciar con progreso inicial inmediato
-    updateProgress(5, 'Starting analysis...', `Analyzing ${keywordCount} selected keywords`, 1);
-    
-    // Comenzar las fases después de un breve delay
-    setTimeout(() => executePhase(0), 800);
+
+    // Interpolar suavemente hacia el porcentaje objetivo
+    const targetPct = Math.min(totalPct, activePhase.pct);
+    // Easing: avanza más rápido al principio de cada fase, más lento al final
+    smoothCurrentPct += (targetPct - smoothCurrentPct) * 0.08;
+
+    // Actualizar UI con valores interpolados
+    updateProgressSmooth(smoothCurrentPct, activePhase.message, activePhase.details, activePhase.step);
+
+    // Continuar animación si no hemos llegado al máximo
+    if (smoothCurrentPct < 96.5) {
+        smoothAnimationId = requestAnimationFrame(smoothAnimationTick);
+    } else {
+        smoothAnimationId = null;
+        console.log('✅ Progreso suave alcanzó el límite pre-completado');
+    }
 }
 
 /**
- * 🔄 MODIFICADA: Actualiza progreso con información más detallada
+ * Actualización de UI optimizada — sin accesos DOM redundantes
  */
-function updateProgress(percentage, status, details, activeStep) {
+function updateProgressSmooth(percentage, status, details, activeStep) {
     const progressCircle = document.getElementById('progressCircle');
     const progressPercentage = document.getElementById('progressPercentage');
     const progressStatus = document.getElementById('progressStatus');
     const progressDetails = document.getElementById('progressDetails');
-    
+
     if (progressCircle) {
-        const circumference = 2 * Math.PI * 45; // radio = 45
+        const circumference = 2 * Math.PI * 45;
         const offset = circumference - (percentage / 100) * circumference;
         progressCircle.style.strokeDashoffset = offset;
     }
-    
-    if (progressPercentage) {
-        progressPercentage.textContent = `${Math.round(percentage)}%`;
+
+    const roundedPct = Math.round(percentage);
+    if (progressPercentage && progressPercentage._lastPct !== roundedPct) {
+        progressPercentage.textContent = `${roundedPct}%`;
+        progressPercentage._lastPct = roundedPct;
     }
-    
-    if (progressStatus) {
+
+    if (progressStatus && progressStatus._lastMsg !== status) {
         progressStatus.textContent = status;
+        progressStatus._lastMsg = status;
     }
-    
-    if (progressDetails) {
+
+    if (progressDetails && progressDetails._lastDet !== details) {
         progressDetails.textContent = details;
+        progressDetails._lastDet = details;
     }
-    
-    // 🆕 NUEVO: Actualizar tiempo restante estimado
-    const timeRemainingElement = document.getElementById('timeRemaining');
-    if (timeRemainingElement && totalEstimatedTime > 0) {
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, totalEstimatedTime - elapsedTime);
-        const remainingSeconds = Math.ceil(remainingTime / 1000);
-        
-        if (remainingSeconds > 0) {
-            timeRemainingElement.textContent = `${formatEstimatedTime(remainingSeconds)} remaining`;
-            timeRemainingElement.style.color = '#94A3B8';
-        } else {
-            timeRemainingElement.textContent = 'Almost done...';
-            timeRemainingElement.style.color = '#28a745';
+
+    // Tiempo restante — actualizar cada ~30 frames para evitar parpadeo
+    if (totalEstimatedTime > 0 && roundedPct % 2 === 0) {
+        const timeRemainingElement = document.getElementById('timeRemaining');
+        if (timeRemainingElement) {
+            const remainingMs = Math.max(0, totalEstimatedTime - (Date.now() - startTime));
+            const remainingSec = Math.ceil(remainingMs / 1000);
+            if (remainingSec > 0) {
+                timeRemainingElement.textContent = `${formatEstimatedTime(remainingSec)} remaining`;
+                timeRemainingElement.style.color = '#94A3B8';
+            } else {
+                timeRemainingElement.textContent = 'Almost done...';
+                timeRemainingElement.style.color = '#28a745';
+            }
         }
     }
-    
-    // Actualizar pasos
+
+    // Pasos — solo actualizar cuando cambian
     for (let i = 1; i <= 4; i++) {
         const stepElement = document.getElementById(`step${i}`);
         if (stepElement) {
-            stepElement.classList.remove('active', 'completed');
-            if (i < activeStep) {
+            const shouldBeCompleted = i < activeStep;
+            const shouldBeActive = i === activeStep;
+            if (shouldBeCompleted && !stepElement.classList.contains('completed')) {
+                stepElement.classList.remove('active');
                 stepElement.classList.add('completed');
-            } else if (i === activeStep) {
+            } else if (shouldBeActive && !stepElement.classList.contains('active')) {
+                stepElement.classList.remove('completed');
                 stepElement.classList.add('active');
             }
         }
     }
+}
+
+/**
+ * Wrapper — redirige a updateProgressSmooth para mantener compatibilidad
+ */
+function updateProgress(percentage, status, details, activeStep) {
+    updateProgressSmooth(percentage, status, details, activeStep);
 }
 
 /**
@@ -360,22 +353,36 @@ function startSimpleProgress() {
  */
 async function completeProgress() {
     console.log('🏁 Completando progreso...');
-    
-    // Limpiar cualquier timer de progreso
-    if (aiProgressTimer) {
-        clearTimeout(aiProgressTimer);
-        aiProgressTimer = null;
-    }
-    
-    // Limpiar timer de startSimpleProgress
-    if (window.simpleProgressTimeout) {
-        clearTimeout(window.simpleProgressTimeout);
-        window.simpleProgressTimeout = null;
-    }
-    
-    // Progreso final
-    updateProgress(100, 'Analysis completed!', 'Preparing results visualization...', 4);
-    
+
+    // Cancelar TODAS las animaciones y timers
+    if (aiProgressTimer) { clearTimeout(aiProgressTimer); aiProgressTimer = null; }
+    if (smoothAnimationId) { cancelAnimationFrame(smoothAnimationId); smoothAnimationId = null; }
+    if (window.simpleProgressTimeout) { clearTimeout(window.simpleProgressTimeout); window.simpleProgressTimeout = null; }
+
+    // Animar suavemente de la posición actual hasta 100%
+    const finalStart = smoothCurrentPct || 90;
+    const finalDuration = 600; // 600ms para animar hasta 100%
+    const finalStartTime = Date.now();
+
+    await new Promise(resolve => {
+        function animateToComplete() {
+            const elapsed = Date.now() - finalStartTime;
+            const t = Math.min(elapsed / finalDuration, 1);
+            // Ease-out cubic
+            const eased = 1 - Math.pow(1 - t, 3);
+            const pct = finalStart + (100 - finalStart) * eased;
+
+            updateProgressSmooth(pct, 'Analysis completed!', 'Preparing results...', 4);
+
+            if (t < 1) {
+                requestAnimationFrame(animateToComplete);
+            } else {
+                resolve();
+            }
+        }
+        requestAnimationFrame(animateToComplete);
+    });
+
     // Marcar todos los pasos como completados
     for (let i = 1; i <= 4; i++) {
         const stepElement = document.getElementById(`step${i}`);
@@ -384,27 +391,28 @@ async function completeProgress() {
             stepElement.classList.remove('active');
         }
     }
-    
+
     // Actualizar tiempo final
     const timeRemainingElement = document.getElementById('timeRemaining');
     if (timeRemainingElement) {
         timeRemainingElement.textContent = 'Complete!';
         timeRemainingElement.style.color = '#28a745';
     }
-    
-    // Esperar un momento antes de ocultar (permitir que usuario vea el 100%)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Ocultar overlay de progreso
+
+    // Breve pausa para que el usuario vea el 100% (reducida de 2s a 800ms)
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Ocultar overlay de progreso con fade
     const progressOverlay = document.getElementById('aiProgressOverlay');
     if (progressOverlay) {
         progressOverlay.classList.remove('active');
     }
-    
+
     // Limpiar variables
     totalEstimatedTime = 0;
     currentPhase = 0;
     startTime = 0;
+    smoothCurrentPct = 0;
 }
 
 /**

@@ -179,8 +179,8 @@ body.dark-mode .ai-overlay {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(7px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
   border-radius: 16px;
   display: flex;
   flex-direction: column;
@@ -189,7 +189,8 @@ body.dark-mode .ai-overlay {
   z-index: 15;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.4s ease;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
 }
 
 body.dark-mode .ai-progress-overlay {
@@ -277,7 +278,7 @@ body.dark-mode .ai-progress-circle .progress-bg {
   stroke-linecap: round;
   stroke-dasharray: 283;
   stroke-dashoffset: 283;
-  transition: stroke-dashoffset 0.5s ease;
+  transition: stroke-dashoffset 0.1s linear;
 }
 
 .ai-progress-percentage {
@@ -288,6 +289,8 @@ body.dark-mode .ai-progress-circle .progress-bg {
   font-size: 1.5rem;
   font-weight: 700;
   color: #0F172A;
+  font-variant-numeric: tabular-nums;
+  will-change: contents;
 }
 
 /* Texto de estado del progreso */

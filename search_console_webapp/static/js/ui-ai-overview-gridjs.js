@@ -174,96 +174,6 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         }
     ];
 
-    // 🆕 CTR Benchmark columns (Expected CTR, CTR Gap, Est. Clicks Absorbed)
-    columns.push({
-        id: 'expected_ctr',
-        name: gridjs.html('Expected<br>CTR'),
-        width: '85px',
-        sort: {
-            compare: (a, b) => {
-                const numA = typeof a === 'number' ? a : -1;
-                const numB = typeof b === 'number' ? b : -1;
-                return numA - numB;
-            }
-        },
-        formatter: (cell) => {
-            if (cell === null || cell === undefined || cell === '—') {
-                return gridjs.html('<span class="aio-na">—</span>');
-            }
-            return gridjs.html(`<span style="color: #6c757d; font-weight: 500;">${(cell * 100).toFixed(1)}%</span>`);
-        }
-    });
-
-    columns.push({
-        id: 'ctr_gap',
-        name: gridjs.html('CTR<br>Gap'),
-        width: '90px',
-        sort: {
-            compare: (a, b) => {
-                const numA = typeof a === 'number' ? a : -999;
-                const numB = typeof b === 'number' ? b : -999;
-                return numB - numA; // Higher gap first
-            }
-        },
-        formatter: (cell) => {
-            if (cell === null || cell === undefined || cell === '—') {
-                return gridjs.html('<span class="aio-na">—</span>');
-            }
-            const isNegative = cell < 0; // Negative gap = overperforming
-            const color = cell > 0.01 ? '#dc3545' : (cell < -0.01 ? '#28a745' : '#6c757d');
-            const prefix = cell > 0 ? '+' : '';
-            return gridjs.html(`<span style="color: ${color}; font-weight: 600;">${prefix}${(cell * 100).toFixed(1)}%</span>`);
-        }
-    });
-
-    columns.push({
-        id: 'clicks_absorbed',
-        name: gridjs.html('Clicks<br>Absorbed'),
-        width: '95px',
-        sort: {
-            compare: (a, b) => {
-                const numA = typeof a === 'number' ? a : -1;
-                const numB = typeof b === 'number' ? b : -1;
-                return numB - numA; // Higher absorbed first
-            }
-        },
-        formatter: (cell) => {
-            if (cell === null || cell === undefined || cell === '—') {
-                return gridjs.html('<span class="aio-na">—</span>');
-            }
-            const color = cell > 0 ? '#dc3545' : '#28a745';
-            return gridjs.html(`<span style="color: ${color}; font-weight: 700;">${cell > 0 ? '~' : ''}${cell}</span>`);
-        }
-    });
-
-    // SERP Features column (icons showing which features are present)
-    columns.push({
-        id: 'serp_features',
-        name: gridjs.html('SERP<br>Features'),
-        width: '110px',
-        sort: {
-            compare: (a, b) => {
-                const numA = typeof a === 'number' ? a : 0;
-                const numB = typeof b === 'number' ? b : 0;
-                return numB - numA;
-            }
-        },
-        formatter: (cell) => {
-            if (!cell || cell === 0 || cell === '—') {
-                return gridjs.html('<span class="aio-na">—</span>');
-            }
-            // cell is an array of {key, label, icon, color}
-            if (Array.isArray(cell)) {
-                const icons = cell.slice(0, 4).map(f =>
-                    `<i class="fas ${f.icon}" style="color: ${f.color}; font-size: 0.85em;" title="${f.label}"></i>`
-                ).join(' ');
-                const extra = cell.length > 4 ? `<span style="color:#888;font-size:0.75em;">+${cell.length - 4}</span>` : '';
-                return gridjs.html(`<span style="display:flex;gap:3px;align-items:center;justify-content:center;">${icons}${extra}</span>`);
-            }
-            return gridjs.html(`<span style="color: #6c757d;">${cell}</span>`);
-        }
-    });
-
     // Añadir columnas dinámicas para competidores
     competitorDomains.forEach((domain, index) => {
         const competitorNumber = index + 1;
@@ -320,16 +230,6 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
             aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
             aiAnalysis.domain_ai_source_position || 'N/A'
         ];
-
-        // 🆕 CTR analysis data
-        const ctr = result._ctr_analysis || {};
-        row.push(ctr.expected_ctr != null ? ctr.expected_ctr : '—');
-        row.push(ctr.ctr_gap != null ? ctr.ctr_gap : '—');
-        row.push(ctr.clicks_absorbed != null ? ctr.clicks_absorbed : '—');
-
-        // SERP Features icons
-        const serpFeatures = ctr.serp_features || [];
-        row.push(serpFeatures.length > 0 ? serpFeatures : '—');
 
         // Añadir datos de competidores
         competitorDomains.forEach(domain => {

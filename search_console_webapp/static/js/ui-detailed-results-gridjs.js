@@ -191,7 +191,6 @@ function processDetailedDataForGrid(keywordResults) {
             width: '120px',
             sort: {
                 compare: (a, b) => {
-                    // Convertir a números para comparación
                     const numA = parseInteger(a);
                     const numB = parseInteger(b);
                     return numA - numB;
@@ -199,28 +198,62 @@ function processDetailedDataForGrid(keywordResults) {
             }
         },
         {
-            id: 'serp_features',
-            name: gridjs.html('SERP<br>Features'),
-            width: '110px',
+            id: 'ctr_p1',
+            name: gridjs.html('CTR<br>(P1)'),
+            width: '85px',
             sort: {
                 compare: (a, b) => {
-                    const numA = typeof a === 'number' ? a : 0;
-                    const numB = typeof b === 'number' ? b : 0;
-                    return numB - numA;
+                    const numA = parseFloat(String(a).replace('%', '').replace(',', '.')) || 0;
+                    const numB = parseFloat(String(b).replace('%', '').replace(',', '.')) || 0;
+                    return numA - numB;
                 }
             },
             formatter: (cell) => {
-                if (!cell || cell === '—' || (Array.isArray(cell) && cell.length === 0)) {
-                    return gridjs.html('<span class="aio-na">—</span>');
+                if (!cell || cell === '—') return gridjs.html('<span class="aio-na">—</span>');
+                return gridjs.html(`<span style="font-weight:500;">${cell}</span>`);
+            }
+        },
+        {
+            id: 'clicks_p2',
+            name: gridjs.html('Clicks<br>(P2)'),
+            width: '100px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = parseInteger(a);
+                    const numB = parseInteger(b);
+                    return numA - numB;
                 }
-                if (Array.isArray(cell)) {
-                    const icons = cell.slice(0, 4).map(f =>
-                        `<i class="fas ${f.icon}" style="color: ${f.color}; font-size: 0.85em;" title="${f.label}"></i>`
-                    ).join(' ');
-                    const extra = cell.length > 4 ? `<span style="color:#888;font-size:0.75em;">+${cell.length - 4}</span>` : '';
-                    return gridjs.html(`<span style="display:flex;gap:3px;align-items:center;justify-content:center;">${icons}${extra}</span>`);
+            }
+        },
+        {
+            id: 'impressions_p2',
+            name: gridjs.html('Impressions<br>(P2)'),
+            width: '120px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = parseInteger(a);
+                    const numB = parseInteger(b);
+                    return numA - numB;
                 }
-                return gridjs.html(`<span style="color: #6c757d;">${cell}</span>`);
+            }
+        },
+        {
+            id: 'delta_clicks',
+            name: gridjs.html('Δ Clicks'),
+            width: '95px',
+            sort: {
+                compare: (a, b) => {
+                    const numA = parseInteger(a);
+                    const numB = parseInteger(b);
+                    return numA - numB;
+                }
+            },
+            formatter: (cell) => {
+                if (!cell || cell === '—' || cell === '0') return gridjs.html('<span class="aio-na">—</span>');
+                const num = parseInteger(cell);
+                const color = num > 0 ? '#16a34a' : num < 0 ? '#dc2626' : '#94A3B8';
+                const prefix = num > 0 ? '+' : '';
+                return gridjs.html(`<span style="color:${color};font-weight:600;">${prefix}${cell}</span>`);
             }
         },
         {
@@ -298,7 +331,10 @@ function processDetailedDataForGrid(keywordResults) {
             organicPosition, // Organic Position
             formatInteger(result.clicks_p1 || result.clicks_m1 || 0), // Clics (P1)
             formatInteger(result.impressions_p1 || result.impressions_m1 || 0), // Impresiones (P1)
-            (result._ctr_analysis?.serp_features?.length > 0) ? result._ctr_analysis.serp_features : '—', // SERP Features
+            formatCTR(result.ctr_m1 || result.ctr_p1), // CTR (P1)
+            formatInteger(result.clicks_p2 || result.clicks_m2 || 0), // Clics (P2)
+            formatInteger(result.impressions_p2 || result.impressions_m2 || 0), // Impresiones (P2)
+            formatDeltaClicks(result), // Δ Clicks
             result._diagnostic?.label || '—', // Diagnostic category
             clusterName // Cluster
         ];
@@ -337,6 +373,33 @@ function formatInteger(value) {
     if (!value || value === 0) return '0';
     const num = typeof value === 'string' ? parseInt(value.replace(/[,.]/g, '')) : value;
     return num.toLocaleString('es-ES');
+}
+
+/**
+ * Formatear CTR como porcentaje
+ * @param {number} ctr - CTR value (puede ser decimal 0-1 o porcentaje 0-100)
+ * @returns {string} - CTR formateado
+ */
+function formatCTR(ctr) {
+    if (ctr === null || ctr === undefined || ctr === 0) return '—';
+    // Si es mayor que 1, asumimos que ya está en porcentaje
+    const pct = ctr > 1 ? ctr : ctr * 100;
+    return pct.toFixed(2) + '%';
+}
+
+/**
+ * Calcular y formatear delta de clicks entre P1 y P2
+ * @param {Object} result - Resultado de keyword
+ * @returns {string} - Delta formateado
+ */
+function formatDeltaClicks(result) {
+    const clicksP1 = result.clicks_p1 || result.clicks_m1 || 0;
+    const clicksP2 = result.clicks_p2 || result.clicks_m2 || 0;
+    if (clicksP1 === 0 && clicksP2 === 0) return '—';
+    const delta = clicksP1 - clicksP2;
+    if (delta === 0) return '0';
+    const prefix = delta > 0 ? '+' : '';
+    return prefix + delta.toLocaleString('es-ES');
 }
 
 // Función global para abrir modal SERP desde Grid.js

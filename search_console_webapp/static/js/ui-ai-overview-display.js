@@ -342,8 +342,8 @@ export function displayAIOverviewResults(data) {
     .join(', ')
   );
 
-  // 🆕 1.6️⃣ Display CTR benchmark analysis summary
-  displayCTRAnalysisSummary(enrichedResults, resultsContainer);
+  // 🆕 1.6️⃣ CTR benchmark analysis summary — removed per design decision
+  // displayCTRAnalysisSummary(enrichedResults, resultsContainer);
 
   // 2️⃣ Mostrar análisis de competidores si hay datos
   if (data.summary && data.summary.competitor_analysis) {
