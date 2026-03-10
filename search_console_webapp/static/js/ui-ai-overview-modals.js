@@ -163,7 +163,7 @@ function createCTRAnalysisHTML(result) {
       border-left: 4px solid ${gapColor};
     ">
       <h5 style="margin-bottom: 0.8em; color: #333; font-size: 1em;">
-        <i class="fas fa-chart-bar" style="margin-right: 6px; color: #6f42c1;"></i>
+        <i class="fas fa-chart-bar" style="margin-right: 6px; color: #0F172A;"></i>
         CTR Benchmark Analysis
       </h5>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; margin-bottom: 0.8em;">
@@ -228,31 +228,28 @@ function createAIOPreviewSection(aiAnalysis, debugInfo, result) {
   // Get site URL for matching
   const siteUrl = debugInfo.site_url_normalized || '';
 
-  // --- 1. Content preview ---
+  // --- 1. Full AI Overview content (no truncation) ---
   let contentHTML = '';
   if (contentPreview) {
-    const truncated = contentPreview.length >= 490
-      ? contentPreview.substring(0, 300) + '...'
-      : contentPreview;
+    const formattedContent = escapeHtml(contentPreview).replace(/\n/g, '<br>');
     contentHTML = `
-      <div style="margin-bottom: 1.2em;">
+      <div style="margin-bottom: 1.5em;">
         <div style="
           display: flex; align-items: center; gap: 6px;
-          margin-bottom: 0.5em;
+          margin-bottom: 0.6em;
           font-size: 0.82em; font-weight: 600; color: #444;
         ">
-          <i class="fas fa-align-left" style="color: #6f42c1;"></i>
+          <i class="fas fa-align-left" style="color: #0F172A;"></i>
           AI Overview Content
           <span style="font-weight: 400; color: #888; font-size: 0.9em;">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
         </div>
         <div style="
-          background: #f8f9fa; border-radius: 8px; padding: 0.9em 1em;
-          font-size: 0.85em; line-height: 1.65; color: #333;
-          border-left: 3px solid #6f42c1;
-          max-height: 120px; overflow-y: auto;
+          background: #f8f9fa; border-radius: 8px; padding: 1.1em 1.2em;
+          font-size: 0.83em; line-height: 1.7; color: #333;
+          border-left: 3px solid #0F172A;
+          max-height: 320px; overflow-y: auto;
         ">
-          <i class="fas fa-robot" style="color: #6f42c1; margin-right: 4px; opacity: 0.6;"></i>
-          ${escapeHtml(truncated)}
+          ${formattedContent}
         </div>
       </div>
     `;
@@ -395,7 +392,7 @@ function createAIOPreviewSection(aiAnalysis, debugInfo, result) {
 
     const extraCount = references.length - maxShow;
     const serpPosBadge = serpPosition !== 'unknown'
-      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#6f42c120;color:#6f42c1;font-size:0.72em;font-weight:600;">
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#0F172A20;color:#0F172A;font-size:0.72em;font-weight:600;">
            <i class="fas fa-map-pin"></i> AIO position: ${escapeHtml(serpPosition)}
          </span>`
       : '';
@@ -476,7 +473,7 @@ function _createSerpFeaturesDetailHTML(ctr) {
   return `
     <div style="margin-top: 0.8em; padding-top: 0.8em; border-top: 1px solid #dee2e6;">
       <div style="font-size: 0.78em; color: #555; font-weight: 600; margin-bottom: 0.4em;">
-        <i class="fas fa-layer-group" style="margin-right: 4px; color: #6f42c1;"></i>
+        <i class="fas fa-layer-group" style="margin-right: 4px; color: #0F172A;"></i>
         Other SERP Features Detected
       </div>
       <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0.4em;">

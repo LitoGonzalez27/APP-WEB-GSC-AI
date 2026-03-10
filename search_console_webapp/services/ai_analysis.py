@@ -7,6 +7,60 @@ from .utils import urls_match, normalize_search_console_url, extract_domain
 logger = logging.getLogger(__name__)
 
 
+def _extract_full_aio_content(text_blocks):
+    """
+    Recursively extract ALL text content from SerpAPI AI Overview text_blocks,
+    including nested lists, sub-lists, and all block types.
+
+    SerpAPI structure:
+    text_blocks: [
+        { "type": "paragraph", "snippet": "...", "reference_indexes": [...] },
+        { "type": "list", "snippet": "Header...", "list": [
+            { "snippet": "Item 1", "reference_indexes": [...] },
+            { "snippet": "Item 2", "list": [ ... sub-items ... ] }
+        ]},
+        { "type": "paragraph", "snippet": "..." }
+    ]
+    """
+    if not text_blocks:
+        return ''
+
+    lines = []
+
+    for block in text_blocks:
+        snippet = (block.get('snippet') or '').strip()
+        block_type = block.get('type', 'paragraph')
+
+        # Add the main snippet of this block
+        if snippet:
+            lines.append(snippet)
+
+        # Recursively extract list items
+        list_items = block.get('list', [])
+        if list_items:
+            for item in list_items:
+                _extract_list_item(item, lines, depth=1)
+
+    return '\n'.join(lines)
+
+
+def _extract_list_item(item, lines, depth=1):
+    """Recursively extract text from a list item and its sub-lists."""
+    snippet = (item.get('snippet') or '').strip()
+    indent = '  ' * depth
+
+    if snippet:
+        # Use bullet markers for readability
+        prefix = '• ' if depth == 1 else '  ◦ ' if depth == 2 else '    – '
+        lines.append(f"{indent}{prefix}{snippet}")
+
+    # Recurse into nested sub-lists
+    sub_items = item.get('list', [])
+    if sub_items:
+        for sub in sub_items:
+            _extract_list_item(sub, lines, depth=depth + 1)
+
+
 def _detect_aio_serp_position(serp_data):
     """
     Detect where the AI Overview appears in the SERP page.
@@ -587,10 +641,8 @@ def detect_ai_overview_elements(serp_data, site_url=None):
         # 🆕 NUEVO: Guardar referencias para análisis de competidores
         'references_found': references,
         'organic_matches': [],  # Se llenará si se usan organic results con reference_indexes
-        # 🆕 AIO content for frontend display (full text from all blocks)
-        'aio_content_preview': '\n'.join(
-            block.get('snippet', '') for block in text_blocks if block.get('snippet', '').strip()
-        ) if text_blocks else ''
+        # 🆕 AIO content for frontend display (full text from ALL blocks + nested lists)
+        'aio_content_preview': _extract_full_aio_content(text_blocks)
     }
     
     # Log del resultado final
