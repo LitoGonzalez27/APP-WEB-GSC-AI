@@ -317,16 +317,6 @@ function _renderRecommendationsHTML(data) {
       </div>`;
   });
 
-  // Meta footer
-  const pagesNote  = data.cited_pages_analyzed ? `${data.cited_pages_analyzed} competitor pages analyzed` : '';
-  const costNote   = data.cost_usd != null ? ` · $${data.cost_usd.toFixed(4)}` : '';
-  const cachedNote = data.cached ? ' · <i class="fas fa-bolt" title="Cached"></i> Cached' : '';
-
-  html += `
-    <div class="aio-rec-footer">
-      ${pagesNote}${costNote}${cachedNote}
-    </div>`;
-
   html += `</div>`;
   return html;
 }

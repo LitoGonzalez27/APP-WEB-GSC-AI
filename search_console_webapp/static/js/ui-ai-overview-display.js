@@ -404,9 +404,7 @@ export function displayTypologyChart(container, analysisData) {
   const chartHTML = `
     <div class="ai-typology-section">
       <div class="ai-typology-header">
-                  <h3 class="ai-typology-title" style="text-align: center;">
-            Keyword Length & Position
-          </h3>
+        <h3 class="ai-typology-title">Keyword Length & Position</h3>
       </div>
       
       <div class="ai-typology-main-container">
@@ -523,13 +521,9 @@ function createKeywordLengthTable(categories, totalKeywords) {
     tableHTML += `
       <tr>
         <td class="aio-position-range">
-          <div style="font-weight: 600; color: #0D7FF3;">
-            ${category.label} (${category.description})
-          </div>
+          ${category.label} (${category.description})
         </td>
-        <td class="aio-position-count">
-          <div style="font-weight: 700; font-size: 1.2rem;">${category.withAI}</div>
-        </td>
+        <td class="aio-position-count">${category.withAI}</td>
         <td class="aio-position-percentage">${percentage.toFixed(1)}%</td>
       </tr>
     `;
@@ -538,23 +532,23 @@ function createKeywordLengthTable(categories, totalKeywords) {
   tableHTML += `
       </tbody>
     </table>
-    
-    <div class="aio-position-summary" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); text-align: center;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
-        <div style="padding: 0.75rem; background: rgba(13, 127, 243, 0.08); border-radius: 8px;">
-          <div style="font-weight: 700; color: #0D7FF3; font-size: 1.25rem;">${totalWithAI}</div>
-          <div style="color: #666666;">With AI Overview</div>
+
+    <div class="aio-typology-summary">
+      <div class="aio-typology-summary-grid">
+        <div class="aio-typology-stat aio-typology-stat--accent">
+          <div class="aio-typology-stat-value">${totalWithAI}</div>
+          <div class="aio-typology-stat-label">With AI Overview</div>
         </div>
-        <div style="padding: 0.75rem; background: rgba(149, 165, 166, 0.08); border-radius: 8px;">
-          <div style="font-weight: 700; color: #95a5a6; font-size: 1.25rem;">${totalKeywords - totalWithAI}</div>
-          <div style="color: #666666;">Without AI Overview</div>
+        <div class="aio-typology-stat aio-typology-stat--muted">
+          <div class="aio-typology-stat-value">${totalKeywords - totalWithAI}</div>
+          <div class="aio-typology-stat-label">Without AI Overview</div>
         </div>
       </div>
     </div>
   `;
 
   container.innerHTML = tableHTML;
-  
+
   console.log('✅ Keyword length table created');
 }
 
@@ -681,23 +675,23 @@ function createAIOPositionTable(keywordResults) {
   tableHTML += `
       </tbody>
     </table>
-    
-    <div class="aio-position-summary" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1); text-align: center;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
-        <div style="padding: 0.75rem; background: rgba(231, 76, 60, 0.08); border-radius: 8px;">
-          <div style="font-weight: 700; color: #e74c3c; font-size: 1.25rem;">${totalWithAIOPosition}</div>
-          <div style="color: #666666;">Total mentions</div>
+
+    <div class="aio-typology-summary">
+      <div class="aio-typology-summary-grid">
+        <div class="aio-typology-stat aio-typology-stat--accent">
+          <div class="aio-typology-stat-value">${totalWithAIOPosition}</div>
+          <div class="aio-typology-stat-label">Total mentions</div>
         </div>
-        <div style="padding: 0.75rem; background: rgba(149, 165, 166, 0.08); border-radius: 8px;">
-          <div style="font-weight: 700; color: #95a5a6; font-size: 1.25rem;">${totalWithAI - totalWithAIOPosition}</div>
-          <div style="color: #666666;">Without mention</div>
+        <div class="aio-typology-stat aio-typology-stat--muted">
+          <div class="aio-typology-stat-value">${totalWithAI - totalWithAIOPosition}</div>
+          <div class="aio-typology-stat-label">Without mention</div>
         </div>
       </div>
     </div>
   `;
 
   container.innerHTML = tableHTML;
-  
+
   console.log('✅ AIO position table created');
 }
 
@@ -726,7 +720,6 @@ function displayAIOverviewGridTable(data, container, competitorDomainsPassed) {
   const gridContainer = document.createElement('div');
   gridContainer.id = 'aiOverviewGridSection';
   gridContainer.className = 'ai-overview-grid-section';
-  gridContainer.style.marginTop = '2rem';
 
   // Inner wrapper for the actual Grid.js table
   const gridTableWrapper = document.createElement('div');
@@ -767,25 +760,18 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
   if (totalKeywords === 0) return;
 
   const sectionHTML = `
-    <div class="diagnostic-section" id="diagnosticSection" style="margin-bottom: 1.5em;">
-      <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.3em; font-size: 1.3em; font-weight: 600;">
-        <i class="fas fa-stethoscope" style="margin-right: 8px; color: #6f42c1;"></i>
+    <div class="diagnostic-section aio-diagnostic-section" id="diagnosticSection">
+      <h3 class="aio-diagnostic-title">
+        <i class="fas fa-stethoscope" style="margin-right: 8px; color: #8B5CF6;"></i>
         Keyword Diagnostic
-        <span class="diagnostic-tooltip-trigger" data-tooltip="Each keyword is classified into one diagnostic category based on how AI Overview affects its organic performance. Categories are mutually exclusive — each keyword belongs to exactly one. Click a card to filter the table below and see only keywords in that category." style="
-          font-size: 0.55em; vertical-align: middle; margin-left: 6px;
-          cursor: help; opacity: 0.4;
-        ">
+        <span class="diagnostic-tooltip-trigger" data-tooltip="Each keyword is classified into one diagnostic category based on how AI Overview affects its organic performance. Categories are mutually exclusive — each keyword belongs to exactly one. Click a card to filter the table below and see only keywords in that category." style="font-size: 0.55em; vertical-align: middle; margin-left: 6px; cursor: help; opacity: 0.4;">
           <i class="fas fa-question-circle"></i>
         </span>
       </h3>
-      <p style="text-align: center; color: var(--text-color); opacity: 0.7; font-size: 0.9em; margin-bottom: 1.2em;">
+      <p class="aio-diagnostic-subtitle">
         Click a category to filter the table below
       </p>
-      <div class="diagnostic-cards-grid" style="
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 0.8em;
-      ">
+      <div class="diagnostic-cards-grid aio-diagnostic-grid">
         ${Object.entries(DIAGNOSTIC_CATEGORIES).map(([id, cat]) => {
           const catData = categories[id] || { count: 0, percentage: '0.0' };
           if (catData.count === 0 && id !== 'no_impact') return ''; // Skip empty categories except no_impact
@@ -811,52 +797,23 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
 
 function _createDiagnosticCard(id, cat, catData) {
   const isDark = cat.dark;
-  const bgStyle = isDark
-    ? 'background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); border: 2px solid #4A4B4C; box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);'
-    : 'background: var(--card-bg); border: 1px solid var(--border-color);';
-  const countColor = isDark ? '#D8F9B8' : '#161616';
-  const labelColor = isDark ? 'color: #D8F9B8; opacity: 0.9;' : 'color: var(--text-color); opacity: 0.7;';
-  const tooltipColor = isDark ? 'color: rgba(216, 249, 184, 0.5);' : 'color: rgba(0,0,0,0.3);';
+  const darkClass = isDark ? ' aio-diagnostic-card--dark' : '';
 
   return `
-    <div class="diagnostic-card" data-category="${id}" style="
-      ${bgStyle}
-      text-align: center;
-      padding: 1em 0.6em;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, outline-color 0.2s ease;
-      position: relative;
-      outline: 3px solid transparent;
-    ">
-      <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}" style="position: absolute; top: 6px; right: 8px; ${tooltipColor} font-size: 0.7em; cursor: help;">
+    <div class="diagnostic-card aio-diagnostic-card${darkClass}" data-category="${id}">
+      <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}" style="position: absolute; top: 6px; right: 8px; font-size: 0.7em; cursor: help; color: ${isDark ? 'rgba(217,249,184,0.5)' : 'rgba(0,0,0,0.3)'};">
         <i class="fas fa-info-circle"></i>
       </div>
-      <div style="
-        width: 42px; height: 42px;
-        background: ${cat.color}22;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 0.4em;
-      ">
-        <i class="fas ${cat.icon}" style="color: ${cat.color}; font-size: 16px;"></i>
+      <div class="aio-diagnostic-icon" style="background: ${cat.color}22;">
+        <i class="fas ${cat.icon}" style="color: ${cat.color};"></i>
       </div>
-      <div style="font-size: 1.8em; font-weight: bold; color: ${countColor}; line-height: 1.1;">
+      <div class="aio-diagnostic-count">
         ${catData.count}
       </div>
-      <div style="font-size: 0.78em; font-weight: 600; ${labelColor} margin-top: 0.2em; line-height: 1.2;">
+      <div class="aio-diagnostic-label">
         ${escapeHtml(cat.label)}
       </div>
-      <div style="
-        display: inline-block;
-        margin-top: 0.4em;
-        font-size: 0.7em;
-        padding: 1px 8px;
-        border-radius: 10px;
-        background: ${cat.color}20;
-        color: ${cat.color};
-        font-weight: 600;
-      ">
+      <div class="aio-diagnostic-badge" style="background: ${cat.color}20; color: ${cat.color};">
         ${catData.percentage}%
       </div>
     </div>
@@ -942,12 +899,10 @@ function _filterDetailedTableByCategory(categoryId) {
     state.activeFilter = null;
   }
 
-  // Update card active states
+  // Update card active states (CSS handles outline + transform via .active class)
   document.querySelectorAll('.diagnostic-card').forEach(card => {
     const isActive = card.dataset.category === state.activeFilter;
     card.classList.toggle('active', isActive);
-    card.style.outline = isActive ? `3px solid #D8F9B8` : '3px solid transparent';
-    card.style.transform = isActive ? 'translateY(-3px)' : '';
   });
 
   // Re-render the detailed results Grid.js table
@@ -1077,32 +1032,25 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
   let serpFeaturesPillsHTML = '';
   if (sortedFeatures.length > 0) {
     const pills = sortedFeatures.map(f => `
-      <span style="
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 10px; border-radius: 12px; font-size: 0.75em;
-        background: ${f.color}18; color: ${f.color}; border: 1px solid ${f.color}30;
-        white-space: nowrap;
-      ">
+      <span class="aio-serp-pill" style="background: ${f.color}18; color: ${f.color}; border: 1px solid ${f.color}30;">
         <i class="fas ${f.icon}" style="font-size: 0.85em;"></i>
         ${escapeHtml(f.label)} <strong>${f.count}</strong>
       </span>
     `).join('');
 
     serpFeaturesPillsHTML = `
-      <div style="margin-top: 1em; padding-top: 1em; border-top: 1px solid rgba(255,255,255,0.08);">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 0.6em;">
-          <span style="color: rgba(216, 249, 184, 0.7); font-size: 0.82em; font-weight: 600;">
-            <i class="fas fa-layer-group" style="margin-right: 4px;"></i>SERP Features Detected
-          </span>
-          <span class="ctr-metric-tooltip-trigger" data-tooltip="Other SERP features (Featured Snippets, People Also Ask, Video Carousels, etc.) also push organic results down and absorb clicks. We estimate ~${formatNumber(totalClicksBySerpFeatures)} additional clicks are being captured by these features beyond AI Overview." style="color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+      <div class="aio-serp-features-bar">
+        <div class="aio-serp-features-label">
+          <i class="fas fa-layer-group" style="margin-right: 4px;"></i>SERP Features Detected
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Other SERP features (Featured Snippets, People Also Ask, Video Carousels, etc.) also push organic results down and absorb clicks. We estimate ~${formatNumber(totalClicksBySerpFeatures)} additional clicks are being captured by these features beyond AI Overview.">
             <i class="fas fa-question-circle"></i>
           </span>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+        <div class="aio-serp-features-pills">
           ${pills}
         </div>
         ${totalClicksBySerpFeatures > 0 ? `
-          <p style="text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.75em; margin-top: 0.6em;">
+          <p class="aio-ctr-footnote" style="margin-top: 0.6em;">
             Est. <strong style="color: #fd7e14;">${formatNumber(totalClicksBySerpFeatures)}</strong> additional clicks absorbed by non-AIO SERP features
           </p>
         ` : ''}
@@ -1111,68 +1059,47 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
   }
 
   const sectionHTML = `
-    <div class="ctr-analysis-summary" style="
-      margin-bottom: 2em;
-      padding: 1.2em 1.5em;
-      background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%);
-      border-radius: 12px;
-      border: 2px solid #4A4B4C;
-      box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
-    ">
-      <h3 style="text-align: center; color: #D8F9B8; margin-bottom: 0.3em; font-size: 1.15em; font-weight: 600;">
+    <div class="aio-ctr-section">
+      <h3 class="aio-ctr-title">
         <i class="fas fa-chart-bar" style="margin-right: 8px;"></i>
         CTR Benchmark Analysis
-        <span class="ctr-tooltip-trigger" data-tooltip="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing." style="
-          font-size: 0.55em; vertical-align: middle; margin-left: 6px;
-          cursor: help; opacity: 0.5; color: #D8F9B8;
-        ">
+        <span class="ctr-tooltip-trigger" data-tooltip="Compares your actual Click-Through Rate against industry benchmarks for each organic position. The gap estimates how many clicks AI Overview and other SERP features may be absorbing." style="font-size: 0.55em; vertical-align: middle; margin-left: 6px; cursor: help; opacity: 0.5;">
           <i class="fas fa-question-circle"></i>
         </span>
       </h3>
-      <p style="text-align: center; color: rgba(216, 249, 184, 0.6); font-size: 0.82em; margin-bottom: 1.2em;">
+      <p class="aio-ctr-subtitle">
         Keywords with AI Overview: expected vs actual CTR based on organic position
       </p>
-      <div style="
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1em;
-        margin-bottom: 1em;
-      ">
-        <div style="text-align: center; padding: 0.8em; background: rgba(220, 53, 69, 0.15); border-radius: 8px; position: relative;">
-          <span class="ctr-metric-tooltip-trigger" data-tooltip="Total estimated clicks lost: the full difference between expected CTR (based on organic position) and actual CTR. Includes impact from AI Overview AND other SERP features (Featured Snippets, PAA, Videos, etc.)." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+      <div class="aio-ctr-metrics-grid">
+        <div class="aio-ctr-metric" style="background: rgba(239, 68, 68, 0.15);">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Total estimated clicks lost: the full difference between expected CTR (based on organic position) and actual CTR. Includes impact from AI Overview AND other SERP features (Featured Snippets, PAA, Videos, etc.)." style="position: absolute; top: 6px; right: 8px;">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div style="font-size: 2em; font-weight: bold; color: #ff6b6b; line-height: 1.1;">
+          <div class="aio-ctr-metric-value" style="color: #ff6b6b;">
             ${formatNumber(totalClicksAbsorbed)}
           </div>
-          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
-            Est. Clicks Absorbed
-          </div>
+          <div class="aio-ctr-metric-label">Est. Clicks Absorbed</div>
         </div>
-        <div style="text-align: center; padding: 0.8em; background: rgba(253, 126, 20, 0.15); border-radius: 8px; position: relative;">
-          <span class="ctr-metric-tooltip-trigger" data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+        <div class="aio-ctr-metric" style="background: rgba(253, 126, 20, 0.15);">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Average difference between the expected CTR for your organic position and your actual CTR across all keywords with AI Overview. A positive gap means you are getting fewer clicks than expected." style="position: absolute; top: 6px; right: 8px;">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div style="font-size: 2em; font-weight: bold; color: #fd7e14; line-height: 1.1;">
+          <div class="aio-ctr-metric-value" style="color: #fd7e14;">
             ${(avgCTRGap * 100).toFixed(1)}%
           </div>
-          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
-            Avg CTR Gap
-          </div>
+          <div class="aio-ctr-metric-label">Avg CTR Gap</div>
         </div>
-        <div style="text-align: center; padding: 0.8em; background: rgba(255, 193, 7, 0.12); border-radius: 8px; position: relative;">
-          <span class="ctr-metric-tooltip-trigger" data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview and/or other SERP features." style="position: absolute; top: 6px; right: 8px; color: rgba(255, 255, 255, 0.35); font-size: 0.7em; cursor: help;">
+        <div class="aio-ctr-metric" style="background: rgba(245, 158, 11, 0.12);">
+          <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Number of keywords where your actual CTR is lower than the industry benchmark for your organic position. These keywords are likely being impacted by AI Overview and/or other SERP features." style="position: absolute; top: 6px; right: 8px;">
             <i class="fas fa-question-circle"></i>
           </span>
-          <div style="font-size: 2em; font-weight: bold; color: #ffc107; line-height: 1.1;">
+          <div class="aio-ctr-metric-value" style="color: #F59E0B;">
             ${underperformingCount}<span style="font-size: 0.5em; opacity: 0.7;">/${aioKeywords.length}</span>
           </div>
-          <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.82em; margin-top: 0.2em;">
-            Underperforming
-          </div>
+          <div class="aio-ctr-metric-label">Underperforming</div>
         </div>
       </div>
-      <p style="text-align: center; color: rgba(255, 255, 255, 0.45); font-size: 0.78em; line-height: 1.5; max-width: 600px; margin: 0 auto;">
+      <p class="aio-ctr-footnote">
         Based on organic position CTR benchmarks, we estimate these clicks are being absorbed by AI Overview
         and other SERP features displayed above organic results.
       </p>
@@ -1235,172 +1162,64 @@ function displaySummary(summary, container, keywordCount = null) {
   const mentionsInAIO = summary.keywords_as_ai_source || 0;
   const totalKeywords = summary.total_keywords_analyzed || 0;
   const visibilityPercentage = keywordsWithAIO > 0 ? ((mentionsInAIO / keywordsWithAIO) * 100).toFixed(1) : '0.0';
-  
+
   // Calcular peso AIO en SERPs
   const pesoAIOPercentage = totalKeywords > 0 ? ((keywordsWithAIO / totalKeywords) * 100).toFixed(1) : '0.0';
-  
+
   // 🆕 NUEVO: Obtener posición promedio en AIO
   const averageAIOPosition = summary.average_ai_position;
-  
+
   // Determinar el número de keywords dinámicamente
   const keywordCountText = keywordCount || totalKeywords || 50;
-  
-  const summaryHTML = `
-    <div class="ai-overview-summary" style="
-      /* Eliminamos el background linear-gradient y el border directos
-         para que el estilo de la sección principal glass-effect sea dominante */
-      padding: 1.5em;
-      margin-bottom: 2em;
-      border-radius: 12px; /* Mantenemos el border-radius para las métricas internas */
-    ">
-      <h3 style="text-align: center; color: var(--heading); margin-bottom: 0.5em; font-size: 1.5em; font-weight: 600;">
-        AI Overview Analysis
-      </h3>
-      <p style="text-align: center; color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 1.5em;">
-        based on the <span style="background: linear-gradient(to top, #D8F9B8 40%, transparent 40%); font-weight: 500; padding: 2px 4px;">${keywordCountText} most clicked keywords</span>
-      </p>
-      <div style="
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 1em;
-        margin-bottom: 1em;
-      ">
 
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); 
-          border-radius: 8px;
-          border: 2px solid #4A4B4C;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
-          transform: translateY(-2px);
-        ">
-          <div class="metric-icon" style="
-            width: 50px; 
-            height: 50px; 
-            background: #D8F9B8; 
-            border-radius: 150px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 0.5em;
-          ">
-            <i class="fas fa-robot" style="color: #2C2D2E; font-size: 20px;"></i>
+  const summaryHTML = `
+    <div class="ai-overview-summary">
+      <h3 class="aio-section-title">
+        AI <span class="aio-title-accent">Overview</span> Analysis
+      </h3>
+      <p class="aio-section-subtitle">
+        based on the <span class="aio-kw-count-highlight">${keywordCountText} most clicked keywords</span>
+      </p>
+      <div class="aio-summary-grid">
+        <div class="aio-summary-card aio-summary-card--dark">
+          <div class="aio-card-icon aio-card-icon--robot">
+            <i class="fas fa-robot"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #D8F9B8;">
-            ${formatNumber(keywordsWithAIO)}
-          </div>
-          <div style="color: #D8F9B8; font-size: 0.9em; opacity: 0.9; font-weight: 600;">With AI Overview</div>
+          <div class="aio-card-value">${formatNumber(keywordsWithAIO)}</div>
+          <div class="aio-card-label">With AI Overview</div>
         </div>
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); 
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div class="metric-icon" style="
-            width: 50px; 
-            height: 50px; 
-            background: #D8F9B8; 
-            border-radius: 150px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 0.5em;
-          ">
-            <i class="fas fa-chart-pie" style="color: #161616; font-size: 20px;"></i>
+        <div class="aio-summary-card">
+          <div class="aio-card-icon aio-card-icon--chart">
+            <i class="fas fa-chart-pie"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #161616;">
-            ${pesoAIOPercentage}%
-          </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">AIO Weight in SERPs</div>
+          <div class="aio-card-value">${pesoAIOPercentage}%</div>
+          <div class="aio-card-label">AIO Weight in SERPs</div>
         </div>
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); 
-          border-radius: 8px;
-          border: 2px solid #4A4B4C;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
-          transform: translateY(-2px);
-        ">
-          <div class="metric-icon" style="
-            width: 50px; 
-            height: 50px; 
-            background: #D8F9B8; 
-            border-radius: 150px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 0.5em;
-          ">
-            <i class="fas fa-hashtag" style="color: #2C2D2E; font-size: 20px;"></i>
+        <div class="aio-summary-card aio-summary-card--dark">
+          <div class="aio-card-icon aio-card-icon--mentions">
+            <i class="fas fa-hashtag"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #D8F9B8;">
-            ${formatNumber(mentionsInAIO)}
-          </div>
-          <div style="color: #D8F9B8; font-size: 0.9em; opacity: 0.9; font-weight: 600;">Mentions of Your Brand</div>
+          <div class="aio-card-value">${formatNumber(mentionsInAIO)}</div>
+          <div class="aio-card-label">Mentions of Your Brand</div>
         </div>
-        <div class="summary-metric" style="
-          text-align: center; 
-          padding: 1em; 
-          background: var(--card-bg); 
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        ">
-          <div class="metric-icon" style="
-            width: 50px; 
-            height: 50px; 
-            background: #D8F9B8; 
-            border-radius: 150px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 0.5em;
-          ">
-            <i class="fas fa-eye" style="color: #161616; font-size: 20px;"></i>
+        <div class="aio-summary-card">
+          <div class="aio-card-icon aio-card-icon--eye">
+            <i class="fas fa-eye"></i>
           </div>
-          <div style="font-size: 2em; font-weight: bold; color: #161616;">
-            ${visibilityPercentage}%
-          </div>
-          <div style="color: var(--text-color); font-size: 0.9em; opacity: 0.7;">% Visibility in AIO</div>
+          <div class="aio-card-value">${visibilityPercentage}%</div>
+          <div class="aio-card-label">% Visibility in AIO</div>
         </div>
-                  <div class="summary-metric" style="
-            text-align: center; 
-            padding: 1em; 
-            background: linear-gradient(135deg, #2C2D2E 0%, #3A3B3C 100%); 
-            border-radius: 8px;
-            border: 2px solid #4A4B4C;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 15px rgba(44, 45, 46, 0.4);
-            transform: translateY(-2px);
-          ">
-            <div class="metric-icon" style="
-              width: 50px; 
-              height: 50px; 
-              background: #D8F9B8; 
-              border-radius: 150px; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              margin: 0 auto 0.5em;
-            ">
-              <i class="fas fa-map-marker-alt" style="color: #2C2D2E; font-size: 20px;"></i>
-            </div>
-            <div style="font-size: 2em; font-weight: bold; color: #D8F9B8;">
-              ${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}
-            </div>
-            <div style="color: #D8F9B8; font-size: 0.9em; opacity: 0.9; font-weight: 600;">Avg Position in AIO</div>
+        <div class="aio-summary-card aio-summary-card--dark">
+          <div class="aio-card-icon aio-card-icon--pin">
+            <i class="fas fa-map-marker-alt"></i>
           </div>
+          <div class="aio-card-value">${averageAIOPosition !== null && averageAIOPosition !== undefined ? averageAIOPosition : 'N/A'}</div>
+          <div class="aio-card-label">Avg Position in AIO</div>
+        </div>
       </div>
     </div>
   `;
-  
+
   container.innerHTML = summaryHTML;
   
   // 🆕 NUEVO: Mostrar tabla de competidores si está disponible

@@ -1,0 +1,1068 @@
+/* ==============================================
+   AI OVERVIEW SECTION — CLICANDSEO BRANDBOOK
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Flat/solid
+   Consistent with Overview, Keywords, Pages sections
+   ============================================== */
+
+/* ── SCOPED BRAND TOKENS ─────────────────────── */
+#aiOverviewContent {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-warning:        #F59E0B;
+  --bb-info:           #3B82F6;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-lg:      30px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-sm:      0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --bb-shadow-md:      0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-duration:       0.3s;
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 1. SECTION WRAPPER ──────────────────────── */
+
+#aiOverviewContent section#aiOverviewSection {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2.5rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) both;
+}
+
+/* Remove glass-effect overrides */
+#aiOverviewContent section.glass-effect {
+  background: var(--bb-bg-paper) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+@keyframes aioFadeInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ── 2. SECTION TITLE ────────────────────────── */
+
+#aiOverviewContent .aio-section-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.8rem, 3vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.35rem 0 !important;
+  text-align: center !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) both;
+}
+
+#aiOverviewContent .aio-title-accent {
+  font-family: var(--bb-font-serif) !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+}
+
+#aiOverviewContent .aio-title-accent::after {
+  content: '';
+  position: absolute;
+  bottom: 0.1em;
+  left: -6px;
+  right: -6px;
+  height: 0.4em;
+  background: var(--bb-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+#aiOverviewContent .aio-section-subtitle {
+  font-family: var(--bb-font-sans) !important;
+  font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.9375rem) !important;
+  color: var(--bb-text-secondary) !important;
+  line-height: 1.6 !important;
+  margin-bottom: 2rem !important;
+  font-weight: 400 !important;
+  text-align: center !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.05s both;
+}
+
+#aiOverviewContent .aio-section-subtitle .aio-kw-count-highlight {
+  position: relative;
+  display: inline;
+  font-weight: 500;
+}
+
+#aiOverviewContent .aio-section-subtitle .aio-kw-count-highlight::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: -3px;
+  right: -3px;
+  height: 0.35em;
+  background: var(--bb-accent);
+  opacity: 0.7;
+  z-index: -1;
+  border-radius: 2px;
+}
+
+/* Old title — hide and replace */
+#aiOverviewContent .ai-overview-header h2 {
+  display: none !important;
+}
+
+
+/* ── 3. SUMMARY METRIC CARDS ────────────────── */
+
+#aiOverviewContent .aio-summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  margin-bottom: 2rem !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.1s both;
+}
+
+#aiOverviewContent .aio-summary-card {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-md) !important;
+  padding: 1.25rem 1rem !important;
+  text-align: center !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  position: relative;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+#aiOverviewContent .aio-summary-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+/* Bottom accent on hover */
+#aiOverviewContent .aio-summary-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bb-accent);
+  opacity: 0;
+  transition: opacity var(--bb-duration) var(--bb-ease);
+}
+
+#aiOverviewContent .aio-summary-card:hover::after {
+  opacity: 1;
+}
+
+/* Dark accent card (for primary metrics) */
+#aiOverviewContent .aio-summary-card--dark {
+  background: var(--bb-bg-dark) !important;
+  border: 1px solid #1E293B !important;
+}
+
+#aiOverviewContent .aio-summary-card--dark:hover {
+  border-color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .aio-summary-card--dark .aio-card-value {
+  color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .aio-summary-card--dark .aio-card-label {
+  color: rgba(217, 249, 184, 0.8) !important;
+}
+
+/* Card icon */
+#aiOverviewContent .aio-card-icon {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  margin: 0 auto 0.6rem auto !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .aio-card-icon--robot {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: var(--bb-info) !important;
+}
+
+#aiOverviewContent .aio-card-icon--chart {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: var(--bb-warning) !important;
+}
+
+#aiOverviewContent .aio-card-icon--mentions {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: var(--bb-success) !important;
+}
+
+#aiOverviewContent .aio-card-icon--eye {
+  background: rgba(139, 92, 246, 0.1) !important;
+  color: #8B5CF6 !important;
+}
+
+#aiOverviewContent .aio-card-icon--pin {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--bb-error) !important;
+}
+
+/* Dark card icon */
+#aiOverviewContent .aio-summary-card--dark .aio-card-icon {
+  background: var(--bb-accent) !important;
+  color: var(--bb-bg-dark) !important;
+}
+
+/* Card value */
+#aiOverviewContent .aio-card-value {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.15rem 0 !important;
+  line-height: 1.2 !important;
+}
+
+/* Card label */
+#aiOverviewContent .aio-card-label {
+  font-family: var(--bb-font-sans) !important;
+  font-size: clamp(0.7rem, 0.65rem + 0.25vw, 0.78rem) !important;
+  font-weight: 500 !important;
+  color: var(--bb-text-secondary) !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+/* Staggered entrance */
+#aiOverviewContent .aio-summary-card:nth-child(1) { animation: aioFadeInUp 0.45s var(--bb-ease) 0.12s both; }
+#aiOverviewContent .aio-summary-card:nth-child(2) { animation: aioFadeInUp 0.45s var(--bb-ease) 0.18s both; }
+#aiOverviewContent .aio-summary-card:nth-child(3) { animation: aioFadeInUp 0.45s var(--bb-ease) 0.24s both; }
+#aiOverviewContent .aio-summary-card:nth-child(4) { animation: aioFadeInUp 0.45s var(--bb-ease) 0.30s both; }
+#aiOverviewContent .aio-summary-card:nth-child(5) { animation: aioFadeInUp 0.45s var(--bb-ease) 0.36s both; }
+
+
+/* ── 4. CTR BENCHMARK SECTION ────────────────── */
+
+#aiOverviewContent .aio-ctr-section {
+  background: var(--bb-bg-dark) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid #1E293B !important;
+  padding: 1.5rem 1.75rem !important;
+  margin-bottom: 2rem !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.15s both;
+}
+
+#aiOverviewContent .aio-ctr-title {
+  text-align: center !important;
+  color: var(--bb-accent) !important;
+  margin: 0 0 0.25rem 0 !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.15em !important;
+  font-weight: 700 !important;
+}
+
+#aiOverviewContent .aio-ctr-subtitle {
+  text-align: center !important;
+  color: rgba(217, 249, 184, 0.55) !important;
+  font-size: 0.82em !important;
+  margin-bottom: 1.2em !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-ctr-metrics-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+#aiOverviewContent .aio-ctr-metric {
+  text-align: center !important;
+  padding: 0.8em !important;
+  border-radius: var(--bb-radius-sm) !important;
+  position: relative;
+}
+
+#aiOverviewContent .aio-ctr-metric-value {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 2em !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+}
+
+#aiOverviewContent .aio-ctr-metric-label {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 0.82em !important;
+  margin-top: 0.2em !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-ctr-footnote {
+  text-align: center !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-size: 0.78em !important;
+  line-height: 1.5 !important;
+  max-width: 600px !important;
+  margin: 0 auto !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+/* SERP features pills */
+#aiOverviewContent .aio-serp-features-bar {
+  margin-top: 1em !important;
+  padding-top: 1em !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#aiOverviewContent .aio-serp-features-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  margin-bottom: 0.6em !important;
+  color: rgba(217, 249, 184, 0.7) !important;
+  font-size: 0.82em !important;
+  font-weight: 600 !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-serp-features-pills {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  justify-content: center !important;
+}
+
+#aiOverviewContent .aio-serp-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3px 10px !important;
+  border-radius: 12px !important;
+  font-size: 0.75em !important;
+  white-space: nowrap !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-ctr-tooltip-trigger {
+  color: rgba(255, 255, 255, 0.35) !important;
+  font-size: 0.7em !important;
+  cursor: help !important;
+}
+
+
+/* ── 5. DIAGNOSTIC CARDS ─────────────────────── */
+
+#aiOverviewContent .aio-diagnostic-section {
+  margin-bottom: 2rem !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.2s both;
+}
+
+#aiOverviewContent .aio-diagnostic-title {
+  text-align: center !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.15em !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+  margin: 0 0 0.25rem 0 !important;
+}
+
+#aiOverviewContent .aio-diagnostic-subtitle {
+  text-align: center !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.88em !important;
+  margin-bottom: 1.2em !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-diagnostic-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  gap: 12px !important;
+}
+
+#aiOverviewContent .aio-diagnostic-card {
+  background: var(--bb-bg-paper) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  text-align: center !important;
+  padding: 1em 0.6em !important;
+  cursor: pointer !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+  position: relative;
+  outline: 3px solid transparent;
+}
+
+#aiOverviewContent .aio-diagnostic-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: var(--bb-shadow-md) !important;
+}
+
+#aiOverviewContent .aio-diagnostic-card.active {
+  outline-color: var(--bb-accent) !important;
+  transform: translateY(-3px) !important;
+}
+
+/* Dark variant for dark-bg cards */
+#aiOverviewContent .aio-diagnostic-card--dark {
+  background: var(--bb-bg-dark) !important;
+  border: 1px solid #1E293B !important;
+}
+
+#aiOverviewContent .aio-diagnostic-card--dark .aio-diagnostic-count {
+  color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .aio-diagnostic-card--dark .aio-diagnostic-label {
+  color: rgba(217, 249, 184, 0.85) !important;
+}
+
+/* Diagnostic card elements */
+#aiOverviewContent .aio-diagnostic-icon {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto 0.4em !important;
+  font-size: 16px !important;
+}
+
+#aiOverviewContent .aio-diagnostic-count {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 1.8em !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+  line-height: 1.1 !important;
+}
+
+#aiOverviewContent .aio-diagnostic-label {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78em !important;
+  font-weight: 600 !important;
+  color: var(--bb-text-secondary) !important;
+  margin-top: 0.2em !important;
+  line-height: 1.2 !important;
+}
+
+#aiOverviewContent .aio-diagnostic-badge {
+  display: inline-block !important;
+  margin-top: 0.4em !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7em !important;
+  padding: 1px 8px !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+
+/* ── 6. TYPOLOGY SECTION (2-column tables) ──── */
+
+#aiOverviewContent .ai-typology-section {
+  margin-top: 2rem !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.2s both;
+}
+
+#aiOverviewContent .ai-typology-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 1.15em !important;
+  color: var(--bb-text-primary) !important;
+  margin-top: 0 !important;
+  text-align: center !important;
+}
+
+#aiOverviewContent .ai-typology-main-container {
+  gap: 16px !important;
+}
+
+#aiOverviewContent .ai-typology-container,
+#aiOverviewContent .aio-position-table-container {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  padding: 1.5rem !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: none !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+/* Remove gradient top borders */
+#aiOverviewContent .ai-typology-container::before,
+#aiOverviewContent .aio-position-table-container::before {
+  display: none !important;
+}
+
+#aiOverviewContent .ai-typology-container:hover,
+#aiOverviewContent .aio-position-table-container:hover {
+  box-shadow: var(--bb-shadow-md) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .aio-position-table-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+  font-size: 1rem !important;
+}
+
+#aiOverviewContent .aio-position-table-subtitle {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.82rem !important;
+}
+
+#aiOverviewContent .aio-position-table {
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-position-table th {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  padding: 0.75rem 0.5rem !important;
+  border-bottom: 1px solid var(--bb-border) !important;
+}
+
+/* Override colored headers - use neutral brand style */
+#aiOverviewContent .aio-position-table-container .aio-position-table th {
+  background: var(--bb-bg-subtle) !important;
+  border-bottom: 1px solid var(--bb-border) !important;
+}
+
+#aiOverviewContent .aio-position-table td {
+  font-family: var(--bb-font-sans) !important;
+  padding: 0.75rem 0.5rem !important;
+  border-bottom: 1px solid var(--bb-border-subtle) !important;
+  font-size: 0.88rem !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#aiOverviewContent .aio-position-table tbody tr:hover {
+  background: var(--bb-accent-subtle) !important;
+}
+
+#aiOverviewContent .aio-position-range {
+  color: var(--bb-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+#aiOverviewContent .aio-position-count {
+  color: var(--bb-text-primary) !important;
+  font-weight: 700 !important;
+}
+
+#aiOverviewContent .aio-position-percentage {
+  color: var(--bb-text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+/* Typology loading / empty */
+#aiOverviewContent .typology-loading,
+#aiOverviewContent .typology-empty {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+}
+
+#aiOverviewContent .typology-loading i,
+#aiOverviewContent .typology-empty i {
+  color: var(--bb-text-tertiary) !important;
+}
+
+/* Typology summary boxes (keyword length + position tables) */
+#aiOverviewContent .aio-typology-summary {
+  margin-top: 1rem !important;
+  padding-top: 1rem !important;
+  border-top: 1px solid var(--bb-border-subtle) !important;
+  text-align: center;
+}
+
+#aiOverviewContent .aio-typology-summary-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0.75rem !important;
+  font-size: 0.85rem !important;
+}
+
+#aiOverviewContent .aio-typology-stat {
+  padding: 0.75rem !important;
+  border-radius: var(--bb-radius-sm) !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-typology-stat--accent {
+  background: var(--bb-accent-subtle) !important;
+}
+
+#aiOverviewContent .aio-typology-stat--muted {
+  background: var(--bb-bg-subtle) !important;
+}
+
+#aiOverviewContent .aio-typology-stat-value {
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+  color: var(--bb-text-primary) !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .aio-typology-stat--accent .aio-typology-stat-value {
+  color: #22C55E !important;
+}
+
+#aiOverviewContent .aio-typology-stat--muted .aio-typology-stat-value {
+  color: var(--bb-text-tertiary) !important;
+}
+
+#aiOverviewContent .aio-typology-stat-label {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.82em !important;
+}
+
+
+/* ── 7. GRID.JS TABLE SECTION ────────────────── */
+
+#aiOverviewContent .ai-overview-grid-section {
+  margin-top: 2rem !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) 0.25s both;
+}
+
+#aiOverviewContent .ai-overview-grid-container {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: none !important;
+  padding: 1.5rem !important;
+}
+
+#aiOverviewContent .ai-overview-grid-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  color: var(--bb-text-primary) !important;
+  text-align: center !important;
+  margin: 0 0 1rem 0 !important;
+}
+
+/* Grid.js overrides scoped to AI Overview section */
+#aiOverviewContent .gridjs-th {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  border-color: var(--bb-border) !important;
+  padding: 12px 8px !important;
+}
+
+#aiOverviewContent .gridjs-td {
+  font-family: var(--bb-font-sans) !important;
+  border-color: var(--bb-border-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  font-size: 0.85rem !important;
+}
+
+#aiOverviewContent .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(241, 245, 249, 0.4) !important;
+}
+
+#aiOverviewContent .gridjs-tr:hover .gridjs-td {
+  background: var(--bb-accent-subtle) !important;
+}
+
+/* Grid.js search */
+#aiOverviewContent .gridjs-search input {
+  font-family: var(--bb-font-sans) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  color: var(--bb-text-primary) !important;
+  padding: 8px 12px !important;
+  font-size: 0.85rem !important;
+  transition: border-color var(--bb-duration) var(--bb-ease), box-shadow var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .gridjs-search input:focus {
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 249, 184, 0.2) !important;
+  outline: none !important;
+}
+
+/* Grid.js pagination */
+#aiOverviewContent .gridjs-pagination .gridjs-pages button {
+  font-family: var(--bb-font-sans) !important;
+  background: rgba(217, 249, 184, 0.3) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .gridjs-pagination .gridjs-pages button:hover {
+  background: var(--bb-accent) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-accent) !important;
+  color: var(--bb-text-primary) !important;
+  font-weight: 600 !important;
+  border-color: var(--bb-accent) !important;
+}
+
+#aiOverviewContent .gridjs-summary {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.82rem !important;
+}
+
+
+/* ── 8. FILTER BANNER ────────────────────────── */
+
+#aiOverviewContent .filter-active-banner > div {
+  font-family: var(--bb-font-sans) !important;
+  border-radius: var(--bb-radius-sm) !important;
+}
+
+
+/* ── 9. ADVANCED ANALYSIS OPTIONS ────────────── */
+
+#aiOverviewContent .advanced-analysis-section {
+  background: var(--bb-bg-paper) !important;
+  border-radius: var(--bb-radius-md) !important;
+  border: 1px solid var(--bb-border-subtle) !important;
+  box-shadow: var(--bb-shadow-sm) !important;
+  padding: 2rem !important;
+  margin-bottom: 1.5rem !important;
+  font-family: var(--bb-font-sans) !important;
+  backdrop-filter: none !important;
+  animation: aioFadeInUp 0.5s var(--bb-ease) both;
+}
+
+#aiOverviewContent .section-header .section-main-title {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+  font-size: 1.1em !important;
+}
+
+#aiOverviewContent .section-header .section-main-description {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.88em !important;
+}
+
+/* Collapsible sections */
+#aiOverviewContent .collapsible-section {
+  border: 1px solid var(--bb-border-subtle) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  overflow: hidden;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .collapsible-header {
+  font-family: var(--bb-font-sans) !important;
+  background: var(--bb-bg-subtle) !important;
+  padding: 0.85rem 1.2rem !important;
+  transition: background var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .collapsible-header:hover {
+  background: var(--bb-accent-subtle) !important;
+}
+
+#aiOverviewContent .collapsible-title span {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 600 !important;
+  color: var(--bb-text-primary) !important;
+}
+
+#aiOverviewContent .optional-badge {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.7em !important;
+  font-weight: 600 !important;
+  background: var(--bb-accent-subtle) !important;
+  color: var(--bb-text-secondary) !important;
+  padding: 2px 8px !important;
+  border-radius: var(--bb-radius-full) !important;
+}
+
+#aiOverviewContent .collapsible-summary {
+  font-family: var(--bb-font-sans) !important;
+  color: var(--bb-text-tertiary) !important;
+  font-size: 0.82em !important;
+}
+
+/* Keyword count selector & Run button area */
+#aiOverviewContent .competitor-input {
+  font-family: var(--bb-font-sans) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-sm) !important;
+  color: var(--bb-text-primary) !important;
+  transition: border-color var(--bb-duration) var(--bb-ease), box-shadow var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .competitor-input:focus {
+  border-color: var(--bb-accent) !important;
+  box-shadow: 0 0 0 3px rgba(217, 249, 184, 0.2) !important;
+  outline: none !important;
+}
+
+
+/* ── 10. STATUS BADGES (AIO table) ───────────── */
+
+#aiOverviewContent .aio-status {
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78em !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  border-radius: var(--bb-radius-full) !important;
+  display: inline-block !important;
+}
+
+#aiOverviewContent .aio-yes {
+  background: rgba(34, 197, 94, 0.1) !important;
+  color: var(--bb-success) !important;
+}
+
+#aiOverviewContent .aio-no {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--bb-error) !important;
+}
+
+#aiOverviewContent .aio-na {
+  color: var(--bb-text-tertiary) !important;
+  font-weight: 500 !important;
+}
+
+#aiOverviewContent .aio-position {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+}
+
+
+/* ── 11. RESET BUTTON ────────────────────────── */
+
+#aiOverviewContent .btn-reset-ai {
+  font-family: var(--bb-font-sans) !important;
+  border: 1px solid var(--bb-border) !important;
+  border-radius: var(--bb-radius-full) !important;
+  background: var(--bb-bg-paper) !important;
+  color: var(--bb-text-secondary) !important;
+  font-size: 0.82em !important;
+  font-weight: 600 !important;
+  padding: 6px 16px !important;
+  transition: all var(--bb-duration) var(--bb-ease) !important;
+}
+
+#aiOverviewContent .btn-reset-ai:hover {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.08) !important;
+}
+
+
+/* ── 12. NO-AIO MESSAGE ──────────────────────── */
+
+#aiOverviewContent .no-aio-message {
+  text-align: center !important;
+  padding: 3rem !important;
+  color: var(--bb-text-secondary) !important;
+  font-family: var(--bb-font-sans) !important;
+}
+
+#aiOverviewContent .no-aio-message i {
+  font-size: 2.5em !important;
+  color: var(--bb-text-tertiary) !important;
+  margin-bottom: 0.5em !important;
+}
+
+#aiOverviewContent .no-aio-message h3 {
+  font-family: var(--bb-font-sans) !important;
+  font-weight: 700 !important;
+  color: var(--bb-text-primary) !important;
+}
+
+
+/* ── 13. DARK MODE ───────────────────────────── */
+
+body.dark-mode #aiOverviewContent {
+  --bb-text-primary:   #F8FAFC;
+  --bb-text-secondary: #94A3B8;
+  --bb-text-tertiary:  #64748B;
+  --bb-bg-paper:       #1E293B;
+  --bb-bg-subtle:      #0F172A;
+  --bb-bg-dark:        #0A0A0B;
+  --bb-border:         #334155;
+  --bb-border-subtle:  rgba(51, 65, 85, 0.6);
+}
+
+body.dark-mode #aiOverviewContent section#aiOverviewSection {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .ai-typology-container,
+body.dark-mode #aiOverviewContent .aio-position-table-container {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .aio-position-table th {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  border-bottom-color: var(--bb-border) !important;
+}
+
+body.dark-mode #aiOverviewContent .aio-position-table td {
+  border-bottom-color: var(--bb-border-subtle) !important;
+  color: var(--bb-text-primary) !important;
+}
+
+body.dark-mode #aiOverviewContent .ai-overview-grid-container {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .gridjs-th {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #aiOverviewContent .gridjs-td {
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .gridjs-tr:nth-child(even) .gridjs-td {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+body.dark-mode #aiOverviewContent .gridjs-search input {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+body.dark-mode #aiOverviewContent .gridjs-pagination .gridjs-pages button.gridjs-currentPage {
+  background: var(--bb-accent) !important;
+  color: #0A0A0B !important;
+}
+
+body.dark-mode #aiOverviewContent .advanced-analysis-section {
+  background: var(--bb-bg-paper) !important;
+  border-color: var(--bb-border-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .collapsible-header {
+  background: var(--bb-bg-subtle) !important;
+}
+
+body.dark-mode #aiOverviewContent .collapsible-header:hover {
+  background: rgba(217, 249, 184, 0.08) !important;
+}
+
+body.dark-mode #aiOverviewContent .competitor-input {
+  background: var(--bb-bg-subtle) !important;
+  color: var(--bb-text-primary) !important;
+  border-color: var(--bb-border) !important;
+}
+
+
+/* ── 14. RESPONSIVE ──────────────────────────── */
+
+@media (max-width: 768px) {
+  #aiOverviewContent section#aiOverviewSection {
+    padding: 1.5rem 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  #aiOverviewContent .aio-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  #aiOverviewContent .aio-ctr-metrics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  #aiOverviewContent .ai-typology-main-container {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  #aiOverviewContent .aio-diagnostic-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  #aiOverviewContent .advanced-analysis-section {
+    padding: 1.25rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #aiOverviewContent .aio-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #aiOverviewContent .aio-diagnostic-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #aiOverviewContent section#aiOverviewSection,
+  #aiOverviewContent .aio-section-title,
+  #aiOverviewContent .aio-section-subtitle,
+  #aiOverviewContent .aio-summary-card,
+  #aiOverviewContent .aio-ctr-section,
+  #aiOverviewContent .aio-diagnostic-section,
+  #aiOverviewContent .ai-typology-section,
+  #aiOverviewContent .ai-overview-grid-section,
+  #aiOverviewContent .advanced-analysis-section {
+    animation: none !important;
+  }
+}
