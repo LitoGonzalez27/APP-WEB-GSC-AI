@@ -485,6 +485,9 @@ function _renderAIOPreviewTab(result) {
   let html = '';
 
   // --- Domain status banner ---
+  const keyword = result.keyword || '';
+  const safeKeyword = keyword.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
   html += `
     <div class="saio-status-banner ${isDomainSource ? 'saio-status-banner--cited' : 'saio-status-banner--not-cited'}">
       <i class="fas fa-${isDomainSource ? 'check-circle' : 'times-circle'}"></i>
@@ -494,11 +497,20 @@ function _renderAIOPreviewTab(result) {
     </div>
   `;
 
-  // --- Content preview ---
+  // --- AI Recommendations CTA button ---
+  const ctaText = isDomainSource
+    ? 'Get recommendations to improve your AI Overview position'
+    : 'Get recommendations on how to appear in AI Overview';
+  html += `
+    <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { alert('AI Recommendations not available. Run the AI Overview analysis first.'); }">
+      <i class="fas fa-lightbulb"></i>
+      <span>${ctaText}</span>
+      <i class="fas fa-arrow-right saio-cta-arrow"></i>
+    </button>
+  `;
+
+  // --- Full AI Overview content ---
   if (contentPreview) {
-    const truncated = contentPreview.length >= 490
-      ? contentPreview.substring(0, 300) + '...'
-      : contentPreview;
     html += `
       <div class="saio-content-block">
         <div class="saio-section-label">
@@ -506,7 +518,7 @@ function _renderAIOPreviewTab(result) {
           <span class="saio-label-meta">(${totalBlocks} block${totalBlocks !== 1 ? 's' : ''})</span>
         </div>
         <div class="saio-content-preview">
-          ${escapeHtml(truncated)}
+          ${escapeHtml(contentPreview)}
         </div>
       </div>
     `;
@@ -514,7 +526,7 @@ function _renderAIOPreviewTab(result) {
 
   // --- Cited sources + Position mockup (side by side) ---
   if (references.length > 0) {
-    // Cited sources list
+    // Cited sources list — clickable URLs ordered by mention
     const sourceItems = references.map((ref, i) => {
       const refLink = ref.link || '';
       const refSource = ref.source || '';
@@ -528,13 +540,24 @@ function _renderAIOPreviewTab(result) {
       }
 
       const typeClass = cls.type === 'user' ? 'saio-source--user' : (cls.type === 'competitor' ? 'saio-source--competitor' : '');
+      const displayTitle = refTitle.length > 55 ? refTitle.substring(0, 55) + '...' : refTitle;
+
+      // Wrap in <a> if we have a valid link
+      const isClickable = refLink && (refLink.startsWith('http://') || refLink.startsWith('https://'));
+      const openTag = isClickable
+        ? `<a href="${escapeHtml(refLink)}" target="_blank" rel="noopener noreferrer" class="saio-source-item saio-source-item--link ${typeClass}" title="${escapeHtml(refLink)}">`
+        : `<div class="saio-source-item ${typeClass}">`;
+      const closeTag = isClickable ? '</a>' : '</div>';
 
       return `
-        <div class="saio-source-item ${typeClass}">
+        ${openTag}
           <div class="saio-source-pos ${cls.type === 'user' ? 'saio-source-pos--user' : (cls.type === 'competitor' ? 'saio-source-pos--competitor' : '')}">${pos}</div>
           <div class="saio-source-info">
-            <div class="saio-source-title" title="${escapeHtml(refTitle)}">${escapeHtml(refTitle.length > 50 ? refTitle.substring(0, 50) + '...' : refTitle)}</div>
-            <div class="saio-source-domain">${escapeHtml(displayDomain)}</div>
+            <div class="saio-source-title">${escapeHtml(displayTitle)}</div>
+            <div class="saio-source-domain">
+              ${isClickable ? '<i class="fas fa-external-link-alt saio-source-linkicon"></i>' : ''}
+              ${escapeHtml(displayDomain)}
+            </div>
           </div>
           ${cls.type === 'user'
             ? '<span class="saio-source-tag saio-source-tag--user">You</span>'
@@ -542,7 +565,7 @@ function _renderAIOPreviewTab(result) {
               ? '<span class="saio-source-tag saio-source-tag--competitor">Competitor</span>'
               : ''
           }
-        </div>
+        ${closeTag}
       `;
     }).join('');
 
@@ -601,29 +624,7 @@ function _renderAIOPreviewTab(result) {
     `;
   }
 
-  // --- Rich Snippets detected ---
-  if (aiElements.length > 0) {
-    const elementsHTML = aiElements.map((el, i) => {
-      return `
-        <div class="saio-snippet-item">
-          <span class="saio-snippet-pos">${el.position != null ? el.position : i + 1}</span>
-          <span class="saio-snippet-type">${escapeHtml(el.type || 'Unknown')}</span>
-          ${el.sources_count ? `<span class="saio-snippet-meta">${el.sources_count} sources</span>` : ''}
-        </div>
-      `;
-    }).join('');
-
-    html += `
-      <div class="saio-snippets-section">
-        <div class="saio-section-label">
-          Detected Rich Snippets (${aiElements.length})
-        </div>
-        <div class="saio-snippets-list">
-          ${elementsHTML}
-        </div>
-      </div>
-    `;
-  }
+  // --- Rich Snippets detected — removed per design decision ---
 
   // Wrap everything
   container.innerHTML = `
