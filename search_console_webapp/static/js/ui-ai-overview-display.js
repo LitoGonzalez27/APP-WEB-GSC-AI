@@ -771,11 +771,20 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
         <span class="aio-diagnostic-accent">Click a category</span> to filter the table below
       </p>
       <div class="diagnostic-cards-grid aio-diagnostic-grid">
-        ${Object.entries(DIAGNOSTIC_CATEGORIES).map(([id, cat]) => {
-          const catData = categories[id] || { count: 0, percentage: '0.0' };
-          if (catData.count === 0 && id !== 'no_impact') return ''; // Skip empty categories except no_impact
-          return _createDiagnosticCard(id, cat, catData);
-        }).join('')}
+        ${(() => {
+          // Collect visible cards, then assign dark/light by position:
+          // first 3 rendered = dark, rest = light
+          const visibleCards = Object.entries(DIAGNOSTIC_CATEGORIES)
+            .filter(([id]) => {
+              const catData = categories[id] || { count: 0, percentage: '0.0' };
+              return catData.count > 0 || id === 'no_impact';
+            });
+          return visibleCards.map(([id, cat], idx) => {
+            const catData = categories[id] || { count: 0, percentage: '0.0' };
+            const forceDark = idx < 3;
+            return _createDiagnosticCard(id, cat, catData, forceDark);
+          }).join('');
+        })()}
       </div>
     </div>
   `;
@@ -794,17 +803,14 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
   _initDiagnosticTooltips();
 }
 
-function _createDiagnosticCard(id, cat, catData) {
-  const isDark = cat.dark;
+function _createDiagnosticCard(id, cat, catData, forceDark) {
+  const isDark = forceDark !== undefined ? forceDark : cat.dark;
   const darkClass = isDark ? ' aio-diagnostic-card--dark' : '';
 
   return `
     <div class="diagnostic-card aio-diagnostic-card${darkClass}" data-category="${id}">
       <div class="diagnostic-card-tooltip-icon" data-tooltip="${escapeHtml(cat.description)}">
         <i class="fas fa-info-circle"></i>
-      </div>
-      <div class="aio-diagnostic-icon">
-        <i class="fas ${cat.icon}"></i>
       </div>
       <div class="aio-diagnostic-count">
         ${catData.count}

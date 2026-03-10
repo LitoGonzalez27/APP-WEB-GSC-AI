@@ -436,10 +436,16 @@ function createCompetitorResultsTable(competitorResults) {
         return '';
     }
 
-    const tableRows = competitorResults.map((result, index) => {
+    // Sort by mentions descending so most-mentioned domains appear first
+    const sorted = [...competitorResults].sort((a, b) => b.mentions - a.mentions);
+
+    // Detect user domain (first entry in the original array)
+    const userDomain = competitorResults[0]?.domain;
+
+    const tableRows = sorted.map((result) => {
         const visibilityClass = getVisibilityClass(result.visibility_percentage);
         const positionClass = getPositionClass(result.average_position);
-        const domainClass = index === 0 ? 'user-domain' : 'competitor-domain'; // Primera fila es el usuario
+        const domainClass = result.domain === userDomain ? 'user-domain' : 'competitor-domain';
         
         return `
             <tr>
