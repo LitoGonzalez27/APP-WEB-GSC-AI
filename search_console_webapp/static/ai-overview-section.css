@@ -287,8 +287,8 @@
 #aiOverviewContent .aio-ctr-metrics-grid {
   display: grid !important;
   grid-template-columns: repeat(3, 1fr) !important;
-  gap: 1.25em !important;
-  margin-bottom: 1.5em !important;
+  gap: 1.5em !important;
+  margin-bottom: 1.75em !important;
 }
 
 #aiOverviewContent .aio-ctr-metric {
@@ -305,19 +305,21 @@
   font-size: 2em !important;
   font-weight: 700 !important;
   line-height: 1.1 !important;
-  color: var(--bb-accent) !important;
+  color: #FFFFFF !important;
 }
 
 #aiOverviewContent .aio-ctr-metric-sub {
   font-size: 0.5em !important;
-  opacity: 0.6 !important;
+  opacity: 0.5 !important;
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 #aiOverviewContent .aio-ctr-metric-label {
-  color: rgba(217, 249, 184, 0.55) !important;
+  color: var(--bb-accent) !important;
   font-size: 0.82em !important;
-  margin-top: 0.4em !important;
+  margin-top: 0.5em !important;
   font-family: var(--bb-font-sans) !important;
+  font-weight: 500 !important;
 }
 
 #aiOverviewContent .aio-ctr-tooltip-trigger {
@@ -333,14 +335,14 @@
   font-size: 0.78em !important;
   line-height: 1.5 !important;
   max-width: 600px !important;
-  margin: 0 auto !important;
+  margin: 1em auto 0 auto !important;
   font-family: var(--bb-font-sans) !important;
 }
 
 /* SERP features pills */
 #aiOverviewContent .aio-serp-features-bar {
-  margin-top: 1.5em !important;
-  padding-top: 1.25em !important;
+  margin-top: 2em !important;
+  padding-top: 1.75em !important;
   border-top: 1px solid var(--bb-border-subtle) !important;
 }
 
@@ -349,7 +351,7 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  margin-bottom: 0.75em !important;
+  margin-bottom: 1em !important;
   color: var(--bb-text-secondary) !important;
   font-size: 0.82em !important;
   font-weight: 600 !important;
@@ -359,15 +361,15 @@
 #aiOverviewContent .aio-serp-features-pills {
   display: flex !important;
   flex-wrap: wrap !important;
-  gap: 8px !important;
+  gap: 10px !important;
   justify-content: center !important;
 }
 
 #aiOverviewContent .aio-serp-pill {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 4px !important;
-  padding: 4px 12px !important;
+  gap: 5px !important;
+  padding: 6px 14px !important;
   border-radius: 12px !important;
   font-size: 0.78em !important;
   white-space: nowrap !important;
@@ -529,6 +531,25 @@
 
 #aiOverviewContent .aio-diagnostic-card--dark .diagnostic-card-tooltip-icon {
   color: rgba(217, 249, 184, 0.4) !important;
+}
+
+/* Clickable hint below diagnostic cards */
+#aiOverviewContent .aio-diagnostic-hint {
+  text-align: center !important;
+  margin-top: 1rem !important;
+  font-family: var(--bb-font-sans) !important;
+  font-size: 0.78em !important;
+  color: var(--bb-text-tertiary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  opacity: 0.7 !important;
+}
+
+#aiOverviewContent .aio-diagnostic-hint i {
+  font-size: 0.9em !important;
+  color: var(--bb-text-tertiary) !important;
 }
 
 /* Diagnostic accent underline (click a category) */
@@ -803,12 +824,25 @@
   background: var(--bb-bg-subtle) !important;
   color: var(--bb-text-primary) !important;
   font-family: var(--bb-font-sans) !important;
-  font-size: 0.72rem !important;
+  font-size: 0.7rem !important;
   font-weight: 600 !important;
-  letter-spacing: 0.08em !important;
+  letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
   border-color: var(--bb-border) !important;
-  padding: 12px 8px !important;
+  padding: 10px 6px !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.35 !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* Ensure Grid.js header content wrapper doesn't clip */
+#aiOverviewContent .gridjs-th-content {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: unset !important;
 }
 
 #aiOverviewContent .gridjs-td {

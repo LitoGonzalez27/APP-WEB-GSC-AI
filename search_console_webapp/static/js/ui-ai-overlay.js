@@ -308,7 +308,7 @@ function updateProgress(percentage, status, details, activeStep) {
         
         if (remainingSeconds > 0) {
             timeRemainingElement.textContent = `${formatEstimatedTime(remainingSeconds)} remaining`;
-            timeRemainingElement.style.color = '#667eea';
+            timeRemainingElement.style.color = '#94A3B8';
         } else {
             timeRemainingElement.textContent = 'Almost done...';
             timeRemainingElement.style.color = '#28a745';

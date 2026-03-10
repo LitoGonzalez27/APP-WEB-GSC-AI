@@ -440,9 +440,9 @@ function createAIOPreviewSection(aiAnalysis, debugInfo, result) {
         <span style="
           display: flex; align-items: center; justify-content: center;
           width: 30px; height: 30px; border-radius: 8px;
-          background: linear-gradient(135deg, #667eea, #764ba2);
+          background: #161616;
         ">
-          <i class="fas fa-eye" style="color: white; font-size: 0.8em;"></i>
+          <i class="fas fa-eye" style="color: #D8F9B8; font-size: 0.8em;"></i>
         </span>
         What Google Shows in AI Overview
       </h5>
@@ -563,8 +563,8 @@ function createModalHTML(result, debugSection, impactSummaryHTML, ctrAnalysisHTM
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     ">
       <div class="modal-header" style="
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: #0A0A0B;
+        color: #D8F9B8;
         padding: 1.5em 2em;
         border-radius: 15px 15px 0 0;
         display: flex;

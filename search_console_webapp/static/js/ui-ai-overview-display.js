@@ -781,10 +781,13 @@ function displayDiagnosticSection(categories, container, data, competitorDomains
             });
           return visibleCards.map(([id, cat], idx) => {
             const catData = categories[id] || { count: 0, percentage: '0.0' };
-            const forceDark = idx < 3;
-            return _createDiagnosticCard(id, cat, catData, forceDark);
+            return _createDiagnosticCard(id, cat, catData, false);
           }).join('');
         })()}
+      </div>
+      <div class="aio-diagnostic-hint">
+        <i class="fas fa-hand-pointer"></i>
+        Click any card to filter the detailed results table
       </div>
     </div>
   `;
@@ -1046,7 +1049,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
     serpFeaturesPillsHTML = `
       <div class="aio-serp-features-bar">
         <div class="aio-serp-features-label">
-          <i class="fas fa-layer-group" style="margin-right: 4px;"></i>SERP Features Detected
+          SERP Features Detected
           <span class="ctr-metric-tooltip-trigger aio-ctr-tooltip-trigger" data-tooltip="Other SERP features (Featured Snippets, People Also Ask, Video Carousels, etc.) also push organic results down and absorb clicks. We estimate ~${formatNumber(totalClicksBySerpFeatures)} additional clicks are being captured by these features beyond AI Overview.">
             <i class="fas fa-question-circle"></i>
           </span>
@@ -1055,7 +1058,7 @@ function displayCTRAnalysisSummary(enrichedResults, container) {
           ${pills}
         </div>
         ${totalClicksBySerpFeatures > 0 ? `
-          <p class="aio-ctr-footnote" style="margin-top: 0.6em;">
+          <p class="aio-ctr-footnote" style="margin-top: 1.25em;">
             Est. <strong>${formatNumber(totalClicksBySerpFeatures)}</strong> additional clicks absorbed by non-AIO SERP features
           </p>
         ` : ''}

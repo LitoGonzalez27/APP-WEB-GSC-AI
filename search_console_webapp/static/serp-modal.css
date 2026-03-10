@@ -1100,7 +1100,7 @@ body.dark-mode #serpModal .position-badge {
 
 /* ── Wrapper ────────────────────────────────── */
 #serpModal .saio-wrapper {
-  padding: 0.5rem 0;
+  padding: 0.75rem 0.25rem;
   font-family: var(--bb-font-sans);
 }
 
@@ -1109,7 +1109,7 @@ body.dark-mode #serpModal .position-badge {
   font-size: 1rem;
   font-weight: 700;
   color: var(--bb-text-primary);
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.5rem 0;
   text-align: center;
 }
 
@@ -1127,9 +1127,9 @@ body.dark-mode #serpModal .position-badge {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0.85rem 1.1rem;
+  padding: 1rem 1.25rem;
   border-radius: var(--bb-radius-sm);
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.75rem;
   font-family: var(--bb-font-sans);
   font-size: 0.85rem;
   font-weight: 600;
@@ -1161,7 +1161,7 @@ body.dark-mode #serpModal .position-badge {
 
 /* ── Content Block ──────────────────────────── */
 #serpModal .saio-content-block {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 
 #serpModal .saio-section-label {
@@ -1171,7 +1171,7 @@ body.dark-mode #serpModal .position-badge {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--bb-text-secondary);
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.85rem;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1190,7 +1190,7 @@ body.dark-mode #serpModal .position-badge {
   font-size: 0.82rem;
   color: var(--bb-text-secondary);
   line-height: 1.65;
-  padding: 1rem 1.1rem;
+  padding: 1.15rem 1.25rem;
   background: var(--bb-bg-subtle);
   border-radius: var(--bb-radius-sm);
   border: 1px solid var(--bb-border-subtle);
@@ -1201,8 +1201,8 @@ body.dark-mode #serpModal .position-badge {
 #serpModal .saio-sources-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-  margin-bottom: 1.25rem;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 @media (max-width: 640px) {
@@ -1216,14 +1216,14 @@ body.dark-mode #serpModal .position-badge {
 #serpModal .saio-sources-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 #serpModal .saio-source-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem 0.9rem;
   border-radius: var(--bb-radius-sm);
   border: 1px solid var(--bb-border-subtle);
   background: var(--bb-bg-paper);
@@ -1327,13 +1327,13 @@ body.dark-mode #serpModal .position-badge {
   background: var(--bb-bg-subtle);
   border: 1px solid var(--bb-border-subtle);
   border-radius: var(--bb-radius-sm);
-  padding: 0.75rem;
+  padding: 1rem;
 }
 
 #serpModal .saio-ranking-slots {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 #serpModal .saio-slot {
@@ -1411,8 +1411,8 @@ body.dark-mode #serpModal .position-badge {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin-top: 0.6rem;
-  padding-top: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
 }
 
 #serpModal .saio-legend-item {
@@ -1443,13 +1443,13 @@ body.dark-mode #serpModal .position-badge {
 
 /* ── Snippets Section ───────────────────────── */
 #serpModal .saio-snippets-section {
-  margin-top: 1.25rem;
+  margin-top: 1.75rem;
 }
 
 #serpModal .saio-snippets-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 #serpModal .saio-snippet-item {

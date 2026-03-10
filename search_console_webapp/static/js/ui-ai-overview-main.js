@@ -53,22 +53,22 @@ export function enableAIOverviewAnalysis(keywordComparisonData, siteUrl) {
 function createButtonContainer() {
   const buttonContainer = document.createElement('div');
   buttonContainer.className = 'ai-analysis-controls';
-  buttonContainer.style.cssText = 'text-align: center; margin: 2em 0 1em 0; padding: 1.5em; background: rgba(255,255,255,0.1); border-radius: var(--radius-lg); backdrop-filter: blur(10px); border-top: 2px solid rgba(102, 126, 234, 0.3);';
+  buttonContainer.style.cssText = 'text-align: center; margin: 2em 0 1em 0; padding: 1.5em; background: rgba(255,255,255,0.1); border-radius: var(--radius-lg); backdrop-filter: blur(10px); border-top: 2px solid rgba(217, 249, 184, 0.3);';
   
   buttonContainer.innerHTML = `
     <div style="margin-bottom: 1em; font-size: 0.9em; color: #666;">
       <i class="fas fa-robot"></i> Análisis de Visibilidad AI Overview
     </div>
     <button id="analyzeAIOverviewBtn" class="btn-ai-overview" style="
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: #161616;
+      color: #D8F9B8;
       border: none;
       padding: 12px 24px; /* Default padding, will be overridden by CSS */
       border-radius: var(--radius-sm); /* Use variable for border-radius */
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
       margin-right: 10px;
     " disabled>
       <i class="fas fa-robot" style="margin-right: 8px;"></i>
@@ -86,14 +86,14 @@ function setupButtonEffects(button) {
   button.addEventListener('mouseenter', () => {
     if (!button.disabled) {
       button.style.transform = 'translateY(-2px)';
-      button.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+      button.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
     }
   });
-  
+
   button.addEventListener('mouseleave', () => {
     if (!button.disabled) {
       button.style.transform = 'translateY(0)';
-      button.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+      button.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.15)';
     }
   });
 }
