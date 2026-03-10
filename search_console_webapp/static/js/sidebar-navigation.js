@@ -836,6 +836,11 @@ class SidebarNavigation {
       const { payload, aiOverviewDataToDownload } = this.buildExportPayload();
       this.setDownloadButtonLoadingState(buttonId, true);
 
+      // JSON export: usar datos completos (no podados como para Excel)
+      if (window.currentData) {
+        payload.data = window.currentData;
+      }
+
       const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
         type: 'application/json;charset=utf-8'
       });
