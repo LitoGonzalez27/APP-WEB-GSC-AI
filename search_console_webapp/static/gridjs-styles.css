@@ -96,6 +96,40 @@
   color: #161616;
 }
 
+/* Botón AI Recommendations (lightbulb) */
+.aio-rec-trigger-btn {
+  background: transparent;
+  color: #94A3B8;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.aio-rec-trigger-btn:hover {
+  background: #FEF3C7;
+  color: #D97706;
+  border-color: #FDE68A;
+  transform: scale(1.08);
+}
+
+.aio-rec-trigger-btn--cached {
+  background: #D1FAE5;
+  color: #059669;
+  border-color: #A7F3D0;
+}
+
+.aio-rec-trigger-btn--cached:hover {
+  background: #A7F3D0;
+  color: #047857;
+}
+
+.aio-rec-trigger-btn i {
+  font-size: 0.9rem;
+}
+
 /* Estados de presencia en AIO */
 .aio-status {
   font-weight: 600;

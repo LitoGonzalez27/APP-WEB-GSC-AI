@@ -1,0 +1,330 @@
+/* ==============================================
+   AI RECOMMENDATIONS MODAL — CLICANDSEO BRANDBOOK
+   ──────────────────────────────────────────────
+   Bio-Lime #d9f9b8  ·  Inter Tight  ·  Flat/solid
+   ============================================== */
+
+/* ── SCOPED BRAND TOKENS ─────────────────────── */
+#aioRecommendationsModal {
+  --bb-accent:         #d9f9b8;
+  --bb-accent-subtle:  rgba(217, 249, 184, 0.18);
+  --bb-text-primary:   #0F172A;
+  --bb-text-secondary: #64748B;
+  --bb-text-tertiary:  #94A3B8;
+  --bb-bg-paper:       #FFFFFF;
+  --bb-bg-subtle:      #F1F5F9;
+  --bb-border:         #E2E8F0;
+  --bb-border-subtle:  #EEF2F7;
+  --bb-success:        #22C55E;
+  --bb-error:          #EF4444;
+  --bb-warning:        #F59E0B;
+  --bb-info:           #3B82F6;
+  --bb-radius-sm:      8px;
+  --bb-radius-md:      20px;
+  --bb-radius-full:    9999px;
+  --bb-shadow-lg:      0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+  --bb-ease:           cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bb-font-sans:      'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bb-font-serif:     'Libre Baskerville', 'Georgia', serif;
+}
+
+
+/* ── 1. MODAL SHELL ──────────────────────────── */
+
+.aio-rec-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  align-items: center;
+  justify-content: center;
+}
+
+.aio-rec-modal.show {
+  display: flex;
+}
+
+.aio-rec-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.aio-rec-modal__container {
+  position: relative;
+  background: var(--bb-bg-paper);
+  border-radius: var(--bb-radius-md);
+  box-shadow: var(--bb-shadow-lg);
+  width: 90%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--bb-font-sans);
+  animation: aioRecSlideIn 0.35s var(--bb-ease);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes aioRecSlideIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+
+/* ── 2. HEADER ───────────────────────────────── */
+
+.aio-rec-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--bb-border-subtle);
+}
+
+.aio-rec-modal__header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  background: var(--bb-text-primary);
+  color: var(--bb-accent);
+  font-size: 1.2em;
+}
+
+.aio-rec-modal__header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.aio-rec-modal__title {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 700;
+  color: var(--bb-text-primary);
+  font-family: var(--bb-font-sans);
+}
+
+.aio-rec-modal__subtitle {
+  margin: 2px 0 0;
+  font-size: 0.88em;
+  color: var(--bb-text-secondary);
+  font-family: var(--bb-font-serif);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aio-rec-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border: none;
+  background: var(--bb-bg-subtle);
+  color: var(--bb-text-secondary);
+  border-radius: 50%;
+  font-size: 1.3em;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.aio-rec-modal__close:hover {
+  background: var(--bb-border);
+  color: var(--bb-text-primary);
+}
+
+
+/* ── 3. BODY (scrollable) ────────────────────── */
+
+.aio-rec-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  min-height: 180px;
+}
+
+
+/* ── 4. LOADING STEPPER ──────────────────────── */
+
+.aio-rec-loader {
+  padding: 1.5rem 0.5rem;
+}
+
+.aio-rec-loader__step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  border-radius: var(--bb-radius-sm);
+  color: var(--bb-text-tertiary);
+  font-size: 0.92em;
+  font-weight: 500;
+  transition: all 0.35s var(--bb-ease);
+}
+
+.aio-rec-loader__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--bb-border);
+  font-size: 0.95em;
+  transition: all 0.35s var(--bb-ease);
+}
+
+/* Active step */
+.aio-rec-loader__step.active {
+  color: var(--bb-text-primary);
+  background: var(--bb-accent-subtle);
+}
+
+.aio-rec-loader__step.active .aio-rec-loader__icon {
+  border-color: var(--bb-text-primary);
+  background: var(--bb-text-primary);
+  color: var(--bb-accent);
+  animation: aioRecPulse 1.4s ease-in-out infinite;
+}
+
+/* Done step */
+.aio-rec-loader__step.done {
+  color: var(--bb-success);
+}
+
+.aio-rec-loader__step.done .aio-rec-loader__icon {
+  border-color: var(--bb-success);
+  background: var(--bb-success);
+  color: #fff;
+}
+
+/* Replace icon with checkmark when done */
+.aio-rec-loader__step.done .aio-rec-loader__icon i::before {
+  content: "\f00c"; /* fa-check */
+}
+
+@keyframes aioRecPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); opacity: 0.8; }
+}
+
+/* Progress bar */
+.aio-rec-loader__progress {
+  height: 4px;
+  background: var(--bb-border);
+  border-radius: var(--bb-radius-full);
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.aio-rec-loader__bar {
+  height: 100%;
+  background: var(--bb-accent);
+  border-radius: var(--bb-radius-full);
+  width: 0%;
+  transition: width 0.8s var(--bb-ease);
+}
+
+
+/* ── 5. FOOTER ───────────────────────────────── */
+
+.aio-rec-modal__footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 24px;
+  border-top: 1px solid var(--bb-border-subtle);
+}
+
+.aio-rec-modal__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border: 1px solid var(--bb-border);
+  border-radius: var(--bb-radius-full);
+  background: var(--bb-bg-paper);
+  color: var(--bb-text-primary);
+  font-family: var(--bb-font-sans);
+  font-size: 0.82em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--bb-ease);
+}
+
+.aio-rec-modal__action-btn:hover {
+  background: var(--bb-bg-subtle);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+}
+
+.aio-rec-modal__action-btn:active {
+  transform: translateY(0);
+}
+
+
+/* ── 6. DARK MODE ────────────────────────────── */
+
+body.dark-mode #aioRecommendationsModal {
+  --bb-text-primary:   #F8FAFC;
+  --bb-text-secondary: #94A3B8;
+  --bb-text-tertiary:  #64748B;
+  --bb-bg-paper:       #1E293B;
+  --bb-bg-subtle:      #0F172A;
+  --bb-border:         #334155;
+  --bb-border-subtle:  #1E293B;
+}
+
+body.dark-mode .aio-rec-modal__backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+
+/* ── 7. RESPONSIVE ───────────────────────────── */
+
+@media (max-width: 768px) {
+  .aio-rec-modal__container {
+    width: 96%;
+    max-height: 92vh;
+    border-radius: 16px;
+  }
+
+  .aio-rec-modal__header {
+    padding: 16px 18px 12px;
+  }
+
+  .aio-rec-modal__body {
+    padding: 16px 18px;
+  }
+
+  .aio-rec-modal__footer {
+    flex-direction: column;
+    padding: 12px 18px;
+  }
+
+  .aio-rec-modal__action-btn {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aio-rec-modal__container {
+    animation: none;
+  }
+  .aio-rec-loader__step.active .aio-rec-loader__icon {
+    animation: none;
+  }
+  .aio-rec-loader__bar {
+    transition: none;
+  }
+}

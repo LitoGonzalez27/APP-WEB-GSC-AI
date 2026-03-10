@@ -1,6 +1,7 @@
 // static/js/ui-ai-overview-gridjs.js - Tabla Grid.js para análisis detallado de AI Overview
 
 import { openSerpModal } from './ui-serp-modal.js';
+import { openRecommendationsModal, hasRecommendationsCache } from './ui-aio-recommendations-modal.js';
 
 /**
  * Crea y renderiza la tabla Grid.js con análisis detallado de AI Overview
@@ -98,17 +99,37 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
     const columns = [
         {
             name: 'View',
-            width: '60px',
+            width: '55px',
             sort: false,
             formatter: (cell, row) => {
-                const keyword = row.cells[1].data; // La keyword está en la segunda columna
+                const keyword = row.cells[2].data; // Keyword está en index 2 (tras View + AI)
                 return gridjs.html(`
-                    <button 
-                        class="serp-view-btn" 
-                        onclick="window.aiOverviewGrid.openSerpModal('${keyword}')"
+                    <button
+                        class="serp-view-btn"
+                        onclick="window.aiOverviewGrid.openSerpModal('${keyword.replace(/'/g, "\\'")}')"
                         title="View SERP"
                     >
                         <i class="fas fa-search"></i>
+                    </button>
+                `);
+            }
+        },
+        {
+            name: 'AI',
+            width: '50px',
+            sort: false,
+            id: 'ai_rec_btn',
+            formatter: (cell, row) => {
+                const keyword = row.cells[2].data;
+                const cached = hasRecommendationsCache(keyword);
+                return gridjs.html(`
+                    <button
+                        class="aio-rec-trigger-btn ${cached ? 'aio-rec-trigger-btn--cached' : ''}"
+                        data-keyword="${keyword}"
+                        onclick="window.aiOverviewGrid.openRecommendationsModal('${keyword.replace(/'/g, "\\'")}')"
+                        title="Get AI Recommendations"
+                    >
+                        <i class="fas fa-lightbulb"></i>
                     </button>
                 `);
             }
@@ -293,7 +314,8 @@ function processDataForGrid(keywordsWithAIO, competitorDomains) {
         
         // Datos base
         const row = [
-            '', // Columna de lupa (será reemplazada por el formatter)
+            '', // Columna de lupa (View)
+            '', // Columna de AI Recommendations (lightbulb)
             keyword,
             aiAnalysis.domain_is_ai_source ? 'Yes' : 'No',
             aiAnalysis.domain_ai_source_position || 'N/A'
@@ -398,6 +420,10 @@ window.aiOverviewGrid = {
         } else {
             console.warn('⚠️ SERP modal function not available');
         }
+    },
+    openRecommendationsModal: (keyword) => {
+        console.log('💡 Opening AI Recommendations for:', keyword);
+        openRecommendationsModal(keyword);
     }
 };
 
