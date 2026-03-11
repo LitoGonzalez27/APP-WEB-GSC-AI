@@ -1,10 +1,10 @@
 // static/js/ui-ai-overview-pdf.js
 // Módulo para generar PDF del análisis AI Overview con marca de agua Clicandseo
-// v2: Preparar DOM antes de captura para fix chart/URLs/grid issues
+// v3: Simplified DOM preparation — no forced widths, safe chart/pagination handling
 
 /**
  * Convierte todos los canvas de Chart.js a imágenes estáticas para captura limpia.
- * Returns array of originals para restaurar después.
+ * html2canvas a menudo captura canvas en blanco — convertir a <img> lo evita.
  */
 function convertChartsToImages(container) {
     const canvases = container.querySelectorAll('canvas');
@@ -12,17 +12,24 @@ function convertChartsToImages(container) {
 
     canvases.forEach(canvas => {
         try {
-            const img = document.createElement('img');
-            img.src = canvas.toDataURL('image/png');
-            img.style.width = (canvas.offsetWidth || canvas.width) + 'px';
-            img.style.height = (canvas.offsetHeight || canvas.height) + 'px';
-            img.style.display = 'block';
-            img.className = 'pdf-chart-img-temp';
-            canvas.parentNode.insertBefore(img, canvas);
-            canvas.style.display = 'none';
-            originals.push({ canvas, img });
+            // Intentar obtener el contenido del canvas como imagen
+            const dataUrl = canvas.toDataURL('image/png');
+
+            // Solo reemplazar si el canvas tiene contenido (no es blank)
+            if (dataUrl && dataUrl !== 'data:,') {
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.width = canvas.offsetWidth + 'px';
+                img.style.height = canvas.offsetHeight + 'px';
+                img.style.display = 'block';
+                img.className = 'pdf-chart-img-temp';
+
+                canvas.parentNode.insertBefore(img, canvas);
+                canvas.style.display = 'none';
+                originals.push({ canvas, img, parent: canvas.parentNode });
+            }
         } catch (e) {
-            console.warn('⚠️ Canvas conversion failed:', e);
+            console.warn('⚠️ Canvas conversion failed (CORS?):', e);
         }
     });
 
@@ -34,22 +41,37 @@ function convertChartsToImages(container) {
  */
 function restoreCharts(originals) {
     originals.forEach(({ canvas, img }) => {
-        canvas.style.display = '';
-        if (img.parentNode) img.parentNode.removeChild(img);
+        try {
+            canvas.style.display = '';
+            if (img && img.parentNode) {
+                img.parentNode.removeChild(img);
+            }
+        } catch (e) {
+            console.warn('⚠️ Error restoring chart:', e);
+        }
     });
 }
 
 /**
- * Expande todas las páginas de paginación de URLs para que aparezcan en el PDF.
- * Returns array of originals para restaurar después.
+ * Expande todas las páginas de paginación de URLs para que aparezcan completas en el PDF.
  */
 function expandAllPagination(container) {
+    // Show all hidden pagination pages
     const hiddenPages = container.querySelectorAll('.cited-urls-page-2');
     const originals = [];
 
     hiddenPages.forEach(el => {
         originals.push({ el, display: el.style.display });
-        el.style.display = '';  // Mostrar todas las páginas
+        el.style.display = '';
+    });
+
+    // Also show page 1 if it was hidden (when user was on page 2)
+    const page1Elements = container.querySelectorAll('.cited-urls-page-1');
+    page1Elements.forEach(el => {
+        if (el.style.display === 'none') {
+            originals.push({ el, display: el.style.display });
+            el.style.display = '';
+        }
     });
 
     return originals;
@@ -65,34 +87,28 @@ function restorePagination(originals) {
 }
 
 /**
- * Prepara el DOM para captura de PDF:
+ * Prepara el DOM para captura de PDF (lightweight approach):
  * - Convierte Chart.js canvas a imágenes estáticas
  * - Expande paginación de URLs
- * - Añade clase pdf-capture-mode al body
- * - Fuerza min-width para evitar colapso de grid
+ * - Añade clase pdf-capture-mode al body (for URL overflow + pagination hide)
+ * NO fuerza width changes — html2canvas se encarga del sizing
  */
 function prepareDOMForPDF(container) {
     const state = {
         chartOriginals: [],
-        paginationOriginals: [],
-        containerMinWidth: container.style.minWidth,
-        containerWidth: container.style.width
+        paginationOriginals: []
     };
 
-    // 1. Convertir charts a imágenes
+    // 1. Convertir charts a imágenes estáticas
     state.chartOriginals = convertChartsToImages(container);
-    console.log(`📊 ${state.chartOriginals.length} chart(s) convertidos a imagen`);
+    console.log(`📊 ${state.chartOriginals.length} chart(s) convertidos a imagen estática`);
 
     // 2. Expandir paginación
     state.paginationOriginals = expandAllPagination(container);
-    console.log(`📄 ${state.paginationOriginals.length} página(s) de paginación expandidas`);
+    console.log(`📄 ${state.paginationOriginals.length} elemento(s) de paginación expandidos`);
 
-    // 3. Añadir clase de captura al body
+    // 3. Añadir clase de captura al body (CSS handles overflow + pagination buttons)
     document.body.classList.add('pdf-capture-mode');
-
-    // 4. Forzar ancho mínimo para evitar colapso de grid
-    container.style.minWidth = '1100px';
-    container.style.width = '1100px';
 
     return state;
 }
@@ -100,7 +116,7 @@ function prepareDOMForPDF(container) {
 /**
  * Restaura el DOM al estado original después de la captura.
  */
-function restoreDOMAfterPDF(container, state) {
+function restoreDOMAfterPDF(state) {
     // 1. Restaurar charts
     restoreCharts(state.chartOriginals);
 
@@ -109,10 +125,6 @@ function restoreDOMAfterPDF(container, state) {
 
     // 3. Quitar clase de captura
     document.body.classList.remove('pdf-capture-mode');
-
-    // 4. Restaurar width
-    container.style.minWidth = state.containerMinWidth || '';
-    container.style.width = state.containerWidth || '';
 }
 
 /**
@@ -121,7 +133,6 @@ function restoreDOMAfterPDF(container, state) {
  */
 export async function generateAIOverviewPDF() {
     let domState = null;
-    let targetSection = null;
 
     try {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
@@ -153,14 +164,15 @@ export async function generateAIOverviewPDF() {
             el.style.display = 'none';
         });
 
-        // Ocultar overlay y botones de acción
+        // Ocultar overlay, botones de acción y sección de configuración avanzada
         const aiOverlay = document.getElementById('aiOverlay');
         const resetBtn = document.getElementById('resetAIAnalysisBtn');
         const stickyActions = document.getElementById('stickyActions');
+        const advancedSection = document.getElementById('advancedAnalysisSection');
 
         const tempHidden = [];
-        [aiOverlay, resetBtn, stickyActions].forEach(el => {
-            if (el && el.style.display !== 'none') {
+        [aiOverlay, resetBtn, stickyActions, advancedSection].forEach(el => {
+            if (el) {
                 tempHidden.push({ el, display: el.style.display });
                 el.style.display = 'none';
             }
@@ -185,28 +197,43 @@ export async function generateAIOverviewPDF() {
         }
 
         // ====== FASE 1: Preparar DOM para captura ======
-        targetSection = document.getElementById('aiOverviewContent');
+        const targetSection = document.getElementById('aiOverviewContent');
+        if (!targetSection) {
+            throw new Error('AI Overview content section not found');
+        }
+
         console.log('🔧 Preparando DOM para captura PDF...');
         domState = prepareDOMForPDF(targetSection);
 
-        // Pequeña pausa para que el navegador repinte el layout
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        // Esperar a que el navegador repinte (DOM changes need layout recalc)
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         // ====== FASE 2: Capturar DOM preparado ======
         console.log('🎨 Generando canvas de la sección AI Overview...');
+
+        // Scroll al inicio de la sección para capturar completo
+        targetSection.scrollTop = 0;
+
         const canvas = await html2canvas(targetSection, {
             scale: 1.5,
             useCORS: true,
+            allowTaint: true,
             backgroundColor: '#ffffff',
             logging: false,
-            windowWidth: Math.max(targetSection.scrollWidth, 1100),
-            windowHeight: targetSection.scrollHeight
+            imageTimeout: 15000,
+            removeContainer: true,
+            width: targetSection.scrollWidth,
+            height: targetSection.scrollHeight,
+            scrollX: 0,
+            scrollY: -window.scrollY
         });
+
+        console.log(`📐 Canvas generado: ${canvas.width}x${canvas.height}px`);
 
         // ====== FASE 3: Restaurar DOM ======
         console.log('🔄 Restaurando DOM...');
-        restoreDOMAfterPDF(targetSection, domState);
-        domState = null; // Marcar como restaurado
+        restoreDOMAfterPDF(domState);
+        domState = null;
 
         // Restaurar elementos ocultos
         excluded.forEach(el => {
@@ -218,23 +245,26 @@ export async function generateAIOverviewPDF() {
 
         // ====== FASE 4: Generar PDF ======
         console.log('📄 Creando documento PDF...');
+
+        // Verificar que el canvas tiene contenido
+        if (canvas.width === 0 || canvas.height === 0) {
+            throw new Error('Canvas capture failed - empty dimensions');
+        }
+
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
 
         const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth;
+        const margin = 20;
+        const usableWidth = pageWidth - (margin * 2);
+        const imgWidth = usableWidth;
         const imgHeight = canvas.height * (imgWidth / canvas.width);
 
-        let position = 0;
+        let yOffset = margin;
         let heightLeft = imgHeight;
 
-        // Añadir primera página
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-
-        /**
-         * Función para añadir marca de agua (logo Clicandseo) en esquina inferior derecha
-         */
+        // Función para añadir marca de agua (logo Clicandseo) en esquina inferior derecha
         const addWatermark = async () => {
             try {
                 const logoEl = document.querySelector('.navbar .logo-image');
@@ -257,14 +287,13 @@ export async function generateAIOverviewPDF() {
                     ctx.drawImage(logoImg, 0, 0);
                     const dataUrl = tempCanvas.toDataURL('image/png');
 
-                    // Configuración de la marca de agua
-                    const margin = 16; // pt
+                    const wmMargin = 16;
                     const maxLogoWidth = Math.min(80, pageWidth * 0.18);
                     const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
                     const logoW = maxLogoWidth;
                     const logoH = logoW * ratio;
-                    const x = pageWidth - logoW - margin;
-                    const y = pageHeight - logoH - margin;
+                    const x = pageWidth - logoW - wmMargin;
+                    const y = pageHeight - logoH - wmMargin;
 
                     try {
                         pdf.addImage(dataUrl, 'PNG', x, y, logoW, logoH);
@@ -277,17 +306,18 @@ export async function generateAIOverviewPDF() {
             }
         };
 
-        // Añadir marca de agua a la primera página
+        // Primera página
+        pdf.addImage(imgData, 'JPEG', margin, yOffset, imgWidth, imgHeight);
         await addWatermark();
 
-        // Añadir páginas adicionales si es necesario
-        heightLeft -= pageHeight;
+        // Páginas adicionales
+        heightLeft -= (pageHeight - margin);
         while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
             pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            const newY = margin - (imgHeight - heightLeft);
+            pdf.addImage(imgData, 'JPEG', margin, newY, imgWidth, imgHeight);
             await addWatermark();
-            heightLeft -= pageHeight;
+            heightLeft -= (pageHeight - (margin * 2));
         }
 
         // Generar nombre de archivo con timestamp
@@ -307,9 +337,9 @@ export async function generateAIOverviewPDF() {
         alert(`Error generating PDF: ${err.message}`);
 
         // Restaurar DOM si falló antes de la restauración
-        if (domState && targetSection) {
+        if (domState) {
             try {
-                restoreDOMAfterPDF(targetSection, domState);
+                restoreDOMAfterPDF(domState);
             } catch (restoreErr) {
                 console.error('❌ Error restaurando DOM:', restoreErr);
             }

@@ -582,15 +582,18 @@ body.dark-mode .domain-validation-error div {
 
 .competitor-chart-row .competitor-chart-column {
   min-height: 420px;
+  width: 100%;
 }
 
-/* Competitor chart container */
+/* Competitor chart container — must fill full width */
 .competitor-chart-container {
   background: white;
   border-radius: 12px;
   border: 1px solid var(--border-color);
   padding: 1.5rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .competitor-chart-container h4 {
@@ -609,8 +612,8 @@ body.dark-mode .domain-validation-error div {
 /* Chart wrapper — full width, generous height */
 .chart-wrapper {
   position: relative;
-  height: 400px;
-  width: 100%;
+  height: 440px;
+  width: 100% !important;
   max-width: 100%;
 }
 
@@ -846,20 +849,15 @@ body.dark-mode .domain-validation-error div {
   table-layout: fixed;
 }
 
-/* Column widths for cited URLs: URL gets most space */
+/* Column widths for cited URLs: URL gets most space, Citations gets rest */
 .cited-urls-table th:first-child,
 .cited-urls-table td:first-child {
-  width: 72%;
+  width: 82%;
 }
 
 .cited-urls-table th:nth-child(2),
 .cited-urls-table td:nth-child(2) {
-  width: 14%;
-}
-
-.cited-urls-table th:nth-child(3),
-.cited-urls-table td:nth-child(3) {
-  width: 14%;
+  width: 18%;
 }
 
 .cited-urls-table th,
@@ -910,12 +908,6 @@ body.dark-mode .domain-validation-error div {
 .cited-urls-table .citation-count {
   font-weight: 700;
   color: #0F172A;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.cited-urls-table .keyword-count {
-  color: #64748B;
   text-align: center;
   white-space: nowrap;
 }
@@ -977,31 +969,44 @@ body.dark-mode .domain-validation-error div {
   color: #CBD5E1;
 }
 
+/* Info banner — discrete explanation below tables */
+.competitor-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-family: 'Inter Tight', sans-serif;
+  font-size: 0.775rem;
+  color: #64748B;
+  line-height: 1.5;
+}
+
+.competitor-info-banner i {
+  color: #94A3B8;
+  font-size: 0.85rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.competitor-info-banner strong {
+  color: #475569;
+  font-weight: 600;
+}
+
 /* ===== PDF Capture Mode ===== */
-/* Applied temporarily during PDF generation to ensure clean capture */
+/* Applied temporarily during PDF generation for clean capture */
 body.pdf-capture-mode .url-cell {
   overflow: visible !important;
   text-overflow: unset !important;
   white-space: normal !important;
-  max-width: none !important;
-}
-
-body.pdf-capture-mode .competitor-tables-row {
-  grid-template-columns: 1fr 1fr !important;
-  min-width: 1000px;
-}
-
-body.pdf-capture-mode .chart-wrapper {
-  min-height: 350px !important;
 }
 
 body.pdf-capture-mode .cited-urls-pagination {
   display: none !important;
-}
-
-body.pdf-capture-mode * {
-  animation-play-state: paused !important;
-  transition: none !important;
 }
 
 body.pdf-capture-mode .pdf-chart-img-temp {
@@ -1173,10 +1178,6 @@ body.dark-mode .cited-urls-table .citation-count {
   color: var(--heading);
 }
 
-body.dark-mode .cited-urls-table .keyword-count {
-  color: #94A3B8;
-}
-
 body.dark-mode .cited-urls-pagination {
   border-color: var(--border-color);
 }
@@ -1210,6 +1211,20 @@ body.dark-mode .competitor-no-data {
 
 body.dark-mode .competitor-no-data i {
   color: #475569;
+}
+
+body.dark-mode .competitor-info-banner {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94A3B8;
+}
+
+body.dark-mode .competitor-info-banner i {
+  color: #64748B;
+}
+
+body.dark-mode .competitor-info-banner strong {
+  color: #CBD5E1;
 }
 
 /* =============== ADVANCED ANALYSIS SECTIONS (COLLAPSIBLE) =============== */

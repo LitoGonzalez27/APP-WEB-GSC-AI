@@ -332,8 +332,8 @@ function createCompetitorBarChart(competitorResults) {
     const canvasId = 'competitorBarChart_' + Date.now();
 
     chartContainer.innerHTML = `
-        <div class="chart-wrapper">
-            <canvas id="${canvasId}"></canvas>
+        <div class="chart-wrapper" style="width:100%;position:relative;">
+            <canvas id="${canvasId}" style="width:100%!important;"></canvas>
         </div>
     `;
 
@@ -508,7 +508,6 @@ function createMostCitedUrlsTable(citedUrls) {
                     <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>
                 </td>
                 <td class="citation-count">${item.citation_count}</td>
-                <td class="keyword-count">${item.keywords_cited_in ? item.keywords_cited_in.length : 0}</td>
             </tr>
         `).join('');
     }
@@ -527,7 +526,6 @@ function createMostCitedUrlsTable(citedUrls) {
                     <tr>
                         <th>URL</th>
                         <th>Citations</th>
-                        <th>Keywords</th>
                     </tr>
                 </thead>
                 <tbody class="cited-urls-page cited-urls-page-1">
@@ -652,7 +650,7 @@ function displayCompetitorResults(competitorResults, container, options = {}) {
     const tableHTML = createCompetitorResultsTable(competitorResults);
     const citedUrlsHTML = createMostCitedUrlsTable(mostCitedUrls);
 
-    // Build new layout: chart full-width on top, two tables side-by-side below
+    // Build new layout: chart full-width on top, two tables side-by-side below, info banner at bottom
     let layoutHTML = `
         <h3 class="competitor-analysis-title">
             <i class="fas fa-users"></i> Competitor Analysis
@@ -669,6 +667,10 @@ function displayCompetitorResults(competitorResults, container, options = {}) {
                 <h4><i class="fas fa-link"></i> Most Cited URLs</h4>
                 ${citedUrlsHTML}
             </div>
+        </div>
+        <div class="competitor-info-banner">
+            <i class="fas fa-info-circle"></i>
+            <span>The number of citations in <strong>Most Cited URLs</strong> may not match the mentions in <strong>Domain Visibility</strong>. This is because we also count brand mentions within video platforms like YouTube, social media embeds and other rich media sources that may not have a direct URL reference.</span>
         </div>
     `;
 
