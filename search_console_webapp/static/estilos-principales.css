@@ -593,6 +593,7 @@ body.dark-mode .domain-validation-error div {
   padding: 1.5rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   width: 100%;
+  max-width: none;
   box-sizing: border-box;
 }
 
@@ -604,17 +605,12 @@ body.dark-mode .domain-validation-error div {
   font-weight: 600;
 }
 
-.competitor-chart-container h4 i {
-  color: #0F172A;
-  margin-right: 0.5rem;
-}
-
 /* Chart wrapper — full width, generous height */
 .chart-wrapper {
   position: relative;
   height: 440px;
   width: 100% !important;
-  max-width: 100%;
+  max-width: none;
 }
 
 /* Chart legend styles */

@@ -652,19 +652,17 @@ function displayCompetitorResults(competitorResults, container, options = {}) {
 
     // Build new layout: chart full-width on top, two tables side-by-side below, info banner at bottom
     let layoutHTML = `
-        <h3 class="competitor-analysis-title">
-            <i class="fas fa-users"></i> Competitor Analysis
-        </h3>
+        <h3 class="competitor-analysis-title">Competitor Analysis</h3>
         <div class="competitor-chart-row">
             <div class="competitor-chart-column"></div>
         </div>
         <div class="competitor-tables-row">
             <div class="competitor-domain-table-column">
-                <h4><i class="fas fa-chart-bar"></i> Domain Visibility</h4>
+                <h4>Domain Visibility</h4>
                 ${tableHTML}
             </div>
             <div class="competitor-cited-urls-column">
-                <h4><i class="fas fa-link"></i> Most Cited URLs</h4>
+                <h4>Most Cited URLs</h4>
                 ${citedUrlsHTML}
             </div>
         </div>
