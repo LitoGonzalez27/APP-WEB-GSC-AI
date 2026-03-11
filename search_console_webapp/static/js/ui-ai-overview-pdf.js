@@ -17,9 +17,13 @@
 //
 // PDF Layout:
 //   Page 1: summary + competitor-container (chart only, tables hidden)
-//   Page 2: competitor-container (tables + banner only, chart hidden)
+//   Page 2: competitor-container (tables + banner only, chart hidden) + topic-clusters (if configured)
 //   Page 3: ai-overview-grid-section + ai-typology-section
 //   Page 4: aio-diagnostic-section + detailedResultsFilterSection
+//
+// NOTE: placeImageOnPage() handles overflow across pages — NEVER creates
+//       orphan header pages. If content is taller than remaining space,
+//       it starts on the current page and continues on the next.
 
 // ======================================================
 // DOM HELPERS
@@ -184,31 +188,7 @@ async function captureWithVisibleSections(html2canvas, aiOverviewContent, result
 // PDF COMPOSITION
 // ======================================================
 
-function placeImage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset) {
-    const imgW = usableWidth;
-    const imgH = canvasH * (imgW / canvasW);
-
-    // Scale down if taller than a full page
-    if (imgH > pageHeight - margin * 2) {
-        const maxH = pageHeight - margin * 2;
-        const scale = maxH / imgH;
-        const sw = imgW * scale;
-        if (yOffset > margin + 10) { pdf.addPage(); yOffset = margin; }
-        pdf.addImage(imgData, 'JPEG', margin + (usableWidth - sw) / 2, yOffset, sw, maxH);
-        return yOffset + maxH + 8;
-    }
-
-    // New page if doesn't fit
-    if (yOffset + imgH > pageHeight - margin) {
-        pdf.addPage();
-        yOffset = margin;
-    }
-
-    pdf.addImage(imgData, 'JPEG', margin, yOffset, imgW, imgH);
-    return yOffset + imgH + 8;
-}
-
-function placeImageMultiPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset, logoData) {
+function placeImageOnPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset, logoData) {
     const imgW = usableWidth;
     const imgH = canvasH * (imgW / canvasW);
 
@@ -356,6 +336,8 @@ export async function generateAIOverviewPDF() {
         const diagnostic = aiResults.querySelector('.aio-diagnostic-section') ||
                            aiResults.querySelector('.diagnostic-section');
         const detailed = document.getElementById('detailedResultsFilterSection');
+        // Topic clusters are optional — only present if user configured them
+        const clusterSection = aiResults.querySelector('.topic-clusters-results');
 
         console.log('Sections found:', {
             summary: !!summary,
@@ -363,6 +345,7 @@ export async function generateAIOverviewPDF() {
             chartRow: !!chartRow,
             tablesRow: !!tablesRow,
             infoBanner: !!infoBanner,
+            clusterSection: !!clusterSection,
             gridSection: !!gridSection,
             typology: !!typology,
             diagnostic: !!diagnostic,
@@ -384,17 +367,19 @@ export async function generateAIOverviewPDF() {
             'Page 1: Summary + Chart'
         );
 
-        // PAGE 2: Tables + Banner (hide chart inside competitor container)
+        // PAGE 2: Tables + Banner + Clusters (if configured)
         console.log('Capturing Page 2...');
         const cap2 = await captureWithVisibleSections(
             html2canvas, aiOverviewContent, aiResults,
             () => {
                 showElements(competitorContainer);
+                // Include clusters if they exist
+                if (clusterSection) showElements(clusterSection);
                 // Inside competitor container: show tables + banner, hide chart + title
                 const restoreInner = hideElements(chartRow, competitorTitle);
                 return restoreInner;
             },
-            'Page 2: Tables + Banner'
+            'Page 2: Tables + Banner' + (clusterSection ? ' + Clusters' : '')
         );
 
         // PAGE 3: Grid.js AIO keywords + Typology (keyword length & position)
@@ -468,7 +453,7 @@ export async function generateAIOverviewPDF() {
         y += 12;
 
         if (cap1) {
-            y = placeImage(pdf, cap1.imgData, cap1.canvas.width, cap1.canvas.height, margin, usableW, ph, y);
+            y = placeImageOnPage(pdf, cap1.imgData, cap1.canvas.width, cap1.canvas.height, margin, usableW, ph, y, logo);
         }
         addWatermark(pdf, logo);
 
@@ -476,7 +461,7 @@ export async function generateAIOverviewPDF() {
         if (cap2) {
             pdf.addPage();
             y = addPageHeader(pdf, 'Competitor Domains & Cited URLs', margin, pw);
-            y = placeImage(pdf, cap2.imgData, cap2.canvas.width, cap2.canvas.height, margin, usableW, ph, y);
+            y = placeImageOnPage(pdf, cap2.imgData, cap2.canvas.width, cap2.canvas.height, margin, usableW, ph, y, logo);
             addWatermark(pdf, logo);
         }
 
@@ -484,7 +469,7 @@ export async function generateAIOverviewPDF() {
         if (cap3) {
             pdf.addPage();
             y = addPageHeader(pdf, 'Keywords with AIO & Position Analysis', margin, pw);
-            y = placeImage(pdf, cap3.imgData, cap3.canvas.width, cap3.canvas.height, margin, usableW, ph, y);
+            y = placeImageOnPage(pdf, cap3.imgData, cap3.canvas.width, cap3.canvas.height, margin, usableW, ph, y, logo);
             addWatermark(pdf, logo);
         }
 
@@ -492,7 +477,7 @@ export async function generateAIOverviewPDF() {
         if (cap4) {
             pdf.addPage();
             y = addPageHeader(pdf, 'Keyword Diagnostic & Detailed Results', margin, pw);
-            y = placeImageMultiPage(pdf, cap4.imgData, cap4.canvas.width, cap4.canvas.height, margin, usableW, ph, y, logo);
+            y = placeImageOnPage(pdf, cap4.imgData, cap4.canvas.width, cap4.canvas.height, margin, usableW, ph, y, logo);
             addWatermark(pdf, logo);
         }
 
