@@ -188,16 +188,36 @@ async function captureWithVisibleSections(html2canvas, aiOverviewContent, result
 // PDF COMPOSITION
 // ======================================================
 
-function placeImageOnPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset, logoData) {
+/**
+ * Places a captured image on the current PDF page.
+ *
+ * @param {boolean} allowOverflow - If false (default), scales the image down
+ *   proportionally to fit the remaining page space. If true, allows the image
+ *   to overflow onto continuation pages (for very tall content like tables).
+ */
+function placeImageOnPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset, logoData, allowOverflow) {
     const imgW = usableWidth;
     const imgH = canvasH * (imgW / canvasW);
+    const availableH = pageHeight - yOffset - margin;
 
-    if (yOffset + imgH <= pageHeight - margin) {
+    // Case 1: Fits on current page — place at full size
+    if (imgH <= availableH) {
         pdf.addImage(imgData, 'JPEG', margin, yOffset, imgW, imgH);
         return yOffset + imgH + 8;
     }
 
-    // Start new page if very little space
+    // Case 2: Doesn't fit — scale down to fit (default for most pages)
+    if (!allowOverflow) {
+        const scale = availableH / imgH;
+        const sw = imgW * scale;
+        const sh = availableH;
+        // Center horizontally after scaling
+        const xOffset = margin + (usableWidth - sw) / 2;
+        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, sw, sh);
+        return yOffset + sh + 8;
+    }
+
+    // Case 3: Allow overflow — place and continue on next pages
     if (yOffset > margin + 80) {
         addWatermark(pdf, logoData);
         pdf.addPage();
@@ -473,11 +493,11 @@ export async function generateAIOverviewPDF() {
             addWatermark(pdf, logo);
         }
 
-        // --- PAGE 4 ---
+        // --- PAGE 4 (allow overflow — detailed results table can be very long) ---
         if (cap4) {
             pdf.addPage();
             y = addPageHeader(pdf, 'Keyword Diagnostic & Detailed Results', margin, pw);
-            y = placeImageOnPage(pdf, cap4.imgData, cap4.canvas.width, cap4.canvas.height, margin, usableW, ph, y, logo);
+            y = placeImageOnPage(pdf, cap4.imgData, cap4.canvas.width, cap4.canvas.height, margin, usableW, ph, y, logo, true);
             addWatermark(pdf, logo);
         }
 
