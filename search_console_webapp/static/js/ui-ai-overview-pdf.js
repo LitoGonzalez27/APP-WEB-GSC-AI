@@ -62,17 +62,30 @@ function restoreCharts(originals) {
     });
 }
 
-function expandAllPagination(container) {
+/**
+ * Prepares paginated tables for PDF capture:
+ * - Shows only top 10 cited URLs (page 1)
+ * - Hides page 2 and pagination controls
+ * - Ensures page 1 is visible (in case user was browsing page 2)
+ */
+function preparePaginatedTables(container) {
     const originals = [];
+    // Hide second page of cited URLs (keep only top 10)
     container.querySelectorAll('.cited-urls-page-2').forEach(el => {
         originals.push({ el, display: el.style.display });
-        el.style.display = '';
+        el.style.display = 'none';
     });
+    // Ensure page 1 is visible (user might have navigated to page 2)
     container.querySelectorAll('.cited-urls-page-1').forEach(el => {
         if (el.style.display === 'none') {
             originals.push({ el, display: el.style.display });
             el.style.display = '';
         }
+    });
+    // Hide pagination controls (no "1-10 of 20" or prev/next buttons)
+    container.querySelectorAll('.cited-urls-pagination').forEach(el => {
+        originals.push({ el, display: el.style.display });
+        el.style.display = 'none';
     });
     return originals;
 }
@@ -342,7 +355,7 @@ export async function generateAIOverviewPDF() {
 
         document.body.classList.add('pdf-capture-mode');
         chartOriginals = convertChartsToImages(aiOverviewContent);
-        paginationOriginals = expandAllPagination(aiOverviewContent);
+        paginationOriginals = preparePaginatedTables(aiOverviewContent);
 
         // Identify sections inside the results container
         const summary = aiResults.querySelector('.ai-overview-summary');
