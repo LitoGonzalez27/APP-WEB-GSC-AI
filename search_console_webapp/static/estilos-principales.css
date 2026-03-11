@@ -999,6 +999,7 @@ body.pdf-capture-mode .url-cell {
   overflow: visible !important;
   text-overflow: unset !important;
   white-space: normal !important;
+  max-width: none !important;
 }
 
 body.pdf-capture-mode .cited-urls-pagination {
@@ -1007,6 +1008,30 @@ body.pdf-capture-mode .cited-urls-pagination {
 
 body.pdf-capture-mode .pdf-chart-img-temp {
   display: block !important;
+}
+
+/* Ensure tables render at full width during PDF capture */
+body.pdf-capture-mode .competitor-tables-row {
+  grid-template-columns: 1fr 1fr !important;
+  min-width: 0 !important;
+}
+
+/* Ensure chart renders at full width */
+body.pdf-capture-mode .chart-wrapper {
+  min-height: 350px !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Ensure diagnostic cards grid renders properly */
+body.pdf-capture-mode .diagnostic-cards-grid {
+  display: grid !important;
+  gap: 1rem !important;
+}
+
+/* Hide interactive-only elements during capture */
+body.pdf-capture-mode .diagnostic-card-tooltip-icon {
+  display: none !important;
 }
 
 /* ===== Responsive: Competitor Analysis ===== */
@@ -1922,10 +1947,10 @@ body.dark-mode .analysis-info-icon::before {
   }
   
   .chart-wrapper {
-    max-width: 400px;
+    max-width: none;
     height: 320px;
   }
-  
+
   .competitor-chart-container {
     padding: 1.2rem;
   }
@@ -1936,9 +1961,9 @@ body.dark-mode .analysis-info-icon::before {
   .competitor-analysis-layout {
     gap: 1rem;
   }
-  
+
   .chart-wrapper {
-    max-width: 350px;
+    max-width: none;
     height: 300px;
   }
   
