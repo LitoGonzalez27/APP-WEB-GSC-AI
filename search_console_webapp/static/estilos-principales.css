@@ -994,7 +994,19 @@ body.dark-mode .domain-validation-error div {
 }
 
 /* ===== PDF Capture Mode ===== */
-/* Applied temporarily during PDF generation for clean capture */
+/* Applied temporarily during PDF generation for clean capture.
+   Critical: freeze all CSS animations so html2canvas captures the
+   final rendered state, not an in-progress animation frame. */
+
+/* Freeze animations — elements using animation-fill-mode: both may
+   still be in their "from" keyframe state when html2canvas clones.
+   Setting animation to none ensures the computed styles are final. */
+body.pdf-capture-mode #aiOverviewContent,
+body.pdf-capture-mode #aiOverviewContent * {
+  animation: none !important;
+  transition: none !important;
+}
+
 body.pdf-capture-mode .url-cell {
   overflow: visible !important;
   text-overflow: unset !important;
@@ -1032,6 +1044,21 @@ body.pdf-capture-mode .diagnostic-cards-grid {
 /* Hide interactive-only elements during capture */
 body.pdf-capture-mode .diagnostic-card-tooltip-icon {
   display: none !important;
+}
+
+/* Force diagnostic card visibility (cursor:pointer implies interactivity) */
+body.pdf-capture-mode .diagnostic-card,
+body.pdf-capture-mode .aio-diagnostic-card,
+body.pdf-capture-mode .aio-diagnostic-card--dark {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force summary card visibility */
+body.pdf-capture-mode .aio-summary-card,
+body.pdf-capture-mode .aio-summary-card--dark {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* ===== Responsive: Competitor Analysis ===== */

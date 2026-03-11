@@ -1259,3 +1259,24 @@ body.dark-mode #aiOverviewContent .competitor-table td {
     animation: none !important;
   }
 }
+
+/* PDF capture mode: kill all animations and force final opacity/transform
+   so html2canvas captures the fully-rendered state instead of mid-animation. */
+body.pdf-capture-mode #aiOverviewContent section#aiOverviewSection,
+body.pdf-capture-mode #aiOverviewContent .aio-section-title,
+body.pdf-capture-mode #aiOverviewContent .aio-section-subtitle,
+body.pdf-capture-mode #aiOverviewContent .aio-summary-grid,
+body.pdf-capture-mode #aiOverviewContent .aio-summary-card,
+body.pdf-capture-mode #aiOverviewContent .aio-summary-card--dark,
+body.pdf-capture-mode #aiOverviewContent .aio-ctr-section,
+body.pdf-capture-mode #aiOverviewContent .aio-diagnostic-section,
+body.pdf-capture-mode #aiOverviewContent .aio-diagnostic-card,
+body.pdf-capture-mode #aiOverviewContent .aio-diagnostic-card--dark,
+body.pdf-capture-mode #aiOverviewContent .ai-typology-section,
+body.pdf-capture-mode #aiOverviewContent .ai-overview-grid-section,
+body.pdf-capture-mode #aiOverviewContent .ai-overview-grid-container,
+body.pdf-capture-mode #aiOverviewContent .advanced-analysis-section {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}

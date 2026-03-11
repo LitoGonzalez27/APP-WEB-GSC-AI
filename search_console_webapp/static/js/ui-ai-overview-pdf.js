@@ -1,6 +1,7 @@
 // static/js/ui-ai-overview-pdf.js
 // Módulo para generar PDF del análisis AI Overview con marca de agua Clicandseo
-// v4: Structured multi-page layout — each section captured individually
+// v5: Structured multi-page layout using hide/show strategy within #aiOverviewContent
+//     to preserve CSS variable scope and ancestor selectors.
 
 // ======================================================
 // DOM PREPARATION HELPERS
@@ -8,7 +9,6 @@
 
 /**
  * Convierte todos los canvas de Chart.js a imágenes estáticas para captura limpia.
- * html2canvas a menudo captura canvas en blanco — convertir a <img> lo evita.
  */
 function convertChartsToImages(container) {
     const canvases = container.querySelectorAll('canvas');
@@ -37,9 +37,6 @@ function convertChartsToImages(container) {
     return originals;
 }
 
-/**
- * Restaura canvas de Chart.js eliminando las imágenes temporales.
- */
 function restoreCharts(originals) {
     originals.forEach(({ canvas, img }) => {
         try {
@@ -53,9 +50,6 @@ function restoreCharts(originals) {
     });
 }
 
-/**
- * Expande todas las páginas de paginación de URLs para que aparezcan completas en el PDF.
- */
 function expandAllPagination(container) {
     const hiddenPages = container.querySelectorAll('.cited-urls-page-2');
     const originals = [];
@@ -76,9 +70,6 @@ function expandAllPagination(container) {
     return originals;
 }
 
-/**
- * Restaura la paginación ocultando las páginas que estaban ocultas.
- */
 function restorePagination(originals) {
     originals.forEach(({ el, display }) => {
         el.style.display = display;
@@ -86,29 +77,93 @@ function restorePagination(originals) {
 }
 
 // ======================================================
-// SECTION CAPTURE
+// HIDE/SHOW STRATEGY FOR SECTION CAPTURE
 // ======================================================
 
 /**
- * Captura un elemento DOM como imagen usando html2canvas.
- * Returns { canvas, imgData } or null if element not found / capture fails.
+ * Gets all direct child sections within #aiOverviewContent that we can toggle.
+ * Returns a map of sectionName -> element.
  */
-async function captureSection(html2canvas, element, label) {
-    if (!element) {
-        console.warn(`Section "${label}" not found — skipping`);
+function identifySections(container) {
+    return {
+        summary: container.querySelector('.ai-overview-summary'),
+        chartRow: container.querySelector('.competitor-chart-row'),
+        tablesRow: container.querySelector('.competitor-tables-row'),
+        infoBanner: container.querySelector('.competitor-info-banner'),
+        typology: container.querySelector('.ai-typology-section'),
+        diagnostic: container.querySelector('.diagnostic-section'),
+        detailed: document.getElementById('detailedResultsFilterSection')
+    };
+}
+
+/**
+ * Hides ALL identified sections by setting display:none.
+ * Returns a restore function that brings everything back.
+ */
+function hideAllSections(sections) {
+    const originals = [];
+
+    Object.values(sections).forEach(el => {
+        if (el) {
+            originals.push({ el, display: el.style.display });
+            el.style.display = 'none';
+        }
+    });
+
+    return () => {
+        originals.forEach(({ el, display }) => {
+            el.style.display = display;
+        });
+    };
+}
+
+/**
+ * Shows only the specified section keys, hiding all others.
+ * Returns a restore function.
+ */
+function showOnlySections(sections, visibleKeys) {
+    const originals = [];
+
+    Object.entries(sections).forEach(([key, el]) => {
+        if (el) {
+            originals.push({ el, display: el.style.display });
+            if (visibleKeys.includes(key)) {
+                el.style.display = '';  // Show
+            } else {
+                el.style.display = 'none';  // Hide
+            }
+        }
+    });
+
+    return () => {
+        originals.forEach(({ el, display }) => {
+            el.style.display = display;
+        });
+    };
+}
+
+/**
+ * Captures the #aiOverviewContent container with only certain sections visible.
+ * This preserves the CSS variable scope and ancestor-scoped selectors.
+ */
+async function captureContainerWithSections(html2canvas, container, sections, visibleKeys, label) {
+    // Toggle visibility
+    const restore = showOnlySections(sections, visibleKeys);
+
+    // Wait for repaint
+    await new Promise(r => setTimeout(r, 200));
+
+    // Check if container has visible content
+    if (container.scrollHeight < 10) {
+        console.warn(`  "${label}": container too small (${container.scrollHeight}px) — skipping`);
+        restore();
         return null;
     }
 
-    // Ensure element is visible and has dimensions
-    if (element.offsetHeight === 0 || element.offsetWidth === 0) {
-        console.warn(`Section "${label}" has zero dimensions — skipping`);
-        return null;
-    }
-
-    console.log(`  Capturing: ${label} (${element.offsetWidth}x${element.offsetHeight}px)`);
+    console.log(`  Capturing: ${label} (${container.scrollWidth}x${container.scrollHeight}px)`);
 
     try {
-        const canvas = await html2canvas(element, {
+        const canvas = await html2canvas(container, {
             scale: 1.5,
             useCORS: true,
             allowTaint: true,
@@ -116,23 +171,24 @@ async function captureSection(html2canvas, element, label) {
             logging: false,
             imageTimeout: 15000,
             removeContainer: true,
-            width: element.scrollWidth,
-            height: element.scrollHeight,
+            width: container.scrollWidth,
+            height: container.scrollHeight,
             scrollX: 0,
-            scrollY: 0,
-            x: 0,
-            y: 0
+            scrollY: -window.scrollY
         });
 
+        restore();
+
         if (canvas.width === 0 || canvas.height === 0) {
-            console.warn(`Section "${label}" captured empty canvas — skipping`);
+            console.warn(`  "${label}": empty canvas — skipping`);
             return null;
         }
 
         const imgData = canvas.toDataURL('image/jpeg', 0.85);
         return { canvas, imgData, label };
     } catch (err) {
-        console.warn(`Section "${label}" capture failed:`, err);
+        restore();
+        console.warn(`  "${label}": capture failed:`, err);
         return null;
     }
 }
@@ -142,41 +198,79 @@ async function captureSection(html2canvas, element, label) {
 // ======================================================
 
 /**
- * Adds a captured section image to the current PDF page.
- * Handles scaling to fit page width and returns the new Y offset.
- * If the section doesn't fit, adds a new page first.
- *
- * @returns {number} new yOffset after placing the image
+ * Places a captured image onto the PDF.
+ * Returns new yOffset. Adds new page if needed.
  */
 function placeImageOnPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset) {
     const imgWidth = usableWidth;
     const imgHeight = canvasH * (imgWidth / canvasW);
 
-    // Check if we need a new page
-    if (yOffset + imgHeight > pageHeight - margin) {
-        // If image is taller than a full page, scale it down to fit one page
-        if (imgHeight > pageHeight - (margin * 2)) {
-            const maxH = pageHeight - (margin * 2);
-            const scale = maxH / imgHeight;
-            const scaledW = imgWidth * scale;
-            const scaledH = maxH;
-            const xOffset = margin + (usableWidth - scaledW) / 2; // center
-            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, scaledW, scaledH);
-            return yOffset + scaledH + 8;
+    // If image is taller than a full page, scale down
+    if (imgHeight > pageHeight - (margin * 2)) {
+        const maxH = pageHeight - (margin * 2);
+        const scale = maxH / imgHeight;
+        const scaledW = imgWidth * scale;
+        const scaledH = maxH;
+        const xOffset = margin + (usableWidth - scaledW) / 2;
+
+        if (yOffset > margin + 10) {
+            pdf.addPage();
+            yOffset = margin;
         }
-        // Normal case: start new page
+        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, scaledW, scaledH);
+        return yOffset + scaledH + 8;
+    }
+
+    // Check if fits on current page
+    if (yOffset + imgHeight > pageHeight - margin) {
         pdf.addPage();
         yOffset = margin;
     }
 
     pdf.addImage(imgData, 'JPEG', margin, yOffset, imgWidth, imgHeight);
-    return yOffset + imgHeight + 8; // 8pt gap between sections
+    return yOffset + imgHeight + 8;
 }
 
 /**
- * Carga y añade marca de agua (logo Clicandseo) en esquina inferior derecha.
- * Caches logo data across pages for performance.
+ * Places a large image that may span multiple pages (for detailed results table).
  */
+function placeImageMultiPage(pdf, imgData, canvasW, canvasH, margin, usableWidth, pageHeight, yOffset, logoData) {
+    const imgWidth = usableWidth;
+    const imgHeight = canvasH * (imgWidth / canvasW);
+
+    // If it fits on one page (or remaining space)
+    if (yOffset + imgHeight <= pageHeight - margin) {
+        pdf.addImage(imgData, 'JPEG', margin, yOffset, imgWidth, imgHeight);
+        return yOffset + imgHeight + 8;
+    }
+
+    // Multi-page overflow
+    if (yOffset > margin + 50) {
+        // Start on new page if very little space left
+        addWatermark(pdf, logoData);
+        pdf.addPage();
+        yOffset = margin;
+    }
+
+    // First page slice
+    pdf.addImage(imgData, 'JPEG', margin, yOffset, imgWidth, imgHeight);
+    let heightLeft = imgHeight - (pageHeight - yOffset);
+
+    while (heightLeft > 0) {
+        addWatermark(pdf, logoData);
+        pdf.addPage();
+        const newY = margin - (imgHeight - heightLeft);
+        pdf.addImage(imgData, 'JPEG', margin, newY, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - (margin * 2));
+    }
+
+    return margin; // returned for next section (though typically nothing follows)
+}
+
+// ======================================================
+// WATERMARK
+// ======================================================
+
 let _cachedLogoData = null;
 
 async function loadWatermarkLogo() {
@@ -219,8 +313,7 @@ function addWatermark(pdf, logoData) {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const wmMargin = 16;
-    const maxLogoWidth = Math.min(80, pageWidth * 0.18);
-    const logoW = maxLogoWidth;
+    const logoW = Math.min(80, pageWidth * 0.18);
     const logoH = logoW * logoData.ratio;
     const x = pageWidth - logoW - wmMargin;
     const y = pageHeight - logoH - wmMargin;
@@ -233,32 +326,55 @@ function addWatermark(pdf, logoData) {
 }
 
 // ======================================================
+// PDF PAGE HEADERS
+// ======================================================
+
+function addPageHeader(pdf, title, margin, pageWidth) {
+    let y = margin;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(15, 23, 42); // #0F172A
+    pdf.text(title, margin, y + 14);
+    y += 24;
+
+    pdf.setDrawColor(226, 232, 240); // #E2E8F0
+    pdf.setLineWidth(0.5);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 12;
+
+    return y;
+}
+
+// ======================================================
 // MAIN PDF GENERATOR
 // ======================================================
 
 /**
  * Genera y descarga un PDF estructurado del análisis AI Overview.
  *
+ * Strategy: Instead of capturing child elements in isolation (which breaks
+ * CSS variable scope and ancestor selectors like #aiOverviewContent .aio-*),
+ * we hide/show sections within #aiOverviewContent and capture the PARENT
+ * container for each page. This preserves all CSS context.
+ *
  * Layout:
  *   Page 1: Title + 5 summary metric cards + competitor bar chart
  *   Page 2: Domain Visibility table + Most Cited URLs table + info banner
  *   Page 3: Keyword Length Analysis + Position in AIO table
  *   Page 4: Keyword Diagnostic cards + Detailed Results by Keyword
- *
- * Each section is captured individually via html2canvas and composed onto
- * specific PDF pages, instead of capturing the entire container as one image.
  */
 export async function generateAIOverviewPDF() {
-    let domState = null;
+    let chartOriginals = [];
+    let paginationOriginals = [];
 
     try {
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
 
-        console.log('Iniciando generacion de PDF estructurado...');
+        console.log('Iniciando generacion de PDF estructurado (v5)...');
 
-        // Show loading state
         if (spinner && btnText) {
             spinner.style.display = 'inline-block';
             btnText.textContent = 'Preparing PDF...';
@@ -318,58 +434,62 @@ export async function generateAIOverviewPDF() {
             throw new Error('AI Overview content section not found');
         }
 
-        console.log('Preparing DOM for structured PDF capture...');
-
-        // Prepare: convert charts + expand pagination + add capture class
-        domState = {
-            chartOriginals: convertChartsToImages(targetSection),
-            paginationOriginals: expandAllPagination(targetSection)
-        };
+        console.log('Preparing DOM for PDF capture...');
         document.body.classList.add('pdf-capture-mode');
 
-        console.log(`  ${domState.chartOriginals.length} chart(s) converted to static image`);
-        console.log(`  ${domState.paginationOriginals.length} pagination element(s) expanded`);
+        // Convert charts to images + expand pagination
+        chartOriginals = convertChartsToImages(targetSection);
+        paginationOriginals = expandAllPagination(targetSection);
 
-        // Wait for browser repaint
-        await new Promise(resolve => setTimeout(resolve, 400));
+        console.log(`  ${chartOriginals.length} chart(s) converted to static image`);
+        console.log(`  ${paginationOriginals.length} pagination element(s) expanded`);
 
-        // ====== IDENTIFY SECTIONS ======
+        // Identify all sections
+        const sections = identifySections(targetSection);
+
+        // Log found sections for debugging
+        Object.entries(sections).forEach(([key, el]) => {
+            console.log(`  Section "${key}": ${el ? `found (${el.offsetWidth}x${el.offsetHeight})` : 'NOT FOUND'}`);
+        });
+
+        // ====== CAPTURE SECTIONS (hide/show within parent) ======
+        console.log('Capturing sections using hide/show strategy...');
+
         // Page 1: Summary + Chart
-        const summarySection = targetSection.querySelector('.ai-overview-summary');
-        const chartRow = targetSection.querySelector('.competitor-chart-row');
+        const capturePage1 = await captureContainerWithSections(
+            html2canvas, targetSection, sections,
+            ['summary', 'chartRow'],
+            'Page 1: Summary + Chart'
+        );
 
         // Page 2: Tables + Banner
-        const tablesRow = targetSection.querySelector('.competitor-tables-row');
-        const infoBanner = targetSection.querySelector('.competitor-info-banner');
+        const capturePage2 = await captureContainerWithSections(
+            html2canvas, targetSection, sections,
+            ['tablesRow', 'infoBanner'],
+            'Page 2: Tables + Banner'
+        );
 
-        // Page 3: Keyword typology (length + position)
-        const typologySection = targetSection.querySelector('.ai-typology-section');
+        // Page 3: Typology (keyword length + position)
+        const capturePage3 = await captureContainerWithSections(
+            html2canvas, targetSection, sections,
+            ['typology'],
+            'Page 3: Keyword Length & Position'
+        );
 
         // Page 4: Diagnostic + Detailed Results
-        const diagnosticSection = targetSection.querySelector('.diagnostic-section');
-        const detailedResults = document.getElementById('detailedResultsFilterSection');
-
-        // ====== CAPTURE SECTIONS ======
-        console.log('Capturing individual sections...');
-
-        // Capture all sections in sequence (cannot parallelize — html2canvas
-        // modifies the DOM during capture and needs sequential execution)
-        const captures = {
-            summary: await captureSection(html2canvas, summarySection, 'Summary Cards'),
-            chart: await captureSection(html2canvas, chartRow, 'Competitor Chart'),
-            tables: await captureSection(html2canvas, tablesRow, 'Domain & URL Tables'),
-            banner: await captureSection(html2canvas, infoBanner, 'Info Banner'),
-            typology: await captureSection(html2canvas, typologySection, 'Keyword Length & Position'),
-            diagnostic: await captureSection(html2canvas, diagnosticSection, 'Keyword Diagnostic'),
-            detailed: await captureSection(html2canvas, detailedResults, 'Detailed Results')
-        };
+        const capturePage4 = await captureContainerWithSections(
+            html2canvas, targetSection, sections,
+            ['diagnostic', 'detailed'],
+            'Page 4: Diagnostic + Detailed Results'
+        );
 
         // ====== RESTORE DOM ======
         console.log('Restoring DOM...');
-        restoreCharts(domState.chartOriginals);
-        restorePagination(domState.paginationOriginals);
+        restoreCharts(chartOriginals);
+        chartOriginals = [];
+        restorePagination(paginationOriginals);
+        paginationOriginals = [];
         document.body.classList.remove('pdf-capture-mode');
-        domState = null;
 
         // Restore hidden elements
         excluded.forEach(el => {
@@ -388,185 +508,91 @@ export async function generateAIOverviewPDF() {
         const margin = 28;
         const usableWidth = pageWidth - (margin * 2);
 
-        // Load watermark logo once
         const logoData = await loadWatermarkLogo();
 
-        // Helper to count captured sections for validation
-        const capturedCount = Object.values(captures).filter(c => c !== null).length;
+        // Check we have at least some content
+        const captures = [capturePage1, capturePage2, capturePage3, capturePage4];
+        const capturedCount = captures.filter(c => c !== null).length;
         if (capturedCount === 0) {
             throw new Error('No sections could be captured. Please ensure the AI Overview analysis is visible.');
         }
-        console.log(`  ${capturedCount} section(s) captured successfully`);
+        console.log(`  ${capturedCount}/4 page captures successful`);
 
         // ---- PAGE 1: Title + Summary + Chart ----
         let y = margin;
 
-        // Add title text
+        // PDF title
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(18);
-        pdf.setTextColor(15, 23, 42); // #0F172A
+        pdf.setTextColor(15, 23, 42);
         pdf.text('AI Overview Analysis', margin, y + 18);
         y += 32;
 
-        // Add site name subtitle
+        // Site URL subtitle
         const siteUrl = document.getElementById('siteUrlSelect')?.value || '';
         if (siteUrl) {
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(11);
-            pdf.setTextColor(100, 116, 139); // #64748B
+            pdf.setTextColor(100, 116, 139);
             pdf.text(siteUrl, margin, y + 10);
             y += 22;
         }
 
-        // Add generation date
+        // Generation date
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         pdf.setFontSize(9);
-        pdf.setTextColor(148, 163, 184); // #94A3B8
+        pdf.setTextColor(148, 163, 184);
         pdf.text(`Generated: ${dateStr}`, margin, y + 8);
         y += 20;
 
-        // Add separator line
-        pdf.setDrawColor(226, 232, 240); // #E2E8F0
-        pdf.setLineWidth(0.5);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 12;
-
-        // Place summary cards
-        if (captures.summary) {
-            y = placeImageOnPage(pdf, captures.summary.imgData,
-                captures.summary.canvas.width, captures.summary.canvas.height,
-                margin, usableWidth, pageHeight, y);
-        }
-
-        // Place chart (should fit on page 1 with the summary)
-        if (captures.chart) {
-            y = placeImageOnPage(pdf, captures.chart.imgData,
-                captures.chart.canvas.width, captures.chart.canvas.height,
-                margin, usableWidth, pageHeight, y);
-        }
-
-        addWatermark(pdf, logoData);
-
-        // ---- PAGE 2: Domain Visibility + Most Cited URLs + Banner ----
-        pdf.addPage();
-        y = margin;
-
-        // Page 2 section header
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text('Competitor Domains & Cited URLs', margin, y + 14);
-        y += 28;
-
+        // Separator
         pdf.setDrawColor(226, 232, 240);
         pdf.setLineWidth(0.5);
         pdf.line(margin, y, pageWidth - margin, y);
         y += 12;
 
-        if (captures.tables) {
-            y = placeImageOnPage(pdf, captures.tables.imgData,
-                captures.tables.canvas.width, captures.tables.canvas.height,
-                margin, usableWidth, pageHeight, y);
-        }
-
-        if (captures.banner) {
-            y = placeImageOnPage(pdf, captures.banner.imgData,
-                captures.banner.canvas.width, captures.banner.canvas.height,
+        if (capturePage1) {
+            y = placeImageOnPage(pdf, capturePage1.imgData,
+                capturePage1.canvas.width, capturePage1.canvas.height,
                 margin, usableWidth, pageHeight, y);
         }
 
         addWatermark(pdf, logoData);
 
-        // ---- PAGE 3: Keyword Length & Position Analysis ----
-        if (captures.typology) {
+        // ---- PAGE 2: Tables + Banner ----
+        if (capturePage2) {
             pdf.addPage();
-            y = margin;
+            y = addPageHeader(pdf, 'Competitor Domains & Cited URLs', margin, pageWidth);
 
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(14);
-            pdf.setTextColor(15, 23, 42);
-            pdf.text('Keyword Length & Position Analysis', margin, y + 14);
-            y += 28;
-
-            pdf.setDrawColor(226, 232, 240);
-            pdf.setLineWidth(0.5);
-            pdf.line(margin, y, pageWidth - margin, y);
-            y += 12;
-
-            y = placeImageOnPage(pdf, captures.typology.imgData,
-                captures.typology.canvas.width, captures.typology.canvas.height,
+            y = placeImageOnPage(pdf, capturePage2.imgData,
+                capturePage2.canvas.width, capturePage2.canvas.height,
                 margin, usableWidth, pageHeight, y);
 
             addWatermark(pdf, logoData);
         }
 
-        // ---- PAGE 4: Keyword Diagnostic + Detailed Results ----
-        if (captures.diagnostic || captures.detailed) {
+        // ---- PAGE 3: Keyword Length & Position ----
+        if (capturePage3) {
             pdf.addPage();
-            y = margin;
+            y = addPageHeader(pdf, 'Keyword Length & Position Analysis', margin, pageWidth);
 
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(14);
-            pdf.setTextColor(15, 23, 42);
-            pdf.text('Keyword Diagnostic & Detailed Results', margin, y + 14);
-            y += 28;
+            y = placeImageOnPage(pdf, capturePage3.imgData,
+                capturePage3.canvas.width, capturePage3.canvas.height,
+                margin, usableWidth, pageHeight, y);
 
-            pdf.setDrawColor(226, 232, 240);
-            pdf.setLineWidth(0.5);
-            pdf.line(margin, y, pageWidth - margin, y);
-            y += 12;
+            addWatermark(pdf, logoData);
+        }
 
-            if (captures.diagnostic) {
-                y = placeImageOnPage(pdf, captures.diagnostic.imgData,
-                    captures.diagnostic.canvas.width, captures.diagnostic.canvas.height,
-                    margin, usableWidth, pageHeight, y);
-            }
+        // ---- PAGE 4: Diagnostic + Detailed Results ----
+        if (capturePage4) {
+            pdf.addPage();
+            y = addPageHeader(pdf, 'Keyword Diagnostic & Detailed Results', margin, pageWidth);
 
-            if (captures.detailed) {
-                // Detailed results table can be very tall — handle multi-page overflow
-                const detailedImgWidth = usableWidth;
-                const detailedImgHeight = captures.detailed.canvas.height * (detailedImgWidth / captures.detailed.canvas.width);
-
-                if (y + detailedImgHeight <= pageHeight - margin) {
-                    // Fits on current page
-                    pdf.addImage(captures.detailed.imgData, 'JPEG', margin, y, detailedImgWidth, detailedImgHeight);
-                    y += detailedImgHeight + 8;
-                } else {
-                    // Need overflow: place image and let it span multiple pages
-                    const remainingOnPage = pageHeight - margin - y;
-
-                    if (remainingOnPage > 100) {
-                        // Some space left — start here and overflow
-                        pdf.addImage(captures.detailed.imgData, 'JPEG', margin, y, detailedImgWidth, detailedImgHeight);
-                        addWatermark(pdf, logoData);
-
-                        // Add continuation pages for the overflow
-                        let heightLeft = detailedImgHeight - remainingOnPage;
-                        while (heightLeft > 0) {
-                            pdf.addPage();
-                            const newY = margin - (detailedImgHeight - heightLeft);
-                            pdf.addImage(captures.detailed.imgData, 'JPEG', margin, newY, detailedImgWidth, detailedImgHeight);
-                            addWatermark(pdf, logoData);
-                            heightLeft -= (pageHeight - (margin * 2));
-                        }
-                    } else {
-                        // Almost no space — start fresh on next page
-                        pdf.addPage();
-                        y = margin;
-                        pdf.addImage(captures.detailed.imgData, 'JPEG', margin, y, detailedImgWidth, detailedImgHeight);
-
-                        let heightLeft = detailedImgHeight - (pageHeight - margin - y);
-                        while (heightLeft > 0) {
-                            pdf.addPage();
-                            const newY = margin - (detailedImgHeight - heightLeft);
-                            pdf.addImage(captures.detailed.imgData, 'JPEG', margin, newY, detailedImgWidth, detailedImgHeight);
-                            addWatermark(pdf, logoData);
-                            heightLeft -= (pageHeight - (margin * 2));
-                        }
-                    }
-                }
-            }
+            // This page may be tall (detailed results table) — use multi-page placement
+            y = placeImageMultiPage(pdf, capturePage4.imgData,
+                capturePage4.canvas.width, capturePage4.canvas.height,
+                margin, usableWidth, pageHeight, y, logoData);
 
             addWatermark(pdf, logoData);
         }
@@ -586,20 +612,16 @@ export async function generateAIOverviewPDF() {
         console.error('Error generating PDF:', err);
         alert(`Error generating PDF: ${err.message}`);
 
-        // Restore DOM if failed before restoration
-        if (domState) {
-            try {
-                restoreCharts(domState.chartOriginals);
-                restorePagination(domState.paginationOriginals);
-            } catch (restoreErr) {
-                console.error('Error restoring DOM:', restoreErr);
-            }
+        // Restore DOM if failed
+        if (chartOriginals.length) {
+            try { restoreCharts(chartOriginals); } catch (e) {}
+        }
+        if (paginationOriginals.length) {
+            try { restorePagination(paginationOriginals); } catch (e) {}
         }
     } finally {
-        // Always remove capture mode class
         document.body.classList.remove('pdf-capture-mode');
 
-        // Restore button state
         const btn = document.getElementById('sidebarDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
@@ -612,9 +634,10 @@ export async function generateAIOverviewPDF() {
     }
 }
 
-/**
- * Muestra un mensaje de éxito temporal
- */
+// ======================================================
+// SUCCESS MESSAGE
+// ======================================================
+
 function showSuccessMessage(message) {
     const existingMsg = document.querySelector('.pdf-success-message');
     if (existingMsg) existingMsg.remove();
@@ -644,30 +667,17 @@ function showSuccessMessage(message) {
     }, 3000);
 }
 
-// Add CSS animations if not already present
 if (!document.getElementById('pdf-animations')) {
     const style = document.createElement('style');
     style.id = 'pdf-animations';
     style.textContent = `
         @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
     `;
     document.head.appendChild(style);
