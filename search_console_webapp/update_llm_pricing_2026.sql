@@ -13,6 +13,7 @@ INSERT INTO llm_model_registry (
     cost_per_1m_input_tokens, cost_per_1m_output_tokens,
     is_available
 ) VALUES
+    ('openai', 'gpt-5.3-chat-latest', 'GPT-5.3 Chat Latest', 1.75, 14.00, TRUE),
     ('openai', 'gpt-5.2', 'GPT-5.2', 1.75, 14.00, TRUE),
     ('openai', 'gpt-5.1', 'GPT-5.1', 1.25, 10.00, TRUE),
     ('openai', 'gpt-5', 'GPT-5', 1.25, 10.00, TRUE),

@@ -1,15 +1,15 @@
 """
-Proveedor OpenAI - GPT-5.2
-Última actualización: 23 Febrero 2026
+Proveedor OpenAI - GPT-5.3 Chat Latest
+Última actualización: 11 Marzo 2026
 
 IMPORTANTE:
-- Modelo: gpt-5.2 (flagship estable, non-thinking)
+- Modelo: gpt-5.3-chat-latest (último snapshot de ChatGPT)
 - NO hardcodees precios aquí (se leen de BD)
 - El modelo actual se obtiene de BD (is_current=TRUE)
 
 MODEL IDs disponibles:
-- gpt-5.2 (flagship estable)
-- gpt-5.2-chat-latest (alias dinámico)
+- gpt-5.3-chat-latest (último snapshot de ChatGPT, 128K context, 16K output)
+- gpt-5.2 (flagship estable anterior)
 - gpt-5-mini (versión económica y rápida)
 
 Docs: https://platform.openai.com/docs/models/gpt-5
@@ -33,12 +33,13 @@ logger = logging.getLogger(__name__)
 
 class OpenAIProvider(BaseLLMProvider):
     """
-    Proveedor para ChatGPT (OpenAI GPT-5.2)
-    
+    Proveedor para ChatGPT (OpenAI GPT-5.3 Chat Latest)
+
     Características:
-    - Modelo flagship estable
-    - Mejor para tareas autónomas y programación
-    - Ventana de contexto de 1M tokens
+    - Último snapshot de ChatGPT (GPT-5.3)
+    - Ventana de contexto de 128K tokens
+    - Max output: 16,384 tokens
+    - Knowledge cutoff: Aug 31, 2025
     """
     
     def __init__(self, api_key: str, model: str = None):
@@ -54,8 +55,8 @@ class OpenAIProvider(BaseLLMProvider):
             >>> provider = OpenAIProvider(api_key='sk-proj-...')
             >>> # Usará el modelo marcado como 'current' en BD
             
-            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.2')
-            >>> # Usará específicamente gpt-5.2
+            >>> provider = OpenAIProvider(api_key='sk-proj-...', model='gpt-5.3-chat-latest')
+            >>> # Usará específicamente gpt-5.3-chat-latest
         """
         self.client = openai.OpenAI(api_key=api_key)
         
@@ -70,9 +71,9 @@ class OpenAIProvider(BaseLLMProvider):
             # Obtener modelo marcado como 'current' en BD
             self.model = get_current_model_for_provider('openai')
             if not self.model:
-                # Fallback a GPT-5.2 (flagship estable)
-                self.model = 'gpt-5.2'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.2' por defecto")
+                # Fallback a GPT-5.3 Chat Latest
+                self.model = 'gpt-5.3-chat-latest'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando 'gpt-5.3-chat-latest' por defecto")
         
         # ✅ CORRECCIÓN: Obtener pricing de BD (SINGLE SOURCE OF TRUTH)
         self.pricing = get_model_pricing_from_db('openai', self.model)
@@ -84,7 +85,7 @@ class OpenAIProvider(BaseLLMProvider):
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
     def execute_query(self, query: str) -> Dict:
         """
-        Ejecuta una query contra GPT-5.1
+        Ejecuta una query contra GPT-5.3 Chat Latest
         
         Args:
             query: Pregunta a hacer a ChatGPT
@@ -240,6 +241,7 @@ class OpenAIProvider(BaseLLMProvider):
     def get_model_display_name(self) -> str:
         # Mapeo de IDs a nombres legibles
         display_names = {
+            'gpt-5.3-chat-latest': 'GPT-5.3 Chat Latest',
             'gpt-5.2': 'GPT-5.2',
             'gpt-5.2-chat-latest': 'GPT-5.2 Chat Latest',
             'gpt-5.2-pro': 'GPT-5.2 Pro',

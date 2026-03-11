@@ -26,7 +26,7 @@ def update_current_models():
     Actualiza los modelos actuales en la BD.
     
     Modelos a configurar como actuales:
-    - OpenAI: gpt-5.2
+    - OpenAI: gpt-5.3-chat-latest
     - Google: gemini-3-flash-preview
     - Anthropic: claude-sonnet-4-5-20250929
     - Perplexity: sonar
@@ -68,7 +68,7 @@ def update_current_models():
         # Definir los modelos que DEBERÍAN ser actuales
         # Model IDs correctos según documentación oficial (Dic 2025):
         desired_models = {
-            'openai': 'gpt-5.2',  # GPT-5.2 flagship (lanzado 12 Dic 2025)
+            'openai': 'gpt-5.3-chat-latest',  # GPT-5.3 Chat Latest (Marzo 2026)
             'google': 'gemini-3-flash-preview',  # Gemini 3 Flash (alto RPD, bajo coste)
             'anthropic': 'claude-sonnet-4-5-20250929',  # Claude Sonnet 4.5 (correcto)
             'perplexity': 'sonar'  # Sonar
