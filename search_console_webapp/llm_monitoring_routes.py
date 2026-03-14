@@ -3943,10 +3943,11 @@ def update_model(model_id):
 def trigger_daily_analysis():
     """
     Trigger para análisis diario automático (cron job)
-    
+
     Query params:
         async (int): Si es 1, ejecuta en background y responde inmediatamente con 202
-    
+        project_id (int): Si se proporciona, analiza SOLO ese proyecto (útil para re-runs)
+
     Returns:
         JSON con resultado de la ejecución del cron
     """
@@ -3958,7 +3959,40 @@ def trigger_daily_analysis():
         # Verificar si se solicita ejecución asíncrona
         is_async = request.args.get('async', '0') == '1'
         triggered_by = request.args.get('triggered_by', 'cron')
+        single_project_id = request.args.get('project_id', type=int)
 
+        # --- Modo proyecto individual (sin lock global) ---
+        if single_project_id:
+            def run_single_project(pid):
+                service = MultiLLMMonitoringService(api_keys=None)
+                return service.analyze_project(project_id=pid, max_workers=8)
+
+            if is_async:
+                def run_single_bg():
+                    try:
+                        logger.info(f"🚀 LLM Monitoring: Single project analysis started (project_id={single_project_id})")
+                        result = run_single_project(single_project_id)
+                        logger.info(f"✅ LLM Monitoring: Single project analysis done: {result.get('total_queries_executed', 0)} queries")
+                    except Exception as e:
+                        logger.error(f"💥 LLM Monitoring: Single project analysis error: {e}")
+
+                thread = threading.Thread(target=run_single_bg, daemon=True)
+                thread.start()
+                return jsonify({
+                    'success': True,
+                    'message': f'Analysis for project {single_project_id} triggered in background',
+                    'async': True,
+                    'project_id': single_project_id
+                }), 202
+
+            result = run_single_project(single_project_id)
+            return jsonify({
+                'success': result.get('success', result.get('total_queries_executed', 0) > 0),
+                'project_id': single_project_id,
+                'result': result
+            }), 200
+
+        # --- Modo todos los proyectos (comportamiento original) ---
         if is_async:
             # ✅ NUEVO: Intentar adquirir lock ANTES de lanzar thread
             run_id = acquire_analysis_lock(triggered_by=triggered_by)
