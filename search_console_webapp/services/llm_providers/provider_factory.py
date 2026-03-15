@@ -239,10 +239,10 @@ class LLMProviderFactory:
         return {
             'openai': {
                 'display_name': 'OpenAI (ChatGPT)',
-                'models': ['gpt-5.3-chat-latest', 'gpt-5.2', 'gpt-5.2-pro', 'gpt-5-mini', 'gpt-4o'],
-                'description': 'GPT-5.3 Chat: Último modelo de ChatGPT, 128K context',
+                'models': ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5.3-chat-latest', 'gpt-5-mini', 'gpt-4o'],
+                'description': 'GPT-5.4: Último flagship de OpenAI, 128K context',
                 'website': 'https://platform.openai.com',
-                'pricing_note': 'GPT-5.3 Chat: $1.75/$14 per 1M tokens'
+                'pricing_note': 'GPT-5.4: $1.75/$14 per 1M tokens'
             },
             'anthropic': {
                 'display_name': 'Anthropic (Claude)',

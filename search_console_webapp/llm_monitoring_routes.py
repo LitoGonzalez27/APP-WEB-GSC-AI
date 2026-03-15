@@ -3773,7 +3773,7 @@ def get_current_models():
         {
             "success": true,
             "models": {
-                "openai": {"model_id": "gpt-5.3-chat-latest", "display_name": "GPT-5.3 Chat Latest"},
+                "openai": {"model_id": "gpt-5.4", "display_name": "GPT-5.4"},
                 "anthropic": {"model_id": "claude-sonnet-4-6", "display_name": "Claude Sonnet 4.6"},
                 "google": {"model_id": "gemini-3-flash-preview", "display_name": "Gemini 3 Flash"},
                 "perplexity": {"model_id": "sonar-pro", "display_name": "Perplexity Sonar Pro"}
@@ -3782,7 +3782,7 @@ def get_current_models():
     """
     # Fallbacks por defecto (Model IDs correctos según docs oficiales)
     fallbacks = {
-        'openai': {'model_id': 'gpt-5.3-chat-latest', 'display_name': 'GPT-5.3 Chat Latest'},
+        'openai': {'model_id': 'gpt-5.4', 'display_name': 'GPT-5.4'},
         'anthropic': {'model_id': 'claude-sonnet-4-6', 'display_name': 'Claude Sonnet 4.6'},
         'google': {'model_id': 'gemini-3-flash-preview', 'display_name': 'Gemini 3 Flash'},
         'perplexity': {'model_id': 'sonar-pro', 'display_name': 'Perplexity Sonar Pro'}
@@ -5358,7 +5358,7 @@ def cron_model_discovery():
             if openai_key:
                 client = openai.OpenAI(api_key=openai_key)
                 models = client.models.list()
-                current_openai = current_models.get('openai', 'gpt-5.3-chat-latest')
+                current_openai = current_models.get('openai', 'gpt-5.4')
                 
                 for m in models.data:
                     # Solo modelos GPT relevantes
