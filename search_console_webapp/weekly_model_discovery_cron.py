@@ -41,10 +41,38 @@ logger = logging.getLogger(__name__)
 
 class ModelDiscoveryService:
     """Servicio para descubrir modelos disponibles en cada proveedor."""
-    
+
+    # Patrones de model_id que NO son aptos para auto-activación como modelo de chat/texto.
+    # Estos modelos se registran en BD pero nunca se marcan como current automáticamente.
+    NON_CHAT_PATTERNS = [
+        'image',       # gemini-3.1-flash-image-preview, dall-e, etc.
+        'codex',       # gpt-5.3-codex, gpt-5.1-codex-max, etc.
+        'embedding',   # text-embedding-*, etc.
+        'tts',         # tts-1, tts-1-hd
+        'whisper',     # whisper-1
+        'dall-e',      # dall-e-2, dall-e-3
+        'vision',      # modelos específicos de visión
+        'realtime',    # gpt-4o-realtime-*, etc.
+        'audio',       # gpt-4o-audio-*, etc.
+        'moderation',  # modelos de moderación
+        '-lite',       # modelos lite (menor calidad, no queremos auto-activar)
+        'customtools', # gemini-*-customtools (variantes especializadas)
+    ]
+
     def __init__(self):
         self.discovered_models = {}
         self.new_models = []
+
+    def is_eligible_for_auto_activate(self, model_id: str) -> bool:
+        """
+        Verifica si un modelo es apto para auto-activación como modelo principal.
+        Solo modelos de chat/texto general deben activarse automáticamente.
+        """
+        model_lower = model_id.lower()
+        for pattern in self.NON_CHAT_PATTERNS:
+            if pattern in model_lower:
+                return False
+        return True
         
     def discover_openai_models(self) -> List[Dict]:
         """Descubre modelos disponibles en OpenAI."""
@@ -356,18 +384,29 @@ class ModelDiscoveryService:
         
         if new_models:
             logger.info(f"\n🆕 Nuevos modelos encontrados:")
+            # Registrar qué proveedores ya fueron auto-activados (máx 1 por proveedor)
+            auto_activated_providers = set()
+
             for model in new_models:
-                logger.info(f"   • {model['provider']}: {model['model_id']}")
-                
+                model_id = model['model_id']
+                provider = model['provider']
+                eligible = self.is_eligible_for_auto_activate(model_id)
+
+                logger.info(f"   • {provider}: {model_id}"
+                            f"{'' if eligible else ' [especializado - no auto-activar]'}")
+
                 # Añadir a BD
                 if self.add_model_to_db(model):
                     logger.info(f"     ✅ Añadido a BD")
-                    
-                    # Auto-update si está habilitado
-                    if auto_update:
-                        if self.set_model_as_current(model['provider'], model['model_id']):
+
+                    # Auto-update solo si: habilitado + modelo de chat + aún no activamos uno para este proveedor
+                    if auto_update and eligible and provider not in auto_activated_providers:
+                        if self.set_model_as_current(provider, model_id):
                             logger.info(f"     🔄 Activado como modelo actual")
-            
+                            auto_activated_providers.add(provider)
+                    elif auto_update and not eligible:
+                        logger.info(f"     ⏭️  Omitido para auto-activación (modelo especializado)")
+
             # Enviar notificación
             self.send_notification(new_models)
         else:
