@@ -309,9 +309,26 @@ def _compute_branded_metrics(results, brand_keywords):
             'avg_position': avg_pos
         }
 
+    # Per-LLM breakdown for chart rendering
+    def per_llm_breakdown(subset):
+        llm_groups = {}
+        for r in subset:
+            prov = r.get('llm_provider', 'unknown')
+            if prov not in llm_groups:
+                llm_groups[prov] = {'total': 0, 'mentions': 0}
+            llm_groups[prov]['total'] += 1
+            if r.get('brand_mentioned'):
+                llm_groups[prov]['mentions'] += 1
+        return {
+            prov: round((d['mentions'] / d['total']) * 100, 1) if d['total'] > 0 else 0.0
+            for prov, d in llm_groups.items()
+        }
+
     return {
         'branded_metrics': compute(branded, 'Branded'),
-        'non_branded_metrics': compute(non_branded, 'Non-Branded')
+        'non_branded_metrics': compute(non_branded, 'Non-Branded'),
+        'branded_by_llm': per_llm_breakdown(branded),
+        'non_branded_by_llm': per_llm_breakdown(non_branded)
     }
 
 
@@ -2819,6 +2836,8 @@ def get_project_metrics(project_id):
             },
             'branded_metrics': branded_data.get('branded_metrics'),
             'non_branded_metrics': branded_data.get('non_branded_metrics'),
+            'branded_by_llm': branded_data.get('branded_by_llm', {}),
+            'non_branded_by_llm': branded_data.get('non_branded_by_llm', {}),
             'branded_trends': branded_trends,
             'non_branded_trends': non_branded_trends,
             'previous_metrics_by_llm': previous_metrics_by_llm
@@ -3588,9 +3607,10 @@ def get_share_of_voice_history(project_id):
                    (query_scope == 'non_branded' and not is_branded):
                     filtered.append(r)
 
-            # Group by date and compute SOV
+            # Group by date: brand mentions + per-competitor mentions
             from collections import defaultdict
-            scope_by_date = defaultdict(lambda: {'brand': 0, 'comp': 0})
+            scope_by_date = defaultdict(lambda: {'brand': 0, 'competitors': defaultdict(int)})
+            all_comp_names = set()
             for r in filtered:
                 d = r['analysis_date'].isoformat() if hasattr(r['analysis_date'], 'isoformat') else str(r['analysis_date'])
                 if r.get('brand_mentioned'):
@@ -3603,15 +3623,56 @@ def get_share_of_voice_history(project_id):
                         except Exception:
                             cm = {}
                     if isinstance(cm, dict):
-                        scope_by_date[d]['comp'] += sum(cm.values())
+                        for ck, cv in cm.items():
+                            ck_lower = ck.lower().strip()
+                            scope_by_date[d]['competitors'][ck_lower] += int(cv or 0)
+                            all_comp_names.add(ck_lower)
 
             dates_sorted = sorted(scope_by_date.keys())
+
+            # Build brand SOV dataset
             brand_data = []
             for d in dates_sorted:
                 b = scope_by_date[d]['brand']
-                c = scope_by_date[d]['comp']
-                total = b + c
+                total_comp = sum(scope_by_date[d]['competitors'].values())
+                total = b + total_comp
                 brand_data.append(round((b / total) * 100, 1) if total > 0 else 0)
+
+            # Build competitor datasets
+            comp_colors = [
+                ('#EF4444', 'rgba(239, 68, 68, 0.1)'),
+                ('#F97316', 'rgba(249, 115, 22, 0.1)'),
+                ('#10B981', 'rgba(16, 185, 129, 0.1)'),
+                ('#8B5CF6', 'rgba(139, 92, 246, 0.1)'),
+            ]
+            sorted_comp_names = sorted(all_comp_names)[:4]
+            datasets = [{
+                'label': f'Your Brand',
+                'data': brand_data,
+                'borderColor': '#3b82f6',
+                'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                'fill': True,
+                'tension': 0.3,
+                'borderWidth': 2.5
+            }]
+            for ci, cname in enumerate(sorted_comp_names):
+                comp_data = []
+                for d in dates_sorted:
+                    b = scope_by_date[d]['brand']
+                    total_comp = sum(scope_by_date[d]['competitors'].values())
+                    total = b + total_comp
+                    c_mentions = scope_by_date[d]['competitors'].get(cname, 0)
+                    comp_data.append(round((c_mentions / total) * 100, 1) if total > 0 else 0)
+                border_color, bg_color = comp_colors[ci % len(comp_colors)]
+                datasets.append({
+                    'label': cname,
+                    'data': comp_data,
+                    'borderColor': border_color,
+                    'backgroundColor': bg_color,
+                    'fill': False,
+                    'tension': 0.3,
+                    'borderWidth': 1.5
+                })
 
             cur.close()
             conn.close()
@@ -3620,15 +3681,9 @@ def get_share_of_voice_history(project_id):
             return jsonify({
                 'success': True,
                 'query_scope': query_scope,
+                'scope_label': scope_label,
                 'dates': dates_sorted,
-                'datasets': [{
-                    'label': f'Your Brand ({scope_label})',
-                    'data': brand_data,
-                    'borderColor': '#3b82f6',
-                    'backgroundColor': 'rgba(59, 130, 246, 0.1)',
-                    'fill': True,
-                    'tension': 0.3
-                }]
+                'datasets': datasets
             }), 200
 
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)

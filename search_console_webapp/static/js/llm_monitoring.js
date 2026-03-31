@@ -2031,32 +2031,58 @@ class LLMMonitoring {
             return;
         }
 
-        // Use branded/non_branded metrics from the API response
-        const metrics = scope === 'branded'
-            ? this.lastMetricsData.branded_metrics
-            : this.lastMetricsData.non_branded_metrics;
+        // Use per-LLM breakdown from the API
+        const byLlm = scope === 'branded'
+            ? this.lastMetricsData.branded_by_llm
+            : this.lastMetricsData.non_branded_by_llm;
 
-        if (!metrics || metrics.total_results === 0) {
-            // Show empty state
-            const canvas = document.getElementById('chartMentionRate');
-            if (canvas && this.charts.mentionRate) {
-                this.charts.mentionRate.data.datasets[0].data = [0, 0, 0, 0];
-                this.charts.mentionRate.update();
-            }
+        const canvas = document.getElementById('chartMentionRate');
+        if (!canvas || !this.charts.mentionRate) return;
+
+        const providerLabels = {
+            openai: 'ChatGPT', anthropic: 'Claude',
+            google: 'Gemini', perplexity: 'Perplexity'
+        };
+        const providerColors = {
+            openai: 'rgba(16, 163, 127, 0.85)', anthropic: 'rgba(204, 153, 0, 0.85)',
+            google: 'rgba(66, 133, 244, 0.85)', perplexity: 'rgba(96, 91, 255, 0.85)'
+        };
+        const providerOrder = ['openai', 'anthropic', 'google', 'perplexity'];
+
+        if (!byLlm || Object.keys(byLlm).length === 0) {
+            this.charts.mentionRate.data.labels = providerOrder.map(p => providerLabels[p] || p);
+            this.charts.mentionRate.data.datasets[0].data = [0, 0, 0, 0];
+            this.charts.mentionRate.update();
             return;
         }
 
-        // Since branded_metrics is aggregated across all LLMs, show single bar
-        const canvas = document.getElementById('chartMentionRate');
-        if (canvas && this.charts.mentionRate) {
-            const scopeLabel = scope === 'branded' ? 'Branded' : 'Non-Branded';
-            this.charts.mentionRate.data.labels = [scopeLabel + ' (all LLMs)'];
-            this.charts.mentionRate.data.datasets[0].data = [metrics.mention_rate];
-            this.charts.mentionRate.data.datasets[0].backgroundColor = [
-                scope === 'branded' ? 'rgba(245, 158, 11, 0.8)' : 'rgba(16, 185, 129, 0.8)'
-            ];
-            this.charts.mentionRate.update();
+        const labels = [];
+        const data = [];
+        const colors = [];
+        for (const prov of providerOrder) {
+            if (byLlm[prov] !== undefined) {
+                labels.push(providerLabels[prov] || prov);
+                data.push(byLlm[prov]);
+                colors.push(providerColors[prov] || 'rgba(107, 114, 128, 0.8)');
+            }
         }
+        // Include any providers not in the fixed order
+        for (const [prov, rate] of Object.entries(byLlm)) {
+            if (!providerOrder.includes(prov)) {
+                labels.push(providerLabels[prov] || prov);
+                data.push(rate);
+                colors.push('rgba(107, 114, 128, 0.8)');
+            }
+        }
+
+        this.charts.mentionRate.data.labels = labels;
+        this.charts.mentionRate.data.datasets[0].data = data;
+        this.charts.mentionRate.data.datasets[0].backgroundColor = colors;
+        // Remove ghost bars when scoped
+        if (this.charts.mentionRate.data.datasets.length > 1) {
+            this.charts.mentionRate.data.datasets[1].data = new Array(data.length).fill(0);
+        }
+        this.charts.mentionRate.update();
     }
 
     /**
