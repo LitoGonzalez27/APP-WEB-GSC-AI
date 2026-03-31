@@ -891,6 +891,33 @@ class LLMMonitoring {
             }
         });
 
+        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter');
+        if (queryTypeFilter) {
+            queryTypeFilter.addEventListener('change', () => this.applyClientSideFilters());
+        }
+
+        // Scope chips for Mention Rate and SOV charts
+        document.querySelectorAll('.chart-scope-chips').forEach(container => {
+            container.addEventListener('click', (e) => {
+                const chip = e.target.closest('.scope-chip');
+                if (!chip) return;
+                const scope = chip.dataset.scope;
+                const chart = container.dataset.chart;
+
+                // Toggle active class
+                container.querySelectorAll('.scope-chip').forEach(c => c.classList.remove('scope-chip--active'));
+                chip.classList.add('scope-chip--active');
+
+                if (chart === 'mentionRate') {
+                    this.mentionRateScope = scope;
+                    this.renderMentionRateChartScoped(scope);
+                } else if (chart === 'sov') {
+                    this.sovScope = scope;
+                    this.renderShareOfVoiceChart();
+                }
+            });
+        });
+
         // ✨ responsesDaysFilter listener removed - now using global time range
 
         // ✨ Global Time Range Selector - controls all data, charts and tables
@@ -1734,8 +1761,10 @@ class LLMMonitoring {
             }
 
             const data = await response.json();
+            this.lastMetricsData = data;
 
             // Render charts
+            this.renderBrandedComparisonCards(data);
             this.renderMentionRateChart(data);
             await this.renderShareOfVoiceChart();  // Now async - fetches its own data
             await this.renderMentionsTimelineChart();  // Gráfico de líneas de menciones
@@ -1823,6 +1852,100 @@ class LLMMonitoring {
     }
 
     /**
+     * Determines if a query text contains brand keywords (branded query).
+     * Used for client-side branded/non-branded classification.
+     */
+    isQueryBranded(queryText) {
+        const keywords = this.currentProject?.brand_keywords || [];
+        if (!keywords.length || !queryText) return false;
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const textNorm = normalize(queryText);
+        for (const kw of keywords) {
+            const kwNorm = normalize(kw);
+            const escaped = kwNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            try {
+                if (new RegExp('\\b' + escaped + '\\b', 'i').test(textNorm)) return true;
+            } catch (e) {
+                if (textNorm.includes(kwNorm)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Renders the Branded vs Non-Branded comparison cards below KPIs.
+     */
+    renderBrandedComparisonCards(data) {
+        const grid = document.getElementById('brandedComparisonGrid');
+        if (!grid) return;
+
+        const branded = data.branded_metrics;
+        const nonBranded = data.non_branded_metrics;
+
+        if (!branded && !nonBranded) {
+            grid.style.display = 'none';
+            return;
+        }
+
+        // Non-Branded
+        const nbMR = document.getElementById('nonBrandedMentionRate');
+        const nbSOV = document.getElementById('nonBrandedSOV');
+        const nbCount = document.getElementById('nonBrandedCount');
+        if (nbMR) nbMR.textContent = nonBranded ? nonBranded.mention_rate + '%' : '--';
+        if (nbSOV) nbSOV.textContent = nonBranded ? nonBranded.share_of_voice + '%' : '--';
+        if (nbCount) nbCount.textContent = nonBranded ? nonBranded.total_queries : '0';
+
+        // Branded
+        const bMR = document.getElementById('brandedMentionRate');
+        const bSOV = document.getElementById('brandedSOV');
+        const bCount = document.getElementById('brandedCount');
+        if (bMR) bMR.textContent = branded ? branded.mention_rate + '%' : '--';
+        if (bSOV) bSOV.textContent = branded ? branded.share_of_voice + '%' : '--';
+        if (bCount) bCount.textContent = branded ? branded.total_queries : '0';
+
+        grid.style.display = 'grid';
+    }
+
+    /**
+     * Re-renders the Mention Rate bar chart filtered by branded/non-branded scope.
+     */
+    renderMentionRateChartScoped(scope) {
+        if (!this.lastMetricsData) return;
+
+        if (scope === 'all') {
+            this.renderMentionRateChart(this.lastMetricsData);
+            return;
+        }
+
+        // Use branded/non_branded metrics from the API response
+        const metrics = scope === 'branded'
+            ? this.lastMetricsData.branded_metrics
+            : this.lastMetricsData.non_branded_metrics;
+
+        if (!metrics || metrics.total_results === 0) {
+            // Show empty state
+            const canvas = document.getElementById('chartMentionRate');
+            if (canvas && this.charts.mentionRate) {
+                this.charts.mentionRate.data.datasets[0].data = [0, 0, 0, 0];
+                this.charts.mentionRate.update();
+            }
+            return;
+        }
+
+        // Since branded_metrics is aggregated across all LLMs, show single bar
+        const canvas = document.getElementById('chartMentionRate');
+        if (canvas && this.charts.mentionRate) {
+            const scopeLabel = scope === 'branded' ? 'Branded' : 'Non-Branded';
+            this.charts.mentionRate.data.labels = [scopeLabel + ' (all LLMs)'];
+            this.charts.mentionRate.data.datasets[0].data = [metrics.mention_rate];
+            this.charts.mentionRate.data.datasets[0].backgroundColor = [
+                scope === 'branded' ? 'rgba(245, 158, 11, 0.8)' : 'rgba(16, 185, 129, 0.8)'
+            ];
+            this.charts.mentionRate.update();
+        }
+    }
+
+    /**
      * Show Share of Voice Info Modal
      */
     showSovInfoModal() {
@@ -1872,7 +1995,7 @@ class LLMMonitoring {
             const metricType = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
             console.log(`📊 Rendering Share of Voice chart with metric: ${metricType}`);
 
-            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}`);
+            const response = await fetch(`/api/llm-monitoring/projects/${projectId}/share-of-voice-history?days=${this.globalTimeRange}&metric=${metricType}&query_scope=${this.sovScope || 'all'}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -6382,6 +6505,13 @@ class LLMMonitoring {
             filtered = filtered.filter(r => r.sentiment === sentimentFilter);
         }
 
+        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter')?.value || '';
+        if (queryTypeFilter === 'branded') {
+            filtered = filtered.filter(r => this.isQueryBranded(r.query_text));
+        } else if (queryTypeFilter === 'non-branded') {
+            filtered = filtered.filter(r => !this.isQueryBranded(r.query_text));
+        }
+
         // Store filtered responses and reset pagination
         this.filteredResponses = filtered;
         this.currentResponsesShown = this.responsesPerPage;
@@ -6401,9 +6531,10 @@ class LLMMonitoring {
     getDisplayResponses() {
         const mentionFilter = document.getElementById('responsesMentionFilter')?.value || '';
         const sentimentFilter = document.getElementById('responsesSentimentFilter')?.value || '';
-        
+        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter')?.value || '';
+
         // If no client-side filters active, return all responses
-        if (!mentionFilter && !sentimentFilter) {
+        if (!mentionFilter && !sentimentFilter && !queryTypeFilter) {
             return this.allResponses;
         }
         
