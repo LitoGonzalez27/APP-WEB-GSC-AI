@@ -261,43 +261,76 @@ def create_llm_monitoring_tables():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS llm_model_registry (
                 id SERIAL PRIMARY KEY,
-                
+
                 -- Identificación
                 llm_provider VARCHAR(50) NOT NULL,
                 model_id VARCHAR(100) NOT NULL,
                 model_display_name VARCHAR(255),
-                
+
                 -- Pricing (SINGLE SOURCE OF TRUTH)
                 cost_per_1m_input_tokens DECIMAL(10,4),
                 cost_per_1m_output_tokens DECIMAL(10,4),
-                
+
                 -- Capacidades
                 max_tokens INTEGER,
                 max_output_tokens INTEGER,
                 supports_vision BOOLEAN DEFAULT FALSE,
                 supports_functions BOOLEAN DEFAULT FALSE,
-                
+
+                -- Clasificación y Knowledge Cutoff
+                model_category VARCHAR(30) DEFAULT 'chat',
+                knowledge_cutoff VARCHAR(50),
+                knowledge_cutoff_date DATE,
+
                 -- Estado
                 is_current BOOLEAN DEFAULT FALSE,
                 is_available BOOLEAN DEFAULT TRUE,
-                
+
+                -- Aprobación de modelos
+                pending_approval BOOLEAN DEFAULT FALSE,
+                approval_token VARCHAR(128),
+                approval_token_expires_at TIMESTAMP,
+                pre_switch_validated BOOLEAN DEFAULT FALSE,
+
                 -- Detección automática
                 detected_at TIMESTAMP DEFAULT NOW(),
                 last_used_at TIMESTAMP,
-                
+
                 -- Estadísticas de uso
                 total_queries INTEGER DEFAULT 0,
                 total_tokens_consumed BIGINT DEFAULT 0,
                 total_cost DECIMAL(12,4) DEFAULT 0,
-                
+
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW(),
-                
+
                 UNIQUE(llm_provider, model_id)
             )
         """)
         logger.info("   ✅ Tabla llm_model_registry creada")
-        
+
+        # ===================================
+        # TABLA 7: CHANGELOG DE MODELOS
+        # ===================================
+        logger.info("📋 [7/7] Creando tabla: llm_model_changelog...")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS llm_model_changelog (
+                id SERIAL PRIMARY KEY,
+                llm_provider VARCHAR(50) NOT NULL,
+                old_model_id VARCHAR(100),
+                new_model_id VARCHAR(100) NOT NULL,
+                old_display_name VARCHAR(255),
+                new_display_name VARCHAR(255),
+                change_type VARCHAR(30) NOT NULL,
+                changed_by VARCHAR(100),
+                reason TEXT,
+                metadata JSONB DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        logger.info("   ✅ Tabla llm_model_changelog creada")
+
         # ===================================
         # INSERTAR MODELOS INICIALES
         # ===================================
@@ -351,6 +384,8 @@ def create_llm_monitoring_tables():
             ("idx_llm_snapshots_provider", "llm_monitoring_snapshots(llm_provider)"),
             ("idx_llm_models_provider", "llm_model_registry(llm_provider)"),
             ("idx_llm_models_current", "llm_model_registry(is_current)"),
+            ("idx_changelog_provider", "llm_model_changelog(llm_provider)"),
+            ("idx_changelog_date", "llm_model_changelog(created_at)"),
         ]
         
         for idx_name, idx_def in indices:
