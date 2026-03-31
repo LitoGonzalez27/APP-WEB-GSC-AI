@@ -1667,8 +1667,29 @@ class LLMMonitoring {
         }
 
         const position = context.chart.canvas.getBoundingClientRect();
-        tooltipEl.style.left = position.left + window.scrollX + tooltipModel.caretX + 'px';
-        tooltipEl.style.top = position.top + window.scrollY + tooltipModel.caretY - 10 + 'px';
+        const tooltipWidth = tooltipEl.offsetWidth || 200;
+        const tooltipHeight = tooltipEl.offsetHeight || 100;
+        const caretAbsX = position.left + window.scrollX + tooltipModel.caretX;
+        const caretAbsY = position.top + window.scrollY + tooltipModel.caretY;
+        const viewportRight = window.innerWidth + window.scrollX;
+        const viewportBottom = window.innerHeight + window.scrollY;
+
+        // Flip left if tooltip would overflow right edge
+        let leftPos = caretAbsX + 12;
+        if (leftPos + tooltipWidth > viewportRight - 16) {
+            leftPos = caretAbsX - tooltipWidth - 12;
+        }
+        // Push up if tooltip would overflow bottom
+        let topPos = caretAbsY - 10;
+        if (topPos + tooltipHeight > viewportBottom - 16) {
+            topPos = caretAbsY - tooltipHeight + 10;
+        }
+        // Never go off-screen left/top
+        leftPos = Math.max(8, leftPos);
+        topPos = Math.max(8, topPos);
+
+        tooltipEl.style.left = leftPos + 'px';
+        tooltipEl.style.top = topPos + 'px';
         tooltipEl.classList.add('active');
     }
 
