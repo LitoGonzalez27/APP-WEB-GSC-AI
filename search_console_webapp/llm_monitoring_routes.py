@@ -5734,12 +5734,12 @@ def export_project_pdf(project_id):
         agg_sov_values = [float(s.get('avg_sov') or 0) for s in snapshot_metrics.values() if s.get('avg_sov') is not None]
         agg_pos_values = [float(s.get('avg_pos') or 0) for s in snapshot_metrics.values() if s.get('avg_pos') is not None and float(s.get('avg_pos') or 0) > 0]
 
-        overall_mr = round(sum(agg_mr_values) / len(agg_mr_values) * 100, 1) if agg_mr_values else 0
-        overall_sov = round(sum(agg_sov_values) / len(agg_sov_values) * 100, 1) if agg_sov_values else 0
+        overall_mr = round(sum(agg_mr_values) / len(agg_mr_values), 1) if agg_mr_values else 0
+        overall_sov = round(sum(agg_sov_values) / len(agg_sov_values), 1) if agg_sov_values else 0
         overall_pos = round(sum(agg_pos_values) / len(agg_pos_values), 1) if agg_pos_values else 0
 
-        prev_mr_agg = round(float(prev_snap_agg.get('avg_mr') or 0) * 100, 1)
-        prev_sov_agg = round(float(prev_snap_agg.get('avg_sov') or 0) * 100, 1)
+        prev_mr_agg = round(float(prev_snap_agg.get('avg_mr') or 0), 1)
+        prev_sov_agg = round(float(prev_snap_agg.get('avg_sov') or 0), 1)
 
         # ── Classify branded / non-branded ──
         branded_pdf = []
@@ -6009,7 +6009,7 @@ def export_project_pdf(project_id):
                 cur_mr = round(float(m['mention_rate_pct'] or 0), 1)
                 prev_mr_val = round(prev_llm_mr.get(provider, 0), 1)
                 snap = snapshot_metrics.get(provider, {})
-                sov_val = round(float(snap.get('avg_sov') or 0) * 100, 1)
+                sov_val = round(float(snap.get('avg_sov') or 0), 1)
                 pos_val = round(float(snap.get('avg_pos') or 0), 1)
                 sent_score = snap.get('avg_sentiment')
                 sent_label = _sentiment_label(sent_score)
