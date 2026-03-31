@@ -20,6 +20,8 @@
     --llm-gray-100: #f3f4f6;
     --llm-gray-200: #e5e7eb;
     --llm-gray-300: #d1d5db;
+    --llm-gray-400: #9ca3af;
+    --llm-gray-500: #6b7280;
     --llm-gray-600: #4b5563;
     --llm-gray-700: #374151;
     --llm-gray-800: #1f2937;
@@ -550,6 +552,121 @@
 .competitor-title i {
     color: var(--llm-accent-green-dark);
     font-size: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Branded vs Non-Branded Comparison
+   ═══════════════════════════════════════════════════════ */
+.branded-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.branded-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    border: 2px solid var(--llm-gray-200);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border-left: 5px solid;
+    transition: all 0.3s ease;
+}
+
+.branded-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.branded-card--non-branded { border-left-color: #10b981; }
+.branded-card--branded { border-left-color: #f59e0b; }
+
+.branded-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.branded-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.branded-badge--organic { background: #d1fae5; color: #065f46; }
+.branded-badge--branded { background: #fef3c7; color: #92400e; }
+
+.branded-card__tooltip {
+    cursor: help;
+    color: var(--llm-gray-400);
+    font-size: 0.85rem;
+}
+
+.branded-card__metrics {
+    display: flex;
+    gap: 2rem;
+}
+
+.branded-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.branded-metric__label {
+    font-size: 0.7rem;
+    color: var(--llm-gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.branded-metric__value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--llm-gray-900);
+}
+
+/* Scope Chips for Charts */
+.chart-scope-chips {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.scope-chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid var(--llm-gray-300);
+    background: transparent;
+    color: var(--llm-gray-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.scope-chip:hover {
+    border-color: var(--llm-gray-500);
+    background: var(--llm-gray-100);
+}
+
+.scope-chip--active {
+    background: #161616;
+    color: white;
+    border-color: #161616;
+}
+
+@media (max-width: 768px) {
+    .branded-comparison-grid { grid-template-columns: 1fr; }
+    .branded-card__metrics { flex-wrap: wrap; gap: 1rem; }
+    .chart-scope-chips { flex-wrap: wrap; }
 }
 
 

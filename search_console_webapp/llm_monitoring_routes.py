@@ -29,6 +29,8 @@ Endpoints:
 import logging
 import os
 import json
+import re
+import unicodedata
 import threading
 import secrets
 from datetime import datetime, timedelta
@@ -218,6 +220,99 @@ def _normalize_days_param(raw_days, default: int = 30, min_days: int = 1, max_da
     if days > max_days:
         return max_days
     return days
+
+
+def _remove_accents(text):
+    """Remove accents for tolerant matching (e.g. 'café' matches 'cafe')."""
+    nfkd = unicodedata.normalize('NFD', text)
+    return ''.join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def classify_query_branded(query_text, brand_keywords):
+    """
+    Returns True if query_text contains any brand keyword.
+    Uses case-insensitive, accent-insensitive, word-boundary matching.
+    """
+    if not brand_keywords or not query_text:
+        return False
+    text_lower = query_text.lower()
+    text_no_accents = _remove_accents(text_lower)
+    for kw in brand_keywords:
+        kw_lower = kw.lower()
+        kw_no_accents = _remove_accents(kw_lower)
+        for pattern_text, text_to_search in [(kw_lower, text_lower), (kw_no_accents, text_no_accents)]:
+            try:
+                if re.search(r'\b' + re.escape(pattern_text) + r'\b', text_to_search, re.IGNORECASE):
+                    return True
+            except re.error:
+                if pattern_text in text_to_search:
+                    return True
+    return False
+
+
+def _compute_branded_metrics(results, brand_keywords):
+    """
+    Splits results into branded/non-branded and computes metrics for each.
+    Each result must have: query_text, brand_mentioned, position_in_list, competitors_mentioned.
+    Returns dict with 'branded' and 'non_branded' metric blocks.
+    """
+    branded = []
+    non_branded = []
+    for r in results:
+        if classify_query_branded(r.get('query_text', ''), brand_keywords):
+            branded.append(r)
+        else:
+            non_branded.append(r)
+
+    def compute(subset, label):
+        if not subset:
+            return {
+                'label': label,
+                'total_queries': 0,
+                'total_results': 0,
+                'total_mentions': 0,
+                'mention_rate': 0.0,
+                'share_of_voice': 0.0,
+                'avg_position': None
+            }
+        unique_queries = len(set(r.get('query_text', '') for r in subset))
+        total = len(subset)
+        mentions = sum(1 for r in subset if r.get('brand_mentioned'))
+        mention_rate = round((mentions / total) * 100, 1) if total > 0 else 0.0
+
+        # SOV: brand / (brand + competitors)
+        total_comp = 0
+        for r in subset:
+            cm = r.get('competitors_mentioned')
+            if cm and isinstance(cm, dict):
+                total_comp += sum(cm.values())
+            elif cm and isinstance(cm, str):
+                try:
+                    parsed = json.loads(cm)
+                    total_comp += sum(parsed.values()) if isinstance(parsed, dict) else 0
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        total_all = mentions + total_comp
+        sov = round((mentions / total_all) * 100, 1) if total_all > 0 else 0.0
+
+        positions = [r['position_in_list'] for r in subset
+                     if r.get('position_in_list') is not None]
+        avg_pos = round(sum(positions) / len(positions), 1) if positions else None
+
+        return {
+            'label': label,
+            'total_queries': unique_queries,
+            'total_results': total,
+            'total_mentions': mentions,
+            'mention_rate': mention_rate,
+            'share_of_voice': sov,
+            'avg_position': avg_pos
+        }
+
+    return {
+        'branded_metrics': compute(branded, 'Branded'),
+        'non_branded_metrics': compute(non_branded, 'Non-Branded')
+    }
 
 
 def _get_effective_plan_limits(user: dict) -> dict:
@@ -2500,7 +2595,7 @@ def get_project_metrics(project_id):
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT enabled_llms
+            SELECT enabled_llms, brand_keywords
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -2508,10 +2603,11 @@ def get_project_metrics(project_id):
         if not project_row:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
-        
+        brand_keywords = project_row.get('brand_keywords') or []
+
         # Query base
         query = """
-            SELECT 
+            SELECT
                 s.*,
                 p.brand_name,
                 p.competitors
@@ -2590,6 +2686,30 @@ def get_project_metrics(project_id):
                     'total_snapshots': len(llm_snapshots)
                 }
         
+        # ── Branded vs Non-Branded breakdown ──
+        branded_data = {'branded_metrics': None, 'non_branded_metrics': None}
+        try:
+            if brand_keywords:
+                bq = """
+                    SELECT r.llm_provider, q.query_text, r.brand_mentioned,
+                           r.position_in_list, r.competitors_mentioned
+                    FROM llm_monitoring_results r
+                    JOIN llm_monitoring_queries q ON r.query_id = q.id
+                    WHERE r.project_id = %s
+                      AND r.analysis_date >= %s AND r.analysis_date <= %s
+                """
+                bparams = [project_id, start_date, end_date]
+                if llm_provider:
+                    bq += " AND r.llm_provider = %s"
+                    bparams.append(llm_provider)
+                elif enabled_llms_filter:
+                    bq += " AND r.llm_provider = ANY(%s)"
+                    bparams.append(enabled_llms_filter)
+                cur.execute(bq, bparams)
+                branded_data = _compute_branded_metrics(cur.fetchall(), brand_keywords)
+        except Exception as be:
+            logger.warning(f"Could not compute branded/non-branded metrics: {be}")
+
         return jsonify({
             'success': True,
             'project_id': project_id,
@@ -2603,9 +2723,11 @@ def get_project_metrics(project_id):
                 'total_cost_usd': total_cost,
                 'total_queries_analyzed': total_queries,
                 'metrics_by_llm': metrics_by_llm
-            }
+            },
+            'branded_metrics': branded_data.get('branded_metrics'),
+            'non_branded_metrics': branded_data.get('non_branded_metrics')
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo métricas: {e}", exc_info=True)
         return jsonify({'error': f'Error obteniendo métricas: {str(e)}'}), 500
@@ -3270,24 +3392,27 @@ def get_share_of_voice_history(project_id):
     user = get_current_user()
     days = _normalize_days_param(request.args.get('days'), default=30)
     metric_type = request.args.get('metric', 'weighted')  # 'normal' o 'weighted'
-    
+    query_scope = request.args.get('query_scope', 'all')  # 'all', 'branded', 'non_branded'
+
     # Validar metric_type
     if metric_type not in ['normal', 'weighted']:
         metric_type = 'weighted'
-    
-    logger.info(f"📊 Share of Voice history requested - Type: {metric_type}, Days: {days}")
-    
+    if query_scope not in ['all', 'branded', 'non_branded']:
+        query_scope = 'all'
+
+    logger.info(f"📊 Share of Voice history requested - Type: {metric_type}, Days: {days}, Scope: {query_scope}")
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
-    
+
     try:
         cur = conn.cursor()
-        
+
         # Obtener proyecto
         cur.execute("""
-            SELECT 
-                id, user_id, name, brand_name, industry, 
+            SELECT
+                id, user_id, name, brand_name, industry,
                 brand_domain, brand_keywords,
                 competitors, selected_competitors,
                 language, country_code,
@@ -3296,17 +3421,86 @@ def get_share_of_voice_history(project_id):
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
-        
+
         project = cur.fetchone()
-        
+
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-            
+
         # Calcular fechas de inicio y fin
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         enabled_llms_filter = project.get('enabled_llms') or []
-        
+        brand_keywords_sov = project.get('brand_keywords') or []
+
+        # ── Branded/Non-Branded scope: compute from individual results ──
+        if query_scope != 'all' and brand_keywords_sov:
+            sov_result_query = """
+                SELECT r.analysis_date, r.llm_provider, q.query_text,
+                       r.brand_mentioned, r.competitors_mentioned
+                FROM llm_monitoring_results r
+                JOIN llm_monitoring_queries q ON r.query_id = q.id
+                WHERE r.project_id = %s AND r.analysis_date >= %s
+            """
+            sov_result_params = [project_id, start_date]
+            if enabled_llms_filter:
+                sov_result_query += " AND r.llm_provider = ANY(%s)"
+                sov_result_params.append(enabled_llms_filter)
+            sov_result_query += " ORDER BY r.analysis_date"
+            cur.execute(sov_result_query, sov_result_params)
+            all_results = cur.fetchall()
+
+            # Filter by branded/non-branded
+            filtered = []
+            for r in all_results:
+                is_branded = classify_query_branded(r.get('query_text', ''), brand_keywords_sov)
+                if (query_scope == 'branded' and is_branded) or \
+                   (query_scope == 'non_branded' and not is_branded):
+                    filtered.append(r)
+
+            # Group by date and compute SOV
+            from collections import defaultdict
+            scope_by_date = defaultdict(lambda: {'brand': 0, 'comp': 0})
+            for r in filtered:
+                d = r['analysis_date'].isoformat() if hasattr(r['analysis_date'], 'isoformat') else str(r['analysis_date'])
+                if r.get('brand_mentioned'):
+                    scope_by_date[d]['brand'] += 1
+                cm = r.get('competitors_mentioned')
+                if cm:
+                    if isinstance(cm, str):
+                        try:
+                            cm = json.loads(cm)
+                        except Exception:
+                            cm = {}
+                    if isinstance(cm, dict):
+                        scope_by_date[d]['comp'] += sum(cm.values())
+
+            dates_sorted = sorted(scope_by_date.keys())
+            brand_data = []
+            for d in dates_sorted:
+                b = scope_by_date[d]['brand']
+                c = scope_by_date[d]['comp']
+                total = b + c
+                brand_data.append(round((b / total) * 100, 1) if total > 0 else 0)
+
+            cur.close()
+            conn.close()
+
+            scope_label = 'Non-Branded' if query_scope == 'non_branded' else 'Branded'
+            return jsonify({
+                'success': True,
+                'query_scope': query_scope,
+                'dates': dates_sorted,
+                'datasets': [{
+                    'label': f'Your Brand ({scope_label})',
+                    'data': brand_data,
+                    'borderColor': '#3b82f6',
+                    'backgroundColor': 'rgba(59, 130, 246, 0.1)',
+                    'fill': True,
+                    'tension': 0.3
+                }]
+            }), 200
+
         # Obtener todos los snapshots del período agrupados por fecha (incluir métricas ponderadas)
         sov_history_query = """
             SELECT 
@@ -4182,7 +4376,7 @@ def get_project_responses(project_id):
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT enabled_llms
+            SELECT enabled_llms, brand_keywords
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
@@ -4190,20 +4384,21 @@ def get_project_responses(project_id):
         if not project_row:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
+        resp_brand_keywords = project_row.get('brand_keywords') or []
         if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
             cur.close()
             conn.close()
             return jsonify({
                 'error': 'llm_provider no habilitado para este proyecto'
             }), 400
-        
+
         # Calcular rango de fechas
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
-        
+
         # Query base
         query = """
-            SELECT 
+            SELECT
                 r.id,
                 r.query_id,
                 q.query_text,
@@ -4261,7 +4456,8 @@ def get_project_responses(project_id):
                 'competitors_mentioned': r['competitors_mentioned'] or {},
                 'full_response': r['full_response'],
                 'response_length': r['response_length'],
-                'sources': r['sources'] or [],  # ✨ NUEVO
+                'sources': r['sources'] or [],
+                'is_branded_query': classify_query_branded(r['query_text'], resp_brand_keywords),
                 'analysis_date': r['analysis_date'].isoformat() if r['analysis_date'] else None,
                 'created_at': r['created_at'].isoformat() if r['created_at'] else None
             })
@@ -4356,6 +4552,7 @@ def export_project_excel(project_id):
             return jsonify({'error': 'Proyecto no encontrado'}), 404
 
         enabled_llms_filter = project.get('enabled_llms') or []
+        brand_keywords = project.get('brand_keywords') or []
 
         # Helper for LLM filter in queries
         def _add_llm_filter(query_str, params_list, column='llm_provider'):
@@ -4800,7 +4997,7 @@ def export_project_excel(project_id):
             "LLMs Analyzed", "Total Results",
             "Total Mentions", "Text Mentions", "URL Citations",
             "Visibility (%)", "Avg Position",
-            "Last Analysis"
+            "Last Analysis", "Branded Query"
         ]
         write_header_row(ws5, 1, query_headers)
 
@@ -4818,6 +5015,8 @@ def export_project_excel(project_id):
             write_data_cell(ws5, row_idx, col, round(float(q['visibility_pct'] or 0), 1), '0.0'); col += 1
             write_data_cell(ws5, row_idx, col, round(float(q['avg_position'] or 0), 1) if q['avg_position'] else 'N/A', '0.0'); col += 1
             write_data_cell(ws5, row_idx, col, str(q['last_analysis']) if q['last_analysis'] else 'N/A'); col += 1
+            is_branded = classify_query_branded(q.get('prompt', '') or q.get('query_text', ''), brand_keywords)
+            write_data_cell(ws5, row_idx, col, "Yes" if is_branded else "No"); col += 1
 
         ws5.column_dimensions['A'].width = 60
         auto_width(ws5, min_width=12)
@@ -4913,7 +5112,7 @@ def export_project_excel(project_id):
         ws8 = wb.create_sheet("Detailed Results")
 
         detail_headers = [
-            "Date", "LLM Provider", "Model", "Query/Prompt",
+            "Date", "LLM Provider", "Model", "Query/Prompt", "Branded Query",
             "Brand Mentioned", "Mention Count", "Position", "Total in List",
             "Position Source", "Sentiment", "Sentiment Score",
             "Competitors Mentioned", "URLs Cited",
@@ -4930,6 +5129,8 @@ def export_project_excel(project_id):
             write_data_cell(ws8, row_idx, col, r['llm_provider'].upper()); col += 1
             write_data_cell(ws8, row_idx, col, r['model_used'] or 'N/A'); col += 1
             write_data_cell(ws8, row_idx, col, r['query_text'] or 'N/A'); col += 1
+            is_branded_detail = classify_query_branded(r.get('query_text', '') or '', brand_keywords)
+            write_data_cell(ws8, row_idx, col, "Yes" if is_branded_detail else "No"); col += 1
             write_data_cell(ws8, row_idx, col, "Yes" if r['brand_mentioned'] else "No"); col += 1
             write_data_cell(ws8, row_idx, col, r['mention_count'] or 0); col += 1
             write_data_cell(ws8, row_idx, col, r['position_in_list'] if r['position_in_list'] else 'N/A'); col += 1
@@ -4976,12 +5177,85 @@ def export_project_excel(project_id):
                      value=f"⚠ Showing {max_detail_rows} of {len(detailed_results)} results. Full data available in the application.").font = Font(italic=True, color="666666")
 
         ws8.column_dimensions['D'].width = 60  # Query column
-        ws8.column_dimensions['L'].width = 30  # Competitors
-        ws8.column_dimensions['M'].width = 50  # URLs
+        ws8.column_dimensions['M'].width = 30  # Competitors
+        ws8.column_dimensions['N'].width = 50  # URLs
         auto_width(ws8, min_width=12)
         ws8.column_dimensions['D'].width = 60
-        ws8.column_dimensions['L'].width = 30
-        ws8.column_dimensions['M'].width = 50
+        ws8.column_dimensions['M'].width = 30
+        ws8.column_dimensions['N'].width = 50
+
+        # ════════════════════════════════════════════════
+        # SHEET 9: BRANDED vs NON-BRANDED ANALYSIS
+        # ════════════════════════════════════════════════
+        ws9 = wb.create_sheet("Branded vs Non-Branded")
+
+        # Title
+        ws9.merge_cells('A1:H1')
+        ws9['A1'] = 'Branded vs Non-Branded Analysis'
+        ws9['A1'].font = Font(name='Calibri', size=14, bold=True, color='FFFFFF')
+        ws9['A1'].fill = PatternFill(start_color='161616', end_color='161616', fill_type='solid')
+        ws9['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws9.row_dimensions[1].height = 35
+
+        # Classify all detailed results
+        branded_results = []
+        non_branded_results = []
+        for r in detailed_results:
+            qt = r.get('query_text', '') or ''
+            if classify_query_branded(qt, brand_keywords):
+                branded_results.append(r)
+            else:
+                non_branded_results.append(r)
+
+        # Helper to compute metrics for a subset
+        def compute_subset_metrics(subset, label):
+            total = len(subset)
+            mentions = sum(1 for r in subset if r.get('brand_mentioned'))
+            mention_rate = round((mentions / total) * 100, 1) if total > 0 else 0.0
+            positions = [r['position_in_list'] for r in subset if r.get('position_in_list') is not None]
+            avg_pos = round(sum(positions) / len(positions), 1) if positions else None
+            pos_count = sum(1 for r in subset if r.get('sentiment') == 'positive')
+            neu_count = sum(1 for r in subset if r.get('sentiment') == 'neutral')
+            neg_count = sum(1 for r in subset if r.get('sentiment') == 'negative')
+            return [label, total, mentions, mention_rate, avg_pos or 'N/A',
+                    round(pos_count / total * 100, 1) if total else 0,
+                    round(neu_count / total * 100, 1) if total else 0,
+                    round(neg_count / total * 100, 1) if total else 0]
+
+        # Headers
+        bvnb_headers = ['Query Type', 'Total Results', 'Total Mentions', 'Mention Rate (%)',
+                        'Avg Position', 'Positive %', 'Neutral %', 'Negative %']
+        for col_idx, h in enumerate(bvnb_headers, 1):
+            cell = ws9.cell(row=3, column=col_idx, value=h)
+            cell.font = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+            cell.fill = PatternFill(start_color='374151', end_color='374151', fill_type='solid')
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+
+        # Data rows
+        all_metrics = compute_subset_metrics(detailed_results, 'All Queries')
+        branded_m = compute_subset_metrics(branded_results, 'Branded')
+        non_branded_m = compute_subset_metrics(non_branded_results, 'Non-Branded')
+
+        for row_idx, row_data in enumerate([all_metrics, non_branded_m, branded_m], 4):
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws9.cell(row=row_idx, column=col_idx, value=value)
+                cell.font = Font(name='Calibri', size=11)
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = border
+                if row_idx == 5:  # Non-branded row highlight
+                    cell.fill = PatternFill(start_color='D1FAE5', end_color='D1FAE5', fill_type='solid')
+                elif row_idx == 6:  # Branded row highlight
+                    cell.fill = PatternFill(start_color='FEF3C7', end_color='FEF3C7', fill_type='solid')
+
+        # Auto-width
+        for col in ws9.columns:
+            max_length = 0
+            for cell in col:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            adjusted_width = min(max(max_length + 2, 12), 30)
+            ws9.column_dimensions[col[0].column_letter].width = adjusted_width
 
         # ──────────────────────────────────────────────────
         # SAVE & RETURN
@@ -5079,7 +5353,21 @@ def export_project_pdf(project_id):
         """
         cur.execute(pdf_metrics_query, pdf_metrics_params)
         metrics = cur.fetchall()
-        
+
+        # Fetch individual results for branded/non-branded classification
+        bvnb_query = """
+            SELECT q.query_text, r.brand_mentioned, r.sentiment
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON r.query_id = q.id
+            WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+        """
+        bvnb_params = [project_id, start_date, end_date]
+        if enabled_llms_filter:
+            bvnb_query += " AND r.llm_provider = ANY(%s)"
+            bvnb_params.append(enabled_llms_filter)
+        cur.execute(bvnb_query, bvnb_params)
+        bvnb_results = cur.fetchall()
+
         cur.close()
         conn.close()
         
@@ -5175,7 +5463,51 @@ def export_project_pdf(project_id):
             elements.append(Paragraph("No metrics data available for this period.", body_style))
         
         elements.append(Spacer(1, 30))
-        
+
+        # ── Branded vs Non-Branded Analysis ──
+        elements.append(Paragraph("Branded vs Non-Branded Analysis", subtitle_style))
+
+        brand_keywords_pdf = project.get('brand_keywords') or []
+        branded_pdf = []
+        non_branded_pdf = []
+        for r in bvnb_results:
+            qt = r.get('query_text', '') or ''
+            if classify_query_branded(qt, brand_keywords_pdf):
+                branded_pdf.append(r)
+            else:
+                non_branded_pdf.append(r)
+
+        bvnb_table_data = [
+            ['Query Type', 'Results', 'Mentions', 'Mention Rate (%)']
+        ]
+
+        for label, subset in [('Non-Branded', non_branded_pdf), ('Branded', branded_pdf)]:
+            total = len(subset)
+            mentions = sum(1 for r in subset if r.get('brand_mentioned'))
+            rate = round((mentions / total) * 100, 1) if total > 0 else 0
+            bvnb_table_data.append([label, str(total), str(mentions), f"{rate}%"])
+
+        bvnb_table = Table(bvnb_table_data, colWidths=[3.5*cm, 2.5*cm, 2.5*cm, 3.5*cm])
+        bvnb_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#D1FAE5')),
+            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#FEF3C7')),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ]))
+        elements.append(bvnb_table)
+
+        elements.append(Spacer(1, 30))
+
         # Footer
         footer_style = ParagraphStyle(
             'Footer',
