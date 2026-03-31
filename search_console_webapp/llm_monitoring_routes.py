@@ -5973,10 +5973,27 @@ def export_project_pdf(project_id):
                 return 'Negative'
             return 'Neutral'
 
+        # Delta color helper for KPI paragraphs
+        CLR_DELTA_UP = colors.HexColor('#059669')
+        CLR_DELTA_DOWN = colors.HexColor('#DC2626')
+        st_kpi_delta_up = ParagraphStyle('KPIDeltaUp', parent=st_kpi_delta, textColor=CLR_DELTA_UP)
+        st_kpi_delta_down = ParagraphStyle('KPIDeltaDown', parent=st_kpi_delta, textColor=CLR_DELTA_DOWN)
+
+        def _delta_style(current, previous):
+            """Return (text, style) for delta display with color."""
+            d = round(current - previous, 1)
+            if previous == 0 and current == 0:
+                return 'N/A', st_kpi_delta
+            if previous == 0 and current > 0:
+                return f'+{current} pp', st_kpi_delta_up
+            sign = '+' if d > 0 else ''
+            style = st_kpi_delta_up if d > 0 else (st_kpi_delta_down if d < 0 else st_kpi_delta)
+            return f"vs prev: {sign}{d} pp", style
+
         elements = []
 
         # =================================================================
-        # PAGE 1: COVER & EXECUTIVE SUMMARY
+        # PAGE 1: PROJECT DETAILS
         # =================================================================
         elements.append(Spacer(1, 0.5 * cm))
         elements.append(Paragraph("LLM Visibility Monitor Report", st_title))
@@ -5986,13 +6003,61 @@ def export_project_pdf(project_id):
             f"Period: Last {days} days  |  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             st_period
         ))
+        elements.append(Spacer(1, 0.8 * cm))
+
+        # ── Project Details ──
+        elements.append(Paragraph("Project Details", st_section))
+        details_info = [
+            f"<b>Industry:</b> {project.get('industry') or 'N/A'}",
+            f"<b>Domain:</b> {project.get('brand_domain') or 'N/A'}",
+            f"<b>Keywords:</b> {', '.join(brand_keywords_pdf) if brand_keywords_pdf else 'N/A'}",
+            f"<b>Language:</b> {project.get('language') or 'N/A'}  |  <b>Country:</b> {project.get('country_code') or 'N/A'}",
+        ]
+        for info in details_info:
+            elements.append(Paragraph(info, st_body))
         elements.append(Spacer(1, 0.5 * cm))
 
-        # ── Executive Summary KPIs (2x2 grid) ──
+        # ── Competitors list ──
+        if competitor_names:
+            elements.append(Paragraph("Competitors", st_subsection))
+            elements.append(Paragraph(', '.join(competitor_names), st_body))
+            elements.append(Spacer(1, 0.5 * cm))
+
+        # ── Competitor Details table ──
+        if selected_competitors:
+            elements.append(Paragraph("Competitor Details", st_subsection))
+            elements.append(Spacer(1, 0.2 * cm))
+            comp_detail_header = ['Competitor', 'Domain', 'Keywords']
+            comp_detail_rows = [comp_detail_header]
+            for i, comp in enumerate(selected_competitors):
+                domain = comp.get('domain', 'N/A')
+                keywords = ', '.join(comp.get('keywords', [])) or 'N/A'
+                comp_detail_rows.append([
+                    f"Competitor {i + 1}",
+                    domain,
+                    Paragraph(_truncate(keywords, 45), st_body),
+                ])
+
+            cd_widths = [3 * cm, 4.5 * cm, 7.5 * cm]
+            cd_table = Table(comp_detail_rows, colWidths=cd_widths)
+            cd_style = _base_table_style(len(comp_detail_rows))
+            cd_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            cd_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+            cd_style.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
+            cd_table.setStyle(TableStyle(cd_style))
+            elements.append(cd_table)
+
+        # =================================================================
+        # PAGE 2: EXECUTIVE SUMMARY + LLM PERFORMANCE
+        # =================================================================
+        elements.append(PageBreak())
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # ── Executive Summary KPIs (2x2 grid with colored deltas) ──
         elements.append(Paragraph("Executive Summary", st_section))
 
-        mr_delta = _delta_str(overall_mr, prev_mr_agg)
-        sov_delta = _delta_str(overall_sov, prev_sov_agg)
+        mr_delta_text, mr_delta_st = _delta_style(overall_mr, prev_mr_agg)
+        sov_delta_text, sov_delta_st = _delta_style(overall_sov, prev_sov_agg)
 
         kpi_data = [
             [
@@ -6004,10 +6069,10 @@ def export_project_pdf(project_id):
                 Paragraph("Share of Voice", st_kpi_label),
             ],
             [
-                Paragraph(f"vs prev: {mr_delta}", st_kpi_delta),
-                Paragraph(f"vs prev: {sov_delta}", st_kpi_delta),
+                Paragraph(mr_delta_text, mr_delta_st),
+                Paragraph(sov_delta_text, sov_delta_st),
             ],
-            [Spacer(1, 0.3 * cm), Spacer(1, 0.3 * cm)],
+            [Spacer(1, 0.2 * cm), Spacer(1, 0.2 * cm)],
             [
                 Paragraph(f"<b>#{overall_pos}</b>" if overall_pos > 0 else "<b>N/A</b>", st_kpi_value),
                 Paragraph(f"<b>{dominant_sentiment}</b>", st_kpi_value),
@@ -6035,28 +6100,103 @@ def export_project_pdf(project_id):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]))
         elements.append(kpi_table)
-        elements.append(Spacer(1, 0.6 * cm))
+        elements.append(Spacer(1, 0.5 * cm))
 
-        # ── Project Details block ──
-        elements.append(Paragraph("Project Details", st_subsection))
-        details_info = [
-            f"<b>Industry:</b> {project.get('industry') or 'N/A'}",
-            f"<b>Domain:</b> {project.get('brand_domain') or 'N/A'}",
-            f"<b>Keywords:</b> {', '.join(brand_keywords_pdf) if brand_keywords_pdf else 'N/A'}",
-            f"<b>Language:</b> {project.get('language') or 'N/A'}  |  <b>Country:</b> {project.get('country_code') or 'N/A'}",
-        ]
-        for info in details_info:
-            elements.append(Paragraph(info, st_body))
-        elements.append(Spacer(1, 0.3 * cm))
+        # ── LLM Performance Comparison ──
+        elements.append(Paragraph("LLM Performance Comparison", st_section))
 
-        # ── Competitors ──
-        if competitor_names:
-            elements.append(Paragraph("Competitors", st_subsection))
-            elements.append(Paragraph(', '.join(competitor_names), st_body))
-            elements.append(Spacer(1, 0.3 * cm))
+        if metrics:
+            perf_header = ["LLM", "Prompts", "Mentions", "MR (%)", "SOV (%)", "Avg Pos", "Sentiment", "vs Prev MR"]
+            perf_rows = [perf_header]
+            row_meta = []  # (sentiment_label, delta_value) per data row
+
+            for idx, m in enumerate(metrics):
+                provider = m['llm_provider']
+                cur_mr = round(float(m['mention_rate_pct'] or 0), 1)
+                prev_mr_val = round(prev_llm_mr.get(provider, 0), 1)
+                snap = snapshot_metrics.get(provider, {})
+                sov_val = round(float(snap.get('avg_sov') or 0), 1)
+                pos_val = round(float(snap.get('avg_pos') or 0), 1)
+                sent_score = snap.get('avg_sentiment')
+                sent_label = _sentiment_label(sent_score)
+
+                delta_val = round(cur_mr - prev_mr_val, 1)
+                delta_sign = '+' if delta_val > 0 else ''
+                delta_text = f"{delta_sign}{delta_val} pp" if (prev_mr_val > 0 or cur_mr > 0) else 'new'
+
+                row_meta.append((sent_label, delta_val))
+
+                perf_rows.append([
+                    provider.upper(),
+                    str(m['total_queries'] or 0),
+                    str(m['total_mentions'] or 0),
+                    f"{cur_mr}%",
+                    f"{sov_val}%",
+                    f"#{pos_val}" if pos_val > 0 else 'N/A',
+                    sent_label,
+                    delta_text,
+                ])
+
+            perf_widths = [2 * cm, 1.6 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 2 * cm, 2 * cm]
+            perf_table = Table(perf_rows, colWidths=perf_widths)
+            style_cmds = _base_table_style(len(perf_rows))
+            # Color sentiment and delta columns
+            for row_idx, (sent, dv) in enumerate(row_meta):
+                r = row_idx + 1
+                if sent == 'Positive':
+                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_GREEN_CELL))
+                elif sent == 'Negative':
+                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_RED_CELL))
+                # Color delta column (col 7) green/red
+                if dv > 0:
+                    style_cmds.append(('TEXTCOLOR', (7, r), (7, r), CLR_DELTA_UP))
+                elif dv < 0:
+                    style_cmds.append(('TEXTCOLOR', (7, r), (7, r), CLR_DELTA_DOWN))
+            perf_table.setStyle(TableStyle(style_cmds))
+            elements.append(perf_table)
+        else:
+            elements.append(Paragraph("No LLM performance data available for this period.", st_no_data))
+
+        elements.append(Spacer(1, 0.8 * cm))
+
+        # ── Branded vs Non-Branded Analysis ──
+        elements.append(Paragraph("Branded vs Non-Branded Analysis", st_section))
+
+        bvnb_header = ['Prompt Type', 'Responses', 'Mentions', 'MR (%)', 'vs Prev']
+        bvnb_rows = [bvnb_header]
+        bvnb_deltas = []
+
+        prev_subsets = {'Non-Branded': prev_non_branded_pdf, 'Branded': prev_branded_pdf}
+        for label, subset in [('Non-Branded', non_branded_pdf), ('Branded', branded_pdf)]:
+            total = len(subset)
+            mentions = sum(1 for r in subset if r.get('brand_mentioned'))
+            rate = round((mentions / total) * 100, 1) if total > 0 else 0
+            prev_sub = prev_subsets.get(label, [])
+            prev_total = len(prev_sub)
+            prev_mentions = sum(1 for r in prev_sub if r.get('brand_mentioned'))
+            prev_rate = round((prev_mentions / prev_total) * 100, 1) if prev_total > 0 else 0
+            dv = round(rate - prev_rate, 1)
+            bvnb_deltas.append(dv)
+            bvnb_rows.append([label, str(total), str(mentions), f"{rate}%", _delta_str(rate, prev_rate)])
+
+        bvnb_widths = [3.2 * cm, 2.2 * cm, 2.2 * cm, 2.5 * cm, 2.5 * cm]
+        bvnb_table = Table(bvnb_rows, colWidths=bvnb_widths)
+        bvnb_style = _base_table_style(len(bvnb_rows))
+        # Non-branded row green, branded row yellow
+        bvnb_style.append(('BACKGROUND', (0, 1), (-1, 1), CLR_GREEN_CELL))
+        bvnb_style.append(('BACKGROUND', (0, 2), (-1, 2), CLR_YELLOW_CELL))
+        # Color delta column
+        for i, dv in enumerate(bvnb_deltas):
+            r = i + 1
+            if dv > 0:
+                bvnb_style.append(('TEXTCOLOR', (4, r), (4, r), CLR_DELTA_UP))
+            elif dv < 0:
+                bvnb_style.append(('TEXTCOLOR', (4, r), (4, r), CLR_DELTA_DOWN))
+        bvnb_table.setStyle(TableStyle(bvnb_style))
+        elements.append(bvnb_table)
 
         # =================================================================
-        # PAGE 2: COMPETITOR ANALYSIS
+        # PAGE 3: COMPETITOR ANALYSIS
         # =================================================================
         elements.append(PageBreak())
         elements.append(Spacer(1, 0.3 * cm))
@@ -6064,14 +6204,15 @@ def export_project_pdf(project_id):
         elements.append(Paragraph("Brand vs competitors — Share of Voice comparison", st_body))
         elements.append(Spacer(1, 0.3 * cm))
 
-        # Build brand vs competitors table
+        # Build brand vs competitors SOV table
         all_entity_mentions = brand_total_mentions + sum(comp_consolidated.values())
-        if all_entity_mentions > 0 and (brand_total_mentions > 0 or comp_consolidated):
+        sorted_comps = sorted(comp_consolidated.items(), key=lambda x: x[1], reverse=True) if comp_consolidated else []
+
+        if all_entity_mentions > 0:
             sov_header = ['Brand / Competitor', 'Total Mentions', 'Mention Share (%)', 'Avg Mentions/Day']
             sov_rows = [sov_header]
 
-            # Brand row
-            brand_share = round((brand_total_mentions / all_entity_mentions) * 100, 1) if all_entity_mentions > 0 else 0
+            brand_share = round((brand_total_mentions / all_entity_mentions) * 100, 1)
             brand_avg_day = round(brand_total_mentions / days_count, 1)
             sov_rows.append([
                 Paragraph(f"<b>{(project.get('brand_domain') or project['name']).upper()}</b>  (Your Brand)", st_body),
@@ -6080,8 +6221,6 @@ def export_project_pdf(project_id):
                 str(brand_avg_day),
             ])
 
-            # Competitor rows sorted by mentions desc
-            sorted_comps = sorted(comp_consolidated.items(), key=lambda x: x[1], reverse=True)
             for comp_name, comp_mentions in sorted_comps:
                 comp_share = round((comp_mentions / all_entity_mentions) * 100, 1)
                 comp_avg_day = round(comp_mentions / days_count, 1)
@@ -6095,7 +6234,6 @@ def export_project_pdf(project_id):
             sov_widths = [5.5 * cm, 3 * cm, 3.5 * cm, 3 * cm]
             sov_table = Table(sov_rows, colWidths=sov_widths)
             sov_style = _base_table_style(len(sov_rows))
-            # Highlight brand row in green
             sov_style.append(('BACKGROUND', (0, 1), (-1, 1), CLR_GREEN_CELL))
             sov_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
             sov_table.setStyle(TableStyle(sov_style))
@@ -6103,33 +6241,41 @@ def export_project_pdf(project_id):
         else:
             elements.append(Paragraph("No competitor mention data available for this period.", st_no_data))
 
-        elements.append(Spacer(1, 0.8 * cm))
+        elements.append(Spacer(1, 0.5 * cm))
 
-        # Competitor details table
-        if selected_competitors:
-            elements.append(Paragraph("Competitor Details", st_subsection))
+        # SOV distribution mini-chart (horizontal bar using Table)
+        if all_entity_mentions > 0:
+            elements.append(Paragraph("Share of Voice Distribution", st_subsection))
             elements.append(Spacer(1, 0.2 * cm))
-            comp_detail_header = ['Competitor', 'Domain', 'Keywords']
-            comp_detail_rows = [comp_detail_header]
-            for i, comp in enumerate(selected_competitors):
-                domain = comp.get('domain', 'N/A')
-                keywords = ', '.join(comp.get('keywords', [])) or 'N/A'
-                comp_detail_rows.append([
-                    f"Competitor {i + 1}",
-                    domain,
-                    Paragraph(_truncate(keywords, 45), st_body),
-                ])
 
-            cd_widths = [3 * cm, 4.5 * cm, 7.5 * cm]
-            cd_table = Table(comp_detail_rows, colWidths=cd_widths)
-            cd_style = _base_table_style(len(comp_detail_rows))
-            cd_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
-            cd_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
-            cd_style.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
-            cd_table.setStyle(TableStyle(cd_style))
-            elements.append(cd_table)
+            bar_entities = [(project.get('brand_domain') or project['name'], brand_total_mentions, CLR_ACCENT)]
+            bar_colors_list = [
+                colors.HexColor('#EF4444'), colors.HexColor('#F97316'),
+                colors.HexColor('#10B981'), colors.HexColor('#8B5CF6'),
+            ]
+            for ci, (cn, cm_val) in enumerate(sorted_comps[:4]):
+                bar_entities.append((cn, cm_val, bar_colors_list[ci % len(bar_colors_list)]))
 
-        elements.append(Spacer(1, 0.6 * cm))
+            # Build a simple text-based bar representation
+            bar_data = [['Entity', 'Share', 'Visual']]
+            for ename, ements, ecolor in bar_entities:
+                eshare = round((ements / all_entity_mentions) * 100, 1)
+                bar_block = '█' * max(1, int(eshare / 3))  # Scale: 3% per block
+                bar_data.append([ename.upper()[:20], f"{eshare}%", bar_block])
+
+            bar_widths = [4 * cm, 2 * cm, 9 * cm]
+            bar_table = Table(bar_data, colWidths=bar_widths)
+            bar_style_cmds = _base_table_style(len(bar_data))
+            bar_style_cmds.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            bar_style_cmds.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
+            # Color the brand row
+            bar_style_cmds.append(('TEXTCOLOR', (2, 1), (2, 1), colors.HexColor('#059669')))
+            for ci in range(len(sorted_comps[:4])):
+                bar_style_cmds.append(('TEXTCOLOR', (2, ci + 2), (2, ci + 2), bar_colors_list[ci % len(bar_colors_list)]))
+            bar_table.setStyle(TableStyle(bar_style_cmds))
+            elements.append(bar_table)
+
+        elements.append(Spacer(1, 0.5 * cm))
 
         # Key insight
         if all_entity_mentions > 0 and sorted_comps:
@@ -6144,123 +6290,61 @@ def export_project_pdf(project_id):
             elements.append(Paragraph(insight_text, st_body))
 
         # =================================================================
-        # PAGE 3: LLM PERFORMANCE COMPARISON
+        # PAGE 4: PROMPT PERFORMANCE
         # =================================================================
         elements.append(PageBreak())
         elements.append(Spacer(1, 0.3 * cm))
-        elements.append(Paragraph("LLM Performance Comparison", st_section))
-
-        if metrics:
-            perf_header = ["LLM", "Queries", "Mentions", "MR (%)", "SOV (%)", "Avg Pos", "Sentiment", "vs Prev MR"]
-            perf_rows = [perf_header]
-            sentiment_row_colors = []
-
-            for idx, m in enumerate(metrics):
-                provider = m['llm_provider']
-                cur_mr = round(float(m['mention_rate_pct'] or 0), 1)
-                prev_mr_val = round(prev_llm_mr.get(provider, 0), 1)
-                snap = snapshot_metrics.get(provider, {})
-                sov_val = round(float(snap.get('avg_sov') or 0), 1)
-                pos_val = round(float(snap.get('avg_pos') or 0), 1)
-                sent_score = snap.get('avg_sentiment')
-                sent_label = _sentiment_label(sent_score)
-
-                # Track sentiment for coloring
-                sentiment_row_colors.append(sent_label)
-
-                perf_rows.append([
-                    provider.upper(),
-                    str(m['total_queries'] or 0),
-                    str(m['total_mentions'] or 0),
-                    f"{cur_mr}%",
-                    f"{sov_val}%",
-                    f"#{pos_val}" if pos_val > 0 else 'N/A',
-                    sent_label,
-                    _delta_str(cur_mr, prev_mr_val),
-                ])
-
-            perf_widths = [2 * cm, 1.6 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 2 * cm, 2 * cm]
-            perf_table = Table(perf_rows, colWidths=perf_widths)
-            style_cmds = _base_table_style(len(perf_rows))
-            # Color sentiment column cells
-            for row_idx, sent in enumerate(sentiment_row_colors):
-                r = row_idx + 1  # skip header
-                if sent == 'Positive':
-                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_GREEN_CELL))
-                elif sent == 'Negative':
-                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_RED_CELL))
-            perf_table.setStyle(TableStyle(style_cmds))
-            elements.append(perf_table)
-        else:
-            elements.append(Paragraph("No LLM performance data available for this period.", st_no_data))
-
-        elements.append(Spacer(1, 0.8 * cm))
-
-        # ── Branded vs Non-Branded Analysis ──
-        elements.append(Paragraph("Branded vs Non-Branded Analysis", st_section))
-
-        bvnb_header = ['Query Type', 'Results', 'Mentions', 'MR (%)', 'vs Prev']
-        bvnb_rows = [bvnb_header]
-
-        prev_subsets = {'Non-Branded': prev_non_branded_pdf, 'Branded': prev_branded_pdf}
-        for label, subset in [('Non-Branded', non_branded_pdf), ('Branded', branded_pdf)]:
-            total = len(subset)
-            mentions = sum(1 for r in subset if r.get('brand_mentioned'))
-            rate = round((mentions / total) * 100, 1) if total > 0 else 0
-            prev_sub = prev_subsets.get(label, [])
-            prev_total = len(prev_sub)
-            prev_mentions = sum(1 for r in prev_sub if r.get('brand_mentioned'))
-            prev_rate = round((prev_mentions / prev_total) * 100, 1) if prev_total > 0 else 0
-            bvnb_rows.append([label, str(total), str(mentions), f"{rate}%", _delta_str(rate, prev_rate)])
-
-        bvnb_widths = [3.2 * cm, 2.2 * cm, 2.2 * cm, 2.5 * cm, 2.5 * cm]
-        bvnb_table = Table(bvnb_rows, colWidths=bvnb_widths)
-        bvnb_style = _base_table_style(len(bvnb_rows))
-        # Non-branded row green, branded row yellow
-        bvnb_style.append(('BACKGROUND', (0, 1), (-1, 1), CLR_GREEN_CELL))
-        bvnb_style.append(('BACKGROUND', (0, 2), (-1, 2), CLR_YELLOW_CELL))
-        bvnb_table.setStyle(TableStyle(bvnb_style))
-        elements.append(bvnb_table)
-
-        # =================================================================
-        # PAGE 3: PROMPT / QUERY PERFORMANCE
-        # =================================================================
-        elements.append(PageBreak())
-        elements.append(Spacer(1, 0.3 * cm))
-        elements.append(Paragraph("Prompt / Query Performance", st_section))
+        elements.append(Paragraph("Prompt Performance", st_section))
         elements.append(Paragraph("Top 20 prompts by visibility", st_body))
         elements.append(Spacer(1, 0.3 * cm))
 
         if prompt_data:
-            pr_header = ["Prompt", "Branded?", "Mentions", "Visibility %", "Avg Position"]
+            pr_header = ["Prompt", "Type", "Brand Mentions", "Visibility %", "Avg Pos"]
             pr_rows = [pr_header]
+            pr_row_types = []  # 'branded', 'non-branded' for coloring
             for p in prompt_data:
                 qt = p.get('query_text', '') or ''
-                is_branded = 'Yes' if classify_query_branded(qt, brand_keywords_pdf) else 'No'
+                is_branded = classify_query_branded(qt, brand_keywords_pdf)
+                type_label = '🏷️ Branded' if is_branded else '🌿 Generic'
                 total_r = int(p.get('total_results') or 0)
                 ment = int(p.get('mentions') or 0)
                 vis_pct = round((ment / total_r) * 100, 1) if total_r > 0 else 0
                 avg_p = round(float(p.get('avg_position') or 0), 1)
+                pr_row_types.append('branded' if is_branded else 'generic')
                 pr_rows.append([
-                    Paragraph(_truncate(qt, 60), st_body),
-                    is_branded,
+                    Paragraph(_truncate(qt, 55), st_body),
+                    type_label,
                     str(ment),
                     f"{vis_pct}%",
                     f"#{avg_p}" if avg_p > 0 else 'N/A',
                 ])
 
-            pr_widths = [6 * cm, 1.8 * cm, 1.8 * cm, 2.2 * cm, 2.2 * cm]
+            pr_widths = [6 * cm, 2.2 * cm, 2.2 * cm, 2 * cm, 1.6 * cm]
             pr_table = Table(pr_rows, colWidths=pr_widths)
             pr_style = _base_table_style(len(pr_rows))
-            # Left-align prompt column
             pr_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            # Color rows: green for mentioned, red for 0 mentions
+            for ri, rtype in enumerate(pr_row_types):
+                r = ri + 1
+                ment_val = int(pr_rows[r][2])
+                if ment_val > 0:
+                    pr_style.append(('TEXTCOLOR', (2, r), (2, r), CLR_DELTA_UP))
+                else:
+                    pr_style.append(('TEXTCOLOR', (2, r), (2, r), CLR_DELTA_DOWN))
+                # Visibility color
+                vis_str = pr_rows[r][3]
+                vis_val = float(vis_str.replace('%', '')) if '%' in str(vis_str) else 0
+                if vis_val >= 50:
+                    pr_style.append(('TEXTCOLOR', (3, r), (3, r), CLR_DELTA_UP))
+                elif vis_val == 0:
+                    pr_style.append(('TEXTCOLOR', (3, r), (3, r), CLR_DELTA_DOWN))
             pr_table.setStyle(TableStyle(pr_style))
             elements.append(pr_table)
         else:
             elements.append(Paragraph("No prompt data available for this period.", st_no_data))
 
         # =================================================================
-        # PAGE 4: TOP CITED URLs
+        # PAGE 5: TOP CITED URLs
         # =================================================================
         elements.append(PageBreak())
         elements.append(Spacer(1, 0.3 * cm))
@@ -6268,21 +6352,40 @@ def export_project_pdf(project_id):
         elements.append(Paragraph("Top 15 URLs by total mentions", st_body))
         elements.append(Spacer(1, 0.3 * cm))
 
+        # Style for clickable URL links
+        st_url_link = ParagraphStyle('URLLink', parent=st_body,
+                                      textColor=colors.HexColor('#2563EB'), fontSize=8)
+        brand_domain = (project.get('brand_domain') or '').lower().strip()
+
         if urls_data:
-            url_header = ["Rank", "URL", "Total Mentions", "% of Total"]
+            url_header = ["Rank", "URL", "Mentions", "% of Total"]
             url_rows = [url_header]
+            url_is_brand = []
             for u in urls_data[:15]:
+                raw_url = u.get('url', '') or ''
+                display_url = _truncate(raw_url, 55)
+                # Make clickable link
+                if raw_url.startswith('http'):
+                    url_para = Paragraph(f'<a href="{raw_url}" color="#2563EB">{display_url}</a>', st_url_link)
+                else:
+                    url_para = Paragraph(display_url, st_body)
+                is_brand_url = brand_domain and brand_domain in raw_url.lower()
+                url_is_brand.append(is_brand_url)
                 url_rows.append([
                     str(u.get('rank', '')),
-                    Paragraph(_truncate(u.get('url', 'N/A'), 50), st_body),
+                    url_para,
                     str(u.get('mentions', 0)),
                     f"{round(float(u.get('percentage', 0)), 1)}%",
                 ])
 
-            url_widths = [1.2 * cm, 8 * cm, 2.5 * cm, 2.3 * cm]
+            url_widths = [1.2 * cm, 8.5 * cm, 2 * cm, 2.3 * cm]
             url_table = Table(url_rows, colWidths=url_widths)
             url_style = _base_table_style(len(url_rows))
             url_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+            # Highlight brand URLs in green
+            for ri, is_brand in enumerate(url_is_brand):
+                if is_brand:
+                    url_style.append(('BACKGROUND', (0, ri + 1), (-1, ri + 1), CLR_GREEN_CELL))
             url_table.setStyle(TableStyle(url_style))
             elements.append(url_table)
         else:
