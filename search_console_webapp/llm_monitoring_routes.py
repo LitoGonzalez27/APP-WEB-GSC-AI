@@ -5577,6 +5577,16 @@ def export_project_pdf(project_id):
         enabled_llms_filter = project.get('enabled_llms') or []
         brand_keywords_pdf = project.get('brand_keywords') or []
 
+        # ── Fetch current LLM models with knowledge cutoff ──
+        cur.execute("""
+            SELECT llm_provider, model_id, model_display_name,
+                   knowledge_cutoff, knowledge_cutoff_date
+            FROM llm_model_registry
+            WHERE is_current = TRUE AND is_available = TRUE
+            ORDER BY llm_provider
+        """)
+        current_models_pdf = cur.fetchall()
+
         # Helper to append LLM filter
         def _llm_filter(query, params):
             if enabled_llms_filter:
@@ -6046,6 +6056,38 @@ def export_project_pdf(project_id):
             cd_style.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
             cd_table.setStyle(TableStyle(cd_style))
             elements.append(cd_table)
+
+        # ── LLM Models Used ──
+        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Paragraph("LLM Models Used", st_subsection))
+        elements.append(Spacer(1, 0.2 * cm))
+
+        if current_models_pdf:
+            provider_labels = {
+                'openai': 'ChatGPT', 'anthropic': 'Claude',
+                'google': 'Gemini', 'perplexity': 'Perplexity'
+            }
+            model_rows = [['Provider', 'Model', 'Knowledge Cutoff']]
+            for m in current_models_pdf:
+                prov = m.get('llm_provider', '')
+                if enabled_llms_filter and prov not in enabled_llms_filter:
+                    continue
+                label = provider_labels.get(prov, prov.title())
+                model_name = m.get('model_display_name') or m.get('model_id', 'N/A')
+                cutoff = m.get('knowledge_cutoff') or 'Unknown'
+                model_rows.append([label, model_name, cutoff])
+
+            if len(model_rows) > 1:
+                m_widths = [3.5 * cm, 5 * cm, 6.5 * cm]
+                m_table = Table(model_rows, colWidths=m_widths)
+                m_style = _base_table_style(len(model_rows))
+                m_style.append(('ALIGN', (0, 1), (-1, -1), 'LEFT'))
+                m_table.setStyle(TableStyle(m_style))
+                elements.append(m_table)
+            else:
+                elements.append(Paragraph("No model data available.", st_no_data))
+        else:
+            elements.append(Paragraph("No model data available.", st_no_data))
 
         # =================================================================
         # PAGE 2: EXECUTIVE SUMMARY + LLM PERFORMANCE
