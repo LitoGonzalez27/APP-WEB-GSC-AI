@@ -5525,238 +5525,223 @@ def export_project_excel(project_id):
 @validate_project_ownership
 def export_project_pdf(project_id):
     """
-    Exportar datos del proyecto a PDF
-    
+    Exportar datos del proyecto a PDF - Multi-page professional report
+
     Query params:
-        days: int - Período de días (default: 30)
+        days: int - Periodo de dias (default: 30)
     """
     from io import BytesIO
     from flask import send_file
-    
-    logger.info(f"📥 Starting PDF export for project {project_id}")
-    
+
+    logger.info(f"Starting PDF export for project {project_id}")
+
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import inch, cm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT
-        logger.info("✅ reportlab imported successfully")
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+            PageBreak, KeepTogether
+        )
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        logger.info("reportlab imported successfully for PDF export")
     except ImportError as e:
-        logger.error(f"reportlab no está instalado: {e}")
+        logger.error(f"reportlab no esta instalado: {e}")
         return jsonify({'error': 'PDF export not available. Missing reportlab library.'}), 500
-    
+
     days = _normalize_days_param(request.args.get('days'), default=30)
-    
+
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
-    
+        return jsonify({'error': 'Error de conexion a BD'}), 500
+
     try:
         cur = conn.cursor()
-        
-        # Obtener datos del proyecto
+
+        # ── 1. Project data ──
         cur.execute("""
-            SELECT name, industry, brand_domain, brand_keywords, language, country_code, enabled_llms
+            SELECT name, industry, brand_domain, brand_keywords, language,
+                   country_code, enabled_llms, selected_competitors
             FROM llm_monitoring_projects
             WHERE id = %s
         """, (project_id,))
         project = cur.fetchone()
-        
+
         if not project:
             return jsonify({'error': 'Proyecto no encontrado'}), 404
-        
-        # Obtener métricas por LLM
+
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
+        prev_start = start_date - timedelta(days=days)
         enabled_llms_filter = project.get('enabled_llms') or []
-        
-        pdf_metrics_query = """
-            SELECT 
-                llm_provider,
-                COUNT(DISTINCT query_id) as total_queries,
-                SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
-                ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
+        brand_keywords_pdf = project.get('brand_keywords') or []
+
+        # Helper to append LLM filter
+        def _llm_filter(query, params):
+            if enabled_llms_filter:
+                query += " AND llm_provider = ANY(%s)"
+                params.append(enabled_llms_filter)
+            return query, params
+
+        # ── 2. LLM results metrics (per provider) ──
+        pdf_q = """
+            SELECT llm_provider,
+                   COUNT(DISTINCT query_id) as total_queries,
+                   SUM(CASE WHEN brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
+                   ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
             FROM llm_monitoring_results
             WHERE project_id = %s AND analysis_date >= %s AND analysis_date <= %s
         """
-        pdf_metrics_params = [project_id, start_date, end_date]
-        if enabled_llms_filter:
-            pdf_metrics_query += " AND llm_provider = ANY(%s)"
-            pdf_metrics_params.append(enabled_llms_filter)
-        pdf_metrics_query += """
-            GROUP BY llm_provider
-            ORDER BY mention_rate_pct DESC
-        """
-        cur.execute(pdf_metrics_query, pdf_metrics_params)
+        pdf_p = [project_id, start_date, end_date]
+        pdf_q, pdf_p = _llm_filter(pdf_q, pdf_p)
+        pdf_q += " GROUP BY llm_provider ORDER BY mention_rate_pct DESC"
+        cur.execute(pdf_q, pdf_p)
         metrics = cur.fetchall()
 
-        # Fetch individual results for branded/non-branded classification
-        bvnb_query = """
+        # ── 3. Snapshot aggregates (SOV, sentiment, position) ──
+        snap_q = """
+            SELECT llm_provider,
+                AVG(mention_rate) as avg_mr,
+                AVG(share_of_voice) as avg_sov,
+                AVG(avg_position) as avg_pos,
+                AVG(avg_sentiment_score) as avg_sentiment,
+                SUM(positive_mentions) as total_positive,
+                SUM(neutral_mentions) as total_neutral,
+                SUM(negative_mentions) as total_negative,
+                SUM(total_queries) as total_queries
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date <= %s
+        """
+        snap_p = [project_id, start_date.date(), end_date.date()]
+        snap_q, snap_p = _llm_filter(snap_q, snap_p)
+        snap_q += " GROUP BY llm_provider ORDER BY avg_mr DESC"
+        cur.execute(snap_q, snap_p)
+        snapshot_metrics = {row['llm_provider']: row for row in cur.fetchall()}
+
+        # Previous period snapshot aggregates for comparison
+        prev_snap_q = """
+            SELECT AVG(mention_rate) as avg_mr,
+                   AVG(share_of_voice) as avg_sov
+            FROM llm_monitoring_snapshots
+            WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date < %s
+        """
+        prev_snap_p = [project_id, prev_start.date(), start_date.date()]
+        prev_snap_q, prev_snap_p = _llm_filter(prev_snap_q, prev_snap_p)
+        cur.execute(prev_snap_q, prev_snap_p)
+        prev_snap_agg = cur.fetchone() or {}
+
+        # ── 4. Branded vs Non-Branded results ──
+        bvnb_q = """
             SELECT q.query_text, r.brand_mentioned, r.sentiment
             FROM llm_monitoring_results r
             JOIN llm_monitoring_queries q ON r.query_id = q.id
             WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
         """
-        bvnb_params = [project_id, start_date, end_date]
-        if enabled_llms_filter:
-            bvnb_query += " AND r.llm_provider = ANY(%s)"
-            bvnb_params.append(enabled_llms_filter)
-        cur.execute(bvnb_query, bvnb_params)
+        bvnb_p = [project_id, start_date, end_date]
+        bvnb_q, bvnb_p = _llm_filter(bvnb_q, bvnb_p)
+        cur.execute(bvnb_q, bvnb_p)
         bvnb_results = cur.fetchall()
 
-        # Previous period metrics for PDF (per LLM provider)
-        prev_start_pdf = (start_date - timedelta(days=days))
-        prev_llm_mr_pdf = {}
+        # Previous period branded/non-branded
+        prev_bvnb_q = """
+            SELECT q.query_text, r.brand_mentioned, r.sentiment
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON r.query_id = q.id
+            WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date < %s
+        """
+        prev_bvnb_p = [project_id, prev_start, start_date]
+        prev_bvnb_q, prev_bvnb_p = _llm_filter(prev_bvnb_q, prev_bvnb_p)
+        prev_branded_pdf = []
+        prev_non_branded_pdf = []
         try:
-            prev_pdf_query = """
+            cur.execute(prev_bvnb_q, prev_bvnb_p)
+            for r in cur.fetchall():
+                qt = r.get('query_text', '') or ''
+                if classify_query_branded(qt, brand_keywords_pdf):
+                    prev_branded_pdf.append(r)
+                else:
+                    prev_non_branded_pdf.append(r)
+        except Exception:
+            logger.warning("Could not compute prev branded for PDF")
+
+        # Previous period LLM MR
+        prev_llm_mr = {}
+        try:
+            plmr_q = """
                 SELECT llm_provider,
                        ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
                 FROM llm_monitoring_results
                 WHERE project_id = %s AND analysis_date >= %s AND analysis_date < %s
             """
-            prev_pdf_params = [project_id, prev_start_pdf, start_date]
-            if enabled_llms_filter:
-                prev_pdf_query += " AND llm_provider = ANY(%s)"
-                prev_pdf_params.append(enabled_llms_filter)
-            prev_pdf_query += " GROUP BY llm_provider"
-            cur.execute(prev_pdf_query, prev_pdf_params)
+            plmr_p = [project_id, prev_start, start_date]
+            plmr_q, plmr_p = _llm_filter(plmr_q, plmr_p)
+            plmr_q += " GROUP BY llm_provider"
+            cur.execute(plmr_q, plmr_p)
             for row in cur.fetchall():
-                prev_llm_mr_pdf[row['llm_provider']] = float(row['mention_rate_pct']) if row['mention_rate_pct'] is not None else 0
-        except Exception as prev_pdf_err:
-            logger.warning(f"Could not compute prev LLM MR for PDF: {prev_pdf_err}")
+                prev_llm_mr[row['llm_provider']] = float(row['mention_rate_pct'] or 0)
+        except Exception:
+            logger.warning("Could not compute prev LLM MR for PDF")
 
-        # Previous period branded/non-branded for PDF
-        prev_branded_pdf = []
-        prev_non_branded_pdf = []
-        brand_keywords_for_pdf = project.get('brand_keywords') or []
+        # ── 5. Prompt / query performance ──
+        prompt_q = """
+            SELECT q.query_text,
+                COUNT(r.id) as total_results,
+                SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as mentions,
+                AVG(CASE WHEN r.brand_mentioned THEN r.position_in_list ELSE NULL END) as avg_position
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON r.query_id = q.id
+            WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date <= %s
+        """
+        prompt_p = [project_id, start_date, end_date]
+        prompt_q, prompt_p = _llm_filter(prompt_q, prompt_p)
+        prompt_q += " GROUP BY q.query_text ORDER BY mentions DESC, total_results DESC LIMIT 20"
+        cur.execute(prompt_q, prompt_p)
+        prompt_data = cur.fetchall()
+
+        # ── 6. Top URLs (via service) ──
+        urls_data = []
         try:
-            prev_bvnb_query = """
-                SELECT q.query_text, r.brand_mentioned, r.sentiment
-                FROM llm_monitoring_results r
-                JOIN llm_monitoring_queries q ON r.query_id = q.id
-                WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date < %s
-            """
-            prev_bvnb_params = [project_id, prev_start_pdf, start_date]
-            if enabled_llms_filter:
-                prev_bvnb_query += " AND r.llm_provider = ANY(%s)"
-                prev_bvnb_params.append(enabled_llms_filter)
-            cur.execute(prev_bvnb_query, prev_bvnb_params)
-            for r in cur.fetchall():
-                qt = r.get('query_text', '') or ''
-                if classify_query_branded(qt, brand_keywords_for_pdf):
-                    prev_branded_pdf.append(r)
-                else:
-                    prev_non_branded_pdf.append(r)
-        except Exception as prev_bvnb_err:
-            logger.warning(f"Could not compute prev branded for PDF: {prev_bvnb_err}")
+            urls_data = LLMMonitoringStatsService.get_project_urls_ranking(
+                project_id=project_id,
+                days=days,
+                enabled_llms=enabled_llms_filter if enabled_llms_filter else None,
+                limit=15
+            )
+        except Exception as url_err:
+            logger.warning(f"Could not fetch URL rankings for PDF: {url_err}")
 
         cur.close()
         conn.close()
 
-        # Crear PDF
-        output = BytesIO()
-        doc = SimpleDocTemplate(
-            output,
-            pagesize=A4,
-            rightMargin=2*cm,
-            leftMargin=2*cm,
-            topMargin=2*cm,
-            bottomMargin=2*cm
-        )
-        
-        styles = getSampleStyleSheet()
-        
-        # Estilos personalizados
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#161616'),
-            spaceAfter=20
-        )
-        
-        subtitle_style = ParagraphStyle(
-            'CustomSubtitle',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#374151'),
-            spaceAfter=10
-        )
-        
-        body_style = ParagraphStyle(
-            'CustomBody',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=colors.HexColor('#4b5563'),
-            spaceAfter=8
-        )
-        
-        elements = []
-        
-        # Título
-        elements.append(Paragraph("LLM Visibility Monitor Report", title_style))
-        elements.append(Paragraph(f"Project: {project['name']}", subtitle_style))
-        elements.append(Paragraph(f"Period: Last {days} days | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", body_style))
-        elements.append(Spacer(1, 20))
-        
-        # Información del proyecto
-        elements.append(Paragraph("Project Details", subtitle_style))
-        project_info = [
-            f"<b>Industry:</b> {project['industry'] or 'N/A'}",
-            f"<b>Brand Domain:</b> {project['brand_domain'] or 'N/A'}",
-            f"<b>Brand Keywords:</b> {', '.join(project['brand_keywords']) if project['brand_keywords'] else 'N/A'}",
-            f"<b>Language:</b> {project['language'] or 'N/A'} | <b>Country:</b> {project['country_code'] or 'N/A'}"
-        ]
-        for info in project_info:
-            elements.append(Paragraph(info, body_style))
-        elements.append(Spacer(1, 20))
-        
-        # Tabla de métricas por LLM
-        elements.append(Paragraph("LLM Performance Metrics", subtitle_style))
-        
-        if metrics:
-            table_data = [["LLM", "Queries", "Mentions", "MR (%)", "vs Prev"]]
-            for m in metrics:
-                cur_mr_pdf = round(float(m['mention_rate_pct'] or 0), 1)
-                prev_mr_pdf_val = round(prev_llm_mr_pdf.get(m['llm_provider'], 0), 1)
-                delta_mr_pdf = round(cur_mr_pdf - prev_mr_pdf_val, 1)
-                delta_str = f"{'+' if delta_mr_pdf > 0 else ''}{delta_mr_pdf} pp" if prev_mr_pdf_val > 0 or cur_mr_pdf > 0 else "N/A"
-                table_data.append([
-                    m['llm_provider'].upper(),
-                    str(m['total_queries'] or 0),
-                    str(m['total_mentions'] or 0),
-                    f"{cur_mr_pdf}%",
-                    delta_str
-                ])
+        # ── Compute aggregate KPIs ──
+        total_positive = sum(float(s.get('total_positive') or 0) for s in snapshot_metrics.values())
+        total_neutral = sum(float(s.get('total_neutral') or 0) for s in snapshot_metrics.values())
+        total_negative = sum(float(s.get('total_negative') or 0) for s in snapshot_metrics.values())
+        sentiment_total = total_positive + total_neutral + total_negative
 
-            table = Table(table_data, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FAFB')),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
-                ('TOPPADDING', (0, 1), (-1, -1), 8),
-                ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ]))
-            elements.append(table)
+        if sentiment_total > 0:
+            best_sent = max(
+                [('Positive', total_positive), ('Neutral', total_neutral), ('Negative', total_negative)],
+                key=lambda x: x[1]
+            )
+            dominant_sentiment = best_sent[0]
         else:
-            elements.append(Paragraph("No metrics data available for this period.", body_style))
-        
-        elements.append(Spacer(1, 30))
+            dominant_sentiment = 'N/A'
 
-        # ── Branded vs Non-Branded Analysis ──
-        elements.append(Paragraph("Branded vs Non-Branded Analysis", subtitle_style))
+        # Weighted averages across providers
+        agg_mr_values = [float(s.get('avg_mr') or 0) for s in snapshot_metrics.values() if s.get('avg_mr') is not None]
+        agg_sov_values = [float(s.get('avg_sov') or 0) for s in snapshot_metrics.values() if s.get('avg_sov') is not None]
+        agg_pos_values = [float(s.get('avg_pos') or 0) for s in snapshot_metrics.values() if s.get('avg_pos') is not None and float(s.get('avg_pos') or 0) > 0]
 
-        brand_keywords_pdf = project.get('brand_keywords') or []
+        overall_mr = round(sum(agg_mr_values) / len(agg_mr_values) * 100, 1) if agg_mr_values else 0
+        overall_sov = round(sum(agg_sov_values) / len(agg_sov_values) * 100, 1) if agg_sov_values else 0
+        overall_pos = round(sum(agg_pos_values) / len(agg_pos_values), 1) if agg_pos_values else 0
+
+        prev_mr_agg = round(float(prev_snap_agg.get('avg_mr') or 0) * 100, 1)
+        prev_sov_agg = round(float(prev_snap_agg.get('avg_sov') or 0) * 100, 1)
+
+        # ── Classify branded / non-branded ──
         branded_pdf = []
         non_branded_pdf = []
         for r in bvnb_results:
@@ -5766,74 +5751,410 @@ def export_project_pdf(project_id):
             else:
                 non_branded_pdf.append(r)
 
-        bvnb_table_data = [
-            ['Query Type', 'Results', 'Mentions', 'MR (%)', 'vs Prev']
+        # ── Competitors list ──
+        selected_competitors = project.get('selected_competitors') or []
+        competitor_names = []
+        for comp in selected_competitors:
+            domain = comp.get('domain', '')
+            if domain:
+                competitor_names.append(domain)
+
+        # =====================================================================
+        # BUILD PDF
+        # =====================================================================
+        output = BytesIO()
+
+        # Color palette
+        CLR_DARK = colors.HexColor('#161616')
+        CLR_WHITE = colors.white
+        CLR_ACCENT = colors.HexColor('#D8F9B8')
+        CLR_SUBHEADER = colors.HexColor('#F3F4F6')
+        CLR_GREEN_CELL = colors.HexColor('#D1FAE5')
+        CLR_YELLOW_CELL = colors.HexColor('#FEF3C7')
+        CLR_RED_CELL = colors.HexColor('#FEE2E2')
+        CLR_BODY = colors.HexColor('#374151')
+        CLR_BORDER = colors.HexColor('#E5E7EB')
+        CLR_LIGHT_GRAY = colors.HexColor('#9CA3AF')
+        CLR_ROW_ALT = colors.HexColor('#F9FAFB')
+
+        page_width, page_height = A4
+        usable_width = page_width - 4 * cm  # 2cm margins each side
+
+        # Page header / footer callbacks
+        total_pages_holder = [0]
+
+        def _on_first_page(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            # Dark header bar
+            canvas_obj.setFillColor(CLR_DARK)
+            canvas_obj.rect(0, page_height - 1.2 * cm, page_width, 1.2 * cm, fill=1, stroke=0)
+            canvas_obj.setFillColor(CLR_WHITE)
+            canvas_obj.setFont('Helvetica-Bold', 10)
+            canvas_obj.drawString(2 * cm, page_height - 0.85 * cm, "LLM Visibility Monitor Report")
+            # Footer
+            canvas_obj.setFillColor(CLR_LIGHT_GRAY)
+            canvas_obj.setFont('Helvetica', 8)
+            footer_text = f"Generated by ClicAndSEO LLM Visibility Monitor | Page {doc_obj.page}"
+            canvas_obj.drawCentredString(page_width / 2, 1 * cm, footer_text)
+            canvas_obj.restoreState()
+
+        def _on_later_pages(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            # Dark header bar
+            canvas_obj.setFillColor(CLR_DARK)
+            canvas_obj.rect(0, page_height - 1.2 * cm, page_width, 1.2 * cm, fill=1, stroke=0)
+            canvas_obj.setFillColor(CLR_WHITE)
+            canvas_obj.setFont('Helvetica-Bold', 10)
+            canvas_obj.drawString(2 * cm, page_height - 0.85 * cm, "LLM Visibility Monitor Report")
+            # Footer
+            canvas_obj.setFillColor(CLR_LIGHT_GRAY)
+            canvas_obj.setFont('Helvetica', 8)
+            footer_text = f"Generated by ClicAndSEO LLM Visibility Monitor | Page {doc_obj.page}"
+            canvas_obj.drawCentredString(page_width / 2, 1 * cm, footer_text)
+            canvas_obj.restoreState()
+
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=A4,
+            rightMargin=2 * cm,
+            leftMargin=2 * cm,
+            topMargin=2.2 * cm,
+            bottomMargin=1.8 * cm
+        )
+
+        styles = getSampleStyleSheet()
+
+        # ── Custom styles ──
+        st_title = ParagraphStyle('PDFTitle', parent=styles['Heading1'],
+                                  fontSize=22, fontName='Helvetica-Bold',
+                                  textColor=CLR_DARK, spaceAfter=6, spaceBefore=0)
+        st_project = ParagraphStyle('PDFProject', parent=styles['Heading1'],
+                                    fontSize=18, fontName='Helvetica-Bold',
+                                    textColor=CLR_DARK, spaceAfter=4)
+        st_period = ParagraphStyle('PDFPeriod', parent=styles['Normal'],
+                                   fontSize=10, fontName='Helvetica',
+                                   textColor=CLR_LIGHT_GRAY, spaceAfter=14)
+        st_section = ParagraphStyle('PDFSection', parent=styles['Heading2'],
+                                    fontSize=14, fontName='Helvetica-Bold',
+                                    textColor=CLR_DARK, spaceAfter=8, spaceBefore=12)
+        st_subsection = ParagraphStyle('PDFSubsection', parent=styles['Heading3'],
+                                       fontSize=11, fontName='Helvetica-Bold',
+                                       textColor=CLR_BODY, spaceAfter=6, spaceBefore=8)
+        st_body = ParagraphStyle('PDFBody', parent=styles['Normal'],
+                                 fontSize=9, fontName='Helvetica',
+                                 textColor=CLR_BODY, spaceAfter=4)
+        st_kpi_label = ParagraphStyle('KPILabel', parent=styles['Normal'],
+                                      fontSize=8, fontName='Helvetica',
+                                      textColor=CLR_LIGHT_GRAY, spaceAfter=0, alignment=TA_CENTER)
+        st_kpi_value = ParagraphStyle('KPIValue', parent=styles['Normal'],
+                                      fontSize=16, fontName='Helvetica-Bold',
+                                      textColor=CLR_DARK, spaceAfter=0, alignment=TA_CENTER)
+        st_kpi_delta = ParagraphStyle('KPIDelta', parent=styles['Normal'],
+                                      fontSize=8, fontName='Helvetica',
+                                      textColor=CLR_LIGHT_GRAY, spaceAfter=0, alignment=TA_CENTER)
+        st_no_data = ParagraphStyle('NoData', parent=styles['Normal'],
+                                    fontSize=10, fontName='Helvetica',
+                                    textColor=CLR_LIGHT_GRAY, spaceAfter=8,
+                                    alignment=TA_CENTER)
+
+        # Reusable table style builder
+        def _base_table_style(num_rows):
+            """Returns a standard TableStyle list for dark-header tables."""
+            style_cmds = [
+                ('BACKGROUND', (0, 0), (-1, 0), CLR_DARK),
+                ('TEXTCOLOR', (0, 0), (-1, 0), CLR_WHITE),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                ('TEXTCOLOR', (0, 1), (-1, -1), CLR_BODY),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, CLR_BORDER),
+                ('TOPPADDING', (0, 1), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]
+            # Alternating row colors
+            for i in range(1, num_rows):
+                if i % 2 == 0:
+                    style_cmds.append(('BACKGROUND', (0, i), (-1, i), CLR_ROW_ALT))
+            return style_cmds
+
+        def _truncate(text, max_len):
+            """Truncate text with ellipsis."""
+            if not text:
+                return 'N/A'
+            text = str(text)
+            if len(text) <= max_len:
+                return text
+            return text[:max_len - 3] + '...'
+
+        def _delta_str(current, previous):
+            """Format delta string for percentage point change."""
+            d = round(current - previous, 1)
+            if previous == 0 and current == 0:
+                return 'N/A'
+            sign = '+' if d > 0 else ''
+            return f"{sign}{d} pp"
+
+        def _sentiment_label(score):
+            """Convert numeric sentiment score to label."""
+            if score is None:
+                return 'N/A'
+            s = float(score)
+            if s >= 0.3:
+                return 'Positive'
+            elif s <= -0.3:
+                return 'Negative'
+            return 'Neutral'
+
+        elements = []
+
+        # =================================================================
+        # PAGE 1: COVER & EXECUTIVE SUMMARY
+        # =================================================================
+        elements.append(Spacer(1, 0.5 * cm))
+        elements.append(Paragraph("LLM Visibility Monitor Report", st_title))
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph(project['name'], st_project))
+        elements.append(Paragraph(
+            f"Period: Last {days} days  |  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            st_period
+        ))
+        elements.append(Spacer(1, 0.5 * cm))
+
+        # ── Executive Summary KPIs (2x2 grid) ──
+        elements.append(Paragraph("Executive Summary", st_section))
+
+        mr_delta = _delta_str(overall_mr, prev_mr_agg)
+        sov_delta = _delta_str(overall_sov, prev_sov_agg)
+
+        kpi_data = [
+            [
+                Paragraph(f"<b>{overall_mr}%</b>", st_kpi_value),
+                Paragraph(f"<b>{overall_sov}%</b>", st_kpi_value),
+            ],
+            [
+                Paragraph("Mention Rate", st_kpi_label),
+                Paragraph("Share of Voice", st_kpi_label),
+            ],
+            [
+                Paragraph(f"vs prev: {mr_delta}", st_kpi_delta),
+                Paragraph(f"vs prev: {sov_delta}", st_kpi_delta),
+            ],
+            [Spacer(1, 0.3 * cm), Spacer(1, 0.3 * cm)],
+            [
+                Paragraph(f"<b>#{overall_pos}</b>" if overall_pos > 0 else "<b>N/A</b>", st_kpi_value),
+                Paragraph(f"<b>{dominant_sentiment}</b>", st_kpi_value),
+            ],
+            [
+                Paragraph("Avg Position (when mentioned)", st_kpi_label),
+                Paragraph("Dominant Sentiment", st_kpi_label),
+            ],
         ]
 
-        prev_subsets_pdf = {
-            'Non-Branded': prev_non_branded_pdf,
-            'Branded': prev_branded_pdf,
-        }
+        kpi_col_w = usable_width / 2
+        kpi_table = Table(kpi_data, colWidths=[kpi_col_w, kpi_col_w])
+        kpi_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BOX', (0, 0), (0, 2), 1, CLR_BORDER),
+            ('BOX', (1, 0), (1, 2), 1, CLR_BORDER),
+            ('BOX', (0, 4), (0, 5), 1, CLR_BORDER),
+            ('BOX', (1, 4), (1, 5), 1, CLR_BORDER),
+            ('BACKGROUND', (0, 0), (0, 2), CLR_SUBHEADER),
+            ('BACKGROUND', (1, 0), (1, 2), CLR_SUBHEADER),
+            ('BACKGROUND', (0, 4), (0, 5), CLR_SUBHEADER),
+            ('BACKGROUND', (1, 4), (1, 5), CLR_SUBHEADER),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1, 0.6 * cm))
+
+        # ── Project Details block ──
+        elements.append(Paragraph("Project Details", st_subsection))
+        details_info = [
+            f"<b>Industry:</b> {project.get('industry') or 'N/A'}",
+            f"<b>Domain:</b> {project.get('brand_domain') or 'N/A'}",
+            f"<b>Keywords:</b> {', '.join(brand_keywords_pdf) if brand_keywords_pdf else 'N/A'}",
+            f"<b>Language:</b> {project.get('language') or 'N/A'}  |  <b>Country:</b> {project.get('country_code') or 'N/A'}",
+        ]
+        for info in details_info:
+            elements.append(Paragraph(info, st_body))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # ── Competitors ──
+        if competitor_names:
+            elements.append(Paragraph("Competitors", st_subsection))
+            elements.append(Paragraph(', '.join(competitor_names), st_body))
+            elements.append(Spacer(1, 0.3 * cm))
+
+        # =================================================================
+        # PAGE 2: LLM PERFORMANCE COMPARISON
+        # =================================================================
+        elements.append(PageBreak())
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph("LLM Performance Comparison", st_section))
+
+        if metrics:
+            perf_header = ["LLM", "Queries", "Mentions", "MR (%)", "SOV (%)", "Avg Pos", "Sentiment", "vs Prev MR"]
+            perf_rows = [perf_header]
+            sentiment_row_colors = []
+
+            for idx, m in enumerate(metrics):
+                provider = m['llm_provider']
+                cur_mr = round(float(m['mention_rate_pct'] or 0), 1)
+                prev_mr_val = round(prev_llm_mr.get(provider, 0), 1)
+                snap = snapshot_metrics.get(provider, {})
+                sov_val = round(float(snap.get('avg_sov') or 0) * 100, 1)
+                pos_val = round(float(snap.get('avg_pos') or 0), 1)
+                sent_score = snap.get('avg_sentiment')
+                sent_label = _sentiment_label(sent_score)
+
+                # Track sentiment for coloring
+                sentiment_row_colors.append(sent_label)
+
+                perf_rows.append([
+                    provider.upper(),
+                    str(m['total_queries'] or 0),
+                    str(m['total_mentions'] or 0),
+                    f"{cur_mr}%",
+                    f"{sov_val}%",
+                    f"#{pos_val}" if pos_val > 0 else 'N/A',
+                    sent_label,
+                    _delta_str(cur_mr, prev_mr_val),
+                ])
+
+            perf_widths = [2 * cm, 1.6 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 1.8 * cm, 2 * cm, 2 * cm]
+            perf_table = Table(perf_rows, colWidths=perf_widths)
+            style_cmds = _base_table_style(len(perf_rows))
+            # Color sentiment column cells
+            for row_idx, sent in enumerate(sentiment_row_colors):
+                r = row_idx + 1  # skip header
+                if sent == 'Positive':
+                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_GREEN_CELL))
+                elif sent == 'Negative':
+                    style_cmds.append(('BACKGROUND', (6, r), (6, r), CLR_RED_CELL))
+            perf_table.setStyle(TableStyle(style_cmds))
+            elements.append(perf_table)
+        else:
+            elements.append(Paragraph("No LLM performance data available for this period.", st_no_data))
+
+        elements.append(Spacer(1, 0.8 * cm))
+
+        # ── Branded vs Non-Branded Analysis ──
+        elements.append(Paragraph("Branded vs Non-Branded Analysis", st_section))
+
+        bvnb_header = ['Query Type', 'Results', 'Mentions', 'MR (%)', 'vs Prev']
+        bvnb_rows = [bvnb_header]
+
+        prev_subsets = {'Non-Branded': prev_non_branded_pdf, 'Branded': prev_branded_pdf}
         for label, subset in [('Non-Branded', non_branded_pdf), ('Branded', branded_pdf)]:
             total = len(subset)
             mentions = sum(1 for r in subset if r.get('brand_mentioned'))
             rate = round((mentions / total) * 100, 1) if total > 0 else 0
-            prev_sub = prev_subsets_pdf.get(label, [])
+            prev_sub = prev_subsets.get(label, [])
             prev_total = len(prev_sub)
             prev_mentions = sum(1 for r in prev_sub if r.get('brand_mentioned'))
             prev_rate = round((prev_mentions / prev_total) * 100, 1) if prev_total > 0 else 0
-            delta = round(rate - prev_rate, 1)
-            delta_str = f"{'+' if delta > 0 else ''}{delta} pp" if prev_total > 0 or total > 0 else "N/A"
-            bvnb_table_data.append([label, str(total), str(mentions), f"{rate}%", delta_str])
+            bvnb_rows.append([label, str(total), str(mentions), f"{rate}%", _delta_str(rate, prev_rate)])
 
-        bvnb_table = Table(bvnb_table_data, colWidths=[3*cm, 2*cm, 2*cm, 2.5*cm, 2.5*cm])
-        bvnb_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#D1FAE5')),
-            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#FEF3C7')),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-        ]))
+        bvnb_widths = [3.2 * cm, 2.2 * cm, 2.2 * cm, 2.5 * cm, 2.5 * cm]
+        bvnb_table = Table(bvnb_rows, colWidths=bvnb_widths)
+        bvnb_style = _base_table_style(len(bvnb_rows))
+        # Non-branded row green, branded row yellow
+        bvnb_style.append(('BACKGROUND', (0, 1), (-1, 1), CLR_GREEN_CELL))
+        bvnb_style.append(('BACKGROUND', (0, 2), (-1, 2), CLR_YELLOW_CELL))
+        bvnb_table.setStyle(TableStyle(bvnb_style))
         elements.append(bvnb_table)
 
-        elements.append(Spacer(1, 30))
+        # =================================================================
+        # PAGE 3: PROMPT / QUERY PERFORMANCE
+        # =================================================================
+        elements.append(PageBreak())
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph("Prompt / Query Performance", st_section))
+        elements.append(Paragraph("Top 20 prompts by visibility", st_body))
+        elements.append(Spacer(1, 0.3 * cm))
 
-        # Footer
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.HexColor('#9ca3af'),
-            alignment=TA_CENTER
-        )
-        elements.append(Paragraph("Generated by ClicAndSEO LLM Visibility Monitor", footer_style))
-        
-        # Construir PDF
-        doc.build(elements)
+        if prompt_data:
+            pr_header = ["Prompt", "Branded?", "Mentions", "Visibility %", "Avg Position"]
+            pr_rows = [pr_header]
+            for p in prompt_data:
+                qt = p.get('query_text', '') or ''
+                is_branded = 'Yes' if classify_query_branded(qt, brand_keywords_pdf) else 'No'
+                total_r = int(p.get('total_results') or 0)
+                ment = int(p.get('mentions') or 0)
+                vis_pct = round((ment / total_r) * 100, 1) if total_r > 0 else 0
+                avg_p = round(float(p.get('avg_position') or 0), 1)
+                pr_rows.append([
+                    Paragraph(_truncate(qt, 60), st_body),
+                    is_branded,
+                    str(ment),
+                    f"{vis_pct}%",
+                    f"#{avg_p}" if avg_p > 0 else 'N/A',
+                ])
+
+            pr_widths = [6 * cm, 1.8 * cm, 1.8 * cm, 2.2 * cm, 2.2 * cm]
+            pr_table = Table(pr_rows, colWidths=pr_widths)
+            pr_style = _base_table_style(len(pr_rows))
+            # Left-align prompt column
+            pr_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            pr_table.setStyle(TableStyle(pr_style))
+            elements.append(pr_table)
+        else:
+            elements.append(Paragraph("No prompt data available for this period.", st_no_data))
+
+        # =================================================================
+        # PAGE 4: TOP CITED URLs
+        # =================================================================
+        elements.append(PageBreak())
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph("Most Cited URLs by LLMs", st_section))
+        elements.append(Paragraph("Top 15 URLs by total mentions", st_body))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        if urls_data:
+            url_header = ["Rank", "URL", "Total Mentions", "% of Total"]
+            url_rows = [url_header]
+            for u in urls_data[:15]:
+                url_rows.append([
+                    str(u.get('rank', '')),
+                    Paragraph(_truncate(u.get('url', 'N/A'), 50), st_body),
+                    str(u.get('mentions', 0)),
+                    f"{round(float(u.get('percentage', 0)), 1)}%",
+                ])
+
+            url_widths = [1.2 * cm, 8 * cm, 2.5 * cm, 2.3 * cm]
+            url_table = Table(url_rows, colWidths=url_widths)
+            url_style = _base_table_style(len(url_rows))
+            url_style.append(('ALIGN', (1, 1), (1, -1), 'LEFT'))
+            url_table.setStyle(TableStyle(url_style))
+            elements.append(url_table)
+        else:
+            elements.append(Paragraph("No cited URL data available for this period.", st_no_data))
+
+        # ── Build PDF ──
+        doc.build(elements, onFirstPage=_on_first_page, onLaterPages=_on_later_pages)
         output.seek(0)
-        
-        filename = f"llm-monitoring-{project['name'].replace(' ', '-')}-{datetime.now().strftime('%Y%m%d')}.pdf"
-        
-        logger.info(f"✅ PDF exportado para proyecto {project_id}")
-        
+
+        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '-', project['name'])
+        filename = f"llm-monitoring-{safe_name}-{datetime.now().strftime('%Y%m%d')}.pdf"
+
+        logger.info(f"PDF exported successfully for project {project_id}")
+
         return send_file(
             output,
             mimetype='application/pdf',
             as_attachment=True,
             download_name=filename
         )
-        
+
     except Exception as e:
-        logger.error(f"❌ Error exportando PDF para proyecto {project_id}: {e}", exc_info=True)
+        logger.error(f"Error exporting PDF for project {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
 
 
