@@ -1603,6 +1603,78 @@ class LLMMonitoring {
     }
 
     /**
+     * Compact trend badge for branded/non-branded comparison cards.
+     */
+    renderMiniTrend(trend) {
+        if (!trend) return '<span class="branded-trend branded-trend--new" title="Not enough historical data">&#x1F550; new</span>';
+        const titleText = `vs previous ${this.globalTimeRange} days: ${trend.previous}%`;
+        if (trend.direction === 'up') return `<span class="branded-trend branded-trend--up" title="${titleText}">&uarr; +${trend.change}%</span>`;
+        if (trend.direction === 'down') return `<span class="branded-trend branded-trend--down" title="${titleText}">&darr; -${trend.change}%</span>`;
+        return `<span class="branded-trend branded-trend--stable" title="${titleText}">= stable</span>`;
+    }
+
+    /**
+     * Format delta indicator for comparison table cells.
+     */
+    formatDelta(current, previous) {
+        if (previous === null || previous === undefined) return '<span class="delta delta--new">new</span>';
+        if (previous === 0) return current > 0 ? '<span class="delta delta--up">&uarr;</span>' : '';
+        const change = ((current - previous) / previous) * 100;
+        if (Math.abs(change) < 2) return '<span class="delta delta--stable">=</span>';
+        return change > 0
+            ? `<span class="delta delta--up">&uarr;+${Math.abs(change).toFixed(1)}%</span>`
+            : `<span class="delta delta--down">&darr;${change.toFixed(1)}%</span>`;
+    }
+
+    /**
+     * Rich HTML tooltip handler for Chart.js line/timeline charts.
+     */
+    renderRichChartTooltip(context) {
+        let tooltipEl = document.getElementById('llm-chart-tooltip');
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.id = 'llm-chart-tooltip';
+            tooltipEl.className = 'llm-chart-tooltip';
+            document.body.appendChild(tooltipEl);
+        }
+
+        const tooltipModel = context.tooltip;
+        if (tooltipModel.opacity === 0) {
+            tooltipEl.classList.remove('active');
+            return;
+        }
+
+        if (tooltipModel.body) {
+            const dataIndex = tooltipModel.dataPoints[0].dataIndex;
+            const chart = context.chart;
+            const titleText = tooltipModel.title[0] || '';
+
+            let rows = '';
+            chart.data.datasets.forEach((ds, i) => {
+                const meta = chart.getDatasetMeta(i);
+                if (meta.hidden) return;
+                const value = ds.data[dataIndex];
+                if (value === null || value === undefined) return;
+                const color = ds.borderColor || ds.backgroundColor || '#888';
+                const isPercentMetric = ds.label && (ds.label.toLowerCase().includes('voice') || ds.label.toLowerCase().includes('rate'));
+                const displayVal = isPercentMetric ? `${Number(value).toFixed(1)}%` : Math.round(value);
+                rows += `<div class="llm-chart-tooltip__row">
+                    <span class="llm-chart-tooltip__dot" style="background:${color}"></span>
+                    <span class="llm-chart-tooltip__label">${ds.label}</span>
+                    <span class="llm-chart-tooltip__value">${displayVal}</span>
+                </div>`;
+            });
+
+            tooltipEl.innerHTML = `<div class="llm-chart-tooltip__title">${titleText}</div>${rows}`;
+        }
+
+        const position = context.chart.canvas.getBoundingClientRect();
+        tooltipEl.style.left = position.left + window.scrollX + tooltipModel.caretX + 'px';
+        tooltipEl.style.top = position.top + window.scrollY + tooltipModel.caretY - 10 + 'px';
+        tooltipEl.classList.add('active');
+    }
+
+    /**
      * ✨ NUEVO: Actualiza las métricas de posición granulares
      */
     updatePositionMetrics(positionMetrics) {
@@ -1802,28 +1874,50 @@ class LLMMonitoring {
         const llms = Object.keys(data.aggregated.metrics_by_llm || {});
         const mentionRates = llms.map(llm => data.aggregated.metrics_by_llm[llm].avg_mention_rate || 0);
 
+        // Previous period data (may be absent)
+        const prevByLLM = data.previous_metrics_by_llm || {};
+        const prevRates = llms.map(llm => prevByLLM[llm]?.avg_mention_rate ?? null);
+        const hasPrev = prevRates.some(v => v !== null);
+
+        const barColors = [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(139, 92, 246, 0.8)'
+        ];
+        const borderColors = [
+            'rgb(59, 130, 246)',
+            'rgb(16, 185, 129)',
+            'rgb(249, 115, 22)',
+            'rgb(139, 92, 246)'
+        ];
+
+        const datasets = [{
+            label: 'Mention Rate (%)',
+            data: mentionRates,
+            backgroundColor: barColors,
+            borderColor: borderColors,
+            borderWidth: 1
+        }];
+
+        // Add previous period as ghost bars if available
+        if (hasPrev) {
+            datasets.push({
+                label: 'Previous Period',
+                data: prevRates,
+                backgroundColor: barColors.map(c => c.replace(/[\d.]+\)$/, '0.25)')),
+                borderColor: borderColors.map(c => c.replace('rgb', 'rgba').replace(')', ', 0.3)')),
+                borderWidth: 1,
+                borderDash: [4, 4]
+            });
+        }
+
         // Create chart
         this.charts.mentionRate = new Chart(canvas, {
             type: 'bar',
             data: {
                 labels: llms.map(llm => this.getLLMDisplayName(llm)),
-                datasets: [{
-                    label: 'Mention Rate (%)',
-                    data: mentionRates,
-                    backgroundColor: [
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(16, 185, 129, 0.8)',
-                        'rgba(249, 115, 22, 0.8)',
-                        'rgba(139, 92, 246, 0.8)'
-                    ],
-                    borderColor: [
-                        'rgb(59, 130, 246)',
-                        'rgb(16, 185, 129)',
-                        'rgb(249, 115, 22)',
-                        'rgb(139, 92, 246)'
-                    ],
-                    borderWidth: 1
-                }]
+                datasets: datasets
             },
             options: {
                 responsive: true,
@@ -1842,8 +1936,30 @@ class LLMMonitoring {
                         display: false
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#f1f5f9',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 14,
+                        cornerRadius: 10,
+                        titleFont: { size: 13, weight: '600' },
+                        bodyFont: { size: 12 },
+                        boxPadding: 6,
                         callbacks: {
-                            label: context => `${context.parsed.y.toFixed(1)}%`
+                            title: ctx => ctx[0].label,
+                            label: ctx => {
+                                if (ctx.datasetIndex === 1) return null; // hide previous period label
+                                const current = ctx.parsed.y;
+                                const prev = ctx.chart.data.datasets[1]?.data[ctx.dataIndex];
+                                let label = `Current: ${current.toFixed(1)}%`;
+                                if (prev !== undefined && prev !== null) {
+                                    const delta = current - prev;
+                                    const arrow = delta > 0 ? '\u2191' : delta < 0 ? '\u2193' : '=';
+                                    label += ` | Previous: ${prev.toFixed(1)}% (${arrow}${Math.abs(delta).toFixed(1)}pp)`;
+                                }
+                                return label;
+                            }
                         }
                     }
                 }
@@ -1891,16 +2007,16 @@ class LLMMonitoring {
         const nbMR = document.getElementById('nonBrandedMentionRate');
         const nbSOV = document.getElementById('nonBrandedSOV');
         const nbCount = document.getElementById('nonBrandedCount');
-        if (nbMR) nbMR.textContent = nonBranded ? nonBranded.mention_rate + '%' : '--';
-        if (nbSOV) nbSOV.textContent = nonBranded ? nonBranded.share_of_voice + '%' : '--';
+        if (nbMR) nbMR.innerHTML = nonBranded ? `${nonBranded.mention_rate}% ${this.renderMiniTrend(data.non_branded_trends?.mention_rate)}` : '--';
+        if (nbSOV) nbSOV.innerHTML = nonBranded ? `${nonBranded.share_of_voice}% ${this.renderMiniTrend(data.non_branded_trends?.share_of_voice)}` : '--';
         if (nbCount) nbCount.textContent = nonBranded ? nonBranded.total_queries : '0';
 
         // Branded
         const bMR = document.getElementById('brandedMentionRate');
         const bSOV = document.getElementById('brandedSOV');
         const bCount = document.getElementById('brandedCount');
-        if (bMR) bMR.textContent = branded ? branded.mention_rate + '%' : '--';
-        if (bSOV) bSOV.textContent = branded ? branded.share_of_voice + '%' : '--';
+        if (bMR) bMR.innerHTML = branded ? `${branded.mention_rate}% ${this.renderMiniTrend(data.branded_trends?.mention_rate)}` : '--';
+        if (bSOV) bSOV.innerHTML = branded ? `${branded.share_of_voice}% ${this.renderMiniTrend(data.branded_trends?.share_of_voice)}` : '--';
         if (bCount) bCount.textContent = branded ? branded.total_queries : '0';
 
         grid.style.display = 'grid';
@@ -2114,32 +2230,8 @@ class LLMMonitoring {
                             display: false  // Usar leyenda HTML personalizada
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#374151',
-                            borderWidth: 1,
-                            padding: 12,
-                            titleFont: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            bodyFont: {
-                                size: 12
-                            },
-                            callbacks: {
-                                title: context => {
-                                    return new Date(dates[context[0].dataIndex]).toLocaleDateString('en-US', {
-                                        weekday: 'short',
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                    });
-                                },
-                                label: context => {
-                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
-                                }
-                            }
+                            enabled: false,
+                            external: (context) => this.renderRichChartTooltip(context)
                         }
                     }
                 }
@@ -2286,32 +2378,8 @@ class LLMMonitoring {
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: '#374151',
-                            borderWidth: 1,
-                            padding: 12,
-                            titleFont: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            bodyFont: {
-                                size: 12
-                            },
-                            callbacks: {
-                                title: context => {
-                                    return new Date(dates[context[0].dataIndex]).toLocaleDateString('en-US', {
-                                        weekday: 'short',
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                    });
-                                },
-                                label: context => {
-                                    return `${context.dataset.label}: ${Math.round(context.parsed.y)} mentions`;
-                                }
-                            }
+                            enabled: false,
+                            external: (context) => this.renderRichChartTooltip(context)
                         }
                     }
                 }
@@ -2607,7 +2675,7 @@ class LLMMonitoring {
 
             const data = await response.json();
 
-            this.renderComparisonTable(data.comparison);
+            this.renderComparisonTable(data.comparison, data.previous_period || null);
 
         } catch (error) {
             console.error('❌ Error loading comparison:', error);
@@ -2617,7 +2685,7 @@ class LLMMonitoring {
     /**
      * Render comparison table with Grid.js
      */
-    renderComparisonTable(data) {
+    renderComparisonTable(data, previousPeriod) {
         const container = document.getElementById('comparisonTable');
         if (!container) return;
 
@@ -2626,16 +2694,27 @@ class LLMMonitoring {
             this.comparisonGrid.destroy();
         }
 
+        // Build a lookup for previous period data keyed by provider
+        const prevByProvider = {};
+        if (previousPeriod && Array.isArray(previousPeriod)) {
+            previousPeriod.forEach(p => { prevByProvider[p.llm_provider] = p; });
+        }
+
         // Prepare data
-        const rows = data.map(item => [
-            this.getLLMDisplayName(item.llm_provider),
-            this.formatDate(item.snapshot_date),
-            `${item.mention_rate.toFixed(1)}% (${(item.total_mentions || 0)}/${(item.total_queries || 0)})`,
-            this.formatPositionWithBadge(item.avg_position, item.position_source, item.position_source_details),
-            `${item.share_of_voice.toFixed(1)}%`,
-            this.getSentimentLabel(item.sentiment),
-            item.total_queries
-        ]);
+        const rows = data.map(item => {
+            const prev = prevByProvider[item.llm_provider];
+            const mrDelta = prev ? this.formatDelta(item.mention_rate, prev.mention_rate) : '';
+            const sovDelta = prev ? this.formatDelta(item.share_of_voice, prev.share_of_voice) : '';
+            return [
+                this.getLLMDisplayName(item.llm_provider),
+                this.formatDate(item.snapshot_date),
+                gridjs.html(`${item.mention_rate.toFixed(1)}% (${(item.total_mentions || 0)}/${(item.total_queries || 0)}) ${mrDelta}`),
+                this.formatPositionWithBadge(item.avg_position, item.position_source, item.position_source_details),
+                gridjs.html(`${item.share_of_voice.toFixed(1)}% ${sovDelta}`),
+                this.getSentimentLabel(item.sentiment),
+                item.total_queries
+            ];
+        });
 
         // Create grid
         this.comparisonGrid = new gridjs.Grid({

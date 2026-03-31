@@ -315,6 +315,35 @@ def _compute_branded_metrics(results, brand_keywords):
     }
 
 
+def _calculate_trend(current, previous, has_previous_data):
+    """
+    Calcula tendencia: direction (up/down/stable) y change (%).
+    Si no hay histórico suficiente en el período anterior, devuelve None.
+    Reutilizable desde múltiples endpoints (/detail, /metrics, /comparison, exports).
+    """
+    if not has_previous_data:
+        return None
+
+    if previous == 0:
+        if current > 0:
+            return {'direction': 'up', 'change': 100, 'previous': 0}
+        return {'direction': 'stable', 'change': 0, 'previous': 0}
+
+    change = ((current - previous) / previous) * 100
+
+    # Considerar "stable" si el cambio es menor al 2%
+    if abs(change) < 2:
+        direction = 'stable'
+    else:
+        direction = 'up' if change > 0 else 'down'
+
+    return {
+        'direction': direction,
+        'change': round(abs(change), 1),
+        'previous': round(previous, 1)
+    }
+
+
 def _get_effective_plan_limits(user: dict) -> dict:
     """
     Devuelve límites efectivos por usuario.
@@ -1161,32 +1190,8 @@ def get_project(project_id):
         has_previous_period_data = len(previous_snapshots) > 0 and prev_queries_all > 0
 
         # ✨ NUEVO: Calcular TENDENCIAS (cambio vs período anterior)
-        def calculate_trend(current, previous, has_previous_data):
-            """
-            Calcula tendencia: direction (up/down/stable) y change (%).
-            Si no hay histórico suficiente en el período anterior, devuelve None.
-            """
-            if not has_previous_data:
-                return None
-
-            if previous == 0:
-                if current > 0:
-                    return {'direction': 'up', 'change': 100, 'previous': 0}
-                return {'direction': 'stable', 'change': 0, 'previous': 0}
-
-            change = ((current - previous) / previous) * 100
-
-            # Considerar "stable" si el cambio es menor al 2%
-            if abs(change) < 2:
-                direction = 'stable'
-            else:
-                direction = 'up' if change > 0 else 'down'
-
-            return {
-                'direction': direction,
-                'change': round(abs(change), 1),
-                'previous': round(previous, 1)
-            }
+        # Alias local → función de módulo (extraída para reusar en /metrics, /comparison, exports)
+        calculate_trend = _calculate_trend
         
         # ✨ Calcular tendencia del SENTIMIENTO de forma categórica
         def get_dominant_sentiment(positive, neutral, negative):
@@ -2586,11 +2591,16 @@ def get_project_metrics(project_id):
         start_date = request.args.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
         
     llm_provider = request.args.get('llm_provider')
-    
+
+    # ── Previous period dates (for period-over-period comparison) ──
+    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d') if isinstance(start_date, str) else start_date
+    prev_end = start_date  # previous period ends where current starts
+    prev_start = (start_date_obj - timedelta(days=days)).strftime('%Y-%m-%d')
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexión a BD'}), 500
-    
+
     try:
         cur = conn.cursor()
 
@@ -2710,6 +2720,89 @@ def get_project_metrics(project_id):
         except Exception as be:
             logger.warning(f"Could not compute branded/non-branded metrics: {be}")
 
+        # ── Previous period: metrics_by_llm ──
+        previous_metrics_by_llm = {}
+        try:
+            prev_snap_query = """
+                SELECT llm_provider, AVG(mention_rate) as avg_mention_rate
+                FROM llm_monitoring_snapshots
+                WHERE project_id = %s
+                  AND snapshot_date >= %s AND snapshot_date < %s
+            """
+            prev_snap_params = [project_id, prev_start, prev_end]
+            if llm_provider:
+                prev_snap_query += " AND llm_provider = %s"
+                prev_snap_params.append(llm_provider)
+            elif enabled_llms_filter:
+                prev_snap_query += " AND llm_provider = ANY(%s)"
+                prev_snap_params.append(enabled_llms_filter)
+            prev_snap_query += " GROUP BY llm_provider"
+            cur.execute(prev_snap_query, prev_snap_params)
+            for row in cur.fetchall():
+                previous_metrics_by_llm[row['llm_provider']] = {
+                    'avg_mention_rate': float(row['avg_mention_rate']) if row['avg_mention_rate'] is not None else 0
+                }
+        except Exception as prev_err:
+            logger.warning(f"Could not compute previous metrics_by_llm: {prev_err}")
+
+        # ── Previous period: branded / non-branded trends ──
+        branded_trends = {}
+        non_branded_trends = {}
+        try:
+            if brand_keywords:
+                prev_bq = """
+                    SELECT r.llm_provider, q.query_text, r.brand_mentioned,
+                           r.position_in_list, r.competitors_mentioned
+                    FROM llm_monitoring_results r
+                    JOIN llm_monitoring_queries q ON r.query_id = q.id
+                    WHERE r.project_id = %s
+                      AND r.analysis_date >= %s AND r.analysis_date < %s
+                """
+                prev_bparams = [project_id, prev_start, prev_end]
+                if llm_provider:
+                    prev_bq += " AND r.llm_provider = %s"
+                    prev_bparams.append(llm_provider)
+                elif enabled_llms_filter:
+                    prev_bq += " AND r.llm_provider = ANY(%s)"
+                    prev_bparams.append(enabled_llms_filter)
+                cur.execute(prev_bq, prev_bparams)
+                prev_branded_data = _compute_branded_metrics(cur.fetchall(), brand_keywords)
+
+                current_branded = branded_data.get('branded_metrics') or {}
+                current_non_branded = branded_data.get('non_branded_metrics') or {}
+                prev_branded = prev_branded_data.get('branded_metrics') or {}
+                prev_non_branded = prev_branded_data.get('non_branded_metrics') or {}
+
+                has_prev_branded = (prev_branded.get('total_results', 0) > 0)
+                has_prev_non_branded = (prev_non_branded.get('total_results', 0) > 0)
+
+                branded_trends = {
+                    'mention_rate': _calculate_trend(
+                        current_branded.get('mention_rate', 0),
+                        prev_branded.get('mention_rate', 0),
+                        has_prev_branded
+                    ),
+                    'share_of_voice': _calculate_trend(
+                        current_branded.get('share_of_voice', 0),
+                        prev_branded.get('share_of_voice', 0),
+                        has_prev_branded
+                    )
+                }
+                non_branded_trends = {
+                    'mention_rate': _calculate_trend(
+                        current_non_branded.get('mention_rate', 0),
+                        prev_non_branded.get('mention_rate', 0),
+                        has_prev_non_branded
+                    ),
+                    'share_of_voice': _calculate_trend(
+                        current_non_branded.get('share_of_voice', 0),
+                        prev_non_branded.get('share_of_voice', 0),
+                        has_prev_non_branded
+                    )
+                }
+        except Exception as bt_err:
+            logger.warning(f"Could not compute branded trends: {bt_err}")
+
         return jsonify({
             'success': True,
             'project_id': project_id,
@@ -2725,7 +2818,10 @@ def get_project_metrics(project_id):
                 'metrics_by_llm': metrics_by_llm
             },
             'branded_metrics': branded_data.get('branded_metrics'),
-            'non_branded_metrics': branded_data.get('non_branded_metrics')
+            'non_branded_metrics': branded_data.get('non_branded_metrics'),
+            'branded_trends': branded_trends,
+            'non_branded_trends': non_branded_trends,
+            'previous_metrics_by_llm': previous_metrics_by_llm
         }), 200
 
     except Exception as e:
@@ -3080,12 +3176,46 @@ def get_llm_comparison(project_id):
             if date not in by_date:
                 by_date[date] = {}
             by_date[date][c['llm_provider']] = c
-        
+
+        # ── Previous period aggregated metrics (period-over-period) ──
+        previous_period = {}
+        try:
+            prev_end_comp = start_date  # previous period ends where current starts
+            prev_start_comp = (datetime.now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
+
+            prev_comp_query = """
+                SELECT llm_provider,
+                       AVG(mention_rate) as avg_mention_rate,
+                       AVG(share_of_voice) as avg_sov,
+                       AVG(weighted_share_of_voice) as avg_weighted_sov,
+                       AVG(avg_sentiment_score) as avg_sentiment
+                FROM llm_monitoring_snapshots
+                WHERE project_id = %s
+                  AND snapshot_date >= %s AND snapshot_date < %s
+            """
+            prev_comp_params = [project_id, prev_start_comp, prev_end_comp]
+            if enabled_llms_filter:
+                prev_comp_query += " AND llm_provider = ANY(%s)"
+                prev_comp_params.append(enabled_llms_filter)
+            prev_comp_query += " GROUP BY llm_provider"
+            cur.execute(prev_comp_query, prev_comp_params)
+
+            for row in cur.fetchall():
+                previous_period[row['llm_provider']] = {
+                    'avg_mention_rate': float(row['avg_mention_rate']) if row['avg_mention_rate'] is not None else 0,
+                    'avg_sov': float(row['avg_sov']) if row['avg_sov'] is not None else 0,
+                    'avg_weighted_sov': float(row['avg_weighted_sov']) if row['avg_weighted_sov'] is not None else 0,
+                    'avg_sentiment': float(row['avg_sentiment']) if row['avg_sentiment'] is not None else 0
+                }
+        except Exception as prev_comp_err:
+            logger.warning(f"Could not compute previous period comparison: {prev_comp_err}")
+
         return jsonify({
             'success': True,
             'project_id': project_id,
             'comparison': comparison_list,
-            'by_date': by_date
+            'by_date': by_date,
+            'previous_period': previous_period
         }), 200
         
     except Exception as e:
@@ -4667,6 +4797,47 @@ def export_project_excel(project_id):
         cur.execute(detail_query, detail_params)
         detailed_results = cur.fetchall()
 
+        # 6b. Previous period data (for period-over-period comparison in export)
+        prev_start_date = start_date - timedelta(days=days)
+        prev_start_date_str = prev_start_date.strftime('%Y-%m-%d')
+
+        # Previous branded/non-branded metrics
+        prev_branded_export = {'branded_metrics': None, 'non_branded_metrics': None}
+        try:
+            if brand_keywords:
+                prev_bq_export = """
+                    SELECT r.llm_provider, q.query_text, r.brand_mentioned,
+                           r.position_in_list, r.competitors_mentioned
+                    FROM llm_monitoring_results r
+                    JOIN llm_monitoring_queries q ON r.query_id = q.id
+                    WHERE r.project_id = %s
+                      AND r.analysis_date >= %s AND r.analysis_date < %s
+                """
+                prev_bparams_export = [project_id, prev_start_date_str, start_date_str]
+                prev_bq_export, prev_bparams_export = _add_llm_filter(prev_bq_export, prev_bparams_export, 'r.llm_provider')
+                cur.execute(prev_bq_export, prev_bparams_export)
+                prev_branded_export = _compute_branded_metrics(cur.fetchall(), brand_keywords)
+        except Exception as prev_b_err:
+            logger.warning(f"Could not compute prev branded for export: {prev_b_err}")
+
+        # Previous LLM metrics (avg mention_rate per provider)
+        prev_llm_mr_export = {}
+        try:
+            prev_mr_query = """
+                SELECT llm_provider, AVG(mention_rate) as avg_mention_rate
+                FROM llm_monitoring_snapshots
+                WHERE project_id = %s
+                  AND snapshot_date >= %s AND snapshot_date < %s
+            """
+            prev_mr_params = [project_id, prev_start_date_str, start_date_str]
+            prev_mr_query, prev_mr_params = _add_llm_filter(prev_mr_query, prev_mr_params)
+            prev_mr_query += " GROUP BY llm_provider"
+            cur.execute(prev_mr_query, prev_mr_params)
+            for row in cur.fetchall():
+                prev_llm_mr_export[row['llm_provider']] = float(row['avg_mention_rate']) if row['avg_mention_rate'] is not None else 0
+        except Exception as prev_mr_err:
+            logger.warning(f"Could not compute prev LLM MR for export: {prev_mr_err}")
+
         cur.close()
         conn.close()
 
@@ -4814,7 +4985,52 @@ def export_project_excel(project_id):
             ws1[f'B{row_offset}'] = str(value)
             row_offset += 1
 
-        ws1.column_dimensions['A'].width = 25
+        # Period Comparison section (branded MR / SOV deltas)
+        row_offset += 1
+        ws1[f'A{row_offset}'] = "Period Comparison (vs Previous Period)"
+        ws1[f'A{row_offset}'].font = section_font
+        row_offset += 1
+
+        if brand_keywords and detailed_results:
+            branded_res_exp = []
+            non_branded_res_exp = []
+            for r in detailed_results:
+                qt = r.get('query_text', '') or ''
+                if classify_query_branded(qt, brand_keywords):
+                    branded_res_exp.append(r)
+                else:
+                    non_branded_res_exp.append(r)
+            def _quick_mr(subset):
+                if not subset:
+                    return 0.0
+                mentions = sum(1 for r in subset if r.get('brand_mentioned'))
+                return round((mentions / len(subset)) * 100, 1) if len(subset) > 0 else 0.0
+            cur_br_mr = _quick_mr(branded_res_exp)
+            cur_nb_mr = _quick_mr(non_branded_res_exp)
+        else:
+            cur_br_mr = 0.0
+            cur_nb_mr = 0.0
+
+        prev_br_metrics = prev_branded_export.get('branded_metrics') or {}
+        prev_nb_metrics = prev_branded_export.get('non_branded_metrics') or {}
+        prev_br_mr = prev_br_metrics.get('mention_rate', 0)
+        prev_nb_mr = prev_nb_metrics.get('mention_rate', 0)
+
+        comparison_rows = [
+            ("Branded MR (Current)", f"{cur_br_mr}%"),
+            ("Branded MR (Previous)", f"{prev_br_mr}%"),
+            ("Branded MR Change", f"{round(cur_br_mr - prev_br_mr, 1)} pp"),
+            ("Non-Branded MR (Current)", f"{cur_nb_mr}%"),
+            ("Non-Branded MR (Previous)", f"{prev_nb_mr}%"),
+            ("Non-Branded MR Change", f"{round(cur_nb_mr - prev_nb_mr, 1)} pp"),
+        ]
+        for label, value in comparison_rows:
+            ws1[f'A{row_offset}'] = label
+            ws1[f'A{row_offset}'].font = Font(bold=True)
+            ws1[f'B{row_offset}'] = str(value)
+            row_offset += 1
+
+        ws1.column_dimensions['A'].width = 35
         ws1.column_dimensions['B'].width = 50
 
         # ════════════════════════════════════════════════
@@ -4905,7 +5121,8 @@ def export_project_excel(project_id):
 
         comp_headers = [
             "LLM Provider", "Total Queries", "Total Results", "Total Mentions",
-            "Mention Rate (%)", "Avg Position",
+            "Mention Rate (%)", "Prev. MR (%)", "\u0394 MR (%)",
+            "Avg Position",
             "Positive", "Neutral", "Negative", "Avg Sentiment Score",
             "SoV Weighted (%)", "SoV Standard (%)",
             "Total Cost (USD)", "Total Tokens", "Avg Response Time (ms)"
@@ -4927,12 +5144,18 @@ def export_project_excel(project_id):
             avg_wsov = round(sum(prov_sov['wsov']) / len(prov_sov['wsov']), 2) if prov_sov['wsov'] else 0
             avg_sov = round(sum(prov_sov['sov']) / len(prov_sov['sov']), 2) if prov_sov['sov'] else 0
 
+            cur_mr = round(float(m['mention_rate_pct'] or 0), 1)
+            prev_mr = round(prev_llm_mr_export.get(prov, 0), 1)
+            delta_mr = round(cur_mr - prev_mr, 1)
+
             col = 1
             write_data_cell(ws3, row_idx, col, prov.upper()); col += 1
             write_data_cell(ws3, row_idx, col, m['total_queries'] or 0); col += 1
             write_data_cell(ws3, row_idx, col, m['total_results'] or 0); col += 1
             write_data_cell(ws3, row_idx, col, m['total_mentions'] or 0); col += 1
-            write_data_cell(ws3, row_idx, col, round(float(m['mention_rate_pct'] or 0), 1), '0.0'); col += 1
+            write_data_cell(ws3, row_idx, col, cur_mr, '0.0'); col += 1
+            write_data_cell(ws3, row_idx, col, prev_mr, '0.0'); col += 1
+            write_data_cell(ws3, row_idx, col, delta_mr, '0.0'); col += 1
             write_data_cell(ws3, row_idx, col, round(float(m['avg_position'] or 0), 1) if m['avg_position'] else 'N/A', '0.0'); col += 1
             write_data_cell(ws3, row_idx, col, m['positive_count'] or 0); col += 1
             write_data_cell(ws3, row_idx, col, m['neutral_count'] or 0); col += 1
@@ -5190,7 +5413,7 @@ def export_project_excel(project_id):
         ws9 = wb.create_sheet("Branded vs Non-Branded")
 
         # Title
-        ws9.merge_cells('A1:H1')
+        ws9.merge_cells('A1:J1')
         ws9['A1'] = 'Branded vs Non-Branded Analysis'
         ws9['A1'].font = Font(name='Calibri', size=14, bold=True, color='FFFFFF')
         ws9['A1'].fill = PatternFill(start_color='161616', end_color='161616', fill_type='solid')
@@ -5208,22 +5431,25 @@ def export_project_excel(project_id):
                 non_branded_results.append(r)
 
         # Helper to compute metrics for a subset
-        def compute_subset_metrics(subset, label):
+        def compute_subset_metrics(subset, label, prev_mr=0.0):
             total = len(subset)
             mentions = sum(1 for r in subset if r.get('brand_mentioned'))
             mention_rate = round((mentions / total) * 100, 1) if total > 0 else 0.0
+            delta_mr = round(mention_rate - prev_mr, 1)
             positions = [r['position_in_list'] for r in subset if r.get('position_in_list') is not None]
             avg_pos = round(sum(positions) / len(positions), 1) if positions else None
             pos_count = sum(1 for r in subset if r.get('sentiment') == 'positive')
             neu_count = sum(1 for r in subset if r.get('sentiment') == 'neutral')
             neg_count = sum(1 for r in subset if r.get('sentiment') == 'negative')
-            return [label, total, mentions, mention_rate, avg_pos or 'N/A',
+            return [label, total, mentions, mention_rate, round(prev_mr, 1), delta_mr,
+                    avg_pos or 'N/A',
                     round(pos_count / total * 100, 1) if total else 0,
                     round(neu_count / total * 100, 1) if total else 0,
                     round(neg_count / total * 100, 1) if total else 0]
 
         # Headers
         bvnb_headers = ['Query Type', 'Total Results', 'Total Mentions', 'Mention Rate (%)',
+                        'Prev. MR (%)', '\u0394 MR',
                         'Avg Position', 'Positive %', 'Neutral %', 'Negative %']
         for col_idx, h in enumerate(bvnb_headers, 1):
             cell = ws9.cell(row=3, column=col_idx, value=h)
@@ -5232,10 +5458,22 @@ def export_project_excel(project_id):
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = border
 
+        # Previous period MRs for branded / non-branded
+        prev_all_mr = 0.0
+        prev_b_mr_exp = (prev_branded_export.get('branded_metrics') or {}).get('mention_rate', 0)
+        prev_nb_mr_exp = (prev_branded_export.get('non_branded_metrics') or {}).get('mention_rate', 0)
+        if prev_b_mr_exp or prev_nb_mr_exp:
+            # Weighted average for "all" based on result counts
+            prev_b_total = (prev_branded_export.get('branded_metrics') or {}).get('total_results', 0)
+            prev_nb_total = (prev_branded_export.get('non_branded_metrics') or {}).get('total_results', 0)
+            prev_all_total = prev_b_total + prev_nb_total
+            if prev_all_total > 0:
+                prev_all_mr = (prev_b_mr_exp * prev_b_total + prev_nb_mr_exp * prev_nb_total) / prev_all_total
+
         # Data rows
-        all_metrics = compute_subset_metrics(detailed_results, 'All Queries')
-        branded_m = compute_subset_metrics(branded_results, 'Branded')
-        non_branded_m = compute_subset_metrics(non_branded_results, 'Non-Branded')
+        all_metrics = compute_subset_metrics(detailed_results, 'All Queries', prev_all_mr)
+        branded_m = compute_subset_metrics(branded_results, 'Branded', prev_b_mr_exp)
+        non_branded_m = compute_subset_metrics(non_branded_results, 'Non-Branded', prev_nb_mr_exp)
 
         for row_idx, row_data in enumerate([all_metrics, non_branded_m, branded_m], 4):
             for col_idx, value in enumerate(row_data, 1):
@@ -5368,9 +5606,55 @@ def export_project_pdf(project_id):
         cur.execute(bvnb_query, bvnb_params)
         bvnb_results = cur.fetchall()
 
+        # Previous period metrics for PDF (per LLM provider)
+        prev_start_pdf = (start_date - timedelta(days=days))
+        prev_llm_mr_pdf = {}
+        try:
+            prev_pdf_query = """
+                SELECT llm_provider,
+                       ROUND(AVG(CASE WHEN brand_mentioned THEN 100.0 ELSE 0 END), 1) as mention_rate_pct
+                FROM llm_monitoring_results
+                WHERE project_id = %s AND analysis_date >= %s AND analysis_date < %s
+            """
+            prev_pdf_params = [project_id, prev_start_pdf, start_date]
+            if enabled_llms_filter:
+                prev_pdf_query += " AND llm_provider = ANY(%s)"
+                prev_pdf_params.append(enabled_llms_filter)
+            prev_pdf_query += " GROUP BY llm_provider"
+            cur.execute(prev_pdf_query, prev_pdf_params)
+            for row in cur.fetchall():
+                prev_llm_mr_pdf[row['llm_provider']] = float(row['mention_rate_pct']) if row['mention_rate_pct'] is not None else 0
+        except Exception as prev_pdf_err:
+            logger.warning(f"Could not compute prev LLM MR for PDF: {prev_pdf_err}")
+
+        # Previous period branded/non-branded for PDF
+        prev_branded_pdf = []
+        prev_non_branded_pdf = []
+        brand_keywords_for_pdf = project.get('brand_keywords') or []
+        try:
+            prev_bvnb_query = """
+                SELECT q.query_text, r.brand_mentioned, r.sentiment
+                FROM llm_monitoring_results r
+                JOIN llm_monitoring_queries q ON r.query_id = q.id
+                WHERE r.project_id = %s AND r.analysis_date >= %s AND r.analysis_date < %s
+            """
+            prev_bvnb_params = [project_id, prev_start_pdf, start_date]
+            if enabled_llms_filter:
+                prev_bvnb_query += " AND r.llm_provider = ANY(%s)"
+                prev_bvnb_params.append(enabled_llms_filter)
+            cur.execute(prev_bvnb_query, prev_bvnb_params)
+            for r in cur.fetchall():
+                qt = r.get('query_text', '') or ''
+                if classify_query_branded(qt, brand_keywords_for_pdf):
+                    prev_branded_pdf.append(r)
+                else:
+                    prev_non_branded_pdf.append(r)
+        except Exception as prev_bvnb_err:
+            logger.warning(f"Could not compute prev branded for PDF: {prev_bvnb_err}")
+
         cur.close()
         conn.close()
-        
+
         # Crear PDF
         output = BytesIO()
         doc = SimpleDocTemplate(
@@ -5433,16 +5717,21 @@ def export_project_pdf(project_id):
         elements.append(Paragraph("LLM Performance Metrics", subtitle_style))
         
         if metrics:
-            table_data = [["LLM", "Queries", "Mentions", "Mention Rate"]]
+            table_data = [["LLM", "Queries", "Mentions", "MR (%)", "vs Prev"]]
             for m in metrics:
+                cur_mr_pdf = round(float(m['mention_rate_pct'] or 0), 1)
+                prev_mr_pdf_val = round(prev_llm_mr_pdf.get(m['llm_provider'], 0), 1)
+                delta_mr_pdf = round(cur_mr_pdf - prev_mr_pdf_val, 1)
+                delta_str = f"{'+' if delta_mr_pdf > 0 else ''}{delta_mr_pdf} pp" if prev_mr_pdf_val > 0 or cur_mr_pdf > 0 else "N/A"
                 table_data.append([
                     m['llm_provider'].upper(),
                     str(m['total_queries'] or 0),
                     str(m['total_mentions'] or 0),
-                    f"{round(float(m['mention_rate_pct'] or 0), 1)}%"
+                    f"{cur_mr_pdf}%",
+                    delta_str
                 ])
-            
-            table = Table(table_data, colWidths=[3*cm, 3*cm, 3*cm, 3*cm])
+
+            table = Table(table_data, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -5478,16 +5767,26 @@ def export_project_pdf(project_id):
                 non_branded_pdf.append(r)
 
         bvnb_table_data = [
-            ['Query Type', 'Results', 'Mentions', 'Mention Rate (%)']
+            ['Query Type', 'Results', 'Mentions', 'MR (%)', 'vs Prev']
         ]
 
+        prev_subsets_pdf = {
+            'Non-Branded': prev_non_branded_pdf,
+            'Branded': prev_branded_pdf,
+        }
         for label, subset in [('Non-Branded', non_branded_pdf), ('Branded', branded_pdf)]:
             total = len(subset)
             mentions = sum(1 for r in subset if r.get('brand_mentioned'))
             rate = round((mentions / total) * 100, 1) if total > 0 else 0
-            bvnb_table_data.append([label, str(total), str(mentions), f"{rate}%"])
+            prev_sub = prev_subsets_pdf.get(label, [])
+            prev_total = len(prev_sub)
+            prev_mentions = sum(1 for r in prev_sub if r.get('brand_mentioned'))
+            prev_rate = round((prev_mentions / prev_total) * 100, 1) if prev_total > 0 else 0
+            delta = round(rate - prev_rate, 1)
+            delta_str = f"{'+' if delta > 0 else ''}{delta} pp" if prev_total > 0 or total > 0 else "N/A"
+            bvnb_table_data.append([label, str(total), str(mentions), f"{rate}%", delta_str])
 
-        bvnb_table = Table(bvnb_table_data, colWidths=[3.5*cm, 2.5*cm, 2.5*cm, 3.5*cm])
+        bvnb_table = Table(bvnb_table_data, colWidths=[3*cm, 2*cm, 2*cm, 2.5*cm, 2.5*cm])
         bvnb_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#161616')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

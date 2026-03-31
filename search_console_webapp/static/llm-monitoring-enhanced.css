@@ -669,4 +669,83 @@
     .chart-scope-chips { flex-wrap: wrap; }
 }
 
+/* ============================================================================
+ * PERIOD-OVER-PERIOD: Trend Badges
+ * ============================================================================ */
+.branded-trend { font-size: 0.7rem; font-weight: 600; margin-left: 4px; white-space: nowrap; }
+.branded-trend--up { color: #059669; }
+.branded-trend--down { color: #dc2626; }
+.branded-trend--stable { color: #6b7280; }
+.branded-trend--new { color: #9ca3af; font-weight: 400; font-size: 0.65rem; }
 
+/* ============================================================================
+ * PERIOD-OVER-PERIOD: Delta Indicators for Comparison Table
+ * ============================================================================ */
+.delta { font-size: 0.7rem; font-weight: 600; margin-left: 6px; }
+.delta--up { color: #059669; }
+.delta--down { color: #dc2626; }
+.delta--stable { color: #6b7280; }
+.delta--new { color: #9ca3af; font-weight: 400; }
+
+/* ============================================================================
+ * PERIOD-OVER-PERIOD: Rich Chart Tooltip
+ * ============================================================================ */
+.llm-chart-tooltip {
+    position: absolute;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #fff;
+    pointer-events: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    z-index: 1000;
+    min-width: 220px;
+    max-width: 360px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.llm-chart-tooltip.active { opacity: 1; transform: translateY(0); }
+
+.llm-chart-tooltip__title {
+    font-weight: 600;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.llm-chart-tooltip__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.llm-chart-tooltip__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.llm-chart-tooltip__label { flex: 1; color: #cbd5e1; font-size: 12px; }
+.llm-chart-tooltip__value { font-weight: 700; font-size: 13px; color: #f1f5f9; }
+.llm-chart-tooltip__prev { font-size: 11px; color: #64748b; margin-left: 4px; }
+
+.llm-chart-tooltip__delta {
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+.llm-chart-tooltip__delta--up { color: #34d399; }
+.llm-chart-tooltip__delta--down { color: #f87171; }
+.llm-chart-tooltip__delta--stable { color: #94a3b8; }
