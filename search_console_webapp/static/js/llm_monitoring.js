@@ -2963,6 +2963,7 @@ class LLMMonitoring {
     async showModelsModal() {
         const modal = document.getElementById('modelsInfoModal');
         const content = document.getElementById('modelsInfoContent');
+        const cutoffContent = document.getElementById('knowledgeCutoffContent');
         if (!modal || !content) return;
 
         modal.style.display = 'flex';
@@ -2996,8 +2997,16 @@ class LLMMonitoring {
                     'perplexity': 'Perplexity'
                 };
 
+                const providerColors = {
+                    'openai': '#10b981',
+                    'anthropic': '#f97316',
+                    'google': '#3b82f6',
+                    'perplexity': '#8b5cf6'
+                };
+
+                // Render model cards
                 let html = '<div class="models-grid">';
-                
+
                 for (const [provider, model] of Object.entries(data.models)) {
                     html += `
                         <div class="model-card">
@@ -3015,6 +3024,27 @@ class LLMMonitoring {
 
                 html += '</div>';
                 content.innerHTML = html;
+
+                // Render knowledge cutoff dates dynamically
+                if (cutoffContent) {
+                    let cutoffHtml = '';
+                    for (const [provider, model] of Object.entries(data.models)) {
+                        const label = providerLabels[provider] || provider;
+                        const color = providerColors[provider] || '#6b7280';
+                        const cutoff = model.knowledge_cutoff || 'Unknown';
+                        const isWebGrounded = cutoff.toLowerCase().includes('web-grounded');
+
+                        cutoffHtml += `
+                            <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                                <span style="background: ${color}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap;">${label}</span>
+                                <span style="color: ${isWebGrounded ? '#059669' : '#374151'}; ${isWebGrounded ? 'font-weight: 600;' : ''}">
+                                    ${model.display_name}: ${isWebGrounded ? '🔍 ' : ''}${cutoff}
+                                </span>
+                            </div>
+                        `;
+                    }
+                    cutoffContent.innerHTML = cutoffHtml;
+                }
             } else {
                 throw new Error('Could not load models');
             }
@@ -3026,6 +3056,9 @@ class LLMMonitoring {
                     <p style="margin-top: 12px;">Failed to load models info</p>
                 </div>
             `;
+            if (cutoffContent) {
+                cutoffContent.innerHTML = '<div style="text-align: center; padding: 10px; color: #ef4444; grid-column: span 2;">Could not load cutoff dates</div>';
+            }
         }
     }
 

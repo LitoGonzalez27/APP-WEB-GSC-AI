@@ -2194,7 +2194,7 @@
                     </div>
                 </div>
                 
-                <!-- ✨ Knowledge Limitations Section -->
+                <!-- ✨ Knowledge Cutoff Section (populated dynamically from API) -->
                 <div style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border-left: 4px solid #f59e0b;">
                     <h4 style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-clock"></i>
@@ -2203,25 +2203,10 @@
                     <p style="margin: 0 0 12px 0; color: #78350f; font-size: 13px;">
                         Each model has a "knowledge cutoff" - the date until which it was trained. Information after this date may be outdated or unknown.
                     </p>
-                    <p style="margin: 0 0 12px 0; color: #92400e; font-size: 12px; font-weight: 600;">
-                        Last verified: Mar 15, 2026
-                    </p>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
-                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                            <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">ChatGPT</span>
-                            <span style="color: #374151;">GPT-5.4: Aug 31, 2025</span>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                            <span style="background: #f97316; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Claude</span>
-                            <span style="color: #374151;">Sonnet 4.6: May 2025</span>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                            <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Gemini</span>
-                            <span style="color: #374151;">Gemini 3 Flash: Jan 2025</span>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                            <span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Perplexity</span>
-                            <span style="color: #059669; font-weight: 600;">Sonar Pro: 🔍 Web-grounded</span>
+                    <div id="knowledgeCutoffContent" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px;">
+                        <!-- Populated dynamically by showModelsModal() -->
+                        <div style="text-align: center; padding: 10px; color: #92400e; grid-column: span 2;">
+                            <i class="fas fa-spinner fa-spin"></i> Loading cutoff dates...
                         </div>
                     </div>
                 </div>
