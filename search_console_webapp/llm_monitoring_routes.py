@@ -6025,6 +6025,43 @@ def export_project_pdf(project_id):
         ]
         for info in details_info:
             elements.append(Paragraph(info, st_body))
+        elements.append(Spacer(1, 0.4 * cm))
+
+        # ── LLM Models used ──
+        elements.append(Paragraph("LLM Models Used", st_subsection))
+        elements.append(Spacer(1, 0.2 * cm))
+        try:
+            conn_models = get_db_connection()
+            cur_models = conn_models.cursor()
+            cur_models.execute("""
+                SELECT llm_provider, model_id, model_display_name, knowledge_cutoff
+                FROM llm_model_registry
+                WHERE is_current = TRUE
+                ORDER BY llm_provider
+            """)
+            current_models = cur_models.fetchall()
+            cur_models.close()
+            conn_models.close()
+        except Exception:
+            current_models = []
+
+        if current_models:
+            model_header = ['LLM Provider', 'Model', 'Knowledge Cutoff']
+            model_rows = [model_header]
+            provider_display = {'openai': 'ChatGPT', 'anthropic': 'Claude', 'google': 'Gemini', 'perplexity': 'Perplexity'}
+            for m in current_models:
+                prov = provider_display.get(m.get('llm_provider', ''), m.get('llm_provider', ''))
+                model_name = m.get('model_display_name') or m.get('model_id', 'N/A')
+                cutoff = m.get('knowledge_cutoff') or 'Unknown'
+                model_rows.append([prov, model_name, cutoff])
+            model_widths = [3.5 * cm, 5.5 * cm, 6 * cm]
+            model_table = Table(model_rows, colWidths=model_widths)
+            model_style = _base_table_style(len(model_rows))
+            model_style.append(('ALIGN', (0, 1), (-1, -1), 'LEFT'))
+            model_table.setStyle(TableStyle(model_style))
+            elements.append(model_table)
+        else:
+            elements.append(Paragraph("Model information not available.", st_body))
         elements.append(Spacer(1, 0.5 * cm))
 
         # ── Competitors list ──

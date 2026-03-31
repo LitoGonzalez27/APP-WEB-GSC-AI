@@ -3577,7 +3577,7 @@ class LLMMonitoring {
     }
 
     /**
-     * ✨ Download project data as PDF (Screenshot-based like Manual AI)
+     * ✨ Download project data as PDF (server-side ReportLab)
      */
     async downloadPdf() {
         if (!this.currentProject) {
@@ -3588,399 +3588,47 @@ class LLMMonitoring {
         const btn = document.getElementById('llmDownloadPdfBtn');
         const spinner = btn?.querySelector('.download-spinner');
         const btnText = btn?.querySelector('span');
-        const excluded = Array.from(document.querySelectorAll('[data-pdf-exclude="true"], .section-header, .section-actions'));
-        const prevDisplay = new Map();
 
         try {
-            // Show loading state
             if (spinner) spinner.style.display = 'inline-block';
-            if (btnText) btnText.textContent = 'Preparing PDF...';
+            if (btnText) btnText.textContent = 'Generating PDF...';
             if (btn) btn.disabled = true;
 
-            console.log(`📥 Generating PDF with screenshots for project ${this.currentProject.id}...`);
+            const response = await fetch(
+                `${this.baseUrl}/projects/${this.currentProject.id}/export/pdf?days=${this.globalTimeRange}`
+            );
 
-            // Hide elements that shouldn't appear in PDF
-            excluded.forEach(el => {
-                prevDisplay.set(el, el.style.display);
-                el.style.display = 'none';
-            });
-
-            // Load html2canvas dynamically
-            const [{ default: html2canvas }] = await Promise.all([
-                import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')
-            ]);
-
-            // Load jsPDF if not already loaded
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                await new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
-                    s.onload = () => resolve();
-                    s.onerror = () => reject(new Error('Failed to load jsPDF'));
-                    document.head.appendChild(s);
-                });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'PDF generation failed');
             }
 
-            const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const margin = 20;
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const projectName = this.currentProject.name || 'LLM-Monitoring';
+            a.download = `llm-monitoring-${projectName.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-            // Function to add logo watermark in bottom-right corner
-            const addCornerLogo = async () => {
-                try {
-                    const logoEl = document.querySelector('.navbar .logo-image');
-                    const logoSrc = logoEl?.src || '/static/images/logos/logo%20clicandseo.png';
-                    const logoImg = new Image();
-                    logoImg.crossOrigin = 'anonymous';
-                    await new Promise((resolve) => { 
-                        logoImg.onload = resolve; 
-                        logoImg.onerror = resolve; 
-                        logoImg.src = logoSrc; 
-                    });
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = logoImg.naturalWidth || 0;
-                    tempCanvas.height = logoImg.naturalHeight || 0;
-                    if (tempCanvas.width && tempCanvas.height) {
-                        const ctx = tempCanvas.getContext('2d');
-                        ctx.drawImage(logoImg, 0, 0);
-                        const dataUrl = tempCanvas.toDataURL('image/png');
-                        const logoMargin = 16;
-                        const maxLogoWidth = Math.min(80, pageWidth * 0.18);
-                        const ratio = (logoImg.naturalHeight || 1) / (logoImg.naturalWidth || 1);
-                        const logoW = maxLogoWidth;
-                        const logoH = logoW * ratio;
-                        const x = pageWidth - logoW - logoMargin;
-                        const y = pageHeight - logoH - logoMargin;
-                        try { pdf.addImage(dataUrl, 'PNG', x, y, logoW, logoH); } catch (_) {}
-                    }
-                } catch (_) { /* silencioso */ }
-            };
-
-            // Helper: capture element optimized for PDF (balance quality vs size)
-            const captureElement = async (element, label = '') => {
-                if (!element) {
-                    console.warn(`⚠️ Element not found: ${label}`);
-                    return null;
-                }
-                if (btnText) btnText.textContent = `Capturing ${label}...`;
-                
-                const canvas = await html2canvas(element, { 
-                    scale: 2, // Reduced from 3 - still good quality, much smaller size
-                    useCORS: true, 
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    allowTaint: true,
-                    imageTimeout: 0,
-                    removeContainer: true,
-                    onclone: (clonedDoc, clonedElement) => {
-                        // Copy Chart.js canvas content to cloned elements
-                        const origCanvases = element.querySelectorAll('canvas');
-                        const clonedCanvases = clonedElement.querySelectorAll('canvas');
-                        origCanvases.forEach((orig, idx) => {
-                            if (clonedCanvases[idx]) {
-                                const clonedCtx = clonedCanvases[idx].getContext('2d');
-                                clonedCanvases[idx].width = orig.width;
-                                clonedCanvases[idx].height = orig.height;
-                                try { clonedCtx.drawImage(orig, 0, 0); } catch (e) {}
-                            }
-                        });
-                        
-                        // CRITICAL: Remove ALL animations - they start with opacity: 0
-                        clonedElement.querySelectorAll('*').forEach(el => {
-                            el.style.animation = 'none';
-                            el.style.animationDelay = '0s';
-                            el.style.transition = 'none';
-                            el.style.opacity = '1';
-                        });
-                        clonedElement.style.animation = 'none';
-                        clonedElement.style.opacity = '1';
-                        
-                        // Fix KPI values - gradient/transparent text doesn't render in html2canvas
-                        clonedElement.querySelectorAll('.kpi-value, .kpi-main-value, .kpi-label').forEach(val => {
-                            val.style.background = 'none';
-                            val.style.webkitBackgroundClip = 'unset';
-                            val.style.webkitTextFillColor = '#1a1a1a';
-                            val.style.backgroundClip = 'unset';
-                            val.style.color = '#1a1a1a';
-                            val.style.textShadow = 'none';
-                        });
-                        clonedElement.querySelectorAll('.kpi-trend').forEach(trend => {
-                            trend.style.webkitTextFillColor = 'inherit';
-                            trend.style.backgroundClip = 'padding-box';
-                        });
-                        
-                        // Ensure cards have solid white background
-                        clonedElement.querySelectorAll('.chart-card, .kpi-card').forEach(card => {
-                            card.style.background = '#ffffff';
-                        });
-                    }
-                });
-                
-                // Use JPEG with 85% quality - much smaller than PNG, still looks good
-                return { 
-                    imgData: canvas.toDataURL('image/jpeg', 0.85), 
-                    width: canvas.width, 
-                    height: canvas.height 
-                };
-            };
-
-            // Helper: add image to PDF with proper scaling
-            const addImageToPDF = (capture, yPos, maxHeight = null) => {
-                if (!capture) return yPos;
-                let imgW = pageWidth - (margin * 2);
-                let imgH = (capture.height / capture.width) * imgW;
-                
-                // If maxHeight is specified, scale down to fit
-                if (maxHeight && imgH > maxHeight) {
-                    const scaleFactor = maxHeight / imgH;
-                    imgW = imgW * scaleFactor;
-                    imgH = maxHeight;
-                }
-                
-                // If still too tall for page, scale to fit
-                if (imgH > pageHeight - (margin * 2)) {
-                    const scaleFactor = (pageHeight - (margin * 2)) / imgH;
-                    imgW = imgW * scaleFactor;
-                    imgH = imgH * scaleFactor;
-                }
-                
-                const xPos = (pageWidth - imgW) / 2; // Center horizontally
-                pdf.addImage(capture.imgData, 'JPEG', xPos, yPos, imgW, imgH);
-                return yPos + imgH + 8;
-            };
-
-            // Project info
-            const projectName = this.currentProject.name || 'LLM Monitoring';
-            const dateRange = `Last ${this.globalTimeRange} days`;
-            const generatedDate = new Date().toLocaleDateString('en-US', { 
-                year: 'numeric', month: 'long', day: 'numeric' 
-            });
-
-            // ================================================================
-            // PAGE 1: KPIs + Mention Rate by LLM + Share of Voice Over Time
-            // ================================================================
-            if (btnText) btnText.textContent = 'Page 1/4: Overview...';
-            
-            // Add header text to PDF
-            pdf.setFontSize(18);
-            pdf.setTextColor(22, 22, 22);
-            pdf.text('LLM Visibility Monitor Report', margin, margin + 16);
-            
-            pdf.setFontSize(10);
-            pdf.setTextColor(100, 100, 100);
-            pdf.text(`Project: ${projectName} | ${dateRange} | Generated: ${generatedDate}`, margin, margin + 30);
-            
-            // Separator line
-            pdf.setDrawColor(22, 22, 22);
-            pdf.setLineWidth(1.5);
-            pdf.line(margin, margin + 38, pageWidth - margin, margin + 38);
-            
-            let currentY = margin + 50;
-            
-            // Calculate available space for page 1 (3 sections must fit)
-            const availableHeight = pageHeight - currentY - margin - 40; // Leave space for logo
-            const sectionHeight = availableHeight / 3 - 5; // Divide equally
-
-            // Capture and add KPIs
-            const kpisGrid = document.getElementById('kpisGrid');
-            if (kpisGrid) {
-                const kpisCapture = await captureElement(kpisGrid, 'KPIs');
-                if (kpisCapture) {
-                    currentY = addImageToPDF(kpisCapture, currentY, sectionHeight);
-                }
-            }
-
-            // Capture Mention Rate by LLM (first charts-grid)
-            const mentionRateSection = document.querySelectorAll('.charts-grid')[0];
-            if (mentionRateSection) {
-                const mentionCapture = await captureElement(mentionRateSection, 'Mention Rate');
-                if (mentionCapture) {
-                    currentY = addImageToPDF(mentionCapture, currentY, sectionHeight);
-                }
-            }
-
-            // Capture Share of Voice Over Time (first chart-card-full-width) - MUST be on page 1
-            const sovTimeline = document.querySelectorAll('.chart-card-full-width')[0];
-            if (sovTimeline) {
-                const sovCapture = await captureElement(sovTimeline, 'SOV Timeline');
-                if (sovCapture) {
-                    // Use remaining space on page 1
-                    const remainingHeight = pageHeight - currentY - margin - 40;
-                    currentY = addImageToPDF(sovCapture, currentY, remainingHeight);
-                }
-            }
-            
-            await addCornerLogo();
-
-            // ================================================================
-            // PAGE 2: Total Mentions Over Time + Sentiment + SOV Distribution
-            // ================================================================
-            pdf.addPage();
-            if (btnText) btnText.textContent = 'Page 2/4: Distributions...';
-            currentY = margin;
-
-            // Total Mentions Over Time (second chart-card-full-width)
-            const mentionsTimeline = document.querySelectorAll('.chart-card-full-width')[1];
-            if (mentionsTimeline) {
-                const mentionsCapture = await captureElement(mentionsTimeline, 'Mentions Timeline');
-                if (mentionsCapture) {
-                    currentY = addImageToPDF(mentionsCapture, currentY);
-                }
-            }
-
-            // Sentiment + SOV Distribution (second charts-grid)
-            const distributionSection = document.querySelectorAll('.charts-grid')[1];
-            if (distributionSection) {
-                const distCapture = await captureElement(distributionSection, 'Distributions');
-                if (distCapture) {
-                    const imgW = pageWidth - (margin * 2);
-                    const imgH = (distCapture.height / distCapture.width) * imgW;
-                    if (currentY + imgH > pageHeight - margin - 60) {
-                        pdf.addPage();
-                        currentY = margin;
-                    }
-                    currentY = addImageToPDF(distCapture, currentY);
-                }
-            }
-            
-            await addCornerLogo();
-
-            // ================================================================
-            // PAGE 3: Prompts & Queries Table (ALL rows, no pagination)
-            // ================================================================
-            pdf.addPage();
-            if (btnText) btnText.textContent = 'Page 3/4: Prompts & Queries...';
-            
-            const queriesCard = document.getElementById('queriesTable')?.closest('.chart-card');
-            const queriesContainer = document.getElementById('queriesTable');
-            
-            if (queriesCard && queriesContainer && this.queriesData && this.queriesData.length > 0) {
-                // Temporarily render table without pagination for PDF
-                if (this.queriesGrid) {
-                    this.queriesGrid.destroy();
-                }
-                
-                // Build rows for all queries (same format as renderQueriesTable)
-                const allRows = this.queriesData.map((q, idx) => {
-                    // Use visibility_pct directly (same as original table)
-                    const visibilityPct = q.visibility_pct != null ? q.visibility_pct : 0;
-                    const visibilityStr = visibilityPct.toFixed(1);
-                    
-                    return [
-                        gridjs.html(`<span style="color: #666; font-size: 12px;">#${idx + 1}</span>`),
-                        q.prompt || 'N/A',
-                        q.country || 'N/A',
-                        q.language ? q.language.toUpperCase() : 'N/A',
-                        q.total_mentions || 0,
-                        gridjs.html(`
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <div style="flex: 1; background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden;">
-                                    <div style="height: 100%; background: linear-gradient(90deg, #22c55e ${visibilityPct}%, transparent ${visibilityPct}%); width: 100%; border-radius: 9999px;"></div>
-                                </div>
-                                <span style="min-width: 45px; text-align: right; font-weight: 600;">${visibilityStr}%</span>
-                            </div>
-                        `)
-                    ];
-                });
-                
-                // Create grid WITHOUT pagination for PDF
-                const pdfGrid = new gridjs.Grid({
-                    columns: [
-                        { id: 'num', name: '#', width: '50px', sort: false },
-                        { id: 'prompt', name: 'Prompt', width: '45%' },
-                        { id: 'country', name: 'Country', width: '80px' },
-                        { id: 'language', name: 'Language', width: '80px' },
-                        { id: 'mentions', name: 'Total Mentions', width: '120px' },
-                        { id: 'visibility', name: 'Avg Visibility %', width: '140px' }
-                    ],
-                    data: allRows,
-                    sort: false,
-                    search: false,
-                    pagination: false, // NO PAGINATION for PDF
-                    style: {
-                        table: { 'font-size': '13px' },
-                        th: {
-                            'background-color': '#161616',
-                            'color': '#D8F9B8',
-                            'font-weight': '700',
-                            'padding': '0.75rem'
-                        },
-                        td: { 'padding': '0.65rem' }
-                    }
-                }).render(queriesContainer);
-                
-                // Wait for grid to render
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Capture the full table
-                const queriesCapture = await captureElement(queriesCard, 'Queries Table');
-                
-                // Destroy PDF grid and restore original with pagination
-                pdfGrid.destroy();
-                this.renderQueriesTable(this.queriesData);
-                
-                // Add to PDF - may need multiple pages if very long
-                if (queriesCapture) {
-                    const imgW = pageWidth - (margin * 2);
-                    const imgH = (queriesCapture.height / queriesCapture.width) * imgW;
-                    
-                    if (imgH > pageHeight - (margin * 2)) {
-                        // Table is very tall, scale to fit one page
-                        const scaleFactor = (pageHeight - (margin * 2)) / imgH;
-                        const scaledW = imgW * scaleFactor;
-                        const scaledH = imgH * scaleFactor;
-                        const xCentered = (pageWidth - scaledW) / 2;
-                        pdf.addImage(queriesCapture.imgData, 'JPEG', xCentered, margin, scaledW, scaledH);
-                    } else {
-                        pdf.addImage(queriesCapture.imgData, 'JPEG', margin, margin, imgW, imgH);
-                    }
-                }
-            }
-            
-            await addCornerLogo();
-
-            // ================================================================
-            // PAGE 4: Top Mentioned URLs by LLMs
-            // ================================================================
-            pdf.addPage();
-            if (btnText) btnText.textContent = 'Page 4/4: Top URLs...';
-            
-            const urlsCard = document.getElementById('topUrlsLLMCard');
-            if (urlsCard) {
-                const urlsCapture = await captureElement(urlsCard, 'Top URLs');
-                if (urlsCapture) {
-                    addImageToPDF(urlsCapture, margin);
-                }
-            }
-            
-            await addCornerLogo();
-
-            // Save PDF
-            const fileName = `llm-monitoring-${projectName.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
-            pdf.save(fileName);
-            
-            // Success state
             if (btn) btn.classList.add('success');
             if (btnText) btnText.textContent = 'Downloaded!';
-
             setTimeout(() => {
                 if (btn) btn.classList.remove('success');
                 if (btnText) btnText.textContent = 'Download PDF';
             }, 2000);
 
             this.showSuccess('PDF generated successfully!');
-            console.log('✅ PDF generated with screenshots');
+            console.log('✅ PDF downloaded from server');
 
         } catch (error) {
             console.error('❌ Error generating PDF:', error);
             this.showError('Failed to generate PDF. Please try again.');
             if (btnText) btnText.textContent = 'Download PDF';
         } finally {
-            // Restore hidden elements (even on error)
-            if (excluded.length > 0) {
-                excluded.forEach(el => { el.style.display = prevDisplay.get(el) || ''; });
-            }
             if (spinner) spinner.style.display = 'none';
             if (btn) btn.disabled = false;
         }
