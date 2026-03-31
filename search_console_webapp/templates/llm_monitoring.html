@@ -557,7 +557,7 @@
                 <div class="branded-comparison-grid" id="brandedComparisonGrid" style="display:none;">
                     <div class="branded-card branded-card--non-branded">
                         <div class="branded-card__header">
-                            <span class="branded-badge branded-badge--organic">🌿 Non-Branded Queries</span>
+                            <span class="branded-badge branded-badge--organic">Non-Branded Prompts</span>
                             <span class="branded-card__tooltip" title="Metrics from generic queries that don't mention your brand name. These represent true organic visibility.">ⓘ</span>
                         </div>
                         <div class="branded-card__metrics">
@@ -570,14 +570,14 @@
                                 <span class="branded-metric__value" id="nonBrandedSOV">--</span>
                             </div>
                             <div class="branded-metric">
-                                <span class="branded-metric__label">Queries</span>
+                                <span class="branded-metric__label">Prompts</span>
                                 <span class="branded-metric__value" id="nonBrandedCount">--</span>
                             </div>
                         </div>
                     </div>
                     <div class="branded-card branded-card--branded">
                         <div class="branded-card__header">
-                            <span class="branded-badge branded-badge--branded">🏷️ Branded Queries</span>
+                            <span class="branded-badge branded-badge--branded">Branded Prompts</span>
                             <span class="branded-card__tooltip" title="Metrics from queries that explicitly contain your brand name. High mention rate is expected here.">ⓘ</span>
                         </div>
                         <div class="branded-card__metrics">
@@ -590,7 +590,7 @@
                                 <span class="branded-metric__value" id="brandedSOV">--</span>
                             </div>
                             <div class="branded-metric">
-                                <span class="branded-metric__label">Queries</span>
+                                <span class="branded-metric__label">Prompts</span>
                                 <span class="branded-metric__value" id="brandedCount">--</span>
                             </div>
                         </div>
@@ -719,8 +719,8 @@
                             <h3>Mention Rate by LLM</h3>
                             <div class="chart-scope-chips" data-chart="mentionRate">
                                 <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
-                                <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">🌿 Non-Branded</button>
-                                <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">🏷️ Branded</button>
+                                <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
+                                <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
                             </div>
                         </div>
                         <div class="chart-container">
@@ -740,8 +740,8 @@
                         </div>
                         <div class="chart-scope-chips" data-chart="sov">
                             <button class="scope-chip scope-chip--active" data-scope="all" title="Show all queries">All</button>
-                            <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">🌿 Non-Branded</button>
-                            <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">🏷️ Branded</button>
+                            <button class="scope-chip" data-scope="non_branded" title="Only generic queries without brand name — shows organic visibility">Non-Branded</button>
+                            <button class="scope-chip" data-scope="branded" title="Only queries that contain your brand name">Branded</button>
                         </div>
                     </div>
                     <div class="chart-container chart-container-timeline">
@@ -803,7 +803,7 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3>
-                            Prompts & Queries
+                            Prompts
                         </h3>
                     </div>
                     <div id="queriesTable"></div>
@@ -945,8 +945,8 @@
                             <label for="responsesQueryTypeFilter">Query Type</label>
                             <select id="responsesQueryTypeFilter" class="form-control">
                                 <option value="">All Queries</option>
-                                <option value="branded">🏷️ Branded</option>
-                                <option value="non-branded">🌿 Non-Branded</option>
+                                <option value="branded">Branded</option>
+                                <option value="non-branded">Non-Branded</option>
                             </select>
                         </div>
                     </div>

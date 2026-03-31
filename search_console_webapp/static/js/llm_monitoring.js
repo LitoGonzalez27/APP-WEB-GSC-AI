@@ -1546,8 +1546,7 @@ class LLMMonitoring {
         } else {
             sentimentHTML += `
                 <div class="kpi-trend trend-nodata" title="Not enough historical data to calculate trend">
-                    <i class="fas fa-clock"></i>
-                    <span>new</span>
+                    <span>&mdash;</span>
                 </div>
             `;
         }
@@ -1593,8 +1592,7 @@ class LLMMonitoring {
             // No hay datos de tendencia (primer período)
             html += `
                 <div class="kpi-trend trend-nodata" title="Not enough historical data to calculate trend">
-                    <i class="fas fa-clock"></i>
-                    <span>new</span>
+                    <span>&mdash;</span>
                 </div>
             `;
         }
@@ -1606,7 +1604,7 @@ class LLMMonitoring {
      * Compact trend badge for branded/non-branded comparison cards.
      */
     renderMiniTrend(trend) {
-        if (!trend) return '<span class="branded-trend branded-trend--new" title="Not enough historical data">&#x1F550; new</span>';
+        if (!trend) return '<span class="branded-trend branded-trend--new" title="Not enough historical data">&mdash;</span>';
         const titleText = `vs previous ${this.globalTimeRange} days: ${trend.previous}%`;
         if (trend.direction === 'up') return `<span class="branded-trend branded-trend--up" title="${titleText}">&uarr; +${trend.change}%</span>`;
         if (trend.direction === 'down') return `<span class="branded-trend branded-trend--down" title="${titleText}">&darr; -${trend.change}%</span>`;
@@ -1617,7 +1615,7 @@ class LLMMonitoring {
      * Format delta indicator for comparison table cells.
      */
     formatDelta(current, previous) {
-        if (previous === null || previous === undefined) return '<span class="delta delta--new">new</span>';
+        if (previous === null || previous === undefined) return '<span class="delta delta--new">&mdash;</span>';
         if (previous === 0) return current > 0 ? '<span class="delta delta--up">&uarr;</span>' : '';
         const change = ((current - previous) / previous) * 100;
         if (Math.abs(change) < 2) return '<span class="delta delta--stable">=</span>';
