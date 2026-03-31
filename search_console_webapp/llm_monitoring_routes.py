@@ -6243,37 +6243,125 @@ def export_project_pdf(project_id):
 
         elements.append(Spacer(1, 0.5 * cm))
 
-        # SOV distribution mini-chart (horizontal bar using Table)
-        if all_entity_mentions > 0:
-            elements.append(Paragraph("Share of Voice Distribution", st_subsection))
+        # SOV Over Time line chart (like the UI)
+        if comp_snapshots and all_entity_mentions > 0:
+            from reportlab.graphics.shapes import Drawing, Line, String, Rect
+            from reportlab.graphics.charts.lineplots import LinePlot
+            from reportlab.graphics.widgets.markers import makeMarker
+            from reportlab.graphics import renderPDF
+
+            elements.append(Paragraph("Share of Voice Over Time", st_subsection))
             elements.append(Spacer(1, 0.2 * cm))
 
-            bar_entities = [(project.get('brand_domain') or project['name'], brand_total_mentions, CLR_ACCENT)]
-            bar_colors_list = [
-                colors.HexColor('#EF4444'), colors.HexColor('#F97316'),
-                colors.HexColor('#10B981'), colors.HexColor('#8B5CF6'),
-            ]
-            for ci, (cn, cm_val) in enumerate(sorted_comps[:4]):
-                bar_entities.append((cn, cm_val, bar_colors_list[ci % len(bar_colors_list)]))
+            # Aggregate snapshots by date: brand mentions + competitor mentions
+            date_brand = {}  # date_str -> total brand mentions
+            date_comp = {}   # date_str -> {comp_name: mentions}
+            date_total = {}  # date_str -> total all mentions
 
-            # Build a simple text-based bar representation
-            bar_data = [['Entity', 'Share', 'Visual']]
-            for ename, ements, ecolor in bar_entities:
-                eshare = round((ements / all_entity_mentions) * 100, 1)
-                bar_block = '█' * max(1, int(eshare / 3))  # Scale: 3% per block
-                bar_data.append([ename.upper()[:20], f"{eshare}%", bar_block])
+            for snap in comp_snapshots:
+                ds = str(snap.get('snapshot_date', ''))
+                bm = int(snap.get('total_mentions') or 0)
+                date_brand[ds] = date_brand.get(ds, 0) + bm
 
-            bar_widths = [4 * cm, 2 * cm, 9 * cm]
-            bar_table = Table(bar_data, colWidths=bar_widths)
-            bar_style_cmds = _base_table_style(len(bar_data))
-            bar_style_cmds.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
-            bar_style_cmds.append(('ALIGN', (2, 1), (2, -1), 'LEFT'))
-            # Color the brand row
-            bar_style_cmds.append(('TEXTCOLOR', (2, 1), (2, 1), colors.HexColor('#059669')))
-            for ci in range(len(sorted_comps[:4])):
-                bar_style_cmds.append(('TEXTCOLOR', (2, ci + 2), (2, ci + 2), bar_colors_list[ci % len(bar_colors_list)]))
-            bar_table.setStyle(TableStyle(bar_style_cmds))
-            elements.append(bar_table)
+                breakdown = snap.get('competitor_breakdown') or {}
+                if isinstance(breakdown, str):
+                    import json as json_mod2
+                    try:
+                        breakdown = json_mod2.loads(breakdown)
+                    except Exception:
+                        breakdown = {}
+                for ck, cv in breakdown.items():
+                    ck_display = comp_display_map.get(ck.lower().strip(), ck.lower().strip())
+                    if ds not in date_comp:
+                        date_comp[ds] = {}
+                    date_comp[ds][ck_display] = date_comp[ds].get(ck_display, 0) + int(cv or 0)
+
+            sorted_dates = sorted(date_brand.keys())
+            if len(sorted_dates) >= 2:
+                # Calculate SOV % per date
+                chart_colors = [
+                    colors.HexColor('#3B82F6'),  # Brand: blue
+                    colors.HexColor('#EF4444'),  # Comp 1: red
+                    colors.HexColor('#F97316'),  # Comp 2: orange
+                    colors.HexColor('#10B981'),  # Comp 3: green
+                    colors.HexColor('#8B5CF6'),  # Comp 4: purple
+                ]
+
+                # Build SOV series for each entity
+                comp_names_ordered = [cn for cn, _ in sorted_comps[:4]]
+                all_series_names = [(project.get('brand_domain') or project['name'])] + comp_names_ordered
+
+                # Create data tuples for LinePlot: list of [(x, y), ...]
+                plot_data = []
+                for si, series_name in enumerate(all_series_names):
+                    series_points = []
+                    for di, ds in enumerate(sorted_dates):
+                        if si == 0:  # brand
+                            mentions = date_brand.get(ds, 0)
+                        else:
+                            mentions = date_comp.get(ds, {}).get(series_name, 0)
+                        # SOV for this date
+                        total_day = date_brand.get(ds, 0) + sum(date_comp.get(ds, {}).values())
+                        sov_pct = round((mentions / total_day) * 100, 1) if total_day > 0 else 0
+                        series_points.append((di, sov_pct))
+                    plot_data.append(series_points)
+
+                # Create Drawing
+                chart_w = usable_width
+                chart_h = 6.5 * cm
+                drawing = Drawing(float(chart_w), float(chart_h))
+
+                # Background
+                drawing.add(Rect(0, 0, float(chart_w), float(chart_h),
+                                 fillColor=colors.HexColor('#FAFAFA'), strokeColor=None))
+
+                lp = LinePlot()
+                lp.x = 40
+                lp.y = 30
+                lp.width = float(chart_w) - 60
+                lp.height = float(chart_h) - 55
+                lp.data = plot_data
+
+                # Style each line
+                for si in range(len(all_series_names)):
+                    lp.lines[si].strokeColor = chart_colors[si % len(chart_colors)]
+                    lp.lines[si].strokeWidth = 2.5 if si == 0 else 1.5
+                    lp.lines[si].symbol = makeMarker('Circle')
+                    lp.lines[si].symbol.size = 4 if si == 0 else 3
+
+                # Axes
+                lp.xValueAxis.valueMin = 0
+                lp.xValueAxis.valueMax = len(sorted_dates) - 1
+                lp.xValueAxis.valueSteps = list(range(len(sorted_dates)))
+                lp.xValueAxis.labelTextFormat = lambda v: sorted_dates[int(v)][-5:] if 0 <= int(v) < len(sorted_dates) else ''
+                lp.xValueAxis.labels.fontSize = 7
+                lp.xValueAxis.labels.angle = 0
+                lp.xValueAxis.strokeColor = colors.HexColor('#E5E7EB')
+
+                lp.yValueAxis.valueMin = 0
+                lp.yValueAxis.valueMax = 100
+                lp.yValueAxis.valueStep = 20
+                lp.yValueAxis.labelTextFormat = '%d%%'
+                lp.yValueAxis.labels.fontSize = 7
+                lp.yValueAxis.strokeColor = colors.HexColor('#E5E7EB')
+                lp.yValueAxis.gridStrokeColor = colors.HexColor('#F3F4F6')
+                lp.yValueAxis.visibleGrid = 1
+
+                drawing.add(lp)
+
+                # Legend text at bottom
+                legend_x = 40
+                for si, sn in enumerate(all_series_names):
+                    color = chart_colors[si % len(chart_colors)]
+                    drawing.add(Rect(legend_x, 5, 8, 8, fillColor=color, strokeColor=None))
+                    label = sn[:15].upper()
+                    drawing.add(String(legend_x + 11, 6, label, fontSize=6,
+                                       fillColor=colors.HexColor('#6B7280')))
+                    legend_x += len(label) * 4 + 22
+
+                elements.append(drawing)
+            else:
+                elements.append(Paragraph("Not enough data points for SOV trend chart.", st_no_data))
 
         elements.append(Spacer(1, 0.5 * cm))
 
