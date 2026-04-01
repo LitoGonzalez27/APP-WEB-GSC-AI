@@ -529,16 +529,35 @@ export class AIModeSystem {
     }
 
     showSuccess(message) {
-        alert('✅ ' + message);
+        this._showToastUI(message, 'success', 4000);
     }
 
     showError(message) {
-        alert('❌ ' + message);
+        this._showToastUI(message, 'error', 5000);
     }
 
     showToast(message, type = 'info', duration = 3000) {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        // Can be enhanced with a proper toast UI
+        this._showToastUI(message, type, duration);
+    }
+
+    _showToastUI(message, type, duration) {
+        type = type || 'info';
+        duration = duration || 5000;
+        const borderColors = { success: '#3CB371', error: '#E05252', warning: '#E05252', info: '#0F172A' };
+        const toast = document.createElement('div');
+        toast.setAttribute('role', 'alert');
+        toast.style.cssText =
+            "position:fixed;top:88px;right:18px;padding:14px 16px;border-radius:20px;color:#0F172A;" +
+            "font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;" +
+            "font-size:0.875rem;line-height:1.6;font-weight:500;z-index:10000;" +
+            "transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);" +
+            "box-shadow:0 2px 4px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.08);" +
+            "background:#FFFFFF;border:1px solid #E2E8F0;" +
+            "border-left:4px solid " + (borderColors[type] || borderColors.info) + ";" +
+            "max-width:420px;word-wrap:break-word;";
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
     }
 
     showDownloadButton(show = true) {

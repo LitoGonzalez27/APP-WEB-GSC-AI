@@ -621,7 +621,7 @@ def setup_auth_routes(app):
             })
         except Exception as e:
             logger.error(f"Error listando propiedades agregadas: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
     # ================================
     # Rutas para Password Reset
     # ================================
@@ -848,7 +848,7 @@ def setup_auth_routes(app):
             password = data.get('password')
             recaptcha_token = data.get('recaptcha_token')
             if not email or not password:
-                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+                return jsonify({'error': 'Email and password are required'}), 400
 
             # ✅ reCAPTCHA v3 (si está configurado)
             if not verify_recaptcha(recaptcha_token, action='signup'):
@@ -873,11 +873,11 @@ def setup_auth_routes(app):
                     except Exception:
                         pass
                     login_url += f"&plan={signup_plan}&source={signup_source}&interval={signup_interval}{extra_qs}"
-                return jsonify({'error': 'Ya tienes una cuenta activa. Inicia sesión para continuar.', 'next': login_url}), 400
+                return jsonify({'error': 'An account with this email already exists. Please sign in.', 'next': login_url}), 400
 
             new_user = create_user(email=email, name=name, password=password, auto_activate=True)
             if not new_user:
-                return jsonify({'error': 'No se pudo crear el usuario'}), 500
+                return jsonify({'error': 'Failed to create account. Please try again.'}), 500
 
             # Enviar email de bienvenida (no bloquear flujo)
             try:
@@ -961,7 +961,7 @@ def setup_auth_routes(app):
             })
         except Exception as e:
             logger.error(f"Error en email signup: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/auth/email/login', methods=['POST'])
     def email_login_route():
@@ -971,7 +971,7 @@ def setup_auth_routes(app):
             password = data.get('password')
             recaptcha_token = data.get('recaptcha_token')
             if not email or not password:
-                return jsonify({'error': 'Email y contraseña son obligatorios'}), 400
+                return jsonify({'error': 'Email and password are required'}), 400
 
             # ✅ reCAPTCHA v3 (si está configurado)
             if not verify_recaptcha(recaptcha_token, action='login'):
@@ -979,9 +979,9 @@ def setup_auth_routes(app):
 
             user = authenticate_user(email, password)
             if not user:
-                return jsonify({'error': 'Credenciales inválidas'}), 401
+                return jsonify({'error': 'Invalid email or password'}), 401
             if not user['is_active']:
-                return jsonify({'error': 'Cuenta suspendida'}), 403
+                return jsonify({'error': 'Account suspended'}), 403
 
             session['user_id'] = user['id']
             session['user_email'] = user['email']
@@ -1024,7 +1024,7 @@ def setup_auth_routes(app):
             return jsonify({'success': True, 'next': next_url})
         except Exception as e:
             logger.error(f"Error en email login: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
 
 
@@ -1462,7 +1462,7 @@ def setup_auth_routes(app):
             logger.info(f"Usuario desconectado: {user_email}")
             
             if request.method == 'POST':
-                return jsonify({'success': True, 'message': 'Sesión cerrada exitosamente'})
+                return jsonify({'success': True, 'message': 'Signed out successfully'})
             else:
                 flash('Sesión cerrada exitosamente', 'success')
                 return redirect(url_for('login_page'))
@@ -1551,7 +1551,7 @@ def setup_auth_routes(app):
             logger.error(f"Error obteniendo estado de autenticación: {e}")
             return jsonify({
                 'authenticated': False,
-                'error': 'Error interno del servidor'
+                'error': 'Internal server error'
             }), 500
 
     @app.route('/auth/keepalive', methods=['POST'])
@@ -1567,7 +1567,7 @@ def setup_auth_routes(app):
             })
         except Exception as e:
             logger.error(f"Error en keepalive: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/auth/user')
     @auth_required
@@ -1590,7 +1590,7 @@ def setup_auth_routes(app):
             
         except Exception as e:
             logger.error(f"Error obteniendo información del usuario: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
 
 
@@ -1698,14 +1698,14 @@ def setup_auth_routes(app):
                 
             except Exception as fallback_error:
                 logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
-                return jsonify({'success': False, 'error': 'Error obteniendo datos del usuario'}), 500
+                return jsonify({'success': False, 'error': 'Failed to load user data'}), 500
             finally:
                 if conn:
                     conn.close()
             
         except Exception as e:
             logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/debug-stats')
     @admin_required 
@@ -1798,7 +1798,7 @@ def setup_auth_routes(app):
             
             return jsonify({
                 'success': True,
-                'message': f'Se actualizaron {affected_rows} usuarios con fechas válidas',
+                'message': f'Updated {affected_rows} users with valid dates',
                 'affected_rows': affected_rows
             })
             
@@ -1844,7 +1844,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error toggling user status: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/update-role', methods=['POST'])
     @admin_required
@@ -1855,7 +1855,7 @@ def setup_auth_routes(app):
             new_role = data.get('role')
             
             if new_role not in ['user', 'admin']:
-                return jsonify({'error': 'Rol inválido. Solo permitidos: user, admin'}), 400
+                return jsonify({'error': 'Invalid role. Only allowed: user, admin'}), 400
             
             user = get_user_by_id(user_id)
             if not user:
@@ -1884,7 +1884,7 @@ def setup_auth_routes(app):
 
         except Exception as e:
             logger.error(f"Error updating user role: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     # ================================
     # RUTAS DE PERFIL DE USUARIO
@@ -1940,7 +1940,7 @@ def setup_auth_routes(app):
             return jsonify({'connections': safe})
         except Exception as e:
             logger.error(f"Error listando conexiones: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/connections/<int:connection_id>/refresh', methods=['POST'])
     @auth_required
@@ -2006,11 +2006,11 @@ def setup_auth_routes(app):
             
             # Verificar formato de email básico
             if '@' not in email or '.' not in email:
-                return jsonify({'error': 'Formato de email inválido'}), 400
+                return jsonify({'error': 'Invalid email format'}), 400
 
             # Si el usuario está vinculado con Google, no permitir cambiar email desde la app
             if current_user.get('google_id') and email != current_user['email']:
-                return jsonify({'error': 'Tu cuenta está vinculada con Google. No puedes cambiar el email desde la aplicación.'}), 400
+                return jsonify({'error': 'Your account is linked with Google. You cannot change the email from the application.'}), 400
             
             # Actualizar perfil
             result = update_user_profile(current_user['id'], name=name, email=email)
@@ -2029,7 +2029,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error actualizando perfil: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/profile/change-password', methods=['POST'])
     @auth_required
@@ -2046,10 +2046,10 @@ def setup_auth_routes(app):
                 return jsonify({'error': 'Todos los campos son obligatorios'}), 400
             
             if new_password != confirm_password:
-                return jsonify({'error': 'Las contraseñas nuevas no coinciden'}), 400
+                return jsonify({'error': 'New passwords do not match'}), 400
             
             if len(new_password) < 8:
-                return jsonify({'error': 'La nueva contraseña debe tener al menos 8 caracteres'}), 400
+                return jsonify({'error': 'New password must be at least 8 characters'}), 400
             
             current_user = get_current_user()
             if not current_user:
@@ -2065,7 +2065,7 @@ def setup_auth_routes(app):
             
         except Exception as e:
             logger.error(f"Error cambiando contraseña: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     # ================================
     # RUTAS DE ADMINISTRACIÓN AVANZADA
@@ -2080,10 +2080,10 @@ def setup_auth_routes(app):
             new_password = data.get('new_password')
             
             if not new_password:
-                return jsonify({'error': 'Nueva contraseña es requerida'}), 400
+                return jsonify({'error': 'New password is required'}), 400
             
             if len(new_password) < 8:
-                return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+                return jsonify({'error': 'Password must be at least 8 characters'}), 400
             
             current_admin = get_current_user()
             if not current_admin:
@@ -2099,7 +2099,7 @@ def setup_auth_routes(app):
             
         except Exception as e:
             logger.error(f"Error restableciendo contraseña: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
     @admin_required
@@ -2143,7 +2143,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error eliminando usuario: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/admin/stats/detailed')
     @admin_required
@@ -2154,7 +2154,7 @@ def setup_auth_routes(app):
             return jsonify(stats)
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas detalladas: {e}")
-            return jsonify({'error': 'Error interno del servidor'}), 500
+            return jsonify({'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/change-plan', methods=['POST'])
     @admin_required
@@ -2180,7 +2180,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error cambiando plan de usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/assign-custom-quota', methods=['POST'])
     @admin_required
@@ -2215,7 +2215,7 @@ def setup_auth_routes(app):
 
         except Exception as e:
             logger.error(f"Error asignando custom quota a usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/remove-custom-quota', methods=['POST'])
     @admin_required
@@ -2236,7 +2236,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error removiendo custom quota de usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/reset-quota', methods=['POST'])
     @admin_required
@@ -2257,7 +2257,7 @@ def setup_auth_routes(app):
                 
         except Exception as e:
             logger.error(f"Error reseteando quota de usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/users/<int:user_id>/invitations')
     @admin_required
@@ -2296,7 +2296,7 @@ def setup_auth_routes(app):
             return jsonify({'success': True, 'invitations': invitations})
         except Exception as e:
             logger.error(f"Error obteniendo invitaciones de usuario {user_id}: {e}")
-            return jsonify({'success': False, 'error': 'Error interno'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.route('/admin/audit-log')
     @admin_required
@@ -2342,7 +2342,7 @@ def setup_auth_routes(app):
             return jsonify({'success': True, 'actions': actions})
         except Exception as e:
             logger.error(f"Error obteniendo audit log: {e}")
-            return jsonify({'success': False, 'error': 'Error interno'}), 500
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""

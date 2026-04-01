@@ -5,6 +5,29 @@ import { MobileModalManager, isMobileDevice } from './utils.js';
 // Instancia global del gestor de modal robusto
 let serpModalManager = null;
 
+// --- Toast helper for SERP modal — Clicandseo brandbook ---
+function _serpShowToast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 5000;
+  const borderColors = { success: '#3CB371', error: '#E05252', warning: '#E05252', info: '#0F172A' };
+  const toast = document.createElement('div');
+  toast.setAttribute('role', 'alert');
+  toast.style.cssText =
+    "position:fixed;top:88px;right:18px;padding:14px 16px;border-radius:20px;color:#0F172A;" +
+    "font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;" +
+    "font-size:0.875rem;line-height:1.6;font-weight:500;z-index:10000;" +
+    "transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);" +
+    "box-shadow:0 2px 4px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.08);" +
+    "background:#FFFFFF;border:1px solid #E2E8F0;" +
+    "border-left:4px solid " + (borderColors[type] || borderColors.info) + ";" +
+    "max-width:420px;word-wrap:break-word;";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
+}
+// Expose globally for inline onclick handlers
+window._serpShowToast = _serpShowToast;
+
 // --- Funciones auxiliares ---
 function escapeHtml(unsafe) {
   if (typeof unsafe !== 'string') return '';
@@ -133,14 +156,14 @@ export function openSerpModal(keyword, userSpecificUrl) {
   const modal = document.getElementById('serpModal');
   if (!modal) {
     console.error('Missing #serpModal element in the DOM.');
-    alert('Error: The SERP modal component is not available.');
+    _serpShowToast('Error: The SERP modal component is not available.', 'error');
     return;
   }
 
   const siteUrlElement = document.querySelector('select[name="site_url"]');
   const siteUrlScProperty = siteUrlElement ? siteUrlElement.value : '';
   if (!siteUrlScProperty) {
-    alert('Please select a Search Console property first.');
+    _serpShowToast('Please select a Search Console property first.', 'warning');
     return;
   }
 
@@ -503,7 +526,7 @@ function _renderAIOPreviewTab(result) {
     : 'Get recommendations to appear in AI Overview';
   html += `
     <div class="saio-cta-wrapper">
-      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { alert('AI Recommendations not available. Run the AI Overview analysis first.'); }">
+      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
         <i class="fas fa-lightbulb"></i>
         <span>${ctaText}</span>
         <i class="fas fa-arrow-right saio-cta-arrow"></i>

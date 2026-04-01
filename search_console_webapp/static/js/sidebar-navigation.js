@@ -1,7 +1,28 @@
 /*=============================================
   SIDEBAR NAVIGATION SYSTEM
-  Sistema de navegación lateral para mejorar UX
+  Sistema de navegacion lateral para mejorar UX
 =============================================*/
+
+// Lightweight toast helper for sidebar — follows Clicandseo brandbook
+function _sidebarShowToast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 5000;
+  var borderColors = { success: '#3CB371', error: '#E05252', warning: '#E05252', info: '#0F172A' };
+  var toast = document.createElement('div');
+  toast.setAttribute('role', 'alert');
+  toast.style.cssText =
+    'position:fixed;top:88px;right:18px;padding:14px 16px;border-radius:20px;color:#0F172A;' +
+    "font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;" +
+    'font-size:0.875rem;line-height:1.6;font-weight:500;z-index:10000;' +
+    'transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);' +
+    'box-shadow:0 2px 4px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.08);' +
+    'background:#FFFFFF;border:1px solid #E2E8F0;' +
+    'border-left:4px solid ' + (borderColors[type] || borderColors.info) + ';' +
+    'max-width:420px;word-wrap:break-word;';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, duration);
+}
 
 class SidebarNavigation {
   constructor() {
@@ -802,7 +823,7 @@ class SidebarNavigation {
         if (errorData.reauth_required) {
           alertMessage += '\nGoogle authentication failed or expired. Please reload the page to re-authenticate.';
         }
-        alert(alertMessage);
+        _sidebarShowToast(alertMessage, 'error', 6000);
         return;
       }
 
@@ -815,9 +836,9 @@ class SidebarNavigation {
     } catch (error) {
       console.error('❌ Error al descargar Excel:', error);
       if (error?.message === 'NO_DATA') {
-        alert('No data to download. Please run a query first.');
+        _sidebarShowToast('No data to download. Please run a query first.', 'warning');
       } else {
-        alert('An unexpected error occurred while trying to download the Excel file.');
+        _sidebarShowToast('An unexpected error occurred while trying to download the Excel file.', 'error');
       }
     } finally {
       this.setDownloadButtonLoadingState(buttonId, false);
@@ -853,9 +874,9 @@ class SidebarNavigation {
     } catch (error) {
       console.error('❌ Error al descargar JSON:', error);
       if (error?.message === 'NO_DATA') {
-        alert('No data to download. Please run a query first.');
+        _sidebarShowToast('No data to download. Please run a query first.', 'warning');
       } else {
-        alert('An unexpected error occurred while trying to download the JSON file.');
+        _sidebarShowToast('An unexpected error occurred while trying to download the JSON file.', 'error');
       }
     } finally {
       this.setDownloadButtonLoadingState(buttonId, false);
@@ -868,14 +889,14 @@ class SidebarNavigation {
     
     // Verificar que estamos en la sección AI Overview
     if (this.currentSection !== 'ai-overview') {
-      alert('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.');
+      _sidebarShowToast('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.', 'warning', 5000);
       return;
     }
 
     // Verificar que hay datos de AI Overview disponibles
     const aiResults = document.getElementById('aiOverviewResultsContainer');
     if (!aiResults || aiResults.style.display === 'none') {
-      alert('No AI Overview data to export. Please run an AI analysis first.');
+      _sidebarShowToast('No AI Overview data to export. Please run an AI analysis first.', 'warning');
       return;
     }
 
@@ -888,7 +909,7 @@ class SidebarNavigation {
       
     } catch (error) {
       console.error('❌ Error al cargar o ejecutar el módulo de PDF:', error);
-      alert(`Error generating PDF: ${error.message}`);
+      _sidebarShowToast('Error generating PDF: ' + error.message, 'error', 5000);
     }
   }
 
