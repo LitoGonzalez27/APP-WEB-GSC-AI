@@ -261,7 +261,7 @@ async function loadWatermarkLogo() {
     if (_cachedLogo) return _cachedLogo;
     try {
         const logoEl = document.querySelector('.navbar .logo-image');
-        const logoSrc = logoEl?.src || '/static/images/logos/logo%20clicandseo.png';
+        const logoSrc = logoEl?.src || '/static/images/logos/logo-clicandseo-light.svg';
         const img = new Image();
         img.crossOrigin = 'anonymous';
         await new Promise(r => { img.onload = r; img.onerror = r; img.src = logoSrc; });

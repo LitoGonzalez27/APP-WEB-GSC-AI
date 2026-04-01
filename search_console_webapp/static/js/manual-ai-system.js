@@ -4760,7 +4760,7 @@ class ManualAISystem {
             const addCornerLogo = async () => {
                 try {
                     const logoEl = document.querySelector('.navbar .logo-image');
-                    const logoSrc = logoEl?.src || '/static/images/logos/logo%20clicandseo.png';
+                    const logoSrc = logoEl?.src || '/static/images/logos/logo-clicandseo-light.svg';
                     const logoImg = new Image();
                     logoImg.crossOrigin = 'anonymous';
                     await new Promise((resolve) => { logoImg.onload = resolve; logoImg.onerror = resolve; logoImg.src = logoSrc; });
