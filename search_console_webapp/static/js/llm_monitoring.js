@@ -878,23 +878,16 @@ class LLMMonitoring {
             }
         });
 
-        // ✨ NUEVO: Event listeners para filtros de Mención y Sentimiento (filtrado del lado del cliente)
-        document.getElementById('responsesMentionFilter')?.addEventListener('change', () => {
-            if (this.allResponses && this.allResponses.length > 0) {
-                this.applyClientSideFilters();
-            }
+        // Client-side filters: Mention, Sentiment, Prompt Type
+        ['responsesMentionFilter', 'responsesSentimentFilter', 'responsesQueryTypeFilter'].forEach(filterId => {
+            document.getElementById(filterId)?.addEventListener('change', () => {
+                if (this.allResponses && this.allResponses.length > 0) {
+                    this.applyClientSideFilters();
+                } else if (this.currentProject?.id) {
+                    this.loadResponses();
+                }
+            });
         });
-
-        document.getElementById('responsesSentimentFilter')?.addEventListener('change', () => {
-            if (this.allResponses && this.allResponses.length > 0) {
-                this.applyClientSideFilters();
-            }
-        });
-
-        const queryTypeFilter = document.getElementById('responsesQueryTypeFilter');
-        if (queryTypeFilter) {
-            queryTypeFilter.addEventListener('change', () => this.applyClientSideFilters());
-        }
 
         // Scope chips for Mention Rate and SOV charts
         document.querySelectorAll('.chart-scope-chips').forEach(container => {
@@ -1326,13 +1319,21 @@ class LLMMonitoring {
     async viewProject(projectId) {
         console.log(`📊 Loading metrics for project ${projectId}...`);
 
-        const previousProjectId = this.currentProject?.id;
-        if (previousProjectId && previousProjectId !== projectId) {
-            this.responsesLoaded = false;
-            this.allResponses = [];
-            this.filteredResponses = null;
-            this.currentDisplayResponses = [];
-        }
+        // Always reset responses state when loading a project
+        this.responsesLoaded = false;
+        this.allResponses = [];
+        this.filteredResponses = null;
+        this.currentDisplayResponses = [];
+        // Clear responses DOM immediately
+        const respContainer = document.getElementById('responsesContainer');
+        if (respContainer) respContainer.innerHTML = '';
+        const respStatus = document.getElementById('responsesStatus');
+        if (respStatus) respStatus.textContent = '';
+        // Reset all response filters
+        ['responsesQueryFilter', 'responsesLLMFilter', 'responsesMentionFilter', 'responsesSentimentFilter', 'responsesQueryTypeFilter'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
 
         this.currentProject = { id: projectId };
 
@@ -1407,6 +1408,9 @@ class LLMMonitoring {
 
             // Load detailed metrics
             await this.loadMetrics(projectId);
+
+            // Auto-load responses for the project
+            this.loadResponses();
 
         } catch (error) {
             console.error('❌ Error loading project:', error);
@@ -1647,6 +1651,10 @@ class LLMMonitoring {
             const chart = context.chart;
             const titleText = tooltipModel.title[0] || '';
 
+            // Detect if this is the SOV chart (has previous period averages)
+            const isSovChart = chart.canvas.id === 'chartShareOfVoice';
+            const prevAvg = isSovChart ? (this.sovPreviousPeriodAvg || {}) : {};
+
             let rows = '';
             chart.data.datasets.forEach((ds, i) => {
                 const meta = chart.getDatasetMeta(i);
@@ -1656,10 +1664,21 @@ class LLMMonitoring {
                 const color = ds.borderColor || ds.backgroundColor || '#888';
                 const isPercentMetric = ds.label && (ds.label.toLowerCase().includes('voice') || ds.label.toLowerCase().includes('rate'));
                 const displayVal = isPercentMetric ? `${Number(value).toFixed(1)}%` : Math.round(value);
+
+                // Previous period comparison for SOV chart
+                let prevHtml = '';
+                const prevVal = prevAvg[ds.label];
+                if (prevVal !== undefined && prevVal !== null && isPercentMetric) {
+                    const delta = (Number(value) - prevVal).toFixed(1);
+                    const sign = delta > 0 ? '+' : '';
+                    const cls = delta > 0 ? 'up' : delta < 0 ? 'down' : 'stable';
+                    prevHtml = `<span class="llm-chart-tooltip__prev">prev ${prevVal}% <span class="delta delta--${cls}">${sign}${delta}pp</span></span>`;
+                }
+
                 rows += `<div class="llm-chart-tooltip__row">
                     <span class="llm-chart-tooltip__dot" style="background:${color}"></span>
                     <span class="llm-chart-tooltip__label">${ds.label}</span>
-                    <span class="llm-chart-tooltip__value">${displayVal}</span>
+                    <span class="llm-chart-tooltip__value">${displayVal}${prevHtml}</span>
                 </div>`;
             });
 
@@ -2168,6 +2187,9 @@ class LLMMonitoring {
             }
 
             const { dates, datasets } = result;
+
+            // Store previous period averages for tooltip use
+            this.sovPreviousPeriodAvg = result.previous_period_avg || {};
 
             // Si no hay datos, simplemente retornar sin renderizar
             if (!dates || dates.length === 0 || !datasets || datasets.length === 0) {
