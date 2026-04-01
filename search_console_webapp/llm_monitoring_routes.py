@@ -4038,12 +4038,68 @@ def get_share_of_voice_history(project_id):
                 donut_values.append(comp_percentage)
                 donut_colors.append(competitor_colors[idx % len(competitor_colors)])
         
+        # ── Previous period averages for tooltip comparison ──
+        prev_period_avg = {}
+        try:
+            prev_end = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            prev_start = (datetime.now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
+
+            prev_conn = get_db_connection()
+            if prev_conn:
+                prev_cur = prev_conn.cursor()
+                prev_sov_query = """
+                    SELECT snapshot_date, llm_provider,
+                           total_mentions, total_competitor_mentions, competitor_breakdown,
+                           share_of_voice, weighted_share_of_voice,
+                           weighted_competitor_breakdown
+                    FROM llm_monitoring_snapshots
+                    WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date < %s
+                """
+                prev_params = [project_id, prev_start, prev_end]
+                if enabled_llms_filter:
+                    prev_sov_query += " AND llm_provider = ANY(%s)"
+                    prev_params.append(enabled_llms_filter)
+                prev_sov_query += " ORDER BY snapshot_date"
+                prev_cur.execute(prev_sov_query, prev_params)
+                prev_snaps = prev_cur.fetchall()
+                prev_cur.close()
+                prev_conn.close()
+
+                if prev_snaps:
+                    # Aggregate previous period brand + competitor mentions
+                    prev_brand_total = 0
+                    prev_comp_totals = defaultdict(int)
+                    for ps in prev_snaps:
+                        prev_brand_total += int(ps.get('total_mentions') or 0)
+                        breakdown_key = 'weighted_competitor_breakdown' if metric_type == 'weighted' else 'competitor_breakdown'
+                        bd = ps.get(breakdown_key) or ps.get('competitor_breakdown') or {}
+                        if isinstance(bd, str):
+                            try:
+                                bd = json.loads(bd)
+                            except Exception:
+                                bd = {}
+                        if isinstance(bd, dict):
+                            for ck, cv in bd.items():
+                                ck_lower = ck.lower().strip()
+                                mapped = competitor_mapping.get(ck_lower) or competitor_mapping.get(normalize_variant(ck_lower))
+                                if mapped:
+                                    prev_comp_totals[mapped] += int(cv or 0)
+
+                    prev_grand = prev_brand_total + sum(prev_comp_totals.values())
+                    if prev_grand > 0:
+                        prev_period_avg[brand_name] = round((prev_brand_total / prev_grand) * 100, 1)
+                        for comp_dom, comp_ment in prev_comp_totals.items():
+                            disp = competitor_display_names.get(comp_dom, get_display_name(comp_dom))
+                            prev_period_avg[disp] = round((comp_ment / prev_grand) * 100, 1)
+        except Exception as prev_err:
+            logger.warning(f"Could not compute previous period SOV: {prev_err}")
+
         return jsonify({
             'success': True,
-            'metric_type': metric_type,  # ✨ NUEVO: Indicar qué métrica se está usando
+            'metric_type': metric_type,
             'dates': dates,
-            'datasets': datasets,  # Share of Voice (%)
-            'mentions_datasets': mentions_datasets,  # Menciones absolutas
+            'datasets': datasets,
+            'mentions_datasets': mentions_datasets,
             'donut_data': {
                 'labels': donut_labels,
                 'values': donut_values,
@@ -4053,7 +4109,8 @@ def get_share_of_voice_history(project_id):
                 'start_date': start_date,
                 'end_date': end_date,
                 'days': days
-            }
+            },
+            'previous_period_avg': prev_period_avg
         }), 200
         
     except Exception as e:
@@ -6081,43 +6138,6 @@ def export_project_pdf(project_id):
         for info in details_info:
             elements.append(Paragraph(info, st_body))
         elements.append(Spacer(1, 0.4 * cm))
-
-        # ── LLM Models used ──
-        elements.append(Paragraph("LLM Models Used", st_subsection))
-        elements.append(Spacer(1, 0.2 * cm))
-        try:
-            conn_models = get_db_connection()
-            cur_models = conn_models.cursor()
-            cur_models.execute("""
-                SELECT llm_provider, model_id, model_display_name, knowledge_cutoff
-                FROM llm_model_registry
-                WHERE is_current = TRUE
-                ORDER BY llm_provider
-            """)
-            current_models = cur_models.fetchall()
-            cur_models.close()
-            conn_models.close()
-        except Exception:
-            current_models = []
-
-        if current_models:
-            model_header = ['LLM Provider', 'Model', 'Knowledge Cutoff']
-            model_rows = [model_header]
-            provider_display = {'openai': 'ChatGPT', 'anthropic': 'Claude', 'google': 'Gemini', 'perplexity': 'Perplexity'}
-            for m in current_models:
-                prov = provider_display.get(m.get('llm_provider', ''), m.get('llm_provider', ''))
-                model_name = m.get('model_display_name') or m.get('model_id', 'N/A')
-                cutoff = m.get('knowledge_cutoff') or 'Unknown'
-                model_rows.append([prov, model_name, cutoff])
-            model_widths = [3.5 * cm, 5.5 * cm, 6 * cm]
-            model_table = Table(model_rows, colWidths=model_widths)
-            model_style = _base_table_style(len(model_rows))
-            model_style.append(('ALIGN', (0, 1), (-1, -1), 'LEFT'))
-            model_table.setStyle(TableStyle(model_style))
-            elements.append(model_table)
-        else:
-            elements.append(Paragraph("Model information not available.", st_body))
-        elements.append(Spacer(1, 0.5 * cm))
 
         # ── Competitors list ──
         if competitor_names:
