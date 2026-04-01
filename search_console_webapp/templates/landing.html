@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-      <meta charset="UTF-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clicandseo</title>
+  <title>Clicandseo — AI-Powered Search Visibility</title>
 
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -20,233 +20,257 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
 
+  <!-- Brand fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #1a1a1a;
-            background: #F3F2F1;
-            min-height: 100vh;
-        }
+    :root {
+      --color-accent: #d9f9b8;
+      --color-text-primary: #0F172A;
+      --color-text-secondary: #64748B;
+      --color-text-tertiary: #94A3B8;
+      --color-bg-paper: #FFFFFF;
+      --color-bg-subtle: #F1F5F9;
+      --color-border: #E2E8F0;
+      --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-serif: 'Libre Baskerville', 'Georgia', serif;
+      --radius-md: 20px;
+      --radius-full: 9999px;
+      --shadow-md: 0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+      --shadow-float: 0 8px 16px rgba(15,23,42,0.08), 0 30px 60px rgba(15,23,42,0.16);
+      --ease-brand: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
 
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            padding: 2rem;
-            background: #F3F2F1;
-            overflow: hidden;
-        }
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      color: var(--color-text-primary);
+      background: var(--color-bg-paper);
+      min-height: 100vh;
+    }
 
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.05)" d="M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,128C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom center;
-            background-size: cover;
-        }
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: clamp(2rem, 6vw, 4rem);
+      background: var(--color-bg-paper);
+      overflow: hidden;
+    }
 
-        .hero-content {
-            max-width: 800px;
-            text-align: center;
-            color: rgb(23, 23, 23);
-            position: relative;
-            z-index: 1;
-        }
+    /* Dot grid pattern — brandbook 11.3 */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 1px 1px, #CBD5E1 1px, transparent 0);
+      background-size: 32px 32px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
 
-        .hero h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+    .hero-content {
+      max-width: 720px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
 
-        .hero p {
-            font-size: 1.25rem;
-            margin-bottom: 2.5rem;
-            opacity: 0.9;
-            line-height: 1.8;
-        }
+    .brand-logo {
+      margin-bottom: clamp(2rem, 4vw, 3rem);
+    }
 
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 3rem;
-        }
+    .brand-logo img {
+      height: 36px;
+      width: auto;
+    }
 
-        .btn {
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 150px;
-            justify-content: center;
-        }
+    .hero h1 {
+      font-family: var(--font-sans);
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--color-text-primary);
+      margin-bottom: 1.5rem;
+    }
 
-        .btn-primary {
-            background: #D8F9B8;
-            color: #151515;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
+    /* Serif accent word — brandbook 11.2 */
+    .hero h1 .accent {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      position: relative;
+    }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(0,0,0,0.2);
-        }
+    .hero h1 .accent::after {
+      content: '';
+      position: absolute;
+      bottom: 0.1em;
+      left: -6px;
+      right: -6px;
+      height: 0.4em;
+      background: var(--color-accent);
+      opacity: 0.85;
+      transform: rotate(-1.5deg);
+      z-index: -1;
+    }
 
-        .btn-secondary {
-            background: white;
-            color: #161616;
-            border: 2px solid #161616;
-        }
+    .hero p {
+      font-size: clamp(1rem, 1.5vw, 1.15rem);
+      font-weight: 400;
+      color: var(--color-text-secondary);
+      line-height: 1.75;
+      margin-bottom: clamp(2rem, 4vw, 3rem);
+      max-width: 560px;
+      margin-left: auto;
+      margin-right: auto;
+    }
 
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-        }
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
 
-        .floating-elements {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            overflow: hidden;
-            z-index: 0;
-        }
+    /* Buttons — brandbook 09 */
+    .btn {
+      padding: 14px 32px;
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.3s var(--ease-brand), box-shadow 0.3s var(--ease-brand);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: center;
+    }
 
-        .floating-element {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
+    /* Primary button — dark */
+    .btn-primary {
+      background: var(--color-text-primary);
+      color: #F8FAFC;
+    }
 
-        .floating-element:nth-child(1) {
-            top: 20%;
-            left: 10%;
-            animation-delay: 0s;
-        }
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-float);
+    }
 
-        .floating-element:nth-child(2) {
-            top: 50%;
-            right: 10%;
-            animation-delay: 2s;
-        }
+    /* Secondary button — outline */
+    .btn-secondary {
+      background: transparent;
+      color: var(--color-text-primary);
+      border: 1.5px solid var(--color-border);
+    }
 
-        .floating-element:nth-child(3) {
-            bottom: 20%;
-            left: 20%;
-            animation-delay: 4s;
-        }
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
+    /* Features eyebrow — brandbook eyebrow style */
+    .features-row {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 600px;
+      margin: 0 auto;
+    }
 
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 1.5rem;
-            }
-            
-            .hero p {
-                font-size: 1rem;
-            }
-            
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .features {
-                grid-template-columns: 1fr;
-            }
-        }
+    .feature-tag {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+    .feature-tag svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--color-text-tertiary);
+      stroke-width: 2;
+      fill: none;
+    }
 
-        .brand-logo i {
-            font-size: 3rem;
-            color: #ffffff;
-        }
-
-        .brand-logo h2 {
-            font-size: 2.5rem;
-            font-weight: 700;
-        }
-
-        .logo-image-landing{
-            width: 200px;
-        }
-        
-    </style>
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: clamp(1.6rem, 5vw, 2.2rem);
+      }
+      .hero p {
+        font-size: 0.95rem;
+      }
+      .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+      .btn {
+        width: 100%;
+        max-width: 280px;
+      }
+      .features-row {
+        gap: 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
-    
-    <div class="hero">
-        <div class="floating-elements">
-            <div class="floating-element"></div>
-            <div class="floating-element"></div>
-            <div class="floating-element"></div>
-        </div>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
-        <div class="hero-content">
-            <div class="brand-logo">
-                <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" 
-                     alt="Clicandseo Logo" 
-                     class="logo-image-landing">
-            </div>
+  <div class="hero">
+    <div class="hero-content">
+      <div class="brand-logo">
+        <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}"
+             alt="Clicandseo"
+             width="200" height="36">
+      </div>
 
-            <h1>Google Search Console te da los datos. Nosotros te damos las respuestas.</h1>
-            <p>Analiza el rendimiento de tu sitio web con Search Console y descubre nuevas oportunidades de crecimiento con nuestro análisis de IA avanzado.</p>
-            
-            <div class="cta-buttons">
-                <a href="/signup" class="btn btn-primary">
-                    <i class="fas fa-user-plus"></i>
-                    Crear cuenta gratis
-                </a>
-                <a href="/login" class="btn btn-secondary">
-                    <i class="fas fa-sign-in-alt"></i>
-                    Iniciar sesión
-                </a>
-            </div>
-        </div>
+      <h1>Your search data, <span class="accent">decoded</span> by AI.</h1>
+      <p>Connect Google Search Console and get AI-powered insights across organic search, AI Overviews, and LLM brand visibility — all in one place.</p>
+
+      <div class="cta-buttons">
+        <a href="/signup" class="btn btn-primary">Get started free</a>
+        <a href="/login" class="btn btn-secondary">Sign in</a>
+      </div>
+
+      <div class="features-row">
+        <span class="feature-tag">
+          <svg viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          Search Console
+        </span>
+        <span class="feature-tag">
+          <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          AI Overviews
+        </span>
+        <span class="feature-tag">
+          <svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          LLM Monitoring
+        </span>
+      </div>
     </div>
+  </div>
 </body>
-</html> 
+</html>
