@@ -3,16 +3,22 @@
   Sistema de navegacion lateral para mejorar UX
 =============================================*/
 
-// Lightweight toast helper for sidebar (no module import available)
+// Lightweight toast helper for sidebar — follows Clicandseo brandbook
 function _sidebarShowToast(message, type, duration) {
   type = type || 'info';
-  duration = duration || 4000;
-  var colors = { success: '#28a745', error: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
+  duration = duration || 5000;
+  var borderColors = { success: '#3CB371', error: '#E05252', warning: '#E05252', info: '#0F172A' };
   var toast = document.createElement('div');
+  toast.setAttribute('role', 'alert');
   toast.style.cssText =
-    'position:fixed;top:20px;right:20px;padding:12px 24px;border-radius:8px;color:white;' +
-    'font-weight:500;z-index:10000;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(0,0,0,0.2);' +
-    'background:' + (colors[type] || colors.info) + ';max-width:400px;word-wrap:break-word;';
+    'position:fixed;top:88px;right:18px;padding:14px 16px;border-radius:20px;color:#0F172A;' +
+    "font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;" +
+    'font-size:0.875rem;line-height:1.6;font-weight:500;z-index:10000;' +
+    'transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);' +
+    'box-shadow:0 2px 4px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.08);' +
+    'background:#FFFFFF;border:1px solid #E2E8F0;' +
+    'border-left:4px solid ' + (borderColors[type] || borderColors.info) + ';' +
+    'max-width:420px;word-wrap:break-word;';
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, duration);
