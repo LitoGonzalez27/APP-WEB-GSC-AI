@@ -954,9 +954,9 @@ body {
 }
 
 .logo-image {
-  height: 52px;
+  height: 36px;
   width: auto;
-  max-width: 120px;
+  max-width: 200px;
   object-fit: contain;
   margin-left:40px;
 }
@@ -966,8 +966,8 @@ body {
 /* Responsive - Logo más pequeño en móvil */
 @media (max-width: 768px) {
   .logo-image {
-    height: 35px;
-    max-width: 100px;
+    height: 28px;
+    max-width: 160px;
   }
 }
 
