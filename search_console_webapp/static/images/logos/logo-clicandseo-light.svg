@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 80" fill="none">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;700;800&amp;display=swap');
+  </style>
+  <text font-family="'Inter Tight', sans-serif" font-size="64" letter-spacing="-0.03em" y="60">
+    <tspan font-weight="800" fill="#0F172A">Clic</tspan><tspan font-weight="400" fill="#0F172A" opacity="0.5">and</tspan><tspan font-weight="700" fill="#0F172A">seo</tspan><tspan font-weight="800" fill="#D8F9B8">.</tspan>
+  </text>
+</svg>

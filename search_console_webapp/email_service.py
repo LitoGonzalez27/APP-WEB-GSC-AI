@@ -26,7 +26,7 @@ FROM_NAME = os.getenv('FROM_NAME', 'ClicandSEO')
 
 # Branding y URLs públicas
 PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'https://app.clicandseo.com')
-LOGO_URL = f"{PUBLIC_BASE_URL}/static/images/logos/logo%20clicandseo.png"
+LOGO_URL = f"{PUBLIC_BASE_URL}/static/images/logos/logo-clicandseo-light.svg"
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: str = None) -> bool:
     """
