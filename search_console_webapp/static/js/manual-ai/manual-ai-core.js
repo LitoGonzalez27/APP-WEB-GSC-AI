@@ -591,16 +591,29 @@ export class ManualAISystem {
     }
 
     showSuccess(message) {
-        alert('✅ ' + message);
+        this._showToastUI(message, 'success', 4000);
     }
 
     showError(message) {
-        alert('❌ ' + message);
+        this._showToastUI(message, 'error', 5000);
     }
 
     showToast(message, type = 'info', duration = 3000) {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        // Can be enhanced with a proper toast UI
+        this._showToastUI(message, type, duration);
+    }
+
+    _showToastUI(message, type, duration) {
+        type = type || 'info';
+        duration = duration || 3000;
+        const colors = { success: '#28a745', error: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
+        const toast = document.createElement('div');
+        toast.style.cssText =
+            'position:fixed;top:20px;right:20px;padding:12px 24px;border-radius:8px;color:white;' +
+            'font-weight:500;z-index:10000;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(0,0,0,0.2);' +
+            'background:' + (colors[type] || colors.info) + ';max-width:400px;word-wrap:break-word;';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
     }
 
     showDownloadButton(show = true) {

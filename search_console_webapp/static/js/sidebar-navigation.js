@@ -1,7 +1,22 @@
 /*=============================================
   SIDEBAR NAVIGATION SYSTEM
-  Sistema de navegación lateral para mejorar UX
+  Sistema de navegacion lateral para mejorar UX
 =============================================*/
+
+// Lightweight toast helper for sidebar (no module import available)
+function _sidebarShowToast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 4000;
+  var colors = { success: '#28a745', error: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
+  var toast = document.createElement('div');
+  toast.style.cssText =
+    'position:fixed;top:20px;right:20px;padding:12px 24px;border-radius:8px;color:white;' +
+    'font-weight:500;z-index:10000;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(0,0,0,0.2);' +
+    'background:' + (colors[type] || colors.info) + ';max-width:400px;word-wrap:break-word;';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, duration);
+}
 
 class SidebarNavigation {
   constructor() {
@@ -802,7 +817,7 @@ class SidebarNavigation {
         if (errorData.reauth_required) {
           alertMessage += '\nGoogle authentication failed or expired. Please reload the page to re-authenticate.';
         }
-        alert(alertMessage);
+        _sidebarShowToast(alertMessage, 'error', 6000);
         return;
       }
 
@@ -815,9 +830,9 @@ class SidebarNavigation {
     } catch (error) {
       console.error('❌ Error al descargar Excel:', error);
       if (error?.message === 'NO_DATA') {
-        alert('No data to download. Please run a query first.');
+        _sidebarShowToast('No data to download. Please run a query first.', 'warning');
       } else {
-        alert('An unexpected error occurred while trying to download the Excel file.');
+        _sidebarShowToast('An unexpected error occurred while trying to download the Excel file.', 'error');
       }
     } finally {
       this.setDownloadButtonLoadingState(buttonId, false);
@@ -853,9 +868,9 @@ class SidebarNavigation {
     } catch (error) {
       console.error('❌ Error al descargar JSON:', error);
       if (error?.message === 'NO_DATA') {
-        alert('No data to download. Please run a query first.');
+        _sidebarShowToast('No data to download. Please run a query first.', 'warning');
       } else {
-        alert('An unexpected error occurred while trying to download the JSON file.');
+        _sidebarShowToast('An unexpected error occurred while trying to download the JSON file.', 'error');
       }
     } finally {
       this.setDownloadButtonLoadingState(buttonId, false);
@@ -868,14 +883,14 @@ class SidebarNavigation {
     
     // Verificar que estamos en la sección AI Overview
     if (this.currentSection !== 'ai-overview') {
-      alert('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.');
+      _sidebarShowToast('PDF download is only available in the AI Overview section. Please navigate to AI Overview first.', 'warning', 5000);
       return;
     }
 
     // Verificar que hay datos de AI Overview disponibles
     const aiResults = document.getElementById('aiOverviewResultsContainer');
     if (!aiResults || aiResults.style.display === 'none') {
-      alert('No AI Overview data to export. Please run an AI analysis first.');
+      _sidebarShowToast('No AI Overview data to export. Please run an AI analysis first.', 'warning');
       return;
     }
 
@@ -888,7 +903,7 @@ class SidebarNavigation {
       
     } catch (error) {
       console.error('❌ Error al cargar o ejecutar el módulo de PDF:', error);
-      alert(`Error generating PDF: ${error.message}`);
+      _sidebarShowToast('Error generating PDF: ' + error.message, 'error', 5000);
     }
   }
 

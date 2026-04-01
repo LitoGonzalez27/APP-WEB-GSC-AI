@@ -28,6 +28,7 @@ import {
 } from './ui-sticky-actions.js';
 import { isMobileDevice, getDeviceType, optimizeForMobile, showMobileOptimizationNotice, getAdaptiveTimeouts } from './utils.js';
 import { renderOverviewMovers } from './ui-overview-movers.js';
+import { showToast } from './ui-ai-overview-utils.js';
 
 // ✅ NUEVO: Funciones del sidebar ahora están disponibles globalmente
 // Las funciones están disponibles como: window.onAnalysisStart, window.onAnalysisComplete, etc.
@@ -51,7 +52,7 @@ export async function handleFormSubmit(e) {
   e.preventDefault();
   if (!elems.form) {
     console.error("Formulario no encontrado.");
-    alert("Error: formulario no disponible.");
+    showToast("Error: form not available. Please reload the page.", "error");
     return;
   }
 
@@ -73,15 +74,15 @@ export async function handleFormSubmit(e) {
   // ✅ NUEVO: Validar fechas seleccionadas
   const dateValidation = validateSelectedDates();
   if (!dateValidation.isValid) {
-    const errorMessage = dateValidation.errors.join('\n');
-    alert(`Error en las fechas seleccionadas:\n\n${errorMessage}`);
+    const errorMessage = dateValidation.errors.join(' ');
+    showToast(`Date error: ${errorMessage}`, 'error', 5000);
     return;
   }
 
   // ✅ NUEVO: Obtener fechas del selector
   const selectedDates = getSelectedDates();
   if (!selectedDates) {
-    alert('Error: no se pudieron obtener las fechas seleccionadas.');
+    showToast('Error: could not read selected dates. Please try again.', 'error');
     return;
   }
 
@@ -89,7 +90,7 @@ export async function handleFormSubmit(e) {
 
   // ✅ ARREGLO CRÍTICO: Verificar que site_url esté seleccionado
   if (!elems.siteUrlSelect || !elems.siteUrlSelect.value) {
-    alert('Error: You must select a domain before continuing.');
+    showToast('Please select a domain before continuing.', 'warning');
     return;
   }
 
@@ -111,8 +112,8 @@ export async function handleFormSubmit(e) {
     const domainValidation = validator.validateDomainCompatibility(urls, selectedProperty);
     
     if (!domainValidation.isValid) {
-      console.error('❌ Validación de dominio fallida:', domainValidation.errors);
-      alert(domainValidation.errors.join('\n\n'));
+      console.error('Domain validation failed:', domainValidation.errors);
+      showToast(domainValidation.errors.join(' '), 'error', 6000);
       return;
     }
     
@@ -291,18 +292,17 @@ export async function handleFormSubmit(e) {
     const data = await fetchData(formData);
     
     if (data.error && data.reauth_required) {
-        alert(data.error + "\nPor favor, recarga la página para re-autenticar.");
+        showToast('Session expired. Please reload the page to re-authenticate.', 'error', 8000);
         completeProgress();
         return;
     }
     
     if (data.error) {
-        // ✅ NUEVO: Mensaje de error más claro para móviles
-        let errorMessage = "Error del servidor: " + data.error;
+        let errorMessage = "Server error: " + data.error;
         if (isMobile && (data.error.includes('timeout') || data.error.includes('tardando'))) {
-          errorMessage += "\n\n💡 Consejo para móviles: Intenta con un período más corto o menos URLs.";
+          errorMessage = "Request timed out. Try a shorter period or fewer URLs.";
         }
-        alert(errorMessage);
+        showToast(errorMessage, 'error', 6000);
         renderTableError();
         if(elems.keywordsSection) elems.keywordsSection.style.display = 'block';
         completeProgress();
@@ -487,7 +487,7 @@ export async function handleFormSubmit(e) {
       }
     }
     
-    alert(errorMessage);
+    showToast(errorMessage, 'error', 8000);
     renderTableError();
     if(elems.keywordsSection) elems.keywordsSection.style.display = 'block';
   } finally {

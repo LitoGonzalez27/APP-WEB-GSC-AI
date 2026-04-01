@@ -110,7 +110,7 @@ def enforce_llm_access():
             return None
         user = get_current_user()
         if not user:
-            return jsonify({'error': 'Usuario no autenticado'}), 401
+            return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         if not can_access_llm_monitoring(user):
             # ✅ Permitir invitados con acceso explícito a proyectos compartidos
             if user_has_any_module_access(user['id'], 'llm_monitoring'):
@@ -123,7 +123,7 @@ def enforce_llm_access():
             }), 402
     except Exception as e:
         logger.error(f"Error en enforce_llm_access: {e}", exc_info=True)
-        return jsonify({'error': 'Error validando acceso'}), 500
+        return jsonify({'error': 'Failed to validate access. Please try again.'}), 500
 
 def validate_project_ownership(f):
     """
@@ -135,11 +135,11 @@ def validate_project_ownership(f):
     def decorated_function(project_id, *args, **kwargs):
         user = get_current_user()
         if not user:
-            return jsonify({'error': 'Usuario no autenticado'}), 401
+            return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         
         conn = get_db_connection()
         if not conn:
-            return jsonify({'error': 'Error de conexión a BD'}), 500
+            return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
         
         try:
             cur = conn.cursor()
@@ -151,7 +151,7 @@ def validate_project_ownership(f):
             project = cur.fetchone()
             
             if not project:
-                return jsonify({'error': 'Proyecto no encontrado'}), 404
+                return jsonify({'error': 'Project not found'}), 404
 
             is_owner = project['user_id'] == user['id']
             if not is_owner:
@@ -161,7 +161,7 @@ def validate_project_ownership(f):
                     project_id
                 )
                 if not can_view_shared:
-                    return jsonify({'error': 'No tienes permiso para acceder a este proyecto'}), 403
+                    return jsonify({'error': 'You do not have permission to access this project'}), 403
             
             return f(project_id, *args, **kwargs)
             
@@ -401,11 +401,11 @@ def get_projects():
     """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -572,7 +572,7 @@ def get_projects():
         
     except Exception as e:
         logger.error(f"Error obteniendo proyectos: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo proyectos: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -586,7 +586,7 @@ def get_usage():
     """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
 
     limits_summary = get_llm_limits_summary(user)
     return jsonify({'success': True, 'limits': limits_summary}), 200
@@ -615,20 +615,20 @@ def create_project():
     """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
     
     plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
 
     data = request.get_json(silent=True) or {}
     if not isinstance(data, dict):
-        return jsonify({'error': 'Body JSON inválido'}), 400
+        return jsonify({'error': 'Invalid request format'}), 400
     
     # Validar campos requeridos
     required_fields = ['name', 'industry', 'brand_keywords']
     for field in required_fields:
         if field not in data:
-            return jsonify({'error': f'Campo requerido: {field}'}), 400
+            return jsonify({'error': f'Required field: {field}'}), 400
     
     # Valores por defecto y extracción de datos
     brand_domain = data.get('brand_domain')
@@ -640,7 +640,7 @@ def create_project():
     
     # Validaciones
     if not isinstance(brand_keywords, list) or len(brand_keywords) == 0:
-        return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
+        return jsonify({'error': 'Please add at least one brand keyword'}), 400
     
     max_prompts = plan_limits.get('max_prompts_per_project')
     # queries_per_llm deja de ser configurable por usuario.
@@ -654,18 +654,18 @@ def create_project():
         configured_prompt_capacity = 60
     
     if not isinstance(enabled_llms, list) or len(enabled_llms) == 0:
-        return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
+        return jsonify({'error': 'Please select at least one LLM'}), 400
     
     valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
     if not all(llm in valid_llms for llm in enabled_llms):
-        return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
+        return jsonify({'error': f'Valid LLMs: {valid_llms}'}), 400
 
     if not country_code or len(country_code) != 2 or not country_code.isalpha():
-        return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
+        return jsonify({'error': 'Country code must be a 2-letter ISO code'}), 400
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -684,7 +684,7 @@ def create_project():
             if active_projects >= max_projects:
                 return jsonify({
                     'error': 'project_limit_reached',
-                    'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
+                    'message': 'You have reached the maximum number of projects allowed for your plan',
                     'current_plan': user.get('plan', 'free'),
                     'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
                     'limit': max_projects,
@@ -698,7 +698,7 @@ def create_project():
         """, (user['id'], data['name']))
         
         if cur.fetchone():
-            return jsonify({'error': 'Ya tienes un proyecto con ese nombre'}), 409
+            return jsonify({'error': 'A project with this name already exists'}), 409
         
         # ✨ NEW: Extract legacy fields from selected_competitors for backward compatibility
         competitor_domains = []
@@ -758,7 +758,7 @@ def create_project():
         
         return jsonify({
             'success': True,
-            'message': 'Proyecto creado exitosamente. Ahora añade tus prompts manualmente.',
+            'message': 'Project created successfully. Now add your prompts manually.',
             'project': {
                 'id': project_id,
                 'name': data['name'],
@@ -800,12 +800,12 @@ def get_project(project_id):
 
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
     
     conn = get_db_connection()
     if not conn:
         logger.error("❌ Error de conexión a BD")
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -851,7 +851,7 @@ def get_project(project_id):
         
         if not project:
             logger.warning(f"⚠️ Proyecto {project_id} no encontrado")
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         
         # 📊 CALCULAR SOV AGREGADO DE TODOS LOS DÍAS DISPONIBLES (últimos 30 días)
         # Método 2: SoV Agregado - Suma TODAS las menciones de TODOS los LLMs
@@ -1407,7 +1407,7 @@ def get_project(project_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo proyecto: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo proyecto: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1438,15 +1438,15 @@ def update_project(project_id):
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Body vacío'}), 400
+        return jsonify({'error': 'Request body is empty'}), 400
 
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1458,7 +1458,7 @@ def update_project(project_id):
         """, (project_id,))
         current_project_row = cur.fetchone()
         if not current_project_row:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         previous_enabled_llms = current_project_row.get('enabled_llms') or []
         
         # Campos actualizables
@@ -1476,7 +1476,7 @@ def update_project(project_id):
         if 'language' in data:
             language = str(data.get('language') or '').strip().lower()
             if not language:
-                return jsonify({'error': 'language no puede estar vacío'}), 400
+                return jsonify({'error': 'Language cannot be empty'}), 400
             updates.append("language = %s")
             params.append(language)
         
@@ -1486,7 +1486,7 @@ def update_project(project_id):
         
         if 'brand_keywords' in data:
             if not isinstance(data['brand_keywords'], list) or len(data['brand_keywords']) == 0:
-                return jsonify({'error': 'brand_keywords debe ser un array con al menos 1 palabra clave'}), 400
+                return jsonify({'error': 'Please add at least one brand keyword'}), 400
             updates.append("brand_keywords = %s::jsonb")
             params.append(json.dumps(data['brand_keywords']))
             # Actualizar también brand_name legacy
@@ -1525,21 +1525,21 @@ def update_project(project_id):
             # Validar LLMs
             valid_llms = ['openai', 'anthropic', 'google', 'perplexity']
             if not isinstance(data['enabled_llms'], list) or len(data['enabled_llms']) == 0:
-                return jsonify({'error': 'enabled_llms debe ser un array con al menos 1 LLM'}), 400
+                return jsonify({'error': 'Please select at least one LLM'}), 400
             if not all(llm in valid_llms for llm in data['enabled_llms']):
-                return jsonify({'error': f'LLMs válidos: {valid_llms}'}), 400
+                return jsonify({'error': f'Valid LLMs: {valid_llms}'}), 400
             updates.append("enabled_llms = %s")
             params.append(data['enabled_llms'])
         
         if 'country_code' in data:
             country_code = str(data.get('country_code') or '').strip().upper()
             if not country_code or len(country_code) != 2 or not country_code.isalpha():
-                return jsonify({'error': 'country_code debe ser un código ISO de 2 letras'}), 400
+                return jsonify({'error': 'Country code must be a 2-letter ISO code'}), 400
             updates.append("country_code = %s")
             params.append(country_code)
         
         if not updates:
-            return jsonify({'error': 'No hay campos para actualizar'}), 400
+            return jsonify({'error': 'No fields to update'}), 400
         
         # Actualizar proyecto
         updates.append("updated_at = NOW()")
@@ -1614,7 +1614,7 @@ def deactivate_project(project_id):
     """
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1630,13 +1630,13 @@ def deactivate_project(project_id):
         project = cur.fetchone()
         
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado o ya está inactivo'}), 404
+            return jsonify({'error': 'Project not found or already inactive'}), 404
         
         conn.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Proyecto "{project["name"]}" desactivado. Ya no se ejecutará en análisis automáticos.',
+            'message': f'Project "{project["name"]}" deactivated. It will no longer run in automatic analyses.',
             'project_id': project['id']
         }), 200
         
@@ -1661,14 +1661,14 @@ def activate_project(project_id):
     """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
     plan_limits = _get_effective_plan_limits(user)
     max_projects = plan_limits.get('max_projects')
     active_projects = count_user_active_projects(user['id'])
     if max_projects is not None and active_projects >= max_projects:
         return jsonify({
             'error': 'project_limit_reached',
-            'message': 'Has alcanzado el máximo de proyectos permitidos para tu plan',
+            'message': 'You have reached the maximum number of projects allowed for your plan',
             'current_plan': user.get('plan', 'free'),
             'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
             'limit': max_projects,
@@ -1677,7 +1677,7 @@ def activate_project(project_id):
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1693,13 +1693,13 @@ def activate_project(project_id):
         project = cur.fetchone()
         
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado o ya está activo'}), 404
+            return jsonify({'error': 'Project not found or already active'}), 404
         
         conn.commit()
         
         return jsonify({
             'success': True,
-            'message': f'Proyecto "{project["name"]}" reactivado. Se incluirá en próximos análisis automáticos.',
+            'message': f'Project "{project["name"]}" reactivated. It will be included in upcoming automatic analyses.',
             'project_id': project['id']
         }), 200
         
@@ -1731,7 +1731,7 @@ def delete_project(project_id):
     """
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1746,11 +1746,11 @@ def delete_project(project_id):
         project = cur.fetchone()
         
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         
         if project['is_active']:
             return jsonify({
-                'error': 'No se puede eliminar un proyecto activo. Desactívalo primero.',
+                'error': 'Cannot delete an active project. Please deactivate it first.',
                 'action_required': 'deactivate_first'
             }), 400
         
@@ -1839,7 +1839,7 @@ def add_queries_to_project(project_id):
     # Obtener configuración del proyecto si no se especificó idioma
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1859,7 +1859,7 @@ def add_queries_to_project(project_id):
             if current_count + incoming_count > max_prompts:
                 return jsonify({
                     'error': 'prompt_limit_exceeded',
-                    'message': 'Has alcanzado el máximo de prompts permitidos para este proyecto',
+                    'message': 'You have reached the maximum number of prompts allowed for this project',
                     'current_plan': user.get('plan', 'free'),
                     'upgrade_options': get_upgrade_options(user.get('plan', 'free')),
                     'limit': max_prompts,
@@ -1911,13 +1911,13 @@ def add_queries_to_project(project_id):
             'added_count': added_count,
             'duplicate_count': duplicate_count,
             'error_count': error_count,
-            'message': f'{added_count} queries añadidas exitosamente'
+            'message': f'{added_count} prompts added successfully'
         }), 200
         
     except Exception as e:
         conn.rollback()
         logger.error(f"Error añadiendo queries: {e}", exc_info=True)
-        return jsonify({'error': f'Error añadiendo queries: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to add prompts. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1935,7 +1935,7 @@ def delete_query(project_id, query_id):
     """
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -1950,7 +1950,7 @@ def delete_query(project_id, query_id):
         query = cur.fetchone()
         
         if not query:
-            return jsonify({'error': 'Query no encontrada'}), 404
+            return jsonify({'error': 'Prompt not found'}), 404
         
         # Soft delete
         cur.execute("""
@@ -1996,7 +1996,7 @@ def get_query_history(project_id, query_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     cur = None
     try:
@@ -2013,7 +2013,7 @@ def get_query_history(project_id, query_id):
         query = cur.fetchone()
         
         if not query:
-            return jsonify({'error': 'Query no encontrada', 'success': False}), 404
+            return jsonify({'error': 'Prompt not found', 'success': False}), 404
         
         logger.info(f"📊 Fetching history for query {query_id} ('{query['query_text'][:30]}...') - last {days} days")
         
@@ -2115,7 +2115,7 @@ def get_query_history(project_id, query_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo historial de query: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo historial: {str(e)}', 'success': False}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.', 'success': False}), 500
     finally:
         if cur:
             cur.close()
@@ -2148,7 +2148,7 @@ def suggest_queries(project_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -2163,7 +2163,7 @@ def suggest_queries(project_id):
         project = cur.fetchone()
         
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         
         # Obtener queries existentes
         cur.execute("""
@@ -2204,13 +2204,13 @@ def suggest_queries(project_id):
             if not os.getenv('GOOGLE_API_KEY'):
                 return jsonify({
                     'success': False,
-                    'error': 'GOOGLE_API_KEY no está configurada en el servidor',
+                    'error': 'GOOGLE_API_KEY is not configured on the server',
                     'hint': 'Contacta al administrador para configurar las API keys'
                 }), 500
             else:
                 return jsonify({
                     'success': False,
-                    'error': 'No se pudieron generar sugerencias. Es posible que Gemini API esté teniendo problemas.',
+                    'error': 'Failed to generate suggestions. The Gemini API may be experiencing issues.',
                     'hint': 'Intenta de nuevo en unos momentos'
                 }), 500
         
@@ -2251,7 +2251,7 @@ def suggest_query_variations(project_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -2266,7 +2266,7 @@ def suggest_query_variations(project_id):
         project = cur.fetchone()
         
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         
         cur.close()
         conn.close()
@@ -2464,11 +2464,11 @@ def run_initial_analysis(project_id):
     """
     user = get_current_user()
     if not user:
-        return jsonify({'error': 'Usuario no autenticado'}), 401
+        return jsonify({'error': 'Authentication required. Please sign in.'}), 401
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     cur = None
     try:
@@ -2491,12 +2491,12 @@ def run_initial_analysis(project_id):
         """, (project_id,))
         project = cur.fetchone()
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
 
         if not project.get('is_active'):
             return jsonify({
                 'error': 'project_inactive',
-                'message': 'Activa el proyecto antes de ejecutar el primer análisis'
+                'message': 'Activate the project before running the first analysis'
             }), 400
 
         # "Solo primera vez": si ya hay snapshot o fecha de análisis, no permitir.
@@ -2511,21 +2511,21 @@ def run_initial_analysis(project_id):
         if project.get('last_analysis_date') or has_snapshots:
             return jsonify({
                 'error': 'initial_analysis_already_completed',
-                'message': 'Este proyecto ya tiene su primer análisis completado'
+                'message': 'This project has already completed its first analysis'
             }), 409
 
         configured_queries = int(project.get('total_queries') or 0)
         if configured_queries <= 0:
             return jsonify({
                 'error': 'no_active_queries',
-                'message': 'Añade al menos un prompt activo antes de ejecutar el primer análisis'
+                'message': 'Add at least one active prompt before running the first analysis'
             }), 400
 
         # Evitar doble click / doble thread del mismo proyecto.
         if not _mark_initial_analysis_running(project_id):
             return jsonify({
                 'error': 'initial_analysis_in_progress',
-                'message': 'El primer análisis ya está en curso para este proyecto'
+                'message': 'The first analysis is already in progress for this project'
             }), 409
 
         enabled_llms = project.get('enabled_llms') or []
@@ -2574,7 +2574,7 @@ def run_initial_analysis(project_id):
         # Limpieza defensiva si algo falló antes de lanzar correctamente.
         _clear_initial_analysis_running(project_id)
         logger.error(f"Error triggering initial analysis for project {project_id}: {e}", exc_info=True)
-        return jsonify({'error': f'Error iniciando análisis inicial: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to start initial analysis. Please try again.'}), 500
     finally:
         if cur:
             cur.close()
@@ -2616,7 +2616,7 @@ def get_project_metrics(project_id):
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     try:
         cur = conn.cursor()
@@ -2628,7 +2628,7 @@ def get_project_metrics(project_id):
         """, (project_id,))
         project_row = cur.fetchone()
         if not project_row:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
         brand_keywords = project_row.get('brand_keywords') or []
 
@@ -2845,7 +2845,7 @@ def get_project_metrics(project_id):
 
     except Exception as e:
         logger.error(f"Error obteniendo métricas: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo métricas: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -2874,12 +2874,12 @@ def get_urls_ranking(project_id):
         try:
             limit = int(raw_limit)
         except (TypeError, ValueError):
-            return jsonify({'error': 'limit debe ser un número entero'}), 400
+            return jsonify({'error': 'Limit must be an integer'}), 400
     
     try:
         conn = get_db_connection()
         if not conn:
-            return jsonify({'error': 'Error de conexión a BD'}), 500
+            return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
         cur = conn.cursor()
         cur.execute("""
@@ -2922,7 +2922,7 @@ def get_urls_ranking(project_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo ranking de URLs: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo ranking de URLs: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/comparison', methods=['GET'])
@@ -2947,7 +2947,7 @@ def get_llm_comparison(project_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -2959,7 +2959,7 @@ def get_llm_comparison(project_id):
         """, (project_id,))
         project_row = cur.fetchone()
         if not project_row:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
         brand_domain_raw = project_row.get('brand_domain') or ''
 
@@ -3239,7 +3239,7 @@ def get_llm_comparison(project_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo comparativa: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo comparativa: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -3291,7 +3291,7 @@ def get_project_queries(project_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -3305,7 +3305,7 @@ def get_project_queries(project_id):
         
         project = cur.fetchone()
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         enabled_llms_filter = project.get('enabled_llms') or []
         
         # Calcular rango de fechas
@@ -3497,7 +3497,7 @@ def get_project_queries(project_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo queries: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo queries: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
 
 
 # ============================================================================
@@ -3553,7 +3553,7 @@ def get_share_of_voice_history(project_id):
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     try:
         cur = conn.cursor()
@@ -3574,7 +3574,7 @@ def get_share_of_voice_history(project_id):
         project = cur.fetchone()
 
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
 
         # Calcular fechas de inicio y fin
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -4117,7 +4117,7 @@ def get_share_of_voice_history(project_id):
         logger.error(f"❌ Error obteniendo histórico de Share of Voice: {e}", exc_info=True)
         logger.error(f"   Project ID: {project_id}, Days: {days}, Metric: {metric_type}")
         return jsonify({
-            'error': f'Error obteniendo datos: {str(e)}',
+            'error': 'Failed to load data. Please try again.',
             'details': 'Check server logs for more information'
         }), 500
 
@@ -4144,7 +4144,7 @@ def get_models():
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -4190,7 +4190,7 @@ def get_models():
         
     except Exception as e:
         logger.error(f"Error obteniendo modelos: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo modelos: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -4300,11 +4300,11 @@ def update_model(model_id):
     data = request.get_json()
     
     if not data:
-        return jsonify({'error': 'Body vacío'}), 400
+        return jsonify({'error': 'Request body is empty'}), 400
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -4329,7 +4329,7 @@ def update_model(model_id):
             params.append(data['is_available'])
         
         if not updates:
-            return jsonify({'error': 'No hay campos para actualizar'}), 400
+            return jsonify({'error': 'No fields to update'}), 400
         
         updates.append("updated_at = NOW()")
         params.append(model_id)
@@ -4441,7 +4441,7 @@ def trigger_daily_analysis():
                 return jsonify({
                     'success': False,
                     'error': 'Analysis already running',
-                    'message': 'Hay un análisis en curso. Espera a que termine antes de lanzar otro.',
+                    'message': 'An analysis is already in progress. Please wait for it to finish before starting another.',
                     'latest_run': latest_run
                 }), 409  # Conflict
 
@@ -4494,7 +4494,7 @@ def trigger_daily_analysis():
             return jsonify({
                 'success': False,
                 'error': 'Analysis already running',
-                'message': 'Hay un análisis en curso. Espera a que termine antes de lanzar otro.',
+                'message': 'An analysis is already in progress. Please wait for it to finish before starting another.',
                 'latest_run': latest_run
             }), 409
 
@@ -4612,7 +4612,7 @@ def get_project_responses(project_id):
     
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
     
     try:
         cur = conn.cursor()
@@ -4624,7 +4624,7 @@ def get_project_responses(project_id):
         """, (project_id,))
         project_row = cur.fetchone()
         if not project_row:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
         enabled_llms_filter = project_row.get('enabled_llms') or []
         resp_brand_keywords = project_row.get('brand_keywords') or []
         if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
@@ -4720,7 +4720,7 @@ def get_project_responses(project_id):
         
     except Exception as e:
         logger.error(f"Error obteniendo respuestas: {e}", exc_info=True)
-        return jsonify({'error': f'Error obteniendo respuestas: {str(e)}'}), 500
+        return jsonify({'error': 'Failed to load data. Please try again.'}), 500
 
 
 # ============================================================================
@@ -4765,7 +4765,7 @@ def export_project_excel(project_id):
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     try:
         cur = conn.cursor()
@@ -4791,7 +4791,7 @@ def export_project_excel(project_id):
         project = cur.fetchone()
 
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
 
         enabled_llms_filter = project.get('enabled_llms') or []
         brand_keywords = project.get('brand_keywords') or []
@@ -5681,7 +5681,7 @@ def export_project_pdf(project_id):
         project = cur.fetchone()
 
         if not project:
-            return jsonify({'error': 'Proyecto no encontrado'}), 404
+            return jsonify({'error': 'Project not found'}), 404
 
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
@@ -6904,7 +6904,7 @@ def cron_model_discovery():
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     try:
         cur = conn.cursor()
@@ -7300,11 +7300,11 @@ def approve_model_by_token():
     """
     token = request.args.get('token', '')
     if not token or len(token) < 20:
-        return _render_approval_result('error', 'Token inválido o no proporcionado.')
+        return _render_approval_result('error', 'Invalid or missing token.')
 
     conn = get_db_connection()
     if not conn:
-        return _render_approval_result('error', 'Error de conexión a base de datos.')
+        return _render_approval_result('error', 'Database connection error. Please try again.')
 
     try:
         cur = conn.cursor()
@@ -7319,16 +7319,16 @@ def approve_model_by_token():
         model = cur.fetchone()
 
         if not model:
-            return _render_approval_result('error', 'Token no encontrado. Puede haber expirado o ya fue usado.')
+            return _render_approval_result('error', 'Token not found. It may have expired or already been used.')
 
         if not model['pending_approval']:
-            return _render_approval_result('info', f"El modelo {model['model_id']} ya fue procesado anteriormente.")
+            return _render_approval_result('info', f"Model {model['model_id']} has already been processed.")
 
         # Verificar expiración
         if model['approval_token_expires_at'] and datetime.now() > model['approval_token_expires_at']:
             return _render_approval_result('error',
-                f"El token de aprobación para {model['model_id']} ha expirado. "
-                f"Ejecuta un nuevo discovery para generar un nuevo token.")
+                f"The approval token for {model['model_id']} has expired. "
+                f"Run a new discovery to generate a fresh token.")
 
         # Validación pre-switch
         logger.info(f"🔄 Validando modelo antes de activar: {model['llm_provider']}/{model['model_id']}")
@@ -7346,8 +7346,8 @@ def approve_model_by_token():
             conn.commit()
 
             return _render_approval_result('error',
-                f"La validación pre-switch falló para {model['model_id']}. "
-                f"Error: {validation['error']}. El modelo NO ha sido activado.")
+                f"Pre-switch validation failed for {model['model_id']}. "
+                f"Error: {validation['error']}. The model has NOT been activated.")
 
         # Obtener modelo actual antes de desactivar
         cur.execute("""
@@ -7412,14 +7412,14 @@ def approve_model_by_token():
             logger.error(f"Error enviando email de confirmación: {e}")
 
         return _render_approval_result('success',
-            f"Modelo {model['model_display_name'] or model['model_id']} aprobado y activado exitosamente "
-            f"para {model['llm_provider'].upper()}. "
-            f"Validación pre-switch: ✅ Exitosa.")
+            f"Model {model['model_display_name'] or model['model_id']} approved and activated successfully "
+            f"for {model['llm_provider'].upper()}. "
+            f"Pre-switch validation: passed.")
 
     except Exception as e:
         conn.rollback()
         logger.error(f"Error aprobando modelo: {e}", exc_info=True)
-        return _render_approval_result('error', f'Error interno: {str(e)[:200]}')
+        return _render_approval_result('error', f'Internal error: {str(e)[:200]}')
     finally:
         cur.close()
         conn.close()
@@ -7433,11 +7433,11 @@ def reject_model_by_token():
     """
     token = request.args.get('token', '')
     if not token or len(token) < 20:
-        return _render_approval_result('error', 'Token inválido.')
+        return _render_approval_result('error', 'Invalid token.')
 
     conn = get_db_connection()
     if not conn:
-        return _render_approval_result('error', 'Error de conexión a base de datos.')
+        return _render_approval_result('error', 'Database connection error. Please try again.')
 
     try:
         cur = conn.cursor()
@@ -7450,10 +7450,10 @@ def reject_model_by_token():
         model = cur.fetchone()
 
         if not model:
-            return _render_approval_result('error', 'Token no encontrado.')
+            return _render_approval_result('error', 'Token not found.')
 
         if not model['pending_approval']:
-            return _render_approval_result('info', f"El modelo {model['model_id']} ya fue procesado.")
+            return _render_approval_result('info', f"Model {model['model_id']} has already been processed.")
 
         # Rechazar: limpiar token y desactivar approval
         cur.execute("""
@@ -7476,13 +7476,13 @@ def reject_model_by_token():
         logger.info(f"❌ Modelo rechazado: {model['llm_provider']}/{model['model_id']}")
 
         return _render_approval_result('rejected',
-            f"Modelo {model['model_display_name'] or model['model_id']} rechazado para "
-            f"{model['llm_provider'].upper()}. No se realizaron cambios.")
+            f"Model {model['model_display_name'] or model['model_id']} rejected for "
+            f"{model['llm_provider'].upper()}. No changes were made.")
 
     except Exception as e:
         conn.rollback()
         logger.error(f"Error rechazando modelo: {e}", exc_info=True)
-        return _render_approval_result('error', f'Error interno: {str(e)[:200]}')
+        return _render_approval_result('error', f'Internal error: {str(e)[:200]}')
     finally:
         cur.close()
         conn.close()
@@ -7552,7 +7552,7 @@ def get_model_changelog():
 
     conn = get_db_connection()
     if not conn:
-        return jsonify({'error': 'Error de conexión a BD'}), 500
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
 
     try:
         cur = conn.cursor()

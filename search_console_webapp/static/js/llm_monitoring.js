@@ -5994,6 +5994,8 @@ class LLMMonitoring {
 
         const toast = document.createElement('div');
         toast.className = `llm-toast llm-toast-${type}`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
         toast.innerHTML = `
             <div class="llm-toast-icon">
                 <i class="fas ${iconByType[type] || iconByType.info}"></i>
@@ -6026,21 +6028,21 @@ class LLMMonitoring {
      * Utility: Show error message
      */
     showError(message) {
-        this.showToast(message, 'error', 4600);
+        this.showToast(message, 'error', 7000);
     }
 
     /**
      * Utility: Show success message
      */
     showSuccess(message) {
-        this.showToast(message, 'success', 3400);
+        this.showToast(message, 'success', 4000);
     }
 
     /**
      * Utility: Show info message
      */
     showInfo(message) {
-        this.showToast(message, 'info', 3800);
+        this.showToast(message, 'info', 5000);
     }
 
     /**

@@ -5,6 +5,23 @@ import { MobileModalManager, isMobileDevice } from './utils.js';
 // Instancia global del gestor de modal robusto
 let serpModalManager = null;
 
+// --- Toast helper for SERP modal ---
+function _serpShowToast(message, type, duration) {
+  type = type || 'info';
+  duration = duration || 4000;
+  const colors = { success: '#28a745', error: '#dc3545', warning: '#ffc107', info: '#17a2b8' };
+  const toast = document.createElement('div');
+  toast.style.cssText =
+    'position:fixed;top:20px;right:20px;padding:12px 24px;border-radius:8px;color:white;' +
+    'font-weight:500;z-index:10000;transition:all 0.3s ease;box-shadow:0 4px 12px rgba(0,0,0,0.2);' +
+    'background:' + (colors[type] || colors.info) + ';max-width:400px;word-wrap:break-word;';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, duration);
+}
+// Expose globally for inline onclick handlers
+window._serpShowToast = _serpShowToast;
+
 // --- Funciones auxiliares ---
 function escapeHtml(unsafe) {
   if (typeof unsafe !== 'string') return '';
@@ -133,14 +150,14 @@ export function openSerpModal(keyword, userSpecificUrl) {
   const modal = document.getElementById('serpModal');
   if (!modal) {
     console.error('Missing #serpModal element in the DOM.');
-    alert('Error: The SERP modal component is not available.');
+    _serpShowToast('Error: The SERP modal component is not available.', 'error');
     return;
   }
 
   const siteUrlElement = document.querySelector('select[name="site_url"]');
   const siteUrlScProperty = siteUrlElement ? siteUrlElement.value : '';
   if (!siteUrlScProperty) {
-    alert('Please select a Search Console property first.');
+    _serpShowToast('Please select a Search Console property first.', 'warning');
     return;
   }
 
@@ -503,7 +520,7 @@ function _renderAIOPreviewTab(result) {
     : 'Get recommendations to appear in AI Overview';
   html += `
     <div class="saio-cta-wrapper">
-      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { alert('AI Recommendations not available. Run the AI Overview analysis first.'); }">
+      <button class="saio-recommendations-cta" onclick="if(window.aiOverviewGrid && window.aiOverviewGrid.openRecommendationsModal) { window.aiOverviewGrid.openRecommendationsModal('${safeKeyword}'); } else { if(window._serpShowToast){window._serpShowToast('AI Recommendations not available. Run the AI Overview analysis first.','warning');}else{console.warn('AI Recommendations not available.');} }">
         <i class="fas fa-lightbulb"></i>
         <span>${ctaText}</span>
         <i class="fas fa-arrow-right saio-cta-arrow"></i>

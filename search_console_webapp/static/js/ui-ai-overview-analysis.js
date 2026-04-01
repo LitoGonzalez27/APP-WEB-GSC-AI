@@ -189,22 +189,34 @@ async function analyzeAIOverview(keywords, siteUrl) {
         // ✅ NUEVO FASE 4.5: Manejar paywalls
         if (response.status === 402) {
             // Paywall - usuario Free
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (window.showPaywall) {
                 window.showPaywall('AI Overview Analysis', data.upgrade_options || ['basic', 'premium', 'business']);
             }
-            throw new Error('AI Overview requires a paid plan. Please upgrade to continue.');
+            throw new Error('This feature requires a paid plan. Upgrade to unlock it.');
         }
-        
+
         if (response.status === 429) {
             // Quota exceeded
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
             if (window.showQuotaExceeded) {
                 window.showQuotaExceeded(data.quota_info || {});
             }
-            throw new Error('You have reached your monthly limit. Please upgrade to continue.');
+            throw new Error("You've reached your monthly analysis limit. Upgrade your plan to continue.");
         }
-        
+
+        if (response.status === 400) {
+            throw new Error('Something went wrong with your request. Please try again.');
+        }
+
+        if (response.status >= 500) {
+            throw new Error('Our servers are having a moment. Please try again in a few seconds.');
+        }
+
+        if (!response.ok) {
+            throw new Error('Something went wrong with your request. Please try again.');
+        }
+
         return response.json();
     } catch (error) {
         clearTimeout(timeoutId);
@@ -478,8 +490,11 @@ function handleNoKeywordsFound(setAIOverviewResults, statusSpan, resultsContaine
 }
 
 function handleAnalysisError(error, statusSpan, resultsContainer) {
-  console.error('Error en análisis AI Overview:', error);
-  
+  console.error('Error en analisis AI Overview:', error);
+
+  // Map raw/technical errors to friendly user-facing messages
+  const friendlyMessage = getFriendlyErrorMessage(error);
+
   resultsContainer.innerHTML = `
     <div class="alert alert-danger" style="
       background: rgba(220, 53, 69, 0.1);
@@ -489,16 +504,55 @@ function handleAnalysisError(error, statusSpan, resultsContainer) {
       border: 1px solid rgba(220, 53, 69, 0.2);
       margin: 1em 0;
     ">
-              <h4><i class="fas fa-exclamation-triangle"></i> Analysis Error</h4>
-      <p>${error.message}</p>
-              <p><small>Please check your connection and try again.</small></p>
+      <h4><i class="fas fa-exclamation-triangle"></i> Analysis Error</h4>
+      <p>${friendlyMessage}</p>
     </div>
   `;
-  
-  showToast(`Error: ${error.message}`, 'error', 5000);
-  
+
+  showToast(friendlyMessage, 'error', 5000);
+
   if (statusSpan) {
-    statusSpan.textContent = 'Error en el análisis';
+    statusSpan.textContent = 'Analysis error';
     statusSpan.style.color = '#dc3545';
   }
+}
+
+function getFriendlyErrorMessage(error) {
+  const msg = (error && error.message) ? error.message : String(error);
+
+  // Already-friendly messages from analyzeAIOverview (402, 429, 400, 500)
+  if (msg.includes('monthly analysis limit') ||
+      msg.includes('paid plan') ||
+      msg.includes('Upgrade')) {
+    return msg;
+  }
+
+  // Network / connectivity errors
+  if (msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('network') ||
+      msg.includes('ERR_INTERNET_DISCONNECTED')) {
+    return 'Connection lost. Please check your internet and try again.';
+  }
+
+  // Timeout from AbortController
+  if (msg.includes('took too long') || msg.includes('aborted') || msg.includes('timeout')) {
+    return 'Analysis took too long. Try with fewer keywords.';
+  }
+
+  // Raw HTTP status codes that might leak through
+  if (/HTTP\s*4(00|02|29)/i.test(msg) || /status\s*4(00|02|29)/i.test(msg) || /\b400\b/.test(msg)) {
+    return 'Something went wrong with your request. Please try again.';
+  }
+  if (/HTTP\s*5\d{2}/i.test(msg) || /status\s*5\d{2}/i.test(msg) || /\b500\b/.test(msg)) {
+    return 'Our servers are having a moment. Please try again in a few seconds.';
+  }
+
+  // Generic server error prefix
+  if (msg.toLowerCase().startsWith('server error')) {
+    return 'Our servers are having a moment. Please try again in a few seconds.';
+  }
+
+  // Fallback: return the original message (it is already friendly from our throw statements)
+  return msg;
 }
