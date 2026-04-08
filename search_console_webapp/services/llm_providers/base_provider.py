@@ -8,9 +8,14 @@ IMPORTANTE:
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, TYPE_CHECKING
 import logging
 import re
+
+if TYPE_CHECKING:
+    # Avoid runtime import cycle between base_provider and locale_helpers.
+    # LocaleContext is only used for type hints in execute_query.
+    from .locale_helpers import LocaleContext
 
 logger = logging.getLogger(__name__)
 
@@ -197,13 +202,29 @@ class BaseLLMProvider(ABC):
     """
     
     @abstractmethod
-    def execute_query(self, query: str) -> Dict:
+    def execute_query(self, query: str, *,
+                      locale: Optional['LocaleContext'] = None) -> Dict:
         """
-        Ejecuta una query contra el LLM y retorna respuesta estandarizada
-        
+        Ejecuta una query contra el LLM y retorna respuesta estandarizada.
+
         Args:
-            query: La pregunta/prompt a enviar al LLM
-            
+            query: La pregunta/prompt a enviar al LLM (sin contexto de locale
+                   concatenado — el provider lo inyecta por el mecanismo nativo).
+            locale: LocaleContext opcional con idioma y país objetivo. Cuando
+                    se pasa, el provider SHOULD usar su mecanismo nativo más
+                    efectivo para aplicar el locale:
+                    - OpenAI / Anthropic / Perplexity: system message en la
+                      lengua destino (anteponiéndolo al array `messages`).
+                    - Perplexity además: `extra_body.web_search_options.
+                      user_location={country}` para geo-enrutar la búsqueda.
+                    - Google Gemini: prepend de bloque `[SYSTEM INSTRUCTION]`
+                      a la content string (ya que el SDK no soporta
+                      system_instruction per-call sin recrear el modelo).
+                    Cuando `locale=None` (default), el provider mantiene
+                    comportamiento actual: SIN inyección de locale. Esto
+                    garantiza 100% backward compatibility con cualquier caller
+                    posicional existente (tests, scripts de diagnóstico, etc).
+
         Returns:
             Dict con estructura ESTANDARIZADA:
             {
@@ -215,15 +236,28 @@ class BaseLLMProvider(ABC):
                 'cost_usd': float,            # Coste en USD
                 'response_time_ms': int,      # Tiempo de respuesta en milisegundos
                 'model_used': str,            # Modelo específico usado
+                'prompt_strategy': str,       # NUEVO: 'legacy_user_only',
+                                              # 'system_user', 'system_user_geo',
+                                              # 'prepended_system', o 'legacy_user_only'
                 'error': str                  # Mensaje de error (solo si success=False)
             }
-            
+
         Example:
+            >>> from services.llm_providers.locale_helpers import (
+            ...     create_locale_context
+            ... )
             >>> provider = OpenAIProvider(api_key='sk-...')
+            >>> # Llamada sin locale (backward compat):
             >>> result = provider.execute_query("¿Qué es Python?")
+            >>> # Llamada con locale (nuevo flujo):
+            >>> locale = create_locale_context('pt', 'PT')
+            >>> result = provider.execute_query(
+            ...     "Quais as melhores clínicas?",
+            ...     locale=locale
+            ... )
             >>> if result['success']:
             ...     print(result['content'])
-            ...     print(f"Coste: ${result['cost_usd']:.6f}")
+            ...     print(f"Strategy: {result.get('prompt_strategy')}")
         """
         pass
     

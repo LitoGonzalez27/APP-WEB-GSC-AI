@@ -9,14 +9,15 @@ IMPORTANTE:
 
 import logging
 import time
-from typing import Dict
+from typing import Dict, Optional
 import anthropic
 from .base_provider import (
-    BaseLLMProvider, 
-    get_model_pricing_from_db, 
+    BaseLLMProvider,
+    get_model_pricing_from_db,
     get_current_model_for_provider,
     extract_urls_from_text
 )
+from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
@@ -62,37 +63,59 @@ class AnthropicProvider(BaseLLMProvider):
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
-    def execute_query(self, query: str) -> Dict:
+    def execute_query(self, query: str, *,
+                      locale: Optional[LocaleContext] = None) -> Dict:
         """
-        Ejecuta una query contra Claude Sonnet 4.6
+        Ejecuta una query contra Claude Sonnet 4.6.
+
+        Args:
+            query: Pregunta a enviar a Claude.
+            locale: LocaleContext opcional. Cuando se pasa, se usa el
+                    parámetro top-level `system=` del método
+                    client.messages.create() con la instrucción en lengua
+                    destino. Claude da alto peso al parámetro system y
+                    produce respuestas más fieles al locale objetivo.
+
+        Returns:
+            Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
         start_time = time.time()
-        
-        try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=8000,  # Reducido de 64K para evitar error de streaming requerido
-                messages=[
-                    {"role": "user", "content": query}
-                ]
+
+        # ─── Construir parámetros de la llamada ───────────────────────
+        create_params = {
+            "model": self.model,
+            "max_tokens": 8000,  # Reducido de 64K para evitar error de streaming requerido
+            "messages": [{"role": "user", "content": query}],
+        }
+        if locale is not None:
+            create_params["system"] = build_system_instruction(locale)
+            prompt_strategy = 'system_user'
+            logger.info(
+                f"🌍 Anthropic: locale applied [{locale.fingerprint()}] "
+                f"strategy={prompt_strategy}"
             )
-            
+        else:
+            prompt_strategy = 'legacy_user_only'
+
+        try:
+            response = self.client.messages.create(**create_params)
+
             response_time = int((time.time() - start_time) * 1000)
-            
+
             # Claude retorna array de content blocks
             content = response.content[0].text
-            
+
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
             total_tokens = input_tokens + output_tokens
-            
+
             # ✨ NUEVO: Extraer URLs del texto
             sources = extract_urls_from_text(content)
-            
+
             # Calcular coste usando pricing de BD
-            cost = (input_tokens * self.pricing['input'] + 
+            cost = (input_tokens * self.pricing['input'] +
                    output_tokens * self.pricing['output'])
-            
+
             return {
                 'success': True,
                 'content': content,
@@ -102,7 +125,8 @@ class AnthropicProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'cost_usd': round(cost, 6),
                 'response_time_ms': response_time,
-                'model_used': self.model
+                'model_used': self.model,
+                'prompt_strategy': prompt_strategy,  # ✨ NUEVO
             }
             
         except anthropic.APIError as e:
