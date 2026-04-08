@@ -1226,13 +1226,22 @@ def reset_user_quota_manual(user_id: int, admin_id: int) -> dict:
                 pass
             logger.warning(f"Could not log quota reset event: {event_error}")
 
+        # ✅ FIX DEADLOCK (2026-04-08): commit ANTES de llamar a
+        # resume_quota_pauses_for_user. Esa función abre una NUEVA conexión y
+        # hace UPDATE sobre la misma fila users.id, que se bloquearía esperando
+        # el row-lock que esta transacción mantiene hasta el commit. El commit
+        # previo libera el lock y permite que resume_quota_pauses_for_user
+        # funcione sin deadlock. Mismo patrón que stripe_webhooks.py:406-408.
+        conn.commit()
+
         try:
             resume_quota_pauses_for_user(user_id)
         except Exception as resume_error:
+            # El reset de cuota YA está commiteado. Si el resume falla, la
+            # cuota del usuario sigue correcta (en 0); sólo podrían quedar
+            # módulos ai_mode / llm pausados un poco más de tiempo.
             logger.warning(f"Could not resume paused modules for user {user_id}: {resume_error}")
-        
-        conn.commit()
-        
+
         logger.info(f"✅ Quota reset: user {user_id} ({user_info['email']}) by admin {admin_info['email']}")
         logger.info(f"   Previous usage: {previous_quota_used} RU -> Reset to: 0 RU")
 

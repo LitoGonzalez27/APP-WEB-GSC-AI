@@ -530,13 +530,20 @@ def reset_user_quota(user_id, admin_id=None):
         except Exception as e:
             logger.warning(f"Could not log quota reset event: {e}")
 
+        # ✅ FIX DEADLOCK (2026-04-08): commit ANTES de llamar a
+        # resume_quota_pauses_for_user (que abre su propia conexión y haría
+        # UPDATE sobre la misma fila users.id, bloqueándose contra el row-lock
+        # que mantenemos hasta el commit). Mismo patrón que
+        # admin_billing_panel.py:reset_user_quota_manual y
+        # stripe_webhooks.py:_handle_payment_succeeded.
+        conn.commit()
+
         try:
             resume_quota_pauses_for_user(user_id)
         except Exception as resume_error:
+            # El reset ya está commiteado; un fallo aquí no revierte la cuota.
             logger.warning(f"Could not resume paused modules for user {user_id}: {resume_error}")
-        
-        conn.commit()
-        
+
         logger.info(f"🔄 Reset quota for user {user_id}: {previous_usage} RU -> 0 RU")
         return True
         

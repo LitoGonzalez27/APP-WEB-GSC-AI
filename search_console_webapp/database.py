@@ -38,11 +38,31 @@ is_staging = railway_env == 'staging'
 is_development = not railway_env or railway_env == 'development'
 
 def get_db_connection():
-    """Obtiene una conexión a la base de datos PostgreSQL"""
+    """Obtiene una conexión a la base de datos PostgreSQL.
+
+    Hardening (añadido 2026-04-08 tras incidente de zombies idle-in-transaction):
+    - idle_in_transaction_session_timeout=900000 (15 min): Postgres aborta
+      automáticamente cualquier conexión que mantenga una transacción
+      `idle in transaction` más de 15 min. Previene que futuros bugs o
+      SIGTERMs dejen transacciones colgadas acumulándose en la BD.
+    - connect_timeout=10: fallar rápido si la BD está inalcanzable.
+    - TCP keepalives: detectar conexiones muertas en ~80 segundos en vez
+      del default del kernel (~2 horas). Útil cuando Railway u otros
+      reverse proxies cortan conexiones sin notificar.
+
+    Todos los parámetros son aditivos — el comportamiento funcional de la
+    conexión no cambia, sólo las salvaguardas.
+    """
     try:
         conn = psycopg2.connect(
             DATABASE_URL,
-            cursor_factory=RealDictCursor
+            cursor_factory=RealDictCursor,
+            connect_timeout=10,
+            options='-c idle_in_transaction_session_timeout=900000',
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5,
         )
         return conn
     except Exception as e:
