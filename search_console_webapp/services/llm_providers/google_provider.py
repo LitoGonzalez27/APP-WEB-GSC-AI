@@ -16,14 +16,15 @@ Docs: https://ai.google.dev/gemini-api/docs/models
 
 import logging
 import time
-from typing import Dict
+from typing import Dict, Optional
 import google.generativeai as genai
 from .base_provider import (
-    BaseLLMProvider, 
-    get_model_pricing_from_db, 
+    BaseLLMProvider,
+    get_model_pricing_from_db,
     get_current_model_for_provider,
     extract_urls_from_text
 )
+from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry
 
 logger = logging.getLogger(__name__)
@@ -75,40 +76,72 @@ class GoogleProvider(BaseLLMProvider):
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry
-    def execute_query(self, query: str) -> Dict:
+    def execute_query(self, query: str, *,
+                      locale: Optional[LocaleContext] = None) -> Dict:
         """
-        Ejecuta una query contra Gemini 3.1
+        Ejecuta una query contra Gemini.
+
+        Args:
+            query: Pregunta a enviar a Gemini.
+            locale: LocaleContext opcional. Cuando se pasa, se prepende
+                    un bloque [SYSTEM INSTRUCTION] al contenido antes de
+                    enviarlo. Esto es necesario porque el SDK
+                    google.generativeai acepta system_instruction solo a
+                    nivel de modelo (en __init__), no per-call. Prepender
+                    con estructura clara es empíricamente efectivo para
+                    corregir sesgos de región (ej: sesgo brasileño con
+                    portugués).
+
+        Returns:
+            Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
         start_time = time.time()
-        
+
+        # ─── Construir final_prompt con bloque SYSTEM si hay locale ───
+        if locale is not None:
+            system_text = build_system_instruction(locale)
+            final_prompt = (
+                f"[SYSTEM INSTRUCTION]\n{system_text}\n\n"
+                f"[USER QUERY]\n{query}"
+            )
+            prompt_strategy = 'prepended_system'
+            logger.info(
+                f"🌍 Google: locale applied [{locale.fingerprint()}] "
+                f"strategy={prompt_strategy}"
+            )
+        else:
+            final_prompt = query
+            prompt_strategy = 'legacy_user_only'
+
         try:
             response = self.model.generate_content(
-                query,
+                final_prompt,
                 request_options={"timeout": 60}  # Hard cap 60s, evita gRPC defaults de 300s+
             )
             response_time = int((time.time() - start_time) * 1000)
-            
+
             content = response.text
-            
+
             input_tokens = 0
             output_tokens = 0
             total_tokens = 0
-            
+
             if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
                 output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
                 total_tokens = getattr(response.usage_metadata, 'total_token_count', 0)
             else:
-                input_tokens = int(len(query.split()) * 1.3)
+                # Estimación sobre final_prompt (no query) para reflejar coste real
+                input_tokens = int(len(final_prompt.split()) * 1.3)
                 output_tokens = int(len(content.split()) * 1.3)
                 total_tokens = input_tokens + output_tokens
                 logger.debug(f"ℹ️ Gemini no expuso usage_metadata, usando estimación")
-            
+
             sources = extract_urls_from_text(content)
-            
-            cost = (input_tokens * self.pricing['input'] + 
+
+            cost = (input_tokens * self.pricing['input'] +
                    output_tokens * self.pricing['output'])
-            
+
             return {
                 'success': True,
                 'content': content,
@@ -118,7 +151,8 @@ class GoogleProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'cost_usd': round(cost, 8),
                 'response_time_ms': response_time,
-                'model_used': self.model_name
+                'model_used': self.model_name,
+                'prompt_strategy': prompt_strategy,  # ✨ NUEVO
             }
             
         except Exception as e:

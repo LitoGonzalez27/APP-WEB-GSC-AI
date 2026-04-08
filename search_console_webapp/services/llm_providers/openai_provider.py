@@ -17,15 +17,16 @@ Docs: https://platform.openai.com/docs/models/gpt-5
 
 import logging
 import time
-from typing import Dict
+from typing import Dict, Optional
 import os
 import openai
 from .base_provider import (
-    BaseLLMProvider, 
-    get_model_pricing_from_db, 
+    BaseLLMProvider,
+    get_model_pricing_from_db,
     get_current_model_for_provider,
     extract_urls_from_text
 )
+from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry  # Sistema de retry
 
 logger = logging.getLogger(__name__)
@@ -82,21 +83,45 @@ class OpenAIProvider(BaseLLMProvider):
         logger.info(f"   Pricing: ${self.pricing['input']*1000000:.2f}/${self.pricing['output']*1000000:.2f} per 1M tokens")
     
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
-    def execute_query(self, query: str) -> Dict:
+    def execute_query(self, query: str, *,
+                      locale: Optional[LocaleContext] = None) -> Dict:
         """
-        Ejecuta una query contra el modelo OpenAI configurado
-        
+        Ejecuta una query contra el modelo OpenAI configurado.
+
         Args:
-            query: Pregunta a hacer a ChatGPT
-            
+            query: Pregunta a hacer a ChatGPT (sin contexto de locale
+                   concatenado — se inyecta vía system message).
+            locale: LocaleContext opcional. Si se pasa, se antepone un
+                    system message con la instrucción en la lengua destino
+                    construida por build_system_instruction(locale).
+                    Si es None, comportamiento idéntico al anterior
+                    (solo user message).
+
         Returns:
-            Dict con respuesta estandarizada
+            Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
         start_time = time.time()
-        
+
+        # ─── Construir `messages` UNA sola vez ───────────────────────
+        # Importante: esta lista se reutiliza en TODOS los paths del
+        # método (llamada normal y dos fallback paths a gpt-4o). Así
+        # nos aseguramos de que el system message se preserva siempre.
+        messages = []
+        if locale is not None:
+            messages.append({
+                "role": "system",
+                "content": build_system_instruction(locale),
+            })
+            prompt_strategy = 'system_user'
+            logger.info(
+                f"🌍 OpenAI: locale applied [{locale.fingerprint()}] "
+                f"strategy={prompt_strategy}"
+            )
+        else:
+            prompt_strategy = 'legacy_user_only'
+        messages.append({"role": "user", "content": query})
+
         try:
-            # Usar Chat Completions API directamente (más compatible)
-            # La Responses API requiere permisos especiales que no todos los proyectos tienen
             content = None
             input_tokens = 0
             output_tokens = 0
@@ -107,10 +132,10 @@ class OpenAIProvider(BaseLLMProvider):
             is_gpt5 = self.model.startswith('gpt-5')
             completion_params = {
                 "model": self.model,
-                "messages": [{"role": "user", "content": query}],
-                "timeout": 120
+                "messages": messages,  # ← usa la lista construida arriba
+                "timeout": 120,
             }
-            
+
             # Añadir el parámetro correcto según el modelo
             if is_gpt5:
                 completion_params["max_completion_tokens"] = 16000
@@ -132,12 +157,12 @@ class OpenAIProvider(BaseLLMProvider):
                 if 'model' in err_msg or 'not found' in err_msg or 'does not exist' in err_msg or 'not have access' in err_msg or 'unsupported' in err_msg:
                     fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-4o')
                     logger.warning(f"⚠️ Error con '{self.model}': {e_chat}. Usando fallback: {fallback_model}")
-                    # gpt-4o usa max_tokens
+                    # gpt-4o usa max_tokens — REUSA `messages` (con system si aplicaba)
                     fallback_params = {
                         "model": fallback_model,
-                        "messages": [{"role": "user", "content": query}],
+                        "messages": messages,  # ← preserva el system message
                         "max_tokens": 16000,
-                        "timeout": 120
+                        "timeout": 120,
                     }
                     response = self.client.chat.completions.create(**fallback_params)
                     content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
@@ -148,7 +173,7 @@ class OpenAIProvider(BaseLLMProvider):
                     actual_pricing = get_model_pricing_from_db('openai', fallback_model)
                 else:
                     raise e_chat
-            
+
             # Calcular tiempo de respuesta
             response_time = int((time.time() - start_time) * 1000)
 
@@ -176,9 +201,10 @@ class OpenAIProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'cost_usd': round(cost, 6),
                 'response_time_ms': response_time,
-                'model_used': actual_model_used
+                'model_used': actual_model_used,
+                'prompt_strategy': prompt_strategy,  # ✨ NUEVO
             }
-            
+
         except (getattr(openai, 'APIStatusError', Exception), getattr(openai, 'BadRequestError', Exception), getattr(openai, 'NotFoundError', Exception), openai.APIError) as e:
             # Fallback automático si el modelo no existe/no está permitido
             err_msg = str(e)
@@ -186,13 +212,11 @@ class OpenAIProvider(BaseLLMProvider):
                 logger.warning(f"⚠️ Modelo '{self.model}' no disponible. Reintentando con 'gpt-4o' como fallback...")
                 try:
                     fallback_model = 'gpt-4o'
-                    # gpt-4o usa max_tokens (no max_completion_tokens)
+                    # gpt-4o usa max_tokens — REUSA `messages` (con system si aplicaba)
                     response = self.client.chat.completions.create(
                         model=fallback_model,
-                        messages=[
-                            {"role": "user", "content": query}
-                        ],
-                        max_tokens=16000  # GPT-4o máximo es 16K de salida
+                        messages=messages,  # ← preserva el system message
+                        max_tokens=16000,
                     )
                     response_time = int((time.time() - start_time) * 1000)
                     content = getattr(response.choices[0].message, 'content', None) or getattr(response.choices[0], 'text', '')
@@ -212,7 +236,8 @@ class OpenAIProvider(BaseLLMProvider):
                         'output_tokens': output_tokens,
                         'cost_usd': round(cost, 6),
                         'response_time_ms': response_time,
-                        'model_used': fallback_model
+                        'model_used': fallback_model,
+                        'prompt_strategy': prompt_strategy,  # ✨ NUEVO
                     }
                 except Exception as e2:
                     logger.error(f"❌ OpenAI fallback gpt-4o también falló: {e2}")

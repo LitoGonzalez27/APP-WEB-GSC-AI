@@ -11,9 +11,10 @@ IMPORTANTE:
 
 import logging
 import time
-from typing import Dict
+from typing import Dict, Optional
 import openai
 from .base_provider import BaseLLMProvider, get_model_pricing_from_db, get_current_model_for_provider
+from .locale_helpers import LocaleContext, build_system_instruction
 from .retry_handler import with_retry  # ✨ NUEVO: Sistema de retry
 
 logger = logging.getLogger(__name__)
@@ -78,37 +79,97 @@ class PerplexityProvider(BaseLLMProvider):
         logger.info(f"   ⚡ Búsqueda en tiempo real habilitada")
     
     @with_retry  # ✨ NUEVO: Retry automático con exponential backoff
-    def execute_query(self, query: str) -> Dict:
+    def execute_query(self, query: str, *,
+                      locale: Optional[LocaleContext] = None) -> Dict:
         """
-        Ejecuta una query contra Perplexity Sonar
-        
+        Ejecuta una query contra Perplexity Sonar.
+
         IMPORTANTE: Esta query incluirá búsqueda en internet en tiempo real.
         La respuesta puede incluir información muy reciente.
-        
+
         Args:
-            query: Pregunta a hacer a Perplexity
-            
+            query: Pregunta a hacer a Perplexity.
+            locale: LocaleContext opcional. Cuando se pasa, se aplican DOS
+                    mecanismos nativos acumulativos:
+                    1. System message con instrucción en lengua destino.
+                    2. extra_body.web_search_options.user_location={country}
+                       para geo-enrutar la búsqueda web real. Este es el
+                       mecanismo más efectivo de fidelidad porque actúa
+                       sobre el motor de búsqueda real de Perplexity,
+                       no solo sobre la generación del texto.
+                    Si la API rechaza extra_body (feature no disponible
+                    en la cuenta), degrada graciosamente a system-only.
+
         Returns:
-            Dict con respuesta estandarizada
+            Dict con respuesta estandarizada (incluye 'prompt_strategy').
         """
         start_time = time.time()
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": query}
-                ],
-                temperature=0.7,
-                max_tokens=16000  # Aumentado a 16K para capturar respuestas de cualquier longitud
+
+        # ─── Construir messages y extra_body según locale ─────────────
+        messages = []
+        extra_body: Optional[Dict] = None
+
+        if locale is not None:
+            messages.append({
+                "role": "system",
+                "content": build_system_instruction(locale),
+            })
+            extra_body = {
+                "web_search_options": {
+                    "user_location": {"country": locale.country_code}
+                }
+            }
+            prompt_strategy = 'system_user_geo'
+            logger.info(
+                f"🌍 Perplexity: locale+geo applied [{locale.fingerprint()}] "
+                f"strategy={prompt_strategy}"
             )
-            
+        else:
+            prompt_strategy = 'legacy_user_only'
+
+        messages.append({"role": "user", "content": query})
+
+        # ─── Llamada con graceful degradation ─────────────────────────
+        call_params: Dict = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 16000,  # Aumentado a 16K para capturar respuestas de cualquier longitud
+        }
+        if extra_body is not None:
+            call_params["extra_body"] = extra_body
+
+        try:
+            try:
+                response = self.client.chat.completions.create(**call_params)
+            except (openai.BadRequestError, openai.APIError) as e_call:
+                # Graceful degradation: si la API rechaza extra_body
+                # (p.ej. feature user_location no disponible en la cuenta),
+                # reintentar sin extra_body, conservando el system message.
+                err_text = str(e_call).lower()
+                is_extra_body_issue = extra_body is not None and any(
+                    k in err_text
+                    for k in ('user_location', 'web_search_options', 'extra_body')
+                )
+                if is_extra_body_issue:
+                    logger.warning(
+                        f"⚠️ Perplexity rejected user_location extra_body, "
+                        f"falling back to system-only. err={e_call}"
+                    )
+                    call_params.pop('extra_body', None)
+                    prompt_strategy = 'system_user'  # downgraded from system_user_geo
+                    response = self.client.chat.completions.create(**call_params)
+                else:
+                    # Otro tipo de error: re-lanzar para que el handler
+                    # de abajo lo convierta en dict estándar de error.
+                    raise
+
             # Calcular tiempo de respuesta
             response_time = int((time.time() - start_time) * 1000)
-            
+
             # Extraer datos (mismo formato que OpenAI)
             content = response.choices[0].message.content
-            
+
             # ✨ NUEVO: Capturar citations de Perplexity
             sources = []
             if hasattr(response, 'citations') and response.citations:
@@ -118,12 +179,12 @@ class PerplexityProvider(BaseLLMProvider):
                         'provider': 'perplexity'
                     })
                 logger.debug(f"✅ Capturadas {len(sources)} citations de Perplexity")
-            
+
             # Tokens usados
             input_tokens = 0
             output_tokens = 0
             total_tokens = 0
-            
+
             if hasattr(response, 'usage') and response.usage:
                 input_tokens = getattr(response.usage, 'prompt_tokens', 0)
                 output_tokens = getattr(response.usage, 'completion_tokens', 0)
@@ -134,11 +195,11 @@ class PerplexityProvider(BaseLLMProvider):
                 output_tokens = int(len(content.split()) * 1.3)
                 total_tokens = input_tokens + output_tokens
                 logger.debug(f"ℹ️ Perplexity no expuso usage, usando estimación")
-            
+
             # Calcular coste usando pricing de BD
-            cost = (input_tokens * self.pricing['input'] + 
+            cost = (input_tokens * self.pricing['input'] +
                    output_tokens * self.pricing['output'])
-            
+
             return {
                 'success': True,
                 'content': content,
@@ -148,7 +209,8 @@ class PerplexityProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'cost_usd': round(cost, 6),
                 'response_time_ms': response_time,
-                'model_used': self.model
+                'model_used': self.model,
+                'prompt_strategy': prompt_strategy,  # ✨ NUEVO
             }
             
         except openai.APIError as e:
