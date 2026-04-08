@@ -29,88 +29,19 @@ from llm_monitoring_limits import (
     get_user_monthly_llm_usage,
 )
 from services.llm_providers import LLMProviderFactory, BaseLLMProvider
+from services.llm_providers.locale_helpers import (
+    LocaleContext,
+    create_locale_context,
+    build_system_instruction,
+    # Re-exported for backward compatibility with any external module
+    # that used to import these names from llm_monitoring_service.
+    # They now live in locale_helpers.py as single source of truth.
+    LANGUAGE_NAMES,
+    COUNTRY_NAMES,
+)
 from services.ai_analysis import extract_brand_variations, remove_accents
 
 logger = logging.getLogger(__name__)
-
-LANGUAGE_NAMES = {
-    'es': 'Spanish',
-    'en': 'English',
-    'it': 'Italian',
-    'fr': 'French',
-    'de': 'German',
-    'pt': 'Portuguese',
-    'nl': 'Dutch',
-    'sv': 'Swedish',
-    'no': 'Norwegian',
-    'da': 'Danish',
-    'fi': 'Finnish',
-    'pl': 'Polish',
-    'cs': 'Czech',
-    'el': 'Greek',
-    'ro': 'Romanian',
-    'hu': 'Hungarian',
-    'tr': 'Turkish',
-    'he': 'Hebrew',
-    'ar': 'Arabic',
-    'af': 'Afrikaans',
-    'hi': 'Hindi',
-    'ja': 'Japanese',
-    'zh': 'Chinese',
-    'ko': 'Korean',
-    'id': 'Indonesian',
-    'th': 'Thai',
-    'vi': 'Vietnamese',
-    'tl': 'Filipino',
-    'ms': 'Malay',
-}
-
-COUNTRY_NAMES = {
-    'ES': 'Spain',
-    'US': 'United States',
-    'GB': 'United Kingdom',
-    'FR': 'France',
-    'DE': 'Germany',
-    'IT': 'Italy',
-    'PT': 'Portugal',
-    'MX': 'Mexico',
-    'AR': 'Argentina',
-    'CO': 'Colombia',
-    'CL': 'Chile',
-    'PE': 'Peru',
-    'BR': 'Brazil',
-    'CA': 'Canada',
-    'AU': 'Australia',
-    'NZ': 'New Zealand',
-    'IN': 'India',
-    'JP': 'Japan',
-    'CN': 'China',
-    'KR': 'South Korea',
-    'NL': 'Netherlands',
-    'BE': 'Belgium',
-    'CH': 'Switzerland',
-    'AT': 'Austria',
-    'SE': 'Sweden',
-    'NO': 'Norway',
-    'DK': 'Denmark',
-    'FI': 'Finland',
-    'PL': 'Poland',
-    'CZ': 'Czech Republic',
-    'IE': 'Ireland',
-    'GR': 'Greece',
-    'RO': 'Romania',
-    'HU': 'Hungary',
-    'TR': 'Turkey',
-    'IL': 'Israel',
-    'AE': 'United Arab Emirates',
-    'SA': 'Saudi Arabia',
-    'ZA': 'South Africa',
-    'SG': 'Singapore',
-    'ID': 'Indonesia',
-    'TH': 'Thailand',
-    'VN': 'Vietnam',
-    'PH': 'Philippines',
-}
 
 
 class MultiLLMMonitoringService:
@@ -236,7 +167,15 @@ class MultiLLMMonitoringService:
 
     def _build_localized_query(self, base_query: str, language: str, country_code: str) -> str:
         """
-        Añade contexto regional/idioma al prompt para alinear resultados al mercado objetivo.
+        DEPRECATED (2026-04-08): Use LocaleContext + provider `locale=`
+        kwarg instead. The new flow uses system messages and provider-
+        native geo parameters (Perplexity user_location, etc.).
+
+        This inline-prepending path stays as a belt-and-suspenders
+        fallback for any external caller that doesn't yet know about
+        LocaleContext. It is NO LONGER used by analyze_project() —
+        the main flow now passes LocaleContext directly to each
+        provider's execute_query(..., locale=...). See locale_helpers.py.
         """
         language_code = (language or 'en').strip().lower()
         country = (country_code or 'US').strip().upper()
@@ -1222,7 +1161,26 @@ JSON:"""
             logger.info(f"   Industria: {project['industry']}")
             logger.info(f"   Idioma/País: {project.get('language', 'en')} / {project.get('country_code', 'US')}")
             logger.info(f"   LLMs habilitados: {project['enabled_llms']}")
-            
+
+            # ✨ NUEVO (2026-04-08): construir LocaleContext una vez por
+            # proyecto. Se reutiliza para TODAS las queries × providers de
+            # este análisis. Se pasa a provider.execute_query(locale=)
+            # para que cada provider aplique su mecanismo nativo óptimo:
+            # - OpenAI/Anthropic: system message en lengua destino
+            # - Perplexity: system + web_search_options.user_location
+            # - Gemini: prepended [SYSTEM INSTRUCTION] block
+            # Es 100% multi-país — se construye releyendo los campos
+            # language y country_code del proyecto en BD.
+            project_locale = create_locale_context(
+                language=project.get('language'),
+                country_code=project.get('country_code'),
+            )
+            logger.info(
+                f"   🌍 Locale: {project_locale.language_name} "
+                f"/ {project_locale.country_name_localized} "
+                f"({project_locale.fingerprint()})"
+            )
+
             # Obtener o generar queries
             cur.execute("""
                 SELECT id, query_text, language, query_type
@@ -1450,16 +1408,17 @@ JSON:"""
         tasks = []
         for llm_name, provider in active_providers.items():
             for query in queries:
-                localized_query = self._build_localized_query(
-                    base_query=query['query_text'],
-                    language=project.get('language'),
-                    country_code=project.get('country_code')
-                )
+                # ✨ NUEVO (2026-04-08): execution_query es la query RAW,
+                # sin prepend inline. El locale se aplica dentro del
+                # provider vía provider.execute_query(..., locale=...).
+                # Esto permite que cada provider use su mecanismo nativo
+                # óptimo (system message, user_location, etc.).
                 tasks.append({
                     'project_id': project_id,
                     'query_id': query['id'],
                     'query_text': query['query_text'],
-                    'execution_query': localized_query,
+                    'execution_query': query['query_text'],  # ← raw
+                    'locale': project_locale,                 # ← ✨ NUEVO
                     'llm_name': llm_name,
                     'provider': provider,
                     'brand_name': project['brand_name'],  # Legacy
@@ -1471,7 +1430,8 @@ JSON:"""
                     'competitor_term_to_name': competitor_term_to_name,  # ✨ NUEVO: Mapeo para agrupación
                     'language': project.get('language'),
                     'country_code': project.get('country_code'),
-                    'analysis_date': analysis_date
+                    'analysis_date': analysis_date,
+                    'prompt_version': 'v2_system',            # ← ✨ NUEVO (metadata)
                 })
         
         total_tasks = len(tasks)
@@ -1730,13 +1690,36 @@ JSON:"""
         try:
             execution_query = task.get('execution_query') or task['query_text']
 
+            # ✨ NUEVO (2026-04-08): obtener LocaleContext del task y
+            # pasarlo al provider. Si no hay locale (tasks legacy o
+            # callers externos), se pasa None y el provider mantiene
+            # comportamiento anterior (backward compat 100%).
+            task_locale = task.get('locale')  # LocaleContext o None
+
             # Ejecutar query en el LLM con control de concurrencia por proveedor
             semaphore = self.provider_semaphores.get(task['llm_name'])
             if semaphore is not None:
                 with semaphore:
-                    llm_result = task['provider'].execute_query(execution_query)
+                    llm_result = task['provider'].execute_query(
+                        execution_query, locale=task_locale
+                    )
             else:
-                llm_result = task['provider'].execute_query(execution_query)
+                llm_result = task['provider'].execute_query(
+                    execution_query, locale=task_locale
+                )
+
+            # ✨ NUEVO: log de observabilidad para auditar que la
+            # estrategia de locale se aplicó correctamente en cada
+            # ejecución. Buscar "strategy=legacy_user_only" en logs
+            # revela call sites que todavía no pasan locale.
+            logger.info(
+                f"🧪 task analyzed "
+                f"project={task['project_id']} query={task['query_id']} "
+                f"provider={task['llm_name']} "
+                f"locale={task_locale.fingerprint() if task_locale else 'none'} "
+                f"strategy={llm_result.get('prompt_strategy', 'n/a') if isinstance(llm_result, dict) else 'n/a'} "
+                f"model={llm_result.get('model_used', 'n/a') if isinstance(llm_result, dict) else 'n/a'}"
+            )
             
             if not llm_result['success']:
                 # ✨ NUEVO: Guardar el error en BD para que sea visible
@@ -1776,6 +1759,24 @@ JSON:"""
             cur = conn.cursor()
             
             try:
+                # ✨ NUEVO (2026-04-08): construir metadata de ejecución
+                # para auditoría. Incluye la estrategia real aplicada
+                # por el provider (system_user, system_user_geo,
+                # prepended_system, legacy_user_only) y el locale.
+                # Si el locale no estaba presente (caller externo), se
+                # guardan nulls — las columnas son nullable.
+                _execution_metadata = {
+                    'prompt_strategy': llm_result.get('prompt_strategy', 'legacy_user_only'),
+                    'locale_fingerprint': task_locale.fingerprint() if task_locale else None,
+                    'language_code': task_locale.language_code if task_locale else None,
+                    'country_code': task_locale.country_code if task_locale else None,
+                    'language_name': task_locale.language_name if task_locale else None,
+                    'country_name': task_locale.country_name if task_locale else None,
+                    'country_name_localized': task_locale.country_name_localized if task_locale else None,
+                    'model_reported': llm_result.get('model_used'),
+                }
+                _prompt_version = task.get('prompt_version', 'v2_system')
+
                 cur.execute("""
                     INSERT INTO llm_monitoring_results (
                         project_id, query_id, analysis_date,
@@ -1787,7 +1788,8 @@ JSON:"""
                         competitors_mentioned,
                         full_response, response_length,
                         sources,
-                        tokens_used, input_tokens, output_tokens, cost_usd, response_time_ms
+                        tokens_used, input_tokens, output_tokens, cost_usd, response_time_ms,
+                        execution_metadata, prompt_version
                     ) VALUES (
                         %s, %s, %s,
                         %s, %s,
@@ -1798,9 +1800,10 @@ JSON:"""
                         %s,
                         %s, %s,
                         %s,
-                        %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s,
+                        %s, %s
                     )
-                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
+                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date)
                     DO UPDATE SET
                         model_used = EXCLUDED.model_used,
                         query_text = EXCLUDED.query_text,
@@ -1821,7 +1824,9 @@ JSON:"""
                         tokens_used = EXCLUDED.tokens_used,
                         input_tokens = EXCLUDED.input_tokens,
                         output_tokens = EXCLUDED.output_tokens,
-                        cost_usd = EXCLUDED.cost_usd
+                        cost_usd = EXCLUDED.cost_usd,
+                        execution_metadata = EXCLUDED.execution_metadata,
+                        prompt_version = EXCLUDED.prompt_version
                 """, (
                     task['project_id'], task['query_id'], task['analysis_date'],
                     task['llm_name'], llm_result.get('model_used'),
@@ -1843,9 +1848,11 @@ JSON:"""
                     llm_result['input_tokens'],
                     llm_result['output_tokens'],
                     llm_result['cost_usd'],
-                    llm_result['response_time_ms']
+                    llm_result['response_time_ms'],
+                    json.dumps(_execution_metadata),  # ✨ NUEVO
+                    _prompt_version,                   # ✨ NUEVO
                 ))
-                
+
                 conn.commit()
                 
             finally:
