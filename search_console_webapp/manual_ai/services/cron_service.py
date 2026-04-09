@@ -52,7 +52,16 @@ class CronService:
             if not lock_conn:
                 logger.error("❌ No se pudo conectar a la base de datos para adquirir el lock")
                 return {"success": False, "error": "DB connection failed for lock"}
-            
+
+            # ✨ NUEVO (2026-04-09): Las advisory locks de Postgres son session-level,
+            # no transaction-level. Activando autocommit evitamos que lock_conn quede
+            # idle-in-transaction durante el procesamiento, lo que eliminaría el riesgo
+            # de que idle_in_transaction_session_timeout (15 min, hardening del 2026-04-08)
+            # mate la conn a mitad de tanda y libere la advisory lock, permitiendo que
+            # otro cron arranque en paralelo. Tandas con 40-60 proyectos pueden durar
+            # >15 min, así que sin este cambio el riesgo es real.
+            lock_conn.autocommit = True
+
             lock_cur = lock_conn.cursor()
             lock_cur.execute("SELECT pg_try_advisory_lock(%s, %s) as lock_acquired", 
                            (lock_class_id, lock_object_id))

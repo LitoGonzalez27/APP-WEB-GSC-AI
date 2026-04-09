@@ -655,6 +655,233 @@ class StatisticsService:
         top_urls = urls_data[:limit]
         for index, url_data in enumerate(top_urls, start=1):
             url_data['rank'] = index
-        
+
         return top_urls
+
+    @staticmethod
+    def get_aio_vs_organic_comparison(project_id: int, days: int = 30) -> Dict:
+        """
+        Compara las URLs que rankean orgánicamente (top 10) con las URLs
+        citadas como referencias en el AI Overview, para todas las keywords
+        del proyecto en el rango de días indicado.
+
+        Utiliza EXCLUSIVAMENTE datos ya almacenados en `manual_ai_results.raw_serp_data`:
+          - `raw_serp_data->'organic_results'`   → top 10 orgánico
+          - `raw_serp_data->'ai_overview'->'references'` → páginas citadas por AIO
+
+        Cero coste SerpAPI extra. Cero cambios de schema.
+
+        Produce tres bloques de insight:
+          1. overall:        estadísticas globales de overlap (URL-exacto y dominio)
+          2. my_domain_stats: los 4 cuadrantes para el dominio del proyecto
+                              (Rank & Cited / Rank-only / Cited-only / Neither)
+          3. per_keyword:     desglose por keyword con el cuadrante asignado
+
+        Args:
+            project_id: ID del proyecto
+            days: Número de días hacia atrás (default 30)
+
+        Returns:
+            Dict con overall, my_domain_stats, per_keyword
+        """
+        from urllib.parse import urlparse
+
+        def _normalize_url(u):
+            """Normaliza una URL para comparación: lowercase host, strip www,
+            strip trailing slash. Devuelve None si la URL está vacía."""
+            if not u:
+                return None
+            try:
+                p = urlparse(u)
+                host = (p.netloc or '').lower()
+                if host.startswith('www.'):
+                    host = host[4:]
+                path = (p.path or '').rstrip('/')
+                return (f'{host}{path}').lower() or None
+            except Exception:
+                return u.lower() if u else None
+
+        def _domain_of(u):
+            """Extrae el dominio canónico (sin www) de una URL."""
+            if not u:
+                return None
+            try:
+                host = (urlparse(u).netloc or '').lower()
+                if host.startswith('www.'):
+                    host = host[4:]
+                return host or None
+            except Exception:
+                return None
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+
+            # Dominio del proyecto (para cálculos "my_domain_stats")
+            cur.execute(
+                "SELECT domain FROM manual_ai_projects WHERE id = %s",
+                (project_id,)
+            )
+            project_row = cur.fetchone()
+            project_domain = (project_row['domain'] if project_row else '') or ''
+            # Normalizamos el dominio del proyecto para compararlo con los
+            # dominios extraídos de las URLs (que vienen con/sin www).
+            project_domain_norm = _domain_of(f'https://{project_domain}')
+
+            cur.execute("""
+                SELECT r.keyword,
+                       r.raw_serp_data->'organic_results' AS organic,
+                       r.raw_serp_data->'ai_overview'->'references' AS refs
+                FROM manual_ai_results r
+                WHERE r.project_id = %s
+                  AND r.analysis_date BETWEEN %s AND %s
+                  AND r.has_ai_overview = TRUE
+                  AND jsonb_array_length(COALESCE(r.raw_serp_data->'organic_results', '[]'::jsonb)) > 0
+                  AND jsonb_array_length(COALESCE(r.raw_serp_data->'ai_overview'->'references', '[]'::jsonb)) > 0
+                ORDER BY r.analysis_date DESC, r.id DESC
+            """, (project_id, start_date, end_date))
+            rows = cur.fetchall()
+        finally:
+            cur.close()
+            conn.close()
+
+        # Acumuladores globales
+        total_aio_refs = 0
+        total_organic = 0
+        overlap_url_total = 0
+        overlap_domain_total = 0
+
+        # Cuadrantes del dominio del proyecto (por keyword única)
+        kw_in_organic = 0
+        kw_in_aio = 0
+        kw_in_both = 0
+        kw_organic_only = 0
+        kw_aio_only = 0
+        kw_neither = 0
+
+        per_keyword: List[Dict] = []
+
+        # Para evitar duplicados por keyword (si la misma kw tiene N filas
+        # en los últimos 30 días, nos quedamos con la más reciente que es
+        # la primera por el ORDER BY)
+        seen_keywords = set()
+
+        for r in rows:
+            kw_text = r['keyword']
+            if kw_text in seen_keywords:
+                continue
+            seen_keywords.add(kw_text)
+
+            organic = r['organic'] or []
+            refs = r['refs'] or []
+
+            org_url_set = set(filter(
+                None, (_normalize_url(o.get('link')) for o in organic if isinstance(o, dict))
+            ))
+            org_dom_set = set(filter(
+                None, (_domain_of(o.get('link')) for o in organic if isinstance(o, dict))
+            ))
+            ref_url_set = set(filter(
+                None, (_normalize_url(o.get('link')) for o in refs if isinstance(o, dict))
+            ))
+            ref_dom_set = set(filter(
+                None, (_domain_of(o.get('link')) for o in refs if isinstance(o, dict))
+            ))
+
+            n_url_overlap = len(ref_url_set & org_url_set)
+            n_dom_overlap = len(ref_dom_set & org_dom_set)
+
+            total_aio_refs += len(ref_url_set)
+            total_organic += len(org_url_set)
+            overlap_url_total += n_url_overlap
+            overlap_domain_total += n_dom_overlap
+
+            # Cuadrantes del dominio del proyecto (comparación por dominio,
+            # NO por URL exacta: si mi dominio aparece en /pagina-A como
+            # orgánico y en /pagina-B como ref de AIO, para el análisis
+            # SEO/GEO cuenta como "presente en ambos").
+            my_in_org = (
+                project_domain_norm in org_dom_set
+                if project_domain_norm else False
+            )
+            my_in_aio = (
+                project_domain_norm in ref_dom_set
+                if project_domain_norm else False
+            )
+
+            if my_in_org and my_in_aio:
+                kw_in_both += 1
+                quadrant = 'both'
+            elif my_in_org and not my_in_aio:
+                kw_organic_only += 1
+                quadrant = 'organic_only'
+            elif not my_in_org and my_in_aio:
+                kw_aio_only += 1
+                quadrant = 'aio_only'
+            else:
+                kw_neither += 1
+                quadrant = 'neither'
+
+            if my_in_org:
+                kw_in_organic += 1
+            if my_in_aio:
+                kw_in_aio += 1
+
+            per_keyword.append({
+                'keyword': kw_text,
+                'organic_count': len(org_url_set),
+                'aio_refs_count': len(ref_url_set),
+                'overlap_url_count': n_url_overlap,
+                'overlap_domain_count': n_dom_overlap,
+                'my_domain_in_organic': my_in_org,
+                'my_domain_in_aio': my_in_aio,
+                'quadrant': quadrant,
+            })
+
+        # Ordenar per_keyword: primero `both` (éxito), luego oportunidades
+        # (organic_only, aio_only), luego `neither`. Dentro de cada grupo,
+        # orden descendente por overlap.
+        quadrant_order = {
+            'both': 0,
+            'organic_only': 1,
+            'aio_only': 2,
+            'neither': 3,
+        }
+        per_keyword.sort(
+            key=lambda k: (quadrant_order[k['quadrant']], -k['overlap_url_count'])
+        )
+
+        overlap_rate_url = (
+            round(overlap_url_total / total_aio_refs * 100, 1)
+            if total_aio_refs else 0.0
+        )
+        overlap_rate_dom = (
+            round(overlap_domain_total / total_aio_refs * 100, 1)
+            if total_aio_refs else 0.0
+        )
+
+        return {
+            'overall': {
+                'total_keywords_analyzed': len(per_keyword),
+                'keywords_with_aio_and_organic': len(per_keyword),
+                'total_aio_refs': total_aio_refs,
+                'total_organic_top10': total_organic,
+                'aio_refs_also_in_organic_url': overlap_url_total,
+                'aio_refs_also_in_organic_domain': overlap_domain_total,
+                'overlap_rate_url': overlap_rate_url,
+                'overlap_rate_domain': overlap_rate_dom,
+            },
+            'my_domain_stats': {
+                'project_domain': project_domain,
+                'keywords_in_organic_top10': kw_in_organic,
+                'keywords_in_aio_refs': kw_in_aio,
+                'keywords_in_both': kw_in_both,
+                'keywords_organic_only': kw_organic_only,
+                'keywords_aio_only': kw_aio_only,
+                'keywords_neither': kw_neither,
+            },
+            'per_keyword': per_keyword,
+        }
 

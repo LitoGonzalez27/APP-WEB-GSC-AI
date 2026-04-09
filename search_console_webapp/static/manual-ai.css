@@ -5157,3 +5157,171 @@ label.manual-ai-underline {
         justify-content: center;
     }
 }
+
+/* ============================================================ */
+/* AIO vs Organic Comparison Section (2026-04-09)                */
+/* ============================================================ */
+
+.aio-vs-organic-section {
+    margin-top: var(--manual-ai-spacing-xl);
+    background: white;
+    border-radius: var(--manual-ai-border-radius-lg);
+    padding: var(--manual-ai-spacing-lg);
+    border: var(--manual-ai-border-width) solid var(--manual-ai-gray-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.aio-vs-organic-stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    padding: 16px 20px;
+    background: #f7f9fb;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.aio-vs-organic-stats-bar .stat-item {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.aio-vs-organic-stats-bar .stat-item strong {
+    font-size: 18px;
+    color: #111827;
+    font-weight: 700;
+}
+
+.aio-vs-organic-stats-bar .stat-item small {
+    color: #6b7280;
+    font-size: 11px;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.aio-vs-organic-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.aio-vs-organic-kpis .kpi-card {
+    padding: 18px 16px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aio-vs-organic-kpis .kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.aio-vs-organic-kpis .kpi-card.kpi-both { border-left: 4px solid #10b981; }
+.aio-vs-organic-kpis .kpi-card.kpi-organic-only { border-left: 4px solid #f59e0b; }
+.aio-vs-organic-kpis .kpi-card.kpi-aio-only { border-left: 4px solid #3b82f6; }
+.aio-vs-organic-kpis .kpi-card.kpi-neither { border-left: 4px solid #9ca3af; }
+
+.aio-vs-organic-kpis .kpi-icon {
+    font-size: 20px;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.aio-vs-organic-kpis .kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    margin: 2px 0 6px 0;
+}
+
+.aio-vs-organic-kpis .kpi-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.aio-vs-organic-kpis .kpi-help {
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.aio-vs-organic-table-wrapper {
+    overflow-x: auto;
+}
+
+.aio-vs-organic-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.aio-vs-organic-table thead th {
+    background: #f9fafb;
+    color: #374151;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid #e5e7eb;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.aio-vs-organic-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #1f2937;
+}
+
+.aio-vs-organic-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.aio-vs-organic-table .rank-cell {
+    color: #6b7280;
+    font-weight: 500;
+    width: 40px;
+}
+
+.aio-vs-organic-table .kw-cell {
+    max-width: 360px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aio-vs-organic-table .q-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.aio-vs-organic-table .q-badge.q-both   { background: #d1fae5; color: #065f46; }
+.aio-vs-organic-table .q-badge.q-org    { background: #fef3c7; color: #92400e; }
+.aio-vs-organic-table .q-badge.q-aio    { background: #dbeafe; color: #1e40af; }
+.aio-vs-organic-table .q-badge.q-none   { background: #f3f4f6; color: #374151; }
+
+.aio-vs-organic-table .q-row-both td:first-child { border-left: 3px solid #10b981; }
+.aio-vs-organic-table .q-row-organic_only td:first-child { border-left: 3px solid #f59e0b; }
+.aio-vs-organic-table .q-row-aio_only td:first-child { border-left: 3px solid #3b82f6; }
+.aio-vs-organic-table .q-row-neither td:first-child { border-left: 3px solid #9ca3af; }
+
+.no-aio-vs-organic-message {
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+

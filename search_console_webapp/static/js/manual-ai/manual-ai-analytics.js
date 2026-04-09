@@ -171,11 +171,12 @@ export async function loadAnalyticsComponents(projectId) {
             this.loadComparativeCharts(projectId),
             this.loadCompetitorsPreview(projectId),
             this.loadAIOverviewKeywordsTable(projectId),
-            this.loadClustersStatistics(projectId)  // ✨ NEW: Clusters statistics
+            this.loadClustersStatistics(projectId),  // ✨ Clusters statistics
+            this.loadAioVsOrganicComparison(projectId)  // ✨ NEW (2026-04-09): AIO vs Organic
         ];
 
         await Promise.allSettled(promises);
-        console.log('✅ All analytics components loaded (including clusters)');
+        console.log('✅ All analytics components loaded (including clusters + AIO vs Organic)');
 
     } catch (error) {
         console.error('Error loading analytics components:', error);
@@ -1379,4 +1380,162 @@ export function processAIOverviewDataForGrid(keywordResults, competitorDomains) 
 export function truncateDomain(domain, maxLength = 20) {
     if (!domain || domain.length <= maxLength) return domain;
     return domain.substring(0, maxLength - 3) + '...';
+}
+
+// ================================
+// AIO vs ORGANIC COMPARISON (2026-04-09)
+// ================================
+// Compara URLs en el top 10 orgánico vs URLs citadas como referencias
+// por el AI Overview. Identifica 4 cuadrantes para el dominio del
+// proyecto: 🟢 Rank & Cited / 🟡 Rank-only (GEO opp) / 🔵 Cited-only
+// (SEO opp) / ⚪ Neither. Reutiliza datos ya guardados en raw_serp_data.
+
+export async function loadAioVsOrganicComparison(projectId) {
+    if (!projectId) {
+        this.showNoAioVsOrganicMessage();
+        return;
+    }
+
+    const days = this.elements.analyticsTimeRange?.value || 30;
+
+    try {
+        const response = await fetch(
+            `/manual-ai/api/projects/${projectId}/aio-vs-organic?days=${days}`
+        );
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                this.showNoAioVsOrganicMessage();
+                return;
+            }
+            throw new Error('Failed to load AIO vs Organic comparison');
+        }
+
+        const data = await response.json();
+        if (!data.success || !data.comparison) {
+            this.showNoAioVsOrganicMessage();
+            return;
+        }
+
+        this.renderAioVsOrganicComparison(data.comparison);
+
+    } catch (error) {
+        console.error('Error loading AIO vs Organic comparison:', error);
+        this.showNoAioVsOrganicMessage();
+    }
+}
+
+export function renderAioVsOrganicComparison(comparison) {
+    const { overall, my_domain_stats, per_keyword } = comparison || {};
+
+    if (!overall || !my_domain_stats) {
+        this.showNoAioVsOrganicMessage();
+        return;
+    }
+
+    if (!overall.total_keywords_analyzed || overall.total_keywords_analyzed === 0) {
+        this.showNoAioVsOrganicMessage();
+        return;
+    }
+
+    // Stats bar (overall totals)
+    const statsBar = document.getElementById('aioVsOrganicStats');
+    if (statsBar) {
+        statsBar.innerHTML = `
+            <span class="stat-item">
+                <strong>${overall.total_keywords_analyzed}</strong>
+                <small>keywords analyzed</small>
+            </span>
+            <span class="stat-item">
+                <strong>${overall.overlap_rate_url}%</strong>
+                <small>URL-exact overlap</small>
+            </span>
+            <span class="stat-item">
+                <strong>${overall.overlap_rate_domain}%</strong>
+                <small>domain overlap</small>
+            </span>
+            <span class="stat-item">
+                <strong>${escapeHtml(my_domain_stats.project_domain || '—')}</strong>
+                <small>your domain</small>
+            </span>
+        `;
+    }
+
+    // KPI cards (4 cuadrantes)
+    const kpiContainer = document.getElementById('aioVsOrganicKpis');
+    if (kpiContainer) {
+        kpiContainer.innerHTML = `
+            <div class="kpi-card kpi-both">
+                <div class="kpi-icon">🟢</div>
+                <div class="kpi-value">${my_domain_stats.keywords_in_both}</div>
+                <div class="kpi-label">Rank &amp; Cited</div>
+                <div class="kpi-help">Ranks in top 10 AND cited in AI Overview</div>
+            </div>
+            <div class="kpi-card kpi-organic-only">
+                <div class="kpi-icon">🟡</div>
+                <div class="kpi-value">${my_domain_stats.keywords_organic_only}</div>
+                <div class="kpi-label">Rank, Not Cited</div>
+                <div class="kpi-help">GEO opportunity — ranks but AI Overview doesn't use you</div>
+            </div>
+            <div class="kpi-card kpi-aio-only">
+                <div class="kpi-icon">🔵</div>
+                <div class="kpi-value">${my_domain_stats.keywords_aio_only}</div>
+                <div class="kpi-label">Cited, Not Ranking</div>
+                <div class="kpi-help">SEO opportunity — cited in AIO but not in top 10</div>
+            </div>
+            <div class="kpi-card kpi-neither">
+                <div class="kpi-icon">⚪</div>
+                <div class="kpi-value">${my_domain_stats.keywords_neither}</div>
+                <div class="kpi-label">Neither</div>
+                <div class="kpi-help">Full content gap — neither ranks nor cited</div>
+            </div>
+        `;
+    }
+
+    // Per-keyword breakdown table
+    const tbody = document.getElementById('aioVsOrganicBody');
+    if (tbody) {
+        const quadrantBadge = {
+            both: '<span class="q-badge q-both">🟢 Rank &amp; Cited</span>',
+            organic_only: '<span class="q-badge q-org">🟡 Rank only</span>',
+            aio_only: '<span class="q-badge q-aio">🔵 Cited only</span>',
+            neither: '<span class="q-badge q-none">⚪ Neither</span>',
+        };
+
+        if (!per_keyword || per_keyword.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align:center; padding:16px; color:#6b7280;">
+                        No per-keyword data available
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = per_keyword.map((kw, idx) => `
+                <tr class="q-row-${kw.quadrant}">
+                    <td class="rank-cell">${idx + 1}</td>
+                    <td class="kw-cell" title="${escapeHtml(kw.keyword)}">
+                        ${escapeHtml(kw.keyword)}
+                    </td>
+                    <td>${kw.organic_count}</td>
+                    <td>${kw.aio_refs_count}</td>
+                    <td>${kw.overlap_url_count} <small style="color:#6b7280;">(${kw.overlap_domain_count} dom)</small></td>
+                    <td>${quadrantBadge[kw.quadrant] || ''}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Mostrar la sección, ocultar el mensaje "no data"
+    const noMsg = document.getElementById('noAioVsOrganicMessage');
+    const section = document.getElementById('aioVsOrganicContent');
+    if (noMsg) noMsg.style.display = 'none';
+    if (section) section.style.display = 'block';
+}
+
+export function showNoAioVsOrganicMessage() {
+    const noMsg = document.getElementById('noAioVsOrganicMessage');
+    const section = document.getElementById('aioVsOrganicContent');
+    if (section) section.style.display = 'none';
+    if (noMsg) noMsg.style.display = 'block';
 }

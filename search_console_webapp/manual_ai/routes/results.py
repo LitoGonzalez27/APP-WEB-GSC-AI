@@ -260,9 +260,9 @@ def get_urls_ranking(project_id):
     try:
         days = int(request.args.get('days', DEFAULT_DAYS_RANGE))
         limit = int(request.args.get('limit', 20))
-        
+
         urls_ranking = stats_service.get_project_urls_ranking(project_id, days, limit)
-        
+
         return jsonify({
             'success': True,
             'urls': urls_ranking,
@@ -270,4 +270,48 @@ def get_urls_ranking(project_id):
         })
     except Exception as e:
         logger.error(f"Error getting URLs ranking for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/aio-vs-organic', methods=['GET'])
+@auth_required
+def get_aio_vs_organic_comparison(project_id):
+    """
+    Comparación AIO vs Organic: compara las URLs que rankean en el top 10
+    orgánico con las URLs citadas como referencias por el AI Overview, para
+    todas las keywords del proyecto en el rango de días indicado.
+
+    Identifica 4 cuadrantes para el dominio del proyecto:
+      - 🟢 Rank & Cited    (ideal)
+      - 🟡 Rank-only       (oportunidad GEO)
+      - 🔵 Cited-only      (oportunidad SEO tradicional)
+      - ⚪ Neither          (gap absoluto)
+
+    Reutiliza datos ya almacenados en `manual_ai_results.raw_serp_data` →
+    cero coste SerpAPI extra.
+
+    Args:
+        project_id: ID del proyecto
+
+    Query params:
+        days: Número de días hacia atrás (default: 30)
+
+    Returns:
+        JSON con {success, comparison: {overall, my_domain_stats, per_keyword}}
+    """
+    user = get_current_user()
+
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        days = int(request.args.get('days', DEFAULT_DAYS_RANGE))
+        comparison = stats_service.get_aio_vs_organic_comparison(project_id, days)
+
+        return jsonify({
+            'success': True,
+            'comparison': comparison
+        })
+    except Exception as e:
+        logger.error(f"Error computing AIO vs Organic comparison for project {project_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
