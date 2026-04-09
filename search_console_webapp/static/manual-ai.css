@@ -5650,3 +5650,131 @@ label.manual-ai-underline {
     color: #6b7280;
 }
 
+/* ══════════════════════════════════════════════════════════════════ */
+/*  CLICANDSEO BRAND TOOLTIP — Standard component (2026-04-09)          */
+/*  Used across Manual AI, AI Mode and LLM Monitoring dashboards.      */
+/*                                                                      */
+/*  Usage:                                                              */
+/*    <span class="cg-info-tooltip">                                   */
+/*      <i class="fas fa-info-circle"></i>                             */
+/*      <span class="cg-info-tooltip-content">                         */
+/*        <strong>Section heading</strong>                             */
+/*        Body text explaining the metric.                             */
+/*        <strong>Another heading</strong>                             */
+/*        More details.                                                */
+/*      </span>                                                         */
+/*    </span>                                                           */
+/*                                                                      */
+/*  Brand rule: Bio-Lime (#d9f9b8) text ONLY on dark bg (#0A0A0B).     */
+/*  ──────────────────────────────────────────────────────────────── */
+
+.cg-info-tooltip,
+.aio-section-tooltip {
+    position: relative;
+    display: inline-block;
+    margin-left: 8px;
+    color: #9ca3af;
+    cursor: help;
+    font-size: 14px;
+    transition: color 0.15s ease;
+    vertical-align: middle;
+    /* Reset any inherited text-transform/letter-spacing from parent
+       (section headers often use uppercase which would leak into the
+       tooltip content panel). */
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: normal;
+}
+
+.cg-info-tooltip:hover,
+.aio-section-tooltip:hover {
+    color: #3b82f6;
+}
+
+.cg-info-tooltip .cg-info-tooltip-content,
+.aio-section-tooltip .aio-section-tooltip-content {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 340px;
+    background: #0A0A0B;
+    color: #F8FAFC;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    z-index: 1000;
+    text-align: left;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: normal;
+    pointer-events: none;
+    white-space: normal;
+    font-style: normal;
+    font-family: inherit;
+}
+
+.cg-info-tooltip .cg-info-tooltip-content strong,
+.aio-section-tooltip .aio-section-tooltip-content strong {
+    color: #d9f9b8;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.cg-info-tooltip .cg-info-tooltip-content strong:first-child,
+.aio-section-tooltip .aio-section-tooltip-content strong:first-child {
+    margin-top: 0;
+}
+
+.cg-info-tooltip:hover .cg-info-tooltip-content,
+.aio-section-tooltip:hover .aio-section-tooltip-content {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Positioning modifiers (position the tooltip content relative to the
+   trigger). Default is bottom-left. */
+.cg-info-tooltip.cg-tooltip--right .cg-info-tooltip-content {
+    left: auto;
+    right: 0;
+}
+
+.cg-info-tooltip.cg-tooltip--top .cg-info-tooltip-content {
+    top: auto;
+    bottom: calc(100% + 8px);
+}
+
+.cg-info-tooltip.cg-tooltip--top-right .cg-info-tooltip-content {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: auto;
+    right: 0;
+}
+
+/* Responsive: en móvil, ocupa casi todo el ancho */
+@media (max-width: 640px) {
+    .cg-info-tooltip .cg-info-tooltip-content,
+    .aio-section-tooltip .aio-section-tooltip-content {
+        width: min(320px, calc(100vw - 40px));
+    }
+}
+
+/* Override del patrón viejo `.kpi-tooltip::after` (LLM Monitoring) para
+   alinear con el brandbook. Mantenemos la estructura data-tooltip pero
+   cambiamos background y sombra. */
+.kpi-tooltip::after {
+    background: #0A0A0B !important;
+    color: #F8FAFC !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+.kpi-tooltip::before {
+    border-color: transparent transparent #0A0A0B transparent !important;
+}
+
