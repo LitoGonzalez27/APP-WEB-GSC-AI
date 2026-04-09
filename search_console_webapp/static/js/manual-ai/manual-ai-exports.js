@@ -54,13 +54,27 @@ export async function handleDownloadExcel() {
         a.style.display = 'none';
         a.href = url;
 
-        // Extract filename from response headers or create default
+        // Extract filename from response headers or create default.
+        // Default format matches the server-side filename:
+        //   "AI Overview export - {project} - {YYYY-MM-DD} - Clicandseo.xlsx"
+        const today = new Date().toISOString().slice(0, 10);
+        let filename = `AI Overview export - ${projectName} - ${today} - Clicandseo.xlsx`;
         const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = 'manual-ai_export.xlsx';
         if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-            if (filenameMatch) {
-                filename = filenameMatch[1].replace(/['"]/g, '');
+            // Try filename*=UTF-8''... (RFC 5987) first for Unicode-safe names,
+            // then fall back to plain filename=...
+            const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;\n]+)/i);
+            if (filenameStarMatch) {
+                try {
+                    filename = decodeURIComponent(filenameStarMatch[1]);
+                } catch (e) {
+                    // Keep default if decode fails
+                }
+            } else {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
             }
         }
 

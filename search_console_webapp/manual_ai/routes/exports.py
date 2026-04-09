@@ -79,13 +79,22 @@ def download_manual_ai_excel(project_id):
         )
         logger.info(f"Manual AI Excel generated successfully for project {project_id}")
         
-        # Crear nombre de archivo
+        # Crear nombre de archivo con formato pedido:
+        # "AI Overview export - {project name} - {YYYY-MM-DD} - Clicandseo.xlsx"
         madrid_tz = pytz.timezone('Europe/Madrid')
         now_madrid = datetime.now(madrid_tz)
-        timestamp = now_madrid.strftime('%Y%m%d-%H%M')
-        
-        project_slug = project_info['name'].lower().replace(' ', '').replace('-', '').replace('_', '')[:20]
-        filename = f'manual-ai_export__{project_slug}__{timestamp}__Europe-Madrid.xlsx'
+        date_str = now_madrid.strftime('%Y-%m-%d')
+
+        # Sanear el nombre del proyecto: quitar caracteres no seguros para
+        # nombres de archivo pero preservar espacios y caracteres comunes.
+        # Caracteres prohibidos en filenames: / \ : * ? " < > |
+        import re
+        project_name = project_info.get('name') or 'Project'
+        project_name_clean = re.sub(r'[\/\\:\*\?"<>\|]', '', project_name).strip()
+        if not project_name_clean:
+            project_name_clean = 'Project'
+
+        filename = f'AI Overview export - {project_name_clean} - {date_str} - Clicandseo.xlsx'
         
         # Registrar telemetría
         logger.info(f"Manual AI Excel export: project_id={project_id}, days={days}, filename={filename}")

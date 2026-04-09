@@ -5220,13 +5220,15 @@ label.manual-ai-underline {
     top: 24px;
     right: 0;
     width: 340px;
-    background: #1f2937;
-    color: #f9fafb;
+    /* Brandbook Clicandseo: fondo #0A0A0B (near-black), texto #F8FAFC,
+       headings #d9f9b8 (Bio-Lime). Bio-Lime ONLY on dark bg per brand rule. */
+    background: #0A0A0B;
+    color: #F8FAFC;
     padding: 14px 16px;
     border-radius: 8px;
     font-size: 12px;
     line-height: 1.55;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -5237,7 +5239,7 @@ label.manual-ai-underline {
 }
 
 .aio-vs-organic-stats-bar .stats-bar-tooltip-content strong {
-    color: #fbbf24;
+    color: #d9f9b8;
     display: block;
     margin-top: 8px;
     margin-bottom: 2px;
@@ -5335,16 +5337,23 @@ label.manual-ai-underline {
 
 .aio-vs-organic-position-header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
     margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid #e5e7eb;
-    font-size: 13px;
-    font-weight: 600;
-    color: #374151;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.2px;
+}
+
+/* Asegurar que el tooltip dentro del position header NO hereda el
+   estilo del header (por si en el futuro añadimos uppercase u otros) */
+.aio-vs-organic-position-header .aio-section-tooltip {
+    font-weight: normal;
+    letter-spacing: normal;
+    margin-left: 2px;
 }
 
 .aio-vs-organic-position-help {
@@ -5444,9 +5453,27 @@ label.manual-ai-underline {
 
 .aio-vs-organic-position-cards .position-row-rate {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 18px;
     color: #111827;
     letter-spacing: -0.3px;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.aio-vs-organic-position-cards .position-row-rate-unit {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-left: -3px;
+}
+
+.aio-vs-organic-position-cards .position-row-rate-suffix {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .aio-vs-organic-position-cards .position-row-count {
@@ -5455,10 +5482,39 @@ label.manual-ai-underline {
     font-weight: 500;
 }
 
+/* Empty bucket: grey-out the whole row but keep it visible */
+.aio-vs-organic-position-cards .position-row.position-row-empty {
+    opacity: 0.5;
+}
+
+.aio-vs-organic-position-cards .position-row.position-row-empty .position-row-label {
+    border-left-color: #e5e7eb !important;
+}
+
+/* Footnote below the bars: quick self-explanatory reminder */
+.aio-vs-organic-position-footnote {
+    margin: 14px 0 0 0;
+    font-size: 11px;
+    color: #6b7280;
+    font-style: italic;
+    line-height: 1.5;
+    padding-left: 12px;
+    border-left: 2px solid #e5e7eb;
+}
+
+.aio-vs-organic-position-footnote strong {
+    color: #374151;
+    font-weight: 600;
+    font-style: normal;
+}
+
 @media (max-width: 768px) {
     .aio-vs-organic-position-cards .position-row {
         grid-template-columns: 1fr;
         gap: 8px;
+    }
+    .aio-vs-organic-position-cards .position-row-rate-suffix {
+        display: none;
     }
 }
 
@@ -5486,13 +5542,15 @@ label.manual-ai-underline {
     top: calc(100% + 6px);
     left: 0;
     width: 360px;
-    background: #1f2937;
-    color: #f9fafb;
+    /* Brandbook Clicandseo: fondo #0A0A0B (near-black), texto #F8FAFC,
+       headings #d9f9b8 (Bio-Lime). Bio-Lime ONLY on dark bg per brand rule. */
+    background: #0A0A0B;
+    color: #F8FAFC;
     padding: 14px 16px;
     border-radius: 8px;
     font-size: 12px;
     line-height: 1.55;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.15s ease, visibility 0.15s ease;
@@ -5506,7 +5564,7 @@ label.manual-ai-underline {
 }
 
 .aio-section-tooltip .aio-section-tooltip-content strong {
-    color: #fbbf24;
+    color: #d9f9b8;
     display: block;
     margin-top: 10px;
     margin-bottom: 2px;
