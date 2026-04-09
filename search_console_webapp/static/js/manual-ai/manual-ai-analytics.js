@@ -1426,7 +1426,7 @@ export async function loadAioVsOrganicComparison(projectId) {
 }
 
 export function renderAioVsOrganicComparison(comparison) {
-    const { overall, my_domain_stats, per_keyword } = comparison || {};
+    const { overall, my_domain_stats, position_correlation, per_keyword } = comparison || {};
 
     if (!overall || !my_domain_stats) {
         this.showNoAioVsOrganicMessage();
@@ -1438,7 +1438,8 @@ export function renderAioVsOrganicComparison(comparison) {
         return;
     }
 
-    // Stats bar (overall totals)
+    // Stats bar (overall totals) — 4 stats distribuidas a lo ancho +
+    // tooltip explicativo en la esquina superior derecha.
     const statsBar = document.getElementById('aioVsOrganicStats');
     if (statsBar) {
         statsBar.innerHTML = `
@@ -1457,6 +1458,19 @@ export function renderAioVsOrganicComparison(comparison) {
             <span class="stat-item">
                 <strong>${escapeHtml(my_domain_stats.project_domain || '—')}</strong>
                 <small>your domain</small>
+            </span>
+            <span class="stats-bar-tooltip">
+                <i class="fas fa-info-circle"></i>
+                <span class="stats-bar-tooltip-content">
+                    <strong>Keywords analyzed</strong>
+                    Total unique keywords with both AI Overview and organic results in the selected period.
+                    <strong>URL-exact overlap</strong>
+                    % of AI Overview references whose exact URL also appears in the organic top 10 for the same keyword.
+                    <strong>Domain overlap</strong>
+                    % of AI Overview references whose domain also appears in the organic top 10 (even if on a different page). Higher than URL-exact because many sites rank and are cited with different URLs.
+                    <strong>Your domain</strong>
+                    The project's domain used for the 4-quadrant analysis below.
+                </span>
             </span>
         `;
     }
@@ -1492,6 +1506,65 @@ export function renderAioVsOrganicComparison(comparison) {
         `;
     }
 
+    // Position correlation cards: Top 3 / 4-10 / 11+ / Not ranking.
+    // Responde "¿rankear más alto correlaciona con más AIO mentions?"
+    // — útil para justificar el trabajo SEO vs GEO.
+    const positionCards = document.getElementById('aioVsOrganicPositionCards');
+    if (positionCards && position_correlation) {
+        const buckets = [
+            {
+                key: 'top_3',
+                cssClass: 'pos-top3',
+                icon: '🏆',
+                label: 'Top 3',
+                detail: 'Organic positions 1-3'
+            },
+            {
+                key: 'positions_4_10',
+                cssClass: 'pos-4-10',
+                icon: '📘',
+                label: 'Pos 4-10',
+                detail: 'Rest of page 1'
+            },
+            {
+                key: 'beyond_top_10',
+                cssClass: 'pos-11-plus',
+                icon: '📄',
+                label: 'Pos 11+',
+                detail: 'Below page 1'
+            },
+            {
+                key: 'not_ranking',
+                cssClass: 'pos-not-ranking',
+                icon: '⚪',
+                label: 'Not ranking',
+                detail: 'Not in organic results'
+            }
+        ];
+        // Ocultamos el bucket "beyond_top_10" si está vacío (Google
+        // suele devolver max 10-13 orgánicos, así que casi siempre es 0).
+        const visible = buckets.filter(b => {
+            if (b.key === 'beyond_top_10') {
+                return (position_correlation[b.key]?.total_keywords || 0) > 0;
+            }
+            return true;
+        });
+        positionCards.innerHTML = visible.map(b => {
+            const d = position_correlation[b.key] || { total_keywords: 0, cited_in_aio: 0, aio_rate: 0 };
+            return `
+                <div class="position-card ${b.cssClass}">
+                    <div class="position-icon">${b.icon}</div>
+                    <div class="position-value">${d.aio_rate}<small>%</small></div>
+                    <div class="position-label">${b.label}</div>
+                    <div class="position-detail">${d.cited_in_aio}/${d.total_keywords} cited in AIO</div>
+                    <div class="position-bar-track">
+                        <div class="position-bar-fill" style="width: ${Math.min(100, d.aio_rate)}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     // Per-keyword breakdown table
     const tbody = document.getElementById('aioVsOrganicBody');
     if (tbody) {
@@ -1511,18 +1584,30 @@ export function renderAioVsOrganicComparison(comparison) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = per_keyword.map((kw, idx) => `
-                <tr class="q-row-${kw.quadrant}">
-                    <td class="rank-cell">${idx + 1}</td>
-                    <td class="kw-cell" title="${escapeHtml(kw.keyword)}">
-                        ${escapeHtml(kw.keyword)}
-                    </td>
-                    <td>${kw.organic_count}</td>
-                    <td>${kw.aio_refs_count}</td>
-                    <td>${kw.overlap_url_count} <small style="color:#6b7280;">(${kw.overlap_domain_count} dom)</small></td>
-                    <td>${quadrantBadge[kw.quadrant] || ''}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = per_keyword.map((kw, idx) => {
+                // Formatear la posición orgánica del dominio del proyecto
+                let posDisplay;
+                if (kw.my_organic_position) {
+                    const posClass = kw.my_organic_position <= 3
+                        ? 'color:#10b981; font-weight:700;'
+                        : (kw.my_organic_position <= 10 ? 'color:#3b82f6; font-weight:600;' : 'color:#8b5cf6;');
+                    posDisplay = `<span style="${posClass}">#${kw.my_organic_position}</span>`;
+                } else {
+                    posDisplay = '<span style="color:#9ca3af;">—</span>';
+                }
+                return `
+                    <tr class="q-row-${kw.quadrant}">
+                        <td class="rank-cell">${idx + 1}</td>
+                        <td class="kw-cell" title="${escapeHtml(kw.keyword)}">
+                            ${escapeHtml(kw.keyword)}
+                        </td>
+                        <td>${posDisplay}</td>
+                        <td>${kw.aio_refs_count}</td>
+                        <td>${kw.overlap_url_count} <small style="color:#6b7280;">(${kw.overlap_domain_count} dom)</small></td>
+                        <td>${quadrantBadge[kw.quadrant] || ''}</td>
+                    </tr>
+                `;
+            }).join('');
         }
     }
 

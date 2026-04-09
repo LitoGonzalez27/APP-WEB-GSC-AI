@@ -24,13 +24,14 @@ class ExportService:
         """
         Generar Excel con todas las hojas para Manual AI:
         1. Resumen
-        2. Domain Visibility Over Time  
+        2. Domain Visibility Over Time
         3. Competitive Analysis
         4. AI Overview Keywords Details
         5. Top Mentioned URLs
         6. Global AI Overview Domains
         7. Thematic Clusters Summary
         8. Clusters Keywords Detail
+        9. AIO vs Organic Comparison (2026-04-09)
         """
         from manual_ai.services.statistics_service import StatisticsService
         from manual_ai.services.cluster_service import ClusterService
@@ -62,6 +63,14 @@ class ExportService:
             # 5. Obtener datos de URLs más mencionadas (igual que la UI)
             urls_ranking = stats_service.get_project_urls_ranking(project_id, days, limit=50)
             logger.info(f"URLs ranking data fetched successfully: {len(urls_ranking)} URLs")
+
+            # 6. Obtener datos de AIO vs Organic comparison (igual que la UI)
+            aio_vs_organic = stats_service.get_aio_vs_organic_comparison(project_id, days)
+            logger.info(
+                f"AIO vs Organic data fetched: "
+                f"{aio_vs_organic['overall']['total_keywords_analyzed']} keywords, "
+                f"overlap_url={aio_vs_organic['overall']['overlap_rate_url']}%"
+            )
             
             # Configuración de zona horaria
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -129,7 +138,14 @@ class ExportService:
                 ExportService._create_clusters_keywords_detail_sheet(writer, workbook, header_format,
                                                                      project_id, clusters_data, days)
                 logger.info("Clusters keywords detail sheet created successfully")
-            
+
+                # HOJA 9: AIO vs Organic Comparison (2026-04-09)
+                logger.info("Creating AIO vs Organic comparison sheet")
+                ExportService._create_aio_vs_organic_sheet(writer, workbook, header_format,
+                                                            percent_format, number_format,
+                                                            aio_vs_organic, project_info, days)
+                logger.info("AIO vs Organic comparison sheet created successfully")
+
             output.seek(0)
             return output
             
@@ -706,8 +722,218 @@ class ExportService:
             # Si no hay datos, agregar nota
             if not rows:
                 worksheet.write(1, 0, 'No keywords found for this project')
-        
+
         finally:
             cur.close()
             conn.close()
+
+    @staticmethod
+    def _create_aio_vs_organic_sheet(writer, workbook, header_format, percent_format,
+                                      number_format, aio_vs_organic, project_info, days):
+        """
+        Crear Hoja 9: AIO vs Organic Comparison (2026-04-09)
+
+        Exporta la comparación AI Overview vs Organic Results para el proyecto,
+        estructurada en 3 bloques:
+          - Overall metrics (summary global)
+          - My Domain Quadrants (4 cuadrantes + Position Correlation)
+          - Per-keyword breakdown (tabla detallada)
+
+        Args:
+            writer: pandas ExcelWriter
+            workbook: xlsxwriter workbook
+            header_format: formato para headers
+            percent_format, number_format: formatos numéricos
+            aio_vs_organic: dict devuelto por get_aio_vs_organic_comparison()
+            project_info: dict con datos del proyecto (name, domain, etc.)
+            days: rango de días analizado
+        """
+        overall = aio_vs_organic.get('overall', {}) or {}
+        mds = aio_vs_organic.get('my_domain_stats', {}) or {}
+        pc = aio_vs_organic.get('position_correlation', {}) or {}
+        per_keyword = aio_vs_organic.get('per_keyword', []) or []
+
+        sheet_name = 'AIO vs Organic'
+        # Usamos pandas para crear la hoja vacía, luego escribimos todo
+        # manualmente con xlsxwriter para control fino del layout.
+        df_placeholder = pd.DataFrame([['']])
+        df_placeholder.to_excel(writer, sheet_name=sheet_name, index=False, header=False)
+        worksheet = writer.sheets[sheet_name]
+
+        # Formatos específicos para esta hoja
+        title_format = workbook.add_format({
+            'bold': True,
+            'font_size': 13,
+            'fg_color': '#1F2937',
+            'font_color': 'white',
+            'align': 'left',
+            'valign': 'vcenter',
+            'border': 1,
+        })
+        subtitle_format = workbook.add_format({
+            'bold': True,
+            'font_size': 11,
+            'fg_color': '#E5E7EB',
+            'font_color': '#111827',
+            'align': 'left',
+            'valign': 'vcenter',
+            'border': 1,
+        })
+        label_format = workbook.add_format({
+            'bold': True,
+            'fg_color': '#F3F4F6',
+            'align': 'left',
+            'border': 1,
+        })
+        value_format = workbook.add_format({
+            'align': 'left',
+            'border': 1,
+        })
+        value_number = workbook.add_format({
+            'align': 'right',
+            'border': 1,
+            'num_format': '#,##0',
+        })
+        value_percent = workbook.add_format({
+            'align': 'right',
+            'border': 1,
+            'num_format': '0.0"%"',
+        })
+
+        # Column widths
+        worksheet.set_column('A:A', 38)  # Labels
+        worksheet.set_column('B:B', 22)  # Values
+        worksheet.set_column('C:C', 20)  # Extra col
+        worksheet.set_column('D:D', 20)  # Extra col
+        worksheet.set_column('E:E', 16)  # Rate %
+
+        row = 0
+
+        # ── BLOQUE 1: Overall Metrics ────────────────────────────────
+        worksheet.merge_range(row, 0, row, 4, 'OVERALL METRICS', title_format)
+        row += 2
+        overall_rows = [
+            ('Keywords analyzed', overall.get('total_keywords_analyzed', 0), value_number),
+            ('Total AI Overview references', overall.get('total_aio_refs', 0), value_number),
+            ('Total organic top 10 URLs', overall.get('total_organic_top10', 0), value_number),
+            ('AIO refs also in organic (URL-exact match)', overall.get('aio_refs_also_in_organic_url', 0), value_number),
+            ('AIO refs also in organic (domain match)', overall.get('aio_refs_also_in_organic_domain', 0), value_number),
+            ('Overlap rate — URL-exact', overall.get('overlap_rate_url', 0), value_percent),
+            ('Overlap rate — domain', overall.get('overlap_rate_domain', 0), value_percent),
+        ]
+        for label, value, fmt in overall_rows:
+            worksheet.write(row, 0, label, label_format)
+            worksheet.write(row, 1, value, fmt)
+            row += 1
+
+        row += 1  # Spacing
+
+        # ── BLOQUE 2: My Domain Quadrants ────────────────────────────
+        worksheet.merge_range(row, 0, row, 4,
+                              f'YOUR DOMAIN ({mds.get("project_domain", "—")}) — 4 QUADRANTS',
+                              title_format)
+        row += 2
+        quadrant_header = ['Quadrant', 'Count', 'Meaning', 'Action']
+        worksheet.write_row(row, 0, quadrant_header, header_format)
+        row += 1
+        quadrant_rows = [
+            ('🟢 Rank & Cited',     mds.get('keywords_in_both', 0),
+             'Ranks in top 10 AND cited in AI Overview', 'Keep the momentum'),
+            ('🟡 Rank, Not Cited',  mds.get('keywords_organic_only', 0),
+             'Ranks in top 10 but AI Overview does not cite you',
+             'GEO opportunity: optimize content format for AI'),
+            ('🔵 Cited, Not Ranking', mds.get('keywords_aio_only', 0),
+             'Cited in AI Overview but not in top 10 organic',
+             'SEO opportunity: improve organic ranking'),
+            ('⚪ Neither',          mds.get('keywords_neither', 0),
+             'Neither ranks nor cited',
+             'Content gap: reconsider topic or content'),
+        ]
+        for q_label, q_count, q_meaning, q_action in quadrant_rows:
+            worksheet.write(row, 0, q_label, value_format)
+            worksheet.write(row, 1, q_count, value_number)
+            worksheet.write(row, 2, q_meaning, value_format)
+            worksheet.write(row, 3, q_action, value_format)
+            row += 1
+
+        row += 1  # Spacing
+
+        # ── BLOQUE 3: Position Correlation ──────────────────────────
+        worksheet.merge_range(row, 0, row, 4,
+                              'ORGANIC POSITION vs AIO MENTION RATE',
+                              title_format)
+        row += 1
+        worksheet.merge_range(row, 0, row, 4,
+                              'Does ranking higher correlate with being cited in AIO?',
+                              subtitle_format)
+        row += 2
+        pc_header = ['Position bucket', 'Keywords', 'Cited in AIO', 'AIO rate']
+        worksheet.write_row(row, 0, pc_header, header_format)
+        row += 1
+        pc_labels = [
+            ('top_3',          '🏆 Top 3 (positions 1-3)'),
+            ('positions_4_10', '📘 Positions 4-10 (page 1)'),
+            ('beyond_top_10',  '📄 Positions 11+ (beyond page 1)'),
+            ('not_ranking',    '⚪ Not ranking in top organic'),
+        ]
+        for bucket_key, bucket_label in pc_labels:
+            b = pc.get(bucket_key, {}) or {}
+            worksheet.write(row, 0, bucket_label, value_format)
+            worksheet.write(row, 1, b.get('total_keywords', 0), value_number)
+            worksheet.write(row, 2, b.get('cited_in_aio', 0), value_number)
+            worksheet.write(row, 3, b.get('aio_rate', 0), value_percent)
+            row += 1
+
+        row += 2  # Spacing
+
+        # ── BLOQUE 4: Per-keyword Breakdown ─────────────────────────
+        worksheet.merge_range(row, 0, row, 5,
+                              'PER-KEYWORD BREAKDOWN',
+                              title_format)
+        row += 2
+        kw_header = ['#', 'Keyword', 'Organic Position', 'AIO Refs', 'Overlap (URL / dom)', 'Quadrant']
+        # Re-header for this block (more columns)
+        for col_idx, col_name in enumerate(kw_header):
+            worksheet.write(row, col_idx, col_name, header_format)
+        row += 1
+
+        quadrant_labels = {
+            'both': '🟢 Rank & Cited',
+            'organic_only': '🟡 Rank only (GEO opp)',
+            'aio_only': '🔵 Cited only (SEO opp)',
+            'neither': '⚪ Neither',
+        }
+        if per_keyword:
+            for idx, kw in enumerate(per_keyword, start=1):
+                pos = kw.get('my_organic_position')
+                pos_display = f'#{pos}' if pos else '—'
+                overlap_display = (
+                    f"{kw.get('overlap_url_count', 0)} / "
+                    f"{kw.get('overlap_domain_count', 0)}"
+                )
+                worksheet.write(row, 0, idx, value_number)
+                worksheet.write(row, 1, kw.get('keyword', ''), value_format)
+                worksheet.write(row, 2, pos_display, value_format)
+                worksheet.write(row, 3, kw.get('aio_refs_count', 0), value_number)
+                worksheet.write(row, 4, overlap_display, value_format)
+                worksheet.write(row, 5, quadrant_labels.get(kw.get('quadrant', ''), ''), value_format)
+                row += 1
+        else:
+            worksheet.merge_range(row, 0, row, 5,
+                                  'No per-keyword data available for the selected period',
+                                  value_format)
+            row += 1
+
+        # Extra column widths para la tabla
+        worksheet.set_column('B:B', 48)  # Keyword ancho
+        worksheet.set_column('F:F', 26)  # Quadrant ancho
+
+        row += 2
+        note_format = workbook.add_format({'italic': True, 'font_color': '#6B7280'})
+        worksheet.write(row, 0, f"Project: {project_info.get('name', '—')}", note_format)
+        worksheet.write(row + 1, 0, f"Domain: {project_info.get('domain', '—')}", note_format)
+        worksheet.write(row + 2, 0, f"Date range: Last {days} days", note_format)
+        worksheet.write(row + 3, 0,
+                        "Data source: raw_serp_data.organic_results ⟷ raw_serp_data.ai_overview.references",
+                        note_format)
 
