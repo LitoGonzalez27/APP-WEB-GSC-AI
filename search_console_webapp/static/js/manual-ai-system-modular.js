@@ -114,7 +114,11 @@ import {
     renderComparativePositionChart,
     showNoComparativeChartsMessage,
     processAIOverviewDataForGrid,
-    truncateDomain
+    truncateDomain,
+    // ✨ NEW (2026-04-09): AIO vs Organic comparison
+    loadAioVsOrganicComparison,
+    renderAioVsOrganicComparison,
+    showNoAioVsOrganicMessage
 } from './manual-ai/manual-ai-analytics.js';
 
 // Exports
@@ -261,7 +265,12 @@ Object.assign(ManualAISystem.prototype, {
     showNoComparativeChartsMessage,
     processAIOverviewDataForGrid,
     truncateDomain,
-    
+
+    // ✨ NEW (2026-04-09): AIO vs Organic comparison
+    loadAioVsOrganicComparison,
+    renderAioVsOrganicComparison,
+    showNoAioVsOrganicMessage,
+
     // Exports
     handleDownloadExcel,
     handleDownloadPDF,

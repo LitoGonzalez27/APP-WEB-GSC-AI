@@ -81,10 +81,15 @@ class AnalysisService:
         failed_keywords = 0
         consumed_ru = 0
         today = date.today()
-        
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
+
+        # NOTA (2026-04-09): Antes aquí abríamos conn + cur para usarlos
+        # exclusivamente en la rama quota_error (la única que escribe con el
+        # outer cursor). Esto dejaba una conexión idle-in-transaction durante
+        # todo el loop de keywords (minutos/horas para proyectos grandes),
+        # vulnerable al idle_in_transaction_session_timeout (15 min). Ahora
+        # la conn para quota_error se abre localmente en ese except, sólo
+        # cuando hace falta.
+
         analysis_mode = "MANUAL (with overwrite)" if force_overwrite else "AUTOMATIC (skip existing)"
         logger.info(f"🚀 Starting {analysis_mode} analysis for project {project_id} with {len(keywords)} user-defined keywords")
         
@@ -173,37 +178,44 @@ class AnalysisService:
                     # Manejar errores de quota específicamente
                     if hasattr(analysis_error, 'is_quota_error') and analysis_error.is_quota_error:
                         logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {analysis_error}")
-                        
-                        # Guardar resultado de error de quota
-                        cur.execute('''
-                            INSERT INTO manual_ai_results 
-                            (project_id, keyword_id, keyword, analysis_date, has_ai_overview, 
-                             domain_mentioned, error_details, country_code)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (project_id, keyword_id, analysis_date) 
-                            DO UPDATE SET 
-                                has_ai_overview = EXCLUDED.has_ai_overview,
-                                domain_mentioned = EXCLUDED.domain_mentioned,
-                                error_details = EXCLUDED.error_details,
-                                updated_at = NOW()
-                        ''', (
-                            project_id, keyword_id, keyword, today, False, False,
-                            f"QUOTA_EXCEEDED: {getattr(analysis_error, 'quota_info', {}).get('message', 'Quota limit reached')}",
-                            project['country_code']
-                        ))
-                        
+
+                        # Guardar resultado de error de quota.
+                        # Conn local: abierta sólo para esta operación puntual,
+                        # cerrada inmediatamente. Evita mantener una conexión
+                        # outer abierta durante todo el loop (que sería vulnerable
+                        # al idle_in_transaction_session_timeout de 15 min).
+                        quota_conn = get_db_connection()
+                        quota_cur = quota_conn.cursor()
+                        try:
+                            quota_cur.execute('''
+                                INSERT INTO manual_ai_results
+                                (project_id, keyword_id, keyword, analysis_date, has_ai_overview,
+                                 domain_mentioned, error_details, country_code)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (project_id, keyword_id, analysis_date)
+                                DO UPDATE SET
+                                    has_ai_overview = EXCLUDED.has_ai_overview,
+                                    domain_mentioned = EXCLUDED.domain_mentioned,
+                                    error_details = EXCLUDED.error_details,
+                                    updated_at = NOW()
+                            ''', (
+                                project_id, keyword_id, keyword, today, False, False,
+                                f"QUOTA_EXCEEDED: {getattr(analysis_error, 'quota_info', {}).get('message', 'Quota limit reached')}",
+                                project['country_code']
+                            ))
+                            quota_conn.commit()
+                        finally:
+                            quota_cur.close()
+                            quota_conn.close()
+
                         # Terminar análisis y retornar información de quota
                         quota_info = getattr(analysis_error, 'quota_info', {})
                         action_required = getattr(analysis_error, 'action_required', 'upgrade')
-                        
+
                         logger.error(f"🚫 Manual AI analysis stopped due to quota limit. "
                                    f"Plan: {quota_info.get('plan', 'unknown')}, "
                                    f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
-                        
-                        conn.commit()
-                        cur.close()
-                        conn.close()
-                        
+
                         return {
                             'results': results,
                             'quota_exceeded': True,
@@ -222,11 +234,12 @@ class AnalysisService:
                 logger.error(f"Error analyzing keyword '{keyword}': {e}")
                 failed_keywords += 1
                 continue
-        
-        conn.commit()
-        cur.close()
-        conn.close()
-        
+
+        # Nota: no hay `conn.commit()/close()` aquí porque ya no abrimos una
+        # conn outer al inicio del método. Todas las escrituras van por
+        # `result_repo`, `domains_service` y `track_quota_consumption`, que
+        # usan sus propias conexiones de vida corta con commit inmediato.
+
         overwrite_info = " (with overwrite)" if force_overwrite else " (skipping existing)"
         logger.info(f"✅ Completed {analysis_mode} analysis for project {project_id}: "
                    f"{len(results)}/{len(keywords)} keywords processed, {failed_keywords} failed{overwrite_info}, "
