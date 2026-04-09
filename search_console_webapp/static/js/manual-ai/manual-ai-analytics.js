@@ -1511,32 +1511,51 @@ export function renderAioVsOrganicComparison(comparison) {
     // grid vertical de KPI cards de arriba. Responde "¿rankear más alto
     // correlaciona con más AIO mentions?" — útil para justificar el
     // trabajo SEO vs GEO.
+    //
+    // Textos optimizados para que el usuario entienda INMEDIATAMENTE
+    // qué significa cada fila, sin ambigüedad. Ejemplo (HMFC, Top 3):
+    //   - Título:  "Ranks in Top 3"
+    //   - Detalle: "25 keywords where you rank #1-3 organically"
+    //   - Tasa:    "76%"
+    //   - Caption: "19 of those 25 are also cited in the AI Overview"
     const positionCards = document.getElementById('aioVsOrganicPositionCards');
     if (positionCards && position_correlation) {
         const buckets = [
             {
                 key: 'top_3',
                 cssClass: 'pos-top3',
-                label: 'Top 3',
-                detail: 'Organic positions 1-3'
+                title: 'Ranks in Top 3',
+                detailTpl: (n) => `${n} keyword${n === 1 ? '' : 's'} where you rank #1-3 organically`,
+                captionTpl: (cited, total) =>
+                    `${cited} of those ${total} are also cited in the AI Overview`,
+                emptyLabel: 'No keywords where you rank #1-3'
             },
             {
                 key: 'positions_4_10',
                 cssClass: 'pos-4-10',
-                label: 'Pos 4-10',
-                detail: 'Rest of page 1'
+                title: 'Ranks in Positions 4-10',
+                detailTpl: (n) => `${n} keyword${n === 1 ? '' : 's'} where you rank #4-10 organically`,
+                captionTpl: (cited, total) =>
+                    `${cited} of those ${total} are also cited in the AI Overview`,
+                emptyLabel: 'No keywords where you rank #4-10'
             },
             {
                 key: 'beyond_top_10',
                 cssClass: 'pos-11-plus',
-                label: 'Pos 11+',
-                detail: 'Below page 1'
+                title: 'Ranks in Positions 11+',
+                detailTpl: (n) => `${n} keyword${n === 1 ? '' : 's'} where you rank #11 or below`,
+                captionTpl: (cited, total) =>
+                    `${cited} of those ${total} are also cited in the AI Overview`,
+                emptyLabel: 'No keywords ranking below #10'
             },
             {
                 key: 'not_ranking',
                 cssClass: 'pos-not-ranking',
-                label: 'Not ranking',
-                detail: 'Not in organic results'
+                title: "Doesn't rank organically",
+                detailTpl: (n) => `${n} keyword${n === 1 ? '' : 's'} where your domain is not in the organic results`,
+                captionTpl: (cited, total) =>
+                    `${cited} of those ${total} are still cited in the AI Overview`,
+                emptyLabel: 'All keywords have you ranking organically'
             }
         ];
         // Ocultamos el bucket "beyond_top_10" si está vacío (Google
@@ -1549,19 +1568,24 @@ export function renderAioVsOrganicComparison(comparison) {
         });
         positionCards.innerHTML = visible.map(b => {
             const d = position_correlation[b.key] || { total_keywords: 0, cited_in_aio: 0, aio_rate: 0 };
+            const isEmpty = d.total_keywords === 0;
+            const detailText = isEmpty ? b.emptyLabel : b.detailTpl(d.total_keywords);
+            const captionText = isEmpty
+                ? '—'
+                : b.captionTpl(d.cited_in_aio, d.total_keywords);
             return `
-                <div class="position-row ${b.cssClass}">
+                <div class="position-row ${b.cssClass}${isEmpty ? ' position-row-empty' : ''}">
                     <div class="position-row-label">
-                        <div class="position-row-title">${b.label}</div>
-                        <div class="position-row-detail">${b.detail}</div>
+                        <div class="position-row-title">${b.title}</div>
+                        <div class="position-row-detail">${detailText}</div>
                     </div>
                     <div class="position-row-bar-wrapper">
                         <div class="position-row-bar-track">
                             <div class="position-row-bar-fill" style="width: ${Math.min(100, d.aio_rate)}%"></div>
                         </div>
                         <div class="position-row-bar-labels">
-                            <span class="position-row-rate">${d.aio_rate}%</span>
-                            <span class="position-row-count">${d.cited_in_aio} of ${d.total_keywords} cited in AIO</span>
+                            <span class="position-row-rate">${d.aio_rate}<span class="position-row-rate-unit">%</span> <span class="position-row-rate-suffix">cited in AI Overview</span></span>
+                            <span class="position-row-count">${captionText}</span>
                         </div>
                     </div>
                 </div>
