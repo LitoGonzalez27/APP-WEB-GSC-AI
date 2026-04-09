@@ -257,10 +257,56 @@ class AnalysisService:
         
         # 2. Obtener SERP con reintentos
         serp_data = self._fetch_serp_data(keyword, internal_country)
-        
+
         # 3. Analizar AI Overview
         ai_result = self._detect_ai_overview(serp_data, project['domain'])
-        
+
+        # 3b. ✨ NUEVO (2026-04-09): Si el AI Overview viene "collapsed"
+        #     (escondido detrás de un "Show more" con page_token pero sin
+        #     text_blocks), hacer un segundo fetch para obtener el contenido
+        #     expandido y re-analizarlo. Mismo patrón que app.py:1723-1742
+        #     (flujo web, probado en producción).
+        #
+        #     Medido en prod: 11.9% de los AIOs están en este estado
+        #     (UEMC 23.6%, Catalonia 22.2%, Adeslas 10.4%), lo que significa
+        #     que hasta ahora estábamos marcando "sí hay AIO" pero perdiendo
+        #     el contenido completo (text_blocks, references, brand_mentioned,
+        #     domain_position).
+        #
+        #     El segundo fetch consume 1 RU adicional via el flujo normal de
+        #     quota_middleware (SerpAPI cobra por la expansión del page_token).
+        #     Si el segundo fetch falla por cualquier razón, mantenemos el
+        #     resultado original collapsed — es un no-op seguro.
+        if ai_result.get('debug_info', {}).get('requires_additional_request'):
+            page_token = ai_result['debug_info'].get('page_token', '')
+            if page_token:
+                logger.info(f"[Manual AI] Expanding collapsed AIO for '{keyword}' (page_token present)")
+                try:
+                    expanded_serp_data = self._fetch_expanded_aio(
+                        keyword, internal_country, page_token
+                    )
+                    if (expanded_serp_data
+                        and not expanded_serp_data.get('error')
+                        and expanded_serp_data.get('ai_overview')):
+                        # Merge: sustituir el ai_overview collapsed por el
+                        # expandido (con text_blocks y references poblados).
+                        serp_data['ai_overview'] = expanded_serp_data['ai_overview']
+                        # Re-analizar con el contenido completo.
+                        ai_result = self._detect_ai_overview(serp_data, project['domain'])
+                        logger.info(f"[Manual AI] ✅ AIO expanded successfully for '{keyword}'")
+                    else:
+                        logger.warning(
+                            f"[Manual AI] Second call returned no expanded data for '{keyword}' "
+                            f"(keeping collapsed result)"
+                        )
+                except Exception as e_page_token:
+                    logger.warning(
+                        f"[Manual AI] Second API call failed for '{keyword}': {e_page_token} "
+                        f"(keeping collapsed result)"
+                    )
+                    # No-op: el ai_result original queda intacto
+                    # (has_ai_overview=True pero sin text_blocks/references)
+
         # 4. Guardar en caché
         if ai_cache:
             ai_cache.cache_analysis(keyword, project['domain'], internal_country, {
@@ -326,7 +372,72 @@ class AnalysisService:
             return data
         
         return fetch_serp()
-    
+
+    def _fetch_expanded_aio(self, keyword: str, internal_country: str, page_token: str) -> Dict:
+        """
+        Hace una segunda llamada a SerpAPI con el page_token para expandir
+        un AI Overview collapsed.
+
+        Reutiliza la misma construcción de params que _fetch_serp_data pero
+        añade el `page_token` para que SerpAPI devuelva el contenido real
+        del AI Overview (text_blocks + references).
+
+        A diferencia de _fetch_serp_data, este helper NO usa @with_backoff
+        porque el segundo fetch es opcional: si falla, el análisis sigue con
+        el resultado collapsed original. Cualquier excepción que lance se
+        captura en el caller (_analyze_keyword) y se convierte en warning.
+
+        Costes:
+        - Consume 1 RU adicional via quota_middleware (SerpAPI cobra por la
+          expansión del page_token).
+        - Es el mismo patrón usado por el flujo web en app.py:1728-1731.
+
+        Args:
+            keyword: Texto de la query original (debe coincidir con el
+                     primer fetch para que SerpAPI acepte el page_token).
+            internal_country: Código interno del país (ej. 'esp', 'mex').
+            page_token: Token devuelto por SerpAPI en el primer fetch,
+                        leído de ai_overview.page_token.
+
+        Returns:
+            dict con el SERP expandido. Si get_serp_json devuelve error, el
+            caller lo detecta por el campo 'error' en el dict.
+
+        Raises:
+            RuntimeError: si SERPAPI_KEY no está configurada.
+            Exception: cualquier error de red/SerpAPI se propaga al caller.
+        """
+        try:
+            from services.serp_service import get_serp_json
+            from services.country_config import get_country_config
+        except Exception as e:
+            logger.error(f"❌ SERP service not available for expansion: {e}")
+            raise
+
+        api_key = os.getenv('SERPAPI_KEY')
+        if not api_key:
+            logger.error("❌ SERPAPI_KEY not configured (expansion)")
+            raise RuntimeError("SERPAPI_KEY not configured")
+
+        expanded_params = {
+            'engine': 'google',
+            'q': keyword,
+            'api_key': api_key,
+            'num': 20,
+            'page_token': page_token,  # ← única diferencia vs _fetch_serp_data
+        }
+
+        country_config = get_country_config(internal_country)
+        if country_config:
+            expanded_params.update({
+                'location': country_config['serp_location'],
+                'gl': country_config['serp_gl'],
+                'hl': country_config['serp_hl'],
+                'google_domain': country_config['google_domain'],
+            })
+
+        return get_serp_json(expanded_params)
+
     def _detect_ai_overview(self, serp_data: Dict, domain: str) -> Dict:
         """Detectar elementos de AI Overview en SERP"""
         try:
