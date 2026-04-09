@@ -1506,37 +1506,35 @@ export function renderAioVsOrganicComparison(comparison) {
         `;
     }
 
-    // Position correlation cards: Top 3 / 4-10 / 11+ / Not ranking.
-    // Responde "¿rankear más alto correlaciona con más AIO mentions?"
-    // — útil para justificar el trabajo SEO vs GEO.
+    // Position correlation bars: Top 3 / 4-10 / 11+ / Not ranking.
+    // Estilo horizontal (barras de progreso) claramente diferenciado del
+    // grid vertical de KPI cards de arriba. Responde "¿rankear más alto
+    // correlaciona con más AIO mentions?" — útil para justificar el
+    // trabajo SEO vs GEO.
     const positionCards = document.getElementById('aioVsOrganicPositionCards');
     if (positionCards && position_correlation) {
         const buckets = [
             {
                 key: 'top_3',
                 cssClass: 'pos-top3',
-                icon: '🏆',
                 label: 'Top 3',
                 detail: 'Organic positions 1-3'
             },
             {
                 key: 'positions_4_10',
                 cssClass: 'pos-4-10',
-                icon: '📘',
                 label: 'Pos 4-10',
                 detail: 'Rest of page 1'
             },
             {
                 key: 'beyond_top_10',
                 cssClass: 'pos-11-plus',
-                icon: '📄',
                 label: 'Pos 11+',
                 detail: 'Below page 1'
             },
             {
                 key: 'not_ranking',
                 cssClass: 'pos-not-ranking',
-                icon: '⚪',
                 label: 'Not ranking',
                 detail: 'Not in organic results'
             }
@@ -1552,13 +1550,19 @@ export function renderAioVsOrganicComparison(comparison) {
         positionCards.innerHTML = visible.map(b => {
             const d = position_correlation[b.key] || { total_keywords: 0, cited_in_aio: 0, aio_rate: 0 };
             return `
-                <div class="position-card ${b.cssClass}">
-                    <div class="position-icon">${b.icon}</div>
-                    <div class="position-value">${d.aio_rate}<small>%</small></div>
-                    <div class="position-label">${b.label}</div>
-                    <div class="position-detail">${d.cited_in_aio}/${d.total_keywords} cited in AIO</div>
-                    <div class="position-bar-track">
-                        <div class="position-bar-fill" style="width: ${Math.min(100, d.aio_rate)}%"></div>
+                <div class="position-row ${b.cssClass}">
+                    <div class="position-row-label">
+                        <div class="position-row-title">${b.label}</div>
+                        <div class="position-row-detail">${b.detail}</div>
+                    </div>
+                    <div class="position-row-bar-wrapper">
+                        <div class="position-row-bar-track">
+                            <div class="position-row-bar-fill" style="width: ${Math.min(100, d.aio_rate)}%"></div>
+                        </div>
+                        <div class="position-row-bar-labels">
+                            <span class="position-row-rate">${d.aio_rate}%</span>
+                            <span class="position-row-count">${d.cited_in_aio} of ${d.total_keywords} cited in AIO</span>
+                        </div>
                     </div>
                 </div>
             `;

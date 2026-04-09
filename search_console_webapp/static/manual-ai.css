@@ -5319,29 +5319,32 @@ label.manual-ai-underline {
     line-height: 1.4;
 }
 
-/* ────────────────────────────────────────────────────────── */
-/* Position Correlation cards (Top 3 / 4-10 / 11+ / Not rank) */
-/* ────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────── */
+/* Position Correlation — layout horizontal (progress bars)       */
+/* Distinto de los KPI cards verticales de arriba para evitar     */
+/* redundancia visual. Filas horizontales con barra de progreso.  */
+/* ────────────────────────────────────────────────────────────── */
 .aio-vs-organic-position-section {
-    margin-top: 24px;
-    margin-bottom: 24px;
+    margin-top: 28px;
+    margin-bottom: 28px;
+    padding: 20px 22px;
+    background: #fafbfc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
 }
 
 .aio-vs-organic-position-header {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
     font-size: 13px;
     font-weight: 600;
     color: #374151;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-}
-
-.aio-vs-organic-position-header i {
-    color: #3b82f6;
-    font-size: 14px;
 }
 
 .aio-vs-organic-position-help {
@@ -5351,86 +5354,173 @@ label.manual-ai-underline {
     letter-spacing: normal;
     font-weight: 400;
     margin-left: auto;
+    font-style: italic;
 }
 
 .aio-vs-organic-position-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 14px;
 }
 
-.aio-vs-organic-position-cards .position-card {
-    padding: 18px 16px;
-    border-radius: 12px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    position: relative;
-    overflow: hidden;
+/* Fila horizontal: [label] [barra + métricas] */
+.aio-vs-organic-position-cards .position-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 0;
 }
 
-.aio-vs-organic-position-cards .position-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.aio-vs-organic-position-cards .position-row-label {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+    padding-left: 12px;
+    border-left: 3px solid #e5e7eb;
 }
 
-.aio-vs-organic-position-cards .position-card.pos-top3 { border-left: 4px solid #10b981; }
-.aio-vs-organic-position-cards .position-card.pos-4-10 { border-left: 4px solid #3b82f6; }
-.aio-vs-organic-position-cards .position-card.pos-11-plus { border-left: 4px solid #8b5cf6; }
-.aio-vs-organic-position-cards .position-card.pos-not-ranking { border-left: 4px solid #9ca3af; }
+.aio-vs-organic-position-cards .position-row.pos-top3 .position-row-label { border-left-color: #10b981; }
+.aio-vs-organic-position-cards .position-row.pos-4-10 .position-row-label { border-left-color: #3b82f6; }
+.aio-vs-organic-position-cards .position-row.pos-11-plus .position-row-label { border-left-color: #8b5cf6; }
+.aio-vs-organic-position-cards .position-row.pos-not-ranking .position-row-label { border-left-color: #9ca3af; }
 
-.aio-vs-organic-position-cards .position-icon {
-    font-size: 18px;
-    line-height: 1;
-    margin-bottom: 6px;
-}
-
-.aio-vs-organic-position-cards .position-value {
-    font-size: 30px;
+.aio-vs-organic-position-cards .position-row-title {
     font-weight: 700;
+    font-size: 14px;
     color: #111827;
-    line-height: 1.1;
-    margin: 2px 0 2px 0;
 }
 
-.aio-vs-organic-position-cards .position-value small {
-    font-size: 14px;
+.aio-vs-organic-position-cards .position-row-detail {
+    font-size: 11px;
     color: #6b7280;
+    margin-top: 2px;
+}
+
+.aio-vs-organic-position-cards .position-row-bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aio-vs-organic-position-cards .position-row-bar-track {
+    width: 100%;
+    height: 14px;
+    background: #eef0f3;
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.aio-vs-organic-position-cards .position-row-bar-fill {
+    height: 100%;
+    border-radius: 7px;
+    transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background: linear-gradient(90deg, #9ca3af, #6b7280);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-width: 0;
+}
+
+.aio-vs-organic-position-cards .position-row.pos-top3 .position-row-bar-fill {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+.aio-vs-organic-position-cards .position-row.pos-4-10 .position-row-bar-fill {
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+.aio-vs-organic-position-cards .position-row.pos-11-plus .position-row-bar-fill {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+.aio-vs-organic-position-cards .position-row.pos-not-ranking .position-row-bar-fill {
+    background: linear-gradient(90deg, #9ca3af, #6b7280);
+}
+
+.aio-vs-organic-position-cards .position-row-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 11px;
+}
+
+.aio-vs-organic-position-cards .position-row-rate {
+    font-weight: 700;
+    font-size: 16px;
+    color: #111827;
+    letter-spacing: -0.3px;
+}
+
+.aio-vs-organic-position-cards .position-row-count {
+    color: #6b7280;
+    font-size: 11px;
     font-weight: 500;
 }
 
-.aio-vs-organic-position-cards .position-label {
-    font-weight: 600;
-    font-size: 13px;
-    color: #374151;
-    margin-bottom: 4px;
+@media (max-width: 768px) {
+    .aio-vs-organic-position-cards .position-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
 }
 
-.aio-vs-organic-position-cards .position-detail {
+/* ──────────────────────────────────────────────────── */
+/* Section header tooltip (mismo estilo que            */
+/* stats-bar-tooltip). Se usa en el H3 del section.    */
+/* ──────────────────────────────────────────────────── */
+.aio-section-tooltip {
+    position: relative;
+    display: inline-block;
+    margin-left: 8px;
+    color: #9ca3af;
+    cursor: help;
+    font-size: 14px;
+    transition: color 0.15s ease;
+    vertical-align: middle;
+}
+
+.aio-section-tooltip:hover {
+    color: #3b82f6;
+}
+
+.aio-section-tooltip .aio-section-tooltip-content {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 360px;
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 14px 16px;
+    border-radius: 8px;
     font-size: 12px;
-    color: #6b7280;
-    margin-bottom: 6px;
+    line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    z-index: 10;
+    text-align: left;
+    font-weight: normal;
+    pointer-events: none;
+    /* Override: uppercase del h3 se hereda; lo reseteo aquí */
+    text-transform: none;
+    letter-spacing: normal;
 }
 
-.aio-vs-organic-position-cards .position-bar-track {
-    width: 100%;
-    height: 4px;
-    background: #f3f4f6;
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 4px;
+.aio-section-tooltip .aio-section-tooltip-content strong {
+    color: #fbbf24;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 2px;
+    font-weight: 600;
 }
 
-.aio-vs-organic-position-cards .position-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.5s ease;
+.aio-section-tooltip .aio-section-tooltip-content strong:first-child {
+    margin-top: 0;
 }
 
-.aio-vs-organic-position-cards .position-card.pos-top3 .position-bar-fill { background: #10b981; }
-.aio-vs-organic-position-cards .position-card.pos-4-10 .position-bar-fill { background: #3b82f6; }
-.aio-vs-organic-position-cards .position-card.pos-11-plus .position-bar-fill { background: #8b5cf6; }
-.aio-vs-organic-position-cards .position-card.pos-not-ranking .position-bar-fill { background: #9ca3af; }
+.aio-section-tooltip:hover .aio-section-tooltip-content {
+    opacity: 1;
+    visibility: visible;
+}
 
 .aio-vs-organic-table-wrapper {
     overflow-x: auto;
