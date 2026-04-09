@@ -325,10 +325,22 @@ export async function handleDownloadPDF() {
         }
 
         // PÁGINA 5: Global AI Overview Domains Ranking
-        if (btnText) btnText.textContent = 'Page 5/5: Global Domains...';
+        if (btnText) btnText.textContent = 'Page 5/6: Global Domains...';
         const globalDomainsSection = document.querySelector('.top-domains-section');
         if (globalDomainsSection) {
             await addSectionToPDF(globalDomainsSection, false, 'Global Domains');
+        }
+
+        // PÁGINA 6: AIO vs Organic Comparison (2026-04-09)
+        if (btnText) btnText.textContent = 'Page 6/6: AIO vs Organic...';
+        const aioVsOrganicSection = document.querySelector('.aio-vs-organic-section');
+        // Solo incluir si la sección está visible (tiene datos)
+        const aioVsOrganicContent = document.getElementById('aioVsOrganicContent');
+        const aioVsOrganicVisible = aioVsOrganicSection
+            && aioVsOrganicContent
+            && aioVsOrganicContent.style.display !== 'none';
+        if (aioVsOrganicVisible) {
+            await addSectionToPDF(aioVsOrganicSection, false, 'AIO vs Organic');
         }
 
         const fileName = `manual_ai_analysis_${Date.now()}.pdf`;

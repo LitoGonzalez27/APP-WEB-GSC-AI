@@ -5174,19 +5174,83 @@ label.manual-ai-underline {
 .aio-vs-organic-stats-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 24px;
-    padding: 16px 20px;
+    gap: 16px;
+    padding: 18px 42px 18px 24px; /* right padding extra para el tooltip */
     background: #f7f9fb;
     border-radius: 10px;
     margin-bottom: 20px;
     font-size: 13px;
     color: #374151;
+    /* Repartir las 4 stats a lo ancho del div: justify-content:
+       space-between + flex: 1 en cada child hace que cada stat-item
+       ocupe el mismo ancho y queden distribuidas uniformemente. */
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
 }
 
 .aio-vs-organic-stats-bar .stat-item {
     display: flex;
     flex-direction: column;
     line-height: 1.2;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* Tooltip explicativo del bloque stats bar. Posicionado en la esquina
+   superior derecha del contenedor, fuera del flujo flex para no
+   interferir con la distribución de las 4 stats. */
+.aio-vs-organic-stats-bar .stats-bar-tooltip {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    color: #9ca3af;
+    cursor: help;
+    font-size: 14px;
+    transition: color 0.15s ease;
+    z-index: 2;
+}
+
+.aio-vs-organic-stats-bar .stats-bar-tooltip:hover {
+    color: #3b82f6;
+}
+
+.aio-vs-organic-stats-bar .stats-bar-tooltip-content {
+    position: absolute;
+    top: 24px;
+    right: 0;
+    width: 340px;
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    z-index: 10;
+    text-align: left;
+    font-weight: normal;
+    pointer-events: none;
+}
+
+.aio-vs-organic-stats-bar .stats-bar-tooltip-content strong {
+    color: #fbbf24;
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.aio-vs-organic-stats-bar .stats-bar-tooltip-content strong:first-child {
+    margin-top: 0;
+}
+
+.aio-vs-organic-stats-bar .stats-bar-tooltip:hover .stats-bar-tooltip-content {
+    opacity: 1;
+    visibility: visible;
 }
 
 .aio-vs-organic-stats-bar .stat-item strong {
@@ -5254,6 +5318,119 @@ label.manual-ai-underline {
     color: #6b7280;
     line-height: 1.4;
 }
+
+/* ────────────────────────────────────────────────────────── */
+/* Position Correlation cards (Top 3 / 4-10 / 11+ / Not rank) */
+/* ────────────────────────────────────────────────────────── */
+.aio-vs-organic-position-section {
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.aio-vs-organic-position-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.aio-vs-organic-position-header i {
+    color: #3b82f6;
+    font-size: 14px;
+}
+
+.aio-vs-organic-position-help {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    margin-left: auto;
+}
+
+.aio-vs-organic-position-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.aio-vs-organic-position-cards .position-card {
+    padding: 18px 16px;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.aio-vs-organic-position-cards .position-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.aio-vs-organic-position-cards .position-card.pos-top3 { border-left: 4px solid #10b981; }
+.aio-vs-organic-position-cards .position-card.pos-4-10 { border-left: 4px solid #3b82f6; }
+.aio-vs-organic-position-cards .position-card.pos-11-plus { border-left: 4px solid #8b5cf6; }
+.aio-vs-organic-position-cards .position-card.pos-not-ranking { border-left: 4px solid #9ca3af; }
+
+.aio-vs-organic-position-cards .position-icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.aio-vs-organic-position-cards .position-value {
+    font-size: 30px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    margin: 2px 0 2px 0;
+}
+
+.aio-vs-organic-position-cards .position-value small {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.aio-vs-organic-position-cards .position-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.aio-vs-organic-position-cards .position-detail {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+.aio-vs-organic-position-cards .position-bar-track {
+    width: 100%;
+    height: 4px;
+    background: #f3f4f6;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.aio-vs-organic-position-cards .position-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+.aio-vs-organic-position-cards .position-card.pos-top3 .position-bar-fill { background: #10b981; }
+.aio-vs-organic-position-cards .position-card.pos-4-10 .position-bar-fill { background: #3b82f6; }
+.aio-vs-organic-position-cards .position-card.pos-11-plus .position-bar-fill { background: #8b5cf6; }
+.aio-vs-organic-position-cards .position-card.pos-not-ranking .position-bar-fill { background: #9ca3af; }
 
 .aio-vs-organic-table-wrapper {
     overflow-x: auto;

@@ -671,18 +671,23 @@ class StatisticsService:
 
         Cero coste SerpAPI extra. Cero cambios de schema.
 
-        Produce tres bloques de insight:
-          1. overall:        estadísticas globales de overlap (URL-exacto y dominio)
-          2. my_domain_stats: los 4 cuadrantes para el dominio del proyecto
-                              (Rank & Cited / Rank-only / Cited-only / Neither)
-          3. per_keyword:     desglose por keyword con el cuadrante asignado
+        Produce cuatro bloques de insight:
+          1. overall:             estadísticas globales de overlap (URL-exacto y dominio)
+          2. my_domain_stats:     los 4 cuadrantes para el dominio del proyecto
+                                  (Rank & Cited / Rank-only / Cited-only / Neither)
+          3. position_correlation: correlación entre posición orgánica del dominio
+                                   del proyecto y probabilidad de ser citado en AIO.
+                                   Agrupa por buckets: Top 3 / 4-10 / 11+ / Not ranking.
+                                   Responde: "¿Rankear más alto orgánicamente
+                                   aumenta la probabilidad de ser citado en AIO?"
+          4. per_keyword:         desglose por keyword con cuadrante + posición
 
         Args:
             project_id: ID del proyecto
             days: Número de días hacia atrás (default 30)
 
         Returns:
-            Dict con overall, my_domain_stats, per_keyword
+            Dict con overall, my_domain_stats, position_correlation, per_keyword
         """
         from urllib.parse import urlparse
 
@@ -761,6 +766,24 @@ class StatisticsService:
         kw_aio_only = 0
         kw_neither = 0
 
+        # Position correlation: para cada bucket de posición orgánica del
+        # dominio del proyecto, contar cuántas keywords caen en ese bucket
+        # y cuántas de esas están también citadas en AIO. El objetivo es
+        # responder "¿rankear más alto correlaciona con más AIO mentions?".
+        #
+        # Buckets:
+        #   - top_3:         organic position in [1, 3]
+        #   - positions_4_10: organic position in [4, 10]
+        #   - beyond_top_10: organic position >= 11 (rare con num=10,
+        #                    pero posible con num=20)
+        #   - not_ranking:   domain NOT found in organic_results
+        position_buckets = {
+            'top_3':          {'total_keywords': 0, 'cited_in_aio': 0},
+            'positions_4_10': {'total_keywords': 0, 'cited_in_aio': 0},
+            'beyond_top_10':  {'total_keywords': 0, 'cited_in_aio': 0},
+            'not_ranking':    {'total_keywords': 0, 'cited_in_aio': 0},
+        }
+
         per_keyword: List[Dict] = []
 
         # Para evitar duplicados por keyword (si la misma kw tiene N filas
@@ -789,6 +812,23 @@ class StatisticsService:
             ref_dom_set = set(filter(
                 None, (_domain_of(o.get('link')) for o in refs if isinstance(o, dict))
             ))
+
+            # Extraer la posición orgánica del dominio del proyecto (si
+            # aparece en el top N del organic). Si aparece varias veces
+            # (raro pero posible con distintas URLs del mismo dominio),
+            # nos quedamos con la mejor posición (más alta en el SERP).
+            my_organic_position = None
+            if project_domain_norm:
+                for o in organic:
+                    if not isinstance(o, dict):
+                        continue
+                    o_domain = _domain_of(o.get('link'))
+                    if o_domain == project_domain_norm:
+                        pos = o.get('position')
+                        # `position` en SerpAPI es 1-indexed.
+                        if isinstance(pos, int) and pos > 0:
+                            if my_organic_position is None or pos < my_organic_position:
+                                my_organic_position = pos
 
             n_url_overlap = len(ref_url_set & org_url_set)
             n_dom_overlap = len(ref_dom_set & org_dom_set)
@@ -829,6 +869,21 @@ class StatisticsService:
             if my_in_aio:
                 kw_in_aio += 1
 
+            # Asignar la keyword a su bucket de posición orgánica y
+            # contabilizar si además está citada en AIO.
+            if my_organic_position is None:
+                bucket_key = 'not_ranking'
+            elif my_organic_position <= 3:
+                bucket_key = 'top_3'
+            elif my_organic_position <= 10:
+                bucket_key = 'positions_4_10'
+            else:
+                bucket_key = 'beyond_top_10'
+
+            position_buckets[bucket_key]['total_keywords'] += 1
+            if my_in_aio:
+                position_buckets[bucket_key]['cited_in_aio'] += 1
+
             per_keyword.append({
                 'keyword': kw_text,
                 'organic_count': len(org_url_set),
@@ -837,6 +892,8 @@ class StatisticsService:
                 'overlap_domain_count': n_dom_overlap,
                 'my_domain_in_organic': my_in_org,
                 'my_domain_in_aio': my_in_aio,
+                'my_organic_position': my_organic_position,
+                'position_bucket': bucket_key,
                 'quadrant': quadrant,
             })
 
@@ -862,6 +919,20 @@ class StatisticsService:
             if total_aio_refs else 0.0
         )
 
+        # Calcular el AIO rate (%) para cada bucket de posición.
+        # Formula: cited_in_aio / total_keywords * 100.
+        # Si el bucket está vacío, aio_rate es 0.
+        position_correlation = {}
+        for bucket_key, bucket_data in position_buckets.items():
+            total = bucket_data['total_keywords']
+            cited = bucket_data['cited_in_aio']
+            aio_rate = round(cited / total * 100, 1) if total > 0 else 0.0
+            position_correlation[bucket_key] = {
+                'total_keywords': total,
+                'cited_in_aio': cited,
+                'aio_rate': aio_rate,
+            }
+
         return {
             'overall': {
                 'total_keywords_analyzed': len(per_keyword),
@@ -882,6 +953,7 @@ class StatisticsService:
                 'keywords_aio_only': kw_aio_only,
                 'keywords_neither': kw_neither,
             },
+            'position_correlation': position_correlation,
             'per_keyword': per_keyword,
         }
 
