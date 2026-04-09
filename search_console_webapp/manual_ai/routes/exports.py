@@ -44,10 +44,9 @@ def download_manual_ai_excel(project_id):
         from manual_ai.services.export_service import ExportService
         from manual_ai.models.project_repository import ProjectRepository
         from manual_ai.models.result_repository import ResultRepository
+        from manual_ai.utils.export_filename import build_manual_ai_export_filename
         from flask import send_file
-        import pytz
-        from datetime import datetime
-        
+
         # Obtener filtros del request
         data = request.get_json() or {}
         days = int(data.get('days', 30))
@@ -78,24 +77,12 @@ def download_manual_ai_excel(project_id):
             user_id=user['id']
         )
         logger.info(f"Manual AI Excel generated successfully for project {project_id}")
-        
-        # Crear nombre de archivo con formato pedido:
+
+        # Crear nombre de archivo con formato canónico:
         # "AI Overview export - {project name} - {YYYY-MM-DD} - Clicandseo.xlsx"
-        madrid_tz = pytz.timezone('Europe/Madrid')
-        now_madrid = datetime.now(madrid_tz)
-        date_str = now_madrid.strftime('%Y-%m-%d')
+        # (misma función helper que usa el endpoint PDF para mantener consistencia)
+        filename = build_manual_ai_export_filename(project_info.get('name'), 'xlsx')
 
-        # Sanear el nombre del proyecto: quitar caracteres no seguros para
-        # nombres de archivo pero preservar espacios y caracteres comunes.
-        # Caracteres prohibidos en filenames: / \ : * ? " < > |
-        import re
-        project_name = project_info.get('name') or 'Project'
-        project_name_clean = re.sub(r'[\/\\:\*\?"<>\|]', '', project_name).strip()
-        if not project_name_clean:
-            project_name_clean = 'Project'
-
-        filename = f'AI Overview export - {project_name_clean} - {date_str} - Clicandseo.xlsx'
-        
         # Registrar telemetría
         logger.info(f"Manual AI Excel export: project_id={project_id}, days={days}, filename={filename}")
         
@@ -114,28 +101,132 @@ def download_manual_ai_excel(project_id):
         return jsonify({'success': False, 'error': f'Failed to generate Excel file: {str(e)}'}), 500
 
 
+@manual_ai_bp.route('/api/projects/<int:project_id>/export/pdf', methods=['GET'])
+@auth_required
+def download_manual_ai_pdf(project_id):
+    """
+    Generar y descargar un PDF profesional multi-página (AI Overview Visibility
+    Report) con todos los datos del proyecto Manual AI.
+
+    El PDF incluye 9 páginas (8 si clusters están deshabilitados):
+      1. Cover / Project Details
+      2. Executive Summary (6 KPIs)
+      3. Trends Over Time (visibility chart + position distribution + events)
+      4. Thematic Clusters Analysis (opcional)
+      5. Competitive Analysis (multi-series line charts)
+      6. AI Overview Keywords Details
+      7. Top Mentioned URLs in AI Overview
+      8. Global AI Overview Domains Ranking
+      9. AI Overview vs Organic Comparison
+
+    Args:
+        project_id: ID del proyecto
+
+    Query params:
+        - days: Número de días hacia atrás (optional, default: 30, clamp 1-365)
+
+    Returns:
+        Archivo PDF para descarga. Filename canónico:
+            "AI Overview export - {project_name} - YYYY-MM-DD - Clicandseo.pdf"
+    """
+    user = get_current_user()
+
+    # Control por plan
+    has_access, error_response = check_manual_ai_access(user)
+    if not has_access:
+        return jsonify(error_response), 402
+
+    if not project_service.user_owns_project(user['id'], project_id):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        from manual_ai.services.pdf_export_service import ManualAiPdfExportService
+        from manual_ai.models.project_repository import ProjectRepository
+        from manual_ai.utils.export_filename import build_manual_ai_export_filename
+        from flask import send_file
+
+        # Parse + clamp days
+        try:
+            days = int(request.args.get('days', 30))
+        except (TypeError, ValueError):
+            days = 30
+        days = max(1, min(days, 365))
+
+        # Verify project exists (the service also does this, but we want
+        # to return a clean 404 before spinning up ReportLab)
+        project_repo = ProjectRepository()
+        project_info = project_repo.get_project_info(project_id)
+        if not project_info:
+            logger.error(f"Project {project_id} not found for user {user['id']}")
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+
+        logger.info(
+            f"Generating Manual AI PDF for project {project_id}, "
+            f"user {user['id']}, days {days}"
+        )
+
+        pdf_file = ManualAiPdfExportService.generate_project_pdf(
+            project_id=project_id,
+            days=days,
+        )
+
+        logger.info(f"Manual AI PDF generated successfully for project {project_id}")
+
+        # Canonical filename (same helper as Excel route)
+        filename = build_manual_ai_export_filename(project_info.get('name'), 'pdf')
+
+        # Telemetry
+        logger.info(f"Manual AI PDF export: project_id={project_id}, days={days}, filename={filename}")
+
+        return send_file(
+            pdf_file,
+            download_name=filename,
+            as_attachment=True,
+            mimetype='application/pdf',
+        )
+
+    except ImportError as e:
+        logger.error(f"Import error in Manual AI PDF generation: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Missing required dependencies for PDF generation (reportlab)'
+        }), 500
+    except ValueError as e:
+        logger.warning(f"Value error in Manual AI PDF generation for project {project_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 404
+    except Exception as e:
+        logger.error(
+            f"Error generating Manual AI PDF for project {project_id}: {e}",
+            exc_info=True,
+        )
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate PDF file: {str(e)}'
+        }), 500
+
+
 @manual_ai_bp.route('/api/projects/<int:project_id>/export', methods=['GET'])
 @auth_required
 def export_project_data(project_id):
     """
     Exportar datos del proyecto (placeholder para futuras funcionalidades)
-    
+
     Args:
         project_id: ID del proyecto
-    
+
     Returns:
         JSON con mensaje
     """
     user = get_current_user()
-    
+
     # Control por plan
     has_access, error_response = check_manual_ai_access(user)
     if not has_access:
         return jsonify(error_response), 402
-    
+
     if not project_service.user_owns_project(user['id'], project_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
     return jsonify({
         'success': True,
         'message': 'Export functionality coming soon'
