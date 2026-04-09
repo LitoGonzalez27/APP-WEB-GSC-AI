@@ -365,6 +365,18 @@ class ManualAiPdfExportService:
                 fontSize=18, fontName='Helvetica-Bold',
                 textColor=CLR_DARK, spaceAfter=0, alignment=TA_CENTER,
             ),
+            # Smaller KPI variant for text values (e.g. domain names)
+            # that would overflow the cell at fontSize 18. Used on the
+            # Page 9 stats bar for the "Your domain" cell — the 18pt
+            # bold was wrapping "hmfertilitycenter.com" into 2 ugly lines.
+            # fontSize 10 fits ~22 chars in a 4.25cm cell, enough for
+            # most real domains. Longer ones still get truncated.
+            'kpi_value_sm': ParagraphStyle(
+                'KPIValueSm', parent=base['Normal'],
+                fontSize=10, fontName='Helvetica-Bold',
+                textColor=CLR_DARK, spaceAfter=0, alignment=TA_CENTER,
+                leading=12,
+            ),
             'no_data': ParagraphStyle(
                 'NoData', parent=base['Normal'],
                 fontSize=10, fontName='Helvetica-Oblique',
@@ -479,6 +491,61 @@ class ManualAiPdfExportService:
         if not clusters_data.get('table_data'):
             return False
         return True
+
+    @staticmethod
+    def _build_position_bar(
+        rate: float,
+        color_hex: str,
+        width_pt: float = 155,
+        height_pt: float = 12,
+    ):
+        """
+        Build a small horizontal progress bar as a ReportLab Drawing.
+
+        Used inside the Page 9 position correlation table as the
+        "Visualization" cell. Replaces the previous unicode block-character
+        approach (█ + ░), which rendered identically in Helvetica because
+        Helvetica substitutes both characters with the same glyph — so
+        bars for 76% / 35% / 19% all looked the same length.
+
+        Args:
+            rate:      Value in [0, 100] representing the fill percentage.
+            color_hex: Fill color (e.g. '#10B981').
+            width_pt:  Total drawing width in points.
+            height_pt: Total drawing height in points.
+
+        Returns:
+            A ReportLab Drawing that can be placed inside a Table cell.
+        """
+        from reportlab.graphics.shapes import Drawing, Rect
+        from reportlab.lib import colors
+
+        d = Drawing(width_pt, height_pt)
+
+        # Background track — light gray, rounded
+        d.add(Rect(
+            0, 1, width_pt, height_pt - 2,
+            fillColor=colors.HexColor('#E5E7EB'),
+            strokeColor=None,
+            rx=2, ry=2,
+        ))
+
+        # Fill bar — proportional to rate, same height as track
+        clamped = max(0.0, min(100.0, float(rate)))
+        fill_w = width_pt * (clamped / 100.0)
+        if fill_w > 0:
+            try:
+                fill_color = colors.HexColor(color_hex)
+            except Exception:
+                fill_color = colors.HexColor('#9CA3AF')
+            d.add(Rect(
+                0, 1, fill_w, height_pt - 2,
+                fillColor=fill_color,
+                strokeColor=None,
+                rx=2, ry=2,
+            ))
+
+        return d
 
     # ═══════════════════════════════════════════════════════════════════════
     #  Brand chrome — header bar, footer, logo watermark
@@ -1665,9 +1732,13 @@ class ManualAiPdfExportService:
             Paragraph(f"<b>{total_kw}</b>", styles['kpi_value']),
             Paragraph(f"<b>{overlap_url}%</b>", styles['kpi_value']),
             Paragraph(f"<b>{overlap_dom}%</b>", styles['kpi_value']),
+            # Domain cell uses a smaller style so long domain names
+            # (e.g. "hmfertilitycenter.com") don't overflow the column
+            # and wrap into 2 ugly lines. 11pt bold fits ~25 chars on
+            # one line inside a 4.25cm cell.
             Paragraph(
-                f"<b>{ManualAiPdfExportService._escape_html(ManualAiPdfExportService._truncate(project_domain_str, 28))}</b>",
-                styles['kpi_value'],
+                f"<b>{ManualAiPdfExportService._escape_html(ManualAiPdfExportService._truncate(project_domain_str, 26))}</b>",
+                styles['kpi_value_sm'],
             ),
         ], [
             Paragraph("Keywords analyzed", styles['kpi_label']),
@@ -1768,15 +1839,32 @@ class ManualAiPdfExportService:
             pc_rows = [['Bucket', 'Cited / Total', 'AIO rate', 'Visualization']]
             pc_bar_values = []
 
+            # Map buckets to the bar fill color (one saturated tone per bucket,
+            # matching the UI palette).
+            bucket_bar_fill = {
+                'top_3': '#10B981',          # green
+                'positions_4_10': '#3B82F6', # blue
+                'beyond_top_10': '#8B5CF6',  # purple
+                'not_ranking': '#9CA3AF',    # gray
+            }
+
             for key, label, total_b, cited, rate in active_buckets:
-                # Build a tiny bar using unicode blocks
-                bar_len = int(round(rate / 5))  # 20 units max
-                bar_str = '█' * bar_len + '░' * (20 - bar_len)
+                # Build a REAL ReportLab Drawing bar (not ASCII) so the
+                # width is actually proportional to the rate. The previous
+                # unicode-block approach (█ + ░) rendered identically in
+                # Helvetica because the font substitutes both characters
+                # with the same glyph, making all bars visually equal.
+                bar_drawing = ManualAiPdfExportService._build_position_bar(
+                    rate=rate,
+                    color_hex=bucket_bar_fill.get(key, '#9CA3AF'),
+                    width_pt=155,
+                    height_pt=12,
+                )
                 pc_rows.append([
                     label,
                     f"{cited} / {total_b}",
                     f"{rate:.1f}%",
-                    bar_str,
+                    bar_drawing,
                 ])
                 pc_bar_values.append((key, rate))
 
@@ -1785,10 +1873,9 @@ class ManualAiPdfExportService:
             pcs = ManualAiPdfExportService._base_table_style(len(pc_rows), styles)
             pcs.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
             pcs.append(('ALIGN', (3, 1), (3, -1), 'LEFT'))
-            pcs.append(('FONTNAME', (3, 1), (3, -1), 'Courier'))
-            pcs.append(('FONTSIZE', (3, 1), (3, -1), 8))
+            # Left-align the bar cell; Drawing doesn't need font overrides
 
-            # Color the left border/cell per bucket
+            # Color the left border/cell per bucket (visual anchor for the label)
             bucket_colors_map = {
                 'top_3': styles['CLR_GREEN_CELL'],
                 'positions_4_10': styles['CLR_BLUE_CELL'],
