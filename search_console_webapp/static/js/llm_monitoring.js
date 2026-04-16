@@ -8063,9 +8063,16 @@ class LLMMonitoring {
         panePrompts.style.display = isClusters ? 'none' : '';
         paneClusters.style.display = isClusters ? '' : 'none';
 
-        // When moving to clusters tab, render the editor UI with current state
+        // When moving to clusters tab, render the editor UI with current state.
+        // If the project has no clusters yet, seed one empty row so the user
+        // can type immediately instead of hunting for the "Add cluster" button.
         if (isClusters) {
             this.renderClustersManagerList();
+            const existing = this.getDefinedClusterNames();
+            const isSilent = opts && opts.silent;
+            if (!isSilent && existing.length === 0 && this.promptClustersConfig) {
+                this.addClusterRow();
+            }
         }
     }
 
@@ -8183,10 +8190,14 @@ class LLMMonitoring {
      * Add a new empty cluster row to the editor (front-end only until Save).
      */
     addClusterRow() {
+        // Defensive init: this can be called before loadClustersConfig completes
         if (!this.promptClustersConfig) {
             this.promptClustersConfig = { enabled: true, clusters: [], counts: {} };
         }
-        // Ensure enabled checkbox is on — user is creating a cluster
+        // Sync any in-flight edits from existing inputs first so we don't lose
+        // names the user just typed in other rows.
+        this._syncClustersConfigFromUI();
+        // Ensure enabled flag is on — user is creating a cluster
         this.promptClustersConfig.enabled = true;
         const enableCb = document.getElementById('promptClustersEnabled');
         if (enableCb) enableCb.checked = true;
@@ -8196,12 +8207,21 @@ class LLMMonitoring {
         this.promptClustersConfig.clusters.push({ name: '' });
         this.renderClustersManagerList();
 
-        // Focus on the last input
+        // Focus on the last input so the user can type immediately
         const list = document.getElementById('clustersList');
         if (list) {
             const inputs = list.querySelectorAll('.cluster-name-input');
             const last = inputs[inputs.length - 1];
-            if (last) last.focus();
+            if (last) {
+                last.focus();
+                // Submit on Enter for ergonomics
+                last.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.saveClustersConfig();
+                    }
+                }, { once: true });
+            }
         }
     }
 
@@ -8262,10 +8282,52 @@ class LLMMonitoring {
         const hint = document.getElementById('clustersSaveHint');
         if (!this._syncClustersConfigFromUI()) return;
 
+        // ✨ Front-end validation: detect rows that exist in the DOM but have empty names
+        const list = document.getElementById('clustersList');
+        const domRowCount = list ? list.querySelectorAll('.llm-cluster-row').length : 0;
+        const validClusters = this.promptClustersConfig.clusters || [];
+
+        // If the user has rows but none of them have valid names → warn instead of silently saving empty
+        if (domRowCount > 0 && validClusters.length === 0) {
+            if (hint) {
+                hint.className = 'clusters-save-hint error';
+                hint.textContent = 'Please type a name for each cluster before saving.';
+            }
+            this.showError('Please type a name for each cluster before saving.');
+            // Focus first empty input
+            const firstEmpty = list.querySelector('.cluster-name-input');
+            if (firstEmpty) firstEmpty.focus();
+            return;
+        }
+
+        // If user clicks Save with no rows at all → confirm they want to disable clusters
+        if (domRowCount === 0 && (this.promptClustersConfig?.clusters || []).length === 0) {
+            // Only confirm if there were clusters previously (avoid no-op confirmation on first use)
+            const counts = this.promptClustersConfig?.counts || {};
+            const hasExistingAssignments = Object.keys(counts).some(k => k !== 'Unassigned' && counts[k] > 0);
+            if (hasExistingAssignments) {
+                const proceed = confirm(
+                    'You are about to remove all clusters. Any prompts assigned to clusters will be unassigned. Continue?'
+                );
+                if (!proceed) {
+                    if (hint) hint.textContent = '';
+                    return;
+                }
+            } else {
+                // Nothing to save — just hint that they should add a cluster
+                if (hint) {
+                    hint.className = 'clusters-save-hint';
+                    hint.textContent = 'Add at least one cluster before saving.';
+                }
+                this.showInfo('Click "Add cluster" first, then type a name and save.');
+                return;
+            }
+        }
+
         const payload = {
             clusters_config: {
                 enabled: !!this.promptClustersConfig.enabled,
-                clusters: this.promptClustersConfig.clusters.map(c => ({ name: c.name }))
+                clusters: (this.promptClustersConfig.clusters || []).map(c => ({ name: c.name }))
             }
         };
 
@@ -8296,12 +8358,24 @@ class LLMMonitoring {
             // If the chart is on screen, refresh it
             this.loadClustersPerformance(projectId);
 
+            const savedCount = (this.promptClustersConfig?.clusters || []).length;
+            const baseMsg = savedCount > 0
+                ? `Saved ${savedCount} cluster${savedCount === 1 ? '' : 's'}.`
+                : 'Cluster configuration cleared.';
+            const orphanMsg = data.orphaned_prompts > 0
+                ? ` ${data.orphaned_prompts} prompt${data.orphaned_prompts === 1 ? ' was' : 's were'} unassigned.`
+                : '';
+
             if (hint) {
                 hint.className = 'clusters-save-hint saved';
-                hint.textContent = data.orphaned_prompts > 0
-                    ? `Saved. ${data.orphaned_prompts} prompt${data.orphaned_prompts === 1 ? '' : 's'} unassigned.`
-                    : 'Saved.';
-                setTimeout(() => { if (hint) hint.textContent = ''; }, 4000);
+                hint.textContent = baseMsg + orphanMsg;
+                setTimeout(() => { if (hint) hint.textContent = ''; }, 5000);
+            }
+            // Visible toast as well
+            if (savedCount > 0) {
+                this.showSuccess(baseMsg + orphanMsg);
+            } else {
+                this.showInfo(baseMsg + orphanMsg);
             }
         } catch (err) {
             console.error('❌ Error saving clusters:', err);
@@ -8309,6 +8383,7 @@ class LLMMonitoring {
                 hint.className = 'clusters-save-hint error';
                 hint.textContent = `Error: ${err.message || 'could not save'}`;
             }
+            this.showError(`Could not save clusters: ${err.message || ''}`);
         }
     }
 

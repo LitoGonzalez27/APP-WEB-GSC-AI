@@ -5328,7 +5328,14 @@ label:not(.search-form label) {
     display: block;
 }
 
-.clusters-config-container.disabled {
+/*
+ * When clusters are disabled at the project level, dim the inputs/list but
+ * keep the toolbar buttons (Add cluster / Save) clickable so the user can
+ * start configuring without having to find the toggle first. Toggling the
+ * "Add cluster" button will auto-enable clusters.
+ */
+.clusters-config-container.disabled .clusters-list,
+.clusters-config-container.disabled .clusters-empty-hint {
     opacity: 0.55;
     pointer-events: none;
 }
