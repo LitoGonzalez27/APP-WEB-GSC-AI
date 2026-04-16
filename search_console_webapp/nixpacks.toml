@@ -1,5 +1,24 @@
 [phases.setup]
 nixPkgs = ["python3", "gcc"]
 
+# Install phase runs AFTER setup but BEFORE the source code COPY layer is
+# invalidated, so it gets cached and only re-runs when requirements.txt
+# (or nixpacks.toml) actually changes.
+#
+# Previously, "playwright install-deps" + "playwright install chromium" lived
+# in the Procfile `release` step which Nixpacks compiles to a `RUN` after the
+# full source COPY. That layer was invalidated on EVERY deploy and forced
+# re-downloading ~300 Ubuntu packages and ~170 MB of Chromium. Result: 1h+
+# build times that frequently timed out.
+#
+# Moving them here means: cached on subsequent deploys, fresh only when the
+# Python deps (which include the playwright pin) change.
+[phases.install]
+cmds = [
+    "python -m venv --copies /opt/venv",
+    ". /opt/venv/bin/activate && pip install -r requirements.txt",
+    ". /opt/venv/bin/activate && python3 -m playwright install --with-deps chromium"
+]
+
 [phases.start]
 cmd = "python3 app.py"

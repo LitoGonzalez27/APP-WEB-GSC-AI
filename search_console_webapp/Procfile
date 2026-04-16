@@ -1,7 +1,15 @@
-# 1) Instala dependencias nativas de Chromium  
-# 2) Descarga el binario de Chromium
-# 3) Inicializa tablas Manual AI
-release: python3 -m playwright install-deps && python3 -m playwright install chromium && python3 create_manual_ai_tables.py
+# Playwright (Chromium + native deps) is now installed in nixpacks.toml's
+# install phase, which is properly cached. The previous `release:` step
+# that ran `playwright install-deps` + `playwright install chromium` on
+# every deploy has been removed because:
+#   - It executed in an uncached Docker layer (after `COPY . /app/.`),
+#     so every deploy re-downloaded ~300 Ubuntu apt packages + ~170 MB
+#     of Chromium, frequently timing out the build.
+#   - DB migrations should be run intentionally, not on every restart.
+#
+# How to run a one-off DB migration on Railway:
+#   railway run --service <service> python3 <migration_script>.py
+# or from the Railway shell.
 web:     python3 app.py
-# Cron job para análisis diario Manual AI (configurar horario en Railway dashboard)
+# Daily cron job for Manual AI analysis (schedule configured in Railway dashboard)
 cron:    python3 daily_analysis_cron.py
