@@ -8132,16 +8132,20 @@ class LLMMonitoring {
 
     /**
      * Render the clusters editor list inside the "Clusters" tab.
+     *
+     * IMPORTANT: this renders ALL rows from this.promptClustersConfig.clusters,
+     * including rows whose name is still empty (user is about to type). Filtering
+     * empty names here would cause "Add cluster" to silently do nothing in the UI.
      */
     renderClustersManagerList() {
         const list = document.getElementById('clustersList');
         const emptyHint = document.getElementById('clustersEmptyHint');
         if (!list) return;
 
-        const clusters = this.getDefinedClusterNames();
+        const allRows = (this.promptClustersConfig?.clusters || []);
         const counts = (this.promptClustersConfig || {}).counts || {};
 
-        if (clusters.length === 0) {
+        if (allRows.length === 0) {
             list.innerHTML = '';
             if (emptyHint) emptyHint.style.display = 'block';
             this.updatePromptsMgmtTabCounts();
@@ -8149,14 +8153,16 @@ class LLMMonitoring {
         }
         if (emptyHint) emptyHint.style.display = 'none';
 
-        list.innerHTML = clusters.map((name, idx) => {
-            const count = counts[name] || 0;
+        list.innerHTML = allRows.map((cluster, idx) => {
+            const name = (cluster?.name || '').trim();
+            const count = name ? (counts[name] || 0) : 0;
             const countClass = count === 0 ? 'empty' : '';
+            const safeName = this.escapeHtml(name);
             return `
-                <div class="llm-cluster-row" data-original-name="${this.escapeHtml(name)}" data-index="${idx}">
+                <div class="llm-cluster-row" data-original-name="${safeName}" data-index="${idx}">
                     <input type="text"
                            class="cluster-name-input"
-                           value="${this.escapeHtml(name)}"
+                           value="${safeName}"
                            placeholder="Cluster name (e.g. Satisfaction)"
                            maxlength="80" />
                     <span class="cluster-row-count ${countClass}" title="${count} prompts assigned">
