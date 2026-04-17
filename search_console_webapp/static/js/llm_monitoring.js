@@ -4741,24 +4741,25 @@ class LLMMonitoring {
             const clusterSelectHtml = this.buildPromptClusterSelectHtml
                 ? this.buildPromptClusterSelectHtml(query)
                 : '';
+            const hasCluster = !!clusterSelectHtml;
             html += `
                 <div class="prompt-item">
-                    <div class="prompt-content">
-                        <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
-                        <div class="prompt-meta">
-                            <span class="badge badge-${query.query_type}">${query.query_type}</span>
-                            <span class="badge badge-language">${query.language}</span>
-                            <span class="prompt-date">
-                                <i class="fas fa-clock"></i>
-                                ${this.formatDate(query.created_at)}
-                            </span>
-                            ${clusterSelectHtml}
-                        </div>
+                    <div class="prompt-meta">
+                        <span class="badge badge-${query.query_type}">${query.query_type}</span>
+                        <span class="badge badge-language">${query.language}</span>
+                        <span class="prompt-date">
+                            <i class="fas fa-clock"></i>
+                            ${this.formatDate(query.created_at)}
+                        </span>
                     </div>
-                    <div class="prompt-actions">
-                        <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
+                    <div class="prompt-bottom-row">
+                        <div>${clusterSelectHtml}</div>
+                        <div class="prompt-actions">
+                            <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -8569,9 +8570,6 @@ class LLMMonitoring {
         const clustersWithData = (data?.clusters || []).filter(c => c.has_data);
         const anyConfigured = (this.promptClustersConfig?.clusters || []).length > 0;
 
-        // Empty state decision tree:
-        //  - no clusters defined at all -> "No clusters configured"
-        //  - clusters defined but none with data -> "No data yet"
         if (!anyConfigured) {
             container.style.display = 'none';
             emptyBox.style.display = '';
@@ -8605,6 +8603,11 @@ class LLMMonitoring {
         if (this.charts.clustersPerformance) {
             try { this.charts.clustersPerformance.destroy(); } catch (_) {}
         }
+
+        // Store cluster data for the rich tooltip
+        this._clusterChartData = clustersWithData;
+
+        const self = this;
         const ctx = canvas.getContext('2d');
         this.charts.clustersPerformance = new Chart(ctx, {
             type: 'bar',
@@ -8612,24 +8615,28 @@ class LLMMonitoring {
                 labels,
                 datasets: [
                     {
-                        label: metric === 'weighted' ? 'Share of Voice (weighted) %' : 'Share of Voice %',
+                        label: metric === 'weighted' ? 'Share of Voice (weighted)' : 'Share of Voice',
                         data: sovData,
-                        backgroundColor: 'rgba(59, 130, 246, 0.75)',
-                        borderColor: 'rgba(37, 99, 235, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(15, 23, 42, 0.82)',
+                        borderColor: '#0F172A',
+                        borderWidth: 0,
+                        borderRadius: { topLeft: 6, topRight: 6 },
                         yAxisID: 'y',
-                        categoryPercentage: 0.7,
-                        barPercentage: 0.85
+                        categoryPercentage: 0.65,
+                        barPercentage: 0.85,
+                        order: 2
                     },
                     {
-                        label: 'Avg position (lower is better)',
+                        label: 'Avg position',
                         data: posData,
-                        backgroundColor: 'rgba(16, 185, 129, 0.75)',
-                        borderColor: 'rgba(5, 150, 105, 1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(217, 249, 184, 0.85)',
+                        borderColor: '#D9F9B8',
+                        borderWidth: 0,
+                        borderRadius: { topLeft: 6, topRight: 6 },
                         yAxisID: 'y1',
-                        categoryPercentage: 0.7,
-                        barPercentage: 0.85
+                        categoryPercentage: 0.65,
+                        barPercentage: 0.85,
+                        order: 1
                     }
                 ]
             },
@@ -8640,45 +8647,140 @@ class LLMMonitoring {
                 plugins: {
                     legend: {
                         position: 'top',
-                        labels: { usePointStyle: true, padding: 15, font: { size: 12 } }
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            padding: 18,
+                            font: { size: 12, family: "'Inter Tight', sans-serif", weight: '500' },
+                            color: '#64748B'
+                        }
                     },
                     tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const v = ctx.parsed.y;
-                                if (ctx.datasetIndex === 0) {
-                                    return `${ctx.dataset.label}: ${v == null ? '—' : v.toFixed(1) + '%'}`;
-                                }
-                                return `${ctx.dataset.label}: ${v == null ? '—' : v.toFixed(1)}`;
-                            }
-                        }
+                        enabled: false,
+                        external: (context) => self.renderClustersChartTooltip(context)
                     }
                 },
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { color: '#374151', font: { weight: '500' } }
+                        border: { display: false },
+                        ticks: {
+                            color: '#0F172A',
+                            font: { weight: '600', size: 12, family: "'Inter Tight', sans-serif" }
+                        }
                     },
                     y: {
                         type: 'linear',
                         position: 'left',
                         beginAtZero: true,
                         suggestedMax: 100,
-                        title: { display: true, text: 'Share of Voice (%)' },
-                        ticks: { callback: (v) => `${v}%` },
-                        grid: { color: 'rgba(148, 163, 184, 0.2)' }
+                        title: {
+                            display: true,
+                            text: 'Share of Voice (%)',
+                            color: '#64748B',
+                            font: { size: 11 }
+                        },
+                        ticks: {
+                            callback: (v) => `${v}%`,
+                            color: '#94A3B8',
+                            font: { size: 11 }
+                        },
+                        grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false }
                     },
                     y1: {
                         type: 'linear',
                         position: 'right',
-                        reverse: true, // smaller position = better → shown higher
-                        beginAtZero: false,
-                        title: { display: true, text: 'Avg position' },
-                        grid: { drawOnChartArea: false }
+                        beginAtZero: true,
+                        // Both bars grow upward from 0. Lower position = smaller bar.
+                        // The tooltip explains that lower is better.
+                        title: {
+                            display: true,
+                            text: 'Avg position',
+                            color: '#64748B',
+                            font: { size: 11 }
+                        },
+                        ticks: {
+                            callback: (v) => `#${v}`,
+                            color: '#94A3B8',
+                            font: { size: 11 }
+                        },
+                        grid: { drawOnChartArea: false, drawBorder: false }
                     }
                 }
             }
         });
+    }
+
+    /**
+     * Rich tooltip for the Clusters Performance bar chart.
+     * Matches the style of the SoV line chart tooltip (dark, rows, dots).
+     */
+    renderClustersChartTooltip(context) {
+        let el = document.getElementById('llm-clusters-chart-tooltip');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'llm-clusters-chart-tooltip';
+            el.className = 'llm-chart-tooltip';
+            document.body.appendChild(el);
+        }
+
+        const tooltipModel = context.tooltip;
+        if (tooltipModel.opacity === 0) {
+            el.classList.remove('active');
+            return;
+        }
+
+        if (tooltipModel.body) {
+            const dataIndex = tooltipModel.dataPoints[0]?.dataIndex;
+            const clusterData = this._clusterChartData?.[dataIndex];
+            const clusterName = clusterData?.cluster || tooltipModel.title[0] || '';
+
+            const sov = clusterData?.share_of_voice ?? '—';
+            const pos = clusterData?.avg_position ?? null;
+            const mentions = clusterData?.brand_mentions ?? 0;
+            const total = clusterData?.total_results ?? 0;
+
+            const sovLabel = (typeof sov === 'number') ? `${sov.toFixed(1)}%` : '—';
+            const posLabel = pos != null ? `#${pos.toFixed(1)}` : 'N/A';
+            const posNote = pos != null ? '<span style="opacity:0.5;font-size:11px"> (lower is better)</span>' : '';
+
+            el.innerHTML = `
+                <div class="llm-chart-tooltip__title">${this.escapeHtml(clusterName)}</div>
+                <div class="llm-chart-tooltip__row">
+                    <span class="llm-chart-tooltip__dot" style="background:#0F172A"></span>
+                    <span class="llm-chart-tooltip__label">Share of Voice</span>
+                    <span class="llm-chart-tooltip__value">${sovLabel}</span>
+                </div>
+                <div class="llm-chart-tooltip__row">
+                    <span class="llm-chart-tooltip__dot" style="background:#D9F9B8"></span>
+                    <span class="llm-chart-tooltip__label">Avg position</span>
+                    <span class="llm-chart-tooltip__value">${posLabel}${posNote}</span>
+                </div>
+                <div class="llm-chart-tooltip__row" style="border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;padding-top:6px;">
+                    <span class="llm-chart-tooltip__label" style="opacity:0.4">Brand mentions</span>
+                    <span class="llm-chart-tooltip__value" style="font-size:12px">${mentions} / ${total}</span>
+                </div>
+            `;
+        }
+
+        const pos = context.chart.canvas.getBoundingClientRect();
+        const ttW = el.offsetWidth || 200;
+        const ttH = el.offsetHeight || 100;
+        const caretX = pos.left + window.scrollX + tooltipModel.caretX;
+        const caretY = pos.top + window.scrollY + tooltipModel.caretY;
+        const vpR = window.innerWidth + window.scrollX;
+        const vpB = window.innerHeight + window.scrollY;
+
+        let left = caretX + 12;
+        if (left + ttW > vpR - 16) left = caretX - ttW - 12;
+        let top = caretY - 10;
+        if (top + ttH > vpB - 16) top = caretY - ttH + 10;
+        left = Math.max(8, left);
+        top = Math.max(8, top);
+
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.classList.add('active');
     }
 }
 
