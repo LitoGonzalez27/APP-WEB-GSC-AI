@@ -8538,10 +8538,10 @@ class LLMMonitoring {
         if (!projectId) return;
         const metric = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
         try {
-            // Ensure the clusters config is hydrated so we know if there are any defined
-            if (!this.promptClustersConfig) {
-                await this.loadClustersConfig(projectId);
-            }
+            // Always reload clusters config for the CURRENT project to avoid stale
+            // data when switching between projects (e.g. project A has no clusters,
+            // project B does — without reload the chart would show empty state).
+            await this.loadClustersConfig(projectId);
 
             const resp = await fetch(
                 `${this.baseUrl}/projects/${projectId}/clusters/metrics?days=${this.globalTimeRange}&metric=${encodeURIComponent(metric)}`
