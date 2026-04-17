@@ -32,7 +32,7 @@
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=7" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=8" rel="stylesheet">
     <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=1" rel="stylesheet">
     
     <!-- ✨ NEW: Share of Voice Metrics UI -->
@@ -797,12 +797,7 @@
                         <h3>
                             Clusters Performance
                         </h3>
-                        <div class="chart-actions" id="clustersChartActions" style="display:none;">
-                            <span class="clusters-metric-indicator" id="clustersMetricIndicator" title="Metric follows the global SoV toggle">
-                                <i class="fas fa-balance-scale"></i>
-                                <span id="clustersMetricIndicatorText">weighted</span>
-                            </span>
-                        </div>
+                        <!-- Metric indicator removed — follows global SoV toggle silently like other charts -->
                     </div>
 
                     <!-- Empty state: no clusters defined or none with data -->
@@ -1471,12 +1466,8 @@
                             <i class="fas fa-plus"></i>
                             Add Prompts
                         </button>
-                        <!-- ✨ NEW: Filter by cluster inside the management modal -->
+                        <!-- Cluster filter inside the management modal (no label, just the select) -->
                         <div class="prompts-cluster-filter" id="promptsClusterFilterWrapper" style="margin-left:auto; display:none;">
-                            <label for="promptsListClusterFilter" class="prompts-cluster-filter-label">
-                                <i class="fas fa-filter"></i>
-                                Filter
-                            </label>
                             <select id="promptsListClusterFilter" class="form-control form-control-sm">
                                 <option value="">All clusters</option>
                                 <option value="__unassigned__">Unassigned</option>
@@ -1781,7 +1772,7 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=10"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=11"></script>
     
     <script>
         // Usuario actual

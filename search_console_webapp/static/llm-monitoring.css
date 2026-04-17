@@ -5166,6 +5166,10 @@ label:not(.search-form label) {
     padding: 1.25rem 1.5rem;
     border-radius: 20px 20px 0 0;
     border-bottom: none;
+    /* Ensure dark bg covers full width including any parent padding */
+    margin: -1px -1px 0 -1px;
+    width: calc(100% + 2px);
+    box-sizing: border-box;
 }
 
 #promptsManagementModal .modal-header .header-text h3 {
@@ -5368,29 +5372,30 @@ label:not(.search-form label) {
     align-items: center;
 }
 
-/* Per-prompt cluster selector */
+/* Per-prompt cluster selector — compact, no icon */
 .prompt-cluster-select-wrapper {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0;
 }
 
+/* Hide the layer-group icon inside the wrapper */
 .prompt-cluster-select-wrapper i.fa-layer-group {
-    color: #94A3B8;
-    font-size: 0.72rem;
+    display: none;
 }
 
 .prompt-cluster-select {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.78rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.72rem;
     font-weight: 500;
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
-    border-radius: 8px;
+    border-radius: 6px;
     color: #64748B;
     cursor: pointer;
-    min-width: 140px;
-    max-width: 220px;
+    min-width: 110px;
+    max-width: 180px;
+    height: 28px;
     transition: all 0.2s;
 }
 

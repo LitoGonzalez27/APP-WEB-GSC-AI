@@ -8559,13 +8559,7 @@ class LLMMonitoring {
         const canvas = document.getElementById('clustersPerformanceChart');
         const container = document.getElementById('clustersChartContainer');
         const emptyBox = document.getElementById('clustersChartEmpty');
-        const actions = document.getElementById('clustersChartActions');
-        const metricText = document.getElementById('clustersMetricIndicatorText');
         if (!canvas || !container || !emptyBox) return;
-
-        if (metricText) {
-            metricText.textContent = metric === 'classic' ? 'classic' : 'weighted';
-        }
 
         const clustersWithData = (data?.clusters || []).filter(c => c.has_data);
         const anyConfigured = (this.promptClustersConfig?.clusters || []).length > 0;
@@ -8573,7 +8567,6 @@ class LLMMonitoring {
         if (!anyConfigured) {
             container.style.display = 'none';
             emptyBox.style.display = '';
-            if (actions) actions.style.display = 'none';
             const t = document.getElementById('clustersChartEmptyTitle');
             const m = document.getElementById('clustersChartEmptyMsg');
             if (t) t.textContent = 'No clusters configured';
@@ -8584,7 +8577,6 @@ class LLMMonitoring {
         if (clustersWithData.length === 0) {
             container.style.display = 'none';
             emptyBox.style.display = '';
-            if (actions) actions.style.display = '';
             const t = document.getElementById('clustersChartEmptyTitle');
             const m = document.getElementById('clustersChartEmptyMsg');
             if (t) t.textContent = 'No data yet for your clusters';
@@ -8747,7 +8739,7 @@ class LLMMonitoring {
             el.innerHTML = `
                 <div class="llm-chart-tooltip__title">${this.escapeHtml(clusterName)}</div>
                 <div class="llm-chart-tooltip__row">
-                    <span class="llm-chart-tooltip__dot" style="background:#0F172A"></span>
+                    <span class="llm-chart-tooltip__dot" style="background:#64748B"></span>
                     <span class="llm-chart-tooltip__label">Share of Voice</span>
                     <span class="llm-chart-tooltip__value">${sovLabel}</span>
                 </div>
