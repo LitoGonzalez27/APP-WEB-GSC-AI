@@ -5408,7 +5408,11 @@ label:not(.search-form label) {
     display: none;
 }
 
-.prompt-cluster-select {
+/* All rules below are scoped to the wrapper to beat the global
+   `select:not(.search-form select)` reset (specificity 0,1,2), which
+   otherwise forces width:100% and a neutral background on our control. */
+.prompt-cluster-select-wrapper .prompt-cluster-select {
+    width: auto;
     padding: 0 2.1rem 0 0.75rem;
     font-size: 0.8rem;
     font-weight: 500;
@@ -5429,42 +5433,42 @@ label:not(.search-form label) {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    margin: 0;
 }
 
-/* Remove the default dropdown arrow on IE/Edge legacy */
-.prompt-cluster-select::-ms-expand { display: none; }
+.prompt-cluster-select-wrapper .prompt-cluster-select::-ms-expand { display: none; }
 
-.prompt-cluster-select:hover {
+.prompt-cluster-select-wrapper .prompt-cluster-select:hover {
     border-color: #CBD5E1;
     background: #FFFFFF;
 }
 
-.prompt-cluster-select:focus {
+.prompt-cluster-select-wrapper .prompt-cluster-select:focus {
     outline: none;
     border-color: #0F172A;
     box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
 }
 
-.prompt-cluster-select[data-state="assigned"] {
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="assigned"] {
     background: #ECFCCB;
     border-color: #BEF264;
     color: #365314;
     font-weight: 600;
 }
 
-.prompt-cluster-select[data-state="assigned"]:hover {
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="assigned"]:hover {
     background: #D9F99D;
     border-color: #A3E635;
 }
 
-.prompt-cluster-select[data-state="unassigned"] {
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="unassigned"] {
     background: #F8FAFC;
     border-color: #E2E8F0;
     color: #64748B;
     font-weight: 500;
 }
 
-.prompt-cluster-select[data-state="unassigned"]:hover {
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="unassigned"]:hover {
     background: #FFFFFF;
     color: #334155;
 }
@@ -5742,7 +5746,7 @@ label:not(.search-form label) {
     .llm-cluster-row .cluster-name-input {
         flex: 1 1 100%;
     }
-    .prompt-cluster-select {
+    .prompt-cluster-select-wrapper .prompt-cluster-select {
         min-width: 120px;
         max-width: 100%;
     }
