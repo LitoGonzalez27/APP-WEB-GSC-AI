@@ -1825,10 +1825,17 @@ def add_queries_to_project(project_id):
     queries_list = data.get('queries', [])
     language = data.get('language')
     query_type = data.get('query_type', 'manual')
-    
+    # ✨ NEW: optional cluster to assign to all prompts in this batch
+    cluster_assignment_raw = data.get('cluster', None)
+    target_cluster = None
+    if cluster_assignment_raw is not None and cluster_assignment_raw != '':
+        target_cluster = _normalize_cluster_name(cluster_assignment_raw)
+        if not target_cluster:
+            target_cluster = None
+
     if not queries_list:
         return jsonify({'error': 'No se proporcionaron queries'}), 400
-    
+
     if not isinstance(queries_list, list):
         return jsonify({'error': 'queries debe ser una lista'}), 400
     
@@ -1875,30 +1882,55 @@ def add_queries_to_project(project_id):
                 language = project['language']
             else:
                 language = 'es'
-        
+
+        # ✨ NEW: Validate that target_cluster (if any) is defined in the project config
+        if target_cluster:
+            cur.execute(
+                "SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s",
+                (project_id,)
+            )
+            project_cfg = cur.fetchone() or {}
+            raw_clusters_cfg = project_cfg.get('prompt_clusters') or {}
+            if isinstance(raw_clusters_cfg, str):
+                try:
+                    raw_clusters_cfg = json.loads(raw_clusters_cfg)
+                except (json.JSONDecodeError, TypeError):
+                    raw_clusters_cfg = {}
+            defined_clusters = {
+                (c.get('name') or '').lower()
+                for c in (raw_clusters_cfg.get('clusters') or [])
+                if isinstance(c, dict)
+            }
+            if target_cluster.lower() not in defined_clusters:
+                # Silently ignore unknown cluster rather than failing the whole batch
+                logger.warning(
+                    f"Cluster '{target_cluster}' not defined for project {project_id} — ignoring"
+                )
+                target_cluster = None
+
         added_count = 0
         duplicate_count = 0
         error_count = 0
-        
+
         for query_text in queries_list:
             query_text = query_text.strip()
             if not query_text:
                 error_count += 1
                 continue
-            
+
             try:
                 cur.execute("""
                     INSERT INTO llm_monitoring_queries (
-                        project_id, query_text, language, query_type, is_active, added_at
-                    ) VALUES (%s, %s, %s, %s, TRUE, NOW())
+                        project_id, query_text, language, query_type, topic_cluster, is_active, added_at
+                    ) VALUES (%s, %s, %s, %s, %s, TRUE, NOW())
                     ON CONFLICT (project_id, query_text) DO NOTHING
-                """, (project_id, query_text, language, query_type))
-                
+                """, (project_id, query_text, language, query_type, target_cluster))
+
                 if cur.rowcount > 0:
                     added_count += 1
                 else:
                     duplicate_count += 1
-                    
+
             except Exception as e:
                 logger.warning(f"Error añadiendo query '{query_text}': {e}")
                 error_count += 1
@@ -1972,6 +2004,649 @@ def delete_query(project_id, query_id):
         conn.rollback()
         logger.error(f"Error eliminando query: {e}", exc_info=True)
         return jsonify({'error': f'Error eliminando query: {str(e)}'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ============================================================================
+# PROMPT CLUSTERS (topic clustering manual)
+# ============================================================================
+
+def _normalize_cluster_name(name):
+    """Trim + compact whitespace. Returns empty string if invalid."""
+    if not name:
+        return ''
+    trimmed = re.sub(r'\s+', ' ', str(name)).strip()
+    # Hard cap to avoid absurd names
+    return trimmed[:80]
+
+
+def _sanitize_prompt_clusters_config(raw):
+    """
+    Sanitize incoming clusters config. Expected shape:
+        {"enabled": bool, "clusters": [{"name": "..."}]}
+    Returns (config_dict, list_of_names_in_order).
+    Raises ValueError on invalid input.
+    """
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError('clusters_config must be an object')
+
+    enabled = bool(raw.get('enabled'))
+    clusters_in = raw.get('clusters') or []
+    if not isinstance(clusters_in, list):
+        raise ValueError('clusters must be a list')
+
+    seen = set()
+    cleaned = []
+    names_in_order = []
+    for entry in clusters_in:
+        if isinstance(entry, str):
+            name = _normalize_cluster_name(entry)
+        elif isinstance(entry, dict):
+            name = _normalize_cluster_name(entry.get('name'))
+        else:
+            continue
+        if not name:
+            continue
+        # case-insensitive uniqueness
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append({'name': name})
+        names_in_order.append(name)
+
+    return (
+        {'enabled': enabled and len(cleaned) > 0, 'clusters': cleaned},
+        names_in_order,
+    )
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/clusters', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_project_clusters(project_id):
+    """
+    Devuelve la configuración de clusters del proyecto + conteo de prompts por cluster.
+
+    Returns:
+        {
+            "success": true,
+            "clusters_config": {"enabled": bool, "clusters": [{"name": "..."}]},
+            "counts": {"ClusterA": 5, "Unassigned": 2, ...}
+        }
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT prompt_clusters
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Project not found'}), 404
+
+        raw_config = row.get('prompt_clusters') or {'enabled': False, 'clusters': []}
+        if isinstance(raw_config, str):
+            try:
+                raw_config = json.loads(raw_config)
+            except (json.JSONDecodeError, TypeError):
+                raw_config = {'enabled': False, 'clusters': []}
+
+        # Conteo de prompts activos por cluster
+        cur.execute("""
+            SELECT COALESCE(topic_cluster, '') AS cluster, COUNT(*) AS cnt
+            FROM llm_monitoring_queries
+            WHERE project_id = %s AND is_active = TRUE
+            GROUP BY COALESCE(topic_cluster, '')
+        """, (project_id,))
+        counts = {}
+        for r in cur.fetchall():
+            key = r['cluster'] if r['cluster'] else 'Unassigned'
+            counts[key] = int(r['cnt'])
+
+        return jsonify({
+            'success': True,
+            'clusters_config': raw_config,
+            'counts': counts
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error obteniendo clusters: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to load clusters. Please try again.'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/clusters', methods=['PUT'])
+@login_required
+@validate_project_ownership
+def update_project_clusters(project_id):
+    """
+    Actualiza la configuración de clusters del proyecto.
+
+    Body:
+        {"clusters_config": {"enabled": bool, "clusters": [{"name": "..."}]}}
+
+    Comportamiento:
+    - Guarda el nuevo array canónico en llm_monitoring_projects.prompt_clusters.
+    - Si un cluster ha sido ELIMINADO (o si se deshabilita la feature),
+      todos los queries con ese topic_cluster se ponen a NULL (desasignados).
+    - No renombra clusters automáticamente: usa el endpoint /clusters/rename para eso.
+    """
+    data = request.get_json() or {}
+    raw_config = data.get('clusters_config')
+    if raw_config is None:
+        return jsonify({'error': 'clusters_config is required'}), 400
+
+    try:
+        sanitized, names_in_order = _sanitize_prompt_clusters_config(raw_config)
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+
+        # Lock del proyecto para evitar carreras
+        cur.execute(
+            "SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s FOR UPDATE",
+            (project_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Guardar nueva config
+        cur.execute("""
+            UPDATE llm_monitoring_projects
+            SET prompt_clusters = %s::jsonb, updated_at = NOW()
+            WHERE id = %s
+        """, (json.dumps(sanitized), project_id))
+
+        # Desasignar cluster de queries cuyo cluster ya no exista (o si se desactiva)
+        if not sanitized['enabled'] or not names_in_order:
+            cur.execute("""
+                UPDATE llm_monitoring_queries
+                SET topic_cluster = NULL
+                WHERE project_id = %s AND topic_cluster IS NOT NULL
+            """, (project_id,))
+            orphaned = cur.rowcount
+        else:
+            cur.execute("""
+                UPDATE llm_monitoring_queries
+                SET topic_cluster = NULL
+                WHERE project_id = %s
+                  AND topic_cluster IS NOT NULL
+                  AND NOT (topic_cluster = ANY(%s))
+            """, (project_id, names_in_order))
+            orphaned = cur.rowcount
+
+        conn.commit()
+
+        return jsonify({
+            'success': True,
+            'clusters_config': sanitized,
+            'orphaned_prompts': orphaned
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error actualizando clusters: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to save clusters. Please try again.'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/clusters/rename', methods=['POST'])
+@login_required
+@validate_project_ownership
+def rename_project_cluster(project_id):
+    """
+    Renombra un cluster: actualiza la config del proyecto y todos los prompts asignados.
+
+    Body: {"old_name": "...", "new_name": "..."}
+    """
+    data = request.get_json() or {}
+    old_name = _normalize_cluster_name(data.get('old_name'))
+    new_name = _normalize_cluster_name(data.get('new_name'))
+
+    if not old_name or not new_name:
+        return jsonify({'error': 'old_name and new_name are required'}), 400
+    if old_name == new_name:
+        return jsonify({'success': True, 'updated_prompts': 0}), 200
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s FOR UPDATE",
+            (project_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Project not found'}), 404
+
+        raw_config = row.get('prompt_clusters') or {'enabled': False, 'clusters': []}
+        if isinstance(raw_config, str):
+            try:
+                raw_config = json.loads(raw_config)
+            except (json.JSONDecodeError, TypeError):
+                raw_config = {'enabled': False, 'clusters': []}
+
+        clusters_list = raw_config.get('clusters') or []
+        existing_names_lower = {c.get('name', '').lower() for c in clusters_list if isinstance(c, dict)}
+
+        if old_name.lower() not in existing_names_lower:
+            return jsonify({'error': f"Cluster '{old_name}' not found"}), 404
+        if new_name.lower() in existing_names_lower and new_name.lower() != old_name.lower():
+            return jsonify({'error': f"A cluster named '{new_name}' already exists"}), 409
+
+        # Actualizar config
+        renamed_list = []
+        for c in clusters_list:
+            if not isinstance(c, dict):
+                continue
+            if c.get('name', '').lower() == old_name.lower():
+                renamed_list.append({'name': new_name})
+            else:
+                renamed_list.append({'name': c.get('name')})
+        raw_config['clusters'] = renamed_list
+        raw_config['enabled'] = bool(raw_config.get('enabled')) and len(renamed_list) > 0
+
+        cur.execute("""
+            UPDATE llm_monitoring_projects
+            SET prompt_clusters = %s::jsonb, updated_at = NOW()
+            WHERE id = %s
+        """, (json.dumps(raw_config), project_id))
+
+        # Actualizar queries asignados
+        cur.execute("""
+            UPDATE llm_monitoring_queries
+            SET topic_cluster = %s
+            WHERE project_id = %s AND topic_cluster = %s
+        """, (new_name, project_id, old_name))
+        updated = cur.rowcount
+
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'clusters_config': raw_config,
+            'updated_prompts': updated
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error renombrando cluster: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to rename cluster. Please try again.'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/<int:query_id>/cluster', methods=['PUT'])
+@login_required
+@validate_project_ownership
+def assign_query_cluster(project_id, query_id):
+    """
+    Asigna (o desasigna) un cluster a un prompt concreto.
+
+    Body: {"cluster": "NombreCluster"}  o  {"cluster": null}  para desasignar.
+
+    Validaciones:
+    - El cluster debe existir en prompt_clusters del proyecto (o ser null).
+    """
+    data = request.get_json() or {}
+    requested = data.get('cluster', None)
+    # Permitir null/"" para desasignar
+    if requested is None or requested == '':
+        target_cluster = None
+    else:
+        target_cluster = _normalize_cluster_name(requested)
+        if not target_cluster:
+            return jsonify({'error': 'Invalid cluster name'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s",
+            (project_id,)
+        )
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Project not found'}), 404
+
+        # Validar que el cluster exista en la config (si se está asignando)
+        if target_cluster is not None:
+            raw_config = project_row.get('prompt_clusters') or {}
+            if isinstance(raw_config, str):
+                try:
+                    raw_config = json.loads(raw_config)
+                except (json.JSONDecodeError, TypeError):
+                    raw_config = {}
+            cluster_names = {
+                (c.get('name') or '').lower()
+                for c in (raw_config.get('clusters') or [])
+                if isinstance(c, dict)
+            }
+            if target_cluster.lower() not in cluster_names:
+                return jsonify({
+                    'error': f"Cluster '{target_cluster}' is not defined for this project"
+                }), 400
+
+        cur.execute("""
+            UPDATE llm_monitoring_queries
+            SET topic_cluster = %s
+            WHERE id = %s AND project_id = %s
+            RETURNING id, topic_cluster
+        """, (target_cluster, query_id, project_id))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Prompt not found'}), 404
+
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'query_id': row['id'],
+            'topic_cluster': row['topic_cluster']
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error asignando cluster a query: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to assign cluster. Please try again.'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/queries/bulk-cluster', methods=['POST'])
+@login_required
+@validate_project_ownership
+def bulk_assign_cluster(project_id):
+    """
+    Asigna (o desasigna) un mismo cluster a varios prompts en una sola llamada.
+
+    Body: {"query_ids": [1,2,3], "cluster": "NombreCluster" | null}
+    """
+    data = request.get_json() or {}
+    query_ids = data.get('query_ids') or []
+    if not isinstance(query_ids, list) or not query_ids:
+        return jsonify({'error': 'query_ids must be a non-empty list'}), 400
+    # Sanity cap
+    query_ids = [int(q) for q in query_ids if isinstance(q, (int, str)) and str(q).isdigit()][:500]
+    if not query_ids:
+        return jsonify({'error': 'query_ids must contain integer IDs'}), 400
+
+    requested = data.get('cluster', None)
+    if requested is None or requested == '':
+        target_cluster = None
+    else:
+        target_cluster = _normalize_cluster_name(requested)
+        if not target_cluster:
+            return jsonify({'error': 'Invalid cluster name'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s",
+            (project_id,)
+        )
+        project_row = cur.fetchone()
+        if not project_row:
+            return jsonify({'error': 'Project not found'}), 404
+
+        if target_cluster is not None:
+            raw_config = project_row.get('prompt_clusters') or {}
+            if isinstance(raw_config, str):
+                try:
+                    raw_config = json.loads(raw_config)
+                except (json.JSONDecodeError, TypeError):
+                    raw_config = {}
+            cluster_names = {
+                (c.get('name') or '').lower()
+                for c in (raw_config.get('clusters') or [])
+                if isinstance(c, dict)
+            }
+            if target_cluster.lower() not in cluster_names:
+                return jsonify({
+                    'error': f"Cluster '{target_cluster}' is not defined for this project"
+                }), 400
+
+        cur.execute("""
+            UPDATE llm_monitoring_queries
+            SET topic_cluster = %s
+            WHERE project_id = %s AND id = ANY(%s)
+        """, (target_cluster, project_id, query_ids))
+        updated = cur.rowcount
+
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'updated': updated,
+            'topic_cluster': target_cluster
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error en bulk-cluster: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to update clusters. Please try again.'}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@llm_monitoring_bp.route('/projects/<int:project_id>/clusters/metrics', methods=['GET'])
+@login_required
+@validate_project_ownership
+def get_clusters_metrics(project_id):
+    """
+    Devuelve métricas agregadas por cluster (Share of Voice + Avg Position)
+    para el gráfico de barras que sustituye a "LLM Comparison".
+
+    Query params:
+        - days: ventana temporal (default 30)
+        - metric: "weighted" | "classic"  (default "weighted")
+
+    Excluye prompts sin cluster (topic_cluster IS NULL).
+    Los cálculos se hacen on-the-fly a partir de llm_monitoring_results.
+    """
+    days = _normalize_days_param(request.args.get('days'), default=30)
+    metric = (request.args.get('metric') or 'weighted').lower()
+    if metric not in ('weighted', 'classic'):
+        metric = 'weighted'
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+
+    try:
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT prompt_clusters, enabled_llms
+            FROM llm_monitoring_projects
+            WHERE id = %s
+        """, (project_id,))
+        project = cur.fetchone()
+        if not project:
+            return jsonify({'error': 'Project not found'}), 404
+
+        raw_config = project.get('prompt_clusters') or {}
+        if isinstance(raw_config, str):
+            try:
+                raw_config = json.loads(raw_config)
+            except (json.JSONDecodeError, TypeError):
+                raw_config = {}
+        enabled = bool(raw_config.get('enabled'))
+        defined_clusters = [
+            c.get('name') for c in (raw_config.get('clusters') or [])
+            if isinstance(c, dict) and c.get('name')
+        ]
+        enabled_llms = project.get('enabled_llms') or []
+
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+
+        # Pull per-result rows (only for prompts with cluster assigned)
+        llm_filter = ''
+        params = [project_id, start_date, end_date]
+        if enabled_llms:
+            llm_filter = 'AND r.llm_provider = ANY(%s)'
+            params.append(enabled_llms)
+
+        cur.execute(f"""
+            SELECT
+                q.topic_cluster AS cluster,
+                r.brand_mentioned,
+                r.position_in_list,
+                r.competitors_mentioned
+            FROM llm_monitoring_results r
+            JOIN llm_monitoring_queries q ON q.id = r.query_id
+            WHERE r.project_id = %s
+              AND r.analysis_date >= %s
+              AND r.analysis_date <= %s
+              AND q.topic_cluster IS NOT NULL
+              {llm_filter}
+        """, params)
+        rows = cur.fetchall() or []
+
+        MAX_POSITION = 30
+
+        # Init buckets for every defined cluster so the chart still shows them
+        # as empty bars (0) instead of being missing.
+        buckets = {
+            name: {
+                'total_results': 0,
+                'brand_mentions': 0,
+                'competitor_mentions': 0,
+                'weighted_brand': 0.0,
+                'weighted_competitors': 0.0,
+                'positions': []
+            }
+            for name in defined_clusters
+        }
+
+        def _weight_for_position(pos):
+            if pos is None:
+                return 1.0
+            if pos <= 3:
+                return 2.0
+            if pos <= 5:
+                return 1.5
+            if pos <= 10:
+                return 1.2
+            return 0.8
+
+        for r in rows:
+            cluster = r.get('cluster')
+            if not cluster or cluster not in buckets:
+                continue
+            b = buckets[cluster]
+            b['total_results'] += 1
+            position = r.get('position_in_list')
+
+            # Brand contribution
+            if r.get('brand_mentioned'):
+                b['brand_mentions'] += 1
+                b['weighted_brand'] += _weight_for_position(position)
+
+            # Competitor contribution
+            cm = r.get('competitors_mentioned') or {}
+            if isinstance(cm, str):
+                try:
+                    cm = json.loads(cm)
+                except (json.JSONDecodeError, TypeError):
+                    cm = {}
+            if isinstance(cm, dict):
+                for _comp, count in cm.items():
+                    try:
+                        count_int = int(count)
+                    except (TypeError, ValueError):
+                        continue
+                    if count_int > 0:
+                        b['competitor_mentions'] += 1
+                        b['weighted_competitors'] += _weight_for_position(position)
+
+            # Positions (filtered)
+            if position is not None and position <= MAX_POSITION:
+                b['positions'].append(position)
+
+        clusters_out = []
+        for name in defined_clusters:
+            b = buckets[name]
+            if metric == 'weighted':
+                denom = b['weighted_brand'] + b['weighted_competitors']
+                sov = round((b['weighted_brand'] / denom) * 100, 1) if denom > 0 else 0.0
+            else:
+                denom = b['brand_mentions'] + b['competitor_mentions']
+                sov = round((b['brand_mentions'] / denom) * 100, 1) if denom > 0 else 0.0
+
+            avg_pos = None
+            if b['positions']:
+                avg_pos = round(sum(b['positions']) / len(b['positions']), 1)
+
+            clusters_out.append({
+                'cluster': name,
+                'total_results': b['total_results'],
+                'brand_mentions': b['brand_mentions'],
+                'competitor_mentions': b['competitor_mentions'],
+                'share_of_voice': sov,
+                'avg_position': avg_pos,
+                'has_data': b['total_results'] > 0
+            })
+
+        # Sort: clusters with data first (by SoV desc), then empty clusters
+        clusters_out.sort(
+            key=lambda c: (
+                -1 if c['has_data'] else 1,
+                -(c['share_of_voice'] or 0),
+                c['cluster']
+            )
+        )
+
+        return jsonify({
+            'success': True,
+            'enabled': enabled,
+            'metric': metric,
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days': days
+            },
+            'clusters': clusters_out,
+            'total_clusters_defined': len(defined_clusters)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error calculando métricas de clusters: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to compute cluster metrics. Please try again.'}), 500
     finally:
         cur.close()
         conn.close()
@@ -3324,11 +3999,12 @@ def get_project_queries(project_id):
         # ✨ MEJORADO: Contar menciones en texto + menciones en URLs
         query_metrics_sql = """
             WITH query_metrics AS (
-                SELECT 
+                SELECT
                     q.id,
                     q.query_text,
                     q.language,
                     q.query_type,
+                    q.topic_cluster,
                     q.added_at as created_at,
                     COUNT(DISTINCT r.llm_provider) as total_responses,
                     COUNT(DISTINCT r.id) as total_results,
@@ -3336,10 +4012,10 @@ def get_project_queries(project_id):
                     SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as text_mentions,
                     -- ✨ NUEVO: Contar URLs de marca en sources (requiere jsonb_array_elements)
                     SUM(
-                        CASE 
-                            WHEN r.sources IS NOT NULL AND r.sources::text != '[]' 
+                        CASE
+                            WHEN r.sources IS NOT NULL AND r.sources::text != '[]'
                             THEN (
-                                SELECT COUNT(*) 
+                                SELECT COUNT(*)
                                 FROM jsonb_array_elements(r.sources::jsonb) AS source
                                 WHERE source->>'url' ILIKE %s
                             )
@@ -3351,18 +4027,19 @@ def get_project_queries(project_id):
                     MAX(r.analysis_date) as last_analysis_date,
                     MAX(r.created_at) as last_update
                 FROM llm_monitoring_queries q
-                LEFT JOIN llm_monitoring_results r ON q.id = r.query_id 
-                    AND r.analysis_date >= %s 
+                LEFT JOIN llm_monitoring_results r ON q.id = r.query_id
+                    AND r.analysis_date >= %s
                     AND r.analysis_date <= %s
                     {llm_filter}
                 WHERE q.project_id = %s AND q.is_active = TRUE
-                GROUP BY q.id, q.query_text, q.language, q.query_type, q.added_at
+                GROUP BY q.id, q.query_text, q.language, q.query_type, q.topic_cluster, q.added_at
             )
-            SELECT 
+            SELECT
                 id,
                 query_text,
                 language,
                 query_type,
+                topic_cluster,
                 created_at,
                 total_responses,
                 total_results,
@@ -3474,6 +4151,7 @@ def get_project_queries(project_id):
                 'country': 'Global',  # Por ahora global, se puede añadir por query
                 'language': q['language'] or project['language'] or 'en',
                 'query_type': q['query_type'],
+                'topic_cluster': q.get('topic_cluster'),  # ✨ NUEVO: Cluster asignado (o None)
                 'total_responses': q['total_responses'] or 0,
                 'total_mentions': q['total_mentions'] or 0,
                 'visibility_pct': float(q['visibility_pct']) if q['visibility_pct'] else 0,
@@ -4608,12 +5286,15 @@ def get_project_responses(project_id):
     """
     query_id = request.args.get('query_id', type=int)
     llm_provider = request.args.get('llm_provider')
+    # ✨ NEW: optional cluster filter. Use the literal value "__unassigned__" to
+    # request only prompts without a cluster assigned.
+    cluster_filter_raw = request.args.get('cluster')
     days = _normalize_days_param(request.args.get('days'), default=7)
-    
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-    
+
     try:
         cur = conn.cursor()
 
@@ -4644,6 +5325,7 @@ def get_project_responses(project_id):
                 r.id,
                 r.query_id,
                 q.query_text,
+                q.topic_cluster,
                 r.llm_provider,
                 r.model_used,
                 r.brand_mentioned,
@@ -4662,26 +5344,34 @@ def get_project_responses(project_id):
                 AND r.analysis_date >= %s
                 AND r.analysis_date <= %s
         """
-        
+
         params = [project_id, start_date, end_date]
-        
+
         # Filtros opcionales
         if query_id:
             query += " AND r.query_id = %s"
             params.append(query_id)
-        
+
         if llm_provider:
             query += " AND r.llm_provider = %s"
             params.append(llm_provider)
         elif enabled_llms_filter:
             query += " AND r.llm_provider = ANY(%s)"
             params.append(enabled_llms_filter)
-        
+
+        # ✨ NEW: Cluster filter (server-side)
+        if cluster_filter_raw:
+            if cluster_filter_raw == '__unassigned__':
+                query += " AND q.topic_cluster IS NULL"
+            else:
+                query += " AND q.topic_cluster = %s"
+                params.append(cluster_filter_raw)
+
         query += " ORDER BY r.analysis_date DESC, q.query_text, r.llm_provider"
-        
+
         cur.execute(query, params)
         results = cur.fetchall()
-        
+
         # Formatear resultados
         responses = []
         for r in results:
@@ -4689,6 +5379,7 @@ def get_project_responses(project_id):
                 'id': r['id'],
                 'query_id': r['query_id'],
                 'query_text': r['query_text'],
+                'topic_cluster': r.get('topic_cluster'),  # ✨ NUEVO
                 'llm_provider': r['llm_provider'],
                 'model_used': r['model_used'],
                 'brand_mentioned': r['brand_mentioned'],
@@ -4854,6 +5545,7 @@ def export_project_excel(project_id):
                 q.query_text AS prompt,
                 q.language,
                 q.query_type,
+                q.topic_cluster,
                 COUNT(DISTINCT r.llm_provider) as llms_analyzed,
                 COUNT(r.id) as total_results,
                 SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as total_mentions,
@@ -4867,7 +5559,7 @@ def export_project_excel(project_id):
                 AND r.analysis_date >= %s AND r.analysis_date <= %s
                 {llm_filter}
             WHERE q.project_id = %s AND q.is_active = TRUE
-            GROUP BY q.id, q.query_text, q.language, q.query_type
+            GROUP BY q.id, q.query_text, q.language, q.query_type, q.topic_cluster
             ORDER BY total_mentions DESC, visibility_pct DESC
         """.format(
             llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
@@ -4879,6 +5571,168 @@ def export_project_excel(project_id):
         cur.execute(queries_query, queries_params)
         queries = cur.fetchall()
 
+        # ✨ NEW: Cluster-level aggregated metrics (for "Clusters Overview" sheet)
+        # Load prompt_clusters config to know which clusters are defined
+        cur.execute("""
+            SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s
+        """, (project_id,))
+        _pc_row = cur.fetchone() or {}
+        _pc_raw = _pc_row.get('prompt_clusters') or {}
+        if isinstance(_pc_raw, str):
+            try:
+                _pc_raw = json.loads(_pc_raw)
+            except (json.JSONDecodeError, TypeError):
+                _pc_raw = {}
+        prompt_clusters_enabled = bool(_pc_raw.get('enabled'))
+        defined_cluster_names = [
+            c.get('name') for c in (_pc_raw.get('clusters') or [])
+            if isinstance(c, dict) and c.get('name')
+        ]
+
+        clusters_aggregates = []
+        clusters_by_llm_rows = []
+        if defined_cluster_names:
+            cluster_agg_sql = """
+                SELECT
+                    q.topic_cluster AS cluster,
+                    COUNT(DISTINCT q.id) AS prompts,
+                    COUNT(r.id) AS total_results,
+                    SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) AS brand_mentions,
+                    AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL AND r.position_in_list <= 30) AS avg_position,
+                    ROUND(AVG(CASE WHEN r.brand_mentioned THEN 100.0 ELSE 0 END)::numeric, 1) AS mention_rate,
+                    r.competitors_mentioned
+                FROM llm_monitoring_queries q
+                LEFT JOIN llm_monitoring_results r ON q.id = r.query_id
+                    AND r.analysis_date >= %s AND r.analysis_date <= %s
+                    {llm_filter}
+                WHERE q.project_id = %s
+                  AND q.is_active = TRUE
+                  AND q.topic_cluster IS NOT NULL
+                  AND q.topic_cluster = ANY(%s)
+                GROUP BY q.topic_cluster, r.competitors_mentioned
+            """.format(
+                llm_filter="AND r.llm_provider = ANY(%s)" if enabled_llms_filter else ""
+            )
+            cluster_agg_params = [start_date, end_date]
+            if enabled_llms_filter:
+                cluster_agg_params.append(enabled_llms_filter)
+            cluster_agg_params.append(project_id)
+            cluster_agg_params.append(defined_cluster_names)
+            cur.execute(cluster_agg_sql, cluster_agg_params)
+            _cluster_raw_rows = cur.fetchall()
+
+            # Aggregate by cluster name (collapsing competitor_mentioned rows)
+            _cluster_buckets = {}
+            for _row in _cluster_raw_rows:
+                _name = _row['cluster']
+                b = _cluster_buckets.setdefault(_name, {
+                    'prompts': set(),
+                    'total_results': 0,
+                    'brand_mentions': 0,
+                    'positions_sum': 0.0,
+                    'positions_cnt': 0,
+                    'competitor_mentions': 0,
+                })
+                b['total_results'] += int(_row.get('total_results') or 0)
+                b['brand_mentions'] += int(_row.get('brand_mentions') or 0)
+                # We cannot recover per-prompt here reliably via this query alone, so get it separately
+                cm = _row.get('competitors_mentioned') or {}
+                if isinstance(cm, str):
+                    try:
+                        cm = json.loads(cm)
+                    except (json.JSONDecodeError, TypeError):
+                        cm = {}
+                if isinstance(cm, dict):
+                    for _c, _cnt in cm.items():
+                        try:
+                            cnt_int = int(_cnt)
+                        except (TypeError, ValueError):
+                            continue
+                        if cnt_int > 0:
+                            b['competitor_mentions'] += 1
+
+            # Per-cluster prompt counts
+            cur.execute("""
+                SELECT topic_cluster AS cluster, COUNT(*) AS prompts
+                FROM llm_monitoring_queries
+                WHERE project_id = %s AND is_active = TRUE AND topic_cluster = ANY(%s)
+                GROUP BY topic_cluster
+            """, (project_id, defined_cluster_names))
+            _prompt_counts = {r['cluster']: int(r['prompts']) for r in cur.fetchall()}
+
+            # Aggregated positions (avg over valid positions <=30)
+            cur.execute(f"""
+                SELECT q.topic_cluster AS cluster,
+                       AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL AND r.position_in_list <= 30) AS avg_position
+                FROM llm_monitoring_queries q
+                JOIN llm_monitoring_results r ON q.id = r.query_id
+                WHERE q.project_id = %s
+                  AND r.analysis_date >= %s AND r.analysis_date <= %s
+                  AND q.topic_cluster IS NOT NULL
+                  AND q.topic_cluster = ANY(%s)
+                  {('AND r.llm_provider = ANY(%s)' if enabled_llms_filter else '')}
+                GROUP BY q.topic_cluster
+            """, tuple(
+                [project_id, start_date, end_date, defined_cluster_names]
+                + ([enabled_llms_filter] if enabled_llms_filter else [])
+            ))
+            _position_rows = {r['cluster']: r['avg_position'] for r in cur.fetchall()}
+
+            for _name in defined_cluster_names:
+                b = _cluster_buckets.get(_name, {
+                    'total_results': 0, 'brand_mentions': 0, 'competitor_mentions': 0
+                })
+                tr = b.get('total_results', 0)
+                bm = b.get('brand_mentions', 0)
+                cm_total = b.get('competitor_mentions', 0)
+                sov_denom = bm + cm_total
+                sov = round((bm / sov_denom) * 100, 1) if sov_denom > 0 else 0.0
+                mention_rate = round((bm / tr) * 100, 1) if tr > 0 else 0.0
+                ap_val = _position_rows.get(_name)
+                clusters_aggregates.append({
+                    'cluster': _name,
+                    'prompts': _prompt_counts.get(_name, 0),
+                    'total_results': tr,
+                    'brand_mentions': bm,
+                    'mention_rate': mention_rate,
+                    'share_of_voice': sov,
+                    'avg_position': round(float(ap_val), 2) if ap_val is not None else None,
+                })
+
+            # Per-cluster × LLM breakdown
+            cur.execute(f"""
+                SELECT q.topic_cluster AS cluster,
+                       r.llm_provider,
+                       COUNT(r.id) AS total_results,
+                       SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) AS brand_mentions,
+                       AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL AND r.position_in_list <= 30) AS avg_position
+                FROM llm_monitoring_queries q
+                JOIN llm_monitoring_results r ON q.id = r.query_id
+                WHERE q.project_id = %s
+                  AND r.analysis_date >= %s AND r.analysis_date <= %s
+                  AND q.topic_cluster IS NOT NULL
+                  AND q.topic_cluster = ANY(%s)
+                  {('AND r.llm_provider = ANY(%s)' if enabled_llms_filter else '')}
+                GROUP BY q.topic_cluster, r.llm_provider
+                ORDER BY q.topic_cluster, r.llm_provider
+            """, tuple(
+                [project_id, start_date, end_date, defined_cluster_names]
+                + ([enabled_llms_filter] if enabled_llms_filter else [])
+            ))
+            for r in cur.fetchall():
+                tr = int(r.get('total_results') or 0)
+                bm = int(r.get('brand_mentions') or 0)
+                mr = round((bm / tr) * 100, 1) if tr > 0 else 0.0
+                ap = r.get('avg_position')
+                clusters_by_llm_rows.append({
+                    'cluster': r['cluster'],
+                    'llm_provider': r['llm_provider'],
+                    'total_results': tr,
+                    'brand_mentions': bm,
+                    'mention_rate': mr,
+                    'avg_position': round(float(ap), 2) if ap is not None else None,
+                })
+
         # 5. Detailed results (per query × LLM × date)
         detail_query = """
             SELECT
@@ -4886,6 +5740,7 @@ def export_project_excel(project_id):
                 r.llm_provider,
                 r.model_used,
                 q.query_text,
+                q.topic_cluster,
                 r.brand_mentioned,
                 r.mention_count,
                 r.position_in_list,
@@ -5328,7 +6183,7 @@ def export_project_excel(project_id):
 
         export_country = project['country_code'] or 'Global'
         query_headers = [
-            "Prompt", "Country", "Language", "Type",
+            "Prompt", "Country", "Language", "Type", "Cluster",
             "LLMs Analyzed", "Total Results",
             "Total Mentions", "Text Mentions", "URL Citations",
             "Visibility (%)", "Avg Position",
@@ -5342,6 +6197,8 @@ def export_project_excel(project_id):
             write_data_cell(ws5, row_idx, col, export_country); col += 1
             write_data_cell(ws5, row_idx, col, q['language'] or 'N/A'); col += 1
             write_data_cell(ws5, row_idx, col, q['query_type'] or 'general'); col += 1
+            # ✨ NEW: Cluster column
+            write_data_cell(ws5, row_idx, col, q.get('topic_cluster') or 'Unassigned'); col += 1
             write_data_cell(ws5, row_idx, col, q['llms_analyzed'] or 0); col += 1
             write_data_cell(ws5, row_idx, col, q['total_results'] or 0); col += 1
             write_data_cell(ws5, row_idx, col, q['total_mentions'] or 0); col += 1
@@ -5356,6 +6213,75 @@ def export_project_excel(project_id):
         ws5.column_dimensions['A'].width = 60
         auto_width(ws5, min_width=12)
         ws5.column_dimensions['A'].width = 60  # Override for prompt column
+
+        # ════════════════════════════════════════════════
+        # SHEET 5b/5c: CLUSTERS OVERVIEW & BY LLM  (✨ NEW)
+        # ════════════════════════════════════════════════
+        if defined_cluster_names:
+            # 5b. Clusters Overview
+            ws_clusters = wb.create_sheet("Clusters Overview")
+            ws_clusters['A1'] = "Clusters Overview"
+            ws_clusters['A1'].font = title_font
+            ws_clusters['A2'] = (
+                f"Manual topic clustering — {len(defined_cluster_names)} clusters configured. "
+                f"{'Enabled' if prompt_clusters_enabled else 'Disabled'} at export time. "
+                "Prompts without a cluster are excluded from these aggregates."
+            )
+            ws_clusters['A2'].font = Font(italic=True, color="6B7280", size=9)
+
+            cluster_headers = [
+                "Cluster", "Prompts", "Total Results",
+                "Brand Mentions", "Mention Rate (%)",
+                "Share of Voice (%)", "Avg Position"
+            ]
+            write_header_row(ws_clusters, 4, cluster_headers)
+
+            for r_idx, c in enumerate(clusters_aggregates, 5):
+                col = 1
+                write_data_cell(ws_clusters, r_idx, col, c['cluster']); col += 1
+                write_data_cell(ws_clusters, r_idx, col, c['prompts']); col += 1
+                write_data_cell(ws_clusters, r_idx, col, c['total_results']); col += 1
+                write_data_cell(ws_clusters, r_idx, col, c['brand_mentions']); col += 1
+                write_data_cell(ws_clusters, r_idx, col, c['mention_rate'], '0.0'); col += 1
+                write_data_cell(ws_clusters, r_idx, col, c['share_of_voice'], '0.0'); col += 1
+                ap = c['avg_position']
+                write_data_cell(
+                    ws_clusters, r_idx, col,
+                    round(float(ap), 1) if ap is not None else 'N/A',
+                    '0.0'
+                ); col += 1
+
+            auto_width(ws_clusters, min_width=12)
+            ws_clusters.column_dimensions['A'].width = 32
+
+            # 5c. Clusters by LLM
+            ws_clusters_llm = wb.create_sheet("Clusters by LLM")
+            ws_clusters_llm['A1'] = "Clusters × LLM breakdown"
+            ws_clusters_llm['A1'].font = title_font
+
+            cllm_headers = [
+                "Cluster", "LLM",
+                "Total Results", "Brand Mentions",
+                "Mention Rate (%)", "Avg Position"
+            ]
+            write_header_row(ws_clusters_llm, 3, cllm_headers)
+
+            for r_idx, row in enumerate(clusters_by_llm_rows, 4):
+                col = 1
+                write_data_cell(ws_clusters_llm, r_idx, col, row['cluster']); col += 1
+                write_data_cell(ws_clusters_llm, r_idx, col, row['llm_provider'].upper()); col += 1
+                write_data_cell(ws_clusters_llm, r_idx, col, row['total_results']); col += 1
+                write_data_cell(ws_clusters_llm, r_idx, col, row['brand_mentions']); col += 1
+                write_data_cell(ws_clusters_llm, r_idx, col, row['mention_rate'], '0.0'); col += 1
+                ap = row['avg_position']
+                write_data_cell(
+                    ws_clusters_llm, r_idx, col,
+                    round(float(ap), 1) if ap is not None else 'N/A',
+                    '0.0'
+                ); col += 1
+
+            auto_width(ws_clusters_llm, min_width=12)
+            ws_clusters_llm.column_dimensions['A'].width = 28
 
         # ════════════════════════════════════════════════
         # SHEET 6: URL RANKINGS
@@ -5447,7 +6373,7 @@ def export_project_excel(project_id):
         ws8 = wb.create_sheet("Detailed Results")
 
         detail_headers = [
-            "Date", "LLM Provider", "Model", "Query/Prompt", "Branded Query",
+            "Date", "LLM Provider", "Model", "Query/Prompt", "Cluster", "Branded Query",
             "Brand Mentioned", "Mention Count", "Position", "Total in List",
             "Position Source", "Sentiment", "Sentiment Score",
             "Competitors Mentioned", "URLs Cited",
@@ -5464,6 +6390,8 @@ def export_project_excel(project_id):
             write_data_cell(ws8, row_idx, col, r['llm_provider'].upper()); col += 1
             write_data_cell(ws8, row_idx, col, r['model_used'] or 'N/A'); col += 1
             write_data_cell(ws8, row_idx, col, r['query_text'] or 'N/A'); col += 1
+            # ✨ NEW: Cluster column (after Query/Prompt)
+            write_data_cell(ws8, row_idx, col, r.get('topic_cluster') or 'Unassigned'); col += 1
             is_branded_detail = classify_query_branded(r.get('query_text', '') or '', brand_keywords)
             write_data_cell(ws8, row_idx, col, "Yes" if is_branded_detail else "No"); col += 1
             write_data_cell(ws8, row_idx, col, "Yes" if r['brand_mentioned'] else "No"); col += 1
@@ -5512,12 +6440,14 @@ def export_project_excel(project_id):
                      value=f"⚠ Showing {max_detail_rows} of {len(detailed_results)} results. Full data available in the application.").font = Font(italic=True, color="666666")
 
         ws8.column_dimensions['D'].width = 60  # Query column
-        ws8.column_dimensions['M'].width = 30  # Competitors
-        ws8.column_dimensions['N'].width = 50  # URLs
+        ws8.column_dimensions['E'].width = 22  # Cluster column (NEW)
+        ws8.column_dimensions['N'].width = 30  # Competitors (shifted)
+        ws8.column_dimensions['O'].width = 50  # URLs (shifted)
         auto_width(ws8, min_width=12)
         ws8.column_dimensions['D'].width = 60
-        ws8.column_dimensions['M'].width = 30
-        ws8.column_dimensions['N'].width = 50
+        ws8.column_dimensions['E'].width = 22
+        ws8.column_dimensions['N'].width = 30
+        ws8.column_dimensions['O'].width = 50
 
         # ════════════════════════════════════════════════
         # SHEET 9: BRANDED vs NON-BRANDED ANALYSIS
@@ -5808,6 +6738,7 @@ def export_project_pdf(project_id):
         # ── 5. Prompt / query performance ──
         prompt_q = """
             SELECT q.query_text,
+                q.topic_cluster,
                 COUNT(r.id) as total_results,
                 SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) as mentions,
                 AVG(CASE WHEN r.brand_mentioned THEN r.position_in_list ELSE NULL END) as avg_position
@@ -5817,9 +6748,103 @@ def export_project_pdf(project_id):
         """
         prompt_p = [project_id, start_date, end_date]
         prompt_q, prompt_p = _llm_filter(prompt_q, prompt_p)
-        prompt_q += " GROUP BY q.query_text ORDER BY mentions DESC, total_results DESC LIMIT 20"
+        prompt_q += " GROUP BY q.query_text, q.topic_cluster ORDER BY mentions DESC, total_results DESC LIMIT 20"
         cur.execute(prompt_q, prompt_p)
         prompt_data = cur.fetchall()
+
+        # ── 5b. ✨ NEW: Cluster performance data ──
+        cur.execute("SELECT prompt_clusters FROM llm_monitoring_projects WHERE id = %s", (project_id,))
+        _pc_pdf_row = cur.fetchone() or {}
+        _pc_pdf_raw = _pc_pdf_row.get('prompt_clusters') or {}
+        if isinstance(_pc_pdf_raw, str):
+            try:
+                _pc_pdf_raw = json.loads(_pc_pdf_raw)
+            except (json.JSONDecodeError, TypeError):
+                _pc_pdf_raw = {}
+        pdf_clusters_enabled = bool(_pc_pdf_raw.get('enabled'))
+        pdf_defined_clusters = [
+            c.get('name') for c in (_pc_pdf_raw.get('clusters') or [])
+            if isinstance(c, dict) and c.get('name')
+        ]
+        pdf_cluster_metrics = []
+        if pdf_defined_clusters:
+            cluster_pdf_sql = """
+                SELECT q.topic_cluster AS cluster,
+                       COUNT(DISTINCT q.id) AS prompts,
+                       COUNT(r.id) AS total_results,
+                       SUM(CASE WHEN r.brand_mentioned THEN 1 ELSE 0 END) AS brand_mentions,
+                       AVG(r.position_in_list) FILTER (WHERE r.position_in_list IS NOT NULL AND r.position_in_list <= 30) AS avg_position
+                FROM llm_monitoring_queries q
+                LEFT JOIN llm_monitoring_results r ON q.id = r.query_id
+                    AND r.analysis_date >= %s AND r.analysis_date <= %s
+            """
+            cluster_pdf_params = [start_date, end_date]
+            if enabled_llms_filter:
+                cluster_pdf_sql += " AND r.llm_provider = ANY(%s) "
+                cluster_pdf_params.append(enabled_llms_filter)
+            cluster_pdf_sql += """
+                WHERE q.project_id = %s
+                  AND q.is_active = TRUE
+                  AND q.topic_cluster IS NOT NULL
+                  AND q.topic_cluster = ANY(%s)
+                GROUP BY q.topic_cluster
+            """
+            cluster_pdf_params.extend([project_id, pdf_defined_clusters])
+            cur.execute(cluster_pdf_sql, cluster_pdf_params)
+            cluster_rows_pdf = cur.fetchall()
+
+            # Competitor mentions per cluster (for SoV)
+            comp_cluster_sql = """
+                SELECT q.topic_cluster AS cluster, r.competitors_mentioned
+                FROM llm_monitoring_queries q
+                JOIN llm_monitoring_results r ON q.id = r.query_id
+                WHERE q.project_id = %s
+                  AND r.analysis_date >= %s AND r.analysis_date <= %s
+                  AND q.topic_cluster IS NOT NULL
+                  AND q.topic_cluster = ANY(%s)
+            """
+            comp_cluster_params = [project_id, start_date, end_date, pdf_defined_clusters]
+            if enabled_llms_filter:
+                comp_cluster_sql += " AND r.llm_provider = ANY(%s)"
+                comp_cluster_params.append(enabled_llms_filter)
+            cur.execute(comp_cluster_sql, comp_cluster_params)
+            _comp_cluster_rows = cur.fetchall()
+            comp_cnt_by_cluster = {name: 0 for name in pdf_defined_clusters}
+            for _ccr in _comp_cluster_rows:
+                _cname = _ccr['cluster']
+                _cm = _ccr.get('competitors_mentioned') or {}
+                if isinstance(_cm, str):
+                    try:
+                        _cm = json.loads(_cm)
+                    except (json.JSONDecodeError, TypeError):
+                        _cm = {}
+                if isinstance(_cm, dict):
+                    for _v in _cm.values():
+                        try:
+                            if int(_v) > 0:
+                                comp_cnt_by_cluster[_cname] = comp_cnt_by_cluster.get(_cname, 0) + 1
+                        except (TypeError, ValueError):
+                            continue
+
+            by_name = {r['cluster']: r for r in cluster_rows_pdf}
+            for name in pdf_defined_clusters:
+                row = by_name.get(name, {})
+                tr = int(row.get('total_results') or 0)
+                bm = int(row.get('brand_mentions') or 0)
+                cm_total = comp_cnt_by_cluster.get(name, 0)
+                mention_rate = round((bm / tr) * 100, 1) if tr > 0 else 0.0
+                sov_denom = bm + cm_total
+                sov = round((bm / sov_denom) * 100, 1) if sov_denom > 0 else 0.0
+                ap = row.get('avg_position')
+                pdf_cluster_metrics.append({
+                    'cluster': name,
+                    'prompts': int(row.get('prompts') or 0),
+                    'total_results': tr,
+                    'brand_mentions': bm,
+                    'mention_rate': mention_rate,
+                    'share_of_voice': sov,
+                    'avg_position': round(float(ap), 1) if ap is not None else None,
+                })
 
         # ── 6. Top URLs (via service) ──
         urls_data = []
@@ -6546,6 +7571,67 @@ def export_project_pdf(project_id):
             elements.append(Paragraph(insight_text, st_body))
 
         # =================================================================
+        # ✨ PAGE 3b: PERFORMANCE BY CLUSTER (if clusters are configured)
+        # =================================================================
+        if pdf_defined_clusters:
+            elements.append(PageBreak())
+            elements.append(Spacer(1, 0.3 * cm))
+            elements.append(Paragraph("Performance by Cluster", st_section))
+            elements.append(Paragraph(
+                f"Topic clusters: {len(pdf_defined_clusters)} configured · "
+                f"{'enabled' if pdf_clusters_enabled else 'disabled'}. "
+                "Prompts without a cluster are excluded from these metrics.",
+                st_body
+            ))
+            elements.append(Spacer(1, 0.3 * cm))
+
+            cl_header = [
+                'Cluster', 'Prompts',
+                'Mentions', 'Mention Rate', 'Share of Voice', 'Avg Position'
+            ]
+            cl_rows = [cl_header]
+            # Sort by SoV desc
+            for m in sorted(pdf_cluster_metrics, key=lambda x: (-(x['share_of_voice'] or 0), x['cluster'])):
+                ap = m['avg_position']
+                cl_rows.append([
+                    Paragraph(_truncate(m['cluster'], 32), st_body),
+                    str(m['prompts']),
+                    str(m['brand_mentions']),
+                    f"{m['mention_rate']:.1f}%",
+                    f"{m['share_of_voice']:.1f}%",
+                    f"#{ap:.1f}" if ap is not None else 'N/A',
+                ])
+            cl_widths = [5.5 * cm, 1.8 * cm, 2 * cm, 2.2 * cm, 2.4 * cm, 2 * cm]
+            cl_table = Table(cl_rows, colWidths=cl_widths)
+            cl_style = _base_table_style(len(cl_rows))
+            cl_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            # Highlight best-performing cluster (index 1, since it's sorted)
+            if len(cl_rows) > 1:
+                cl_style.append(('BACKGROUND', (0, 1), (-1, 1), CLR_GREEN_CELL))
+            cl_table.setStyle(TableStyle(cl_style))
+            elements.append(cl_table)
+            elements.append(Spacer(1, 0.3 * cm))
+
+            # Quick insights
+            any_with_data = [m for m in pdf_cluster_metrics if m['total_results'] > 0]
+            if any_with_data:
+                best = max(any_with_data, key=lambda x: (x['share_of_voice'] or 0))
+                worst = min(any_with_data, key=lambda x: (x['share_of_voice'] or 0))
+                elements.append(Paragraph(
+                    f"<b>Best cluster:</b> {best['cluster']} "
+                    f"(SoV {best['share_of_voice']:.1f}%, "
+                    f"avg position {('#' + format(best['avg_position'], '.1f')) if best['avg_position'] is not None else 'N/A'}). "
+                    f"<b>Weakest cluster:</b> {worst['cluster']} "
+                    f"(SoV {worst['share_of_voice']:.1f}%).",
+                    st_body
+                ))
+            else:
+                elements.append(Paragraph(
+                    "No cluster has responses in this period yet. Run an analysis to populate cluster metrics.",
+                    st_no_data
+                ))
+
+        # =================================================================
         # PAGE 4: PROMPT PERFORMANCE
         # =================================================================
         elements.append(PageBreak())
@@ -6555,7 +7641,12 @@ def export_project_pdf(project_id):
         elements.append(Spacer(1, 0.3 * cm))
 
         if prompt_data:
-            pr_header = ["Prompt", "Type", "Brand Mentions", "Visibility %", "Avg Pos"]
+            # ✨ Add Cluster column only if at least one cluster is configured
+            include_cluster_col = bool(pdf_defined_clusters)
+            if include_cluster_col:
+                pr_header = ["Prompt", "Cluster", "Type", "Brand Mentions", "Visibility %", "Avg Pos"]
+            else:
+                pr_header = ["Prompt", "Type", "Brand Mentions", "Visibility %", "Avg Pos"]
             pr_rows = [pr_header]
             pr_row_types = []  # 'branded', 'non-branded' for coloring
             for p in prompt_data:
@@ -6567,33 +7658,57 @@ def export_project_pdf(project_id):
                 vis_pct = round((ment / total_r) * 100, 1) if total_r > 0 else 0
                 avg_p = round(float(p.get('avg_position') or 0), 1)
                 pr_row_types.append('branded' if is_branded else 'generic')
-                pr_rows.append([
-                    Paragraph(_truncate(qt, 55), st_body),
-                    type_label,
-                    str(ment),
-                    f"{vis_pct}%",
-                    f"#{avg_p}" if avg_p > 0 else 'N/A',
-                ])
+                if include_cluster_col:
+                    cluster_val = p.get('topic_cluster') or '—'
+                    pr_rows.append([
+                        Paragraph(_truncate(qt, 50), st_body),
+                        Paragraph(_truncate(cluster_val, 20), st_body),
+                        type_label,
+                        str(ment),
+                        f"{vis_pct}%",
+                        f"#{avg_p}" if avg_p > 0 else 'N/A',
+                    ])
+                else:
+                    pr_rows.append([
+                        Paragraph(_truncate(qt, 55), st_body),
+                        type_label,
+                        str(ment),
+                        f"{vis_pct}%",
+                        f"#{avg_p}" if avg_p > 0 else 'N/A',
+                    ])
 
-            pr_widths = [6 * cm, 2.2 * cm, 2.2 * cm, 2 * cm, 1.6 * cm]
+            if include_cluster_col:
+                pr_widths = [4.6 * cm, 2.4 * cm, 2 * cm, 2 * cm, 1.8 * cm, 1.6 * cm]
+            else:
+                pr_widths = [6 * cm, 2.2 * cm, 2.2 * cm, 2 * cm, 1.6 * cm]
             pr_table = Table(pr_rows, colWidths=pr_widths)
             pr_style = _base_table_style(len(pr_rows))
             pr_style.append(('ALIGN', (0, 1), (0, -1), 'LEFT'))
+            # Indices for "Brand Mentions" and "Visibility %" depend on whether
+            # the Cluster column is present.
+            mentions_col = 3 if include_cluster_col else 2
+            visibility_col = 4 if include_cluster_col else 3
             # Color rows: green for mentioned, red for 0 mentions
             for ri, rtype in enumerate(pr_row_types):
                 r = ri + 1
-                ment_val = int(pr_rows[r][2])
+                try:
+                    ment_val = int(pr_rows[r][mentions_col])
+                except (ValueError, TypeError):
+                    ment_val = 0
                 if ment_val > 0:
-                    pr_style.append(('TEXTCOLOR', (2, r), (2, r), CLR_DELTA_UP))
+                    pr_style.append(('TEXTCOLOR', (mentions_col, r), (mentions_col, r), CLR_DELTA_UP))
                 else:
-                    pr_style.append(('TEXTCOLOR', (2, r), (2, r), CLR_DELTA_DOWN))
+                    pr_style.append(('TEXTCOLOR', (mentions_col, r), (mentions_col, r), CLR_DELTA_DOWN))
                 # Visibility color
-                vis_str = pr_rows[r][3]
-                vis_val = float(vis_str.replace('%', '')) if '%' in str(vis_str) else 0
+                vis_str = pr_rows[r][visibility_col]
+                try:
+                    vis_val = float(str(vis_str).replace('%', '')) if '%' in str(vis_str) else 0
+                except (ValueError, TypeError):
+                    vis_val = 0
                 if vis_val >= 50:
-                    pr_style.append(('TEXTCOLOR', (3, r), (3, r), CLR_DELTA_UP))
+                    pr_style.append(('TEXTCOLOR', (visibility_col, r), (visibility_col, r), CLR_DELTA_UP))
                 elif vis_val == 0:
-                    pr_style.append(('TEXTCOLOR', (3, r), (3, r), CLR_DELTA_DOWN))
+                    pr_style.append(('TEXTCOLOR', (visibility_col, r), (visibility_col, r), CLR_DELTA_DOWN))
             pr_table.setStyle(TableStyle(pr_style))
             elements.append(pr_table)
         else:

@@ -728,7 +728,7 @@ class LLMMonitoring {
                     this.renderShareOfVoiceChart();  // Gráfico de líneas temporal
                     this.renderShareOfVoiceDonutChart();  // Gráfico de rosco/distribución
                     this.renderMentionsTimelineChart();  // Timeline de menciones (usa los mismos datos)
-                    this.loadComparison(this.currentProject.id);  // ✨ NUEVO: Tabla LLM Comparison
+                    this.loadClustersPerformance(this.currentProject.id);  // ✨ NUEVO: Clusters Performance chart (reemplaza LLM Comparison)
                     this.refreshProjectKPIs();  // ✨ NUEVO: KPIs alineados con la métrica
 
                     console.log(`✅ All charts and tables updated to ${metricType} metric`);
@@ -1881,8 +1881,8 @@ class LLMMonitoring {
             await this.renderSentimentDistributionChart();  // Gráfico de distribución de sentimiento
             await this.renderShareOfVoiceDonutChart();  // Gráfico de rosco
 
-            // Load comparison
-            await this.loadComparison(projectId);
+            // ✨ NEW: Load Clusters Performance (replaces LLM Comparison table)
+            await this.loadClustersPerformance(projectId);
 
             // Load queries table
             await this.loadQueriesTable(projectId);
@@ -4681,52 +4681,85 @@ class LLMMonitoring {
 
         if (!container) return;
 
+        // ✨ NEW: Apply cluster filter (if active and we're in the modal)
+        const clusterFilter = (renderInModal
+            ? document.getElementById('promptsListClusterFilter')?.value
+            : '') || '';
+        const source = Array.isArray(this.allPrompts) ? this.allPrompts : [];
+        let promptsView = source;
+        if (clusterFilter === '__unassigned__') {
+            promptsView = source.filter(p => !p.topic_cluster);
+        } else if (clusterFilter) {
+            promptsView = source.filter(p => (p.topic_cluster || '') === clusterFilter);
+        }
+
         // Handle empty state
-        if (this.allPrompts.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <div class="empty-icon">
-                        <i class="fas fa-comments"></i>
+        if (promptsView.length === 0) {
+            // If filter is active but source has prompts, show a different message
+            if (clusterFilter && source.length > 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 40px 20px;">
+                        <div class="empty-icon">
+                            <i class="fas fa-filter"></i>
+                        </div>
+                        <h4>No prompts in this cluster</h4>
+                        <p>Change the filter or assign prompts to this cluster.</p>
                     </div>
-                    <h4>No prompts yet</h4>
-                    <p>Add prompts to start analyzing brand visibility in LLMs</p>
-                    <button class="btn btn-primary mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
-                        <i class="fas fa-plus"></i>
-                        Add Your First Prompt
-                    </button>
-                </div>
-            `;
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 40px 20px;">
+                        <div class="empty-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h4>No prompts yet</h4>
+                        <p>Add prompts to start analyzing brand visibility in LLMs</p>
+                        <button class="btn btn-primary mt-2 btn-first-prompt" onclick="window.llmMonitoring.showPromptsModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Your First Prompt
+                        </button>
+                    </div>
+                `;
+            }
             if (paginationDiv) paginationDiv.style.display = 'none';
             return;
         }
 
-        // Calculate pagination
-        const totalPages = Math.ceil(this.allPrompts.length / this.promptsPerPage);
+        // Calculate pagination (over filtered view)
+        const totalPages = Math.ceil(promptsView.length / this.promptsPerPage);
+        if (this.currentPromptsPage > totalPages) {
+            this.currentPromptsPage = 1;
+        }
         const startIndex = (this.currentPromptsPage - 1) * this.promptsPerPage;
-        const endIndex = Math.min(startIndex + this.promptsPerPage, this.allPrompts.length);
-        const pagePrompts = this.allPrompts.slice(startIndex, endIndex);
+        const endIndex = Math.min(startIndex + this.promptsPerPage, promptsView.length);
+        const pagePrompts = promptsView.slice(startIndex, endIndex);
 
         // Render prompts for current page
         let html = '<div class="prompts-list-container">';
 
         pagePrompts.forEach(query => {
+            const clusterSelectHtml = this.buildPromptClusterSelectHtml
+                ? this.buildPromptClusterSelectHtml(query)
+                : '';
+            const hasCluster = !!clusterSelectHtml;
             html += `
                 <div class="prompt-item">
-                    <div class="prompt-content">
-                        <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
-                        <div class="prompt-meta">
-                            <span class="badge badge-${query.query_type}">${query.query_type}</span>
-                            <span class="badge badge-language">${query.language}</span>
-                            <span class="prompt-date">
-                                <i class="fas fa-clock"></i>
-                                ${this.formatDate(query.created_at)}
-                            </span>
-                        </div>
+                    <div class="prompt-meta">
+                        <span class="badge badge-${query.query_type}">${query.query_type}</span>
+                        <span class="badge badge-language">${query.language}</span>
+                        <span class="prompt-date">
+                            <i class="fas fa-clock"></i>
+                            ${this.formatDate(query.created_at)}
+                        </span>
                     </div>
-                    <div class="prompt-actions">
-                        <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="prompt-text">${this.escapeHtml(query.prompt)}</div>
+                    <div class="prompt-bottom-row">
+                        <div>${clusterSelectHtml}</div>
+                        <div class="prompt-actions">
+                            <button class="btn btn-icon btn-sm" onclick="window.llmMonitoring.deletePrompt(${query.id})" title="Delete prompt">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -4736,7 +4769,7 @@ class LLMMonitoring {
         container.innerHTML = html;
 
         // Update pagination controls
-        if (this.allPrompts.length > this.promptsPerPage) {
+        if (promptsView.length > this.promptsPerPage) {
             if (paginationDiv) {
                 paginationDiv.style.display = 'flex';
 
@@ -4749,7 +4782,7 @@ class LLMMonitoring {
 
                 const paginationInfo = document.getElementById(paginationInfoId);
                 if (paginationInfo) {
-                    paginationInfo.textContent = `Showing ${startIndex + 1}-${endIndex} of ${this.allPrompts.length} prompts`;
+                    paginationInfo.textContent = `Showing ${startIndex + 1}-${endIndex} of ${promptsView.length} prompts`;
                 }
 
                 // Update page numbers
@@ -4773,7 +4806,18 @@ class LLMMonitoring {
      * Go to next page
      */
     nextPage() {
-        const totalPages = Math.ceil(this.allPrompts.length / this.promptsPerPage);
+        // Honor the cluster filter for pagination bounds when in modal
+        const clusterFilter = this.isRenderingInModal
+            ? (document.getElementById('promptsListClusterFilter')?.value || '')
+            : '';
+        const source = Array.isArray(this.allPrompts) ? this.allPrompts : [];
+        let visible = source;
+        if (clusterFilter === '__unassigned__') {
+            visible = source.filter(p => !p.topic_cluster);
+        } else if (clusterFilter) {
+            visible = source.filter(p => (p.topic_cluster || '') === clusterFilter);
+        }
+        const totalPages = Math.ceil(visible.length / this.promptsPerPage);
         if (this.currentPromptsPage < totalPages) {
             this.currentPromptsPage++;
             this.renderPrompts(this.isRenderingInModal);
@@ -5330,9 +5374,44 @@ class LLMMonitoring {
         // Set flag for pagination
         this.isRenderingInModal = true;
 
-        // Load prompts into modal
+        // Ensure we start on the Prompts tab each time the modal opens
+        if (typeof this.switchPromptsTab === 'function') {
+            this.switchPromptsTab('prompts', { silent: true });
+        }
+
+        // Load prompts AND clusters config in parallel
         if (this.currentProject && this.currentProject.id) {
             this.loadPrompts(this.currentProject.id, true); // true = render in modal
+            // Clusters are needed by per-prompt selector → load config first,
+            // then refresh the prompt list so selects include the cluster options.
+            this.loadClustersConfig(this.currentProject.id)
+                .then(() => {
+                    // Update selects inline once clusters are known
+                    this.refreshPromptClusterSelects();
+                    this.renderClustersManagerList();
+                    this.populatePromptsListClusterFilter();
+                    this.updatePromptsMgmtTabCounts();
+                })
+                .catch(err => console.warn('Error loading clusters config:', err));
+
+            // Hook the per-modal cluster filter change once
+            const filterSel = document.getElementById('promptsListClusterFilter');
+            if (filterSel && !filterSel.dataset.bound) {
+                filterSel.dataset.bound = '1';
+                filterSel.addEventListener('change', () => {
+                    this.currentPromptsPage = 1;
+                    this.renderPrompts(true);
+                });
+            }
+
+            // Hook the enable/disable switch once
+            const enableCb = document.getElementById('promptClustersEnabled');
+            if (enableCb && !enableCb.dataset.bound) {
+                enableCb.dataset.bound = '1';
+                enableCb.addEventListener('change', () => {
+                    this.toggleClustersConfigContainer(enableCb.checked);
+                });
+            }
         }
 
         // Show modal
@@ -6163,9 +6242,23 @@ class LLMMonitoring {
         `;
 
         try {
+            // ✨ NEW: optional cluster filter (server-side)
+            const clusterFilter = document.getElementById('responsesClusterFilter')?.value || '';
             let url = `${this.baseUrl}/projects/${projectId}/responses?days=${daysFilter}`;
             if (queryFilter) url += `&query_id=${queryFilter}`;
             if (llmFilter) url += `&llm_provider=${llmFilter}`;
+            if (clusterFilter) url += `&cluster=${encodeURIComponent(clusterFilter)}`;
+
+            // Populate the cluster filter dropdown lazily if the project has clusters
+            if (!this._responsesClusterFilterBound) {
+                this.populateResponsesClusterFilter();
+                this._responsesClusterFilterBound = true;
+                const sel = document.getElementById('responsesClusterFilter');
+                if (sel && !sel.dataset.bound) {
+                    sel.dataset.bound = '1';
+                    sel.addEventListener('change', () => this.loadResponses());
+                }
+            }
 
             const response = await fetch(url);
             if (!response.ok) {
@@ -7944,6 +8037,741 @@ class LLMMonitoring {
         } catch {
             return this.escapeHtml(url.substring(0, maxLength - 3) + '...');
         }
+    }
+
+    // ============================================================================
+    // ✨ PROMPT CLUSTERS (manual topic clustering)
+    // ============================================================================
+
+    /**
+     * Switch between Prompts / Clusters tab in Prompts Management modal
+     */
+    switchPromptsTab(tab, opts = {}) {
+        const valid = (tab === 'clusters') ? 'clusters' : 'prompts';
+        const tabPrompts = document.getElementById('promptsMgmtTabPrompts');
+        const tabClusters = document.getElementById('promptsMgmtTabClusters');
+        const panePrompts = document.getElementById('promptsMgmtPanePrompts');
+        const paneClusters = document.getElementById('promptsMgmtPaneClusters');
+        if (!tabPrompts || !tabClusters || !panePrompts || !paneClusters) return;
+
+        const isClusters = valid === 'clusters';
+        tabPrompts.classList.toggle('active', !isClusters);
+        tabClusters.classList.toggle('active', isClusters);
+        tabPrompts.setAttribute('aria-selected', String(!isClusters));
+        tabClusters.setAttribute('aria-selected', String(isClusters));
+        panePrompts.classList.toggle('active', !isClusters);
+        paneClusters.classList.toggle('active', isClusters);
+        panePrompts.style.display = isClusters ? 'none' : '';
+        paneClusters.style.display = isClusters ? '' : 'none';
+
+        // When moving to clusters tab, render the editor UI with current state.
+        // If the project has no clusters yet, seed one empty row so the user
+        // can type immediately instead of hunting for the "Add cluster" button.
+        if (isClusters) {
+            this.renderClustersManagerList();
+            const existing = this.getDefinedClusterNames();
+            const isSilent = opts && opts.silent;
+            if (!isSilent && existing.length === 0 && this.promptClustersConfig) {
+                this.addClusterRow();
+            }
+        }
+    }
+
+    /**
+     * Load cluster config for the current project from the backend.
+     * Stores it in this.promptClustersConfig = { enabled, clusters: [{name}], counts: {name: cnt} }.
+     */
+    async loadClustersConfig(projectId) {
+        if (!projectId) {
+            this.promptClustersConfig = { enabled: false, clusters: [], counts: {} };
+            return this.promptClustersConfig;
+        }
+        try {
+            const resp = await fetch(`${this.baseUrl}/projects/${projectId}/clusters`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const cfg = data.clusters_config || { enabled: false, clusters: [] };
+            const clustersArr = Array.isArray(cfg.clusters)
+                ? cfg.clusters.map(c => (typeof c === 'string' ? { name: c } : { name: c?.name || '' }))
+                    .filter(c => c.name)
+                : [];
+            this.promptClustersConfig = {
+                enabled: !!cfg.enabled,
+                clusters: clustersArr,
+                counts: data.counts || {}
+            };
+            // Mirror toggle in UI
+            const enableCb = document.getElementById('promptClustersEnabled');
+            if (enableCb) enableCb.checked = this.promptClustersConfig.enabled;
+            this.toggleClustersConfigContainer(this.promptClustersConfig.enabled);
+            return this.promptClustersConfig;
+        } catch (err) {
+            console.warn('Could not load clusters config:', err);
+            this.promptClustersConfig = { enabled: false, clusters: [], counts: {} };
+            return this.promptClustersConfig;
+        }
+    }
+
+    /**
+     * Toggle visibility/enable state of the clusters config container.
+     */
+    toggleClustersConfigContainer(enabled) {
+        const container = document.getElementById('promptClustersContainer');
+        if (!container) return;
+        container.classList.toggle('disabled', !enabled);
+    }
+
+    /**
+     * Returns the list of cluster names (strings) currently defined for the project.
+     */
+    getDefinedClusterNames() {
+        const cfg = this.promptClustersConfig || { clusters: [] };
+        return (cfg.clusters || [])
+            .map(c => (c?.name || '').trim())
+            .filter(Boolean);
+    }
+
+    /**
+     * Render the clusters editor list inside the "Clusters" tab.
+     *
+     * IMPORTANT: this renders ALL rows from this.promptClustersConfig.clusters,
+     * including rows whose name is still empty (user is about to type). Filtering
+     * empty names here would cause "Add cluster" to silently do nothing in the UI.
+     */
+    renderClustersManagerList() {
+        const list = document.getElementById('clustersList');
+        const emptyHint = document.getElementById('clustersEmptyHint');
+        if (!list) return;
+
+        const allRows = (this.promptClustersConfig?.clusters || []);
+        const counts = (this.promptClustersConfig || {}).counts || {};
+
+        if (allRows.length === 0) {
+            list.innerHTML = '';
+            if (emptyHint) emptyHint.style.display = 'block';
+            this.updatePromptsMgmtTabCounts();
+            return;
+        }
+        if (emptyHint) emptyHint.style.display = 'none';
+
+        list.innerHTML = allRows.map((cluster, idx) => {
+            const name = (cluster?.name || '').trim();
+            const count = name ? (counts[name] || 0) : 0;
+            const countClass = count === 0 ? 'empty' : '';
+            const safeName = this.escapeHtml(name);
+            return `
+                <div class="llm-cluster-row" data-original-name="${safeName}" data-index="${idx}">
+                    <input type="text"
+                           class="cluster-name-input"
+                           value="${safeName}"
+                           placeholder="Cluster name (e.g. Satisfaction)"
+                           maxlength="80" />
+                    <span class="cluster-row-count ${countClass}" title="${count} prompts assigned">
+                        <i class="fas fa-comment-dots"></i>
+                        ${count}
+                    </span>
+                    <button type="button" class="btn-cluster-delete" title="Delete cluster"
+                            onclick="window.llmMonitoring.removeClusterRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        this.updatePromptsMgmtTabCounts();
+    }
+
+    /**
+     * Update the numeric badges on both tabs (Prompts / Clusters).
+     */
+    updatePromptsMgmtTabCounts() {
+        const promptsCount = Array.isArray(this.allPrompts) ? this.allPrompts.length : 0;
+        const clustersCount = this.getDefinedClusterNames().length;
+        const pEl = document.getElementById('promptsMgmtTabCount');
+        const cEl = document.getElementById('clustersMgmtTabCount');
+        if (pEl) pEl.textContent = promptsCount;
+        if (cEl) cEl.textContent = clustersCount;
+    }
+
+    /**
+     * Add a new empty cluster row to the editor (front-end only until Save).
+     */
+    addClusterRow() {
+        // Defensive init: this can be called before loadClustersConfig completes
+        if (!this.promptClustersConfig) {
+            this.promptClustersConfig = { enabled: true, clusters: [], counts: {} };
+        }
+        // Sync any in-flight edits from existing inputs first so we don't lose
+        // names the user just typed in other rows.
+        this._syncClustersConfigFromUI();
+        // Ensure enabled flag is on — user is creating a cluster
+        this.promptClustersConfig.enabled = true;
+        const enableCb = document.getElementById('promptClustersEnabled');
+        if (enableCb) enableCb.checked = true;
+        this.toggleClustersConfigContainer(true);
+
+        this.promptClustersConfig.clusters = this.promptClustersConfig.clusters || [];
+        this.promptClustersConfig.clusters.push({ name: '' });
+        this.renderClustersManagerList();
+
+        // Focus on the last input so the user can type immediately
+        const list = document.getElementById('clustersList');
+        if (list) {
+            const inputs = list.querySelectorAll('.cluster-name-input');
+            const last = inputs[inputs.length - 1];
+            if (last) {
+                last.focus();
+                // Submit on Enter for ergonomics
+                last.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.saveClustersConfig();
+                    }
+                }, { once: true });
+            }
+        }
+    }
+
+    /**
+     * Remove a cluster row from the editor (front-end only until Save).
+     */
+    removeClusterRow(btnEl) {
+        const row = btnEl?.closest('.llm-cluster-row');
+        if (!row) return;
+        const idx = parseInt(row.dataset.index || '-1', 10);
+        if (idx >= 0 && this.promptClustersConfig?.clusters) {
+            this.promptClustersConfig.clusters.splice(idx, 1);
+            this.renderClustersManagerList();
+        }
+    }
+
+    /**
+     * Read the current state of the editor inputs (name inputs) and write it back
+     * to this.promptClustersConfig.clusters. Deduplicates (case-insensitive) and trims.
+     * Returns true on success, false if validation failed.
+     */
+    _syncClustersConfigFromUI() {
+        const enableCb = document.getElementById('promptClustersEnabled');
+        const enabled = !!(enableCb && enableCb.checked);
+
+        const list = document.getElementById('clustersList');
+        const rows = list ? list.querySelectorAll('.llm-cluster-row') : [];
+        const seen = new Set();
+        const result = [];
+
+        for (const row of rows) {
+            const input = row.querySelector('.cluster-name-input');
+            const raw = (input?.value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+            if (!raw) continue;
+            const key = raw.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            result.push({ name: raw });
+        }
+
+        this.promptClustersConfig = {
+            enabled: enabled && result.length > 0,
+            clusters: result,
+            counts: this.promptClustersConfig?.counts || {}
+        };
+        return true;
+    }
+
+    /**
+     * Save clusters configuration to the backend.
+     */
+    async saveClustersConfig() {
+        const projectId = this.currentProject?.id;
+        if (!projectId) {
+            this.showError('No project selected');
+            return;
+        }
+        const hint = document.getElementById('clustersSaveHint');
+        if (!this._syncClustersConfigFromUI()) return;
+
+        // ✨ Front-end validation: detect rows that exist in the DOM but have empty names
+        const list = document.getElementById('clustersList');
+        const domRowCount = list ? list.querySelectorAll('.llm-cluster-row').length : 0;
+        const validClusters = this.promptClustersConfig.clusters || [];
+
+        // If the user has rows but none of them have valid names → warn instead of silently saving empty
+        if (domRowCount > 0 && validClusters.length === 0) {
+            if (hint) {
+                hint.className = 'clusters-save-hint error';
+                hint.textContent = 'Please type a name for each cluster before saving.';
+            }
+            this.showError('Please type a name for each cluster before saving.');
+            // Focus first empty input
+            const firstEmpty = list.querySelector('.cluster-name-input');
+            if (firstEmpty) firstEmpty.focus();
+            return;
+        }
+
+        // If user clicks Save with no rows at all → confirm they want to disable clusters
+        if (domRowCount === 0 && (this.promptClustersConfig?.clusters || []).length === 0) {
+            // Only confirm if there were clusters previously (avoid no-op confirmation on first use)
+            const counts = this.promptClustersConfig?.counts || {};
+            const hasExistingAssignments = Object.keys(counts).some(k => k !== 'Unassigned' && counts[k] > 0);
+            if (hasExistingAssignments) {
+                const proceed = confirm(
+                    'You are about to remove all clusters. Any prompts assigned to clusters will be unassigned. Continue?'
+                );
+                if (!proceed) {
+                    if (hint) hint.textContent = '';
+                    return;
+                }
+            } else {
+                // Nothing to save — just hint that they should add a cluster
+                if (hint) {
+                    hint.className = 'clusters-save-hint';
+                    hint.textContent = 'Add at least one cluster before saving.';
+                }
+                this.showInfo('Click "Add cluster" first, then type a name and save.');
+                return;
+            }
+        }
+
+        const payload = {
+            clusters_config: {
+                enabled: !!this.promptClustersConfig.enabled,
+                clusters: (this.promptClustersConfig.clusters || []).map(c => ({ name: c.name }))
+            }
+        };
+
+        try {
+            if (hint) {
+                hint.className = 'clusters-save-hint';
+                hint.textContent = 'Saving...';
+            }
+            const resp = await fetch(`${this.baseUrl}/projects/${projectId}/clusters`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+
+            // Refresh counts from server (prompts may have been orphaned)
+            await this.loadClustersConfig(projectId);
+            // Re-fetch prompts (topic_cluster may have changed on some)
+            await this.loadPrompts(projectId, true);
+            // Refresh UI pieces that depend on clusters
+            this.refreshPromptClusterSelects();
+            this.populatePromptsListClusterFilter();
+            this.populateResponsesClusterFilter();
+            this.renderClustersManagerList();
+            // If the chart is on screen, refresh it
+            this.loadClustersPerformance(projectId);
+
+            const savedCount = (this.promptClustersConfig?.clusters || []).length;
+            const baseMsg = savedCount > 0
+                ? `Saved ${savedCount} cluster${savedCount === 1 ? '' : 's'}.`
+                : 'Cluster configuration cleared.';
+            const orphanMsg = data.orphaned_prompts > 0
+                ? ` ${data.orphaned_prompts} prompt${data.orphaned_prompts === 1 ? ' was' : 's were'} unassigned.`
+                : '';
+
+            if (hint) {
+                hint.className = 'clusters-save-hint saved';
+                hint.textContent = baseMsg + orphanMsg;
+                setTimeout(() => { if (hint) hint.textContent = ''; }, 5000);
+            }
+            // Visible toast as well
+            if (savedCount > 0) {
+                this.showSuccess(baseMsg + orphanMsg);
+            } else {
+                this.showInfo(baseMsg + orphanMsg);
+            }
+        } catch (err) {
+            console.error('❌ Error saving clusters:', err);
+            if (hint) {
+                hint.className = 'clusters-save-hint error';
+                hint.textContent = `Error: ${err.message || 'could not save'}`;
+            }
+            this.showError(`Could not save clusters: ${err.message || ''}`);
+        }
+    }
+
+    /**
+     * HTML for the inline cluster selector in each prompt row.
+     * Reads this.promptClustersConfig to build the dropdown options.
+     */
+    buildPromptClusterSelectHtml(query) {
+        const cfg = this.promptClustersConfig;
+        // Only render the selector if clusters are enabled and there is at least one
+        const clusters = this.getDefinedClusterNames();
+        if (!cfg || !cfg.enabled || clusters.length === 0) return '';
+
+        const current = query.topic_cluster || '';
+        const state = current ? 'assigned' : 'unassigned';
+        const options = [
+            `<option value="">— Unassigned —</option>`,
+            ...clusters.map(name => {
+                const selected = (name === current) ? 'selected' : '';
+                return `<option value="${this.escapeHtml(name)}" ${selected}>${this.escapeHtml(name)}</option>`;
+            })
+        ].join('');
+
+        return `
+            <span class="prompt-cluster-select-wrapper" title="Assign this prompt to a topic cluster">
+                <i class="fas fa-layer-group"></i>
+                <select class="prompt-cluster-select"
+                        data-state="${state}"
+                        data-query-id="${query.id}"
+                        onchange="window.llmMonitoring.onPromptClusterChange(this, ${query.id})">
+                    ${options}
+                </select>
+            </span>
+        `;
+    }
+
+    /**
+     * Handler for the inline cluster selector on a prompt row.
+     */
+    async onPromptClusterChange(selectEl, queryId) {
+        const projectId = this.currentProject?.id;
+        if (!projectId || !queryId) return;
+        const value = selectEl.value || null;
+        const original = selectEl.getAttribute('data-original') || '';
+        selectEl.disabled = true;
+        try {
+            const resp = await fetch(`${this.baseUrl}/projects/${projectId}/queries/${queryId}/cluster`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cluster: value })
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+            // Update local state
+            const prompt = (this.allPrompts || []).find(p => p.id === queryId);
+            if (prompt) prompt.topic_cluster = data.topic_cluster || null;
+            selectEl.setAttribute('data-state', value ? 'assigned' : 'unassigned');
+            // Update counts without a full reload
+            await this.loadClustersConfig(projectId);
+            this.renderClustersManagerList();
+            this.populatePromptsListClusterFilter();
+            this.populateResponsesClusterFilter();
+        } catch (err) {
+            console.error('❌ Error updating cluster assignment:', err);
+            // Revert selection
+            selectEl.value = original;
+            this.showError(`Could not update cluster: ${err.message || ''}`);
+        } finally {
+            selectEl.disabled = false;
+        }
+    }
+
+    /**
+     * Refresh the inline cluster selects in the prompts list (no full re-fetch).
+     * Called after the clusters config changes.
+     */
+    refreshPromptClusterSelects() {
+        // Easiest path: re-render the prompts list (source data already has topic_cluster)
+        this.renderPrompts(this.isRenderingInModal);
+    }
+
+    /**
+     * Populate the cluster filter dropdown inside the Prompts Management modal.
+     */
+    populatePromptsListClusterFilter() {
+        const wrapper = document.getElementById('promptsClusterFilterWrapper');
+        const sel = document.getElementById('promptsListClusterFilter');
+        if (!sel || !wrapper) return;
+        const clusters = this.getDefinedClusterNames();
+        const enabled = this.promptClustersConfig?.enabled;
+        if (!enabled || clusters.length === 0) {
+            wrapper.style.display = 'none';
+            sel.value = '';
+            return;
+        }
+        wrapper.style.display = '';
+        const prev = sel.value;
+        const options = [
+            `<option value="">All clusters</option>`,
+            `<option value="__unassigned__">Unassigned</option>`,
+            ...clusters.map(n => `<option value="${this.escapeHtml(n)}">${this.escapeHtml(n)}</option>`)
+        ].join('');
+        sel.innerHTML = options;
+        // Restore previous value if still valid
+        if (prev && (prev === '__unassigned__' || clusters.includes(prev))) {
+            sel.value = prev;
+        }
+    }
+
+    /**
+     * Populate the cluster filter dropdown inside the LLM Responses Inspector.
+     */
+    populateResponsesClusterFilter() {
+        const sel = document.getElementById('responsesClusterFilter');
+        const wrapper = document.getElementById('responsesClusterFilterWrapper');
+        if (!sel) return;
+        const clusters = this.getDefinedClusterNames();
+        const enabled = this.promptClustersConfig?.enabled;
+        if (!enabled || clusters.length === 0) {
+            if (wrapper) wrapper.style.display = 'none';
+            sel.value = '';
+            return;
+        }
+        if (wrapper) wrapper.style.display = '';
+        const prev = sel.value;
+        const options = [
+            `<option value="">All Clusters</option>`,
+            `<option value="__unassigned__">Unassigned</option>`,
+            ...clusters.map(n => `<option value="${this.escapeHtml(n)}">${this.escapeHtml(n)}</option>`)
+        ].join('');
+        sel.innerHTML = options;
+        if (prev && (prev === '__unassigned__' || clusters.includes(prev))) {
+            sel.value = prev;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Clusters Performance chart (replaces the old LLM Comparison table)
+    // ------------------------------------------------------------------
+
+    async loadClustersPerformance(projectId) {
+        if (!projectId) projectId = this.currentProject?.id;
+        if (!projectId) return;
+        const metric = document.querySelector('input[name="globalSovMetric"]:checked')?.value || 'weighted';
+        try {
+            // Always reload clusters config for the CURRENT project to avoid stale
+            // data when switching between projects (e.g. project A has no clusters,
+            // project B does — without reload the chart would show empty state).
+            await this.loadClustersConfig(projectId);
+
+            const resp = await fetch(
+                `${this.baseUrl}/projects/${projectId}/clusters/metrics?days=${this.globalTimeRange}&metric=${encodeURIComponent(metric)}`
+            );
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            this.renderClustersPerformanceChart(data, metric);
+        } catch (err) {
+            console.error('❌ Error loading clusters performance:', err);
+            this.renderClustersPerformanceChart({ success: false, clusters: [] }, metric);
+        }
+    }
+
+    renderClustersPerformanceChart(data, metric) {
+        const canvas = document.getElementById('clustersPerformanceChart');
+        const container = document.getElementById('clustersChartContainer');
+        const emptyBox = document.getElementById('clustersChartEmpty');
+        if (!canvas || !container || !emptyBox) return;
+
+        const clustersWithData = (data?.clusters || []).filter(c => c.has_data);
+        const anyConfigured = (this.promptClustersConfig?.clusters || []).length > 0;
+
+        if (!anyConfigured) {
+            container.style.display = 'none';
+            emptyBox.style.display = '';
+            const t = document.getElementById('clustersChartEmptyTitle');
+            const m = document.getElementById('clustersChartEmptyMsg');
+            if (t) t.textContent = 'No clusters configured';
+            if (m) m.textContent = 'Group your prompts into topic clusters to compare Share of Voice and average position side by side.';
+            return;
+        }
+
+        if (clustersWithData.length === 0) {
+            container.style.display = 'none';
+            emptyBox.style.display = '';
+            const t = document.getElementById('clustersChartEmptyTitle');
+            const m = document.getElementById('clustersChartEmptyMsg');
+            if (t) t.textContent = 'No data yet for your clusters';
+            if (m) m.textContent = 'Assign prompts to your clusters and wait for the next analysis to populate these metrics.';
+            return;
+        }
+
+        container.style.display = '';
+        emptyBox.style.display = 'none';
+
+        const labels = clustersWithData.map(c => c.cluster);
+        const sovData = clustersWithData.map(c => c.share_of_voice || 0);
+        const posData = clustersWithData.map(c => c.avg_position == null ? null : c.avg_position);
+
+        if (this.charts.clustersPerformance) {
+            try { this.charts.clustersPerformance.destroy(); } catch (_) {}
+        }
+
+        // Store cluster data for the rich tooltip
+        this._clusterChartData = clustersWithData;
+
+        const self = this;
+        const ctx = canvas.getContext('2d');
+        this.charts.clustersPerformance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: metric === 'weighted' ? 'Share of Voice (weighted)' : 'Share of Voice',
+                        data: sovData,
+                        backgroundColor: 'rgba(15, 23, 42, 0.82)',
+                        borderColor: '#0F172A',
+                        borderWidth: 0,
+                        borderRadius: { topLeft: 6, topRight: 6 },
+                        yAxisID: 'y',
+                        categoryPercentage: 0.65,
+                        barPercentage: 0.85,
+                        order: 1
+                    },
+                    {
+                        label: 'Avg position',
+                        data: posData,
+                        backgroundColor: 'rgba(217, 249, 184, 0.85)',
+                        borderColor: '#D9F9B8',
+                        borderWidth: 0,
+                        borderRadius: { topLeft: 6, topRight: 6 },
+                        yAxisID: 'y1',
+                        categoryPercentage: 0.65,
+                        barPercentage: 0.85,
+                        order: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            padding: 18,
+                            font: { size: 12, family: "'Inter Tight', sans-serif", weight: '500' },
+                            color: '#64748B'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false,
+                        external: (context) => self.renderClustersChartTooltip(context)
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: {
+                            color: '#0F172A',
+                            font: { weight: '600', size: 12, family: "'Inter Tight', sans-serif" }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                        title: {
+                            display: true,
+                            text: 'Share of Voice (%)',
+                            color: '#64748B',
+                            font: { size: 11 }
+                        },
+                        ticks: {
+                            callback: (v) => `${v}%`,
+                            color: '#94A3B8',
+                            font: { size: 11 }
+                        },
+                        grid: { color: 'rgba(226, 232, 240, 0.5)', drawBorder: false }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        beginAtZero: true,
+                        // Both bars grow upward from 0. Lower position = smaller bar.
+                        // The tooltip explains that lower is better.
+                        title: {
+                            display: true,
+                            text: 'Avg position',
+                            color: '#64748B',
+                            font: { size: 11 }
+                        },
+                        ticks: {
+                            callback: (v) => `#${v}`,
+                            color: '#94A3B8',
+                            font: { size: 11 }
+                        },
+                        grid: { drawOnChartArea: false, drawBorder: false }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Rich tooltip for the Clusters Performance bar chart.
+     * Matches the style of the SoV line chart tooltip (dark, rows, dots).
+     */
+    renderClustersChartTooltip(context) {
+        let el = document.getElementById('llm-clusters-chart-tooltip');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'llm-clusters-chart-tooltip';
+            el.className = 'llm-chart-tooltip';
+            document.body.appendChild(el);
+        }
+
+        const tooltipModel = context.tooltip;
+        if (tooltipModel.opacity === 0) {
+            el.classList.remove('active');
+            return;
+        }
+
+        if (tooltipModel.body) {
+            const dataIndex = tooltipModel.dataPoints[0]?.dataIndex;
+            const clusterData = this._clusterChartData?.[dataIndex];
+            const clusterName = clusterData?.cluster || tooltipModel.title[0] || '';
+
+            const sov = clusterData?.share_of_voice ?? '—';
+            const pos = clusterData?.avg_position ?? null;
+            const mentions = clusterData?.brand_mentions ?? 0;
+            const total = clusterData?.total_results ?? 0;
+
+            const sovLabel = (typeof sov === 'number') ? `${sov.toFixed(1)}%` : '—';
+            const posLabel = pos != null ? `#${pos.toFixed(1)}` : 'N/A';
+            const posNote = pos != null ? '<span style="opacity:0.5;font-size:11px"> (lower is better)</span>' : '';
+
+            el.innerHTML = `
+                <div class="llm-chart-tooltip__title">${this.escapeHtml(clusterName)}</div>
+                <div class="llm-chart-tooltip__row">
+                    <span class="llm-chart-tooltip__dot" style="background:#64748B"></span>
+                    <span class="llm-chart-tooltip__label">Share of Voice</span>
+                    <span class="llm-chart-tooltip__value">${sovLabel}</span>
+                </div>
+                <div class="llm-chart-tooltip__row">
+                    <span class="llm-chart-tooltip__dot" style="background:#D9F9B8"></span>
+                    <span class="llm-chart-tooltip__label">Avg position</span>
+                    <span class="llm-chart-tooltip__value">${posLabel}${posNote}</span>
+                </div>
+                <div class="llm-chart-tooltip__row" style="border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;padding-top:6px;">
+                    <span class="llm-chart-tooltip__label" style="opacity:0.4">Brand mentions</span>
+                    <span class="llm-chart-tooltip__value" style="font-size:12px">${mentions} / ${total}</span>
+                </div>
+            `;
+        }
+
+        const pos = context.chart.canvas.getBoundingClientRect();
+        const ttW = el.offsetWidth || 200;
+        const ttH = el.offsetHeight || 100;
+        const caretX = pos.left + window.scrollX + tooltipModel.caretX;
+        const caretY = pos.top + window.scrollY + tooltipModel.caretY;
+        const vpR = window.innerWidth + window.scrollX;
+        const vpB = window.innerHeight + window.scrollY;
+
+        let left = caretX + 12;
+        if (left + ttW > vpR - 16) left = caretX - ttW - 12;
+        let top = caretY - 10;
+        if (top + ttH > vpB - 16) top = caretY - ttH + 10;
+        left = Math.max(8, left);
+        top = Math.max(8, top);
+
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.classList.add('active');
     }
 }
 

@@ -32,7 +32,7 @@
     <link href="{{ url_for('static', filename='quota-ui.css') }}" rel="stylesheet">
     
     <!-- CSS específico para LLM Monitoring -->
-    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=5" rel="stylesheet">
+    <link href="{{ url_for('static', filename='llm-monitoring.css') }}?v=8" rel="stylesheet">
     <link href="{{ url_for('static', filename='llm-monitoring-enhanced.css') }}?v=1" rel="stylesheet">
     
     <!-- ✨ NEW: Share of Voice Metrics UI -->
@@ -807,12 +807,33 @@
                     </div>
                 </div>
 
-                <!-- Comparison Table -->
-                <div class="chart-card">
+                <!-- ✨ Clusters Performance Chart (replaces LLM Comparison table) -->
+                <div class="chart-card" id="clustersPerformanceCard">
                     <div class="chart-header">
-                        <h3>LLM Comparison</h3>
+                        <h3>
+                            Clusters Performance
+                        </h3>
+                        <!-- Metric indicator removed — follows global SoV toggle silently like other charts -->
                     </div>
-                    <div id="comparisonTable"></div>
+
+                    <!-- Empty state: no clusters defined or none with data -->
+                    <div id="clustersChartEmpty" class="clusters-chart-empty" style="display:none;">
+                        <div class="empty-state">
+                            <i class="fas fa-layer-group"></i>
+                            <h4 id="clustersChartEmptyTitle">No clusters configured</h4>
+                            <p id="clustersChartEmptyMsg">
+                                Group your prompts into topic clusters to compare Share of Voice and average position side by side.
+                            </p>
+                            <button class="btn btn-ghost btn-sm" style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.5rem 1rem; font-size: 0.8rem;" onclick="window.llmMonitoring.showPromptsManagementModal(); setTimeout(()=>window.llmMonitoring.switchPromptsTab && window.llmMonitoring.switchPromptsTab('clusters'), 200);">
+                                <i class="fas fa-layer-group"></i>
+                                Configure Clusters
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="chart-container" id="clustersChartContainer" style="min-height: 340px; position: relative;">
+                        <canvas id="clustersPerformanceChart"></canvas>
+                    </div>
                 </div>
 
                 <!-- Queries/Prompts Table -->
@@ -954,6 +975,18 @@
                                 <option value="positive">Positive</option>
                                 <option value="neutral">Neutral</option>
                                 <option value="negative">Negative</option>
+                            </select>
+                        </div>
+
+                        <!-- ✨ NEW: Cluster filter -->
+                        <div style="flex: 0 0 200px;" id="responsesClusterFilterWrapper">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 14px; color: var(--text-secondary);">
+                                <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i>
+                                Cluster
+                            </label>
+                            <select id="responsesClusterFilter" class="form-control" style="width: 100%;">
+                                <option value="">All Clusters</option>
+                                <!-- populated dynamically -->
                             </select>
                         </div>
 
@@ -1402,43 +1435,125 @@
                         <span class="badge" id="promptsCountModal">0</span>
                         <span class="plan-limit-badge" id="promptsLimitBadge" style="display: none;">0 / 0</span>
                     </h3>
-                    <p>Manage your test prompts and questions for LLM monitoring</p>
+                    <p>Manage your test prompts, organize them into topic clusters and track their performance</p>
                 </div>
                 <button type="button" class="modal-close" onclick="window.llmMonitoring.hidePromptsManagementModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="prompts-management-actions" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
-                    <button class="btn btn-success btn-sm" id="btnGetSuggestionsModal">
-                        <i class="fas fa-magic"></i>
-                        AI Suggestions
+                <!-- ✨ NEW: Tabs (Prompts / Clusters) -->
+                <div class="prompts-mgmt-tabs" role="tablist">
+                    <button type="button"
+                            class="prompts-mgmt-tab active"
+                            id="promptsMgmtTabPrompts"
+                            role="tab"
+                            aria-selected="true"
+                            aria-controls="promptsMgmtPanePrompts"
+                            onclick="window.llmMonitoring.switchPromptsTab && window.llmMonitoring.switchPromptsTab('prompts')">
+                        <i class="fas fa-comment-dots"></i>
+                        Prompts
+                        <span class="tab-count" id="promptsMgmtTabCount">0</span>
                     </button>
-                    <button class="btn btn-primary btn-sm" id="btnAddPromptsModal">
-                        <i class="fas fa-plus"></i>
-                        Add Prompts
+                    <button type="button"
+                            class="prompts-mgmt-tab"
+                            id="promptsMgmtTabClusters"
+                            role="tab"
+                            aria-selected="false"
+                            aria-controls="promptsMgmtPaneClusters"
+                            onclick="window.llmMonitoring.switchPromptsTab && window.llmMonitoring.switchPromptsTab('clusters')">
+                        <i class="fas fa-layer-group"></i>
+                        Clusters
+                        <span class="tab-count" id="clustersMgmtTabCount">0</span>
                     </button>
                 </div>
-                
-                <div class="prompts-list" id="promptsListModal">
-                    <div class="loading-container" style="padding: 20px;">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Loading prompts...</span>
+
+                <!-- Pane: PROMPTS -->
+                <div id="promptsMgmtPanePrompts"
+                     class="prompts-mgmt-pane active"
+                     role="tabpanel"
+                     aria-labelledby="promptsMgmtTabPrompts">
+                    <div class="prompts-management-actions" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-success btn-sm" id="btnGetSuggestionsModal">
+                            <i class="fas fa-magic"></i>
+                            AI Suggestions
+                        </button>
+                        <button class="btn btn-primary btn-sm" id="btnAddPromptsModal">
+                            <i class="fas fa-plus"></i>
+                            Add Prompts
+                        </button>
+                        <!-- Cluster filter inside the management modal (no label, just the select) -->
+                        <div class="prompts-cluster-filter" id="promptsClusterFilterWrapper" style="margin-left:auto; display:none;">
+                            <select id="promptsListClusterFilter" class="form-control form-control-sm">
+                                <option value="">All clusters</option>
+                                <option value="__unassigned__">Unassigned</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="prompts-list" id="promptsListModal">
+                        <div class="loading-container" style="padding: 20px;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading prompts...</span>
+                        </div>
+                    </div>
+
+                    <div class="prompts-pagination" id="promptsPaginationModal" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="paginationInfoModal">Showing 1-10 of 0 prompts</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="btn btn-icon btn-sm" id="btnPrevPageModal" onclick="window.llmMonitoring.prevPage()" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span class="pagination-current">Page <span id="currentPageModal">1</span> of <span id="totalPagesModal">1</span></span>
+                            <button class="btn btn-icon btn-sm" id="btnNextPageModal" onclick="window.llmMonitoring.nextPage()" disabled>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="prompts-pagination" id="promptsPaginationModal" style="display: none;">
-                    <div class="pagination-info">
-                        <span id="paginationInfoModal">Showing 1-10 of 0 prompts</span>
+
+                <!-- Pane: CLUSTERS -->
+                <div id="promptsMgmtPaneClusters"
+                     class="prompts-mgmt-pane"
+                     role="tabpanel"
+                     aria-labelledby="promptsMgmtTabClusters"
+                     style="display:none;">
+                    <div class="clusters-config-header">
+                        <label class="clusters-enable-switch">
+                            <input type="checkbox" id="promptClustersEnabled">
+                            <span class="clusters-enable-switch-slider"></span>
+                            <span class="clusters-enable-switch-label">
+                                <strong>Enable topic clusters</strong>
+                                <small>Group prompts by theme to compare Share of Voice and average position across topics.</small>
+                            </span>
+                        </label>
                     </div>
-                    <div class="pagination-controls">
-                        <button class="btn btn-icon btn-sm" id="btnPrevPageModal" onclick="window.llmMonitoring.prevPage()" disabled>
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <span class="pagination-current">Page <span id="currentPageModal">1</span> of <span id="totalPagesModal">1</span></span>
-                        <button class="btn btn-icon btn-sm" id="btnNextPageModal" onclick="window.llmMonitoring.nextPage()" disabled>
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+
+                    <div id="promptClustersContainer" class="clusters-config-container">
+                        <div class="clusters-config-actions">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnAddCluster"
+                                    onclick="window.llmMonitoring.addClusterRow && window.llmMonitoring.addClusterRow()">
+                                <i class="fas fa-plus"></i>
+                                Add cluster
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" id="btnSaveClusters"
+                                    onclick="window.llmMonitoring.saveClustersConfig && window.llmMonitoring.saveClustersConfig()">
+                                <i class="fas fa-save"></i>
+                                Save
+                            </button>
+                            <span class="clusters-save-hint" id="clustersSaveHint"></span>
+                        </div>
+
+                        <div class="clusters-list" id="clustersList">
+                            <!-- Rows are rendered dynamically -->
+                        </div>
+
+                        <div class="clusters-empty-hint" id="clustersEmptyHint" style="display:none;">
+                            <i class="fas fa-info-circle"></i>
+                            No clusters yet. Click <strong>Add cluster</strong> to create one, then go back to the Prompts tab to assign prompts.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1673,7 +1788,7 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=6"></script>
+    <script src="{{ url_for('static', filename='js/llm_monitoring.js') }}?v=11"></script>
     
     <script>
         // Usuario actual

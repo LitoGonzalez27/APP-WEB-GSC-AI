@@ -5152,3 +5152,606 @@ label:not(.search-form label) {
         padding: 0.5rem 0.625rem;
     }
 }
+
+/* ============================================================ */
+/* ✨ PROMPT CLUSTERS — Polished (Clicandseo Brandbook v1)       */
+/* Tokens: #0A0A0B (dark), #D9F9B8 (bio-lime), Inter Tight,     */
+/*         radius-sm 8px, radius-full 9999px, shadows subtle     */
+/* ============================================================ */
+
+/* ── Enhanced modal header for Prompts Management ─────────── */
+#promptsManagementModal .modal-header {
+    background: #0A0A0B;
+    color: #F8FAFC;
+    padding: 1.25rem 1.5rem;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    /* Ensure dark bg covers full width including any parent padding */
+    margin: -1px -1px 0 -1px;
+    width: calc(100% + 2px);
+    box-sizing: border-box;
+}
+
+#promptsManagementModal .modal-header .header-text h3 {
+    color: #F8FAFC;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+#promptsManagementModal .modal-header .header-text p {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.8rem;
+    margin: 0.2rem 0 0;
+}
+
+#promptsManagementModal .modal-header .modal-close {
+    color: rgba(255,255,255,0.5);
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+#promptsManagementModal .modal-header .modal-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: #F8FAFC;
+}
+
+#promptsManagementModal .modal-header .badge {
+    background: #D9F9B8;
+    color: #0A0A0B;
+    font-weight: 700;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+}
+
+#promptsManagementModal .modal-header .plan-limit-badge {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    border: none;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.prompts-mgmt-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #E2E8F0;
+    margin: 0 -1.5rem;
+    padding: 0 1.5rem;
+}
+
+.prompts-mgmt-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748B;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.2,0.8,0.2,1);
+    margin-bottom: -1px;
+}
+
+.prompts-mgmt-tab:hover {
+    color: #0F172A;
+    background-color: #F1F5F9;
+}
+
+.prompts-mgmt-tab.active {
+    color: #0A0A0B;
+    border-bottom-color: #0A0A0B;
+}
+
+.prompts-mgmt-tab .tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 0.45rem;
+    border-radius: 9999px;
+    background: #E2E8F0;
+    color: #64748B;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.prompts-mgmt-tab.active .tab-count {
+    background: #0A0A0B;
+    color: #D9F9B8;
+}
+
+.prompts-mgmt-pane {
+    animation: clustersFadeIn 0.2s cubic-bezier(0.2,0.8,0.2,1);
+    padding-top: 1rem;
+}
+
+@keyframes clustersFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Prompts tab: toolbar ─────────────────────────────────── */
+.prompts-management-actions {
+    border-bottom-color: #E2E8F0 !important;
+}
+
+.prompts-cluster-filter {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+/* Hide the "Filter" label — just show the select */
+.prompts-cluster-filter-label {
+    display: none;
+}
+
+.prompts-cluster-filter select.form-control.form-control-sm {
+    height: 34px;
+    padding: 0.3rem 2rem 0.3rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid #E2E8F0;
+    background: #F8FAFC;
+    color: #0F172A;
+    min-width: 160px;
+    transition: all 0.2s;
+    appearance: auto;
+}
+
+.prompts-cluster-filter select.form-control.form-control-sm:focus {
+    border-color: #0A0A0B;
+    box-shadow: 0 0 0 2px rgba(10,10,11,0.06);
+}
+
+/* ── Prompt item: card-style layout ───────────────────────── */
+.prompt-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0.875rem 1rem;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    transition: all 0.2s cubic-bezier(0.2,0.8,0.2,1);
+    position: relative;
+}
+
+.prompt-item:hover {
+    border-color: rgba(217,249,184,0.5);
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+}
+
+/* Row 1: meta badges top-left */
+.prompt-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    order: -1;
+    margin-bottom: 0.4rem;
+}
+
+/* Row 2: prompt text */
+.prompt-text {
+    font-size: 0.9rem;
+    color: #0F172A;
+    line-height: 1.5;
+    font-weight: 500;
+    margin-bottom: 0.55rem;
+}
+
+/* Row 3: bottom area — cluster left, delete right */
+.prompt-item .prompt-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #F1F5F9;
+}
+
+.prompt-item .prompt-actions {
+    position: static;
+    display: flex;
+    align-items: center;
+}
+
+/* Per-prompt cluster selector — wrapper carries the chevron via ::after
+   so the <select> only needs a flat background. This avoids edge cases
+   where a later rule resets background-repeat and the SVG tiles. */
+.prompt-cluster-select-wrapper {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.prompt-cluster-select-wrapper::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 0.7rem;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    border-right: 2px solid #64748B;
+    border-bottom: 2px solid #64748B;
+    transform-origin: center;
+    transform: translateY(-70%) rotate(45deg);
+    border-radius: 1px;
+    transition: border-color 0.15s ease;
+}
+
+.prompt-cluster-select-wrapper:has(.prompt-cluster-select[data-state="assigned"])::after {
+    border-right-color: #365314;
+    border-bottom-color: #365314;
+}
+
+/* Hide the legacy layer-group icon if present in older markup */
+.prompt-cluster-select-wrapper i.fa-layer-group {
+    display: none;
+}
+
+/* All rules below are scoped to the wrapper to beat the global
+   `select:not(.search-form select)` reset (specificity 0,1,2), which
+   otherwise forces width:100% and a neutral background on our control. */
+.prompt-cluster-select-wrapper .prompt-cluster-select {
+    width: auto;
+    padding: 0 2.1rem 0 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: inherit;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    color: #0F172A;
+    cursor: pointer;
+    min-width: 150px;
+    max-width: 220px;
+    height: 32px;
+    line-height: 30px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    margin: 0;
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select::-ms-expand { display: none; }
+
+.prompt-cluster-select-wrapper .prompt-cluster-select:hover {
+    border-color: #CBD5E1;
+    background: #FFFFFF;
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select:focus {
+    outline: none;
+    border-color: #0F172A;
+    box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="assigned"] {
+    background: #ECFCCB;
+    border-color: #BEF264;
+    color: #365314;
+    font-weight: 600;
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="assigned"]:hover {
+    background: #D9F99D;
+    border-color: #A3E635;
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="unassigned"] {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+    color: #64748B;
+    font-weight: 500;
+}
+
+.prompt-cluster-select-wrapper .prompt-cluster-select[data-state="unassigned"]:hover {
+    background: #FFFFFF;
+    color: #334155;
+}
+
+/* Delete button inside prompt row */
+.prompt-item .btn-icon {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: #94A3B8;
+    transition: all 0.2s;
+}
+
+.prompt-item .btn-icon:hover {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+/* ── Clusters tab ─────────────────────────────────────────── */
+.clusters-config-header {
+    padding: 0.5rem 0 0.875rem;
+    border-bottom: 1px solid #F1F5F9;
+    margin-bottom: 1rem;
+}
+
+.clusters-enable-switch {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.clusters-enable-switch input[type="checkbox"] {
+    position: absolute; opacity: 0; pointer-events: none;
+    width: 1px; height: 1px;
+}
+
+.clusters-enable-switch-slider {
+    position: relative;
+    display: inline-block;
+    width: 44px; height: 24px;
+    flex: 0 0 auto;
+    background: #E2E8F0;
+    border-radius: 9999px;
+    transition: background 0.3s cubic-bezier(0.2,0.8,0.2,1);
+    margin-top: 2px;
+}
+
+.clusters-enable-switch-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1);
+}
+
+.clusters-enable-switch input:checked + .clusters-enable-switch-slider {
+    background: #0A0A0B;
+}
+
+.clusters-enable-switch input:checked + .clusters-enable-switch-slider::after {
+    transform: translateX(20px);
+}
+
+.clusters-enable-switch-label {
+    display: flex; flex-direction: column; gap: 0.1rem; line-height: 1.35;
+}
+
+.clusters-enable-switch-label strong {
+    color: #0F172A; font-size: 0.9rem; font-weight: 600;
+}
+
+.clusters-enable-switch-label small {
+    color: #64748B; font-size: 0.78rem;
+}
+
+.clusters-config-container { display: block; }
+
+.clusters-config-container.disabled .clusters-list,
+.clusters-config-container.disabled .clusters-empty-hint {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.clusters-config-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.875rem;
+    flex-wrap: wrap;
+}
+
+.clusters-save-hint {
+    font-size: 0.78rem;
+    color: #64748B;
+    font-style: italic;
+    margin-left: auto;
+}
+
+.clusters-save-hint.saved { color: #22C55E; font-style: normal; }
+.clusters-save-hint.error  { color: #EF4444; font-style: normal; }
+
+/* Cluster editor rows */
+.clusters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.llm-cluster-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    transition: all 0.2s cubic-bezier(0.2,0.8,0.2,1);
+}
+
+.llm-cluster-row:hover {
+    border-color: rgba(217,249,184,0.5);
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+}
+
+.llm-cluster-row .cluster-name-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    color: #0F172A;
+    transition: all 0.2s;
+}
+
+.llm-cluster-row .cluster-name-input::placeholder {
+    color: #94A3B8;
+    font-weight: 400;
+}
+
+.llm-cluster-row .cluster-name-input:focus {
+    outline: none;
+    border-color: #0A0A0B;
+    box-shadow: 0 0 0 2px rgba(10,10,11,0.06);
+    background: #FFFFFF;
+}
+
+.llm-cluster-row .cluster-row-count {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    background: rgba(217,249,184,0.2);
+    color: #0F172A;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    white-space: nowrap;
+}
+
+.llm-cluster-row .cluster-row-count.empty {
+    background: #F1F5F9;
+    color: #94A3B8;
+}
+
+.llm-cluster-row .btn-cluster-delete {
+    flex: 0 0 auto;
+    width: 30px; height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #94A3B8;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.llm-cluster-row .btn-cluster-delete:hover {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+
+.clusters-empty-hint {
+    padding: 1.5rem 1rem;
+    font-size: 0.85rem;
+    color: #64748B;
+    text-align: center;
+}
+
+.clusters-empty-hint i {
+    margin-right: 0.35rem;
+    color: #94A3B8;
+}
+
+/* ── Clusters Performance chart card ──────────────────────── */
+#clustersPerformanceCard .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.clusters-metric-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.65rem;
+    background: #0A0A0B;
+    border: none;
+    border-radius: 9999px;
+    color: #D9F9B8;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.clusters-metric-indicator i {
+    color: rgba(217,249,184,0.6);
+}
+
+.clusters-chart-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+}
+
+.clusters-chart-empty .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.clusters-chart-empty .empty-state i {
+    font-size: 2.5rem;
+    color: #E2E8F0;
+}
+
+.clusters-chart-empty .empty-state h4 {
+    margin: 0; color: #0F172A; font-size: 1rem; font-weight: 600;
+}
+
+.clusters-chart-empty .empty-state p {
+    margin: 0; color: #64748B; font-size: 0.85rem; max-width: 520px; line-height: 1.5;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .prompts-mgmt-tab {
+        padding: 0.625rem 0.875rem;
+        font-size: 0.82rem;
+    }
+    .prompts-cluster-filter {
+        margin-left: 0 !important;
+        margin-top: 0.25rem;
+        width: 100%;
+    }
+    .llm-cluster-row {
+        flex-wrap: wrap;
+    }
+    .llm-cluster-row .cluster-name-input {
+        flex: 1 1 100%;
+    }
+    .prompt-cluster-select-wrapper .prompt-cluster-select {
+        min-width: 120px;
+        max-width: 100%;
+    }
+    .prompt-item .prompt-bottom-row {
+        flex-wrap: wrap;
+    }
+}
+
