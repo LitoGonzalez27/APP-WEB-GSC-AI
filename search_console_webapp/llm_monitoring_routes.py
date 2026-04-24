@@ -6528,14 +6528,9 @@ def export_project_excel(project_id):
                 elif row_idx == 6:  # Branded row highlight
                     cell.fill = PatternFill(start_color='FEF3C7', end_color='FEF3C7', fill_type='solid')
 
-        # Auto-width
-        for col in ws9.columns:
-            max_length = 0
-            for cell in col:
-                if cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            adjusted_width = min(max(max_length + 2, 12), 30)
-            ws9.column_dimensions[col[0].column_letter].width = adjusted_width
+        # Auto-width — use the shared helper that reads col via get_column_letter,
+        # safe with MergedCell objects (A1:J1 is merged for the title).
+        auto_width(ws9, min_width=12, max_width=30)
 
         # ──────────────────────────────────────────────────
         # SAVE & RETURN
