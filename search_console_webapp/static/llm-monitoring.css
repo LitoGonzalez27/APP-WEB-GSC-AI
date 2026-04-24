@@ -5372,28 +5372,48 @@ label:not(.search-form label) {
     align-items: center;
 }
 
-/* Per-prompt cluster selector — compact, no icon */
+/* Per-prompt cluster selector — wrapper carries the chevron via ::after
+   so the <select> only needs a flat background. This avoids edge cases
+   where a later rule resets background-repeat and the SVG tiles. */
 .prompt-cluster-select-wrapper {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
 }
 
-/* Hide the layer-group icon inside the wrapper */
+.prompt-cluster-select-wrapper::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 0.7rem;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    border-right: 2px solid #64748B;
+    border-bottom: 2px solid #64748B;
+    transform-origin: center;
+    transform: translateY(-70%) rotate(45deg);
+    border-radius: 1px;
+    transition: border-color 0.15s ease;
+}
+
+.prompt-cluster-select-wrapper:has(.prompt-cluster-select[data-state="assigned"])::after {
+    border-right-color: #365314;
+    border-bottom-color: #365314;
+}
+
+/* Hide the legacy layer-group icon if present in older markup */
 .prompt-cluster-select-wrapper i.fa-layer-group {
     display: none;
 }
 
 .prompt-cluster-select {
-    padding: 0 2rem 0 0.75rem;
+    padding: 0 2.1rem 0 0.75rem;
     font-size: 0.8rem;
     font-weight: 500;
     font-family: inherit;
-    background-color: #F8FAFC;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.6rem center;
-    background-size: 12px 12px;
+    background: #F8FAFC;
     border: 1px solid #E2E8F0;
     border-radius: 8px;
     color: #0F172A;
@@ -5402,15 +5422,21 @@ label:not(.search-form label) {
     max-width: 220px;
     height: 32px;
     line-height: 30px;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
+
+/* Remove the default dropdown arrow on IE/Edge legacy */
+.prompt-cluster-select::-ms-expand { display: none; }
 
 .prompt-cluster-select:hover {
     border-color: #CBD5E1;
-    background-color: #FFFFFF;
+    background: #FFFFFF;
 }
 
 .prompt-cluster-select:focus {
@@ -5420,27 +5446,26 @@ label:not(.search-form label) {
 }
 
 .prompt-cluster-select[data-state="assigned"] {
-    background-color: #ECFCCB;
+    background: #ECFCCB;
     border-color: #BEF264;
     color: #365314;
     font-weight: 600;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23365314' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .prompt-cluster-select[data-state="assigned"]:hover {
-    background-color: #D9F99D;
+    background: #D9F99D;
     border-color: #A3E635;
 }
 
 .prompt-cluster-select[data-state="unassigned"] {
-    background-color: #F8FAFC;
+    background: #F8FAFC;
     border-color: #E2E8F0;
     color: #64748B;
     font-weight: 500;
 }
 
 .prompt-cluster-select[data-state="unassigned"]:hover {
-    background-color: #FFFFFF;
+    background: #FFFFFF;
     color: #334155;
 }
 
