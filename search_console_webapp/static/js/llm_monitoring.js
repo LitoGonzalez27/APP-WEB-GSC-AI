@@ -8615,7 +8615,7 @@ class LLMMonitoring {
                         yAxisID: 'y',
                         categoryPercentage: 0.65,
                         barPercentage: 0.85,
-                        order: 2
+                        order: 1
                     },
                     {
                         label: 'Avg position',
@@ -8627,7 +8627,7 @@ class LLMMonitoring {
                         yAxisID: 'y1',
                         categoryPercentage: 0.65,
                         barPercentage: 0.85,
-                        order: 1
+                        order: 2
                     }
                 ]
             },

@@ -5385,40 +5385,63 @@ label:not(.search-form label) {
 }
 
 .prompt-cluster-select {
-    padding: 0.3rem 1.5rem 0.3rem 0.5rem;
-    font-size: 0.78rem;
+    padding: 0 2rem 0 0.75rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    background: #F8FAFC;
+    font-family: inherit;
+    background-color: #F8FAFC;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 12px 12px;
     border: 1px solid #E2E8F0;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #0F172A;
     cursor: pointer;
-    min-width: 130px;
-    max-width: 200px;
-    height: 30px;
-    transition: all 0.2s;
-    appearance: auto;
+    min-width: 150px;
+    max-width: 220px;
+    height: 32px;
+    line-height: 30px;
+    transition: all 0.15s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
 }
 
-.prompt-cluster-select:hover { border-color: #94A3B8; }
+.prompt-cluster-select:hover {
+    border-color: #CBD5E1;
+    background-color: #FFFFFF;
+}
 
 .prompt-cluster-select:focus {
     outline: none;
-    border-color: #0A0A0B;
-    box-shadow: 0 0 0 2px rgba(10,10,11,0.06);
+    border-color: #0F172A;
+    box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
 }
 
 .prompt-cluster-select[data-state="assigned"] {
-    background: rgba(217,249,184,0.15);
-    border-color: rgba(217,249,184,0.5);
-    color: #0F172A;
+    background-color: #ECFCCB;
+    border-color: #BEF264;
+    color: #365314;
     font-weight: 600;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23365314' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.prompt-cluster-select[data-state="assigned"]:hover {
+    background-color: #D9F99D;
+    border-color: #A3E635;
 }
 
 .prompt-cluster-select[data-state="unassigned"] {
-    background: #F8FAFC;
+    background-color: #F8FAFC;
     border-color: #E2E8F0;
-    color: #94A3B8;
+    color: #64748B;
+    font-weight: 500;
+}
+
+.prompt-cluster-select[data-state="unassigned"]:hover {
+    background-color: #FFFFFF;
+    color: #334155;
 }
 
 /* Delete button inside prompt row */
