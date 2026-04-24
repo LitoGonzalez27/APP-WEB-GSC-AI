@@ -8586,7 +8586,6 @@ class LLMMonitoring {
 
         container.style.display = '';
         emptyBox.style.display = 'none';
-        if (actions) actions.style.display = '';
 
         const labels = clustersWithData.map(c => c.cluster);
         const sovData = clustersWithData.map(c => c.share_of_voice || 0);
