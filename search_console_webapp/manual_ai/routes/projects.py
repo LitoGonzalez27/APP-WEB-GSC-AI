@@ -196,24 +196,73 @@ def update_project(project_id):
 @auth_required
 def delete_project(project_id):
     """
-    Eliminar completamente un proyecto y todos sus datos
-    
-    Args:
-        project_id: ID del proyecto
-    
-    Returns:
-        JSON con resultado de la eliminación y estadísticas
+    Permanently delete a project and all its data.
+
+    Mirrors LLM Monitoring: only allowed if the project has been paused first.
     """
     user = get_current_user()
-    
+
     result = project_service.delete_project(project_id, user['id'])
-    
+
     if result['success']:
         return jsonify({
             'success': True,
             'message': f'Project "{result.get("project_name", "")}" deleted successfully',
             'stats': result.get('stats', {})
         })
+
+    err_text = (result.get('error') or '').lower()
+    if result.get('action_required') == 'deactivate_first':
+        status_code = 400
+    elif 'unauthorized' in err_text:
+        status_code = 403
+    elif 'not found' in err_text:
+        status_code = 404
     else:
-        status_code = 404 if 'not found' in result.get('error', '').lower() else 500
-        return jsonify(result), status_code
+        status_code = 500
+    return jsonify(result), status_code
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/pause', methods=['PUT'])
+@auth_required
+def pause_project(project_id):
+    """Pause a project: it stops running in cron and stops consuming quota,
+    but all its data is kept. The user can resume or delete it afterwards.
+    """
+    user = get_current_user()
+    result = project_service.pause_project(project_id, user['id'])
+
+    if result.get('success'):
+        return jsonify(result), 200
+
+    err_text = (result.get('error') or '').lower()
+    if 'unauthorized' in err_text:
+        status_code = 403
+    elif 'not found' in err_text or 'already' in err_text:
+        status_code = 404
+    else:
+        status_code = 400
+    return jsonify(result), status_code
+
+
+@manual_ai_bp.route('/api/projects/<int:project_id>/resume', methods=['PUT'])
+@auth_required
+def resume_project(project_id):
+    """Resume a paused project. If the user has no quota left, the response
+    includes the renewal date so the frontend can explain when it will be
+    available again.
+    """
+    user = get_current_user()
+    result = project_service.resume_project(project_id, user['id'])
+
+    if result.get('success'):
+        return jsonify(result), 200
+
+    err_code = (result.get('error') or '').lower()
+    if err_code == 'quota_exceeded':
+        return jsonify(result), 402
+    if 'unauthorized' in err_code:
+        return jsonify(result), 403
+    if 'not found' in err_code or 'already' in err_code:
+        return jsonify(result), 404
+    return jsonify(result), 400

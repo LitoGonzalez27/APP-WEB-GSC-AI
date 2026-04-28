@@ -45,7 +45,8 @@ class ProjectRepository:
                         p.description,
                         p.brand_name,
                         p.country_code,
-                        p.is_paused_by_quota,
+                        p.is_active,
+                        COALESCE(p.is_paused_by_quota, FALSE) AS is_paused_by_quota,
                         p.paused_until,
                         p.paused_at,
                         p.paused_reason,
@@ -86,8 +87,7 @@ class ProjectRepository:
                             MAX(analysis_date) as last_analysis_date
                         FROM latest_results
                     ) project_stats ON true
-                    WHERE p.is_active = true
-                      AND (
+                    WHERE (
                         p.user_id = %s
                         OR EXISTS (
                             SELECT 1
@@ -111,7 +111,8 @@ class ProjectRepository:
                         p.description,
                         p.brand_name,
                         p.country_code,
-                        p.is_paused_by_quota,
+                        p.is_active,
+                        COALESCE(p.is_paused_by_quota, FALSE) AS is_paused_by_quota,
                         p.paused_until,
                         p.paused_at,
                         p.paused_reason,
@@ -152,7 +153,7 @@ class ProjectRepository:
                             MAX(analysis_date) as last_analysis_date
                         FROM latest_results
                     ) project_stats ON true
-                    WHERE p.user_id = %s AND p.is_active = true
+                    WHERE p.user_id = %s
                     ORDER BY p.created_at DESC
                 """, (user_id,))
             
@@ -218,33 +219,32 @@ class ProjectRepository:
     @staticmethod
     def user_owns_project(user_id: int, project_id: int) -> bool:
         """
-        Verificar si un usuario es propietario de un proyecto AI Mode
-        
-        Args:
-            user_id: ID del usuario
-            project_id: ID del proyecto
-            
-        Returns:
-            True si el usuario es propietario, False en caso contrario
+        Verificar si un usuario es propietario de un proyecto AI Mode.
+
+        Incluye proyectos pausados manualmente — el owner debe poder
+        reactivar / borrar / editar sus proyectos pausados. La exclusión del
+        cron / análisis vive en cron_service y analysis_service, no aquí.
         """
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         cur.execute("""
-            SELECT 1 FROM ai_mode_projects 
-            WHERE id = %s AND user_id = %s AND is_active = true
+            SELECT 1 FROM ai_mode_projects
+            WHERE id = %s AND user_id = %s
         """, (project_id, user_id))
-        
+
         result = cur.fetchone()
         cur.close()
         conn.close()
-        
+
         return result is not None
 
     @staticmethod
     def user_has_project_access(user_id: int, project_id: int) -> bool:
         """
         Verificar si un usuario puede ver un proyecto (owner o colaborador viewer).
+
+        Incluye proyectos pausados manualmente para que el dashboard pueda mostrarlos.
         """
         conn = get_db_connection()
         cur = conn.cursor()
@@ -253,7 +253,6 @@ class ProjectRepository:
                 SELECT 1
                 FROM ai_mode_projects p
                 WHERE p.id = %s
-                  AND p.is_active = true
                   AND (
                     p.user_id = %s
                     OR EXISTS (
@@ -271,7 +270,7 @@ class ProjectRepository:
                 cur.execute("""
                     SELECT 1
                     FROM ai_mode_projects
-                    WHERE id = %s AND user_id = %s AND is_active = true
+                    WHERE id = %s AND user_id = %s
                 """, (project_id, user_id))
             else:
                 cur.close()
@@ -334,11 +333,12 @@ class ProjectRepository:
         
         try:
             cur.execute("""
-                SELECT id, name, description, brand_name, country_code, selected_competitors, created_at, updated_at
+                SELECT id, name, description, brand_name, country_code, is_active,
+                       selected_competitors, created_at, updated_at
                 FROM ai_mode_projects
-                WHERE id = %s AND is_active = true
+                WHERE id = %s
             """, (project_id,))
-            
+
             project = cur.fetchone()
             return dict(project) if project else None
             
@@ -552,6 +552,114 @@ class ProjectRepository:
             logger.error(f"Error updating competitors for AI Mode project {project_id}: {e}")
             conn.rollback()
             return False
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def pause_project(project_id: int) -> Optional[Dict]:
+        """Marca un proyecto AI Mode como inactivo (pausa manual).
+
+        Returns the updated row (id, name) on success, None if no-op.
+        """
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                UPDATE ai_mode_projects
+                SET is_active = FALSE, updated_at = NOW()
+                WHERE id = %s AND is_active = TRUE
+                RETURNING id, name
+            """, (project_id,))
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error pausing AI Mode project {project_id}: {exc}")
+            conn.rollback()
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def resume_project(project_id: int) -> Optional[Dict]:
+        """Marca un proyecto AI Mode inactivo como activo.
+
+        Limpia también el flag de pausa por cuota: la reactivación manual
+        es una decisión explícita del usuario sobre el proyecto.
+        """
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                UPDATE ai_mode_projects
+                SET is_active = TRUE,
+                    is_paused_by_quota = FALSE,
+                    paused_until = NULL,
+                    paused_at = NULL,
+                    paused_reason = NULL,
+                    updated_at = NOW()
+                WHERE id = %s AND is_active = FALSE
+                RETURNING id, name
+            """, (project_id,))
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error resuming AI Mode project {project_id}: {exc}")
+            conn.rollback()
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def count_user_active_projects(user_id: int) -> int:
+        """Cuenta proyectos activos (is_active=true) propios del usuario."""
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c
+                FROM ai_mode_projects
+                WHERE user_id = %s AND is_active = TRUE
+            """, (user_id,))
+            row = cur.fetchone()
+            if not row:
+                return 0
+            return int(row['c'] if isinstance(row, dict) else row[0])
+        except Exception as exc:
+            logger.error(f"Error counting active ai_mode projects for user {user_id}: {exc}")
+            return 0
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_status(project_id: int) -> Optional[Dict]:
+        """Devuelve id, name, is_active del proyecto, sin filtrar por estado."""
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT id, name, is_active
+                FROM ai_mode_projects
+                WHERE id = %s
+            """, (project_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error fetching status for AI Mode project {project_id}: {exc}")
+            return None
         finally:
             cur.close()
             conn.close()

@@ -56,16 +56,54 @@ export function renderProjects() {
     this.hideElement(this.elements.projectsEmptyState);
     this.showElement(this.elements.projectsContainer);
 
-    this.elements.projectsContainer.innerHTML = this.projects.map(project => `
-        <div class="project-card" data-project-id="${project.id}" onclick="aiModeSystem.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
+    this.elements.projectsContainer.innerHTML = this.projects.map(project => {
+        const canEdit = project.can_edit !== false;
+        const isActive = project.is_active !== false;
+        const isPausedByQuota = !!project.is_paused_by_quota;
+        const cardClickable = isActive && !isPausedByQuota;
+        const cardOnClick = cardClickable
+            ? `onclick="aiModeSystem.goToProjectAnalytics(${project.id})"`
+            : '';
+        const cardStyle = cardClickable
+            ? 'cursor: pointer;'
+            : 'cursor: default; opacity: 0.78;';
+
+        const safeName = JSON.stringify(project.name || '');
+        const pausedUntilLabel = formatPauseDate(project.paused_until);
+        let statusBadge = '';
+        if (!isActive) {
+            statusBadge = `
+                <span class="badge badge-language" title="This project is paused. It will not run in automatic analyses." style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
+                    <i class="fas fa-pause" style="margin-right:4px;"></i>Paused
+                </span>
+            `;
+        } else if (isPausedByQuota) {
+            statusBadge = `
+                <span class="badge badge-language" title="Paused automatically because the monthly quota is exhausted." style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">
+                    <i class="fas fa-pause" style="margin-right:4px;"></i>Paused (quota)${pausedUntilLabel ? ` · resumes ${pausedUntilLabel}` : ''}
+                </span>
+            `;
+        }
+
+        const hasInitialAnalysis = !!project.last_analysis_date;
+        const hasKeywords = (project.total_keywords || 0) > 0;
+        const showFirstRunCta = canEdit && cardClickable && !hasInitialAnalysis && hasKeywords;
+        const showPauseBtn = canEdit && isActive;
+        const showResumeBtn = canEdit && !isActive;
+        const showDeleteBtn = canEdit && !isActive;
+
+        return `
+        <div class="project-card${!cardClickable ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
-                ${(project.can_edit === false) ? `
+                ${(canEdit === false) ? `
                     <div class="project-actions">
                         <span class="badge badge-language">Shared (view only)</span>
+                        ${statusBadge}
                     </div>
                 ` : `
-                    <div class="project-actions">
+                    <div class="project-actions" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        ${statusBadge}
                         <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
                                 title="Project settings" aria-label="Open project settings">
                             <i class="fas fa-cog" aria-hidden="true"></i>
@@ -110,22 +148,58 @@ export function renderProjects() {
             </div>
             <div class="project-footer">
                 <small class="last-analysis">
-                    Last analysis: ${project.last_analysis_date ? 
+                    Last analysis: ${project.last_analysis_date ?
                         new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
                 </small>
-                ${(project.can_edit !== false && !project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
-                    <div class="first-run-cta" style="margin-top: 10px;">
-                        <button type="button" class="btn-primary btn-small" 
+                <div class="project-footer-actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                    ${showFirstRunCta ? `
+                        <button type="button" class="btn-primary btn-small"
                                 onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
                                 title="Run the first analysis for this project">
                             <i class="fas fa-play"></i>
                             Run first analysis now
                         </button>
-                    </div>
-                ` : ''}
+                    ` : ''}
+                    ${showPauseBtn ? `
+                        <button type="button" class="btn-secondary btn-small"
+                                onclick="event.stopPropagation(); aiModeSystem.pauseProject(${project.id}, ${safeName})"
+                                title="Pause this project — it will stop running in automatic analyses and stop consuming quota.">
+                            <i class="fas fa-pause"></i>
+                            Pause
+                        </button>
+                    ` : ''}
+                    ${showResumeBtn ? `
+                        <button type="button" class="btn-primary btn-small"
+                                onclick="event.stopPropagation(); aiModeSystem.resumeProject(${project.id}, ${safeName})"
+                                title="Resume this project. Requires available monthly quota.">
+                            <i class="fas fa-play"></i>
+                            Resume
+                        </button>
+                    ` : ''}
+                    ${showDeleteBtn ? `
+                        <button type="button" class="btn-danger btn-small"
+                                onclick="event.stopPropagation(); aiModeSystem.deleteProjectPermanently(${project.id}, ${safeName})"
+                                title="Permanently delete this project and all its data.">
+                            <i class="fas fa-trash"></i>
+                            Delete
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function formatPauseDate(value) {
+    if (!value) return '';
+    try {
+        const d = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (_) {
+        return '';
+    }
 }
 
 export function renderProjectCompetitorsSection(project) {
@@ -514,4 +588,106 @@ export function getCompetitorChipValues() {
 
 export function setCompetitorError(msg) {
     if (this.elements.competitorError) this.elements.competitorError.textContent = msg || '';
+}
+
+// ================================
+// PAUSE / RESUME / DELETE
+// ================================
+
+export async function pauseProject(projectId, projectName) {
+    const name = projectName || 'this project';
+    const confirmed = window.confirm(
+        `Pause "${name}"?\n\nThe project will stop running in automatic analyses and will not consume any quota until you resume it. All its data will be kept.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/pause`, {
+            method: 'PUT',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" paused.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error pausing project:', error);
+        this.showError(error.message || 'Failed to pause project');
+    }
+}
+
+export async function resumeProject(projectId, projectName) {
+    const name = projectName || 'this project';
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/resume`, {
+            method: 'PUT',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (response.status === 402 && data.error === 'quota_exceeded') {
+            const renewal = formatRenewalDate(data.reset_date);
+            const renewalSuffix = renewal ? ` until ${renewal}` : '';
+            this.showError(
+                `Quota exhausted${renewalSuffix}. You can resume "${name}" once your plan renews.`
+            );
+            return;
+        }
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" reactivated.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error resuming project:', error);
+        this.showError(error.message || 'Failed to resume project');
+    }
+}
+
+export async function deleteProjectPermanently(projectId, projectName) {
+    const name = projectName || 'this project';
+    const confirmed = window.confirm(
+        `Permanently delete "${name}"?\n\nThis will remove the project, all its keywords, results and history. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 400 && data.action_required === 'deactivate_first') {
+            this.showError('Pause the project first before deleting it.');
+            return;
+        }
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" permanently deleted.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        this.showError(error.message || 'Failed to delete project');
+    }
+}
+
+function formatRenewalDate(value) {
+    if (!value) return '';
+    try {
+        const d = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
+    } catch (_) {
+        return '';
+    }
 }

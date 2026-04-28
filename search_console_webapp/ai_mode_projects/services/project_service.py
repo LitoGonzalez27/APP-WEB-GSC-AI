@@ -138,25 +138,106 @@ class ProjectService:
             return {'success': False, 'error': str(e)}
     
     def delete_project(self, project_id: int, user_id: int) -> Dict:
-        """
-        Eliminar un proyecto y todos sus datos
-        
-        Args:
-            project_id: ID del proyecto
-            user_id: ID del usuario
-            
-        Returns:
-            Dict con resultado de la eliminación
+        """Permanently delete an AI Mode project and all its data.
+
+        Mirrors LLM Monitoring: only allowed if the project has been paused
+        first (is_active=false), to prevent accidental deletes.
         """
         logger.info(f"Delete request for project {project_id} by user {user_id}")
-        
+
         # Validar pertenencia
         if not self.project_repo.user_owns_project(user_id, project_id):
             logger.warning(f"Unauthorized delete attempt for project {project_id} by user {user_id}")
             return {'success': False, 'error': 'Unauthorized'}
-        
-        # Eliminar proyecto
+
+        # Exigir pausa previa
+        status = self.project_repo.get_project_status(project_id)
+        if not status:
+            return {'success': False, 'error': 'Project not found'}
+        if status.get('is_active'):
+            return {
+                'success': False,
+                'error': 'Cannot delete an active project. Please pause it first.',
+                'action_required': 'deactivate_first'
+            }
+
         return self.project_repo.delete_project(project_id, user_id)
+
+    def pause_project(self, project_id: int, user_id: int) -> Dict:
+        """Pause manually: stops cron analyses, stops consuming quota, keeps data."""
+        if not self.project_repo.user_owns_project(user_id, project_id):
+            return {'success': False, 'error': 'Unauthorized'}
+
+        row = self.project_repo.pause_project(project_id)
+        if not row:
+            return {'success': False, 'error': 'Project not found or already paused'}
+
+        try:
+            self.event_repo.create_event(
+                project_id=project_id,
+                event_type='project_paused',
+                event_title=f'Project "{row["name"]}" paused manually',
+                user_id=user_id
+            )
+        except Exception as evt_exc:
+            logger.warning(f"Could not log pause event for AI Mode project {project_id}: {evt_exc}")
+
+        return {
+            'success': True,
+            'project_id': row['id'],
+            'project_name': row['name'],
+            'message': f'Project "{row["name"]}" paused. It will no longer run in automatic analyses.'
+        }
+
+    def resume_project(self, project_id: int, user_id: int) -> Dict:
+        """Resume a paused project. Validates quota first; if exhausted, returns
+        a structured error including the renewal date.
+        """
+        if not self.project_repo.user_owns_project(user_id, project_id):
+            return {'success': False, 'error': 'Unauthorized'}
+
+        try:
+            from quota_manager import get_user_quota_status
+            quota = get_user_quota_status(user_id) or {}
+        except Exception as quota_exc:
+            logger.warning(f"Quota status unavailable for user {user_id}: {quota_exc}")
+            quota = {}
+
+        if quota and not quota.get('can_consume', True):
+            reset_date = quota.get('reset_date')
+            return {
+                'success': False,
+                'error': 'quota_exceeded',
+                'message': 'You have used all your monthly quota. The project will be available to resume after your plan renews.',
+                'quota_info': {
+                    'plan': quota.get('plan'),
+                    'quota_used': quota.get('quota_used'),
+                    'quota_limit': quota.get('quota_limit'),
+                    'remaining': quota.get('remaining'),
+                },
+                'reset_date': reset_date.isoformat() if hasattr(reset_date, 'isoformat') else reset_date,
+            }
+
+        row = self.project_repo.resume_project(project_id)
+        if not row:
+            return {'success': False, 'error': 'Project not found or already active'}
+
+        try:
+            self.event_repo.create_event(
+                project_id=project_id,
+                event_type='project_resumed',
+                event_title=f'Project "{row["name"]}" reactivated',
+                user_id=user_id
+            )
+        except Exception as evt_exc:
+            logger.warning(f"Could not log resume event for AI Mode project {project_id}: {evt_exc}")
+
+        return {
+            'success': True,
+            'project_id': row['id'],
+            'project_name': row['name'],
+            'message': f'Project "{row["name"]}" reactivated. It will be included in upcoming automatic analyses.'
+        }
     
     def user_owns_project(self, user_id: int, project_id: int) -> bool:
         """
