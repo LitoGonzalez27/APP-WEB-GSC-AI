@@ -1,31 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-      <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clicandseo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in · Clicandseo</title>
 
-  <!-- Google Tag Manager -->
-  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
-  <!-- End Google Tag Manager -->
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NXJS74ZQ');</script>
+    <!-- End Google Tag Manager -->
 
-  <!-- Favicon y Apple Touch Icons -->
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
-  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicons/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicons/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicons/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/favicons/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Estilos del login -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
+    <!-- Brandbook auth styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
     {% if recaptcha_site_key %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
     {% endif %}
@@ -34,136 +30,138 @@
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXJS74ZQ"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
-    
-    <div class="login-container">
-        <!-- Background decorativo -->
-        <div class="login-background">
-            <div class="background-circles">
-                <div class="circle circle-1"></div>
-                <div class="circle circle-2"></div>
-                <div class="circle circle-3"></div>
-            </div>
-        </div>
 
-        <!-- Contenido principal -->
-        <div class="login-content">
-            <!-- Header mobile con logo y nombre - Solo visible en mobile -->
-            <div class="mobile-header">
-                <div class="brand-logo">
-                    <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" 
-                         alt="Clicandseo Logo" 
-                         class="logo-image-login">
+    <!-- Mobile-only header (logo only) -->
+    <header class="auth-mobile-header">
+        <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" alt="Clicandseo" />
+    </header>
+
+    <main class="auth-page">
+        <!-- ============================================================
+             LEFT — Brand panel (dark)
+             ============================================================ -->
+        <aside class="auth-brand" aria-label="Clicandseo">
+            <div class="auth-brand__top">
+                <div class="auth-brand__logo">
+                    <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-dark.svg') }}" alt="Clicandseo" />
                 </div>
             </div>
 
-            <!-- Panel izquierdo - Branding -->
-            <div class="login-branding">
-                <div class="branding-content">
-                    <div class="brand-logo">
-                        <img src="{{ url_for('static', filename='images/logos/logo-clicandseo-light.svg') }}" 
-                             alt="Clicandseo Logo" 
-                             class="logo-image-login">
-                    </div>
-                    
-                    <div class="branding-text">
-                        <h2>Welcome!</h2>
-                        <p>Monitor your brand visibility in AI Mode, AI Overviews with GSC cross-data, and across leading LLMs like ChatGPT, Gemini, Claude & Perplexity.</p>
-                    </div>
+            <div class="auth-brand__body">
+                <h1 class="auth-brand__title">
+                    Inteligencia <span class="accent-word">SEO</span><br/>al servicio de tu marca.
+                </h1>
+                <p class="auth-brand__lead">
+                    Monitoriza la visibilidad de tu marca en AI Mode, AI Overview y los principales LLMs — ChatGPT, Gemini, Claude y Perplexity — con datos cruzados de Search Console.
+                </p>
 
-                    <div class="branding-features">
-                        <div class="feature">
-                            <i class="fas fa-broadcast-tower"></i>
-                            <span>AI Mode visibility tracking</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-robot"></i>
-                            <span>AI Overview visibility tracking</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-brain"></i>
-                            <span>Multi-LLM brand monitoring</span>
-                        </div>
-                        <div class="feature">
-                            <i class="fas fa-chart-line"></i>
-                            <span>GSC + AI cross-data insights</span>
-                        </div>
-                    </div>
-                </div>
+                <ul class="auth-brand__features">
+                    <li>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 10v6M3.34 7l5.2 3M15.46 14l5.2 3M1 12h6m10 0h6M3.34 17l5.2-3M15.46 10l5.2-3"/>
+                        </svg>
+                        Visibility tracking en AI Mode
+                    </li>
+                    <li>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 16h.01M16 16h.01"/>
+                        </svg>
+                        AI Overview monitoring
+                    </li>
+                    <li>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 2a4 4 0 0 0-4 4v1.5A4 4 0 0 0 5 11v3a4 4 0 0 0 3 3.87V20a2 2 0 1 0 4 0 2 2 0 1 0 4 0v-2.13A4 4 0 0 0 19 14v-3a4 4 0 0 0-3-3.5V6a4 4 0 0 0-4-4z"/>
+                        </svg>
+                        Multi-LLM brand monitoring
+                    </li>
+                    <li>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/>
+                        </svg>
+                        GSC + AI cross-data insights
+                    </li>
+                </ul>
             </div>
 
-            <!-- Panel derecho - Formulario de login -->
-            <div class="login-form-panel">
-                <div class="login-form-content">
-                    <!-- Header del formulario -->
-                    <div class="form-header">
-                        <h3>Sign In</h3>
-                        <p>Don't have an account? <a href="/signup" class="signup-link-header">Create one</a></p>
-                    </div>
+            <div class="auth-brand__bottom">
+                <span>© {{ '2026' }} Clicandseo · Todos los derechos reservados</span>
+            </div>
+        </aside>
 
-                    <!-- Área de notificaciones -->
-                    <div id="loginNotifications" class="login-notifications" style="display: none;"></div>
+        <!-- ============================================================
+             RIGHT — Sign in form
+             ============================================================ -->
+        <section class="auth-form">
+            <div class="auth-form__inner">
+                <span class="auth-eyebrow">Iniciar sesión</span>
+                <h2 class="auth-title">
+                    Bienvenido de <span class="accent-word">vuelta</span>.
+                </h2>
+                <p class="auth-subtitle">
+                    ¿No tienes cuenta? <a href="/signup" class="signup-link-header">Crea una gratis</a>
+                </p>
 
-                    <!-- Email/Password Login Form -->
-                    <div class="login-form">
-                        <div class="email-login-form">
-                            <div class="form-group">
-                                <label for="emailInput">Email</label>
-                                <input type="email" id="emailInput" placeholder="your@email.com" />
-                            </div>
-                            <div class="form-group">
-                                <label for="passwordInput">Password</label>
-                                <input type="password" id="passwordInput" placeholder="********" />
-                            </div>
-                            <button type="button" id="emailLoginBtn" class="primary-btn full-width-btn">Sign In</button>
-                            <div class="forgot-password-link">
-                                <a href="/forgot-password" class="forgot-link">Forgot your password?</a>
-                            </div>
-                        </div>
-                        
-                        <div class="login-separator">
-                            <span>or</span>
-                        </div>
-                        
-                        <!-- Google Login Button -->
-                        <button type="button" id="googleLoginBtn" class="google-login-btn">
-                            <div class="google-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                </svg>
-                            </div>
-                            <span class="login-text">Sign In with Google</span>
-                            <div class="login-spinner" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i>
-                            </div>
-                        </button>
-                    </div>
+                <!-- Notifications -->
+                <div id="loginNotifications" class="auth-notifications" style="display: none;"></div>
 
-                    <!-- Enlace de registro -->
-                    <div class="form-footer">
-                        <div class="register-link" style="display: none;">
-                            <p>¿No tienes una cuenta? <a href="/signup" class="signup-link">Crear cuenta gratis</a></p>
-                        </div>
-                        <div class="footer-links">
-                            <a href="https://clicandseo.com/politica-de-privacidad/" class="footer-link" target="_blank" rel="noopener">Privacy Policy</a>
-                            <span class="footer-separator">•</span>
-                            <a href="https://clicandseo.com/condiciones-de-uso/" class="footer-link" target="_blank" rel="noopener">Terms of Service</a>
-                            <span class="footer-separator">•</span>
-                            <a href="https://clicandseo.com/aviso-legal/" class="footer-link" target="_blank" rel="noopener">Legal Notice</a>
-                        </div>
-                        <p class="footer-note">
-                            Need help? <a href="mailto:info@clicandseo.com" class="support-link" target="_blank" rel="noopener">Contact support</a>
-                        </p>
+                <!-- Email + password -->
+                <form class="auth-fields" autocomplete="on" onsubmit="return false;">
+                    <div class="auth-field">
+                        <label for="emailInput" class="auth-field__label">Email</label>
+                        <input class="auth-input" type="email" id="emailInput" name="email" placeholder="tu@email.com" autocomplete="email" />
                     </div>
+                    <div class="auth-field">
+                        <label for="passwordInput" class="auth-field__label">Contraseña</label>
+                        <input class="auth-input" type="password" id="passwordInput" name="password" placeholder="••••••••" autocomplete="current-password" />
+                    </div>
+                    <button type="button" id="emailLoginBtn" class="auth-btn auth-btn--primary">
+                        <span class="login-text">Iniciar sesión</span>
+                        <span class="login-spinner" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        </span>
+                    </button>
+                    <div class="auth-aux">
+                        <a href="/forgot-password" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                    </div>
+                </form>
+
+                <div class="auth-separator"><span>o</span></div>
+
+                <!-- Google Sign In -->
+                <button type="button" id="googleLoginBtn" class="auth-btn auth-btn--secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span class="login-text">Continuar con Google</span>
+                    <span class="login-spinner" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    </span>
+                </button>
+
+                <!-- Footer -->
+                <div class="auth-footer">
+                    <div class="auth-footer__links">
+                        <a href="https://clicandseo.com/politica-de-privacidad/" target="_blank" rel="noopener">Política de privacidad</a>
+                        <span class="auth-footer__sep">·</span>
+                        <a href="https://clicandseo.com/condiciones-de-uso/" target="_blank" rel="noopener">Términos de servicio</a>
+                        <span class="auth-footer__sep">·</span>
+                        <a href="https://clicandseo.com/aviso-legal/" target="_blank" rel="noopener">Aviso legal</a>
+                    </div>
+                    <p class="auth-footer__note">
+                        ¿Necesitas ayuda? <a href="mailto:info@clicandseo.com" target="_blank" rel="noopener">Contacta con soporte</a>
+                    </p>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
-    <!-- Scripts -->
+    <!-- ============================================================
+         Page logic — auth context, notifications, OAuth flow.
+         Behaviour preserved from the previous version.
+         ============================================================ -->
     <script>
         const AUTH_CONTEXT_KEYS = [
             'next', 'plan', 'source', 'interval',
@@ -175,13 +173,9 @@
             try {
                 AUTH_CONTEXT_KEYS.forEach((key) => {
                     const value = urlParams.get(key);
-                    if (value) {
-                        sessionStorage.setItem(`auth_ctx_${key}`, value);
-                    }
+                    if (value) sessionStorage.setItem(`auth_ctx_${key}`, value);
                 });
-            } catch (e) {
-                console.warn('Could not persist auth context', e);
-            }
+            } catch (e) { console.warn('Could not persist auth context', e); }
         }
 
         function getAuthContextParams() {
@@ -208,121 +202,89 @@
             });
         }
 
-        // Manejar notificaciones de la URL
+        // Lucide-style outline icons used inside notifications.
+        // Brandbook §08: outline only, stroke 2px.
+        const NOTIF_ICONS = {
+            success: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+            error:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+            warning: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            info:    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+        };
+
+        function showNotification(message, type = 'info') {
+            const notifications = document.getElementById('loginNotifications');
+            notifications.innerHTML = `
+                <div class="auth-notification auth-notification--${type}">
+                    ${NOTIF_ICONS[type] || NOTIF_ICONS.info}
+                    <span>${message}</span>
+                </div>
+            `;
+            notifications.style.display = 'block';
+            if (type === 'success') {
+                setTimeout(() => { notifications.style.display = 'none'; }, 5000);
+            }
+        }
+        function showSuccessMessage(message) { showNotification(message, 'success'); }
+
         function handleUrlNotifications() {
             const urlParams = new URLSearchParams(window.location.search);
-            const notifications = document.getElementById('loginNotifications');
             persistAuthContext(urlParams);
             syncAuthContextLinks();
-            
+
             if (urlParams.get('auth_success') === 'true') {
                 const action = urlParams.get('action');
                 const firstTime = urlParams.get('first_time');
-                
                 if (action === 'register' && firstTime === 'true') {
-                    showNotification('Account created and automatically signed in! Welcome to Clicandseo.', 'success');
+                    showNotification('Cuenta creada y sesión iniciada. ¡Bienvenido a Clicandseo!', 'success');
                 } else if (action === 'register') {
-                    showNotification('Account created successfully! Welcome to Clicandseo.', 'success');
+                    showNotification('¡Cuenta creada! Bienvenido a Clicandseo.', 'success');
                 } else {
-                    showNotification('Authentication successful! Redirecting...', 'success');
+                    showNotification('Autenticación correcta. Redirigiendo…', 'success');
                 }
-                
-                setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 2000);
+                setTimeout(() => { window.location.href = '/dashboard'; }, 2000);
                 return;
             }
-            
-            // ✅ NUEVO FASE 4.5: Mostrar mensaje de registro exitoso
+
             const registrationSuccess = urlParams.get('registration_success');
             const withGoogle = urlParams.get('with_google');
             const userEmail = urlParams.get('email');
-            
             if (registrationSuccess === 'true') {
-                let successMessage = '🎉 Registration successful!';
+                let msg = '🎉 ¡Registro completado!';
                 if (withGoogle === 'true') {
-                    successMessage += `<br>Your ClicandSEO account is ready.`;
-                    if (userEmail) {
-                        successMessage += `<br><strong>Email:</strong> ${userEmail}`;
-                    }
-                    successMessage += '<br><br>🚀 <strong>Sign in to start with your free plan</strong>';
+                    msg += '<br>Tu cuenta de Clicandseo está lista.';
+                    if (userEmail) msg += `<br><strong>Email:</strong> ${userEmail}`;
+                    msg += '<br><br>Inicia sesión para empezar con tu plan gratuito.';
                 } else {
-                    successMessage += ' You can now sign in.';
+                    msg += ' Ya puedes iniciar sesión.';
                 }
-                
-                showSuccessMessage(successMessage);
-                
-                // Limpiar URL después de mostrar el mensaje
+                showSuccessMessage(msg);
                 const preserved = getAuthContextParams().toString();
                 const newUrl = `${window.location.origin}${window.location.pathname}${preserved ? `?${preserved}` : ''}`;
                 window.history.replaceState({}, document.title, newUrl);
             }
-            
+
             const authError = urlParams.get('auth_error');
             if (authError) {
-                let errorMessage = 'Authentication error. Please try again.';
-                
+                let msg = 'Error de autenticación. Inténtalo de nuevo.';
                 switch (authError) {
-                    case 'invalid_state':
-                        errorMessage = 'Security error. Please try again.';
-                        break;
-                    case 'oauth_config':
-                        errorMessage = 'Configuration error. Contact support.';
-                        break;
-                    case 'callback_failed':
-                        errorMessage = 'Authentication error. Try again.';
-                        break;
-                    case 'user_info_failed':
-                        errorMessage = 'Could not get user information from Google.';
-                        break;
-                    case 'account_suspended':
-                        errorMessage = 'Your account is under review, we will activate it soon. If you need help, <a href="mailto:info@clicandseo.com" style="color: #667eea; text-decoration: underline;">contact support</a>';
-                        break;
-                    case 'access_denied':
-                        errorMessage = 'Access denied. You need to allow access to continue.';
-                        break;
-                    case 'user_not_found':
-                        errorMessage = 'User not registered. <a href="' + withAuthContext('/signup') + '" style="color: #667eea; text-decoration: underline;">Create account</a>';
-                        break;
-                    case 'user_not_registered':
-                        errorMessage = 'You don\'t have a registered account. <a href="' + withAuthContext('/signup') + '" style="color: #667eea; text-decoration: underline;">Create account first</a>';
-                        break;
-                    case 'user_already_exists':
-                        // Adaptar mensaje preservando contexto (next/plan/tracking)
-                        const nextLoginUrl = withAuthContext('/login');
-                        errorMessage = 'Ya tienes una cuenta activa. En lugar de registrarte, <a href="' + nextLoginUrl + '" style="color: #667eea; text-decoration: underline;">haz login</a>.';
-                        break;
+                    case 'invalid_state':       msg = 'Error de seguridad. Inténtalo de nuevo.'; break;
+                    case 'oauth_config':        msg = 'Error de configuración. Contacta con soporte.'; break;
+                    case 'callback_failed':     msg = 'Error de autenticación. Inténtalo de nuevo.'; break;
+                    case 'user_info_failed':    msg = 'No pudimos obtener tu información de Google.'; break;
+                    case 'account_suspended':   msg = 'Tu cuenta está en revisión. La activaremos pronto. Si necesitas ayuda, <a href="mailto:info@clicandseo.com">contacta con soporte</a>.'; break;
+                    case 'access_denied':       msg = 'Acceso denegado. Necesitas permitir el acceso para continuar.'; break;
+                    case 'user_not_found':      msg = 'Usuario no registrado. <a href="' + withAuthContext('/signup') + '">Crea una cuenta</a>.'; break;
+                    case 'user_not_registered': msg = 'No tienes cuenta registrada. <a href="' + withAuthContext('/signup') + '">Crea una primero</a>.'; break;
+                    case 'user_already_exists': msg = 'Ya tienes una cuenta activa. Mejor <a href="' + withAuthContext('/login') + '">inicia sesión</a>.'; break;
                 }
-                
-                showNotification(errorMessage, 'error');
+                showNotification(msg, 'error');
             }
-            
-            if (urlParams.get('session_expired') === 'true') {
-                showNotification('Your session has expired. Please sign in again.', 'warning');
-            }
-            
-            if (urlParams.get('auth_required') === 'true') {
-                showNotification('You need to sign in to access the application.', 'info');
-            }
-            
-            if (urlParams.get('signup_success') === 'true') {
-                showNotification('Account created successfully! You can now sign in.', 'success');
-            }
-            
-            if (urlParams.get('password_reset') === 'success') {
-                showNotification('Password reset successfully! You can now sign in with your new password.', 'success');
-            }
-            
-            if (urlParams.get('registration_success') === 'true') {
-                const withGoogle = urlParams.get('with_google') === 'true';
-                if (withGoogle) {
-                    showNotification('Account created with Google successfully! You can now sign in with Google.', 'success');
-                } else {
-                    showNotification('Registration completed successfully! You can now sign in.', 'success');
-                }
-            }
-            
-            // Limpiar URL (preservando contexto de autenticación)
+
+            if (urlParams.get('session_expired') === 'true')   showNotification('Tu sesión ha caducado. Inicia sesión de nuevo.', 'warning');
+            if (urlParams.get('auth_required') === 'true')     showNotification('Necesitas iniciar sesión para acceder.', 'info');
+            if (urlParams.get('signup_success') === 'true')    showNotification('¡Cuenta creada! Ya puedes iniciar sesión.', 'success');
+            if (urlParams.get('password_reset') === 'success') showNotification('Contraseña restablecida. Ya puedes iniciar sesión con la nueva.', 'success');
+
             if (urlParams.toString()) {
                 const preserved = getAuthContextParams().toString();
                 const newUrl = preserved ? `${window.location.pathname}?${preserved}` : window.location.pathname;
@@ -330,79 +292,34 @@
             }
         }
 
-        function showNotification(message, type = 'info') {
-            const notifications = document.getElementById('loginNotifications');
-            const iconMap = {
-                success: 'fas fa-check-circle',
-                error: 'fas fa-exclamation-circle',
-                warning: 'fas fa-exclamation-triangle',
-                info: 'fas fa-info-circle'
-            };
-
-            notifications.innerHTML = `
-                <div class="notification notification-${type}">
-                    <i class="${iconMap[type]}"></i>
-                    <span>${message}</span>
-                </div>
-            `;
-            notifications.style.display = 'block';
-
-            // Auto-hide después de 5 segundos para mensajes de éxito
-            if (type === 'success') {
-                setTimeout(() => {
-                    notifications.style.display = 'none';
-                }, 5000);
-            }
-        }
-        
-        // ✅ NUEVO FASE 4.5: Función para mostrar mensaje de registro exitoso
-        function showSuccessMessage(message) {
-            showNotification(message, 'success');
-        }
-
-        // Manejar login con Google
+        // Google sign-in
         document.getElementById('googleLoginBtn').addEventListener('click', function() {
             const btn = this;
-            const spinner = btn.querySelector('.login-spinner');
             const text = btn.querySelector('.login-text');
-            
-            // Pausar SessionManager durante login
-            if (window.sessionManager) {
-                window.sessionManager.pause();
-            }
-            
-            // Mostrar loading state
+            if (window.sessionManager) window.sessionManager.pause();
+
             btn.disabled = true;
             btn.classList.add('loading');
-            spinner.style.display = 'block';
-                                text.textContent = 'Connecting...';
-            
-            // Mostrar notificación
-            showNotification('Redirecting to Google for authentication...', 'info');
-            
-            // Redirigir después de un breve delay
-            setTimeout(() => {
-                window.location.href = withAuthContext('/auth/login');
-            }, 1000);
-            
-            // Timeout de seguridad
+            if (text) text.textContent = 'Conectando…';
+
+            showNotification('Redirigiendo a Google para autenticarte…', 'info');
+
+            setTimeout(() => { window.location.href = withAuthContext('/auth/login'); }, 1000);
+
             setTimeout(() => {
                 if (btn.disabled) {
                     btn.disabled = false;
                     btn.classList.remove('loading');
-                    spinner.style.display = 'none';
-                    text.textContent = 'Sign In with Google';
-                    showNotification('Redirection error. Please try again.', 'error');
+                    if (text) text.textContent = 'Continuar con Google';
+                    showNotification('Error al redirigir. Inténtalo de nuevo.', 'error');
                 }
             }, 10000);
         });
 
-        // Manejar login con email/contraseña
+        // Email + password sign-in
         async function getRecaptchaToken(action) {
             const siteKey = "{{ recaptcha_site_key }}";
-            if (!siteKey || typeof grecaptcha === 'undefined') {
-                return null;
-            }
+            if (!siteKey || typeof grecaptcha === 'undefined') return null;
             return grecaptcha.execute(siteKey, { action });
         }
 
@@ -410,7 +327,7 @@
             const email = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value;
             if (!email || !password) {
-                showNotification('Enter email and password', 'warning');
+                showNotification('Introduce email y contraseña', 'warning');
                 return;
             }
             const recaptchaToken = await getRecaptchaToken('login');
@@ -422,60 +339,31 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showNotification('Sign in successful. Redirecting...', 'success');
+                    showNotification('Sesión iniciada. Redirigiendo…', 'success');
                     window.location.href = data.next || '/dashboard';
                 } else {
-                    showNotification(data.error || 'Invalid credentials', 'error');
+                    showNotification(data.error || 'Credenciales inválidas', 'error');
                 }
             })
-            .catch(() => showNotification('Network error', 'error'));
+            .catch(() => showNotification('Error de red', 'error'));
         });
 
-        // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
-            // Manejar notificaciones de URL
             handleUrlNotifications();
-            
-            // Animación de entrada
-            setTimeout(() => {
-                document.body.classList.add('loaded');
-            }, 100);
-            
-            // Verificar si ya está autenticado
+            setTimeout(() => { document.body.classList.add('loaded'); }, 100);
+
             fetch('/auth/status')
                 .then(response => response.json())
                 .then(data => {
                     if (data.authenticated) {
-                        showNotification('You already have an active session. Redirecting...', 'success');
-                        setTimeout(() => {
-                            window.location.href = '/dashboard';
-                        }, 1500);
+                        showNotification('Ya tienes una sesión activa. Redirigiendo…', 'success');
+                        setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
                     }
                 })
-                .catch(error => {
-                    console.log('No active session');
-                });
+                .catch(() => { /* no active session */ });
         });
-
-        // Efecto de partículas en el fondo
-        function createFloatingElements() {
-            const background = document.querySelector('.login-background');
-            
-            for (let i = 0; i < 6; i++) {
-                const element = document.createElement('div');
-                element.className = 'floating-element';
-                element.style.left = Math.random() * 100 + '%';
-                element.style.animationDelay = Math.random() * 4 + 's';
-                element.style.animationDuration = (Math.random() * 3 + 4) + 's';
-                background.appendChild(element);
-            }
-        }
-
-        // Crear elementos flotantes después de cargar
-        setTimeout(createFloatingElements, 500);
     </script>
-    
-    <!-- Detector de dispositivos móviles -->
+
     <script src="{{ url_for('static', filename='js/mobile-detector.js') }}"></script>
 </body>
-</html> 
+</html>
