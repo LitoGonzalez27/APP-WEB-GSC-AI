@@ -102,7 +102,6 @@ button { font-family: inherit; cursor: pointer; }
   padding: clamp(2rem, 5vw, 4.5rem);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   overflow: hidden;
 }
 
@@ -131,7 +130,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .auth-brand__body {
-  margin-top: clamp(1rem, 2.5vw, 1.75rem);
+  margin-top: clamp(2.5rem, 5vw, 4rem);
 }
 
 /* Headline — brandbook §11.2 (serif accent word + Bio-Lime underline) */
@@ -199,6 +198,10 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .auth-brand__bottom {
+  /* Pushes the copyright to the bottom of the brand panel so it stays
+     anchored regardless of how tall the body content is. */
+  margin-top: auto;
+  padding-top: clamp(3rem, 6vw, 5rem);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
