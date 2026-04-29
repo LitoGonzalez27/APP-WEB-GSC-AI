@@ -68,7 +68,11 @@ export function renderProjects() {
             ? 'cursor: pointer;'
             : 'cursor: default; opacity: 0.78;';
 
-        const safeName = JSON.stringify(project.name || '');
+        // HTML-safe form for inline onclick attribute. JSON.stringify alone leaves bare
+        // double quotes that would terminate the onclick="..." attribute prematurely
+        // and silently kill our handler — including the event.stopPropagation() that
+        // prevents the card click from firing. Same trick LLM Monitor uses.
+        const safeName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
         const pausedUntilLabel = formatPauseDate(project.paused_until);
         let statusBadge = '';
         if (!isActive) {
