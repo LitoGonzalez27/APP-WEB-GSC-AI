@@ -74,17 +74,26 @@ export function renderProjects() {
         // prevents the card click from firing. Same trick LLM Monitor uses.
         const safeName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
         const pausedUntilLabel = formatPauseDate(project.paused_until);
-        let statusBadge = '';
+
+        // Brandbook rule: no pill-shaped badges for status indicators.
+        // State is communicated with plain text + icon + system color.
+        // - Manual pause → Slate-500 (text-secondary), neutral state.
+        // - Quota pause  → Error #E05252 (action required from the user).
+        let statusIndicator = '';
         if (!isActive) {
-            statusBadge = `
-                <span class="badge badge-language" title="This project is paused. It will not run in automatic analyses." style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
-                    <i class="fas fa-pause" style="margin-right:4px;"></i>Paused
+            statusIndicator = `
+                <span class="project-status-indicator" title="This project is paused. It will not run in automatic analyses." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#64748B;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#64748B;"></span>
+                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
+                    Paused
                 </span>
             `;
         } else if (isPausedByQuota) {
-            statusBadge = `
-                <span class="badge badge-language" title="Paused automatically because the monthly quota is exhausted." style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">
-                    <i class="fas fa-pause" style="margin-right:4px;"></i>Paused (quota)${pausedUntilLabel ? ` · resumes ${pausedUntilLabel}` : ''}
+            statusIndicator = `
+                <span class="project-status-indicator" title="Paused automatically because the monthly quota is exhausted." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#E05252;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#E05252;"></span>
+                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
+                    Paused (quota)${pausedUntilLabel ? ` · resumes ${pausedUntilLabel}` : ''}
                 </span>
             `;
         }
@@ -96,18 +105,28 @@ export function renderProjects() {
         const showResumeBtn = canEdit && !isActive;
         const showDeleteBtn = canEdit && !isActive;
 
+        // Brandbook button system — pill-shaped, font-weight 600, brand transition.
+        // Variants used here:
+        //   • Pause  → Secondary  (transparent bg, slate-200 border, slate-900 text)
+        //   • Resume → Primary    (#0F172A bg, slate-50 text)
+        //   • Delete → Secondary tinted with --color-error for destructive intent
+        const btnBase = "display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:9999px;font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;font-size:0.8125rem;font-weight:600;line-height:1.2;cursor:pointer;transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);";
+        const btnPause = btnBase + "background:transparent;color:#0F172A;border:1.5px solid #E2E8F0;";
+        const btnResume = btnBase + "background:#0F172A;color:#F8FAFC;border:1.5px solid #0F172A;";
+        const btnDelete = btnBase + "background:transparent;color:#E05252;border:1.5px solid #E05252;";
+
         return `
         <div class="project-card${!cardClickable ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
                 ${(canEdit === false) ? `
-                    <div class="project-actions">
+                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <span class="badge badge-language">Shared (view only)</span>
-                        ${statusBadge}
+                        ${statusIndicator}
                     </div>
                 ` : `
-                    <div class="project-actions" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        ${statusBadge}
+                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        ${statusIndicator}
                         <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
                                 title="Project settings" aria-label="Open project settings">
                             <i class="fas fa-cog" aria-hidden="true"></i>
@@ -155,7 +174,7 @@ export function renderProjects() {
                     Last analysis: ${project.last_analysis_date ?
                         new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
                 </small>
-                <div class="project-footer-actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                <div class="project-footer-actions" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
                     ${showFirstRunCta ? `
                         <button type="button" class="btn-primary btn-small"
                                 onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
@@ -165,7 +184,10 @@ export function renderProjects() {
                         </button>
                     ` : ''}
                     ${showPauseBtn ? `
-                        <button type="button" class="btn-secondary btn-small"
+                        <button type="button"
+                                style="${btnPause}"
+                                onmouseover="this.style.background='#F1F5F9';"
+                                onmouseout="this.style.background='transparent';"
                                 onclick="event.stopPropagation(); aiModeSystem.pauseProject(${project.id}, ${safeName})"
                                 title="Pause this project — it will stop running in automatic analyses and stop consuming quota.">
                             <i class="fas fa-pause"></i>
@@ -173,7 +195,10 @@ export function renderProjects() {
                         </button>
                     ` : ''}
                     ${showResumeBtn ? `
-                        <button type="button" class="btn-primary btn-small"
+                        <button type="button"
+                                style="${btnResume}"
+                                onmouseover="this.style.transform='translateY(-2px)';"
+                                onmouseout="this.style.transform='none';"
                                 onclick="event.stopPropagation(); aiModeSystem.resumeProject(${project.id}, ${safeName})"
                                 title="Resume this project. Requires available monthly quota.">
                             <i class="fas fa-play"></i>
@@ -181,7 +206,10 @@ export function renderProjects() {
                         </button>
                     ` : ''}
                     ${showDeleteBtn ? `
-                        <button type="button" class="btn-danger btn-small"
+                        <button type="button"
+                                style="${btnDelete}"
+                                onmouseover="this.style.background='rgba(224,82,82,0.08)';"
+                                onmouseout="this.style.background='transparent';"
                                 onclick="event.stopPropagation(); aiModeSystem.deleteProjectPermanently(${project.id}, ${safeName})"
                                 title="Permanently delete this project and all its data.">
                             <i class="fas fa-trash"></i>
