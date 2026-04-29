@@ -56,16 +56,77 @@ export function renderProjects() {
     this.hideElement(this.elements.projectsEmptyState);
     this.showElement(this.elements.projectsContainer);
 
-    this.elements.projectsContainer.innerHTML = this.projects.map(project => `
-        <div class="project-card" data-project-id="${project.id}" onclick="aiModeSystem.goToProjectAnalytics(${project.id})" style="cursor: pointer;">
+    this.elements.projectsContainer.innerHTML = this.projects.map(project => {
+        const canEdit = project.can_edit !== false;
+        const isActive = project.is_active !== false;
+        const isPausedByQuota = !!project.is_paused_by_quota;
+        const cardClickable = isActive && !isPausedByQuota;
+        const cardOnClick = cardClickable
+            ? `onclick="aiModeSystem.goToProjectAnalytics(${project.id})"`
+            : '';
+        const cardStyle = cardClickable
+            ? 'cursor: pointer;'
+            : 'cursor: default; opacity: 0.78;';
+
+        // HTML-safe form for inline onclick attribute. JSON.stringify alone leaves bare
+        // double quotes that would terminate the onclick="..." attribute prematurely
+        // and silently kill our handler — including the event.stopPropagation() that
+        // prevents the card click from firing. Same trick LLM Monitor uses.
+        const safeName = JSON.stringify(project.name || '').replace(/"/g, '&quot;');
+        const pausedUntilLabel = formatPauseDate(project.paused_until);
+
+        // Brandbook rule: no pill-shaped badges for status indicators.
+        // State is communicated with plain text + icon + system color.
+        // - Manual pause → Slate-500 (text-secondary), neutral state.
+        // - Quota pause  → Error #E05252 (action required from the user).
+        let statusIndicator = '';
+        if (!isActive) {
+            statusIndicator = `
+                <span class="project-status-indicator" title="This project is paused. It will not run in automatic analyses." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#64748B;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#64748B;"></span>
+                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
+                    Paused
+                </span>
+            `;
+        } else if (isPausedByQuota) {
+            statusIndicator = `
+                <span class="project-status-indicator" title="Paused automatically because the monthly quota is exhausted." style="display:inline-flex;align-items:center;gap:6px;font-size:0.8125rem;font-weight:600;color:#E05252;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:9999px;background:#E05252;"></span>
+                    <i class="fas fa-pause" style="font-size:0.75rem;"></i>
+                    Paused (quota)${pausedUntilLabel ? ` · resumes ${pausedUntilLabel}` : ''}
+                </span>
+            `;
+        }
+
+        const hasInitialAnalysis = !!project.last_analysis_date;
+        const hasKeywords = (project.total_keywords || 0) > 0;
+        const showFirstRunCta = canEdit && cardClickable && !hasInitialAnalysis && hasKeywords;
+        const showPauseBtn = canEdit && isActive;
+        const showResumeBtn = canEdit && !isActive;
+        const showDeleteBtn = canEdit && !isActive;
+
+        // Brandbook button system — pill-shaped, font-weight 600, brand transition.
+        // Variants used here:
+        //   • Pause  → Secondary  (transparent bg, slate-200 border, slate-900 text)
+        //   • Resume → Primary    (#0F172A bg, slate-50 text)
+        //   • Delete → Secondary tinted with --color-error for destructive intent
+        const btnBase = "display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:9999px;font-family:'Inter Tight',-apple-system,BlinkMacSystemFont,sans-serif;font-size:0.8125rem;font-weight:600;line-height:1.2;cursor:pointer;transition:all 0.3s cubic-bezier(0.2,0.8,0.2,1);";
+        const btnPause = btnBase + "background:transparent;color:#0F172A;border:1.5px solid #E2E8F0;";
+        const btnResume = btnBase + "background:#0F172A;color:#F8FAFC;border:1.5px solid #0F172A;";
+        const btnDelete = btnBase + "background:transparent;color:#E05252;border:1.5px solid #E05252;";
+
+        return `
+        <div class="project-card${!cardClickable ? ' project-card--paused' : ''}" data-project-id="${project.id}" ${cardOnClick} style="${cardStyle}">
             <div class="project-header">
                 <h3>${escapeHtml(project.name)}</h3>
-                ${(project.can_edit === false) ? `
-                    <div class="project-actions">
+                ${(canEdit === false) ? `
+                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <span class="badge badge-language">Shared (view only)</span>
+                        ${statusIndicator}
                     </div>
                 ` : `
-                    <div class="project-actions">
+                    <div class="project-actions" style="display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        ${statusIndicator}
                         <button type="button" class="btn-icon" onclick="event.stopPropagation(); aiModeSystem.showProjectModal(${project.id})"
                                 title="Project settings" aria-label="Open project settings">
                             <i class="fas fa-cog" aria-hidden="true"></i>
@@ -110,22 +171,67 @@ export function renderProjects() {
             </div>
             <div class="project-footer">
                 <small class="last-analysis">
-                    Last analysis: ${project.last_analysis_date ? 
+                    Last analysis: ${project.last_analysis_date ?
                         new Date(project.last_analysis_date).toLocaleDateString() : 'Never'}
                 </small>
-                ${(project.can_edit !== false && !project.last_analysis_date && (project.total_keywords || 0) > 0) ? `
-                    <div class="first-run-cta" style="margin-top: 10px;">
-                        <button type="button" class="btn-primary btn-small" 
+                <div class="project-footer-actions" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+                    ${showFirstRunCta ? `
+                        <button type="button" class="btn-primary btn-small"
                                 onclick="event.stopPropagation(); aiModeSystem.analyzeProject(${project.id})"
                                 title="Run the first analysis for this project">
                             <i class="fas fa-play"></i>
                             Run first analysis now
                         </button>
-                    </div>
-                ` : ''}
+                    ` : ''}
+                    ${showPauseBtn ? `
+                        <button type="button"
+                                style="${btnPause}"
+                                onmouseover="this.style.background='#F1F5F9';"
+                                onmouseout="this.style.background='transparent';"
+                                onclick="event.stopPropagation(); aiModeSystem.pauseProject(${project.id}, ${safeName})"
+                                title="Pause this project — it will stop running in automatic analyses and stop consuming quota.">
+                            <i class="fas fa-pause"></i>
+                            Pause
+                        </button>
+                    ` : ''}
+                    ${showResumeBtn ? `
+                        <button type="button"
+                                style="${btnResume}"
+                                onmouseover="this.style.transform='translateY(-2px)';"
+                                onmouseout="this.style.transform='none';"
+                                onclick="event.stopPropagation(); aiModeSystem.resumeProject(${project.id}, ${safeName})"
+                                title="Resume this project. Requires available monthly quota.">
+                            <i class="fas fa-play"></i>
+                            Resume
+                        </button>
+                    ` : ''}
+                    ${showDeleteBtn ? `
+                        <button type="button"
+                                style="${btnDelete}"
+                                onmouseover="this.style.background='rgba(224,82,82,0.08)';"
+                                onmouseout="this.style.background='transparent';"
+                                onclick="event.stopPropagation(); aiModeSystem.deleteProjectPermanently(${project.id}, ${safeName})"
+                                title="Permanently delete this project and all its data.">
+                            <i class="fas fa-trash"></i>
+                            Delete
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function formatPauseDate(value) {
+    if (!value) return '';
+    try {
+        const d = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (_) {
+        return '';
+    }
 }
 
 export function renderProjectCompetitorsSection(project) {
@@ -514,4 +620,106 @@ export function getCompetitorChipValues() {
 
 export function setCompetitorError(msg) {
     if (this.elements.competitorError) this.elements.competitorError.textContent = msg || '';
+}
+
+// ================================
+// PAUSE / RESUME / DELETE
+// ================================
+
+export async function pauseProject(projectId, projectName) {
+    const name = projectName || 'this project';
+    const confirmed = window.confirm(
+        `Pause "${name}"?\n\nThe project will stop running in automatic analyses and will not consume any quota until you resume it. All its data will be kept.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/pause`, {
+            method: 'PUT',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" paused.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error pausing project:', error);
+        this.showError(error.message || 'Failed to pause project');
+    }
+}
+
+export async function resumeProject(projectId, projectName) {
+    const name = projectName || 'this project';
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}/resume`, {
+            method: 'PUT',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (response.status === 402 && data.error === 'quota_exceeded') {
+            const renewal = formatRenewalDate(data.reset_date);
+            const renewalSuffix = renewal ? ` until ${renewal}` : '';
+            this.showError(
+                `Quota exhausted${renewalSuffix}. You can resume "${name}" once your plan renews.`
+            );
+            return;
+        }
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" reactivated.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error resuming project:', error);
+        this.showError(error.message || 'Failed to resume project');
+    }
+}
+
+export async function deleteProjectPermanently(projectId, projectName) {
+    const name = projectName || 'this project';
+    const confirmed = window.confirm(
+        `Permanently delete "${name}"?\n\nThis will remove the project, all its keywords, results and history. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/ai-mode-projects/api/projects/${projectId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 400 && data.action_required === 'deactivate_first') {
+            this.showError('Pause the project first before deleting it.');
+            return;
+        }
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || data.message || `HTTP ${response.status}`);
+        }
+
+        this.showSuccess(data.message || `Project "${name}" permanently deleted.`);
+        await this.loadProjects();
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        this.showError(error.message || 'Failed to delete project');
+    }
+}
+
+function formatRenewalDate(value) {
+    if (!value) return '';
+    try {
+        const d = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
+    } catch (_) {
+        return '';
+    }
 }

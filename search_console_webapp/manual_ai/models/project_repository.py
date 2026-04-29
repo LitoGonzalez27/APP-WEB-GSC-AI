@@ -35,16 +35,25 @@ class ProjectRepository:
         cur = conn.cursor()
         
         try:
-            # Usar la misma lógica que get_project_statistics (último análisis por keyword)
+            # Usar la misma lógica que get_project_statistics (último análisis por keyword).
+            # Devolvemos también proyectos pausados manualmente (is_active=false) y los
+            # campos de pausa, para que la UI pueda mostrarlos con badge y botón
+            # "Resume / Delete". Los filtros para excluirlos del cron / análisis viven
+            # en cron_service y analysis_service, no aquí.
             try:
                 cur.execute("""
-                    SELECT 
+                    SELECT
                         p.id,
                         p.user_id,
                         p.name,
                         p.description,
                         p.domain,
                         p.country_code,
+                        p.is_active,
+                        COALESCE(p.is_paused_by_quota, FALSE) AS is_paused_by_quota,
+                        p.paused_until,
+                        p.paused_at,
+                        p.paused_reason,
                         p.created_at,
                         p.updated_at,
                         p.selected_competitors,
@@ -64,7 +73,7 @@ class ProjectRepository:
                     FROM manual_ai_projects p
                     LEFT JOIN LATERAL (
                         WITH latest_results AS (
-                            SELECT DISTINCT ON (k.id) 
+                            SELECT DISTINCT ON (k.id)
                                 k.id as keyword_id,
                                 k.is_active,
                                 r.has_ai_overview,
@@ -72,25 +81,24 @@ class ProjectRepository:
                                 r.domain_position,
                                 r.analysis_date
                             FROM manual_ai_keywords k
-                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
                             WHERE k.project_id = p.id
                             ORDER BY k.id, r.analysis_date DESC
                         )
-                        SELECT 
+                        SELECT
                             COUNT(*) as total_keywords,
                             COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
                             COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
                             COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
                             AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
-                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float /
                              NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
-                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float /
                              NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
                             MAX(analysis_date) as last_analysis_date
                         FROM latest_results
                     ) project_stats ON true
-                    WHERE p.is_active = true
-                      AND (
+                    WHERE (
                         p.user_id = %s
                         OR EXISTS (
                             SELECT 1
@@ -103,18 +111,25 @@ class ProjectRepository:
                     ORDER BY p.created_at DESC
                 """, (user_id, user_id, user_id, user_id, user_id, user_id))
             except Exception as access_exc:
-                # Safe fallback before collaboration tables are migrated.
-                if not isinstance(access_exc, psycopg2.errors.UndefinedTable):
+                # Safe fallback: collaboration tables not migrated, or quota-pause
+                # columns not yet present. We rebuild the query without those
+                # specific dependencies but still return is_active.
+                if not isinstance(access_exc, (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn)):
                     raise
                 conn.rollback()
                 cur.execute("""
-                    SELECT 
+                    SELECT
                         p.id,
                         p.user_id,
                         p.name,
                         p.description,
                         p.domain,
                         p.country_code,
+                        p.is_active,
+                        FALSE AS is_paused_by_quota,
+                        NULL::timestamptz AS paused_until,
+                        NULL::timestamptz AS paused_at,
+                        NULL::text AS paused_reason,
                         p.created_at,
                         p.updated_at,
                         p.selected_competitors,
@@ -134,7 +149,7 @@ class ProjectRepository:
                     FROM manual_ai_projects p
                     LEFT JOIN LATERAL (
                         WITH latest_results AS (
-                            SELECT DISTINCT ON (k.id) 
+                            SELECT DISTINCT ON (k.id)
                                 k.id as keyword_id,
                                 k.is_active,
                                 r.has_ai_overview,
@@ -142,24 +157,24 @@ class ProjectRepository:
                                 r.domain_position,
                                 r.analysis_date
                             FROM manual_ai_keywords k
-                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id 
+                            LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
                             WHERE k.project_id = p.id
                             ORDER BY k.id, r.analysis_date DESC
                         )
-                        SELECT 
+                        SELECT
                             COUNT(*) as total_keywords,
                             COUNT(CASE WHEN is_active = true THEN 1 END) as active_keywords,
                             COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
                             COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
                             AVG(CASE WHEN domain_position IS NOT NULL THEN domain_position END) as avg_position,
-                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
+                            (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float /
                              NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100) as visibility_percentage,
-                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
+                            (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float /
                              NULLIF(COUNT(CASE WHEN analysis_date IS NOT NULL THEN 1 END), 0)::float * 100) as aio_weight_percentage,
                             MAX(analysis_date) as last_analysis_date
                         FROM latest_results
                     ) project_stats ON true
-                    WHERE p.user_id = %s AND p.is_active = true
+                    WHERE p.user_id = %s
                     ORDER BY p.created_at DESC
                 """, (user_id,))
             
@@ -236,33 +251,32 @@ class ProjectRepository:
     @staticmethod
     def user_owns_project(user_id: int, project_id: int) -> bool:
         """
-        Verificar si un usuario es propietario de un proyecto
-        
-        Args:
-            user_id: ID del usuario
-            project_id: ID del proyecto
-            
-        Returns:
-            True si el usuario es propietario, False en caso contrario
+        Verificar si un usuario es propietario de un proyecto.
+
+        Incluye proyectos pausados manualmente (is_active=false), porque el owner
+        debe poder reactivar / borrar / editar sus proyectos pausados. Filtrar el
+        consumo de cuota es responsabilidad del cron y del analysis service.
         """
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         cur.execute("""
-            SELECT 1 FROM manual_ai_projects 
-            WHERE id = %s AND user_id = %s AND is_active = true
+            SELECT 1 FROM manual_ai_projects
+            WHERE id = %s AND user_id = %s
         """, (project_id, user_id))
-        
+
         result = cur.fetchone()
         cur.close()
         conn.close()
-        
+
         return result is not None
 
     @staticmethod
     def user_has_project_access(user_id: int, project_id: int) -> bool:
         """
         Verificar si un usuario puede ver un proyecto (owner o colaborador viewer).
+
+        Incluye proyectos pausados manualmente para que el dashboard pueda mostrarlos.
         """
         conn = get_db_connection()
         cur = conn.cursor()
@@ -271,7 +285,6 @@ class ProjectRepository:
                 SELECT 1
                 FROM manual_ai_projects p
                 WHERE p.id = %s
-                  AND p.is_active = true
                   AND (
                     p.user_id = %s
                     OR EXISTS (
@@ -289,7 +302,7 @@ class ProjectRepository:
                 cur.execute("""
                     SELECT 1
                     FROM manual_ai_projects
-                    WHERE id = %s AND user_id = %s AND is_active = true
+                    WHERE id = %s AND user_id = %s
                 """, (project_id, user_id))
             else:
                 cur.close()
@@ -352,14 +365,15 @@ class ProjectRepository:
         
         try:
             cur.execute("""
-                SELECT id, name, description, domain, country_code, created_at, updated_at, selected_competitors
+                SELECT id, name, description, domain, country_code, is_active,
+                       created_at, updated_at, selected_competitors
                 FROM manual_ai_projects
-                WHERE id = %s AND is_active = true
+                WHERE id = %s
             """, (project_id,))
-            
+
             project = cur.fetchone()
             return dict(project) if project else None
-            
+
         except Exception as e:
             logger.error(f"Error fetching project info for project {project_id}: {e}")
             return None
@@ -519,14 +533,14 @@ class ProjectRepository:
         try:
             cur.execute("""
                 SELECT selected_competitors
-                FROM manual_ai_projects 
-                WHERE id = %s AND is_active = true
+                FROM manual_ai_projects
+                WHERE id = %s
             """, (project_id,))
-            
+
             result = cur.fetchone()
-            
+
             if not result:
-                logger.warning(f"Project {project_id} not found or inactive")
+                logger.warning(f"Project {project_id} not found")
                 return []
             
             competitors = result['selected_competitors'] if result['selected_competitors'] else []
@@ -575,6 +589,127 @@ class ProjectRepository:
         except Exception as e:
             logger.error(f"Error updating competitors for project {project_id}: {e}")
             return False
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def pause_project(project_id: int) -> Optional[Dict]:
+        """Marca un proyecto como inactivo (pausa manual).
+
+        Returns the updated row (id, name) on success, or None if the project
+        was already inactive / not found.
+        """
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                UPDATE manual_ai_projects
+                SET is_active = FALSE, updated_at = NOW()
+                WHERE id = %s AND is_active = TRUE
+                RETURNING id, name
+            """, (project_id,))
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error pausing project {project_id}: {exc}")
+            conn.rollback()
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def resume_project(project_id: int) -> Optional[Dict]:
+        """Marca un proyecto inactivo como activo (reactivación manual).
+
+        Limpia también el flag de pausa por cuota porque la reactivación manual
+        es una decisión explícita del usuario sobre el proyecto.
+        """
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            try:
+                cur.execute("""
+                    UPDATE manual_ai_projects
+                    SET is_active = TRUE,
+                        is_paused_by_quota = FALSE,
+                        paused_until = NULL,
+                        paused_at = NULL,
+                        paused_reason = NULL,
+                        updated_at = NOW()
+                    WHERE id = %s AND is_active = FALSE
+                    RETURNING id, name
+                """, (project_id,))
+            except psycopg2.errors.UndefinedColumn:
+                # Quota-pause migration not yet applied — fall back to is_active only.
+                conn.rollback()
+                cur.execute("""
+                    UPDATE manual_ai_projects
+                    SET is_active = TRUE, updated_at = NOW()
+                    WHERE id = %s AND is_active = FALSE
+                    RETURNING id, name
+                """, (project_id,))
+            row = cur.fetchone()
+            conn.commit()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error resuming project {project_id}: {exc}")
+            conn.rollback()
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def count_user_active_projects(user_id: int) -> int:
+        """Cuenta proyectos activos (is_active=true) propios del usuario."""
+        conn = get_db_connection()
+        if not conn:
+            return 0
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c
+                FROM manual_ai_projects
+                WHERE user_id = %s AND is_active = TRUE
+            """, (user_id,))
+            row = cur.fetchone()
+            if not row:
+                return 0
+            return int(row['c'] if isinstance(row, dict) else row[0])
+        except Exception as exc:
+            logger.error(f"Error counting active manual_ai projects for user {user_id}: {exc}")
+            return 0
+        finally:
+            cur.close()
+            conn.close()
+
+    @staticmethod
+    def get_project_status(project_id: int) -> Optional[Dict]:
+        """Devuelve el estado mínimo del proyecto (id, name, is_active)
+        independientemente de si está pausado.
+        """
+        conn = get_db_connection()
+        if not conn:
+            return None
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT id, name, is_active
+                FROM manual_ai_projects
+                WHERE id = %s
+            """, (project_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+        except Exception as exc:
+            logger.error(f"Error fetching status for project {project_id}: {exc}")
+            return None
         finally:
             cur.close()
             conn.close()

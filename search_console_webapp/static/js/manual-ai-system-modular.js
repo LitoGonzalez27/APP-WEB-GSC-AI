@@ -38,7 +38,10 @@ import {
     filterCountryOptions,
     addCompetitorChip,
     getCompetitorChipValues,
-    setCompetitorError
+    setCompetitorError,
+    pauseProject,
+    resumeProject,
+    deleteProjectPermanently
 } from './manual-ai/manual-ai-projects.js';
 
 // Keywords
@@ -199,7 +202,10 @@ Object.assign(ManualAISystem.prototype, {
     addCompetitorChip,
     getCompetitorChipValues,
     setCompetitorError,
-    
+    pauseProject,
+    resumeProject,
+    deleteProjectPermanently,
+
     // Keywords
     loadProjectKeywords,
     renderKeywords,

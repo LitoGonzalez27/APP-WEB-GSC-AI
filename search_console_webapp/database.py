@@ -2260,6 +2260,35 @@ def pause_llm_projects_for_quota(user_id, paused_until=None, reason="quota_excee
             conn.close()
 
 
+def pause_manual_ai_projects_for_quota(user_id, paused_until=None, reason="quota_exceeded"):
+    """Pausa proyectos Manual AI activos del usuario por cuota."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE manual_ai_projects
+            SET is_paused_by_quota = TRUE,
+                paused_until = %s,
+                paused_at = NOW(),
+                paused_reason = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+              AND is_active = TRUE
+        ''', (paused_until, reason, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error pausando Manual AI para user {user_id}: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
 def resume_quota_pauses_for_user(user_id):
     """Rehabilita módulos pausados por cuota tras nuevo ciclo de pago."""
     try:
@@ -2296,6 +2325,50 @@ def resume_quota_pauses_for_user(user_id):
                 updated_at = NOW()
             WHERE user_id = %s
         ''', (user_id,))
+
+        try:
+            cur.execute('''
+                UPDATE manual_ai_projects
+                SET is_paused_by_quota = FALSE,
+                    paused_until = NULL,
+                    paused_at = NULL,
+                    paused_reason = NULL,
+                    updated_at = NOW()
+                WHERE user_id = %s
+            ''', (user_id,))
+        except Exception as manual_resume_exc:
+            # Tolerate older deployments where the migration has not run yet.
+            logger.warning(
+                f"Manual AI quota-resume skipped for user {user_id}: {manual_resume_exc}"
+            )
+            conn.rollback()
+            # Re-run the previous statements that succeeded so we still commit them.
+            cur.execute('''
+                UPDATE users
+                SET ai_overview_paused_until = NULL,
+                    ai_overview_paused_at = NULL,
+                    ai_overview_paused_reason = NULL,
+                    updated_at = NOW()
+                WHERE id = %s
+            ''', (user_id,))
+            cur.execute('''
+                UPDATE ai_mode_projects
+                SET is_paused_by_quota = FALSE,
+                    paused_until = NULL,
+                    paused_at = NULL,
+                    paused_reason = NULL,
+                    updated_at = NOW()
+                WHERE user_id = %s
+            ''', (user_id,))
+            cur.execute('''
+                UPDATE llm_monitoring_projects
+                SET is_paused_by_quota = FALSE,
+                    paused_until = NULL,
+                    paused_at = NULL,
+                    paused_reason = NULL,
+                    updated_at = NOW()
+                WHERE user_id = %s
+            ''', (user_id,))
 
         conn.commit()
         return True

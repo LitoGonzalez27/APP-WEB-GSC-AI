@@ -12,9 +12,15 @@ import { escapeHtml, getDomainLogoUrl, htmlLegendPlugin } from './ai-mode-utils.
 export function populateAnalyticsProjectSelect() {
     if (!this.elements.analyticsProjectSelect) return;
 
+    // Hide paused projects from the analytics selector — they are not
+    // running analyses, so showing them only adds noise. They remain
+    // visible on the Projects tab (as Paused cards) so the user can
+    // resume/delete them from there.
+    const selectableProjects = this.projects.filter(p => p.is_active !== false);
+
     this.elements.analyticsProjectSelect.innerHTML = `
         <option value="">Select a project...</option>
-        ${this.projects.map(project => `
+        ${selectableProjects.map(project => `
             <option value="${project.id}">${escapeHtml(project.name)}${project.can_edit === false ? ' (shared)' : ''}</option>
         `).join('')}
     `;

@@ -37,7 +37,10 @@ import {
     filterCountryOptions,
     addCompetitorChip,
     getCompetitorChipValues,
-    setCompetitorError
+    setCompetitorError,
+    pauseProject,
+    resumeProject,
+    deleteProjectPermanently
 } from '/static/js/ai-mode-projects/ai-mode-projects.js';
 
 // Keywords
@@ -194,7 +197,10 @@ Object.assign(AIModeSystem.prototype, {
     addCompetitorChip,
     getCompetitorChipValues,
     setCompetitorError,
-    
+    pauseProject,
+    resumeProject,
+    deleteProjectPermanently,
+
     // Keywords
     loadProjectKeywords,
     renderKeywords,

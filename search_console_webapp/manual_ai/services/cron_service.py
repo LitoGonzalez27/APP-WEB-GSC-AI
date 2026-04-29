@@ -163,32 +163,61 @@ class CronService:
             return {"success": False, "error": str(e)}
     
     def _get_active_projects(self):
-        """Obtener proyectos activos para análisis diario"""
+        """Obtener proyectos activos para análisis diario.
+
+        Excluye los pausados manualmente (is_active=false) y los pausados
+        por cuota cuya ventana paused_until aún no ha expirado.
+        """
         conn = get_db_connection()
         if not conn:
             logger.error("❌ No se pudo conectar a la base de datos")
             return []
-        
+
         cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
-                   COUNT(k.id) as keyword_count
-            FROM manual_ai_projects p
-            JOIN users u ON u.id = p.user_id
-            LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
-            WHERE p.is_active = true
-              AND COALESCE(u.plan, 'free') <> 'free'
-              AND COALESCE(u.billing_status, '') NOT IN ('canceled')
-            GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
-            HAVING COUNT(k.id) > 0
-            ORDER BY p.id
-        """)
-        
+
+        try:
+            cur.execute("""
+                SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
+                       COUNT(k.id) as keyword_count
+                FROM manual_ai_projects p
+                JOIN users u ON u.id = p.user_id
+                LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
+                WHERE p.is_active = true
+                  AND (
+                      COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+                      OR (p.paused_until IS NOT NULL AND p.paused_until <= NOW())
+                  )
+                  AND COALESCE(u.plan, 'free') <> 'free'
+                  AND COALESCE(u.billing_status, '') NOT IN ('canceled')
+                GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
+                HAVING COUNT(k.id) > 0
+                ORDER BY p.id
+            """)
+        except Exception as exc:
+            # Fallback for deployments where the quota-pause migration hasn't
+            # run yet — the columns simply don't exist, so just filter on is_active.
+            logger.warning(
+                f"Manual AI cron quota-pause filter unavailable, falling back: {exc}"
+            )
+            conn.rollback()
+            cur.execute("""
+                SELECT p.id, p.name, p.domain, p.country_code, p.user_id,
+                       COUNT(k.id) as keyword_count
+                FROM manual_ai_projects p
+                JOIN users u ON u.id = p.user_id
+                LEFT JOIN manual_ai_keywords k ON p.id = k.project_id AND k.is_active = true
+                WHERE p.is_active = true
+                  AND COALESCE(u.plan, 'free') <> 'free'
+                  AND COALESCE(u.billing_status, '') NOT IN ('canceled')
+                GROUP BY p.id, p.name, p.domain, p.country_code, p.user_id
+                HAVING COUNT(k.id) > 0
+                ORDER BY p.id
+            """)
+
         projects = cur.fetchall()
         cur.close()
         conn.close()
-        
+
         return projects
     
     def _process_projects(self, projects):

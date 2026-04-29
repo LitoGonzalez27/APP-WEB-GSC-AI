@@ -7,9 +7,9 @@ import logging
 import json
 import time
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
-from database import get_db_connection
+from database import get_db_connection, pause_manual_ai_projects_for_quota
 from auth import get_user_by_id, get_current_user
 from quota_manager import get_user_quota_status
 from manual_ai.config import MANUAL_AI_KEYWORD_ANALYSIS_COST
@@ -66,16 +66,72 @@ class AnalysisService:
         # Obtener proyecto y keywords
         project = self.project_repo.get_project_with_details(project_id)
         keywords = [k for k in self.keyword_repo.get_keywords_for_project(project_id) if k['is_active']]
-        
+
         if not project or not keywords:
             return []
+
+        # Si el proyecto está pausado por cuota y la ventana paused_until aún no expiró,
+        # bloquear el análisis. Si paused_until ya pasó, lo limpiamos y seguimos.
+        if project.get('is_paused_by_quota'):
+            paused_until = project.get('paused_until')
+            now_cmp = None
+            if paused_until is not None:
+                try:
+                    now_cmp = datetime.now(paused_until.tzinfo) if paused_until.tzinfo else datetime.utcnow()
+                except Exception:
+                    now_cmp = datetime.utcnow()
+
+            if paused_until is None or paused_until > now_cmp:
+                return {
+                    'success': False,
+                    'error': 'project_paused_quota',
+                    'message': 'Project paused due to quota exhaustion',
+                    'paused_until': paused_until
+                }
+
+            # paused_until expiró → limpiar el flag para este proyecto y continuar
+            try:
+                resume_conn = get_db_connection()
+                if resume_conn:
+                    resume_cur = resume_conn.cursor()
+                    try:
+                        resume_cur.execute('''
+                            UPDATE manual_ai_projects
+                            SET is_paused_by_quota = FALSE,
+                                paused_until = NULL,
+                                paused_at = NULL,
+                                paused_reason = NULL,
+                                updated_at = NOW()
+                            WHERE id = %s
+                        ''', (project_id,))
+                        resume_conn.commit()
+                        project['is_paused_by_quota'] = False
+                        project['paused_until'] = None
+                        project['paused_reason'] = None
+                    finally:
+                        resume_cur.close()
+                        resume_conn.close()
+            except Exception as resume_error:
+                logger.warning(
+                    f"Error reanudando proyecto Manual AI {project_id} tras expiración de paused_until: {resume_error}"
+                )
 
         # Validar cuota antes de empezar
         quota_info = get_user_quota_status(current_user['id'])
         if not quota_info.get('can_consume'):
             logger.warning(f"User {current_user['id']} sin cuota para iniciar análisis del proyecto {project_id}. "
                           f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
-            return {'success': False, 'error': 'Quota limit exceeded', 'quota_info': quota_info}
+            paused_until = quota_info.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+            try:
+                pause_manual_ai_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
+            except Exception as pause_exc:
+                logger.warning(f"Could not auto-pause Manual AI projects for user {current_user['id']}: {pause_exc}")
+            return {
+                'success': False,
+                'error': 'Quota limit exceeded',
+                'quota_info': quota_info,
+                'paused_until': paused_until
+            }
 
         results = []
         failed_keywords = 0
@@ -99,6 +155,11 @@ class AnalysisService:
             if not current_quota.get('can_consume') or current_quota.get('remaining', 0) < MANUAL_AI_KEYWORD_ANALYSIS_COST:
                 logger.warning(f"Análisis del proyecto {project_id} detenido por falta de cuota. "
                               f"Keywords procesadas: {len(results)}. Keywords pendientes: {len(keywords) - len(results)}")
+                paused_until = current_quota.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+                try:
+                    pause_manual_ai_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
+                except Exception as pause_exc:
+                    logger.warning(f"Could not auto-pause Manual AI projects for user {current_user['id']}: {pause_exc}")
                 break
 
             keyword = keyword_data['keyword']
@@ -216,6 +277,19 @@ class AnalysisService:
                                    f"Plan: {quota_info.get('plan', 'unknown')}, "
                                    f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
 
+                        # Auto-pausar el proyecto para que el cron y otros endpoints
+                        # no sigan intentando consumir cuota hasta el reset.
+                        live_quota = get_user_quota_status(current_user['id'])
+                        paused_until = live_quota.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
+                        try:
+                            pause_manual_ai_projects_for_quota(
+                                current_user['id'], paused_until, reason='quota_exceeded'
+                            )
+                        except Exception as pause_exc:
+                            logger.warning(
+                                f"Could not auto-pause Manual AI projects for user {current_user['id']}: {pause_exc}"
+                            )
+
                         return {
                             'results': results,
                             'quota_exceeded': True,
@@ -223,7 +297,8 @@ class AnalysisService:
                             'action_required': action_required,
                             'keywords_analyzed': len(results),
                             'keywords_remaining': len(keywords) - len(results),
-                            'error': 'QUOTA_EXCEEDED'
+                            'error': 'QUOTA_EXCEEDED',
+                            'paused_until': paused_until
                         }
                     else:
                         logger.error(f"Error analyzing keyword '{keyword}': {analysis_error}")
