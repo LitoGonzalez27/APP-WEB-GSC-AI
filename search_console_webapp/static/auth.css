@@ -1,0 +1,595 @@
+/* ============================================================
+   Clicandseo — Auth pages (Sign In / Sign Up)
+   Strictly follows the brand book v1.1 (Feb 2026):
+     - Inter Tight + Libre Baskerville (italic, accent words only)
+     - Bio-Lime #d9f9b8 — accent only, never as full background
+     - No gradients, no glassmorphism, no decorative glow
+     - Pill-shape only on buttons / nav links
+     - Dark panel = puntual emphasis, white panel = base
+     - Lucide-style outline icons, stroke 2px
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Libre+Baskerville:ital,wght@0,400;1,400&display=swap');
+
+:root {
+  /* Color tokens — brandbook §03 */
+  --color-accent:        #d9f9b8;
+  --color-accent-subtle: rgba(217, 249, 184, 0.2);
+  --color-text-primary:   #0F172A;
+  --color-text-secondary: #64748B;
+  --color-text-tertiary:  #94A3B8;
+  --color-text-inverse:   #F8FAFC;
+  --color-bg-paper:      #FFFFFF;
+  --color-bg-subtle:     #F1F5F9;
+  --color-bg-dark:       #0A0A0B;
+  --color-border:        #E2E8F0;
+  --color-border-subtle: #EEF2F7;
+  --color-success:       #3CB371;
+  --color-error:         #E05252;
+
+  /* Type — brandbook §04 */
+  --font-sans:  'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Libre Baskerville', 'Georgia', serif;
+
+  /* Radius — brandbook §06 */
+  --radius-sm:   8px;     /* inputs */
+  --radius-md:   20px;
+  --radius-xl:   60px;    /* hero / login cards */
+  --radius-full: 9999px;  /* buttons / nav links only */
+
+  /* Shadow — brandbook §07 */
+  --shadow-sm:    0 1px 2px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.06);
+  --shadow-md:    0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08);
+  --shadow-lg:    0 4px 8px rgba(15,23,42,0.04), 0 20px 50px rgba(15,23,42,0.12);
+
+  /* Motion — brandbook §13 */
+  --ease-brand:   cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition:   0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ── Reset / base ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background: var(--color-bg-paper);
+  opacity: 0;
+  transition: opacity var(--transition);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body.loaded { opacity: 1; }
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+
+/* ============================================================
+   PAGE LAYOUT — split panel (desktop) / stack (mobile)
+   ============================================================ */
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+
+/* Mobile-only header — hidden on desktop */
+.auth-mobile-header {
+  display: none;
+}
+
+
+/* ============================================================
+   LEFT PANEL — Brand (dark, "puntual emphasis")
+   Brandbook §13 → Dark mode is exceptional. We use it here
+   because the auth split is exactly the kind of context that
+   benefits from contrast + jerarquía narrativa.
+   ============================================================ */
+.auth-brand {
+  position: relative;
+  background: var(--color-bg-dark);
+  color: var(--color-text-inverse);
+  padding: clamp(2rem, 5vw, 4.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Subtle dot-grid texture — brandbook §11.3.
+   Opacity stays low so it never competes with content. */
+.auth-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.07) 1px, transparent 0);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.auth-brand__top,
+.auth-brand__body,
+.auth-brand__bottom {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-brand__logo img {
+  width: 168px;
+  height: auto;
+  display: block;
+}
+
+.auth-brand__body {
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+}
+
+/* Headline — brandbook §11.2 (serif accent word + Bio-Lime underline) */
+.auth-brand__title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin: 0 0 1.25rem;
+  color: var(--color-text-inverse);
+}
+
+.auth-brand__title .accent-word {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+}
+.auth-brand__title .accent-word::after {
+  content: '';
+  position: absolute;
+  bottom: 0.08em;
+  left: -5px;
+  right: -5px;
+  height: 0.22em;
+  background: var(--color-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+.auth-brand__lead {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 2rem;
+  max-width: 38ch;
+}
+
+/* Features list — plain text + outline icons, no badges */
+.auth-brand__features {
+  list-style: none;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.auth-brand__features li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.auth-brand__features svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+}
+
+.auth-brand__bottom {
+  /* Pushes the copyright to the bottom of the brand panel so it stays
+     anchored regardless of how tall the body content is. */
+  margin-top: auto;
+  padding-top: clamp(3rem, 6vw, 5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+
+/* ============================================================
+   RIGHT PANEL — Form (white, base)
+   ============================================================ */
+.auth-form {
+  background: var(--color-bg-paper);
+  padding: clamp(2rem, 5vw, 4rem);
+  /* Slight pull-up so the form's first row sits a bit higher than dead-center,
+     matching the brand panel's reduced top spacing. */
+  padding-top: clamp(2.25rem, 4vw, 3rem);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.auth-form__inner {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* Eyebrow — brandbook §11 (uppercase, tertiary, no background) */
+.auth-eyebrow {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin: 0 0 0.875rem;
+}
+
+.auth-title {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: clamp(1.875rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.auth-title .accent-word {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+}
+.auth-title .accent-word::after {
+  content: '';
+  position: absolute;
+  bottom: 0.08em;
+  left: -4px;
+  right: -4px;
+  height: 0.22em;
+  background: var(--color-accent);
+  opacity: 0.85;
+  transform: rotate(-1.5deg);
+  z-index: -1;
+  border-radius: 2px;
+}
+
+.auth-subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 2rem;
+}
+.auth-subtitle a {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1.5px solid var(--color-text-primary);
+  transition: color var(--transition), border-color var(--transition);
+}
+.auth-subtitle a:hover {
+  color: var(--color-text-secondary);
+  border-bottom-color: var(--color-text-secondary);
+}
+
+
+/* ============================================================
+   FORM CONTROLS
+   ============================================================ */
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.auth-field__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  letter-spacing: 0;
+}
+
+.auth-input {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  background: var(--color-bg-paper);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  width: 100%;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.auth-input::placeholder {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+.auth-input:hover {
+  border-color: #CBD5E1;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+
+
+/* ============================================================
+   BUTTONS — brandbook §09 (pill, weight 600)
+   ============================================================ */
+.auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 14px 24px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.auth-btn:disabled,
+.auth-btn.loading {
+  cursor: progress;
+  opacity: 0.7;
+}
+.auth-btn svg {
+  flex-shrink: 0;
+}
+
+/* Primary — brandbook table §09 */
+.auth-btn--primary {
+  background: var(--color-text-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-text-primary);
+}
+.auth-btn--primary:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Secondary — brandbook table §09 (used for Google login) */
+.auth-btn--secondary {
+  background: var(--color-bg-paper);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+.auth-btn--secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--color-bg-subtle);
+  border-color: #CBD5E1;
+}
+
+
+/* ============================================================
+   SEPARATOR
+   ============================================================ */
+.auth-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin: 1.75rem 0;
+}
+.auth-separator::before,
+.auth-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.auth-separator span {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+
+/* ============================================================
+   AUXILIARIES (forgot password, footer)
+   ============================================================ */
+.auth-aux {
+  margin-top: 0.5rem;
+  text-align: center;
+}
+.auth-aux a {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color var(--transition);
+}
+.auth-aux a:hover { color: var(--color-text-primary); }
+
+.auth-footer {
+  margin-top: 2.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  text-align: center;
+}
+.auth-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+.auth-footer__links a {
+  color: var(--color-text-secondary);
+  transition: color var(--transition);
+}
+.auth-footer__links a:hover {
+  color: var(--color-text-primary);
+}
+.auth-footer__sep {
+  color: var(--color-border);
+}
+.auth-footer__note {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+.auth-footer__note a {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color var(--transition);
+}
+.auth-footer__note a:hover { color: var(--color-text-primary); }
+
+
+/* ============================================================
+   NOTIFICATIONS — plain card, not a pill, brandbook §15-13
+   State communicated via icon + system color, not a badge.
+   ============================================================ */
+.auth-notifications {
+  margin-bottom: 1.25rem;
+}
+
+.auth-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-paper);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+.auth-notification svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.auth-notification a {
+  font-weight: 600;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.auth-notification--success {
+  border-left: 3px solid var(--color-success);
+  border-color: var(--color-border-subtle);
+}
+.auth-notification--success svg { stroke: var(--color-success); }
+
+.auth-notification--error {
+  border-left: 3px solid var(--color-error);
+  border-color: var(--color-border-subtle);
+}
+.auth-notification--error svg { stroke: var(--color-error); }
+
+.auth-notification--warning {
+  border-left: 3px solid var(--color-text-primary);
+  border-color: var(--color-border-subtle);
+}
+.auth-notification--warning svg { stroke: var(--color-text-primary); }
+
+.auth-notification--info {
+  border-left: 3px solid var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+}
+.auth-notification--info svg { stroke: var(--color-text-secondary); }
+
+
+/* ============================================================
+   SPINNERS / LOADING
+   ============================================================ */
+.login-spinner {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.auth-btn.loading .login-spinner { display: inline-flex; }
+.auth-btn.loading .login-text { display: none; }
+
+.login-spinner svg {
+  width: 18px;
+  height: 18px;
+  animation: auth-spin 0.9s linear infinite;
+  stroke: currentColor;
+}
+@keyframes auth-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
+/* ============================================================
+   RESPONSIVE — stacks under 960px
+   ============================================================ */
+@media (max-width: 960px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+  .auth-brand {
+    display: none;
+  }
+  .auth-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1.5rem 0;
+  }
+  .auth-mobile-header img {
+    width: 140px;
+    height: auto;
+  }
+  .auth-form {
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-form { padding: 1.5rem; }
+  .auth-title { font-size: 1.625rem; }
+}
+
+
+/* ============================================================
+   Reduced-motion respect
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .auth-btn:hover { transform: none; }
+}
