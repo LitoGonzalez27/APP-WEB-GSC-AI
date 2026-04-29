@@ -1107,13 +1107,13 @@ class LLMMonitoring {
                 ${(canEdit && project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-warning" onclick="window.llmMonitoring.deactivateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-pause"></i>
-                        Deactivate
+                        Pause
                     </button>
                 ` : ''}
                 ${(canEdit && !project.is_active) ? `
                     <button class="btn btn-ghost btn-sm btn-success" onclick="window.llmMonitoring.activateProject(${project.id}, ${safeProjectName})">
                         <i class="fas fa-play"></i>
-                        Activate
+                        Resume
                     </button>
                     <button class="btn btn-ghost btn-sm btn-danger" onclick="window.llmMonitoring.deleteProject(${project.id}, ${safeProjectName}, true)">
                         <i class="fas fa-trash"></i>
@@ -3818,12 +3818,14 @@ class LLMMonitoring {
      * ✨ NUEVO: Desactivar un proyecto (deja de ejecutarse en CRON)
      */
     async deactivateProject(projectId, projectName) {
-        console.log(`⏸️ Deactivating project ${projectId}...`);
+        // Method name kept for backward compatibility; user-facing copy uses
+        // "Pause" / "Resume" to match Manual AI and AI Mode terminology.
+        console.log(`⏸️ Pausing project ${projectId}...`);
 
         const confirmed = await this.showConfirmDialog({
-            title: 'Deactivate Project?',
-            message: `The project "${projectName}" will stop running in automatic analysis, but all data will be preserved.`,
-            confirmText: 'Deactivate',
+            title: 'Pause Project?',
+            message: `The project "${projectName}" will stop running in automatic analyses and will not consume any quota until you resume it. All data will be preserved.`,
+            confirmText: 'Pause',
             cancelText: 'Keep Active',
             variant: 'warning'
         });
@@ -3844,7 +3846,7 @@ class LLMMonitoring {
                 throw new Error(error.error || `HTTP ${response.status}`);
             }
 
-            console.log(`✅ Project ${projectId} deactivated`);
+            console.log(`✅ Project ${projectId} paused`);
 
             // If we're viewing this project, update current project state
             if (this.currentProject && this.currentProject.id === projectId) {
@@ -3854,19 +3856,21 @@ class LLMMonitoring {
             // Reload projects list
             await this.loadProjects();
 
-            this.showSuccess(`Project "${projectName}" deactivated. It won't run in automatic analysis.`);
+            this.showSuccess(`Project "${projectName}" paused. It will no longer run in automatic analyses.`);
 
         } catch (error) {
-            console.error('❌ Error deactivating project:', error);
-            this.showError(error.message || 'Failed to deactivate project');
+            console.error('❌ Error pausing project:', error);
+            this.showError(error.message || 'Failed to pause project');
         }
     }
 
     /**
-     * ✨ NUEVO: Reactivar un proyecto inactivo
+     * Resume (formerly "activate") a paused project.
      */
     async activateProject(projectId, projectName) {
-        console.log(`▶️ Activating project ${projectId}...`);
+        // Method name kept for backward compatibility; user-facing copy uses
+        // "Resume" to match Manual AI and AI Mode terminology.
+        console.log(`▶️ Resuming project ${projectId}...`);
 
         try {
             const response = await fetch(`${this.baseUrl}/projects/${projectId}/activate`, {
@@ -3879,7 +3883,7 @@ class LLMMonitoring {
                 throw new Error(error.error || `HTTP ${response.status}`);
             }
 
-            console.log(`✅ Project ${projectId} activated`);
+            console.log(`✅ Project ${projectId} resumed`);
 
             // If we're viewing this project, update current project state
             if (this.currentProject && this.currentProject.id === projectId) {
@@ -3889,11 +3893,11 @@ class LLMMonitoring {
             // Reload projects list
             await this.loadProjects();
 
-            this.showSuccess(`Project "${projectName}" activated. It will be included in next automatic analysis.`);
+            this.showSuccess(`Project "${projectName}" resumed. It will be included in upcoming automatic analyses.`);
 
         } catch (error) {
-            console.error('❌ Error activating project:', error);
-            this.showError(error.message || 'Failed to activate project');
+            console.error('❌ Error resuming project:', error);
+            this.showError(error.message || 'Failed to resume project');
         }
     }
 
@@ -3926,7 +3930,7 @@ class LLMMonitoring {
             if (!response.ok) {
                 const error = await response.json();
                 if (error.action_required === 'deactivate_first') {
-                    this.showError('Please deactivate the project first before deleting it.');
+                    this.showError('Please pause the project first before deleting it.');
                     return;
                 }
                 throw new Error(error.error || `HTTP ${response.status}`);
