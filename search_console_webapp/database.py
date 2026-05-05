@@ -2,9 +2,11 @@
 
 import os
 import time
+import threading
 import psycopg2
 from psycopg2 import errorcodes
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import ThreadedConnectionPool
 from datetime import datetime, timedelta
 import logging
 from dotenv import load_dotenv
@@ -34,40 +36,231 @@ if not DATABASE_URL:
 # Detección de entorno mejorada
 railway_env = os.getenv('RAILWAY_ENVIRONMENT', '')
 is_production = railway_env == 'production'
-is_staging = railway_env == 'staging' 
+is_staging = railway_env == 'staging'
 is_development = not railway_env or railway_env == 'development'
+
+
+# ============================================================================
+# Connection Pool (added 2026-05-05)
+# ----------------------------------------------------------------------------
+# Backwards-compatible pool: every call to get_db_connection() returns a
+# wrapper object that proxies to a real psycopg2 connection borrowed from a
+# global ThreadedConnectionPool. When callers do `conn.close()` (the existing
+# pattern in 100+ call sites), the wrapper returns the connection to the pool
+# instead of physically closing it.
+#
+# Configurable via env vars:
+#   DB_POOL_MIN  (default 2)
+#   DB_POOL_MAX  (default 20)
+#   DB_POOL_DISABLED=true  -> falls back to direct psycopg2.connect() (escape hatch)
+#
+# Hardening preserved from the previous direct-connect implementation:
+# idle_in_transaction_session_timeout, connect_timeout, TCP keepalives.
+# ============================================================================
+
+_pool = None
+_pool_lock = threading.Lock()
+
+
+def _connect_kwargs():
+    """Return the keyword args used for every connection (pool or direct fallback)."""
+    return {
+        'cursor_factory': RealDictCursor,
+        'connect_timeout': 10,
+        'options': '-c idle_in_transaction_session_timeout=900000',
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    }
+
+
+def _build_pool():
+    """Create the global ThreadedConnectionPool. Caller must hold _pool_lock."""
+    minconn = int(os.getenv('DB_POOL_MIN', '2'))
+    maxconn = int(os.getenv('DB_POOL_MAX', '20'))
+    pool = ThreadedConnectionPool(minconn, maxconn, DATABASE_URL, **_connect_kwargs())
+    logger.info(f"🏊 DB connection pool initialized (min={minconn}, max={maxconn})")
+    return pool
+
+
+def _get_or_init_pool():
+    """Return the global pool, lazily creating it on first use. Returns None on failure."""
+    global _pool
+    if _pool is not None:
+        return _pool
+    with _pool_lock:
+        if _pool is not None:
+            return _pool
+        try:
+            _pool = _build_pool()
+            return _pool
+        except Exception as e:
+            logger.error(f"Failed to initialize DB pool: {e}")
+            return None
+
+
+class _PooledConnection:
+    """
+    Transparent wrapper over a psycopg2 connection that returns the underlying
+    connection to the pool when .close() is called.
+
+    All other attribute access is proxied to the real connection so existing
+    callers (cursor, commit, rollback, autocommit, etc.) keep working unchanged.
+
+    The wrapper is idempotent: calling close() twice is a no-op the second
+    time. Before returning the connection to the pool, an implicit rollback()
+    is issued so the connection comes back to subsequent users in a clean state.
+    """
+    __slots__ = ('_conn', '_pool', '_returned')
+
+    def __init__(self, conn, pool):
+        object.__setattr__(self, '_conn', conn)
+        object.__setattr__(self, '_pool', pool)
+        object.__setattr__(self, '_returned', False)
+
+    def close(self):
+        if self._returned:
+            return
+        try:
+            if not self._conn.closed:
+                # Roll back anything uncommitted so the next borrower starts clean.
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+                self._pool.putconn(self._conn)
+            else:
+                # Underlying conn is already closed (e.g. server killed it).
+                # Tell the pool to discard it instead of putting it back.
+                try:
+                    self._pool.putconn(self._conn, close=True)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f"Error returning DB conn to pool: {e}")
+            # Last-resort: try to discard from pool and physically close.
+            try:
+                self._pool.putconn(self._conn, close=True)
+            except Exception:
+                pass
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+        finally:
+            object.__setattr__(self, '_returned', True)
+
+    # Proxy all other attribute reads to the underlying connection
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    # Proxy attribute writes (e.g. conn.autocommit = True) to the real connection
+    def __setattr__(self, name, value):
+        setattr(self._conn, name, value)
+
+    # Allow `with get_db_connection() as conn:` patterns
+    def __enter__(self):
+        return self._conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None and not self._conn.closed:
+            try:
+                self._conn.rollback()
+            except Exception:
+                pass
+        self.close()
+
+    def __repr__(self):
+        return f"<_PooledConnection wrapping {self._conn!r} (returned={self._returned})>"
+
 
 def get_db_connection():
     """Obtiene una conexión a la base de datos PostgreSQL.
 
-    Hardening (añadido 2026-04-08 tras incidente de zombies idle-in-transaction):
-    - idle_in_transaction_session_timeout=900000 (15 min): Postgres aborta
-      automáticamente cualquier conexión que mantenga una transacción
-      `idle in transaction` más de 15 min. Previene que futuros bugs o
-      SIGTERMs dejen transacciones colgadas acumulándose en la BD.
-    - connect_timeout=10: fallar rápido si la BD está inalcanzable.
-    - TCP keepalives: detectar conexiones muertas en ~80 segundos en vez
-      del default del kernel (~2 horas). Útil cuando Railway u otros
-      reverse proxies cortan conexiones sin notificar.
+    Returns a pooled connection wrapper. Callers can use it exactly like a
+    plain psycopg2 connection (cursor, commit, rollback, close); when .close()
+    is called the underlying connection is returned to a global pool rather
+    than physically torn down. This dramatically reduces the per-request
+    connection setup overhead and prevents Postgres connection exhaustion when
+    many threads run concurrently.
 
-    Todos los parámetros son aditivos — el comportamiento funcional de la
-    conexión no cambia, sólo las salvaguardas.
+    Hardening preserved from the previous implementation:
+    - idle_in_transaction_session_timeout=900000 (15 min)
+    - connect_timeout=10
+    - TCP keepalives (~80 s detection of dead connections)
+
+    Escape hatch: set DB_POOL_DISABLED=true to bypass the pool and use direct
+    psycopg2.connect() (the previous behavior). Useful as a safety toggle.
     """
-    try:
-        conn = psycopg2.connect(
-            DATABASE_URL,
-            cursor_factory=RealDictCursor,
-            connect_timeout=10,
-            options='-c idle_in_transaction_session_timeout=900000',
-            keepalives=1,
-            keepalives_idle=30,
-            keepalives_interval=10,
-            keepalives_count=5,
-        )
-        return conn
-    except Exception as e:
-        logger.error(f"Error conectando a la base de datos: {e}")
-        return None
+    if os.getenv('DB_POOL_DISABLED', '').lower() == 'true':
+        # Direct-connect fallback (previous behavior)
+        try:
+            return psycopg2.connect(DATABASE_URL, **_connect_kwargs())
+        except Exception as e:
+            logger.error(f"Error conectando a la base de datos (direct): {e}")
+            return None
+
+    pool = _get_or_init_pool()
+    if pool is None:
+        # Pool init failed — fall back to direct connect so the app keeps working.
+        try:
+            return psycopg2.connect(DATABASE_URL, **_connect_kwargs())
+        except Exception as e:
+            logger.error(f"Error conectando a la base de datos (pool unavailable): {e}")
+            return None
+
+    # Retry on pool exhaustion to absorb transient bursts (e.g. cron + web request
+    # spike). Uses a deadline of DB_POOL_WAIT_SECONDS (default 5s) with exponential
+    # backoff between attempts. After the deadline we return None, matching the
+    # previous direct-connect behavior on connect failure so callers can handle it.
+    from psycopg2.pool import PoolError
+    deadline = time.monotonic() + float(os.getenv('DB_POOL_WAIT_SECONDS', '10.0'))
+    backoff = 0.05  # starts at 50ms
+    while True:
+        try:
+            raw = pool.getconn()
+            # Handle the case where Postgres killed the connection while it sat in the pool
+            if raw.closed:
+                try:
+                    pool.putconn(raw, close=True)
+                except Exception:
+                    pass
+                if time.monotonic() >= deadline:
+                    logger.error("Pool returned only closed connections within deadline")
+                    return None
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 1.0)
+                continue
+            return _PooledConnection(raw, pool)
+        except PoolError as e:
+            if time.monotonic() >= deadline:
+                logger.error(f"Pool exhausted after waiting up to deadline: {e}")
+                return None
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 1.0)
+            continue
+        except Exception as e:
+            logger.error(f"Error obteniendo conexión del pool: {e}")
+            return None
+
+
+def close_db_pool():
+    """Close the global pool. Useful in tests and graceful shutdown.
+
+    After calling this, the next call to get_db_connection() will lazily
+    create a fresh pool.
+    """
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            try:
+                _pool.closeall()
+                logger.info("🏊 DB connection pool closed (closeall)")
+            except Exception as e:
+                logger.warning(f"Error closing DB pool: {e}")
+            finally:
+                _pool = None
 
 def init_database():
     """Inicializa la base de datos creando las tablas necesarias"""
