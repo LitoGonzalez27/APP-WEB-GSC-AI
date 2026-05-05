@@ -2255,9 +2255,14 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
                 continue
             user_project_counts[project['user_id']] = user_count + 1
 
-            result = service.analyze_project(
-                project_id=project['id'],
-                max_workers=max_workers
+            # Hard per-project timeout (Phase 3, 2026-05-05) — prevents one stuck
+            # project from blocking the entire cron run. Configurable via env var
+            # LLM_PROJECT_TIMEOUT_MINUTES (default 30).
+            from project_timeout import run_project_with_timeout
+            pid = project['id']
+            result = run_project_with_timeout(
+                target=lambda: service.analyze_project(project_id=pid, max_workers=max_workers),
+                project_id=pid,
             )
             results.append(result)
         except Exception as e:
