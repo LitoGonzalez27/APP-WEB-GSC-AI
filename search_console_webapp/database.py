@@ -2513,6 +2513,20 @@ def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int 
         if conn:
             conn.close()
 
+    # Cron alert hook — fully isolated. Any error here MUST NOT affect lock state.
+    # The lock has already been released above; this just sends a notification email
+    # if any of the configured thresholds (duration / error rate / cost spike) was hit.
+    try:
+        from cron_alerts import check_and_send_cron_alerts
+        result = check_and_send_cron_alerts(run_id)
+        if result.get('alerts_triggered', 0) > 0:
+            logger.info(
+                f"📧 Cron alerts: {result['alerts_triggered']} triggered "
+                f"(email_sent={result.get('email_sent')}, types={result.get('alerts', [])})"
+            )
+    except Exception as e:
+        logger.warning(f"Cron alerts hook failed (non-fatal): {e}")
+
 
 def get_latest_analysis_run() -> Optional[Dict]:
     """
