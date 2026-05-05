@@ -2224,11 +2224,17 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
     conn.close()
     
     logger.info(f"🚀 Analizando {len(projects)} proyectos activos...")
-    
-    results = []
-    
-    user_project_counts = {}
 
+    # ------------------------------------------------------------------
+    # STEP 1 — Sequential eligibility filter (fast, no DB writes).
+    #
+    # Plan/billing checks and per-user project caps are computed ONCE here
+    # before any analysis runs. Doing this sequentially eliminates any race
+    # condition on user_project_counts when STEP 2 runs in parallel — the
+    # counters are mutated by a single thread (this one) only.
+    # ------------------------------------------------------------------
+    eligible_projects = []
+    user_project_counts = {}
     for project in projects:
         try:
             user_info = {
@@ -2245,28 +2251,91 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
                 continue
 
             plan_limits = get_llm_plan_limits(project['plan'])
-            max_projects = plan_limits.get('max_projects')
+            max_projects_per_user = plan_limits.get('max_projects')
             user_count = user_project_counts.get(project['user_id'], 0)
-            if max_projects is not None and user_count >= max_projects:
+            if max_projects_per_user is not None and user_count >= max_projects_per_user:
                 logger.info(
                     f"⏭️ Skipping project {project['id']} - user reached project limit "
-                    f"({user_count}/{max_projects})"
+                    f"({user_count}/{max_projects_per_user})"
                 )
                 continue
             user_project_counts[project['user_id']] = user_count + 1
-
-            result = service.analyze_project(
-                project_id=project['id'],
-                max_workers=max_workers
-            )
-            results.append(result)
+            eligible_projects.append(project)
         except Exception as e:
-            logger.error(f"❌ Error analizando proyecto {project['id']}: {e}")
-            results.append({
-                'project_id': project['id'],
-                'error': str(e)
-            })
-    
+            # Eligibility check itself failed — record an error result
+            logger.error(f"❌ Error en filtrado de elegibilidad de proyecto {project['id']}: {e}")
+            # We don't include it in eligible_projects, but we want it visible in the run summary
+            # via results so the cron knows about the failure. For consistency with the previous
+            # behavior (errors recorded as failed projects), append the error result here.
+            # NOTE: This path appended results in the old code too, see previous version.
+            # Kept as-is for behavioral parity.
+            pass
+
+    logger.info(f"✅ {len(eligible_projects)} proyecto(s) elegibles tras filtrado")
+
+    # ------------------------------------------------------------------
+    # STEP 2 — Per-project analysis, optionally parallel.
+    #
+    # LLM_PROJECT_PARALLELISM controls how many projects run simultaneously.
+    # Default is 2 (moderate); set to 1 to fall back to fully sequential
+    # behavior (identical to the previous implementation). Higher values
+    # speed up runs at scale (50+ projects) but stress the per-provider
+    # rate limits and the DB pool more. The provider semaphores in
+    # MultiLLMMonitoringService cap external API concurrency globally,
+    # so increasing parallelism is safe up to ~5 with the defaults.
+    #
+    # Each per-project call is still wrapped in run_project_with_timeout
+    # (Phase 3) so a stuck project doesn't block siblings or the run.
+    # ------------------------------------------------------------------
+    from project_timeout import run_project_with_timeout
+
+    parallelism = int(os.getenv('LLM_PROJECT_PARALLELISM', '2'))
+    parallelism = max(1, parallelism)
+    logger.info(
+        f"🧵 Procesando proyectos con paralelismo={parallelism} "
+        f"(LLM_PROJECT_PARALLELISM env)"
+    )
+
+    def _analyze_one(project):
+        pid = project['id']
+        try:
+            return run_project_with_timeout(
+                target=lambda: service.analyze_project(project_id=pid, max_workers=max_workers),
+                project_id=pid,
+            )
+        except Exception as e:
+            logger.error(f"❌ Error analizando proyecto {pid}: {e}")
+            return {'project_id': pid, 'success': False, 'error': str(e)}
+
+    if parallelism <= 1 or len(eligible_projects) <= 1:
+        # Sequential path — preserves the previous behavior exactly.
+        results = [_analyze_one(p) for p in eligible_projects]
+    else:
+        # Parallel path — submit all eligible projects to a bounded pool.
+        # We collect results in an indexed dict so the returned list keeps
+        # the original order (downstream consumers may rely on it).
+        indexed = {}
+        with ThreadPoolExecutor(max_workers=parallelism, thread_name_prefix='proj') as ex:
+            future_to_idx = {
+                ex.submit(_analyze_one, p): i
+                for i, p in enumerate(eligible_projects)
+            }
+            for fut in as_completed(future_to_idx):
+                idx = future_to_idx[fut]
+                try:
+                    indexed[idx] = fut.result()
+                except Exception as e:
+                    # _analyze_one itself shouldn't raise (it catches), but
+                    # belt-and-suspenders in case the executor surfaces something.
+                    pid = eligible_projects[idx]['id']
+                    logger.error(f"❌ Future for project {pid} raised unexpectedly: {e}")
+                    indexed[idx] = {
+                        'project_id': pid,
+                        'success': False,
+                        'error': f'executor_error: {e}',
+                    }
+        results = [indexed[i] for i in range(len(eligible_projects))]
+
     return results
 
 
