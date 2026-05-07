@@ -364,11 +364,51 @@ class StripeWebhookHandler:
         try:
             customer_id = invoice.get('customer')
             subscription_id = invoice.get('subscription')
+
+            # Robust period extraction (fixed 2026-05-07):
+            # In modern Stripe API the invoice object often does NOT carry
+            # period_start/period_end directly at the top level — the period
+            # lives inside lines.data[N].period.start/end. The previous code
+            # only looked at the top level, so the `if period_start and ...`
+            # branch below never ran for ANY user, which is why every paying
+            # account in the DB had current_period_end=NULL and quota was
+            # never reset via the webhook path.
             period_start = invoice.get('period_start')
             period_end = invoice.get('period_end')
-            
-            logger.info(f"💰 Payment succeeded - Customer: {customer_id}, Subscription: {subscription_id}")
-            
+            if not (period_start and period_end):
+                try:
+                    lines = (invoice.get('lines') or {}).get('data') or []
+                    if lines:
+                        line_period = (lines[0] or {}).get('period') or {}
+                        period_start = period_start or line_period.get('start')
+                        period_end = period_end or line_period.get('end')
+                except Exception as _e:
+                    logger.warning(f"⚠️ Could not extract period from invoice.lines: {_e}")
+            # Last-resort fallback: fetch from the subscription via Stripe API.
+            # This guarantees we always populate the period if a sub exists.
+            if not (period_start and period_end) and subscription_id:
+                try:
+                    import stripe as _stripe
+                    if os.getenv('STRIPE_SECRET_KEY'):
+                        _stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+                    sub = _stripe.Subscription.retrieve(subscription_id)
+                    period_start = period_start or sub.get('current_period_start')
+                    period_end = period_end or sub.get('current_period_end')
+                    if not (period_start and period_end):
+                        items = (sub.get('items') or {}).get('data') or []
+                        if items:
+                            period_start = period_start or items[0].get('current_period_start')
+                            period_end = period_end or items[0].get('current_period_end')
+                    logger.info(f"📡 Fetched period from Stripe API for sub {subscription_id}")
+                except Exception as _e:
+                    logger.warning(f"⚠️ Stripe API fallback for period failed: {_e}")
+
+            logger.info(
+                f"💰 Payment succeeded - Customer: {customer_id}, "
+                f"Subscription: {subscription_id}, "
+                f"period={period_start}→{period_end}"
+            )
+
             # En pagos exitosos, resetear quota si es inicio de nuevo período
             if period_start and period_end:
                 conn = get_db_connection()
