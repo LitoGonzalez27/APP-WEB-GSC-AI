@@ -40,6 +40,13 @@ def compute_next_quota_reset_date(period_start=None, period_end=None, last_reset
     Calcula la próxima fecha de reset de quota.
     Usa intervalo mensual fijo (30 días) para respetar cuotas "por mes",
     incluso en planes anuales.
+
+    Bug fix (2026-05-07): when period_end is in the PAST (e.g. legacy/beta
+    accounts whose Stripe period was never refreshed), the cap-at-period_end
+    logic could leave next_reset stuck in the past, creating a loop where
+    the cron resets the user every day to the same past date and the
+    health-check alerts daily. The post-loop safety check below ensures
+    the function NEVER returns a non-future datetime.
     """
     interval_days = int(os.getenv('QUOTA_RESET_INTERVAL_DAYS', '30'))
     now = now or datetime.utcnow()
@@ -51,17 +58,26 @@ def compute_next_quota_reset_date(period_start=None, period_end=None, last_reset
             base = now
     next_reset = base + timedelta(days=interval_days)
 
-    # Si hay periodo Stripe, no pasar el fin del periodo actual
-    if period_end and next_reset > period_end:
+    # Si hay periodo Stripe vigente (en el futuro), no pasar de period_end.
+    # Si period_end está en el pasado lo IGNORAMOS — son datos legacy/beta
+    # y no queremos cap a una fecha pasada.
+    if period_end and period_end > now and next_reset > period_end:
         next_reset = period_end
 
-    # Si quedó en el pasado, avanzar hasta futuro (sin pasar el periodo)
+    # Si aún quedó en el pasado, avanzar hasta el futuro respetando el
+    # period_end vigente (si lo hay).
     while next_reset <= now:
         candidate = next_reset + timedelta(days=interval_days)
-        if period_end and candidate > period_end:
+        if period_end and period_end > now and candidate > period_end:
             next_reset = period_end
             break
         next_reset = candidate
+
+    # SAFETY NET: garantizar que nunca retornemos una fecha en el pasado.
+    # Cubre el caso patológico donde period_end está en el pasado y el cap
+    # nos dejó con next_reset == period_end (también pasada).
+    if next_reset <= now:
+        next_reset = now + timedelta(days=interval_days)
 
     return next_reset
 
