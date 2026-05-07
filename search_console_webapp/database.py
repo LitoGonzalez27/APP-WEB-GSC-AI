@@ -2483,13 +2483,26 @@ def pause_manual_ai_projects_for_quota(user_id, paused_until=None, reason="quota
 
 
 def resume_quota_pauses_for_user(user_id):
-    """Rehabilita módulos pausados por cuota tras nuevo ciclo de pago."""
+    """Rehabilita módulos pausados por cuota tras nuevo ciclo de pago.
+
+    Estrategia (refactor 2026-05-07):
+    Una sola transacción con SAVEPOINT alrededor de la tabla más reciente
+    (manual_ai_projects), de modo que si esa tabla todavía no tiene la
+    columna is_paused_by_quota en deployments antiguos, hacemos rollback
+    SOLO de ese savepoint en vez de toda la transacción. El patrón anterior
+    hacía rollback total y re-ejecutaba 3 UPDATEs — funcionaba pero era
+    frágil ante errores no relacionados con el schema (deadlocks, conn
+    interrumpida, etc.). Ahora cualquier error fuera del savepoint hace
+    rollback completo (atomicidad real).
+    """
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
             return False
         cur = conn.cursor()
 
+        # Tablas estables: 3 UPDATEs en la misma transacción (atómicos juntos).
         cur.execute('''
             UPDATE users
             SET ai_overview_paused_until = NULL,
@@ -2519,6 +2532,10 @@ def resume_quota_pauses_for_user(user_id):
             WHERE user_id = %s
         ''', (user_id,))
 
+        # Tabla menos universal (manual_ai_projects).
+        # SAVEPOINT permite que un fallo en este UPDATE solo deshaga este paso,
+        # no los anteriores — útil para deployments que aún no migraron la columna.
+        cur.execute('SAVEPOINT before_manual_ai_resume')
         try:
             cur.execute('''
                 UPDATE manual_ai_projects
@@ -2529,50 +2546,30 @@ def resume_quota_pauses_for_user(user_id):
                     updated_at = NOW()
                 WHERE user_id = %s
             ''', (user_id,))
+            cur.execute('RELEASE SAVEPOINT before_manual_ai_resume')
         except Exception as manual_resume_exc:
-            # Tolerate older deployments where the migration has not run yet.
+            cur.execute('ROLLBACK TO SAVEPOINT before_manual_ai_resume')
             logger.warning(
-                f"Manual AI quota-resume skipped for user {user_id}: {manual_resume_exc}"
+                f"Manual AI quota-resume skipped for user {user_id}: {manual_resume_exc}. "
+                f"Other modules resumed correctly."
             )
-            conn.rollback()
-            # Re-run the previous statements that succeeded so we still commit them.
-            cur.execute('''
-                UPDATE users
-                SET ai_overview_paused_until = NULL,
-                    ai_overview_paused_at = NULL,
-                    ai_overview_paused_reason = NULL,
-                    updated_at = NOW()
-                WHERE id = %s
-            ''', (user_id,))
-            cur.execute('''
-                UPDATE ai_mode_projects
-                SET is_paused_by_quota = FALSE,
-                    paused_until = NULL,
-                    paused_at = NULL,
-                    paused_reason = NULL,
-                    updated_at = NOW()
-                WHERE user_id = %s
-            ''', (user_id,))
-            cur.execute('''
-                UPDATE llm_monitoring_projects
-                SET is_paused_by_quota = FALSE,
-                    paused_until = NULL,
-                    paused_at = NULL,
-                    paused_reason = NULL,
-                    updated_at = NOW()
-                WHERE user_id = %s
-            ''', (user_id,))
 
         conn.commit()
         return True
     except Exception as e:
         logger.error(f"Error rehabilitando pausas por cuota para user {user_id}: {e}")
         if conn:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
         return False
     finally:
         if conn:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 # ====================================
