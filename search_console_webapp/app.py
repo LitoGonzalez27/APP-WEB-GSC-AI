@@ -3872,6 +3872,16 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Could not register LLM Monitoring system: {e}")
 
+# ✅ NUEVO (2026-05-07): cron HTTP endpoints (quota-reset, health-check).
+# Replaces the railway.json `crons` definition for daily_quota_reset_cron,
+# which Railway was silently NOT running. Triggered by a Bun function
+# service (function-bun-Quota-Reset) on a 30 1 * * * schedule.
+try:
+    from cron_routes import register_cron_routes
+    register_cron_routes(app)
+except Exception as e:
+    logger.warning(f"⚠️ Could not register cron_routes: {e}")
+
 # ✅ TEMPORAL: Endpoint de admin para corregir modelos LLM
 try:
     from admin_fix_llm_models import admin_fix_bp
