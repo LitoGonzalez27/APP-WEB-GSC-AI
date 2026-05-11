@@ -5215,6 +5215,163 @@ def trigger_daily_analysis():
         }), 500
 
 
+@llm_monitoring_bp.route('/cron/watchdog', methods=['POST', 'GET'])
+@cron_or_auth_required
+def cron_watchdog():
+    """
+    Watchdog para detectar que el cron LLM Monitoring NO se está ejecutando.
+
+    Diseñado para ser llamado por otro function-bun Railway en un cron diario.
+    Mira el último run con status='completed' y, si pasa más de
+    LLM_WATCHDOG_MAX_HOURS desde entonces (default 36h), envía email crítico.
+
+    Query/body params:
+        max_hours (int, opcional): umbral en horas (default env LLM_WATCHDOG_MAX_HOURS / 36)
+        notify_email (str, opcional): destinatario (default CRON_ALERTS_EMAIL)
+
+    Returns:
+        JSON con state: 'ok' | 'stale' | 'never_run' y detalles.
+    """
+    auth_error = _ensure_cron_token_or_admin()
+    if auth_error:
+        return auth_error
+
+    try:
+        max_hours = request.args.get('max_hours', type=int)
+        if max_hours is None:
+            payload = request.get_json(silent=True) or {}
+            max_hours = payload.get('max_hours')
+        if max_hours is None:
+            try:
+                max_hours = int(os.getenv('LLM_WATCHDOG_MAX_HOURS', '36'))
+            except Exception:
+                max_hours = 36
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'error': 'no_db_connection'}), 503
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, started_at, completed_at, status,
+                       total_projects, successful_projects, failed_projects,
+                       total_queries, triggered_by
+                FROM llm_monitoring_analysis_runs
+                WHERE status = 'completed'
+                ORDER BY completed_at DESC NULLS LAST
+                LIMIT 1
+            """)
+            last = cur.fetchone()
+        finally:
+            try: cur.close()
+            except Exception: pass
+            conn.close()
+
+        now = datetime.utcnow()
+
+        if not last:
+            state = 'never_run'
+            hours_since = None
+            last_dict = None
+            severity_msg = (
+                f'No existe ningún run con status=completed en llm_monitoring_analysis_runs. '
+                f'El watchdog se acaba de instalar, o el cron LLM Monitoring nunca ha completado.'
+            )
+        else:
+            last_dict = dict(last) if not isinstance(last, dict) else last
+            completed_at = last_dict.get('completed_at')
+            if completed_at is None:
+                hours_since = None
+                state = 'stale'
+                severity_msg = 'El último run en BD no tiene completed_at — estado incoherente.'
+            else:
+                # Normalize tz
+                ref = completed_at
+                if hasattr(ref, 'tzinfo') and ref.tzinfo is not None:
+                    from datetime import timezone
+                    now_cmp = datetime.now(timezone.utc)
+                else:
+                    now_cmp = now
+                hours_since = (now_cmp - ref).total_seconds() / 3600.0
+                if hours_since > max_hours:
+                    state = 'stale'
+                    severity_msg = (
+                        f'Último análisis completado hace {hours_since:.1f}h '
+                        f'(umbral: {max_hours}h). El cron LLM Monitoring podría no estar disparándose. '
+                        f'Revisa Railway → function-bun-LLMs.'
+                    )
+                else:
+                    state = 'ok'
+                    severity_msg = None
+
+        response = {
+            'success': True,
+            'state': state,
+            'hours_since_last_run': hours_since,
+            'max_hours': max_hours,
+            'last_run': {
+                'id': last_dict.get('id') if last_dict else None,
+                'completed_at': str(last_dict.get('completed_at')) if last_dict else None,
+                'status': last_dict.get('status') if last_dict else None,
+                'total_projects': last_dict.get('total_projects') if last_dict else None,
+                'successful_projects': last_dict.get('successful_projects') if last_dict else None,
+                'failed_projects': last_dict.get('failed_projects') if last_dict else None,
+            } if last_dict else None,
+        }
+
+        if state == 'ok':
+            return jsonify(response), 200
+
+        # state in ('stale', 'never_run') → send critical email
+        try:
+            payload = request.get_json(silent=True) or {}
+            notify_email = (
+                payload.get('notify_email')
+                or os.getenv('CRON_ALERTS_EMAIL')
+                or os.getenv('CRON_ALERT_EMAIL')
+                or 'info@soycarlosgonzalez.com'
+            )
+            from email_service import send_email
+            env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+            last_info = ''
+            if last_dict:
+                last_info = (
+                    f"<li>Run #{last_dict.get('id')}</li>"
+                    f"<li>Completed at: <code>{last_dict.get('completed_at')}</code></li>"
+                    f"<li>Status: <code>{last_dict.get('status')}</code></li>"
+                    f"<li>Projects: {last_dict.get('successful_projects')}/{last_dict.get('total_projects')} OK · {last_dict.get('failed_projects')} fallidos</li>"
+                )
+            else:
+                last_info = '<li>No previous run found.</li>'
+            html = f"""
+            <!DOCTYPE html>
+            <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+                               max-width:700px;margin:0 auto;padding:24px;color:#111827;">
+                <h2 style="color:#dc2626;margin-top:0;">🚨 Watchdog LLM Monitoring — Cron no se ha ejecutado</h2>
+                <p>Entorno: <strong>{env_name}</strong></p>
+                <p>{severity_msg}</p>
+                <h3>Último run conocido</h3>
+                <ul>{last_info}</ul>
+                <p style="color:#6b7280;font-size:12px;margin-top:24px;">
+                    Watchdog automático. Umbral: {max_hours}h. Para ajustar: <code>LLM_WATCHDOG_MAX_HOURS</code>.
+                </p>
+            </body></html>
+            """
+            subject = f"🚨 [{env_name.upper()}] LLM Monitoring watchdog · {state.upper()}"
+            sent = send_email(notify_email, subject, html)
+            response['email_sent'] = bool(sent)
+        except Exception as mail_err:
+            logger.warning(f"Watchdog email send failed: {mail_err}")
+            response['email_sent'] = False
+            response['email_error'] = str(mail_err)
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        logger.error(f"Error in cron watchdog: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================================================
 # HEALTH CHECK
 # ============================================================================
