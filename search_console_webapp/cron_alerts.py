@@ -355,3 +355,325 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
             'alerts': [a['type'] for a in alerts],
             'reason': f'send_exception: {e}',
         }
+
+
+# ---------------------------------------------------------------------------
+# Always-on completion email (per-run summary)
+# ---------------------------------------------------------------------------
+
+def _load_run(run_id: int, get_db_connection_fn) -> Optional[Dict]:
+    """Load a single run row as dict, or None on error."""
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, started_at, completed_at, status,
+                   total_projects, successful_projects, failed_projects,
+                   total_queries, error_message, triggered_by
+            FROM llm_monitoring_analysis_runs
+            WHERE id = %s
+        """, (run_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        if isinstance(row, dict):
+            return dict(row)
+        return {
+            'id': row[0], 'started_at': row[1], 'completed_at': row[2],
+            'status': row[3], 'total_projects': row[4],
+            'successful_projects': row[5], 'failed_projects': row[6],
+            'total_queries': row[7], 'error_message': row[8],
+            'triggered_by': row[9],
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] _load_run({run_id}) failed: {e}")
+        return None
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def _load_run_cost(run: Dict, get_db_connection_fn) -> Optional[float]:
+    """Return total cost_usd of llm_monitoring_results created during this run."""
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COALESCE(SUM(cost_usd), 0) AS total
+            FROM llm_monitoring_results
+            WHERE created_at >= %s AND created_at <= %s
+        """, (started, completed))
+        row = cur.fetchone()
+        if not row:
+            return None
+        if isinstance(row, dict):
+            return float(row.get('total') or 0)
+        return float(row[0] or 0)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] _load_run_cost failed: {e}")
+        return None
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def _load_top_errors(run: Dict, get_db_connection_fn, limit: int = 10) -> List[Dict]:
+    """Return up to `limit` error rows from llm_monitoring_results during this run."""
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return []
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return []
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT project_id, llm_provider, error_message
+            FROM llm_monitoring_results
+            WHERE created_at >= %s AND created_at <= %s
+              AND (error_message IS NOT NULL AND error_message <> '')
+            ORDER BY created_at DESC
+            LIMIT %s
+        """, (started, completed, limit))
+        rows = cur.fetchall() or []
+        out = []
+        for r in rows:
+            if isinstance(r, dict):
+                out.append({
+                    'project_id': r.get('project_id'),
+                    'llm_provider': r.get('llm_provider'),
+                    'error_message': (r.get('error_message') or '')[:240],
+                })
+            else:
+                out.append({
+                    'project_id': r[0],
+                    'llm_provider': r[1],
+                    'error_message': (r[2] or '')[:240],
+                })
+        return out
+    except Exception as e:
+        logger.warning(f"[cron_alerts] _load_top_errors failed: {e}")
+        return []
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def _derive_severity(run: Dict, alerts: List[Dict]) -> str:
+    """Pick a single severity for the email subject."""
+    if run.get('status') == 'failed' or run.get('error_message'):
+        return 'critical'
+    if any(a.get('severity') == 'high' for a in alerts):
+        return 'critical'
+    if alerts:
+        return 'warning'
+    failed = run.get('failed_projects') or 0
+    if failed > 0:
+        return 'warning'
+    return 'ok'
+
+
+def _build_completion_email_html(run: Dict, alerts: List[Dict], run_cost: Optional[float],
+                                 errors: List[Dict], env_name: str, severity: str) -> str:
+    icon = {'ok': '✅', 'warning': '⚠️', 'critical': '🚨'}.get(severity, 'ℹ️')
+    color = {'ok': '#16a34a', 'warning': '#f59e0b', 'critical': '#dc2626'}.get(severity, '#6b7280')
+
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    duration_min = None
+    if started and completed:
+        try:
+            duration_min = (completed - started).total_seconds() / 60.0
+        except Exception:
+            duration_min = None
+
+    total = run.get('total_projects') or 0
+    ok = run.get('successful_projects') or 0
+    failed = run.get('failed_projects') or 0
+    queries = run.get('total_queries') or 0
+    status = (run.get('status') or 'unknown').upper()
+    triggered_by = run.get('triggered_by') or '-'
+    err_msg = run.get('error_message') or ''
+
+    cost_row = ''
+    if run_cost is not None:
+        cost_row = f'<tr><td style="padding:8px 12px;color:#6b7280;">Coste de la run</td><td style="padding:8px 12px;font-family:monospace;">${run_cost:.4f}</td></tr>'
+
+    alert_rows = ''
+    if alerts:
+        sev_color = {'high': '#dc2626', 'medium': '#f59e0b', 'low': '#6b7280'}
+        for a in alerts:
+            c = sev_color.get(a.get('severity', 'medium'), '#6b7280')
+            alert_rows += f"""
+            <tr>
+                <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
+                    <span style="display:inline-block;padding:3px 8px;background:{c};color:#fff;
+                                 border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;">
+                        {a.get('type','alert')}
+                    </span>
+                </td>
+                <td style="padding:10px;border-bottom:1px solid #e5e7eb;font-family:monospace;">{a.get('metric','-')}</td>
+                <td style="padding:10px;border-bottom:1px solid #e5e7eb;font-family:monospace;color:#6b7280;">{a.get('threshold','-')}</td>
+                <td style="padding:10px;border-bottom:1px solid #e5e7eb;">{a.get('message','-')}</td>
+            </tr>
+            """
+        alerts_block = f"""
+        <h3 style="margin-top:24px;">Alertas activadas ({len(alerts)})</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:#f9fafb;">
+                <th style="text-align:left;padding:10px;border-bottom:2px solid #e5e7eb;">Tipo</th>
+                <th style="text-align:left;padding:10px;border-bottom:2px solid #e5e7eb;">Métrica</th>
+                <th style="text-align:left;padding:10px;border-bottom:2px solid #e5e7eb;">Umbral</th>
+                <th style="text-align:left;padding:10px;border-bottom:2px solid #e5e7eb;">Detalle</th>
+            </tr></thead>
+            <tbody>{alert_rows}</tbody>
+        </table>
+        """
+    else:
+        alerts_block = ''
+
+    err_rows = ''
+    if errors:
+        for e in errors:
+            err_rows += f"""
+            <tr>
+                <td style="padding:8px;border-bottom:1px solid #f3f4f6;">{e.get('project_id','-')}</td>
+                <td style="padding:8px;border-bottom:1px solid #f3f4f6;">{e.get('llm_provider','-')}</td>
+                <td style="padding:8px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:12px;color:#7f1d1d;">{e.get('error_message','-')}</td>
+            </tr>
+            """
+        errors_block = f"""
+        <h3 style="margin-top:24px;">Últimos errores ({len(errors)})</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:#f9fafb;">
+                <th style="text-align:left;padding:8px;border-bottom:2px solid #e5e7eb;">Proyecto</th>
+                <th style="text-align:left;padding:8px;border-bottom:2px solid #e5e7eb;">Provider</th>
+                <th style="text-align:left;padding:8px;border-bottom:2px solid #e5e7eb;">Error</th>
+            </tr></thead>
+            <tbody>{err_rows}</tbody>
+        </table>
+        """
+    else:
+        errors_block = ''
+
+    err_block = ''
+    if err_msg:
+        err_block = f"""
+        <p style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px;margin:16px 0;">
+            <strong>Error global de la run:</strong><br>
+            <code style="font-size:12px;color:#7f1d1d;">{err_msg[:1000]}</code>
+        </p>
+        """
+
+    duration_str = f'{duration_min:.1f} min' if duration_min is not None else '-'
+
+    return f"""
+    <!DOCTYPE html>
+    <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+                       max-width:800px;margin:0 auto;padding:24px;color:#111827;">
+        <h2 style="color:{color};margin-top:0;">{icon} LLM Monitoring — Run #{run.get('id','?')} {status}</h2>
+        <p>Entorno: <strong>{env_name}</strong> · Disparado por: <strong>{triggered_by}</strong></p>
+        {err_block}
+        <table style="width:100%;border-collapse:collapse;font-size:14px;background:#f9fafb;border-radius:8px;">
+            <tr><td style="padding:8px 12px;color:#6b7280;">Inicio</td><td style="padding:8px 12px;font-family:monospace;">{started}</td></tr>
+            <tr><td style="padding:8px 12px;color:#6b7280;">Fin</td><td style="padding:8px 12px;font-family:monospace;">{completed}</td></tr>
+            <tr><td style="padding:8px 12px;color:#6b7280;">Duración</td><td style="padding:8px 12px;font-family:monospace;">{duration_str}</td></tr>
+            <tr><td style="padding:8px 12px;color:#6b7280;">Proyectos</td><td style="padding:8px 12px;font-family:monospace;">{ok}/{total} OK · {failed} fallidos</td></tr>
+            <tr><td style="padding:8px 12px;color:#6b7280;">Queries totales</td><td style="padding:8px 12px;font-family:monospace;">{queries}</td></tr>
+            {cost_row}
+        </table>
+        {alerts_block}
+        {errors_block}
+        <p style="color:#6b7280;font-size:12px;margin-top:32px;">
+            Email automático del sistema de monitorización de cron.
+            Kill switch: <code>CRON_ALERTS_ENABLED=false</code>.
+        </p>
+    </body></html>
+    """
+
+
+def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
+    """
+    SIEMPRE envía un email al terminar un run (a menos que el kill switch
+    CRON_ALERTS_ENABLED=false esté activo). El asunto refleja la severidad:
+
+      - ✅ OK         → run completado sin fallos ni umbrales superados
+      - ⚠️ WARNING    → algún proyecto falló o algún umbral medio superado
+      - 🚨 CRITICAL   → run con status='failed' o umbral alto superado
+
+    Internamente reutiliza los tres checks (duration / error rate / cost spike)
+    y los anexa al cuerpo cuando aplican. Nunca lanza excepción.
+    """
+    cfg = _get_config()
+    if not cfg['enabled']:
+        return {'email_sent': False, 'reason': 'disabled'}
+
+    if get_db_connection_fn is None:
+        try:
+            from database import get_db_connection as _gdc
+            get_db_connection_fn = _gdc
+        except Exception as e:
+            logger.warning(f"[cron_alerts] cannot import get_db_connection: {e}")
+            return {'email_sent': False, 'reason': 'no_db_import'}
+
+    run = _load_run(run_id, get_db_connection_fn)
+    if not run:
+        return {'email_sent': False, 'reason': 'run_not_found'}
+
+    alerts: List[Dict] = []
+    try:
+        a = _check_duration(run, cfg['duration_min_threshold'])
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] duration check failed: {e}")
+    try:
+        a = _check_error_rate(run, cfg['error_rate_threshold'])
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] error-rate check failed: {e}")
+    try:
+        a = _check_cost_spike(get_db_connection_fn, cfg['cost_multiplier_threshold'])
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] cost-spike check failed: {e}")
+
+    run_cost = _load_run_cost(run, get_db_connection_fn)
+    errors = _load_top_errors(run, get_db_connection_fn, limit=10)
+    severity = _derive_severity(run, alerts)
+
+    subject_icon = {'ok': '✅', 'warning': '⚠️', 'critical': '🚨'}[severity]
+    subject = (
+        f"{subject_icon} [{cfg['environment'].upper()}] LLM Cron {severity.upper()} · "
+        f"run #{run['id']} · {run.get('successful_projects',0)}/{run.get('total_projects',0)} OK"
+    )
+
+    try:
+        from email_service import send_email
+        html = _build_completion_email_html(run, alerts, run_cost, errors,
+                                            cfg['environment'], severity)
+        sent = send_email(cfg['email'], subject, html)
+        logger.info(f"[cron_alerts] completion email run {run_id} severity={severity} sent={bool(sent)}")
+        return {
+            'email_sent': bool(sent),
+            'severity': severity,
+            'alerts_triggered': len(alerts),
+            'alerts': [a['type'] for a in alerts],
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] completion email failed for run {run_id}: {e}")
+        return {'email_sent': False, 'reason': f'send_exception: {e}'}

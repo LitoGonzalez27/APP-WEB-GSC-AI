@@ -2576,13 +2576,15 @@ def resume_quota_pauses_for_user(user_id):
 # 🔒 ANALYSIS LOCK & RUN TRACKING
 # ====================================
 
-def acquire_analysis_lock(triggered_by: str = 'cron', stale_timeout_minutes: int = 30) -> Optional[int]:
+def acquire_analysis_lock(triggered_by: str = 'cron', stale_timeout_minutes: int = 15) -> Optional[int]:
     """
     Intenta adquirir el lock de análisis.
 
     Si el lock está libre, lo toma y crea un run en llm_monitoring_analysis_runs.
     Si el lock está tomado pero lleva más de stale_timeout_minutes, lo fuerza (crash recovery).
     Si el lock está tomado y es reciente, retorna None (análisis en curso).
+    Si la fila ya está bloqueada por otra transacción, retorna None inmediatamente
+    (SKIP LOCKED) en vez de esperar — los crons no deben colgarse 30 s para fallar.
 
     Returns:
         run_id (int) si se adquirió el lock, None si ya hay un análisis en curso.
@@ -2610,14 +2612,28 @@ def acquire_analysis_lock(triggered_by: str = 'cron', stale_timeout_minutes: int
             ON CONFLICT (id) DO NOTHING
         ''')
 
-        # Intentar adquirir lock
-        cur.execute('SELECT is_running, started_at FROM llm_monitoring_analysis_lock WHERE id = 1 FOR UPDATE')
+        # Intentar adquirir lock — SKIP LOCKED para no esperar a transacciones
+        # zombi que retengan la fila (causa de las respuestas de 20+ s al cron).
+        cur.execute(
+            'SELECT is_running, started_at FROM llm_monitoring_analysis_lock '
+            'WHERE id = 1 FOR UPDATE SKIP LOCKED'
+        )
         row = cur.fetchone()
 
-        if row and row['is_running']:
+        if row is None:
+            # Otra transacción retiene la fila → asumimos análisis en curso.
+            logger.warning("🔒 Analysis lock row currently locked by another transaction. Skipping.")
+            conn.rollback()
+            return None
+
+        if row['is_running']:
             # Lock está tomado - verificar si es stale
             started_at = row['started_at']
-            if started_at:
+            if started_at is None:
+                # is_running=TRUE sin started_at = estado inconsistente (crash previo).
+                # Lo tratamos como stale y forzamos liberación.
+                logger.warning("🔓 Lock held without started_at — treating as stale and force releasing.")
+            else:
                 from datetime import timezone
                 now = datetime.now(timezone.utc) if started_at.tzinfo else datetime.now()
                 elapsed = (now - started_at).total_seconds() / 60
@@ -2703,24 +2719,27 @@ def release_analysis_lock(run_id: int, total_projects: int = 0, successful: int 
         if conn:
             conn.close()
 
-    # Cron alert hook — fully isolated. Any error here MUST NOT affect lock state.
-    # The lock has already been released above; this just sends a notification email
-    # if any of the configured thresholds (duration / error rate / cost spike) was hit.
+    # Run-completion email hook — fully isolated. Any error here MUST NOT affect
+    # lock state (the lock has already been released above). We send ONE email
+    # per run, always, with status icon driven by severity (OK / WARNING / CRITICAL).
     try:
-        from cron_alerts import check_and_send_cron_alerts
-        result = check_and_send_cron_alerts(run_id)
-        if result.get('alerts_triggered', 0) > 0:
-            logger.info(
-                f"📧 Cron alerts: {result['alerts_triggered']} triggered "
-                f"(email_sent={result.get('email_sent')}, types={result.get('alerts', [])})"
-            )
+        from cron_alerts import send_run_completion_email
+        result = send_run_completion_email(run_id)
+        logger.info(
+            f"📧 Run completion email: run_id={run_id} severity={result.get('severity')} "
+            f"sent={result.get('email_sent')} alerts={result.get('alerts', [])}"
+        )
     except Exception as e:
-        logger.warning(f"Cron alerts hook failed (non-fatal): {e}")
+        logger.warning(f"Run completion email hook failed (non-fatal): {e}")
 
 
 def get_latest_analysis_run() -> Optional[Dict]:
     """
     Retorna información del último análisis ejecutado.
+
+    Prioriza un run con status='running' (útil para que la respuesta 409
+    del endpoint daily-analysis identifique exactamente qué análisis está
+    bloqueando). Si no hay ninguno en curso, devuelve el más reciente.
     """
     conn = None
     try:
@@ -2730,7 +2749,7 @@ def get_latest_analysis_run() -> Optional[Dict]:
         cur = conn.cursor()
         cur.execute('''
             SELECT * FROM llm_monitoring_analysis_runs
-            ORDER BY started_at DESC
+            ORDER BY (status = 'running') DESC, started_at DESC
             LIMIT 1
         ''')
         row = cur.fetchone()
@@ -2738,6 +2757,85 @@ def get_latest_analysis_run() -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Error getting latest analysis run: {e}")
         return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def cleanup_stale_analysis_lock_on_boot() -> Dict:
+    """
+    Limpia el lock del LLM Monitoring si quedó atascado tras un crash o redeploy.
+
+    Diseñada para llamarse UNA VEZ al arrancar el proceso Flask, justo después
+    de registrar el blueprint. Si el contenedor anterior fue reiniciado mientras
+    un análisis estaba corriendo, el thread daemon murió sin tocar la BD y deja
+    `is_running=TRUE`; este cleanup garantiza que el siguiente cron pueda entrar.
+
+    Operaciones (todas idempotentes, no destructivas):
+      - Cierra runs huérfanas (status='running' sin completed_at) como 'failed'.
+      - Pone el lock a is_running=FALSE.
+
+    Nunca borra filas. Solo actualiza estado.
+    """
+    result = {'lock_cleared': False, 'orphan_runs_closed': 0, 'error': None}
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            result['error'] = 'no_db_connection'
+            return result
+        cur = conn.cursor()
+
+        # Crear tabla si no existe (idem que acquire_analysis_lock) para evitar
+        # fallar en una BD limpia al arrancar.
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS llm_monitoring_analysis_lock (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                is_running BOOLEAN DEFAULT FALSE,
+                started_at TIMESTAMP,
+                started_by TEXT,
+                CONSTRAINT single_row CHECK (id = 1)
+            )
+        ''')
+        cur.execute('''
+            INSERT INTO llm_monitoring_analysis_lock (id, is_running)
+            VALUES (1, FALSE)
+            ON CONFLICT (id) DO NOTHING
+        ''')
+
+        # Cerrar runs huérfanas. Si el proceso anterior se reinició mientras
+        # corría, su run quedó marcado 'running' indefinidamente.
+        cur.execute('''
+            UPDATE llm_monitoring_analysis_runs
+            SET status = 'failed',
+                completed_at = NOW(),
+                error_message = COALESCE(error_message, 'Backend restart detected on boot')
+            WHERE status = 'running'
+        ''')
+        result['orphan_runs_closed'] = cur.rowcount or 0
+
+        # Liberar el lock solo si estaba marcado. No borramos histórico.
+        cur.execute('''
+            UPDATE llm_monitoring_analysis_lock
+            SET is_running = FALSE, started_at = NULL, started_by = NULL
+            WHERE id = 1 AND is_running = TRUE
+        ''')
+        result['lock_cleared'] = bool(cur.rowcount)
+
+        conn.commit()
+        if result['lock_cleared'] or result['orphan_runs_closed']:
+            logger.info(
+                f"🧹 LLM Monitoring lock cleanup on boot: lock_cleared={result['lock_cleared']}, "
+                f"orphan_runs_closed={result['orphan_runs_closed']}"
+            )
+        return result
+
+    except Exception as e:
+        logger.error(f"Error cleaning stale analysis lock on boot: {e}")
+        if conn:
+            conn.rollback()
+        result['error'] = str(e)
+        return result
     finally:
         if conn:
             conn.close()

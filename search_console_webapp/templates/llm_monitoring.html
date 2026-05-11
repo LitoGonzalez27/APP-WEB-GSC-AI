@@ -558,7 +558,15 @@
                     <div class="branded-card branded-card--non-branded">
                         <div class="branded-card__header">
                             <span class="branded-badge branded-badge--organic">Non-Branded Prompts</span>
-                            <span class="branded-card__tooltip" title="Metrics from generic queries that don't mention your brand name. These represent true organic visibility.">ⓘ</span>
+                            <span class="cg-info-tooltip cg-tooltip--top-right">
+                                <i class="fas fa-info-circle"></i>
+                                <span class="cg-info-tooltip-content">
+                                    <strong>What is this?</strong>
+                                    Metrics from generic prompts that <em>do not</em> mention your brand name (e.g. "best accounting software").
+                                    <strong>Why it matters</strong>
+                                    These represent your true organic visibility in LLMs — whether models mention you spontaneously when users ask category-level questions, not just branded queries.
+                                </span>
+                            </span>
                         </div>
                         <div class="branded-card__metrics">
                             <div class="branded-metric">
@@ -578,7 +586,15 @@
                     <div class="branded-card branded-card--branded">
                         <div class="branded-card__header">
                             <span class="branded-badge branded-badge--branded">Branded Prompts</span>
-                            <span class="branded-card__tooltip" title="Metrics from queries that explicitly contain your brand name. High mention rate is expected here.">ⓘ</span>
+                            <span class="cg-info-tooltip cg-tooltip--top-right">
+                                <i class="fas fa-info-circle"></i>
+                                <span class="cg-info-tooltip-content">
+                                    <strong>What is this?</strong>
+                                    Metrics from prompts that explicitly contain your brand name (e.g. "what is Clicandseo").
+                                    <strong>Why it matters</strong>
+                                    A high mention rate is expected here since the brand is named in the query. Use this as a baseline to validate that LLMs know your brand, and compare it against the Non-Branded card to measure real organic visibility.
+                                </span>
+                            </span>
                         </div>
                         <div class="branded-card__metrics">
                             <div class="branded-metric">
