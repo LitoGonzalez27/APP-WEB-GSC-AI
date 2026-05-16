@@ -3869,6 +3869,17 @@ try:
     from llm_monitoring_routes import llm_monitoring_bp
     app.register_blueprint(llm_monitoring_bp)
     logger.info("✅ Multi-LLM Brand Monitoring system registered at /api/llm-monitoring")
+
+    # Boot-time cleanup of stale LLM analysis lock. If the previous container
+    # was killed mid-analysis (deploy, OOM, kill), the daemon thread died
+    # without releasing the lock and any new cron trigger would hit 409 until
+    # the 15-min stale timeout. This runs once at startup and is non-destructive
+    # (only flips is_running and marks orphan runs as failed — never deletes).
+    try:
+        from database import cleanup_stale_analysis_lock_on_boot
+        cleanup_stale_analysis_lock_on_boot()
+    except Exception as cleanup_err:
+        logger.warning(f"⚠️ LLM analysis lock boot cleanup failed (non-fatal): {cleanup_err}")
 except Exception as e:
     logger.warning(f"⚠️ Could not register LLM Monitoring system: {e}")
 
