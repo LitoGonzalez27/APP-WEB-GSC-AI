@@ -210,46 +210,63 @@ class CronService:
             try:
                 # Verificar estado del usuario
                 conn = get_db_connection()
-                cur = conn.cursor()
-                
-                today = date.today()
-                
-                # Verificar plan y facturación
-                cur.execute("""
-                    SELECT COALESCE(plan, 'free') AS plan,
-                           COALESCE(billing_status, '') AS billing_status
-                    FROM users
-                    WHERE id = %s
-                """, (project_dict['user_id'],))
-                
-                user_state = cur.fetchone() or {}
-                user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
-                    user_state[0] if user_state else 'free'
-                )
-                user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
-                    user_state[1] if user_state and len(user_state) > 1 else ''
-                )
-                
-                if user_plan == 'free' or user_billing in ('canceled',):
-                    logger.info(f"⏭️ Skipping project {project_dict['id']} due to user "
-                              f"plan/billing status (plan={user_plan}, billing={user_billing})")
-                    skipped_analyses += 1
-                    cur.close()
-                    conn.close()
-                    continue
-                
-                # Verificar si ya hay resultados hoy
-                cur.execute("""
-                    SELECT COUNT(*) as count
-                    FROM ai_mode_results 
-                    WHERE project_id = %s AND analysis_date = %s
-                """, (project_dict['id'], today))
-                
-                result_row = cur.fetchone()
-                existing_results = result_row['count'] if result_row else 0
-                cur.close()
-                conn.close()
-                
+                if not conn:
+                    raise Exception("No se pudo conectar a BD")
+
+                cur = None
+                existing_results = 0
+                user_plan = 'free'
+                user_billing = ''
+                try:
+                    cur = conn.cursor()
+                    today = date.today()
+
+                    # Verificar plan y facturación
+                    cur.execute("""
+                        SELECT COALESCE(plan, 'free') AS plan,
+                               COALESCE(billing_status, '') AS billing_status
+                        FROM users
+                        WHERE id = %s
+                    """, (project_dict['user_id'],))
+
+                    user_state = cur.fetchone() or {}
+                    user_plan = user_state.get('plan', 'free') if isinstance(user_state, dict) else (
+                        user_state[0] if user_state else 'free'
+                    )
+                    user_billing = user_state.get('billing_status', '') if isinstance(user_state, dict) else (
+                        user_state[1] if user_state and len(user_state) > 1 else ''
+                    )
+
+                    if user_plan == 'free' or user_billing in ('canceled',):
+                        logger.info(f"⏭️ Skipping project {project_dict['id']} due to user "
+                                  f"plan/billing status (plan={user_plan}, billing={user_billing})")
+                        skipped_analyses += 1
+                        continue  # inner finally closes conn before continuing the outer for
+
+                    # Verificar si ya hay resultados hoy
+                    cur.execute("""
+                        SELECT COUNT(*) as count
+                        FROM ai_mode_results
+                        WHERE project_id = %s AND analysis_date = %s
+                    """, (project_dict['id'], today))
+
+                    result_row = cur.fetchone()
+                    existing_results = result_row['count'] if result_row else 0
+                finally:
+                    # Always return the pooled connection — previously the
+                    # outer except (failed_analyses += 1; continue) leaked
+                    # conn whenever cur.execute or fetch raised, contributing
+                    # to the 2026-05-14 pool exhaustion incident.
+                    if cur is not None:
+                        try:
+                            cur.close()
+                        except Exception:
+                            pass
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+
                 if existing_results > 0:
                     logger.info(f"⏭️ Project {project_dict['id']} ({project_dict['name']}) "
                               f"already analyzed today with {existing_results} results, skipping")
