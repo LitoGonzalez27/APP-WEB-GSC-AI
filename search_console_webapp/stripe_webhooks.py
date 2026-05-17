@@ -180,22 +180,50 @@ class StripeWebhookHandler:
             customer_id = subscription.get('customer')
             subscription_id = subscription['id']
             status = subscription.get('status')
-            current_period_start = subscription.get('current_period_start')
-            current_period_end = subscription.get('current_period_end')
             trial_end_ts = subscription.get('trial_end')
-            
+
             # Obtener producto y plan de los items de la suscripción
             items = subscription.get('items', {}).get('data', [])
             if not items:
                 logger.warning(f"⚠️ No items in subscription {subscription_id}")
                 return {'success': False, 'error': 'No subscription items found'}
-            
+
             price_id = items[0]['price']['id']
             product_id = items[0]['price']['product']
-            
+
             # Determinar plan basado en price_id
             plan = self._get_plan_from_price_id(price_id, product_id)
-            
+
+            # Robust period extraction (fix 2026-05-17):
+            # In Stripe API version 2025-06-30.basil onwards, current_period_start/end
+            # MOVED from the subscription root to subscription.items[N]. Without this
+            # multi-route extraction, _update_subscription wrote NULL to
+            # users.current_period_end whenever a customer.subscription.updated event
+            # came in on the modern API. Mirrors the existing pattern in
+            # _handle_payment_succeeded for invoice events.
+            current_period_start = (subscription.get('current_period_start')
+                                    or items[0].get('current_period_start'))
+            current_period_end = (subscription.get('current_period_end')
+                                  or items[0].get('current_period_end'))
+            # Last-resort fallback: live fetch via Stripe API in case the event was
+            # delivered without period info at any level (rare but possible).
+            if not (current_period_start and current_period_end):
+                try:
+                    import stripe as _stripe
+                    if os.getenv('STRIPE_SECRET_KEY'):
+                        _stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+                    sub_live = _stripe.Subscription.retrieve(subscription_id)
+                    current_period_start = current_period_start or sub_live.get('current_period_start')
+                    current_period_end = current_period_end or sub_live.get('current_period_end')
+                    if not (current_period_start and current_period_end):
+                        items_live = (sub_live.get('items') or {}).get('data') or []
+                        if items_live:
+                            current_period_start = current_period_start or items_live[0].get('current_period_start')
+                            current_period_end = current_period_end or items_live[0].get('current_period_end')
+                    logger.info(f"📡 Fetched period from Stripe API fallback for sub {subscription_id}")
+                except Exception as _e:
+                    logger.warning(f"⚠️ Stripe API period fallback failed for sub {subscription_id}: {_e}")
+
             # Convertir timestamps
             period_start = datetime.fromtimestamp(current_period_start) if current_period_start else None
             period_end = datetime.fromtimestamp(current_period_end) if current_period_end else None
