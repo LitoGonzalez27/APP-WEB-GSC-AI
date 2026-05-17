@@ -1101,7 +1101,8 @@ JSON:"""
         conn = get_db_connection()
         if not conn:
             raise Exception("No se pudo conectar a BD")
-        
+
+        cur = None
         try:
             cur = conn.cursor()
             
@@ -1329,8 +1330,6 @@ JSON:"""
             if len(active_providers) == 0:
                 logger.error("❌ NINGÚN PROVIDER ESTÁ DISPONIBLE")
                 logger.error("   No se puede realizar el análisis")
-                cur.close()
-                conn.close()
                 return {
                     'project_id': project_id,
                     'error': 'No providers available after health check',
@@ -1345,15 +1344,27 @@ JSON:"""
                 logger.info(f"   😊 Sentiment analyzer: {self.sentiment_analyzer.get_provider_name()}")
             else:
                 logger.info("   😊 Sentiment analyzer: keyword fallback")
-            
-            cur.close()
-            conn.close()
-            
+
         except Exception as e:
             logger.error(f"❌ Error obteniendo proyecto: {e}")
-            cur.close()
-            conn.close()
             raise
+        finally:
+            # Guarantee the connection returns to the pool on every path:
+            # the success path, the early returns (paused, paywall,
+            # no_active_queries, prompt_limit_exceeded, quota_exceeded,
+            # no_providers_after_healthcheck), and the exception path.
+            # Previously, the early returns inside this try block leaked
+            # one connection each — over the daily cron with multiple
+            # projects this drained the pool within ~8-13 days.
+            if cur is not None:
+                try:
+                    cur.close()
+                except Exception:
+                    pass
+            try:
+                conn.close()
+            except Exception:
+                pass
         
         # ✨ Parsear selected_competitors para extraer dominios y keywords
         selected_competitors = project.get('selected_competitors', [])
@@ -2199,29 +2210,41 @@ def analyze_all_active_projects(api_keys: Dict[str, str] = None, max_workers: in
         Lista de resultados por proyecto con métricas de completitud
     """
     service = MultiLLMMonitoringService(api_keys)
-    
+
     conn = get_db_connection()
-    cur = conn.cursor()
-    
-    cur.execute("""
-        SELECT 
-            p.id,
-            p.name,
-            p.user_id,
-            p.created_at,
-            u.plan,
-            u.billing_status,
-            u.role
-        FROM llm_monitoring_projects p
-        JOIN users u ON u.id = p.user_id
-        WHERE p.is_active = TRUE
-          AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
-        ORDER BY p.user_id, p.created_at
-    """)
-    
-    projects = cur.fetchall()
-    cur.close()
-    conn.close()
+    if not conn:
+        raise Exception("No se pudo conectar a BD para listar proyectos activos")
+
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                p.id,
+                p.name,
+                p.user_id,
+                p.created_at,
+                u.plan,
+                u.billing_status,
+                u.role
+            FROM llm_monitoring_projects p
+            JOIN users u ON u.id = p.user_id
+            WHERE p.is_active = TRUE
+              AND COALESCE(p.is_paused_by_quota, FALSE) = FALSE
+            ORDER BY p.user_id, p.created_at
+        """)
+
+        projects = cur.fetchall()
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        try:
+            conn.close()
+        except Exception:
+            pass
     
     logger.info(f"🚀 Analizando {len(projects)} proyectos activos...")
 

@@ -116,189 +116,6 @@ class StripeWebhookHandler:
             # No marcamos el evento como procesado para que Stripe reintente
             return {'success': False, 'error': str(e)}
 
-
-# ---------------------------------------------------------------------------
-# Webhook idempotency helpers (added 2026-05-07)
-# ---------------------------------------------------------------------------
-
-def _ensure_webhook_events_table(cur):
-    """Idempotente: crea la tabla la primera vez que se llama."""
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS stripe_webhook_events (
-            event_id VARCHAR(120) PRIMARY KEY,
-            event_type VARCHAR(80) NOT NULL,
-            received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            processed_at TIMESTAMPTZ,
-            status VARCHAR(20) NOT NULL DEFAULT 'in_progress',
-            error_message TEXT
-        )
-    ''')
-    cur.execute('''
-        CREATE INDEX IF NOT EXISTS idx_stripe_webhook_events_received
-        ON stripe_webhook_events(received_at DESC)
-    ''')
-
-
-def _claim_webhook_event(event_id: str, event_type: str):
-    """Intenta reclamar la propiedad del evento. Devuelve (already_processed, claim_ok).
-
-    Returns:
-      (True, True)  → ya estaba procesado, no hay que hacer nada
-      (False, True) → reclamado con éxito, procede a procesar
-      (False, False)→ no se pudo reclamar (BD inaccesible) — devolver 5xx a Stripe
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return False, False
-        cur = conn.cursor()
-        _ensure_webhook_events_table(cur)
-        # INSERT…ON CONFLICT DO NOTHING + RETURNING para detectar si era nuevo
-        cur.execute('''
-            INSERT INTO stripe_webhook_events (event_id, event_type, status)
-            VALUES (%s, %s, 'in_progress')
-            ON CONFLICT (event_id) DO NOTHING
-            RETURNING event_id
-        ''', (event_id, event_type))
-        row = cur.fetchone()
-        conn.commit()
-        if row is None:
-            # Existía → ya procesado (o en proceso)
-            return True, True
-        return False, True
-    except Exception as e:
-        logger.error(f"Error claiming webhook event {event_id}: {e}")
-        if conn:
-            try: conn.rollback()
-            except Exception: pass
-        return False, False
-    finally:
-        if conn:
-            try: conn.close()
-            except Exception: pass
-
-
-def _mark_webhook_event_processed(event_id: str, success: bool, error_message: str = None):
-    """Marca el evento como completado (success o failure)."""
-    conn = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return
-        cur = conn.cursor()
-        cur.execute('''
-            UPDATE stripe_webhook_events
-            SET processed_at = NOW(),
-                status = %s,
-                error_message = %s
-            WHERE event_id = %s
-        ''', ('processed' if success else 'failed', (error_message or '')[:500], event_id))
-        conn.commit()
-    except Exception as e:
-        logger.warning(f"Could not mark webhook event {event_id} as processed: {e}")
-        if conn:
-            try: conn.rollback()
-            except Exception: pass
-    finally:
-        if conn:
-            try: conn.close()
-            except Exception: pass
-
-
-def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: str):
-    """Send alert email when a webhook arrives for a customer not in our DB.
-
-    Gated by CRON_ALERTS_ENABLED so it can be silenced. Also rate-limited
-    to avoid spam: at most one alert per (customer_id, hour).
-    """
-    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
-        return
-
-    # Lightweight rate-limit via DB: insert a row, only send if it's the first
-    # in the last hour for this customer_id.
-    conn = None
-    should_send = True
-    try:
-        conn = get_db_connection()
-        if conn:
-            cur = conn.cursor()
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS stripe_webhook_alerts_sent (
-                    id SERIAL PRIMARY KEY,
-                    alert_key VARCHAR(200) NOT NULL,
-                    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-            ''')
-            cur.execute('''
-                CREATE INDEX IF NOT EXISTS idx_stripe_webhook_alerts_key
-                ON stripe_webhook_alerts_sent(alert_key, sent_at DESC)
-            ''')
-            cur.execute('''
-                SELECT 1 FROM stripe_webhook_alerts_sent
-                WHERE alert_key = %s AND sent_at > NOW() - INTERVAL '1 hour'
-                LIMIT 1
-            ''', (f'unmatched_customer:{customer_id}',))
-            if cur.fetchone():
-                should_send = False
-            else:
-                cur.execute('''
-                    INSERT INTO stripe_webhook_alerts_sent (alert_key) VALUES (%s)
-                ''', (f'unmatched_customer:{customer_id}',))
-            conn.commit()
-    except Exception as e:
-        logger.warning(f"Rate-limit check for unmatched-customer alert failed: {e}")
-        if conn:
-            try: conn.rollback()
-            except Exception: pass
-    finally:
-        if conn:
-            try: conn.close()
-            except Exception: pass
-
-    if not should_send:
-        return
-
-    try:
-        from email_service import send_email
-    except Exception as e:
-        logger.warning(f"Cannot import email_service for unmatched-customer alert: {e}")
-        return
-
-    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
-    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
-
-    html = f"""
-    <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-        <h2 style="color:#dc2626;margin-top:0">🚨 Stripe webhook — customer no encontrado</h2>
-        <p><strong>Entorno:</strong> {env_name}</p>
-        <p>Llegó un webhook de Stripe que NO pudimos asociar a un usuario en nuestra BD,
-           ni por <code>stripe_customer_id</code>, ni por <code>subscription_id</code>,
-           ni por email del cliente en Stripe.</p>
-        <table style="border-collapse:collapse;font-size:14px">
-            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>customer_id</strong></td>
-                <td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace">{customer_id}</td></tr>
-            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>subscription_id</strong></td>
-                <td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace">{subscription_id}</td></tr>
-            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>action</strong></td>
-                <td style="padding:6px;border:1px solid #e5e7eb">{action}</td></tr>
-        </table>
-        <p style="margin-top:18px">Stripe reintentará automáticamente durante 3 días con backoff
-           exponencial. Si llega un nuevo evento del mismo customer y nuestro registro de usuario
-           ya existe (race resuelta), se procesará. Si persiste el fallo: investigar manualmente
-           en el dashboard de Stripe vs. la BD.</p>
-        <p style="color:#6b7280;font-size:12px;margin-top:24px">
-            Rate-limited: máximo 1 alerta por customer_id por hora. Para silenciar:
-            <code>CRON_ALERTS_ENABLED=false</code>.
-        </p>
-    </body></html>
-    """
-    try:
-        send_email(to, f"[{env_name.upper()}] Stripe webhook customer_not_found", html)
-        logger.info(f"📧 Sent unmatched-customer alert to {to}")
-    except Exception as e:
-        logger.warning(f"Failed to send unmatched-customer alert: {e}")
-    
     def _handle_checkout_completed(self, session: dict) -> dict:
         """Maneja checkout.session.completed"""
         try:
@@ -363,22 +180,50 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
             customer_id = subscription.get('customer')
             subscription_id = subscription['id']
             status = subscription.get('status')
-            current_period_start = subscription.get('current_period_start')
-            current_period_end = subscription.get('current_period_end')
             trial_end_ts = subscription.get('trial_end')
-            
+
             # Obtener producto y plan de los items de la suscripción
             items = subscription.get('items', {}).get('data', [])
             if not items:
                 logger.warning(f"⚠️ No items in subscription {subscription_id}")
                 return {'success': False, 'error': 'No subscription items found'}
-            
+
             price_id = items[0]['price']['id']
             product_id = items[0]['price']['product']
-            
+
             # Determinar plan basado en price_id
             plan = self._get_plan_from_price_id(price_id, product_id)
-            
+
+            # Robust period extraction (fix 2026-05-17):
+            # In Stripe API version 2025-06-30.basil onwards, current_period_start/end
+            # MOVED from the subscription root to subscription.items[N]. Without this
+            # multi-route extraction, _update_subscription wrote NULL to
+            # users.current_period_end whenever a customer.subscription.updated event
+            # came in on the modern API. Mirrors the existing pattern in
+            # _handle_payment_succeeded for invoice events.
+            current_period_start = (subscription.get('current_period_start')
+                                    or items[0].get('current_period_start'))
+            current_period_end = (subscription.get('current_period_end')
+                                  or items[0].get('current_period_end'))
+            # Last-resort fallback: live fetch via Stripe API in case the event was
+            # delivered without period info at any level (rare but possible).
+            if not (current_period_start and current_period_end):
+                try:
+                    import stripe as _stripe
+                    if os.getenv('STRIPE_SECRET_KEY'):
+                        _stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+                    sub_live = _stripe.Subscription.retrieve(subscription_id)
+                    current_period_start = current_period_start or sub_live.get('current_period_start')
+                    current_period_end = current_period_end or sub_live.get('current_period_end')
+                    if not (current_period_start and current_period_end):
+                        items_live = (sub_live.get('items') or {}).get('data') or []
+                        if items_live:
+                            current_period_start = current_period_start or items_live[0].get('current_period_start')
+                            current_period_end = current_period_end or items_live[0].get('current_period_end')
+                    logger.info(f"📡 Fetched period from Stripe API fallback for sub {subscription_id}")
+                except Exception as _e:
+                    logger.warning(f"⚠️ Stripe API period fallback failed for sub {subscription_id}: {_e}")
+
             # Convertir timestamps
             period_start = datetime.fromtimestamp(current_period_start) if current_period_start else None
             period_end = datetime.fromtimestamp(current_period_end) if current_period_end else None
@@ -748,6 +593,192 @@ def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: st
         # Fallback
         logger.warning(f"⚠️ Unknown price_id {price_id} for product {product_id}")
         return 'free'
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers: webhook idempotency tracking + unmatched-customer alert
+# (kept as module-level — not class methods — because they're shared
+#  infrastructure used both by the class and the route layer.)
+# ---------------------------------------------------------------------------
+
+def _ensure_webhook_events_table(cur):
+    """Idempotente: crea la tabla la primera vez que se llama."""
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+            event_id VARCHAR(120) PRIMARY KEY,
+            event_type VARCHAR(80) NOT NULL,
+            received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            processed_at TIMESTAMPTZ,
+            status VARCHAR(20) NOT NULL DEFAULT 'in_progress',
+            error_message TEXT
+        )
+    ''')
+    cur.execute('''
+        CREATE INDEX IF NOT EXISTS idx_stripe_webhook_events_received
+        ON stripe_webhook_events(received_at DESC)
+    ''')
+
+
+def _claim_webhook_event(event_id: str, event_type: str):
+    """Intenta reclamar la propiedad del evento. Devuelve (already_processed, claim_ok).
+
+    Returns:
+      (True, True)  → ya estaba procesado, no hay que hacer nada
+      (False, True) → reclamado con éxito, procede a procesar
+      (False, False)→ no se pudo reclamar (BD inaccesible) — devolver 5xx a Stripe
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return False, False
+        cur = conn.cursor()
+        _ensure_webhook_events_table(cur)
+        # INSERT…ON CONFLICT DO NOTHING + RETURNING para detectar si era nuevo
+        cur.execute('''
+            INSERT INTO stripe_webhook_events (event_id, event_type, status)
+            VALUES (%s, %s, 'in_progress')
+            ON CONFLICT (event_id) DO NOTHING
+            RETURNING event_id
+        ''', (event_id, event_type))
+        row = cur.fetchone()
+        conn.commit()
+        if row is None:
+            # Existía → ya procesado (o en proceso)
+            return True, True
+        return False, True
+    except Exception as e:
+        logger.error(f"Error claiming webhook event {event_id}: {e}")
+        if conn:
+            try: conn.rollback()
+            except Exception: pass
+        return False, False
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def _mark_webhook_event_processed(event_id: str, success: bool, error_message: str = None):
+    """Marca el evento como completado (success o failure)."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return
+        cur = conn.cursor()
+        cur.execute('''
+            UPDATE stripe_webhook_events
+            SET processed_at = NOW(),
+                status = %s,
+                error_message = %s
+            WHERE event_id = %s
+        ''', ('processed' if success else 'failed', (error_message or '')[:500], event_id))
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Could not mark webhook event {event_id} as processed: {e}")
+        if conn:
+            try: conn.rollback()
+            except Exception: pass
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+def _alert_unmatched_customer(customer_id: str, subscription_id: str, action: str):
+    """Send alert email when a webhook arrives for a customer not in our DB.
+
+    Gated by CRON_ALERTS_ENABLED so it can be silenced. Also rate-limited
+    to avoid spam: at most one alert per (customer_id, hour).
+    """
+    if os.getenv('CRON_ALERTS_ENABLED', 'true').lower() != 'true':
+        return
+
+    # Lightweight rate-limit via DB: insert a row, only send if it's the first
+    # in the last hour for this customer_id.
+    conn = None
+    should_send = True
+    try:
+        conn = get_db_connection()
+        if conn:
+            cur = conn.cursor()
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS stripe_webhook_alerts_sent (
+                    id SERIAL PRIMARY KEY,
+                    alert_key VARCHAR(200) NOT NULL,
+                    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            ''')
+            cur.execute('''
+                CREATE INDEX IF NOT EXISTS idx_stripe_webhook_alerts_key
+                ON stripe_webhook_alerts_sent(alert_key, sent_at DESC)
+            ''')
+            cur.execute('''
+                SELECT 1 FROM stripe_webhook_alerts_sent
+                WHERE alert_key = %s AND sent_at > NOW() - INTERVAL '1 hour'
+                LIMIT 1
+            ''', (f'unmatched_customer:{customer_id}',))
+            if cur.fetchone():
+                should_send = False
+            else:
+                cur.execute('''
+                    INSERT INTO stripe_webhook_alerts_sent (alert_key) VALUES (%s)
+                ''', (f'unmatched_customer:{customer_id}',))
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Rate-limit check for unmatched-customer alert failed: {e}")
+        if conn:
+            try: conn.rollback()
+            except Exception: pass
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+    if not should_send:
+        return
+
+    try:
+        from email_service import send_email
+    except Exception as e:
+        logger.warning(f"Cannot import email_service for unmatched-customer alert: {e}")
+        return
+
+    to = os.getenv('CRON_ALERTS_EMAIL', 'info@soycarlosgonzalez.com')
+    env_name = os.getenv('APP_ENV', os.getenv('RAILWAY_ENVIRONMENT_NAME', 'unknown'))
+
+    html = f"""
+    <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <h2 style="color:#dc2626;margin-top:0">🚨 Stripe webhook — customer no encontrado</h2>
+        <p><strong>Entorno:</strong> {env_name}</p>
+        <p>Llegó un webhook de Stripe que NO pudimos asociar a un usuario en nuestra BD,
+           ni por <code>stripe_customer_id</code>, ni por <code>subscription_id</code>,
+           ni por email del cliente en Stripe.</p>
+        <table style="border-collapse:collapse;font-size:14px">
+            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>customer_id</strong></td>
+                <td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace">{customer_id}</td></tr>
+            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>subscription_id</strong></td>
+                <td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace">{subscription_id}</td></tr>
+            <tr><td style="padding:6px;border:1px solid #e5e7eb"><strong>action</strong></td>
+                <td style="padding:6px;border:1px solid #e5e7eb">{action}</td></tr>
+        </table>
+        <p style="margin-top:18px">Stripe reintentará automáticamente durante 3 días con backoff
+           exponencial. Si llega un nuevo evento del mismo customer y nuestro registro de usuario
+           ya existe (race resuelta), se procesará. Si persiste el fallo: investigar manualmente
+           en el dashboard de Stripe vs. la BD.</p>
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">
+            Rate-limited: máximo 1 alerta por customer_id por hora. Para silenciar:
+            <code>CRON_ALERTS_ENABLED=false</code>.
+        </p>
+    </body></html>
+    """
+    try:
+        send_email(to, f"[{env_name.upper()}] Stripe webhook customer_not_found", html)
+        logger.info(f"📧 Sent unmatched-customer alert to {to}")
+    except Exception as e:
+        logger.warning(f"Failed to send unmatched-customer alert: {e}")
+
 
 # Global instance
 webhook_handler = StripeWebhookHandler()
