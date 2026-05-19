@@ -574,11 +574,19 @@ def create_or_update_oauth_connection(user_id: int, google_account_id: str, goog
 
         if existing:
             connection_id = existing['id']
+            # NOTE (2026-05-19): Google only returns a refresh_token on the FIRST
+            # authorization (or when prompt=consent is forced). On every subsequent
+            # login, creds['refresh_token'] is None. The previous code wrote that
+            # None straight into refresh_token_encrypted, which violated the
+            # NOT NULL constraint and made the whole login fail with
+            # "null value in column refresh_token_encrypted ...".
+            # Fix: COALESCE — if no new refresh_token arrives, keep the stored one
+            # (the old refresh_token is still valid).
             cur.execute('''
                 UPDATE oauth_connections
                 SET google_email = %s,
                     access_token = %s,
-                    refresh_token_encrypted = %s,
+                    refresh_token_encrypted = COALESCE(%s, refresh_token_encrypted),
                     token_uri = %s,
                     client_id = %s,
                     client_secret = %s,
