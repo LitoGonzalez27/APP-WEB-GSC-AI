@@ -2824,10 +2824,10 @@ def suggest_queries(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-    
+    cur = None
     try:
         cur = conn.cursor()
-        
+
         # Obtener datos del proyecto
         cur.execute("""
             SELECT name, brand_name, industry, language, competitors
@@ -2851,10 +2851,7 @@ def suggest_queries(project_id):
         
         existing_queries = cur.fetchall()
         existing_queries_list = [q['query_text'] for q in existing_queries]
-        
-        cur.close()
-        conn.close()
-        
+
         # Generar sugerencias usando IA
         from services.llm_monitoring_service import generate_query_suggestions_with_ai
         
@@ -2902,6 +2899,15 @@ def suggest_queries(project_id):
             'error': f'Error generando sugerencias: {str(e)}',
             'hint': 'Verifica que GOOGLE_API_KEY esté configurada'
         }), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/queries/suggest-variations', methods=['POST'])
@@ -3551,11 +3557,11 @@ def get_urls_ranking(project_id):
         except (TypeError, ValueError):
             return jsonify({'error': 'Limit must be an integer'}), 400
     
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
+    cur = None
     try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-
         cur = conn.cursor()
         cur.execute("""
             SELECT enabled_llms
@@ -3563,8 +3569,6 @@ def get_urls_ranking(project_id):
             WHERE id = %s
         """, (project_id,))
         project = cur.fetchone()
-        cur.close()
-        conn.close()
 
         enabled_llms_filter = (project or {}).get('enabled_llms') or []
         if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
@@ -3598,6 +3602,15 @@ def get_urls_ranking(project_id):
     except Exception as e:
         logger.error(f"Error obteniendo ranking de URLs: {e}", exc_info=True)
         return jsonify({'error': 'Failed to load data. Please try again.'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/comparison', methods=['GET'])
@@ -3967,10 +3980,10 @@ def get_project_queries(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-    
+    cur = None
     try:
         cur = conn.cursor()
-        
+
         # Obtener información del proyecto (para country)
         cur.execute("""
             SELECT name, language, country_code, enabled_llms
@@ -4134,9 +4147,6 @@ def get_project_queries(project_id):
                 'competitors': row['competitors_mentioned'] or {}
             }
         
-        cur.close()
-        conn.close()
-        
         # Formatear datos para el frontend
         queries_list = []
         for q in queries_raw:
@@ -4176,6 +4186,15 @@ def get_project_queries(project_id):
     except Exception as e:
         logger.error(f"Error obteniendo queries: {e}", exc_info=True)
         return jsonify({'error': 'Failed to load data. Please try again.'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # ============================================================================
@@ -4232,7 +4251,7 @@ def get_share_of_voice_history(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-
+    cur = None
     try:
         cur = conn.cursor()
 
@@ -4352,9 +4371,6 @@ def get_share_of_voice_history(project_id):
                     'borderWidth': 1.5
                 })
 
-            cur.close()
-            conn.close()
-
             scope_label = 'Non-Branded' if query_scope == 'non_branded' else 'Branded'
             return jsonify({
                 'success': True,
@@ -4387,10 +4403,7 @@ def get_share_of_voice_history(project_id):
         cur.execute(sov_history_query, sov_history_params)
         
         snapshots = cur.fetchall()
-        
-        cur.close()
-        conn.close()
-        
+
         # Si no hay datos, devolver estructura vacía
         if not snapshots:
             return jsonify({
@@ -4724,24 +4737,33 @@ def get_share_of_voice_history(project_id):
 
             prev_conn = get_db_connection()
             if prev_conn:
-                prev_cur = prev_conn.cursor()
-                prev_sov_query = """
-                    SELECT snapshot_date, llm_provider,
-                           total_mentions, total_competitor_mentions, competitor_breakdown,
-                           share_of_voice, weighted_share_of_voice,
-                           weighted_competitor_breakdown
-                    FROM llm_monitoring_snapshots
-                    WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date < %s
-                """
-                prev_params = [project_id, prev_start, prev_end]
-                if enabled_llms_filter:
-                    prev_sov_query += " AND llm_provider = ANY(%s)"
-                    prev_params.append(enabled_llms_filter)
-                prev_sov_query += " ORDER BY snapshot_date"
-                prev_cur.execute(prev_sov_query, prev_params)
-                prev_snaps = prev_cur.fetchall()
-                prev_cur.close()
-                prev_conn.close()
+                prev_cur = None
+                try:
+                    prev_cur = prev_conn.cursor()
+                    prev_sov_query = """
+                        SELECT snapshot_date, llm_provider,
+                               total_mentions, total_competitor_mentions, competitor_breakdown,
+                               share_of_voice, weighted_share_of_voice,
+                               weighted_competitor_breakdown
+                        FROM llm_monitoring_snapshots
+                        WHERE project_id = %s AND snapshot_date >= %s AND snapshot_date < %s
+                    """
+                    prev_params = [project_id, prev_start, prev_end]
+                    if enabled_llms_filter:
+                        prev_sov_query += " AND llm_provider = ANY(%s)"
+                        prev_params.append(enabled_llms_filter)
+                    prev_sov_query += " ORDER BY snapshot_date"
+                    prev_cur.execute(prev_sov_query, prev_params)
+                    prev_snaps = prev_cur.fetchall()
+                finally:
+                    try:
+                        prev_cur.close()
+                    except Exception:
+                        pass
+                    try:
+                        prev_conn.close()
+                    except Exception:
+                        pass
 
                 if prev_snaps:
                     # Aggregate previous period brand + competitor mentions
@@ -4798,6 +4820,15 @@ def get_share_of_voice_history(project_id):
             'error': 'Failed to load data. Please try again.',
             'details': 'Check server logs for more information'
         }), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # ============================================================================
@@ -5384,17 +5415,17 @@ def health_check():
     Returns:
         JSON con estado del sistema
     """
+    # Verificar conexión a BD
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({
+            'status': 'error',
+            'database': 'disconnected'
+        }), 503
+    cur = None
     try:
-        # Verificar conexión a BD
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({
-                'status': 'error',
-                'database': 'disconnected'
-            }), 503
-        
         cur = conn.cursor()
-        
+
         # Contar proyectos activos
         cur.execute("SELECT COUNT(*) as count FROM llm_monitoring_projects WHERE is_active = TRUE")
         active_projects = cur.fetchone()['count']
@@ -5407,9 +5438,6 @@ def health_check():
             'perplexity': bool(os.getenv('PERPLEXITY_API_KEY'))
         }
         
-        cur.close()
-        conn.close()
-        
         return jsonify({
             'status': 'ok',
             'database': 'connected',
@@ -5417,13 +5445,22 @@ def health_check():
             'api_keys_configured': sum(api_keys_available.values()),
             'api_keys': api_keys_available
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {e}", exc_info=True)
         return jsonify({
             'status': 'error',
             'error': str(e)
         }), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/responses', methods=['GET'])
@@ -5451,7 +5488,7 @@ def get_project_responses(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-
+    cur = None
     try:
         cur = conn.cursor()
 
@@ -5466,8 +5503,6 @@ def get_project_responses(project_id):
         enabled_llms_filter = project_row.get('enabled_llms') or []
         resp_brand_keywords = project_row.get('brand_keywords') or []
         if llm_provider and enabled_llms_filter and llm_provider not in enabled_llms_filter:
-            cur.close()
-            conn.close()
             return jsonify({
                 'error': 'llm_provider no habilitado para este proyecto'
             }), 400
@@ -5552,9 +5587,6 @@ def get_project_responses(project_id):
                 'created_at': r['created_at'].isoformat() if r['created_at'] else None
             })
         
-        cur.close()
-        conn.close()
-        
         return jsonify({
             'success': True,
             'responses': responses,
@@ -5565,10 +5597,19 @@ def get_project_responses(project_id):
                 'days': days
             }
         }), 200
-        
+
     except Exception as e:
         logger.error(f"Error obteniendo respuestas: {e}", exc_info=True)
         return jsonify({'error': 'Failed to load data. Please try again.'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # ============================================================================
@@ -5614,7 +5655,7 @@ def export_project_excel(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Service temporarily unavailable. Please try again.'}), 500
-
+    cur = None
     try:
         cur = conn.cursor()
 
@@ -5961,9 +6002,6 @@ def export_project_excel(project_id):
                 prev_llm_mr_export[row['llm_provider']] = float(row['avg_mention_rate']) if row['avg_mention_rate'] is not None else 0
         except Exception as prev_mr_err:
             logger.warning(f"Could not compute prev LLM MR for export: {prev_mr_err}")
-
-        cur.close()
-        conn.close()
 
         # 6. URL Rankings (via service)
         try:
@@ -6712,6 +6750,15 @@ def export_project_excel(project_id):
     except Exception as e:
         logger.error(f"❌ Error exportando Excel para proyecto {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando Excel: {str(e)}'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @llm_monitoring_bp.route('/projects/<int:project_id>/export/pdf', methods=['GET'])
@@ -6749,7 +6796,7 @@ def export_project_pdf(project_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Error de conexion a BD'}), 500
-
+    cur = None
     try:
         cur = conn.cursor()
 
@@ -7023,9 +7070,6 @@ def export_project_pdf(project_id):
         comp_snapshot_q += " ORDER BY snapshot_date"
         cur.execute(comp_snapshot_q, comp_snap_p)
         comp_snapshots = cur.fetchall()
-
-        cur.close()
-        conn.close()
 
         # ── Aggregate competitor mentions ──
         brand_total_mentions = 0
@@ -7933,6 +7977,15 @@ def export_project_pdf(project_id):
     except Exception as e:
         logger.error(f"Error exporting PDF for project {project_id}: {e}", exc_info=True)
         return jsonify({'error': f'Error exportando PDF: {str(e)}'}), 500
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # ============================================================================
