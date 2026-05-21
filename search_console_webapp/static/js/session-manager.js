@@ -39,6 +39,71 @@ class SessionManager {
         this.startSessionChecking();
         this.startKeepAlive();
         this.createWarningModal();
+        this.installFetchInterceptor();
+    }
+
+    /**
+     * Instala un interceptor global sobre window.fetch que detecta respuestas 401
+     * (sesión expirada / no autenticado) procedentes de CUALQUIER endpoint y dispara
+     * handleSessionExpired automáticamente.
+     *
+     * Sin este interceptor, módulos como LLM Monitoring, Manual AI, etc. cada uno
+     * tendría que detectar el 401 en cada uno de sus 30+ fetch() y redirigir al
+     * login — y en la práctica no lo hacen, así que el usuario ve "Failed to load"
+     * en vez de un redirect limpio cuando expira la sesión por inactividad.
+     *
+     * Solo actúa cuando el body del 401 contiene flags de auth (session_expired,
+     * auth_required o un error message tipo "Authentication required"). Esto evita
+     * tocar 401 de OTROS dominios (p. ej. APIs externas) o 401 que la app maneje
+     * intencionadamente con su propia lógica.
+     */
+    installFetchInterceptor() {
+        if (typeof window === 'undefined' || !window.fetch) return;
+        if (window.__sessionManagerFetchPatched) return;  // idempotente
+        window.__sessionManagerFetchPatched = true;
+
+        const originalFetch = window.fetch.bind(window);
+        const self = this;
+        let handlingExpired = false;
+
+        window.fetch = async function (...args) {
+            const response = await originalFetch(...args);
+
+            if (response.status === 401 && !handlingExpired) {
+                // Clonar para no consumir el body original (el caller lo necesita)
+                let payload = null;
+                try {
+                    payload = await response.clone().json();
+                } catch (_) {
+                    payload = null;
+                }
+
+                const looksLikeAuthExpiry =
+                    payload &&
+                    (
+                        payload.session_expired === true ||
+                        payload.auth_required === true ||
+                        (typeof payload.error === 'string' &&
+                            /authentication|session expired|user not found/i.test(payload.error))
+                    );
+
+                if (looksLikeAuthExpiry) {
+                    handlingExpired = true;
+                    try {
+                        self.handleSessionExpired(payload);
+                    } catch (e) {
+                        // Si por la razón que sea handleSessionExpired falla,
+                        // forzar redirect manual como último recurso.
+                        try { window.location.href = '/login?session_expired=true'; }
+                        catch (_) { /* noop */ }
+                    }
+                }
+            }
+
+            return response;
+        };
+
+        this.log('Global 401 fetch interceptor installed');
     }
 
     /**
