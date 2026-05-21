@@ -252,11 +252,19 @@ class PerplexityProvider(BaseLLMProvider):
         Verifica que la API key funcione
         """
         try:
-            # Test simple con query mínima
+            # Test simple con query mínima.
+            # NOTA (2026-05-21): Perplexity cambió la API entre 2026-05-16 y
+            # 2026-05-19 y ahora rechaza max_tokens < 16 con HTTP 400
+            # ("max_tokens must be at least 16 for sonar"). El valor anterior
+            # (10) hacía que test_connection fallase SIEMPRE, lo que provocaba
+            # que analyze_project excluyese Perplexity de TODOS los proyectos
+            # en cada run (visto en producción el 2026-05-19: 0 rows de
+            # Perplexity, mientras los otros 3 LLMs generaron 137 cada uno).
+            # 20 da un poco de margen por si Perplexity vuelve a subir el mínimo.
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=10
+                max_tokens=20
             )
             
             if response and response.choices:
