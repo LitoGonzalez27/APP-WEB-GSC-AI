@@ -227,13 +227,40 @@ def is_user_ai_enabled():
     # ✅ NUEVO: AI depende del plan de pago, no del rol
     return user and user.get('plan') in ['basic', 'premium', 'business', 'enterprise']
 
+def _wants_json_response():
+    """Detecta si la petición espera JSON en lugar de un redirect HTML.
+
+    El check histórico de Content-Type==application/json fallaba para los
+    fetch() del frontend en GET (que no setean Content-Type), provocando que
+    auth_required devolviera un redirect 302 con HTML del login en lugar de un
+    401 JSON. El JS lo intentaba parsear como JSON y reventaba con
+    `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`.
+    Añadimos heurísticas robustas: Accept header, X-Requested-With y rutas
+    bajo `/api/` u otros prefijos de API conocidos.
+    """
+    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+        return True
+    accept = request.headers.get('Accept') or ''
+    if 'application/json' in accept:
+        return True
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    path = request.path or ''
+    # Rutas de API: el blueprint manual_ai expone /manual-ai/api/...,
+    # ai_mode_projects /ai-mode-projects/api/..., LLM Monitoring /api/llm-monitoring/...,
+    # y rutas genéricas /api/...
+    if '/api/' in path or path.startswith('/webhooks/'):
+        return True
+    return False
+
+
 def auth_required(f):
     """Decorador que requiere autenticación"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Verificar autenticación básica
         if not is_user_authenticated():
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if _wants_json_response():
                 return jsonify({'error': 'Authentication required', 'auth_required': True}), 401
             # ✅ Preservar plan/interval/source si venimos de /billing/checkout/<plan>
             try:
@@ -249,35 +276,50 @@ def auth_required(f):
                 return redirect(login_url)
             except Exception:
                 return redirect(url_for('login_page') + '?auth_required=true')
-        
+
         # Verificar expiración por inactividad
         if is_session_expired():
             session.clear()
             logger.info("Sesión expirada por inactividad")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+
+            if _wants_json_response():
                 return jsonify({'error': 'Session expired due to inactivity', 'session_expired': True}), 401
             return redirect(url_for('login_page') + '?session_expired=true')
-        
-        # Verificar si el usuario está en la base de datos
+
+        # Verificar si el usuario está en la base de datos.
+        #
+        # IMPORTANTE: NO limpiamos la sesión aquí. Antes lo hacíamos, pero
+        # `get_current_user()` devuelve None tanto si el usuario realmente no
+        # existe (caso raro) como si la consulta a la BD falla por agotamiento
+        # del pool (caso frecuente, observado 2026-05-24). Tratar el segundo
+        # caso como "user not found" provocaba un logout instantáneo y los 302
+        # en cascada que rompían el dashboard. `get_user_by_id` ya tiene retry
+        # interno; si aun así devuelve None preferimos devolver 503 (servicio
+        # temporalmente no disponible) sin tocar la sesión, para que el
+        # interceptor del frontend pueda reintentar y el usuario no pierda
+        # estado.
         user = get_current_user()
         if not user:
-            session.clear()
-            logger.warning("Usuario no encontrado en base de datos")
-            
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
-                return jsonify({'error': 'User not found', 'auth_required': True}), 401
-            return redirect(url_for('login_page') + '?auth_error=user_not_found')
-        
+            logger.warning(
+                "get_current_user() returned None for session user_id="
+                f"{session.get('user_id')} — keeping session, returning 503"
+            )
+            if _wants_json_response():
+                return jsonify({
+                    'error': 'User lookup temporarily unavailable',
+                    'retry': True
+                }), 503
+            return redirect(url_for('login_page') + '?auth_error=user_lookup_failed')
+
         # Verificar si el usuario está activo
         if not user['is_active']:
-            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+            if _wants_json_response():
                 return jsonify({'error': 'Account suspended', 'account_suspended': True}), 403
             return redirect(url_for('login_page') + '?account_suspended=true')
-        
+
         # Actualizar última actividad
         update_last_activity()
-        
+
         return f(*args, **kwargs)
     return decorated_function
 

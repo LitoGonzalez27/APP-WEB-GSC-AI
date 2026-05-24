@@ -1114,29 +1114,56 @@ def get_user_by_google_id(google_id):
             conn.close()
 
 def get_user_by_id(user_id):
-    """Obtiene un usuario por su ID"""
-    try:
-        conn = get_db_connection()
-        if not conn:
+    """Obtiene un usuario por su ID.
+
+    Retry on transient DB errors (pool exhaustion, dropped connection) — these
+    were causing `auth_required` to wrongly treat authenticated users as
+    "user not found" and clear their session, returning 302/HTML to the JS
+    fetches and breaking the dashboard (observed 2026-05-24 16:40 UTC). After
+    the retry budget is exhausted the function still returns None, matching
+    the original contract.
+    """
+    attempts = int(os.getenv('DB_RETRY_ATTEMPTS', '3'))
+    backoff = float(os.getenv('DB_RETRY_BACKOFF_SECONDS', '0.2'))
+    last_err = None
+    for attempt in range(1, attempts + 1):
+        conn = None
+        try:
+            conn = get_db_connection()
+            if not conn:
+                # Pool exhausted / connect failure — retry.
+                last_err = 'no connection from pool'
+                if attempt < attempts:
+                    time.sleep(backoff * (2 ** (attempt - 1)))
+                    continue
+                logger.error(f"get_user_by_id({user_id}): {last_err} after {attempts} attempts")
+                return None
+
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+            user = cur.fetchone()
+
+            if not user:
+                # User genuinely not in DB — return None (no retry).
+                return None
+            user_dict = dict(user)
+            if user_dict.get('is_active') is None:
+                user_dict['is_active'] = True
+            return user_dict
+
+        except Exception as e:
+            last_err = str(e)
+            if attempt < attempts:
+                time.sleep(backoff * (2 ** (attempt - 1)))
+                continue
+            logger.error(f"get_user_by_id({user_id}) failed after {attempts} attempts: {e}")
             return None
-            
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM users WHERE id = %s', (user_id,))
-        user = cur.fetchone()
-        
-        if not user:
-            return None
-        user_dict = dict(user)
-        if user_dict.get('is_active') is None:
-            user_dict['is_active'] = True
-        return user_dict
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo usuario por ID: {e}")
-        return None
-    finally:
-        if conn:
-            conn.close()
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 def update_user_activity(user_id, is_active=True):
     """Actualiza el estado de actividad de un usuario"""
