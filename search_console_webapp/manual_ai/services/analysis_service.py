@@ -240,28 +240,28 @@ class AnalysisService:
                     if hasattr(analysis_error, 'is_quota_error') and analysis_error.is_quota_error:
                         logger.warning(f"🚫 Keyword '{keyword}' bloqueada por quota: {analysis_error}")
 
-                        # Guardar resultado de error de quota.
+                        # Guardar marcador de quota_exceeded para esta keyword
+                        # en manual_ai_results. La tabla no tiene columna
+                        # error_details (verificado en producción), así que el
+                        # marcador se limita a has_ai_overview=False /
+                        # domain_mentioned=False; el detalle del error se loggea
+                        # arriba con logger.warning.
                         # Conn local: abierta sólo para esta operación puntual,
                         # cerrada inmediatamente. Evita mantener una conexión
-                        # outer abierta durante todo el loop (que sería vulnerable
-                        # al idle_in_transaction_session_timeout de 15 min).
+                        # outer abierta durante todo el loop (vulnerable al
+                        # idle_in_transaction_session_timeout de 15 min).
                         quota_conn = get_db_connection()
                         quota_cur = quota_conn.cursor()
                         try:
                             quota_cur.execute('''
                                 INSERT INTO manual_ai_results
                                 (project_id, keyword_id, keyword, analysis_date, has_ai_overview,
-                                 domain_mentioned, error_details, country_code)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                 domain_mentioned, country_code)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
                                 ON CONFLICT (project_id, keyword_id, analysis_date)
-                                DO UPDATE SET
-                                    has_ai_overview = EXCLUDED.has_ai_overview,
-                                    domain_mentioned = EXCLUDED.domain_mentioned,
-                                    error_details = EXCLUDED.error_details,
-                                    updated_at = NOW()
+                                DO NOTHING
                             ''', (
                                 project_id, keyword_id, keyword, today, False, False,
-                                f"QUOTA_EXCEEDED: {getattr(analysis_error, 'quota_info', {}).get('message', 'Quota limit reached')}",
                                 project['country_code']
                             ))
                             quota_conn.commit()

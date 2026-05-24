@@ -191,11 +191,20 @@ def get_user_quota_status(user_id):
         }
         
     except Exception as e:
+        # FAIL-OPEN: un fallo transitorio de BD durante la consulta de cuota
+        # NO debe interpretarse como "cuota agotada" — eso pausaba proyectos
+        # injustamente (bug observado en cron Manual AI del 21-may-2026, donde
+        # un glitch de BD pausó 2 proyectos enterprise con 1.8% de cuota usada).
+        # Devolvemos can_consume=True para que el caller continúe; si la BD
+        # sigue caída, las operaciones posteriores fallarán con sus propios
+        # errores, pero NO se marcará al usuario como sin cuota.
         logger.error(f"Error obteniendo estado de quota para usuario {user_id}: {e}")
         return {
-            'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
-            'percentage': 0, 'can_consume': False,
-            'plan': 'unknown', 'is_custom': False
+            'quota_limit': 0, 'quota_used': 0, 'remaining': 1,
+            'percentage': 0, 'can_consume': True,
+            'plan': 'unknown', 'is_custom': False,
+            'reset_date': None,
+            'error': str(e)
         }
     finally:
         if conn:
