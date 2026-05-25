@@ -126,35 +126,55 @@ def get_user_effective_quota_limit(user_id):
         if conn:
             conn.close()
 
+def _quota_status_fail_open(reason: str) -> dict:
+    """FAIL-OPEN response used whenever the quota cannot be determined due to
+    a transient DB error. can_consume=True so callers do NOT mistake the
+    glitch for "user out of quota" and wrongly pause projects (root cause of
+    Lara Gómez's 3 projects being paused on 2026-05-25 04:08 UTC despite
+    only 11.4% of her plan used).
+    """
+    return {
+        'quota_limit': 0, 'quota_used': 0, 'remaining': 1,
+        'percentage': 0, 'can_consume': True,
+        'plan': 'unknown', 'is_custom': False,
+        'reset_date': None,
+        'error': reason,
+    }
+
+
 def get_user_quota_status(user_id):
     """
     Obtiene el estado completo de quota de un usuario
     Retorna: limit, used, remaining, percentage, can_consume
     """
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
-            return {
-                'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
-                'percentage': 0, 'can_consume': False,
-                'plan': 'unknown', 'is_custom': False
-            }
-        
+            # Pool exhausted / connect failure → FAIL-OPEN (was returning
+            # can_consume=False which caused false-positive pauses).
+            logger.error(f"get_user_quota_status({user_id}): no DB connection — returning FAIL-OPEN")
+            return _quota_status_fail_open('no_db_connection')
+
         cur = conn.cursor()
-        
+
         cur.execute('''
-            SELECT 
+            SELECT
                 plan, quota_used, custom_quota_limit, quota_limit, quota_reset_date
-            FROM users 
+            FROM users
             WHERE id = %s
         ''', (user_id,))
-        
+
         user = cur.fetchone()
         if not user:
+            # User genuinely not in DB — this IS a "should not consume" case,
+            # so keep can_consume=False here (no FAIL-OPEN).
+            logger.warning(f"get_user_quota_status({user_id}): user not found in DB")
             return {
-                'quota_limit': 0, 'quota_used': 0, 'remaining': 0, 
+                'quota_limit': 0, 'quota_used': 0, 'remaining': 0,
                 'percentage': 0, 'can_consume': False,
-                'plan': 'unknown', 'is_custom': False
+                'plan': 'unknown', 'is_custom': False,
+                'reset_date': None,
             }
         
         # user es un RealDictRow, usar como diccionario
@@ -191,24 +211,16 @@ def get_user_quota_status(user_id):
         }
         
     except Exception as e:
-        # FAIL-OPEN: un fallo transitorio de BD durante la consulta de cuota
-        # NO debe interpretarse como "cuota agotada" — eso pausaba proyectos
-        # injustamente (bug observado en cron Manual AI del 21-may-2026, donde
-        # un glitch de BD pausó 2 proyectos enterprise con 1.8% de cuota usada).
-        # Devolvemos can_consume=True para que el caller continúe; si la BD
-        # sigue caída, las operaciones posteriores fallarán con sus propios
-        # errores, pero NO se marcará al usuario como sin cuota.
+        # Same FAIL-OPEN policy as the no-connection path above — a transient
+        # DB error must NOT cause projects to be wrongly paused.
         logger.error(f"Error obteniendo estado de quota para usuario {user_id}: {e}")
-        return {
-            'quota_limit': 0, 'quota_used': 0, 'remaining': 1,
-            'percentage': 0, 'can_consume': True,
-            'plan': 'unknown', 'is_custom': False,
-            'reset_date': None,
-            'error': str(e)
-        }
+        return _quota_status_fail_open(str(e))
     finally:
         if conn:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 def can_user_consume_ru(user_id, ru_amount=1):
     """
