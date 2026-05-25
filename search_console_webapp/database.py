@@ -61,32 +61,6 @@ is_development = not railway_env or railway_env == 'development'
 _pool = None
 _pool_lock = threading.Lock()
 
-# ---------------------------------------------------------------------------
-# Leak watchdog (added 2026-05-25)
-# ---------------------------------------------------------------------------
-# Bug 2026-05-25: dashboard endpoints were going slow / 401 because the local
-# connection pool reported all 80 slots "in use" while pg_stat_activity saw
-# only 1 active connection. Root cause: ~78 call sites across the codebase
-# follow the `conn = get_db_connection(); ... conn.close()` pattern without
-# wrapping in try/finally (manual_ai/services/statistics_service.py:28,
-# manual_ai/services/competitor_service.py, ai_mode equivalents, etc.). When
-# any cursor operation raises an exception (DB hiccup, query error, network
-# blip), `conn.close()` is never reached and the wrapped connection is leaked
-# from the pool's perspective forever.
-#
-# Refactoring 78 call sites is risky and slow. Instead we add a background
-# watchdog that tracks every checked-out _PooledConnection by checkout time
-# and force-recycles any that have been outstanding longer than
-# DB_CONN_LEAK_TIMEOUT_SECONDS (default 300s / 5 min). Legitimate queries
-# never run that long (the biggest path is the Manual AI cron loop which
-# opens a NEW conn per keyword), so a 5-min threshold catches leaks without
-# killing real work. Each force-close logs the stack trace captured at
-# checkout, so we can identify and fix offending call sites incrementally.
-# ---------------------------------------------------------------------------
-_active_conns = []          # list of _PooledConnection currently checked out
-_active_conns_lock = threading.Lock()
-_watchdog_started = False
-
 
 def _connect_kwargs():
     """Return the keyword args used for every connection (pool or direct fallback)."""
@@ -107,69 +81,7 @@ def _build_pool():
     maxconn = int(os.getenv('DB_POOL_MAX', '20'))
     pool = ThreadedConnectionPool(minconn, maxconn, DATABASE_URL, **_connect_kwargs())
     logger.info(f"🏊 DB connection pool initialized (min={minconn}, max={maxconn})")
-    _ensure_leak_watchdog_started()
     return pool
-
-
-def _leak_watchdog_loop(timeout_seconds, check_interval):
-    """Background loop that scans for outstanding _PooledConnection instances
-    older than `timeout_seconds` and force-recycles them, logging the stack
-    trace captured at checkout so we can fix the leaking call site.
-    """
-    logger.info(
-        f"🔭 DB leak watchdog started (timeout={timeout_seconds}s, "
-        f"check_interval={check_interval}s)"
-    )
-    while True:
-        try:
-            time.sleep(check_interval)
-            now = time.monotonic()
-            stale = []
-            with _active_conns_lock:
-                for c in _active_conns:
-                    age = now - c._checkout_time
-                    if age >= timeout_seconds and not c._returned:
-                        stale.append((c, age))
-            for c, age in stale:
-                logger.error(
-                    f"🚨 Force-recycling leaked DB connection (age={age:.1f}s).\n"
-                    f"Checkout site:\n{c._checkout_trace}"
-                )
-                try:
-                    c.close()
-                except Exception as e:
-                    logger.warning(f"Watchdog close() failed: {e}")
-            # Also log periodic pool health for observability
-            if int(now) % 300 < check_interval:
-                with _active_conns_lock:
-                    live = len(_active_conns)
-                logger.info(f"🏊 Pool health: {live} connections currently checked out")
-        except Exception as e:
-            logger.error(f"Leak watchdog loop error: {e}")
-
-
-def _ensure_leak_watchdog_started():
-    """Start the watchdog thread exactly once (idempotent)."""
-    global _watchdog_started
-    if _watchdog_started:
-        return
-    with _pool_lock:
-        if _watchdog_started:
-            return
-        if os.getenv('DB_LEAK_WATCHDOG', 'true').lower() == 'false':
-            logger.info("DB leak watchdog disabled via DB_LEAK_WATCHDOG=false")
-            _watchdog_started = True
-            return
-        timeout = int(os.getenv('DB_CONN_LEAK_TIMEOUT_SECONDS', '300'))
-        interval = int(os.getenv('DB_LEAK_WATCHDOG_INTERVAL_SECONDS', '60'))
-        t = threading.Thread(
-            target=_leak_watchdog_loop,
-            args=(timeout, interval),
-            daemon=True,
-            name='db-pool-leak-watchdog',
-        )
-        t.start()
-        _watchdog_started = True
 
 
 def _get_or_init_pool():
@@ -199,30 +111,13 @@ class _PooledConnection:
     The wrapper is idempotent: calling close() twice is a no-op the second
     time. Before returning the connection to the pool, an implicit rollback()
     is issued so the connection comes back to subsequent users in a clean state.
-
-    Each instance also records its checkout timestamp and (in non-production
-    or when DB_LEAK_WATCHDOG=true) a stack trace, so the leak watchdog can
-    identify offending call sites.
     """
-    __slots__ = ('_conn', '_pool', '_returned', '_checkout_time', '_checkout_trace')
+    __slots__ = ('_conn', '_pool', '_returned')
 
     def __init__(self, conn, pool):
         object.__setattr__(self, '_conn', conn)
         object.__setattr__(self, '_pool', pool)
         object.__setattr__(self, '_returned', False)
-        object.__setattr__(self, '_checkout_time', time.monotonic())
-        # Capture stack trace at checkout to identify leak sources.
-        # Skip the top frames inside database.py to point at the real caller.
-        if os.getenv('DB_LEAK_WATCHDOG', 'true').lower() != 'false':
-            import traceback as _tb
-            stack = _tb.extract_stack()[:-1]  # drop this __init__ frame
-            # Keep last ~6 frames; rest is Flask/wsgi noise
-            object.__setattr__(self, '_checkout_trace', ''.join(_tb.format_list(stack[-6:])))
-        else:
-            object.__setattr__(self, '_checkout_trace', '')
-        # Register with watchdog
-        with _active_conns_lock:
-            _active_conns.append(self)
 
     def close(self):
         if self._returned:
@@ -255,15 +150,6 @@ class _PooledConnection:
                 pass
         finally:
             object.__setattr__(self, '_returned', True)
-            # Unregister from watchdog
-            try:
-                with _active_conns_lock:
-                    try:
-                        _active_conns.remove(self)
-                    except ValueError:
-                        pass
-            except Exception:
-                pass
 
     # Proxy all other attribute reads to the underlying connection
     def __getattr__(self, name):
