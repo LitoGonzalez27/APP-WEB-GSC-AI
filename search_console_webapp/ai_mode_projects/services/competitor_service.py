@@ -86,30 +86,34 @@ class CompetitorService:
         Returns:
             Dict con fecha como key y lista de competidores como value
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_competitors_for_date_range[ai_mode]({project_id}): no DB connection")
+            return {}
         try:
+            cur = conn.cursor()
+
             # Obtener eventos de cambio de competidores
             cur.execute("""
                 SELECT event_date, event_description
                 FROM ai_mode_events
-                WHERE project_id = %s 
+                WHERE project_id = %s
                     AND event_type IN ('competitors_changed', 'competitors_updated')
-                    AND event_date >= %s 
+                    AND event_date >= %s
                     AND event_date <= %s
                 ORDER BY event_date DESC
             """, (project_id, start_date, end_date))
-            
+
             events = cur.fetchall()
-            
+
             # Mapear fechas a listas de competidores
             competitors_by_date = {}
-            
+
             for event in events:
                 event_date = event['event_date']
                 description = event['event_description']
-                
+
                 # Intentar parsear descripción JSON
                 try:
                     if description:
@@ -119,7 +123,7 @@ class CompetitorService:
                             competitors_by_date[str(event_date)] = new_competitors
                 except (json.JSONDecodeError, TypeError):
                     continue
-            
+
             # Si no hay cambios históricos, usar configuración actual
             if not competitors_by_date:
                 cur.execute("""
@@ -127,20 +131,22 @@ class CompetitorService:
                     FROM ai_mode_projects
                     WHERE id = %s
                 """, (project_id,))
-                
+
                 result = cur.fetchone()
                 if result and result['selected_competitors']:
                     competitors_by_date['current'] = result['selected_competitors']
-            
+
             return competitors_by_date
-            
+
         except Exception as e:
             logger.error(f"Error getting competitors for date range: {e}")
             return {}
         finally:
-            cur.close()
-            conn.close()
-    
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def sync_historical_competitor_flags(project_id: int, current_competitors: List[str]) -> None:
         """
@@ -153,48 +159,57 @@ class CompetitorService:
             project_id: ID del proyecto
             current_competitors: Lista actual de competidores
         """
+        # Refactor 2026-05-25: explicit conn=None + try/except/finally.
+        conn = None
         try:
             conn = get_db_connection()
+            if not conn:
+                logger.error(f"sync_historical_competitor_flags[ai_mode]({project_id}): no DB connection")
+                return
             cur = conn.cursor()
-            
+
             # Normalizar competidores actuales
             normalized_competitors = [
                 normalize_search_console_url(comp) or comp.lower()
                 for comp in current_competitors
             ]
-            
+
             # 1. Desmarcar todos los dominios como competidores
             cur.execute("""
                 UPDATE ai_mode_global_domains
                 SET is_selected_competitor = false
                 WHERE project_id = %s AND is_selected_competitor = true
             """, (project_id,))
-            
+
             affected_unmarked = cur.rowcount
-            
+
             # 2. Marcar dominios actuales como competidores
             if normalized_competitors:
                 cur.execute("""
                     UPDATE ai_mode_global_domains
                     SET is_selected_competitor = true
-                    WHERE project_id = %s 
+                    WHERE project_id = %s
                         AND detected_domain = ANY(%s)
                         AND is_selected_competitor = false
                 """, (project_id, normalized_competitors))
-                
+
                 affected_marked = cur.rowcount
             else:
                 affected_marked = 0
-            
+
             conn.commit()
-            cur.close()
-            conn.close()
-            
+
             logger.info(f"✅ Synced competitor flags for project {project_id}: "
                        f"{affected_unmarked} unmarked, {affected_marked} marked as competitors")
-            
+
         except Exception as e:
             logger.error(f"❌ Error syncing competitor flags for project {project_id}: {e}")
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     @staticmethod
     def get_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
@@ -211,14 +226,19 @@ class CompetitorService:
         """
         from urllib.parse import urlparse
         from collections import defaultdict
-        
+
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
-        
+        if not conn:
+            logger.error(f"get_competitors_charts_data[ai_mode]({project_id}): no DB connection")
+            return {'error': 'Service temporarily unavailable'}
+        cur = None
         try:
+            cur = conn.cursor()
+
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+
             # Obtener configuración de competidores del proyecto
             cur.execute("""
                 SELECT selected_competitors, brand_name
@@ -388,29 +408,39 @@ class CompetitorService:
         Returns:
             Dict con formato {fecha_iso: [lista_competidores]}
         """
+        # Refactor 2026-05-25: nested try/finally GUARANTEES conn release even
+        # on early SQL failure.
+        conn = None
         try:
             conn = get_db_connection()
-            cur = conn.cursor()
-            
-            # Obtener todos los cambios de competidores ordenados cronológicamente
-            cur.execute("""
-                SELECT event_date, event_type, event_description 
-                FROM ai_mode_events 
-                WHERE project_id = %s 
-                AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
-                AND event_date <= %s
-                ORDER BY event_date ASC, created_at ASC
-            """, (project_id, end_date))
-            
-            competitor_changes = cur.fetchall()
-            
-            # Obtener competidores actuales como fallback
-            cur.execute("SELECT selected_competitors FROM ai_mode_projects WHERE id = %s", (project_id,))
-            current_result = cur.fetchone()
-            current_competitors = current_result['selected_competitors'] if current_result else []
-            
-            cur.close()
-            conn.close()
+            if not conn:
+                logger.error(f"get_competitors_for_date_range[ai_mode v2]({project_id}): no DB connection")
+                return {}
+            try:
+                cur = conn.cursor()
+
+                # Obtener todos los cambios de competidores ordenados cronológicamente
+                cur.execute("""
+                    SELECT event_date, event_type, event_description
+                    FROM ai_mode_events
+                    WHERE project_id = %s
+                    AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
+                    AND event_date <= %s
+                    ORDER BY event_date ASC, created_at ASC
+                """, (project_id, end_date))
+
+                competitor_changes = cur.fetchall()
+
+                # Obtener competidores actuales como fallback
+                cur.execute("SELECT selected_competitors FROM ai_mode_projects WHERE id = %s", (project_id,))
+                current_result = cur.fetchone()
+                current_competitors = current_result['selected_competitors'] if current_result else []
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = None  # mark released so outer finally is a no-op
             
             # Reconstruir estado temporal correctamente
             date_range = {}
@@ -504,17 +534,21 @@ class CompetitorService:
         1. Gráfica de % visibilidad en AI Mode (líneas por dominio)
         2. Gráfica de posición media en AI Mode (líneas por dominio)
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_project_comparative_charts_data[ai_mode]({project_id}): no DB connection")
+            return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
         try:
+            cur = conn.cursor()
+
             end_date = date.today()
             start_date = end_date - timedelta(days=days)
-            
+
             # Obtener proyecto con competidores seleccionados
             cur.execute("""
-                SELECT brand_name, selected_competitors 
-                FROM ai_mode_projects 
+                SELECT brand_name, selected_competitors
+                FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
             project_data = cur.fetchone()
@@ -771,6 +805,8 @@ class CompetitorService:
             logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
             return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
