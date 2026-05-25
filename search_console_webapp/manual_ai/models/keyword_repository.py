@@ -93,36 +93,44 @@ class KeywordRepository:
         Returns:
             Número de keywords agregadas exitosamente
         """
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        added_count = 0
-        
-        for keyword in keywords_list:
-            keyword = keyword.strip()
-            if not keyword:
-                continue
-                
+        if not conn:
+            logger.error(f"add_keywords_to_project({project_id}): no DB connection")
+            return 0
+        try:
+            cur = conn.cursor()
+
+            added_count = 0
+
+            for keyword in keywords_list:
+                keyword = keyword.strip()
+                if not keyword:
+                    continue
+
+                try:
+                    cur.execute("""
+                        INSERT INTO manual_ai_keywords (project_id, keyword)
+                        VALUES (%s, %s)
+                        ON CONFLICT (project_id, keyword) DO NOTHING
+                    """, (project_id, keyword))
+
+                    if cur.rowcount > 0:
+                        added_count += 1
+
+                except Exception as e:
+                    logger.warning(f"Error adding keyword '{keyword}': {e}")
+                    continue
+
+            conn.commit()
+
+            logger.info(f"Added {added_count} keywords to project {project_id}")
+            return added_count
+        finally:
             try:
-                cur.execute("""
-                    INSERT INTO manual_ai_keywords (project_id, keyword)
-                    VALUES (%s, %s)
-                    ON CONFLICT (project_id, keyword) DO NOTHING
-                """, (project_id, keyword))
-                
-                if cur.rowcount > 0:
-                    added_count += 1
-                    
-            except Exception as e:
-                logger.warning(f"Error adding keyword '{keyword}': {e}")
-                continue
-        
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        logger.info(f"Added {added_count} keywords to project {project_id}")
-        return added_count
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def delete_keyword(project_id: int, keyword_id: int) -> Dict:
