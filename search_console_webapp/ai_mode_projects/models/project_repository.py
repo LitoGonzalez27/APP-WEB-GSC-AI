@@ -196,26 +196,34 @@ class ProjectRepository:
         Returns:
             ID del proyecto creado
         """
+        # Refactor 2026-05-25: null-check + try/finally.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        # Limpiar y validar brand_name
-        brand_name = brand_name.strip()
-        
-        cur.execute("""
-            INSERT INTO ai_mode_projects (user_id, name, description, brand_name, country_code)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id
-        """, (user_id, name, description, brand_name, country_code))
-        
-        project_id = cur.fetchone()['id']
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        logger.info(f"Created new AI Mode project {project_id} for user {user_id} with brand: {brand_name}")
-        return project_id
-    
+        if not conn:
+            logger.error(f"create_project[ai_mode]: no DB connection")
+            raise RuntimeError("Database temporarily unavailable")
+        try:
+            cur = conn.cursor()
+
+            # Limpiar y validar brand_name
+            brand_name = brand_name.strip()
+
+            cur.execute("""
+                INSERT INTO ai_mode_projects (user_id, name, description, brand_name, country_code)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+            """, (user_id, name, description, brand_name, country_code))
+
+            project_id = cur.fetchone()['id']
+            conn.commit()
+
+            logger.info(f"Created new AI Mode project {project_id} for user {user_id} with brand: {brand_name}")
+            return project_id
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def user_owns_project(user_id: int, project_id: int) -> bool:
         """
@@ -225,19 +233,26 @@ class ProjectRepository:
         reactivar / borrar / editar sus proyectos pausados. La exclusión del
         cron / análisis vive en cron_service y analysis_service, no aquí.
         """
+        # Refactor 2026-05-25: null-check + try/finally.
         conn = get_db_connection()
-        cur = conn.cursor()
+        if not conn:
+            logger.error(f"user_owns_project[ai_mode]({user_id},{project_id}): no DB connection")
+            return False
+        try:
+            cur = conn.cursor()
 
-        cur.execute("""
-            SELECT 1 FROM ai_mode_projects
-            WHERE id = %s AND user_id = %s
-        """, (project_id, user_id))
+            cur.execute("""
+                SELECT 1 FROM ai_mode_projects
+                WHERE id = %s AND user_id = %s
+            """, (project_id, user_id))
 
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-
-        return result is not None
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     @staticmethod
     def user_has_project_access(user_id: int, project_id: int) -> bool:
@@ -246,41 +261,47 @@ class ProjectRepository:
 
         Incluye proyectos pausados manualmente para que el dashboard pueda mostrarlos.
         """
+        # Refactor 2026-05-25: outer try/finally GUARANTEES conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
+        if not conn:
+            logger.error(f"user_has_project_access[ai_mode]({user_id},{project_id}): no DB connection")
+            return False
         try:
-            cur.execute("""
-                SELECT 1
-                FROM ai_mode_projects p
-                WHERE p.id = %s
-                  AND (
-                    p.user_id = %s
-                    OR EXISTS (
-                        SELECT 1
-                        FROM project_collaborators c
-                        WHERE c.module_name = 'ai_mode'
-                          AND c.project_id = p.id
-                          AND c.user_id = %s
-                    )
-                  )
-            """, (project_id, user_id, user_id))
-        except Exception as exc:
-            if isinstance(exc, psycopg2.errors.UndefinedTable):
-                conn.rollback()
+            cur = conn.cursor()
+            try:
                 cur.execute("""
                     SELECT 1
-                    FROM ai_mode_projects
-                    WHERE id = %s AND user_id = %s
-                """, (project_id, user_id))
-            else:
-                cur.close()
-                conn.close()
-                raise
+                    FROM ai_mode_projects p
+                    WHERE p.id = %s
+                      AND (
+                        p.user_id = %s
+                        OR EXISTS (
+                            SELECT 1
+                            FROM project_collaborators c
+                            WHERE c.module_name = 'ai_mode'
+                              AND c.project_id = p.id
+                              AND c.user_id = %s
+                        )
+                      )
+                """, (project_id, user_id, user_id))
+            except Exception as exc:
+                if isinstance(exc, psycopg2.errors.UndefinedTable):
+                    conn.rollback()
+                    cur.execute("""
+                        SELECT 1
+                        FROM ai_mode_projects
+                        WHERE id = %s AND user_id = %s
+                    """, (project_id, user_id))
+                else:
+                    raise
 
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-        return result is not None
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def get_project_with_details(project_id: int) -> Optional[Dict]:
@@ -293,26 +314,33 @@ class ProjectRepository:
         Returns:
             Dict con información del proyecto o None si no existe
         """
+        # Refactor 2026-05-25: null-check + try/finally.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                p.*,
-                COUNT(DISTINCT k.id) as keyword_count,
-                COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keyword_count
-            FROM ai_mode_projects p
-            LEFT JOIN ai_mode_keywords k ON p.id = k.project_id
-            WHERE p.id = %s
-            GROUP BY p.id
-        """, (project_id,))
-        
-        project = cur.fetchone()
-        cur.close()
-        conn.close()
-        
-        return dict(project) if project else None
-    
+        if not conn:
+            logger.error(f"get_project_with_details[ai_mode]({project_id}): no DB connection")
+            return None
+        try:
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT
+                    p.*,
+                    COUNT(DISTINCT k.id) as keyword_count,
+                    COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keyword_count
+                FROM ai_mode_projects p
+                LEFT JOIN ai_mode_keywords k ON p.id = k.project_id
+                WHERE p.id = %s
+                GROUP BY p.id
+            """, (project_id,))
+
+            project = cur.fetchone()
+            return dict(project) if project else None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def get_project_info(project_id: int) -> Optional[Dict]:
         """
@@ -363,41 +391,47 @@ class ProjectRepository:
         Returns:
             True si se actualizó correctamente, False en caso contrario
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"update_project[ai_mode]({project_id}): no DB connection")
+            return False
         try:
+            cur = conn.cursor()
+
             # Verificar que el nombre no esté siendo usado por otro proyecto del usuario
             cur.execute("""
-                SELECT id FROM ai_mode_projects 
+                SELECT id FROM ai_mode_projects
                 WHERE user_id = %s AND name = %s AND id != %s
             """, (user_id, name, project_id))
-            
+
             if cur.fetchone():
                 logger.warning(f"AI Mode project name '{name}' already exists for user {user_id}")
                 return False
-            
+
             # Actualizar proyecto
             cur.execute("""
-                UPDATE ai_mode_projects 
+                UPDATE ai_mode_projects
                 SET name = %s, description = %s, updated_at = NOW()
                 WHERE id = %s AND user_id = %s
             """, (name, description, project_id, user_id))
-            
+
             success = cur.rowcount > 0
             conn.commit()
-            
+
             if success:
                 logger.info(f"AI Mode project {project_id} updated successfully")
-            
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Error updating AI Mode project {project_id}: {e}")
             return False
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def delete_project(project_id: int, user_id: int) -> Dict:
@@ -411,19 +445,23 @@ class ProjectRepository:
         Returns:
             Dict con estadísticas de eliminación
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"delete_project[ai_mode]({project_id}): no DB connection")
+            return {'success': False, 'error': 'Service temporarily unavailable'}
         try:
+            cur = conn.cursor()
+
             # Obtener nombre del proyecto antes de eliminarlo
             cur.execute("SELECT name FROM ai_mode_projects WHERE id = %s", (project_id,))
             project_data = cur.fetchone()
-            
+
             if not project_data:
                 return {'success': False, 'error': 'Project not found'}
-            
+
             project_name = project_data['name'] if isinstance(project_data, dict) else project_data[0]
-            
+
             # Eliminar en orden inverso de dependencias
             # 1. Eventos
             try:
@@ -432,7 +470,7 @@ class ProjectRepository:
             except Exception as e:
                 logger.warning(f"No events deleted for AI Mode project {project_id}: {e}")
                 events_deleted = 0
-            
+
             # 2. Snapshots
             try:
                 cur.execute("DELETE FROM ai_mode_snapshots WHERE project_id = %s", (project_id,))
@@ -440,28 +478,28 @@ class ProjectRepository:
             except Exception as e:
                 logger.warning(f"No snapshots deleted for AI Mode project {project_id}: {e}")
                 snapshots_deleted = 0
-            
+
             # 3. Resultados
             cur.execute("DELETE FROM ai_mode_results WHERE project_id = %s", (project_id,))
             results_deleted = cur.rowcount
-            
+
             # 4. Keywords
             cur.execute("DELETE FROM ai_mode_keywords WHERE project_id = %s", (project_id,))
             keywords_deleted = cur.rowcount
-            
+
             # 5. Proyecto
-            cur.execute("DELETE FROM ai_mode_projects WHERE id = %s AND user_id = %s", 
+            cur.execute("DELETE FROM ai_mode_projects WHERE id = %s AND user_id = %s",
                        (project_id, user_id))
-            
+
             if cur.rowcount == 0:
                 return {'success': False, 'error': 'Project not found or unauthorized'}
-            
+
             conn.commit()
-            
+
             logger.info(f"Project '{project_name}' (ID: {project_id}) deleted successfully. "
                        f"Removed: {keywords_deleted} keywords, {results_deleted} results, "
                        f"{snapshots_deleted} snapshots, {events_deleted} events")
-            
+
             return {
                 'success': True,
                 'project_name': project_name,
@@ -472,13 +510,15 @@ class ProjectRepository:
                     'events_deleted': events_deleted
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error deleting project {project_id}: {e}")
             return {'success': False, 'error': str(e)}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def get_project_competitors(project_id: int) -> List[str]:
@@ -491,30 +531,36 @@ class ProjectRepository:
         Returns:
             Lista de dominios competidores
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_project_competitors[ai_mode]({project_id}): no DB connection")
+            return []
         try:
+            cur = conn.cursor()
+
             cur.execute("""
                 SELECT selected_competitors
                 FROM ai_mode_projects
                 WHERE id = %s
             """, (project_id,))
-            
+
             result = cur.fetchone()
-            
+
             if result and result['selected_competitors']:
                 return result['selected_competitors']
-            
+
             return []
-            
+
         except Exception as e:
             logger.error(f"Error getting competitors for AI Mode project {project_id}: {e}")
             return []
         finally:
-            cur.close()
-            conn.close()
-    
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def update_project_competitors(project_id: int, competitors: List[str]) -> bool:
         """
@@ -527,34 +573,43 @@ class ProjectRepository:
         Returns:
             True si se actualizó correctamente, False en caso contrario
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"update_project_competitors[ai_mode]({project_id}): no DB connection")
+            return False
         try:
+            cur = conn.cursor()
+
             # Convertir a JSON para PostgreSQL
             competitors_json = json.dumps(competitors) if competitors else '[]'
-            
+
             cur.execute("""
                 UPDATE ai_mode_projects
                 SET selected_competitors = %s::jsonb, updated_at = NOW()
                 WHERE id = %s
             """, (competitors_json, project_id))
-            
+
             success = cur.rowcount > 0
             conn.commit()
-            
+
             if success:
                 logger.info(f"AI Mode project {project_id} competitors updated: {len(competitors)} sources")
-            
+
             return success
-            
+
         except Exception as e:
             logger.error(f"Error updating competitors for AI Mode project {project_id}: {e}")
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             return False
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     @staticmethod
     def pause_project(project_id: int) -> Optional[Dict]:

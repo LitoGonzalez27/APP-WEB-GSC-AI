@@ -251,95 +251,102 @@ class StatisticsService:
         Returns:
             Dict con datos de keywords del último análisis y competidores
         """
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        # Obtener competidores del proyecto
-        cur.execute("""
-            SELECT selected_competitors
-            FROM manual_ai_projects
-            WHERE id = %s
-        """, (project_id,))
-        
-        project_row = cur.fetchone()
-        competitor_domains = []
-        if project_row and project_row['selected_competitors']:
-            competitor_domains = project_row['selected_competitors']
-        
-        # Obtener últimos resultados de keywords con AI Overview
-        cur.execute("""
-            WITH latest_results AS (
-                SELECT DISTINCT ON (k.id)
-                    k.id,
-                    k.keyword,
-                    r.has_ai_overview,
-                    r.domain_mentioned,
-                    r.domain_position,
-                    r.analysis_date
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
-                WHERE k.project_id = %s AND k.is_active = true
-                ORDER BY k.id, r.analysis_date DESC
-            )
-            SELECT 
-                id,
-                keyword,
-                has_ai_overview,
-                domain_mentioned,
-                domain_position,
-                analysis_date as last_analysis
-            FROM latest_results
-            WHERE has_ai_overview = true
-            ORDER BY 
-                CASE WHEN domain_mentioned = true THEN 0 ELSE 1 END,
-                domain_position NULLS LAST,
-                keyword
-        """, (project_id,))
-        
-        keywords = [dict(row) for row in cur.fetchall()]
-        
-        # Para cada keyword, obtener información de competidores
-        result_keywords = []
-        for kw in keywords:
-            keyword_data = {
-                'keyword': kw['keyword'],
-                'user_domain_in_aio': kw['domain_mentioned'] or False,
-                'user_domain_position': kw['domain_position'] if kw['domain_position'] else None,
-                'last_analysis': kw['last_analysis'],
-                'competitors': []
+        if not conn:
+            logger.error(f"get_project_ai_overview_keywords_latest({project_id}): no DB connection")
+            return {'keywordResults': [], 'competitorDomains': [], 'total_keywords': 0}
+        try:
+            cur = conn.cursor()
+
+            # Obtener competidores del proyecto
+            cur.execute("""
+                SELECT selected_competitors
+                FROM manual_ai_projects
+                WHERE id = %s
+            """, (project_id,))
+
+            project_row = cur.fetchone()
+            competitor_domains = []
+            if project_row and project_row['selected_competitors']:
+                competitor_domains = project_row['selected_competitors']
+
+            # Obtener últimos resultados de keywords con AI Overview
+            cur.execute("""
+                WITH latest_results AS (
+                    SELECT DISTINCT ON (k.id)
+                        k.id,
+                        k.keyword,
+                        r.has_ai_overview,
+                        r.domain_mentioned,
+                        r.domain_position,
+                        r.analysis_date
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    WHERE k.project_id = %s AND k.is_active = true
+                    ORDER BY k.id, r.analysis_date DESC
+                )
+                SELECT
+                    id,
+                    keyword,
+                    has_ai_overview,
+                    domain_mentioned,
+                    domain_position,
+                    analysis_date as last_analysis
+                FROM latest_results
+                WHERE has_ai_overview = true
+                ORDER BY
+                    CASE WHEN domain_mentioned = true THEN 0 ELSE 1 END,
+                    domain_position NULLS LAST,
+                    keyword
+            """, (project_id,))
+
+            keywords = [dict(row) for row in cur.fetchall()]
+
+            # Para cada keyword, obtener información de competidores
+            result_keywords = []
+            for kw in keywords:
+                keyword_data = {
+                    'keyword': kw['keyword'],
+                    'user_domain_in_aio': kw['domain_mentioned'] or False,
+                    'user_domain_position': kw['domain_position'] if kw['domain_position'] else None,
+                    'last_analysis': kw['last_analysis'],
+                    'competitors': []
+                }
+
+                # Obtener datos de competidores de global_domains para esta keyword en su última fecha
+                if competitor_domains and kw['last_analysis']:
+                    cur.execute("""
+                        SELECT
+                            detected_domain,
+                            domain_position
+                        FROM manual_ai_global_domains
+                        WHERE project_id = %s
+                            AND keyword_id = %s
+                            AND analysis_date = %s
+                            AND detected_domain = ANY(%s)
+                    """, (project_id, kw['id'], kw['last_analysis'], competitor_domains))
+
+                    comp_data = cur.fetchall()
+                    for comp in comp_data:
+                        keyword_data['competitors'].append({
+                            'domain': comp['detected_domain'],
+                            'position': comp['domain_position']
+                        })
+
+                result_keywords.append(keyword_data)
+
+            return {
+                'keywordResults': result_keywords,
+                'competitorDomains': competitor_domains,
+                'total_keywords': len(result_keywords)
             }
-            
-            # Obtener datos de competidores de global_domains para esta keyword en su última fecha
-            if competitor_domains and kw['last_analysis']:
-                cur.execute("""
-                    SELECT 
-                        detected_domain,
-                        domain_position
-                    FROM manual_ai_global_domains
-                    WHERE project_id = %s
-                        AND keyword_id = %s
-                        AND analysis_date = %s
-                        AND detected_domain = ANY(%s)
-                """, (project_id, kw['id'], kw['last_analysis'], competitor_domains))
-                
-                comp_data = cur.fetchall()
-                for comp in comp_data:
-                    keyword_data['competitors'].append({
-                        'domain': comp['detected_domain'],
-                        'position': comp['domain_position']
-                    })
-            
-            result_keywords.append(keyword_data)
-        
-        cur.close()
-        conn.close()
-        
-        return {
-            'keywordResults': result_keywords,
-            'competitorDomains': competitor_domains,
-            'total_keywords': len(result_keywords)
-        }
-    
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def get_project_top_domains(project_id: int, limit: int = 10) -> List[Dict]:
         """
@@ -352,30 +359,37 @@ class StatisticsService:
         Returns:
             Lista de dominios con sus métricas
         """
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT 
-                detected_domain,
-                COUNT(DISTINCT keyword_id) as keyword_count,
-                AVG(domain_position) as avg_position,
-                MIN(domain_position) as best_position,
-                COUNT(*) as total_mentions
-            FROM manual_ai_global_domains
-            WHERE project_id = %s
-            GROUP BY detected_domain
-            ORDER BY keyword_count DESC, avg_position ASC
-            LIMIT %s
-        """, (project_id, limit))
-        
-        domains = [dict(row) for row in cur.fetchall()]
-        
-        cur.close()
-        conn.close()
-        
-        return domains
-    
+        if not conn:
+            logger.error(f"get_project_top_domains({project_id}): no DB connection")
+            return []
+        try:
+            cur = conn.cursor()
+
+            cur.execute("""
+                SELECT
+                    detected_domain,
+                    COUNT(DISTINCT keyword_id) as keyword_count,
+                    AVG(domain_position) as avg_position,
+                    MIN(domain_position) as best_position,
+                    COUNT(*) as total_mentions
+                FROM manual_ai_global_domains
+                WHERE project_id = %s
+                GROUP BY detected_domain
+                ORDER BY keyword_count DESC, avg_position ASC
+                LIMIT %s
+            """, (project_id, limit))
+
+            domains = [dict(row) for row in cur.fetchall()]
+
+            return domains
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def get_project_global_domains_ranking(project_id: int, days: int = 30) -> List[Dict]:
         """
@@ -391,49 +405,57 @@ class StatisticsService:
         """
         from urllib.parse import urlparse
         from collections import defaultdict
-        
+
+        # Refactor 2026-05-25: try/finally GUARANTEES conn release back to the
+        # pool even if SQL fails or we early-return. We isolate DB work into
+        # an inner block; in-memory aggregation runs after the conn is freed
+        # to minimise time the pool slot is held.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
-        
-        # Obtener proyecto para domain y competidores
-        cur.execute("""
-            SELECT domain, selected_competitors
-            FROM manual_ai_projects
-            WHERE id = %s
-        """, (project_id,))
-        
-        project_row = cur.fetchone()
-        if not project_row:
-            cur.close()
-            conn.close()
+        if not conn:
+            logger.error(f"get_project_global_domains_ranking({project_id}): no DB connection")
             return []
-        
-        project_domain = project_row['domain']
-        competitor_domains = project_row['selected_competitors'] or []
-        
-        # Obtener todos los resultados con AI Overview del periodo
-        cur.execute("""
-            SELECT 
-                r.id,
-                r.keyword_id,
-                r.keyword,
-                r.ai_analysis_data,
-                r.analysis_date
-            FROM manual_ai_results r
-            WHERE r.project_id = %s 
-                AND r.analysis_date >= %s 
-                AND r.analysis_date <= %s
-                AND r.has_ai_overview = true
-                AND r.ai_analysis_data IS NOT NULL
-        """, (project_id, start_date, end_date))
-        
-        results = cur.fetchall()
-        
-        cur.close()
-        conn.close()
+        try:
+            cur = conn.cursor()
+
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+
+            # Obtener proyecto para domain y competidores
+            cur.execute("""
+                SELECT domain, selected_competitors
+                FROM manual_ai_projects
+                WHERE id = %s
+            """, (project_id,))
+
+            project_row = cur.fetchone()
+            if not project_row:
+                return []
+
+            project_domain = project_row['domain']
+            competitor_domains = project_row['selected_competitors'] or []
+
+            # Obtener todos los resultados con AI Overview del periodo
+            cur.execute("""
+                SELECT
+                    r.id,
+                    r.keyword_id,
+                    r.keyword,
+                    r.ai_analysis_data,
+                    r.analysis_date
+                FROM manual_ai_results r
+                WHERE r.project_id = %s
+                    AND r.analysis_date >= %s
+                    AND r.analysis_date <= %s
+                    AND r.has_ai_overview = true
+                    AND r.ai_analysis_data IS NOT NULL
+            """, (project_id, start_date, end_date))
+
+            results = cur.fetchall()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
         
         # Contador de dominios: {domain: {mentions: int, positions: [], dates: set, keywords: set}}
         domain_stats = defaultdict(lambda: {
@@ -545,44 +567,51 @@ class StatisticsService:
         Returns:
             Dict con estadísticas del último análisis
         """
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        cur.execute("""
-            WITH latest_results AS (
-                SELECT DISTINCT ON (k.id)
-                    k.id AS keyword_id,
-                    r.has_ai_overview,
-                    r.domain_mentioned,
-                    r.domain_position,
-                    r.analysis_date
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
-                WHERE k.project_id = %s
-                AND k.is_active = true
-                ORDER BY k.id, r.analysis_date DESC
-            )
-            SELECT 
-                COUNT(*) as total_keywords,
-                COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
-                COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
-                AVG(CASE WHEN domain_mentioned = true AND domain_position IS NOT NULL 
-                    THEN domain_position END)::float as avg_position,
-                (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float / 
-                 NULLIF(COUNT(*), 0)::float * 100)::float as aio_weight_percentage,
-                (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float / 
-                 NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100)::float as visibility_percentage,
-                MAX(analysis_date) as last_analysis_date
-            FROM latest_results
-        """, (project_id,))
-        
-        stats = dict(cur.fetchone() or {})
-        
-        cur.close()
-        conn.close()
-        
-        return stats
-    
+        if not conn:
+            logger.error(f"get_latest_overview_stats({project_id}): no DB connection")
+            return {}
+        try:
+            cur = conn.cursor()
+
+            cur.execute("""
+                WITH latest_results AS (
+                    SELECT DISTINCT ON (k.id)
+                        k.id AS keyword_id,
+                        r.has_ai_overview,
+                        r.domain_mentioned,
+                        r.domain_position,
+                        r.analysis_date
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id
+                    WHERE k.project_id = %s
+                    AND k.is_active = true
+                    ORDER BY k.id, r.analysis_date DESC
+                )
+                SELECT
+                    COUNT(*) as total_keywords,
+                    COUNT(CASE WHEN has_ai_overview = true THEN 1 END) as total_ai_keywords,
+                    COUNT(CASE WHEN domain_mentioned = true THEN 1 END) as total_mentions,
+                    AVG(CASE WHEN domain_mentioned = true AND domain_position IS NOT NULL
+                        THEN domain_position END)::float as avg_position,
+                    (COUNT(CASE WHEN has_ai_overview = true THEN 1 END)::float /
+                     NULLIF(COUNT(*), 0)::float * 100)::float as aio_weight_percentage,
+                    (COUNT(CASE WHEN domain_mentioned = true THEN 1 END)::float /
+                     NULLIF(COUNT(CASE WHEN has_ai_overview = true THEN 1 END), 0)::float * 100)::float as visibility_percentage,
+                    MAX(analysis_date) as last_analysis_date
+                FROM latest_results
+            """, (project_id,))
+
+            stats = dict(cur.fetchone() or {})
+
+            return stats
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     @staticmethod
     def get_project_urls_ranking(project_id: int, days: int = 30, limit: int = 20) -> List[Dict]:
         """
@@ -599,31 +628,38 @@ class StatisticsService:
         Returns:
             Lista de URLs con sus métricas (menciones, %, posición promedio)
         """
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn release.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
-        
-        # Obtener todos los resultados con AI Overview del periodo
-        cur.execute("""
-            SELECT 
-                r.id,
-                r.keyword,
-                r.ai_analysis_data
-            FROM manual_ai_results r
-            WHERE r.project_id = %s 
-                AND r.analysis_date >= %s 
-                AND r.analysis_date <= %s
-                AND r.has_ai_overview = true
-                AND r.ai_analysis_data IS NOT NULL
-        """, (project_id, start_date, end_date))
-        
-        results = cur.fetchall()
-        
-        cur.close()
-        conn.close()
-        
+        if not conn:
+            logger.error(f"get_project_urls_ranking({project_id}): no DB connection")
+            return []
+        try:
+            cur = conn.cursor()
+
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+
+            # Obtener todos los resultados con AI Overview del periodo
+            cur.execute("""
+                SELECT
+                    r.id,
+                    r.keyword,
+                    r.ai_analysis_data
+                FROM manual_ai_results r
+                WHERE r.project_id = %s
+                    AND r.analysis_date >= %s
+                    AND r.analysis_date <= %s
+                    AND r.has_ai_overview = true
+                    AND r.ai_analysis_data IS NOT NULL
+            """, (project_id, start_date, end_date))
+
+            results = cur.fetchall()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
         # Procesar referencias y agrupar URLs
         url_mentions = {}
         url_positions = {}

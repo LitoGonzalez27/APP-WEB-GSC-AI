@@ -86,30 +86,38 @@ class CompetitorService:
         Returns:
             Dict con fecha como key y lista de competidores como value
         """
+        # Refactor 2026-05-25: null-check + try/finally pattern hardened.
+        # Original code had `cur = conn.cursor()` OUTSIDE the try, so when
+        # the pool was exhausted (conn=None) it raised AttributeError and
+        # the finally then re-raised trying to use the undefined `cur`,
+        # leaving the conn (None or otherwise) unmanaged.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_competitors_for_date_range({project_id}): no DB connection")
+            return {}
         try:
+            cur = conn.cursor()
+
             # Obtener eventos de cambio de competidores
             cur.execute("""
                 SELECT event_date, event_description
                 FROM manual_ai_events
-                WHERE project_id = %s 
+                WHERE project_id = %s
                     AND event_type IN ('competitors_changed', 'competitors_updated')
-                    AND event_date >= %s 
+                    AND event_date >= %s
                     AND event_date <= %s
                 ORDER BY event_date DESC
             """, (project_id, start_date, end_date))
-            
+
             events = cur.fetchall()
-            
+
             # Mapear fechas a listas de competidores
             competitors_by_date = {}
-            
+
             for event in events:
                 event_date = event['event_date']
                 description = event['event_description']
-                
+
                 # Intentar parsear descripción JSON
                 try:
                     if description:
@@ -119,7 +127,7 @@ class CompetitorService:
                             competitors_by_date[str(event_date)] = new_competitors
                 except (json.JSONDecodeError, TypeError):
                     continue
-            
+
             # Si no hay cambios históricos, usar configuración actual
             if not competitors_by_date:
                 cur.execute("""
@@ -127,19 +135,21 @@ class CompetitorService:
                     FROM manual_ai_projects
                     WHERE id = %s
                 """, (project_id,))
-                
+
                 result = cur.fetchone()
                 if result and result['selected_competitors']:
                     competitors_by_date['current'] = result['selected_competitors']
-            
+
             return competitors_by_date
-            
+
         except Exception as e:
             logger.error(f"Error getting competitors for date range: {e}")
             return {}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def sync_historical_competitor_flags(project_id: int, current_competitors: List[str]) -> None:
@@ -153,48 +163,59 @@ class CompetitorService:
             project_id: ID del proyecto
             current_competitors: Lista actual de competidores
         """
+        # Refactor 2026-05-25: explicit try/finally to GUARANTEE conn release
+        # even if the SQL or commit raises (previous outer try/except let conn
+        # leak because close() was inside the try body).
+        conn = None
         try:
             conn = get_db_connection()
+            if not conn:
+                logger.error(f"sync_historical_competitor_flags({project_id}): no DB connection")
+                return
             cur = conn.cursor()
-            
+
             # Normalizar competidores actuales
             normalized_competitors = [
                 normalize_search_console_url(comp) or comp.lower()
                 for comp in current_competitors
             ]
-            
+
             # 1. Desmarcar todos los dominios como competidores
             cur.execute("""
                 UPDATE manual_ai_global_domains
                 SET is_selected_competitor = false
                 WHERE project_id = %s AND is_selected_competitor = true
             """, (project_id,))
-            
+
             affected_unmarked = cur.rowcount
-            
+
             # 2. Marcar dominios actuales como competidores
             if normalized_competitors:
                 cur.execute("""
                     UPDATE manual_ai_global_domains
                     SET is_selected_competitor = true
-                    WHERE project_id = %s 
+                    WHERE project_id = %s
                         AND detected_domain = ANY(%s)
                         AND is_selected_competitor = false
                 """, (project_id, normalized_competitors))
-                
+
                 affected_marked = cur.rowcount
             else:
                 affected_marked = 0
-            
+
             conn.commit()
-            cur.close()
-            conn.close()
-            
+
             logger.info(f"✅ Synced competitor flags for project {project_id}: "
                        f"{affected_unmarked} unmarked, {affected_marked} marked as competitors")
-            
+
         except Exception as e:
             logger.error(f"❌ Error syncing competitor flags for project {project_id}: {e}")
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     @staticmethod
     def get_competitors_charts_data(project_id: int, days: int = 30) -> Dict:
@@ -208,92 +229,99 @@ class CompetitorService:
         Returns:
             Dict con datos para Brand Visibility Index y Brand Position Over Time
         """
+        # Refactor 2026-05-25: null-check conn before opening cursor.
+        # Same hardening as get_competitors_for_date_range.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days)
-        
+        if not conn:
+            logger.error(f"get_competitors_charts_data({project_id}): no DB connection")
+            return {'error': 'Service temporarily unavailable'}
         try:
+            cur = conn.cursor()
+
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+
             # Obtener configuración de competidores del proyecto
             cur.execute("""
                 SELECT selected_competitors, domain
                 FROM manual_ai_projects
                 WHERE id = %s
             """, (project_id,))
-            
+
             project = cur.fetchone()
             if not project:
                 return {'error': 'Project not found'}
-            
+
             selected_competitors = project['selected_competitors'] or []
             project_domain = normalize_search_console_url(project['domain']) or project['domain'].lower()
-            
+
             # Normalizar competidores
             normalized_competitors = [
                 normalize_search_console_url(comp) or comp.lower()
                 for comp in selected_competitors
             ]
-            
+
             # Incluir el dominio del proyecto en el análisis
             all_domains = [project_domain] + normalized_competitors
-            
+
             if not all_domains:
                 return {
                     'brand_visibility_index': [],
                     'brand_position_over_time': {}
                 }
-            
+
             # 1. Brand Visibility Index (visibilidad por dominio)
             cur.execute("""
-                SELECT 
+                SELECT
                     detected_domain,
                     COUNT(DISTINCT keyword_id) as keywords_mentioned,
                     AVG(domain_position) as avg_position,
                     COUNT(*) as total_mentions
                 FROM manual_ai_global_domains
-                WHERE project_id = %s 
-                    AND analysis_date >= %s 
+                WHERE project_id = %s
+                    AND analysis_date >= %s
                     AND analysis_date <= %s
                     AND detected_domain = ANY(%s)
                 GROUP BY detected_domain
                 ORDER BY keywords_mentioned DESC
             """, (project_id, start_date, end_date, all_domains))
-            
+
             visibility_data = [dict(row) for row in cur.fetchall()]
-            
+
             # 2. Brand Position Over Time (posición promedio por fecha)
             position_over_time = {}
-            
+
             for domain in all_domains:
                 cur.execute("""
-                    SELECT 
+                    SELECT
                         analysis_date,
                         AVG(domain_position) as avg_position,
                         COUNT(DISTINCT keyword_id) as keyword_count
                     FROM manual_ai_global_domains
-                    WHERE project_id = %s 
+                    WHERE project_id = %s
                         AND detected_domain = %s
-                        AND analysis_date >= %s 
+                        AND analysis_date >= %s
                         AND analysis_date <= %s
                     GROUP BY analysis_date
                     ORDER BY analysis_date
                 """, (project_id, domain, start_date, end_date))
-                
+
                 position_over_time[domain] = [dict(row) for row in cur.fetchall()]
-            
+
             return {
                 'brand_visibility_index': visibility_data,
                 'brand_position_over_time': position_over_time,
                 'domains_analyzed': all_domains
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting competitors charts data: {e}")
             return {'error': str(e)}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def get_competitors_for_date_range(project_id: int, start_date: date, end_date: date) -> Dict[str, List[str]]:
@@ -312,29 +340,39 @@ class CompetitorService:
         Returns:
             Dict con formato {fecha_iso: [lista_competidores]}
         """
+        # Refactor 2026-05-25: nested try/finally to GUARANTEE conn release
+        # even on early SQL failure (the outer try/except let conn leak).
+        conn = None
         try:
             conn = get_db_connection()
-            cur = conn.cursor()
-            
-            # Obtener todos los cambios de competidores ordenados cronológicamente
-            cur.execute("""
-                SELECT event_date, event_type, event_description 
-                FROM manual_ai_events 
-                WHERE project_id = %s 
-                AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
-                AND event_date <= %s
-                ORDER BY event_date ASC, created_at ASC
-            """, (project_id, end_date))
-            
-            competitor_changes = cur.fetchall()
-            
-            # Obtener competidores actuales como fallback
-            cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
-            current_result = cur.fetchone()
-            current_competitors = current_result['selected_competitors'] if current_result else []
-            
-            cur.close()
-            conn.close()
+            if not conn:
+                logger.error(f"get_competitors_for_date_range({project_id}): no DB connection")
+                return {}
+            try:
+                cur = conn.cursor()
+
+                # Obtener todos los cambios de competidores ordenados cronológicamente
+                cur.execute("""
+                    SELECT event_date, event_type, event_description
+                    FROM manual_ai_events
+                    WHERE project_id = %s
+                    AND event_type IN ('competitors_changed', 'competitors_updated', 'project_created')
+                    AND event_date <= %s
+                    ORDER BY event_date ASC, created_at ASC
+                """, (project_id, end_date))
+
+                competitor_changes = cur.fetchall()
+
+                # Obtener competidores actuales como fallback
+                cur.execute("SELECT selected_competitors FROM manual_ai_projects WHERE id = %s", (project_id,))
+                current_result = cur.fetchone()
+                current_competitors = current_result['selected_competitors'] if current_result else []
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = None  # mark as released so outer finally is a no-op
             
             # Reconstruir estado temporal correctamente
             date_range = {}
@@ -428,17 +466,21 @@ class CompetitorService:
         1. Gráfica de % visibilidad en AI Overview (líneas por dominio)
         2. Gráfica de posición media en AI Overview (líneas por dominio)
         """
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_project_comparative_charts_data({project_id}): no DB connection")
+            return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
         try:
+            cur = conn.cursor()
+
             end_date = date.today()
             start_date = end_date - timedelta(days=days)
-            
+
             # Obtener proyecto con competidores seleccionados
             cur.execute("""
-                SELECT domain, selected_competitors 
-                FROM manual_ai_projects 
+                SELECT domain, selected_competitors
+                FROM manual_ai_projects
                 WHERE id = %s
             """, (project_id,))
             project_data = cur.fetchone()
@@ -669,6 +711,8 @@ class CompetitorService:
             logger.error(f"🔍 Full traceback: {traceback.format_exc()}")
             return {'visibility_chart': {}, 'position_chart': {}, 'domains': []}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
