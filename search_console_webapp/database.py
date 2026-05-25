@@ -262,6 +262,48 @@ def close_db_pool():
             finally:
                 _pool = None
 
+
+# ---------------------------------------------------------------------------
+# Connection context manager (leak-safe helper)
+# ---------------------------------------------------------------------------
+# Many call sites across the codebase follow the unsafe pattern
+#     conn = get_db_connection()
+#     cur = conn.cursor()
+#     cur.execute(...)        ← if this raises, close() never runs → leak
+#     conn.close()
+# and over time this leaks pool slots until the pool reports exhausted (bug
+# observed 2026-05-25). Refactoring those sites to use `with db_conn() as
+# conn:` guarantees the connection is returned to the pool whether the body
+# succeeds or raises. Returns None inside the `with` if no connection could
+# be obtained, so callers should still null-check.
+# ---------------------------------------------------------------------------
+from contextlib import contextmanager
+
+
+@contextmanager
+def db_conn():
+    """Context manager that yields a pooled connection and ALWAYS returns
+    it to the pool on exit (success or exception). Use as:
+
+        with db_conn() as conn:
+            if not conn:
+                return error_response()
+            cur = conn.cursor()
+            cur.execute(...)
+            ...
+
+    Yields None if get_db_connection() fails so callers can handle gracefully.
+    """
+    conn = get_db_connection()
+    try:
+        yield conn
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception as e:
+                logger.warning(f"db_conn(): error closing connection: {e}")
+
 def init_database():
     """Inicializa la base de datos creando las tablas necesarias"""
     try:
