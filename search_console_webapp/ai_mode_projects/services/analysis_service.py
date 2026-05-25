@@ -139,10 +139,15 @@ class AnalysisService:
         failed_keywords = 0
         consumed_ru = 0
         today = date.today()
-        
-        conn = get_db_connection()
-        cur = conn.cursor()
-        
+
+        # Refactor 2026-05-25: removed unused `conn = get_db_connection()` +
+        # `cur = conn.cursor()` here — they were held idle for the entire
+        # keyword loop (minutes/hours for big projects) without any
+        # direct execute() against them, blocking a pool slot and risking
+        # idle_in_transaction_session_timeout. The actual DB writes happen
+        # via self.result_repo, DomainsService, track_quota_consumption,
+        # etc., each of which manages its own short-lived connection.
+
         analysis_mode = "MANUAL (with overwrite)" if force_overwrite else "AUTOMATIC (skip existing)"
         logger.info(f"🚀 Starting AI Mode {analysis_mode} analysis for project {project_id} with {len(keywords)} keywords")
         
@@ -154,9 +159,6 @@ class AnalysisService:
                               f"Keywords procesadas: {len(results)}. Keywords pendientes: {len(keywords) - len(results)}")
                 paused_until = current_quota.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
                 pause_ai_mode_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
-                conn.commit()
-                cur.close()
-                conn.close()
                 return {
                     'results': results,
                     'quota_exceeded': True,
@@ -276,11 +278,7 @@ class AnalysisService:
                                    f"Used: {quota_info.get('quota_used', 0)}/{quota_info.get('quota_limit', 0)} RU")
                         paused_until = quota_info.get('reset_date') or (datetime.utcnow() + timedelta(days=30))
                         pause_ai_mode_projects_for_quota(current_user['id'], paused_until, reason='quota_exceeded')
-                        
-                        conn.commit()
-                        cur.close()
-                        conn.close()
-                        
+
                         return {
                             'results': results,
                             'quota_exceeded': True,
@@ -300,10 +298,6 @@ class AnalysisService:
                 logger.error(f"Error analyzing keyword '{keyword}': {e}")
                 failed_keywords += 1
                 continue
-        
-        conn.commit()
-        cur.close()
-        conn.close()
         
         overwrite_info = " (with overwrite)" if force_overwrite else " (skipping existing)"
         logger.info(f"✅ Completed {analysis_mode} analysis for project {project_id}: "

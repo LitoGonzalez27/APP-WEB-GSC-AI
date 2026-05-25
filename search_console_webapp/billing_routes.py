@@ -78,17 +78,23 @@ def get_or_create_stripe_customer(user):
         )
 
         # Guardar customer_id en base de datos
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn.close() on error.
         conn = get_db_connection()
         if not conn:
             logger.error("Sin conexión a BD para guardar stripe_customer_id")
             return customer.id
-        cur = conn.cursor()
-        cur.execute(
-            'UPDATE users SET stripe_customer_id = %s, updated_at = NOW() WHERE id = %s',
-            (customer.id, user['id'])
-        )
-        conn.commit()
-        conn.close()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                'UPDATE users SET stripe_customer_id = %s, updated_at = NOW() WHERE id = %s',
+                (customer.id, user['id'])
+            )
+            conn.commit()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
         return customer.id
 
@@ -487,6 +493,8 @@ def setup_billing_routes(app):
                 # ✅ Fallback de sincronización inmediata:
                 # Si la suscripción ya está 'trialing' o 'active' pero el webhook aún no ha actualizado el usuario,
                 # reflejar el estado en BD para que la UI lo muestre al instante.
+                # Refactor 2026-05-25: try/finally to GUARANTEE conn_fb.close().
+                conn_fb = None
                 try:
                     if subscription and getattr(subscription, 'status', None) in ['trialing', 'active']:
                         config_limits = get_stripe_config().get_plan_limits()
@@ -498,8 +506,8 @@ def setup_billing_routes(app):
                         if conn_fb:
                             cur_fb = conn_fb.cursor()
                             cur_fb.execute('''
-                                UPDATE users 
-                                SET 
+                                UPDATE users
+                                SET
                                     plan = %s,
                                     current_plan = %s,
                                     billing_status = %s,
@@ -517,7 +525,6 @@ def setup_billing_routes(app):
                                 user['id']
                             ))
                             conn_fb.commit()
-                            conn_fb.close()
                             # Refrescar user_status local para render
                             user['plan'] = new_plan
                             user['billing_status'] = new_status
@@ -526,6 +533,12 @@ def setup_billing_routes(app):
                             logger.info(f"Fallback sync aplicado para usuario {user['email']} ({new_plan}, {new_status})")
                 except Exception as _sync_e:
                     logger.warning(f"Fallback sync no aplicado: {_sync_e}")
+                finally:
+                    if conn_fb is not None:
+                        try:
+                            conn_fb.close()
+                        except Exception:
+                            pass
                 
             except Exception as e:
                 logger.error(f"Error obteniendo datos de transacción: {e}")

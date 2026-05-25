@@ -354,35 +354,40 @@ class CronService:
     def _calculate_snapshot_metrics(self, project_id: int) -> dict:
         """Calcular métricas para snapshot diario"""
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        try:
-            today = date.today()
-            
-            cur.execute("""
-                SELECT 
-                    COUNT(DISTINCT k.id) as total_keywords,
-                    COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keywords,
-                    COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as keywords_with_ai,
-                    COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as domain_mentions,
-                    AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END) as avg_position,
-                    (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float /
-                     NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END), 0)::float * 100) as visibility_percentage
-                FROM manual_ai_keywords k
-                LEFT JOIN manual_ai_results r ON k.id = r.keyword_id AND r.analysis_date = %s
-                WHERE k.project_id = %s
-            """, (today, project_id))
-            
-            result = cur.fetchone()
-            
-            return dict(result) if result else {}
-            
-        except Exception as e:
-            logger.error(f"Error calculating snapshot metrics: {e}")
+        if not conn:
+            logger.error(f"_calculate_snapshot_metrics({project_id}): no DB connection")
             return {}
+        try:
+            cur = conn.cursor()
+            try:
+                today = date.today()
+
+                cur.execute("""
+                    SELECT
+                        COUNT(DISTINCT k.id) as total_keywords,
+                        COUNT(DISTINCT CASE WHEN k.is_active = true THEN k.id END) as active_keywords,
+                        COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END) as keywords_with_ai,
+                        COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END) as domain_mentions,
+                        AVG(CASE WHEN r.domain_mentioned = true THEN r.domain_position END) as avg_position,
+                        (COUNT(DISTINCT CASE WHEN r.domain_mentioned = true THEN k.id END)::float /
+                         NULLIF(COUNT(DISTINCT CASE WHEN r.has_ai_overview = true THEN k.id END), 0)::float * 100) as visibility_percentage
+                    FROM manual_ai_keywords k
+                    LEFT JOIN manual_ai_results r ON k.id = r.keyword_id AND r.analysis_date = %s
+                    WHERE k.project_id = %s
+                """, (today, project_id))
+
+                result = cur.fetchone()
+
+                return dict(result) if result else {}
+
+            except Exception as e:
+                logger.error(f"Error calculating snapshot metrics: {e}")
+                return {}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 # Función de compatibilidad para importación directa

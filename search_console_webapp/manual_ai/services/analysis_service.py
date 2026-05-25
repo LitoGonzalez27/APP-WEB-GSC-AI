@@ -251,23 +251,26 @@ class AnalysisService:
                         # outer abierta durante todo el loop (vulnerable al
                         # idle_in_transaction_session_timeout de 15 min).
                         quota_conn = get_db_connection()
-                        quota_cur = quota_conn.cursor()
-                        try:
-                            quota_cur.execute('''
-                                INSERT INTO manual_ai_results
-                                (project_id, keyword_id, keyword, analysis_date, has_ai_overview,
-                                 domain_mentioned, country_code)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                                ON CONFLICT (project_id, keyword_id, analysis_date)
-                                DO NOTHING
-                            ''', (
-                                project_id, keyword_id, keyword, today, False, False,
-                                project['country_code']
-                            ))
-                            quota_conn.commit()
-                        finally:
-                            quota_cur.close()
-                            quota_conn.close()
+                        if quota_conn:
+                            try:
+                                quota_cur = quota_conn.cursor()
+                                quota_cur.execute('''
+                                    INSERT INTO manual_ai_results
+                                    (project_id, keyword_id, keyword, analysis_date, has_ai_overview,
+                                     domain_mentioned, country_code)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                    ON CONFLICT (project_id, keyword_id, analysis_date)
+                                    DO NOTHING
+                                ''', (
+                                    project_id, keyword_id, keyword, today, False, False,
+                                    project['country_code']
+                                ))
+                                quota_conn.commit()
+                            finally:
+                                try:
+                                    quota_conn.close()
+                                except Exception:
+                                    pass
 
                         # Terminar análisis y retornar información de quota
                         quota_info = getattr(analysis_error, 'quota_info', {})

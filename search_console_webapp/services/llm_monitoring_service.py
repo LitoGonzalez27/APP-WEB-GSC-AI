@@ -1586,21 +1586,25 @@ JSON:"""
         logger.info("")
         
         # Crear snapshots por LLM
+        # Refactor 2026-05-25: null-check + cursor inside try.
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error("Snapshot save: no DB connection — skipping snapshot save")
+            return {'completeness_by_llm': {}, 'incomplete_llms': []}
+
         # ✨ NUEVO: Usar nombres de competidores agrupados para el snapshot
         # En lugar de usar términos individuales, usamos los nombres agrupados
         # Esto hace que "orange.es" y "orange" se cuenten bajo "Orange"
         all_competitor_names = competitor_names if competitor_names else []
-        
+
         # Guardar el mapeo para uso posterior
         self._competitor_term_to_name = competitor_term_to_name
-        
+
         # ✨ NUEVO: Validar que todos los LLMs analicen todas las queries
         total_queries_expected = len(queries)
-        
+
         try:
+            cur = conn.cursor()
             for llm_name, llm_results in results_by_llm.items():
                 queries_analyzed = len(llm_results)
                 
@@ -1647,11 +1651,16 @@ JSON:"""
             
         except Exception as e:
             logger.error(f"❌ Error guardando snapshots: {e}")
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
         
         # ✨ NUEVO: Calcular completitud por LLM
         completeness_by_llm = {}
@@ -1766,10 +1775,13 @@ JSON:"""
                 )
             
             # Guardar resultado en BD (conexión thread-local)
+            # Refactor 2026-05-25: null-check + cursor inside try.
             conn = get_db_connection()
-            cur = conn.cursor()
-            
+            if not conn:
+                logger.error(f"Save analysis result: no DB connection (project={task['project_id']})")
+                return {'success': False, 'error': 'no_db_connection'}
             try:
+                cur = conn.cursor()
                 # ✨ NUEVO (2026-04-08): construir metadata de ejecución
                 # para auditoría. Incluye la estrategia real aplicada
                 # por el provider (system_user, system_user_geo,
@@ -1865,11 +1877,13 @@ JSON:"""
                 ))
 
                 conn.commit()
-                
+
             finally:
-                cur.close()
-                conn.close()
-            
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
             # Retornar resultado para agregación
             return {
                 'success': True,
@@ -1904,10 +1918,15 @@ JSON:"""
             task: Información de la tarea que falló
             error_message: Mensaje de error detallado
         """
+        # Refactor 2026-05-25: explicit conn=None + try/finally.
+        conn = None
         try:
             conn = get_db_connection()
+            if not conn:
+                logger.error(f"_save_error_result: no DB connection (project={task.get('project_id')})")
+                return
             cur = conn.cursor()
-            
+
             try:
                 cur.execute("""
                     INSERT INTO llm_monitoring_results (
@@ -1927,7 +1946,7 @@ JSON:"""
                         %s, 0,
                         0, 0
                     )
-                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date) 
+                    ON CONFLICT (project_id, query_id, llm_provider, analysis_date)
                     DO UPDATE SET
                         has_error = TRUE,
                         error_message = EXCLUDED.error_message,
@@ -1943,16 +1962,21 @@ JSON:"""
                     error_message,
                     f"Error: {error_message}"  # full_response contiene el error
                 ))
-                
+
                 conn.commit()
                 logger.debug(f"✅ Error guardado en BD: {task['llm_name']} - {error_message[:50]}...")
-                
-            finally:
-                cur.close()
-                conn.close()
-                
+
+            except Exception as inner_e:
+                logger.error(f"❌ Error in _save_error_result inner: {inner_e}")
+
         except Exception as e:
             logger.error(f"❌ Error guardando registro de error: {e}")
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
     
     # =====================================================
     # CREACIÓN DE SNAPSHOTS

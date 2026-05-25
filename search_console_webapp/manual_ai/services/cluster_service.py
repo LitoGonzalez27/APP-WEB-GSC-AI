@@ -25,28 +25,33 @@ class ClusterService:
             Dict con configuración de clusters
         """
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_project_clusters({project_id}): no DB connection")
+            return {'enabled': False, 'clusters': []}
         try:
-            cur.execute("""
-                SELECT topic_clusters
-                FROM manual_ai_projects
-                WHERE id = %s
-            """, (project_id,))
-            
-            result = cur.fetchone()
-            if result and result['topic_clusters']:
-                return result['topic_clusters']
-            
-            # Valor por defecto si no existe
-            return {'enabled': False, 'clusters': []}
-            
-        except Exception as e:
-            logger.error(f"Error getting clusters for project {project_id}: {e}")
-            return {'enabled': False, 'clusters': []}
+            cur = conn.cursor()
+            try:
+                cur.execute("""
+                    SELECT topic_clusters
+                    FROM manual_ai_projects
+                    WHERE id = %s
+                """, (project_id,))
+
+                result = cur.fetchone()
+                if result and result['topic_clusters']:
+                    return result['topic_clusters']
+
+                # Valor por defecto si no existe
+                return {'enabled': False, 'clusters': []}
+
+            except Exception as e:
+                logger.error(f"Error getting clusters for project {project_id}: {e}")
+                return {'enabled': False, 'clusters': []}
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def update_project_clusters(project_id: int, clusters_config: Dict) -> bool:
@@ -61,61 +66,69 @@ class ClusterService:
             bool: True si se actualizó correctamente
         """
         conn = get_db_connection()
-        cur = conn.cursor()
-        
-        try:
-            import json
-            
-            # Validar formato de clusters_config
-            if not isinstance(clusters_config, dict):
-                logger.error("clusters_config debe ser un diccionario")
-                return False
-            
-            # Asegurar estructura correcta
-            if 'enabled' not in clusters_config:
-                clusters_config['enabled'] = False
-            
-            if 'clusters' not in clusters_config:
-                clusters_config['clusters'] = []
-            
-            # Validar cada cluster
-            validated_clusters = []
-            for cluster in clusters_config.get('clusters', []):
-                if not isinstance(cluster, dict):
-                    continue
-                
-                if 'name' not in cluster or 'terms' not in cluster:
-                    continue
-                
-                validated_cluster = {
-                    'name': cluster['name'],
-                    'terms': cluster['terms'] if isinstance(cluster['terms'], list) else [],
-                    'match_method': cluster.get('match_method', 'contains')
-                }
-                validated_clusters.append(validated_cluster)
-            
-            clusters_config['clusters'] = validated_clusters
-            
-            # Actualizar en base de datos
-            cur.execute("""
-                UPDATE manual_ai_projects
-                SET topic_clusters = %s,
-                    updated_at = NOW()
-                WHERE id = %s
-            """, (json.dumps(clusters_config), project_id))
-            
-            conn.commit()
-            
-            logger.info(f"✅ Clusters updated for project {project_id}: {len(validated_clusters)} clusters, enabled={clusters_config['enabled']}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating clusters for project {project_id}: {e}")
-            conn.rollback()
+        if not conn:
+            logger.error(f"update_project_clusters({project_id}): no DB connection")
             return False
+        try:
+            cur = conn.cursor()
+            try:
+                import json
+
+                # Validar formato de clusters_config
+                if not isinstance(clusters_config, dict):
+                    logger.error("clusters_config debe ser un diccionario")
+                    return False
+
+                # Asegurar estructura correcta
+                if 'enabled' not in clusters_config:
+                    clusters_config['enabled'] = False
+
+                if 'clusters' not in clusters_config:
+                    clusters_config['clusters'] = []
+
+                # Validar cada cluster
+                validated_clusters = []
+                for cluster in clusters_config.get('clusters', []):
+                    if not isinstance(cluster, dict):
+                        continue
+
+                    if 'name' not in cluster or 'terms' not in cluster:
+                        continue
+
+                    validated_cluster = {
+                        'name': cluster['name'],
+                        'terms': cluster['terms'] if isinstance(cluster['terms'], list) else [],
+                        'match_method': cluster.get('match_method', 'contains')
+                    }
+                    validated_clusters.append(validated_cluster)
+
+                clusters_config['clusters'] = validated_clusters
+
+                # Actualizar en base de datos
+                cur.execute("""
+                    UPDATE manual_ai_projects
+                    SET topic_clusters = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (json.dumps(clusters_config), project_id))
+
+                conn.commit()
+
+                logger.info(f"✅ Clusters updated for project {project_id}: {len(validated_clusters)} clusters, enabled={clusters_config['enabled']}")
+                return True
+
+            except Exception as e:
+                logger.error(f"Error updating clusters for project {project_id}: {e}")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                return False
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def classify_keyword(keyword: str, clusters_config: Dict) -> List[str]:
@@ -200,14 +213,21 @@ class ClusterService:
             Dict con estadísticas de clusters para gráficas y tablas
         """
         from datetime import date, timedelta
-        
+
         conn = get_db_connection()
-        cur = conn.cursor()
-        
+        if not conn:
+            logger.error(f"get_cluster_statistics({project_id}): no DB connection")
+            return {
+                'enabled': False, 'clusters': [],
+                'chart_data': {'labels': [], 'total_keywords': [], 'mentions': []},
+                'table_data': [], 'is_stale': False
+            }
         try:
+            cur = conn.cursor()
+
             end_date = date.today()
             start_date = end_date - timedelta(days=days)
-            
+
             # Obtener configuración de clusters
             clusters_config = ClusterService.get_project_clusters(project_id)
             logger.info(f"📋 Clusters config for project {project_id}: enabled={clusters_config.get('enabled')}, clusters_count={len(clusters_config.get('clusters', []))}")
@@ -406,8 +426,10 @@ class ClusterService:
                 'error': str(e)
             }
         finally:
-            cur.close()
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     @staticmethod
     def validate_clusters_config(clusters_config: Dict) -> Dict:

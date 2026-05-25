@@ -346,6 +346,8 @@ def get_quota_statistics():
     """
     Obtiene estadísticas generales de uso de quotas
     """
+    # Refactor 2026-05-25: conn=None for safe finally cleanup.
+    conn = None
     try:
         conn = get_db_connection()
         if not conn:
@@ -390,8 +392,11 @@ def get_quota_statistics():
         logger.error(f"Error obteniendo estadísticas de quota: {e}")
         return {}
     finally:
-        if conn:
-            conn.close()
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 # Funciones de testing
 def test_quota_manager():
@@ -400,8 +405,13 @@ def test_quota_manager():
     print("=" * 40)
     
     # Obtener primer usuario para testing
+    # Refactor 2026-05-25: conn=None for safer finally cleanup.
+    conn = None
     try:
         conn = get_db_connection()
+        if not conn:
+            print("No DB connection for testing")
+            return
         cur = conn.cursor()
         cur.execute('SELECT id, email, plan FROM users LIMIT 1')
         result = cur.fetchone()
@@ -437,8 +447,11 @@ def test_quota_manager():
         import traceback
         traceback.print_exc()
     finally:
-        if conn:
-            conn.close()
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 def record_quota_usage(user_id, ru_consumed, operation_type="unknown", metadata=None):
     """

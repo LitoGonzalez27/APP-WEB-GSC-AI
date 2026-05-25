@@ -410,6 +410,8 @@ class StripeWebhookHandler:
             logger.info(f"✅ Subscription {action} processed successfully for customer {customer_id}")
             
             # Enviar email de inicio de trial (una sola vez) - en inglés usando helpers
+            # Refactor 2026-05-25: try/finally to GUARANTEE conn2.close().
+            conn2 = None
             try:
                 if status == 'trialing' and action in ['created', 'updated']:
                     conn2 = get_db_connection()
@@ -432,9 +434,14 @@ class StripeWebhookHandler:
                                 logger.info(f"✉️ Trial-start email enviado a {user_email}")
                             except Exception as _em:
                                 logger.warning(f"No se pudo enviar email de trial-start: {_em}")
-                        conn2.close()
             except Exception as _e:
                 logger.warning(f"Post-processing (trial email) falló: {_e}")
+            finally:
+                if conn2 is not None:
+                    try:
+                        conn2.close()
+                    except Exception:
+                        pass
             return {'success': True, 'message': f'Subscription {action} processed'}
             
         except Exception as e:

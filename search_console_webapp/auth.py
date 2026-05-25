@@ -1031,15 +1031,22 @@ def setup_auth_routes(app):
             update_last_activity()
 
             # ✅ NUEVO: Registrar last_login_at en login por email
+            # Refactor 2026-05-25: try/finally to GUARANTEE db.close() on error.
+            _db_login = None
             try:
-                db = get_db_connection()
-                if db:
-                    cur = db.cursor()
+                _db_login = get_db_connection()
+                if _db_login:
+                    cur = _db_login.cursor()
                     cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (user['id'],))
-                    db.commit()
-                    db.close()
+                    _db_login.commit()
             except Exception as _e_last_login_email:
                 logger.warning(f"No se pudo actualizar last_login_at (email login): {_e_last_login_email}")
+            finally:
+                if _db_login is not None:
+                    try:
+                        _db_login.close()
+                    except Exception:
+                        pass
 
             # Flujo de invitación tiene prioridad total sobre checkout.
             invitation_next = session.get('auth_next')
@@ -1287,15 +1294,22 @@ def setup_auth_routes(app):
                         session['user_name'] = new_user['name']
                         update_last_activity()
                         # ✅ NUEVO: Registrar last_login_at en registro con Google (autologin)
+                        # Refactor 2026-05-25: try/finally to GUARANTEE db.close() on error.
+                        _db_signup = None
                         try:
-                            db = get_db_connection()
-                            if db:
-                                cur = db.cursor()
+                            _db_signup = get_db_connection()
+                            if _db_signup:
+                                cur = _db_signup.cursor()
                                 cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (new_user['id'],))
-                                db.commit()
-                                db.close()
+                                _db_signup.commit()
                         except Exception as _e_last_login_signup:
                             logger.warning(f"No se pudo actualizar last_login_at (Google signup): {_e_last_login_signup}")
+                        finally:
+                            if _db_signup is not None:
+                                try:
+                                    _db_signup.close()
+                                except Exception:
+                                    pass
                         
                         logger.info(f"✅ Usuario registrado y loggeado automáticamente con plan {signup_plan}: {user_info['email']}")
                         try:
@@ -1314,15 +1328,22 @@ def setup_auth_routes(app):
                         session['user_name'] = new_user['name']
                         update_last_activity()
                         # Update last_login_at
+                        # Refactor 2026-05-25: try/finally to GUARANTEE db.close() on error.
+                        _db_signup_free = None
                         try:
-                            db = get_db_connection()
-                            if db:
-                                cur = db.cursor()
+                            _db_signup_free = get_db_connection()
+                            if _db_signup_free:
+                                cur = _db_signup_free.cursor()
                                 cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (new_user['id'],))
-                                db.commit()
-                                db.close()
+                                _db_signup_free.commit()
                         except Exception as _e_ll:
                             logger.warning(f"Could not update last_login_at (Google signup free): {_e_ll}")
+                        finally:
+                            if _db_signup_free is not None:
+                                try:
+                                    _db_signup_free.close()
+                                except Exception:
+                                    pass
 
                         next_url = '/dashboard?auth_success=true&action=signup'
                         if _is_invitation_next_url(session.get('auth_next')):
@@ -1390,21 +1411,28 @@ def setup_auth_routes(app):
                     return redirect('/login?auth_error=account_suspended')
                 
                 # ✅ VINCULAR cuenta existente con Google ID si es necesario
+                # Refactor 2026-05-25: try/finally to GUARANTEE conn.close() on error.
                 if not existing_user['google_id'] and user_info['id']:
+                    _link_conn = None
                     try:
-                        conn = get_db_connection()
-                        if conn:
-                            cur = conn.cursor()
+                        _link_conn = get_db_connection()
+                        if _link_conn:
+                            cur = _link_conn.cursor()
                             cur.execute('''
-                                UPDATE users 
+                                UPDATE users
                                 SET google_id = %s, picture = %s, updated_at = NOW()
                                 WHERE id = %s
                             ''', (user_info['id'], user_info.get('picture'), existing_user['id']))
-                            conn.commit()
-                            conn.close()
+                            _link_conn.commit()
                             logger.info(f"Vinculada cuenta existente {user_info['email']} con Google ID")
                     except Exception as e:
                         logger.error(f"Error vinculando cuenta con Google: {e}")
+                    finally:
+                        if _link_conn is not None:
+                            try:
+                                _link_conn.close()
+                            except Exception:
+                                pass
                 
                 # ✅ INICIAR SESIÓN
                 session['credentials'] = session.pop('temp_credentials')  # Mover credenciales a permanentes
@@ -1414,15 +1442,22 @@ def setup_auth_routes(app):
                 update_last_activity()
 
                 # ✅ NUEVO: Registrar last_login_at en login con Google
+                # Refactor 2026-05-25: try/finally to GUARANTEE db.close() on error.
+                _db_google_login = None
                 try:
-                    db = get_db_connection()
-                    if db:
-                        cur = db.cursor()
+                    _db_google_login = get_db_connection()
+                    if _db_google_login:
+                        cur = _db_google_login.cursor()
                         cur.execute('UPDATE users SET last_login_at = NOW(), updated_at = NOW() WHERE id = %s', (existing_user['id'],))
-                        db.commit()
-                        db.close()
+                        _db_google_login.commit()
                 except Exception as _e_last_login_google:
                     logger.warning(f"No se pudo actualizar last_login_at (Google login): {_e_last_login_google}")
+                finally:
+                    if _db_google_login is not None:
+                        try:
+                            _db_google_login.close()
+                        except Exception:
+                            pass
                 
                 logger.info(f"Usuario autenticado con Google: {user_info['email']}")
 
@@ -1722,8 +1757,12 @@ def setup_auth_routes(app):
         except ImportError:
             # Fallback a datos básicos si admin_billing_panel no está disponible
             logger.warning("⚠️ admin_billing_panel no disponible, usando datos básicos")
+            # Refactor 2026-05-25: explicit conn=None + null-check + try/finally.
+            conn = None
             try:
                 conn = get_db_connection()
+                if not conn:
+                    return jsonify({'success': False, 'error': 'Service temporarily unavailable'}), 503
                 cur = conn.cursor()
                 cur.execute('''
                     SELECT id, email, name, picture, role, is_active, created_at,
@@ -1731,19 +1770,22 @@ def setup_auth_routes(app):
                     FROM users WHERE id = %s
                 ''', (user_id,))
                 user = cur.fetchone()
-                
+
                 if not user:
                     return jsonify({'success': False, 'error': 'Usuario no encontrado'}), 404
-                
+
                 user_dict = dict(user)
                 return jsonify({'success': True, 'user': user_dict})
-                
+
             except Exception as fallback_error:
                 logger.error(f"Error en fallback de detalles usuario: {fallback_error}")
                 return jsonify({'success': False, 'error': 'Failed to load user data'}), 500
             finally:
-                if conn:
-                    conn.close()
+                if conn is not None:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
             
         except Exception as e:
             logger.error(f"Error obteniendo detalles billing usuario {user_id}: {e}")
@@ -1764,36 +1806,38 @@ def setup_auth_routes(app):
             'error_details': []
         }
         
+        # Refactor 2026-05-25: explicit conn=None + try/finally.
+        conn = None
         try:
             # 1. Probar conexión directa
             conn = get_db_connection()
             if conn:
                 debug_info['database_connection'] = True
                 cur = conn.cursor()
-                
+
                 # 2. Consulta directa de usuarios
                 cur.execute('SELECT id, email, name, is_active, created_at, role FROM users ORDER BY id')
                 users_raw = cur.fetchall()
                 debug_info['users_data'] = [dict(user) for user in users_raw]
-                
+
                 # 3. Consultas individuales de estadísticas
                 queries = {
                     'total_users': 'SELECT COUNT(*) FROM users',
                     'active_users': 'SELECT COUNT(*) FROM users WHERE is_active = TRUE',
                     'inactive_users': 'SELECT COUNT(*) FROM users WHERE is_active = FALSE',
                     'today_registrations': '''
-                        SELECT COUNT(*) FROM users 
-                        WHERE created_at IS NOT NULL 
-                        AND created_at >= CURRENT_DATE 
+                        SELECT COUNT(*) FROM users
+                        WHERE created_at IS NOT NULL
+                        AND created_at >= CURRENT_DATE
                         AND created_at < CURRENT_DATE + INTERVAL '1 day'
                     ''',
                     'week_registrations': '''
-                        SELECT COUNT(*) FROM users 
-                        WHERE created_at IS NOT NULL 
+                        SELECT COUNT(*) FROM users
+                        WHERE created_at IS NOT NULL
                         AND created_at >= NOW() - INTERVAL '7 days'
                     '''
                 }
-                
+
                 for key, query in queries.items():
                     try:
                         cur.execute(query)
@@ -1802,50 +1846,61 @@ def setup_auth_routes(app):
                     except Exception as e:
                         debug_info['raw_queries'][key] = f"ERROR: {str(e)}"
                         debug_info['error_details'].append(f"{key}: {str(e)}")
-                
+
                 # 4. Resultado de la función get_user_stats()
                 debug_info['stats_function_result'] = get_user_stats()
-                
-                conn.close()
             else:
                 debug_info['error_details'].append("No se pudo conectar a la base de datos")
-                
+
         except Exception as e:
             debug_info['error_details'].append(f"Error general: {str(e)}")
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
         
         return jsonify(debug_info)
 
     @app.route('/admin/fix-dates')
-    @admin_required 
+    @admin_required
     def fix_user_dates():
         """Arreglar fechas created_at que están en NULL"""
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn.close().
+        conn = None
         try:
             conn = get_db_connection()
             if not conn:
                 return jsonify({'error': 'No se pudo conectar a la base de datos'})
-            
+
             cur = conn.cursor()
-            
+
             # Actualizar usuarios con created_at NULL
             cur.execute('''
-                UPDATE users 
+                UPDATE users
                 SET created_at = NOW() - INTERVAL '1 day' * (id - 1),
                     updated_at = NOW()
                 WHERE created_at IS NULL
             ''')
-            
+
             affected_rows = cur.rowcount
             conn.commit()
-            conn.close()
-            
+
             return jsonify({
                 'success': True,
                 'message': f'Updated {affected_rows} users with valid dates',
                 'affected_rows': affected_rows
             })
-            
+
         except Exception as e:
             return jsonify({'error': f'Error: {str(e)}'})
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
     @admin_required
@@ -2014,14 +2069,22 @@ def setup_auth_routes(app):
             if not conn or conn['user_id'] != user['id']:
                 return jsonify({'error': 'Connection not found'}), 404
 
-            db = get_db_connection()
-            if not db:
-                return jsonify({'error': 'Database error'}), 500
-            cur = db.cursor()
-            cur.execute('DELETE FROM oauth_connections WHERE id = %s', (connection_id,))
-            db.commit()
-            db.close()
-            return jsonify({'success': True})
+            # Refactor 2026-05-25: try/finally to GUARANTEE db.close().
+            db = None
+            try:
+                db = get_db_connection()
+                if not db:
+                    return jsonify({'error': 'Database error'}), 500
+                cur = db.cursor()
+                cur.execute('DELETE FROM oauth_connections WHERE id = %s', (connection_id,))
+                db.commit()
+                return jsonify({'success': True})
+            finally:
+                if db is not None:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
         except Exception as e:
             logger.error(f"Error eliminando conexión {connection_id}: {e}")
             return jsonify({'error': 'Failed to delete connection'}), 500
@@ -2305,6 +2368,8 @@ def setup_auth_routes(app):
     @admin_required
     def admin_user_invitations(user_id):
         """Obtener invitaciones detalladas de un usuario"""
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn.close().
+        conn = None
         try:
             conn = get_db_connection()
             if not conn:
@@ -2315,7 +2380,6 @@ def setup_auth_routes(app):
             cur.execute("SELECT to_regclass('public.project_invitations') AS reg")
             reg = cur.fetchone()
             if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
-                conn.close()
                 return jsonify({'success': True, 'invitations': []})
 
             cur.execute('''
@@ -2334,16 +2398,23 @@ def setup_auth_routes(app):
                     if r.get(k):
                         r[k] = r[k].isoformat()
                 invitations.append(r)
-            conn.close()
             return jsonify({'success': True, 'invitations': invitations})
         except Exception as e:
             logger.error(f"Error obteniendo invitaciones de usuario {user_id}: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     @app.route('/admin/audit-log')
     @admin_required
     def admin_audit_log():
         """Obtener últimas acciones del admin"""
+        # Refactor 2026-05-25: try/finally to GUARANTEE conn.close().
+        conn = None
         try:
             conn = get_db_connection()
             if not conn:
@@ -2354,7 +2425,6 @@ def setup_auth_routes(app):
             cur.execute("SELECT to_regclass('public.admin_audit_log') AS reg")
             reg = cur.fetchone()
             if not (reg['reg'] if isinstance(reg, dict) else reg[0]):
-                conn.close()
                 return jsonify({'success': True, 'actions': []})
 
             cur.execute('''
@@ -2380,11 +2450,16 @@ def setup_auth_routes(app):
                 if r.get('created_at'):
                     r['created_at'] = r['created_at'].isoformat()
                 actions.append(r)
-            conn.close()
             return jsonify({'success': True, 'actions': actions})
         except Exception as e:
             logger.error(f"Error obteniendo audit log: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 def get_authenticated_service(service_name, version):
     """Obtiene un servicio autenticado de Google API"""
