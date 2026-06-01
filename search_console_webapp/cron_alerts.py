@@ -161,6 +161,116 @@ def _check_cost_spike(get_db_connection_fn, multiplier: float) -> Optional[Dict]
                 pass
 
 
+def _check_provider_coverage(run: Dict, get_db_connection_fn) -> Optional[Dict]:
+    """
+    Alert si algún LLM HABILITADO no devolvió NINGÚN resultado durante el run.
+
+    Cubre el fallo silencioso en el que un provider se excluye en el health-check
+    (o cae/agota cuota por completo) y desaparece del análisis sin contar como
+    'fallo de proyecto' — exactamente el caso del outage de Gemini de may-2026,
+    en el que Google estuvo a 0 resultados durante varios runs sin que ninguna
+    alerta se disparara.
+
+    Por cada proyecto que produjo filas en la ventana del run, compara los
+    providers habilitados (enabled_llms) contra los que realmente devolvieron
+    filas. Funciona para CUALQUIER provider (OpenAI / Anthropic / Google /
+    Perplexity).
+    """
+    started = run.get('started_at')
+    completed = run.get('completed_at')
+    if not started or not completed:
+        return None
+    conn = None
+    try:
+        conn = get_db_connection_fn()
+        if conn is None:
+            return None
+        cur = conn.cursor()
+        cur.execute("""
+            WITH ran AS (
+                SELECT DISTINCT project_id
+                FROM llm_monitoring_results
+                WHERE created_at >= %s AND created_at <= %s
+            ),
+            expected AS (
+                SELECT p.id AS project_id, p.name AS project_name,
+                       UNNEST(p.enabled_llms) AS provider
+                FROM llm_monitoring_projects p
+                JOIN ran r ON r.project_id = p.id
+            ),
+            got AS (
+                SELECT project_id, llm_provider, COUNT(*) AS n
+                FROM llm_monitoring_results
+                WHERE created_at >= %s AND created_at <= %s
+                GROUP BY project_id, llm_provider
+            )
+            SELECT e.provider, e.project_id, e.project_name
+            FROM expected e
+            LEFT JOIN got g
+              ON g.project_id = e.project_id AND g.llm_provider = e.provider
+            WHERE COALESCE(g.n, 0) = 0
+            ORDER BY e.provider, e.project_id
+        """, (started, completed, started, completed))
+        rows = cur.fetchall() or []
+        if not rows:
+            return None
+
+        from collections import defaultdict
+        missing = defaultdict(list)
+        for r in rows:
+            if isinstance(r, dict):
+                prov, pid, pname = r.get('provider'), r.get('project_id'), r.get('project_name')
+            else:
+                prov, pid, pname = r[0], r[1], r[2]
+            missing[prov].append(pname or f'#{pid}')
+
+        # Total de proyectos que corrieron (para calcular severidad)
+        cur.execute("""
+            SELECT COUNT(DISTINCT project_id)
+            FROM llm_monitoring_results
+            WHERE created_at >= %s AND created_at <= %s
+        """, (started, completed))
+        rr = cur.fetchone()
+        if isinstance(rr, dict):
+            total_ran = (list(rr.values())[0] if rr else 0) or 0
+        else:
+            total_ran = (rr[0] if rr else 0) or 0
+
+        parts = []
+        global_outage = False
+        for prov, projects in sorted(missing.items()):
+            parts.append(f"{prov} (faltó en {len(projects)}/{total_ran} proyectos)")
+            if total_ran and len(projects) >= total_ran:
+                global_outage = True
+
+        return {
+            'type': 'provider_missing',
+            'severity': 'high' if global_outage else 'medium',
+            'metric': '; '.join(parts),
+            'threshold': '0 resultados',
+            'message': (
+                'Uno o más LLMs habilitados no devolvieron ningún resultado en este run: '
+                + '; '.join(parts) + '. '
+                'Posible health-check fallido, API caída, cuota agotada o modelo retirado. '
+                'Revisa los logs del provider y el modelo is_current en llm_model_registry.'
+            ),
+        }
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-coverage check skipped: {e}")
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 # ---------------------------------------------------------------------------
 # Email rendering and sending
 # ---------------------------------------------------------------------------
@@ -324,6 +434,12 @@ def check_and_send_cron_alerts(run_id: int, get_db_connection_fn=None) -> Dict:
         if a: alerts.append(a)
     except Exception as e:
         logger.warning(f"[cron_alerts] cost-spike check failed: {e}")
+
+    try:
+        a = _check_provider_coverage(run, get_db_connection_fn)
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-coverage check failed: {e}")
 
     if not alerts:
         logger.info(f"[cron_alerts] run {run_id}: no thresholds breached")
@@ -651,6 +767,11 @@ def send_run_completion_email(run_id: int, get_db_connection_fn=None) -> Dict:
         if a: alerts.append(a)
     except Exception as e:
         logger.warning(f"[cron_alerts] cost-spike check failed: {e}")
+    try:
+        a = _check_provider_coverage(run, get_db_connection_fn)
+        if a: alerts.append(a)
+    except Exception as e:
+        logger.warning(f"[cron_alerts] provider-coverage check failed: {e}")
 
     run_cost = _load_run_cost(run, get_db_connection_fn)
     errors = _load_top_errors(run, get_db_connection_fn, limit=10)
