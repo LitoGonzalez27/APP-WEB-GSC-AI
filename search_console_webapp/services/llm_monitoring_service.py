@@ -1222,13 +1222,20 @@ JSON:"""
             # Filtrar LLMs activos
             enabled_llms = project['enabled_llms'] or []
             active_providers = {
-                name: provider 
+                name: provider
                 for name, provider in self.providers.items()
                 if name in enabled_llms
             }
-            
+
             if len(active_providers) == 0:
                 raise Exception("No hay proveedores LLM habilitados para este proyecto")
+
+            # Conjunto de providers que SE ESPERABA ejecutar (habilitados ∩
+            # instanciados), capturado ANTES del health-check. Se usa abajo para
+            # detectar providers que terminan con 0 resultados (p.ej. excluidos
+            # por el health-check) — que de otro modo desaparecerían del run sin
+            # contar como "incompletos" ni disparar la reconciliación.
+            expected_provider_names = list(active_providers.keys())
             
             logger.info(f"   🤖 {len(active_providers)} proveedores habilitados")
             logger.info("")
@@ -1312,17 +1319,30 @@ JSON:"""
 
                 if not health_ok:
                     unhealthy_providers.append(name)
-                    logger.error(f"   ⚠️  Este provider será EXCLUIDO del análisis")
-            
-            # Usar solo providers saludables
-            active_providers = healthy_providers
-            
+
+            # ── Política de exclusión por health-check ──
+            # Por defecto NO excluimos un provider por fallar el health-check
+            # ligero. El "Hi" con timeout corto puede fallar puntualmente bajo
+            # carga aunque el provider funcione, y excluirlo borra el provider
+            # entero del run de forma silenciosa (causa del outage de Gemini de
+            # may-2026). Las 5 capas de retry sobre las queries reales decidirán,
+            # y cualquier fallo persistente quedará como filas de error visibles.
+            # Comportamiento estricto opcional: LLM_HEALTHCHECK_EXCLUDE_ON_FAIL=true
+            exclude_on_fail = os.getenv('LLM_HEALTHCHECK_EXCLUDE_ON_FAIL', 'false').lower() == 'true'
+            if unhealthy_providers and exclude_on_fail:
+                active_providers = healthy_providers
+                logger.warning(f"⚠️  Excluidos del análisis (health-check estricto): {', '.join(unhealthy_providers)}")
+            elif unhealthy_providers:
+                logger.warning(f"⚠️  Health-check falló para: {', '.join(unhealthy_providers)}")
+                logger.warning(f"   → NO se excluyen; se intentarán con el sistema de retry en las queries reales")
+            # (si exclude_on_fail=False, active_providers conserva todos los habilitados)
+
             logger.info("")
             logger.info("=" * 70)
             logger.info(f"✅ PROVIDERS SALUDABLES: {len(active_providers)}/{len(enabled_llms)}")
             logger.info("=" * 70)
             logger.info(f"Activos: {', '.join(active_providers.keys())}")
-            if unhealthy_providers:
+            if unhealthy_providers and exclude_on_fail:
                 logger.warning(f"⚠️  Excluidos: {', '.join(unhealthy_providers)}")
                 logger.warning(f"   → El análisis continuará sin estos providers")
             logger.info("")
@@ -1663,10 +1683,16 @@ JSON:"""
                 pass
         
         # ✨ NUEVO: Calcular completitud por LLM
+        # Iteramos sobre los providers ESPERADOS (capturados antes del
+        # health-check), no solo sobre los que devolvieron filas. Así un provider
+        # que terminó con 0 resultados (p.ej. excluido por health-check o caído)
+        # cuenta como incompleto (0/N) y la reconciliación (Capa 4) lo reintenta,
+        # en vez de desaparecer silenciosamente del run.
         completeness_by_llm = {}
         incomplete_llms = []
-        
-        for llm_name, llm_results in results_by_llm.items():
+
+        for llm_name in expected_provider_names:
+            llm_results = results_by_llm.get(llm_name, [])
             queries_analyzed = len(llm_results)
             completeness_pct = (queries_analyzed / total_queries_expected * 100) if total_queries_expected > 0 else 0
             completeness_by_llm[llm_name] = {

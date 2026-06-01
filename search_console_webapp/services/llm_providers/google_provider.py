@@ -14,6 +14,7 @@ MODEL IDs disponibles:
 Docs: https://ai.google.dev/gemini-api/docs/models
 """
 
+import os
 import logging
 import time
 from typing import Dict, Optional
@@ -56,8 +57,8 @@ class GoogleProvider(BaseLLMProvider):
         else:
             self.model_name = get_current_model_for_provider('google')
             if not self.model_name:
-                self.model_name = 'gemini-3-flash-preview'
-                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3-flash-preview por defecto")
+                self.model_name = 'gemini-3.5-flash'
+                logger.warning("⚠️ No se encontró modelo actual en BD, usando gemini-3.5-flash por defecto")
         
         generation_config = {
             'max_output_tokens': 65536,
@@ -176,6 +177,7 @@ class GoogleProvider(BaseLLMProvider):
     
     def get_model_display_name(self) -> str:
         display_names = {
+            'gemini-3.5-flash': 'Gemini 3.5 Flash',
             'gemini-3-flash-preview': 'Gemini 3 Flash',
             'gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
             'gemini-3-pro-preview': 'Gemini 3 Pro',
@@ -191,9 +193,14 @@ class GoogleProvider(BaseLLMProvider):
         Verifica que la API key funcione
         """
         try:
+            # Gemini 3.x es un modelo "thinking": un "Hi" puede tardar más que un
+            # chat clásico. 15s era demasiado agresivo y, bajo la carga concurrente
+            # del cron, el health-check fallaba y excluía a Google del run entero.
+            # Timeout configurable (default 30s).
+            timeout_s = int(os.getenv('GOOGLE_HEALTHCHECK_TIMEOUT', '30'))
             test_response = self.model.generate_content(
                 "Hi",
-                request_options={"timeout": 15}  # Health check: 15s max
+                request_options={"timeout": timeout_s}
             )
             if test_response and test_response.text:
                 logger.info("✅ Google connection test successful")
