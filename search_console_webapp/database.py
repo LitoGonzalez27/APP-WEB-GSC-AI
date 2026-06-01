@@ -436,22 +436,27 @@ def init_database():
         cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_status ON llm_monitoring_analysis_runs(status)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_analysis_runs_started ON llm_monitoring_analysis_runs(started_at DESC)')
 
-        # ── Migración: Google → Gemini 3 Flash (2026-03-04) ──
-        # Asegurar que gemini-3-flash-preview exista y sea el modelo current
+        # ── Migración: Google → Gemini 3.5 Flash (2026-06-01) ──
+        # Asegurar que gemini-3.5-flash exista y sea el modelo current.
+        # Sustituye a gemini-3-flash-preview: ese modelo 'preview' es efímero y
+        # Google lo capó/limitó ~22-26 may 2026, lo que dejó a Gemini fuera del
+        # análisis diario de todos los proyectos sin previo aviso. 3.5-flash es
+        # un modelo estable y soportado para generateContent.
         cur.execute("""
             INSERT INTO llm_model_registry (
                 llm_provider, model_id, model_display_name,
                 cost_per_1m_input_tokens, cost_per_1m_output_tokens,
-                is_current, is_available
+                is_current, is_available, pending_approval
             ) VALUES (
-                'google', 'gemini-3-flash-preview', 'Gemini 3 Flash',
-                0.50, 3.00, FALSE, TRUE
+                'google', 'gemini-3.5-flash', 'Gemini 3.5 Flash',
+                0.50, 3.00, FALSE, TRUE, FALSE
             )
             ON CONFLICT (llm_provider, model_id) DO UPDATE SET
-                model_display_name = 'Gemini 3 Flash',
+                model_display_name = 'Gemini 3.5 Flash',
                 cost_per_1m_input_tokens = 0.50,
                 cost_per_1m_output_tokens = 3.00,
                 is_available = TRUE,
+                pending_approval = FALSE,
                 updated_at = NOW()
         """)
         # Quitar is_current de todos los modelos Google
@@ -460,13 +465,13 @@ def init_database():
             SET is_current = FALSE, updated_at = NOW()
             WHERE llm_provider = 'google'
         """)
-        # Marcar Flash como current
+        # Marcar Gemini 3.5 Flash como current
         cur.execute("""
             UPDATE llm_model_registry
             SET is_current = TRUE, updated_at = NOW()
-            WHERE llm_provider = 'google' AND model_id = 'gemini-3-flash-preview'
+            WHERE llm_provider = 'google' AND model_id = 'gemini-3.5-flash'
         """)
-        logger.info("✅ Google model migrado a gemini-3-flash-preview")
+        logger.info("✅ Google model current = gemini-3.5-flash")
 
         # ── Admin Audit Log ──
         cur.execute('''
