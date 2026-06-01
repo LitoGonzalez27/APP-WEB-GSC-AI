@@ -442,21 +442,24 @@ def init_database():
         # Google lo capó/limitó ~22-26 may 2026, lo que dejó a Gemini fuera del
         # análisis diario de todos los proyectos sin previo aviso. 3.5-flash es
         # un modelo estable y soportado para generateContent.
+        # NOTA: no referenciar 'pending_approval' aquí. Esa columna la añade la
+        # migración llm_model_discovery_v2 y NO existe en todos los entornos
+        # (p.ej. staging). Tocarla rompe init_database() e impide arrancar la app.
+        # La gestión de pending_approval se hace aparte, donde la columna exista.
         cur.execute("""
             INSERT INTO llm_model_registry (
                 llm_provider, model_id, model_display_name,
                 cost_per_1m_input_tokens, cost_per_1m_output_tokens,
-                is_current, is_available, pending_approval
+                is_current, is_available
             ) VALUES (
                 'google', 'gemini-3.5-flash', 'Gemini 3.5 Flash',
-                0.50, 3.00, FALSE, TRUE, FALSE
+                0.50, 3.00, FALSE, TRUE
             )
             ON CONFLICT (llm_provider, model_id) DO UPDATE SET
                 model_display_name = 'Gemini 3.5 Flash',
                 cost_per_1m_input_tokens = 0.50,
                 cost_per_1m_output_tokens = 3.00,
                 is_available = TRUE,
-                pending_approval = FALSE,
                 updated_at = NOW()
         """)
         # Quitar is_current de todos los modelos Google
